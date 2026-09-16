@@ -9,7 +9,6 @@ import { useRef, useState } from 'react'
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
-import { useTourTarget } from '@/hooks/use-tour-target'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { mobileMotion, toAnimatedEasing } from '@/lib/motion'
@@ -150,7 +149,6 @@ function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; toke
 function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
   const voiceRef = useRef<View>(null)
   const [openConversationScale] = useState(() => new Animated.Value(1))
-  useTourTarget('tour-chat-voice', voiceRef)
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
@@ -229,7 +227,6 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
         {props.onVoice ? (
           <Pressable
             ref={voiceRef}
-            testID="tour-chat-voice"
             accessibilityRole="button"
             accessibilityLabel={isRecording ? props.voiceWords.stop : props.voiceWords.start}
             accessibilityState={{ disabled: voiceDisabled }}

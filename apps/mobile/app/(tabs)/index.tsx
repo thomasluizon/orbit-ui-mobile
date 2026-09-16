@@ -46,7 +46,7 @@ export default function TodayScreen() {
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
-  const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
+  const [allLoadedIds, setAllLoadedIds] = useState<Set<string> | null>(null)
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
   const [todayFocused, setTodayFocused] = useState(false)
   const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
@@ -76,14 +76,12 @@ export default function TodayScreen() {
     filterMotionKey: date.dateStr,
     isRefetching: Boolean(habitsQuery.data && habitsQuery.isFetching),
   })
-  const visibleHabitIds = useMemo(() => new Set(habitsById.keys()), [habitsById])
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
     selectedDateStr: date.dateStr,
     today: date.today,
     habitListRef,
     habitListAllLoadedIds: allLoadedIds,
-    visibleHabitIds,
     habitsById,
     closeControlsMenu,
   })
@@ -188,7 +186,7 @@ export default function TodayScreen() {
   )
 
   return (
-    <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
+    <View testID="today-content-column" style={[styles.screen, { backgroundColor: tokens.bg }]}>
       <Animated.View style={[styles.listBand, motion.refetchAnimatedStyle]}>
         <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
           <HabitList
@@ -240,7 +238,7 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
   listBand: { flex: 1 },
   header: { gap: 24, paddingBottom: 24 },
   notice: { paddingHorizontal: 0 },

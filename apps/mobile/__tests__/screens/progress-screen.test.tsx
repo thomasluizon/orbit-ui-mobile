@@ -236,6 +236,17 @@ function isAccessibilityHidden(node: TestNode): boolean {
 }
 
 describe('mobile ProgressContent', () => {
+  it('keeps the Wrapped fallback as the first Progresso entry', async () => {
+    const tree = await renderProgress()
+    const firstAction = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+    )[0]!
+
+    expect(firstAction.props.accessibilityLabel).toBe('profile.wrappedTitle')
+    TestRenderer.act(() => (firstAction.props.onPress as () => void)())
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped')
+  })
+
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in resting and pressed states in %s', async (mode) => {
     theme.mode = mode
     mocks.goals.data.allGoals = [createMockGoal()]
@@ -260,6 +271,33 @@ describe('mobile ProgressContent', () => {
     expect(card.findAll((node) => node.props.children === 'goals.status.active')).toHaveLength(0)
     expect(card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'badge-solid')).toHaveLength(1)
     expect(card.findAll((node) => typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.daysOverdue'))).toHaveLength(0)
+  })
+
+  it('retargets an already-mounted goal card ring when progress changes', async () => {
+    const goal = createMockGoal({ progressPercentage: 25 })
+    mocks.goals.data.allGoals = [goal]
+    const timing = vi.spyOn(ReactNative.Animated, 'timing')
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === goal.title)[0]!
+    const ring = card.findAll((node) => node.props.accessibilityRole === 'progressbar')[0]!
+    const svg = ring.findAll((node) => node.type === 'Svg')[0]!
+    await TestRenderer.act(() => (svg.props.onLayout as () => void)())
+
+    mocks.goals.data.allGoals = [{ ...goal, currentValue: 6, progressPercentage: 50 }]
+    await TestRenderer.act(() => tree.update(<ProgressScreen />))
+
+    const updatedCard = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === goal.title)[0]!
+    const updatedRing = updatedCard.findAll((node) => node.props.accessibilityRole === 'progressbar')[0]!
+    expect(updatedRing).toBe(ring)
+    expect(updatedRing.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 50 })
+    expect(timing).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        toValue: Math.PI * 20.625,
+        duration: 220,
+        useNativeDriver: false,
+      }),
+    )
   })
 
   it('filters the same goal list through all four views', async () => {

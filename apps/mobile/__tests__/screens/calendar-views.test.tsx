@@ -132,11 +132,6 @@ vi.mock("@/hooks/use-app-toast", () => ({
   useAppToast: () => ({ showError: state.showError }),
 }));
 
-vi.mock("@/hooks/use-tour-target", () => ({ useTourTarget: () => {} }));
-
-vi.mock("@/hooks/use-tour-scroll-container", () => ({
-  useTourScrollContainer: () => ({ onTourScroll: () => {} }),
-}));
 
 vi.mock("@/hooks/use-horizontal-swipe", () => ({
   useHorizontalSwipe: ({

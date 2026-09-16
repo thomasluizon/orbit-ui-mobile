@@ -50,10 +50,6 @@ export interface PersistedUIState {
   activeView: ActiveView;
 }
 
-export interface TourUIState extends PersistedUIState {
-  searchQuery: string;
-}
-
 export function migratePersistedUIState(
   persistedState: unknown,
 ): PersistedUIState {
@@ -134,21 +130,6 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   return {
     activeFilters,
     activeView: state.activeView,
-  };
-}
-
-export function getTourSessionUIState(state: UIStoreState): TourUIState {
-  return {
-    ...getPersistedUIState(state),
-    searchQuery: state.searchQuery,
-  };
-}
-
-export function createTourUIState(): TourUIState {
-  return {
-    activeFilters: {},
-    activeView: "today",
-    searchQuery: "",
   };
 }
 

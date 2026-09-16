@@ -9,6 +9,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
+  applySuggestionEmoji,
   applySuggestionSchedule,
 } from './create-habit-modal/apply-suggestion'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -34,6 +35,7 @@ import {
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
 import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
+import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
 
 interface EditHabitModalProps {
   open: boolean
@@ -83,10 +85,12 @@ export function EditHabitModal({
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
   const suggestion = useHabitSuggestion()
+  const emojiSuggestion = useHabitSuggestion()
   const { showError, showSuccess, showInfo } = useAppToast()
 
   const formHelpers = useHabitForm()
   const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
+  const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
   const tags = useTagSelection()
   const relationshipFieldsTouchedRef = useRef({
     goalIds: false,
@@ -174,6 +178,13 @@ export function EditHabitModal({
   useLayoutEffect(() => {
     suggestionRevision.advance()
   }, [sessionHabitId, suggestionRevision])
+  useEffect(() => {
+    suggestionRequests.updateContext(sessionHabitId, watchedTitle)
+  }, [sessionHabitId, suggestionRequests, watchedTitle])
+  useEffect(
+    () => () => suggestionRequests.updateContext(null, ''),
+    [suggestionRequests],
+  )
   const sessionDetailId = habitDetail?.id ?? null
   const previousSessionRef = useRef<{
     habitId: string | null
@@ -314,12 +325,19 @@ export function EditHabitModal({
   )
 
   const handleSuggest = useCallback(async () => {
-    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
+    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
+    const title = currentTitle.trim()
     if (title.length === 0) return EMPTY_HABIT_FORM_PROPOSAL
+    suggestionRequests.updateContext(sessionHabitId, currentTitle)
+    const request = suggestionRequests.begin()
+    if (!request) return null
     const requestRevision = suggestionRevision.advance()
     try {
       const response = await suggestion.mutateAsync({ title, language: locale })
-      if (!suggestionRevision.isCurrent(requestRevision)) return null
+      if (!suggestionRevision.isCurrent(requestRevision) || !suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return null
       const patch = buildHabitFormPatchFromSuggestion(
         response,
       )
@@ -344,15 +362,56 @@ export function EditHabitModal({
       }
       return proposal
     } catch (error: unknown) {
-      if (!suggestionRevision.isCurrent(requestRevision)) return null
+      if (!suggestionRevision.isCurrent(requestRevision) || !suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return null
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
       return EMPTY_HABIT_FORM_PROPOSAL
+    } finally {
+      suggestionRequests.finish()
     }
-  }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, suggestionRevision, t])
+  }, [formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionRevision, t])
+
+  const handleSuggestEmoji = useCallback(async () => {
+    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
+    const title = currentTitle.trim()
+    if (title.length === 0) return
+    suggestionRequests.updateContext(sessionHabitId, currentTitle)
+    const request = suggestionRequests.begin()
+    if (!request) return
+    const requestRevision = suggestionRevision.advance()
+
+    try {
+      const response = await emojiSuggestion.mutateAsync({ title, language: locale })
+      if (!suggestionRevision.isCurrent(requestRevision) || !suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return
+      const patch = buildHabitFormPatchFromSuggestion(response)
+      if (applySuggestionEmoji(patch, formHelpers.form)) {
+        showSuccess(t('habits.form.aiSuggestApplied'))
+      } else {
+        showInfo(t('habits.form.aiSuggestEmpty'))
+      }
+    } catch (error: unknown) {
+      if (!suggestionRevision.isCurrent(requestRevision) || !suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return
+      showError(
+        extractBackendErrorCode(error) === 'PAY_GATE'
+          ? t('habits.form.aiSuggestLimitReached')
+          : t('habits.form.aiSuggestError'),
+      )
+    } finally {
+      suggestionRequests.finish()
+    }
+  }, [emojiSuggestion, formHelpers, locale, sessionHabitId, showError, showInfo, showSuccess, suggestionRequests, suggestionRevision, t])
 
   function renderEditSheet() {
     if (!open) return null
@@ -407,7 +466,9 @@ export function EditHabitModal({
               onSlipAlertEnabledChange={handleSlipAlertEnabledChange}
               onSuggestionContextChange={suggestionRevision.advance}
               onSuggestSetup={handleSuggest}
-              isSuggesting={suggestion.isPending}
+              onSuggestEmoji={() => void handleSuggestEmoji()}
+              isSuggesting={suggestion.isPending || emojiSuggestion.isPending}
+              isSuggestingEmoji={emojiSuggestion.isPending}
               lockedGeneral={resolvedLockedGeneral}
               defaultExpanded
               startDate={habit?.createdAtUtc ?? null}

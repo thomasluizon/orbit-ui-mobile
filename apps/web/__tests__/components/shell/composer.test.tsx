@@ -158,15 +158,6 @@ describe('Composer', () => {
     expect(screen.queryByRole('button', { name: voiceWords.start })).not.toBeInTheDocument()
   })
 
-  it('exposes the stable input and voice tour targets', () => {
-    const { container } = render(<Composer {...props({ onVoice: vi.fn(), voiceWords })} />)
-    expect(container.querySelector('[data-tour="tour-chat-input"]')).toBe(
-      screen.getByRole('textbox', { name: words.placeholder }),
-    )
-    expect(container.querySelector('[data-tour="tour-chat-voice"]')).toBe(
-      screen.getByRole('button', { name: voiceWords.start }),
-    )
-  })
 
   it('replaces suggestions with recording status and a stop control', () => {
     render(<Composer {...props({ state: 'recording', onVoice: vi.fn(), voiceWords })} />)

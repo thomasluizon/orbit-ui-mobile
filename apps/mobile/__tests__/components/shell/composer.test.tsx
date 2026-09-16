@@ -4,14 +4,6 @@ import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 
-const { useTourTargetMock } = vi.hoisted(() => ({
-  useTourTargetMock: vi.fn(),
-}))
-
-vi.mock('@/hooks/use-tour-target', () => ({
-  useTourTarget: useTourTargetMock,
-}))
-
 vi.mock('react-native', async (importOriginal) => {
   const original = await importOriginal<typeof import('react-native')>()
   const ReactModule = await import('react')
@@ -115,10 +107,6 @@ function pressControl(control: { props: Record<string, (() => void) | undefined>
 }
 
 describe('Composer (mobile)', () => {
-  beforeEach(() => {
-    useTourTargetMock.mockClear()
-  })
-
   it('renders three suggestions in their named group', async () => {
     const tree = await renderComposer(props())
     const group = byLabel(tree.root, words.suggestionsLabel)[0]
@@ -265,12 +253,6 @@ describe('Composer (mobile)', () => {
     expect(onVoice).toHaveBeenCalledOnce()
     TestRenderer.act(() => tree.update(<Composer {...props()} />))
     expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
-  })
-
-  it('registers the rendered voice control as the stable tour target', async () => {
-    const tree = await renderComposer(props({ onVoice: vi.fn(), voiceWords }))
-    expect(tree.root.findByProps({ testID: 'tour-chat-voice' })).toBeDefined()
-    expect(useTourTargetMock).toHaveBeenCalledWith('tour-chat-voice', expect.any(Object))
   })
 
   it('replaces suggestions with recording status and a stop control', async () => {

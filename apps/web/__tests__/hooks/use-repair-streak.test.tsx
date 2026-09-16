@@ -1,0 +1,96 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { renderHook, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import React from 'react'
+import { useRepairStreak } from '@/hooks/use-gamification'
+import { useAuthStore } from '@/stores/auth-store'
+
+const repairStreakGapAction = vi.fn()
+
+vi.mock('@/app/actions/gamification', () => ({
+  repairStreakGap: (dates: string[]) => repairStreakGapAction(dates),
+  reportAchievementEvent: vi.fn(),
+}))
+
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
+
+function createWrapper(queryClient: QueryClient) {
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+  }
+}
+
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
+}
+
+describe('useRepairStreak', () => {
+  beforeEach(() => {
+    repairStreakGapAction.mockReset()
+    mockFetch.mockReset()
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { userId: 'user-1', name: 'Thomas', email: 'thomas@example.com' },
+      expiresAt: Date.now() + 60_000,
+      sessionRefreshFailed: false,
+    })
+  })
+
+  it('signs the user out when the repair reports a definitive session refresh failure', async () => {
+    repairStreakGapAction.mockResolvedValue({
+      ok: false,
+      error: 'Unauthorized',
+      status: 401,
+      sessionRefreshFailed: true,
+    })
+    mockFetch.mockResolvedValue(Response.json(
+      { expiresAt: null, refreshFailed: true },
+      { status: 401 },
+    ))
+
+    const { result } = renderHook(() => useRepairStreak('America/Sao_Paulo'), {
+      wrapper: createWrapper(createQueryClient()),
+    })
+
+    result.current.mutate(['2026-09-14'])
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toMatchObject({ message: 'Unauthorized' })
+    await waitFor(() => expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      sessionRefreshFailed: true,
+    }))
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/session')
+  })
+
+  it('clears a stale refresh failure and caches the streak when the repair succeeds', async () => {
+    const streakInfo = {
+      currentStreak: 4,
+      longestStreak: 9,
+      lastCompletedDate: '2026-09-15',
+      freezesRemaining: 1,
+      repairableDates: [],
+    }
+    repairStreakGapAction.mockResolvedValue({ ok: true, data: streakInfo })
+    useAuthStore.setState({ sessionRefreshFailed: true })
+    const expiresAt = Date.now() + 3_600_000
+    mockFetch.mockResolvedValue(Response.json({ expiresAt, refreshFailed: false }))
+
+    const queryClient = createQueryClient()
+    const { result } = renderHook(() => useRepairStreak('America/Sao_Paulo'), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    result.current.mutate(['2026-09-14'])
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(repairStreakGapAction).toHaveBeenCalledWith(['2026-09-14'])
+    await waitFor(() => expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      sessionRefreshFailed: false,
+    }))
+  })
+})

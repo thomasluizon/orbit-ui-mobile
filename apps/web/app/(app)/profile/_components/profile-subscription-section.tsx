@@ -21,7 +21,7 @@ export function ProfileSubscriptionSection({
   return (
     <div>
       <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
-      <div data-tour="tour-profile-subscription" className="px-5">
+      <div className="px-5">
         <SubscriptionCard
           profile={profile}
           trialDaysLeft={trialDaysLeft}

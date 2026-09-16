@@ -28,7 +28,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-vi.mock('@/app/actions/auth', () => ({
+vi.mock('@/lib/actions/auth', () => ({
   requestDeletion: () => mocks.requestDeletion(),
 }))
 

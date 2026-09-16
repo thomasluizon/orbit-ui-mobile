@@ -140,6 +140,10 @@ vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: true }),
 }))
 
+vi.mock('@/stores/offline-sync-store', () => ({
+  useOfflineSyncStore: { getState: () => ({ clearDrops: vi.fn(() => Promise.resolve()) }) },
+}))
+
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: new Proxy({}, { get: () => '#111111' }),
@@ -229,13 +233,7 @@ vi.mock('@/lib/query-client', () => ({
   clearPersistedQueryCache: vi.fn(),
 }))
 
-vi.mock('@/hooks/use-tour-target', () => ({
-  useTourTarget: vi.fn(),
-}))
 
-vi.mock('@/hooks/use-tour-scroll-container', () => ({
-  useTourScrollContainer: () => ({ onTourScroll: vi.fn() }),
-}))
 
 vi.mock('@/components/ui/theme-toggle', () => ({
   ThemeToggle: () => React.createElement('ThemeToggle'),
@@ -262,10 +260,6 @@ vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
 }))
 
 
-vi.mock('@/components/tour/tour-replay-modal', () => ({
-  TourReplayModal: ({ visible }: { visible: boolean }) =>
-    visible ? React.createElement('TourReplayModalOpen', {}) : null,
-}))
 
 vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,

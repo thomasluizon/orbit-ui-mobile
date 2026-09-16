@@ -12,7 +12,7 @@ import {
   createChecklistTemplateAction,
   deleteChecklistTemplateAction,
   listChecklistTemplatesAction,
-} from '@/app/actions/checklist-templates'
+} from '@/lib/actions/checklist-templates'
 
 export function useChecklistTemplates() {
   return useQuery({

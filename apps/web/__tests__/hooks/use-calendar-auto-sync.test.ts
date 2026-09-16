@@ -17,7 +17,7 @@ import type {
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-vi.mock('@/app/actions/calendar', () => ({
+vi.mock('@/lib/actions/calendar', () => ({
   setCalendarAutoSync: vi.fn(async (enabled: boolean) => {
     const res = await fetch('/api/calendar/auto-sync', {
       method: 'PUT',

@@ -15,9 +15,6 @@ import {
 
 const TestRenderer = require("react-test-renderer");
 
-vi.mock("@/hooks/use-tour-target", () => ({
-  useTourTarget: () => {},
-}));
 
 vi.mock("@/components/ui/stat-tile", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/components/ui/stat-tile")>()),

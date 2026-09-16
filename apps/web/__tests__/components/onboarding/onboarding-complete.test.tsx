@@ -12,6 +12,7 @@ vi.mock('next-intl', () => ({
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
     profile: {
+      hasProAccess: true,
       isTrialActive: false,
       trialEndsAt: null,
     },
@@ -28,8 +29,6 @@ import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
 describe('OnboardingComplete', () => {
   const defaultProps = {
     createdHabit: 'Exercise',
-    createdGoal: true,
-    hasProAccess: false,
     onFinish: vi.fn(),
   }
 
@@ -43,15 +42,14 @@ describe('OnboardingComplete', () => {
     expect(screen.getByText('onboarding.flow.complete.subtitle')).toBeInTheDocument()
   })
 
-  it('shows recap items for created habit and goal', () => {
+  it('shows the created habit recap', () => {
     render(<OnboardingComplete {...defaultProps} />)
     expect(screen.getByText('onboarding.flow.complete.recap.habit')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.flow.complete.recap.goal')).toBeInTheDocument()
   })
 
-  it('hides goal recap when no goal created', () => {
-    render(<OnboardingComplete {...defaultProps} createdGoal={false} />)
-    expect(screen.queryByText('onboarding.flow.complete.recap.goal')).not.toBeInTheDocument()
+  it('does not claim a Pro account personalized a theme', () => {
+    render(<OnboardingComplete {...defaultProps} />)
+    expect(screen.queryByText('onboarding.flow.complete.recap.theme')).not.toBeInTheDocument()
   })
 
   it('calls onFinish when CTA clicked', () => {

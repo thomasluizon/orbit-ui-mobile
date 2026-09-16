@@ -66,7 +66,6 @@ interface SettingsGroupRowProps {
   proBadge?: boolean
   proBadgeLabel?: string
   ariaLabel?: string
-  dataTour?: string
   dataTestId?: string
 }
 
@@ -81,7 +80,6 @@ export function SettingsGroupRow({
   proBadge = false,
   proBadgeLabel,
   ariaLabel,
-  dataTour,
   dataTestId,
 }: Readonly<SettingsGroupRowProps>) {
   const resolvedAccessory = accessory ?? (onClick ? 'chevron' : 'none')
@@ -147,7 +145,6 @@ export function SettingsGroupRow({
         type="button"
         onClick={onClick}
         aria-label={ariaLabel}
-        data-tour={dataTour}
         data-testid={dataTestId}
         className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)]"
         style={{
@@ -164,7 +161,6 @@ export function SettingsGroupRow({
   return (
     <div
       aria-label={ariaLabel}
-      data-tour={dataTour}
       data-testid={dataTestId}
       className="w-full flex items-center justify-between"
       style={SETTINGS_ROW_STYLE}

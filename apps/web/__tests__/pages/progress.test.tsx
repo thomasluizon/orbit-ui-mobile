@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -185,6 +185,15 @@ describe('ProgressContent', () => {
     browser = await browserLaunch
   })
 
+  it('keeps the Wrapped fallback as the first Progresso entry', () => {
+    render(<ProgressPage />)
+    const firstAction = screen.getAllByRole('button')[0]
+
+    expect(firstAction).toHaveAccessibleName('profile.wrappedTitle')
+    fireEvent.click(firstAction!)
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped')
+  })
+
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
@@ -235,6 +244,24 @@ describe('ProgressContent', () => {
     expect(card.querySelectorAll('[data-variant="solid"]')).toHaveLength(1)
     expect(within(card).queryByText(/^progressScreen\.goals\.daysOverdue(?::|$)/)).not.toBeInTheDocument()
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
+  })
+
+  it('retargets an already-mounted goal card ring when progress changes', async () => {
+    const goal = createMockGoal({ progressPercentage: 25 })
+    mocks.goals.data.allGoals = [goal]
+    const { rerender } = render(<ProgressPage />)
+    const ring = within(screen.getByRole('button', { name: goal.title })).getByRole('progressbar')
+    const sweep = ring.querySelector('circle:last-child')
+    await waitFor(() => expect(sweep).toHaveClass('transition-[stroke-dashoffset]'))
+
+    mocks.goals.data.allGoals = [{ ...goal, currentValue: 6, progressPercentage: 50 }]
+    rerender(<ProgressPage />)
+
+    const updatedRing = within(screen.getByRole('button', { name: goal.title })).getByRole('progressbar')
+    expect(updatedRing).toBe(ring)
+    expect(updatedRing).toHaveAttribute('aria-valuenow', '50')
+    expect(updatedRing.querySelector('circle:last-child')).toBe(sweep)
+    expect(sweep).toHaveClass('transition-[stroke-dashoffset]')
   })
 
   it('filters the same goal list through all four views', () => {
@@ -412,7 +439,8 @@ describe('ProgressContent', () => {
     expect(Array.from(container.querySelectorAll('[data-variant]')).map((unit) => unit.getAttribute('data-variant'))).toEqual([
       'settings', 'settings', 'stat-tile', 'stat-tile', 'stat-tile', 'stat-tile', 'habit-row', 'habit-row', 'habit-row',
     ])
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByRole('button')).toHaveAccessibleName('profile.wrappedTitle')
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
   })
 
@@ -431,7 +459,7 @@ describe('ProgressContent', () => {
     mocks[query].isError = true
     const { rerender } = render(<ProgressPage />)
     expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getAllByRole('button')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
     for (const request of [mocks.account, mocks.goals, mocks.gamification]) expect(request.refetch).toHaveBeenCalledTimes(1)
     mocks[query].isError = false
@@ -478,7 +506,7 @@ describe('ProgressContent', () => {
     const { container } = render(<ProgressPage />)
     expect(screen.getByText('progressScreen.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getAllByRole('button')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.emptyAction' }))
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()

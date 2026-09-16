@@ -10,6 +10,12 @@ import { HabitEmojiSelector } from './habit-emoji-selector'
 import { Proposed } from '@/components/ui/proposed'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 
+type HabitUnderstandingWithEmojiSuggestionProps = HabitUnderstandingProps & {
+  onSuggestEmoji?: () => void
+  isSuggestingEmoji?: boolean
+  isSuggestionDisabled?: boolean
+}
+
 export function HabitUnderstanding({
   value,
   error,
@@ -25,12 +31,15 @@ export function HabitUnderstanding({
   scheduleLocked = false,
   onValueChange,
   onEmojiSelect,
+  onSuggestEmoji,
+  isSuggestingEmoji = false,
+  isSuggestionDisabled = false,
   onToggleDay,
   onQuantityChange,
   onModeChange,
   onIntervalWeeksChange,
   labels,
-}: Readonly<HabitUnderstandingProps>) {
+}: Readonly<HabitUnderstandingWithEmojiSuggestionProps>) {
   const hasValue = value.trim().length > 0
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
@@ -83,6 +92,10 @@ export function HabitUnderstanding({
               <HabitEmojiSelector
                 selectedEmoji={emoji}
                 onSelect={onEmojiSelect}
+                onSuggest={onSuggestEmoji}
+                canSuggest={hasValue}
+                isSuggesting={isSuggestingEmoji}
+                isDisabled={isSuggestionDisabled}
                 wellSize={46}
               />
               <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>

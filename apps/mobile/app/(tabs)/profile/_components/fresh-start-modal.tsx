@@ -146,6 +146,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
       })
 
       offlineQueue.clear()
+      await useOfflineSyncStore.getState().clearDrops()
       if (isQueuedResult(result)) {
         offlineQueue.enqueue(queuedResetMutation)
       }

@@ -70,14 +70,14 @@ beforeEach(() => {
 })
 
 describe('CalendarImportPrompt gating', () => {
-  it('shows the sheet once onboarding and the tour are both complete', () => {
+  it('shows the sheet once onboarding is complete', () => {
     mocks.profile = baseProfile()
     expect(sheetCount(renderPrompt())).toBe(1)
   })
 
-  it('stays hidden while the tour is still running (hasCompletedTour false)', () => {
+  it('does not wait for the retired tour state', () => {
     mocks.profile = baseProfile({ hasCompletedTour: false })
-    expect(sheetCount(renderPrompt())).toBe(0)
+    expect(sheetCount(renderPrompt())).toBe(1)
   })
 
   it('stays hidden before onboarding completes', () => {

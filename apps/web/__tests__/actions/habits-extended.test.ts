@@ -14,14 +14,15 @@ vi.mock('@/lib/auth-api', () => ({
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-const {
-  bulkLogHabits,
-  bulkSkipHabits,
-  createSubHabit,
-  moveHabitParent,
-  updateChecklist,
-  linkGoalsToHabit,
-} = await import('@/app/actions/habits')
+const habitServerActions = await import('@/app/actions/habits')
+const { bindServerAction } = await import('@/lib/client-action')
+
+const bulkLogHabits = bindServerAction(habitServerActions.bulkLogHabits)
+const bulkSkipHabits = bindServerAction(habitServerActions.bulkSkipHabits)
+const createSubHabit = bindServerAction(habitServerActions.createSubHabit)
+const moveHabitParent = bindServerAction(habitServerActions.moveHabitParent)
+const updateChecklist = bindServerAction(habitServerActions.updateChecklist)
+const linkGoalsToHabit = bindServerAction(habitServerActions.linkGoalsToHabit)
 
 describe('habit server actions (extended)', () => {
   beforeEach(() => {

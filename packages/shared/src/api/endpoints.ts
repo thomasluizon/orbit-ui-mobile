@@ -19,7 +19,6 @@ export const API = {
     onboarding: '/api/profile/onboarding',
     onboardingApply: '/api/profile/onboarding/apply',
     importPromptDismiss: '/api/profile/import-prompt/dismiss',
-    tour: '/api/profile/tour',
     language: '/api/profile/language',
     themePreference: '/api/profile/theme-preference',
     colorScheme: '/api/profile/color-scheme',

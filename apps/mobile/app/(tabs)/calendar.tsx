@@ -1,6 +1,4 @@
 import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction } from "react";
-import { useTourTarget } from "@/hooks/use-tour-target";
-import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import {
   View,
   Text,
@@ -349,25 +347,18 @@ function CalendarScreenContent({
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);
   const calendarScrollRef = useRef<FlatList<CalendarDayEntry>>(null);
-  useTourTarget("tour-calendar-grid", calendarGridRef);
-  useTourTarget("tour-calendar-day", calendarDayRef);
   const calendarScrollTo = useCallback((y: number) => {
     calendarScrollRef.current?.scrollToOffset({ offset: y, animated: true });
   }, []);
-  const { onTourScroll: onCalendarTourScroll } = useTourScrollContainer(
-    "/calendar",
-    calendarScrollTo,
-  );
   const [showScrollTop, setShowScrollTop] = useState(false);
   const scrollCalendarToTop = useCallback(() => {
     calendarScrollTo(0);
   }, [calendarScrollTo]);
   const handleCalendarScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      onCalendarTourScroll(event);
       setShowScrollTop(event.nativeEvent.contentOffset.y > 600);
     },
-    [onCalendarTourScroll],
+    [],
   );
 
   const [view, setView] = useState<CalendarView>("month");

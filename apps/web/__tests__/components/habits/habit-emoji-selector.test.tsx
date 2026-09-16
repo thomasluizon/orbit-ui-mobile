@@ -59,4 +59,22 @@ describe('HabitEmojiSelector', () => {
     expect(mockCloseSheet).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
+
+  it('blocks manual emoji changes while a suggestion is pending', () => {
+    const onSelect = vi.fn()
+    const { rerender } = render(
+      <HabitEmojiSelector selectedEmoji="" onSelect={onSelect} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
+
+    rerender(
+      <HabitEmojiSelector selectedEmoji="" onSelect={onSelect} isDisabled />,
+    )
+    const option = screen.getByRole('option', { name: `habits.form.emoji: ${firstEmoji}` })
+    expect(option).toBeDisabled()
+    fireEvent.click(option)
+
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(mockCloseSheet).not.toHaveBeenCalled()
+  })
 })

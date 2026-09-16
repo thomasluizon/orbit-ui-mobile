@@ -13,7 +13,7 @@ import {
   updateWeekStartDay,
   updateLanguage,
   updateTimezone,
-} from '@/app/actions/profile'
+} from '@/lib/actions/profile'
 import type { PreferencePicker } from './preference-picker-sheet'
 
 function writeLocaleCookie(value: string) {

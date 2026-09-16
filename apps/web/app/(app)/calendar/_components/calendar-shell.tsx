@@ -46,7 +46,6 @@ export function CalendarHeader({
   return (
     <div className="shrink-0" style={{ padding: '12px 16px 16px' }}>
       <div
-        data-tour="tour-calendar-month-nav"
         className="flex items-center justify-between w-full"
         style={{ padding: '0 4px' }}
       >
@@ -192,7 +191,6 @@ export function CalendarLegend({
 }: Readonly<CalendarLegendProps>) {
   return (
     <div
-      data-tour="tour-calendar-legend"
       className="flex flex-wrap items-center justify-center"
       style={{ padding: '12px 16px', gap: 16 }}
     >
