@@ -90,6 +90,23 @@ describe('GoalDetailDrawer', () => {
     expect(screen.getByText('Read 12 books')).toBeInTheDocument()
   })
 
+  it('retargets the already-mounted detail ring when progress changes', async () => {
+    const { rerender } = render(
+      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
+    )
+    const ring = screen.getByRole('progressbar')
+    const sweep = ring.querySelector('circle:last-child')
+    await waitFor(() => expect(sweep).toHaveClass('transition-[stroke-dashoffset]'))
+
+    detailGoal = { ...detailGoal, currentValue: 6, progressPercentage: 50 }
+    rerender(<GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByRole('progressbar')).toBe(ring)
+    expect(ring).toHaveAttribute('aria-valuenow', '50')
+    expect(ring.querySelector('circle:last-child')).toBe(sweep)
+    expect(sweep).toHaveClass('transition-[stroke-dashoffset]')
+  })
+
   it('keeps the linked habits section visible at count zero', () => {
     render(<GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />)
 
