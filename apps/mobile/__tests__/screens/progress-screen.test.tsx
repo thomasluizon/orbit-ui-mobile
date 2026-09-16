@@ -29,6 +29,7 @@ type TestTree = {
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
+  gamificationEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
   reorder: { mutate: vi.fn() },
   drag: vi.fn(),
@@ -67,6 +68,7 @@ const mocks = vi.hoisted(() => ({
     xpProgress: 50,
     isLoading: false,
     isError: false,
+    error: { status: 500, data: { error: 'Server error', errorCode: 'INTERNAL_SERVER_ERROR' } },
     refetch: vi.fn(),
   },
   retrospective: {
@@ -90,7 +92,7 @@ const mocks = vi.hoisted(() => ({
     },
     isLoading: false,
     isError: false,
-    error: null as { data: { errorCode: string } } | null,
+    error: null as { status?: number; data: { errorCode: string } } | null,
     refetch: vi.fn(),
   },
   freeze: {
@@ -151,7 +153,10 @@ vi.mock('@/hooks/use-goals', () => ({
   useUpdateGoalStatus: () => mocks.updateStatus,
 }))
 vi.mock('@/hooks/use-gamification', () => ({
-  useGamificationProfile: () => mocks.gamification,
+  useGamificationProfile: (enabled?: boolean) => {
+    mocks.gamificationEnabled(enabled)
+    return mocks.gamification
+  },
   useRepairStreak: () => mocks.repair,
   useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
     if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
@@ -165,7 +170,9 @@ vi.mock('@/hooks/use-gamification', () => ({
     }
   },
 }))
-vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => mocks.retrospective }))
+vi.mock('@/hooks/use-retrospective', () => ({
+  useProgressRetrospective: () => mocks.retrospective,
+}))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: theme.mode }),
 }))
@@ -229,6 +236,17 @@ function isAccessibilityHidden(node: TestNode): boolean {
 }
 
 describe('mobile ProgressContent', () => {
+  it('keeps the Wrapped fallback as the first Progresso entry', async () => {
+    const tree = await renderProgress()
+    const firstAction = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+    )[0]!
+
+    expect(firstAction.props.accessibilityLabel).toBe('profile.wrappedTitle')
+    TestRenderer.act(() => (firstAction.props.onPress as () => void)())
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped')
+  })
+
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in resting and pressed states in %s', async (mode) => {
     theme.mode = mode
     mocks.goals.data.allGoals = [createMockGoal()]
@@ -385,6 +403,10 @@ describe('mobile ProgressContent', () => {
       query.isLoading = false
       query.isError = false
     }
+    mocks.gamification.error = {
+      status: 500,
+      data: { error: 'Server error', errorCode: 'INTERNAL_SERVER_ERROR' },
+    }
     Object.assign(mocks.account.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150 })
     Object.assign(mocks.gamification.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150, achievementsEarned: 0 })
     mocks.account.profile.canViewGamification = true
@@ -468,7 +490,21 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
   })
 
-  it('does not retry a disabled gamification query', async () => {
+  it('leaves retry when gamification access is revoked after an error', async () => {
+    mocks.gamification.isError = true
+    const initial = await renderProgress()
+    expect(initial.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'error-state')).toHaveLength(1)
+
+    mocks.account.profile.canViewGamification = false
+    mocks.account.profile.hasProAccess = false
+    const changed = await renderProgress()
+    const text = changed.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(changed.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'error-state')).toHaveLength(0)
+    expect(text).toContain('progressScreen.streak.lockedBody')
+  })
+
+  it('retries gamification when the account capability hint is false', async () => {
     mocks.account.profile.canViewGamification = false
     mocks.goals.isError = true
     const tree = await renderProgress()
@@ -477,7 +513,7 @@ describe('mobile ProgressContent', () => {
     })
     expect(mocks.account.refetch).toHaveBeenCalledTimes(1)
     expect(mocks.goals.refetch).toHaveBeenCalledTimes(1)
-    expect(mocks.gamification.refetch).not.toHaveBeenCalled()
+    expect(mocks.gamification.refetch).toHaveBeenCalledTimes(1)
   })
 
   it.each([false, true])('renders one orbital empty invitation for Pro access %s', async (hasProAccess) => {
@@ -544,42 +580,32 @@ describe('mobile ProgressContent', () => {
     ])
   })
 
-  it('renders the remaining routed plan boundaries', async () => {
-    mocks.account.profile.canViewGamification = false
+  it('renders pay-gate refusals as the three locked sections', async () => {
     mocks.account.profile.hasProAccess = false
     Object.assign(mocks.account.profile, { streakFreezesAvailable: 3 })
+    mocks.gamification.isError = true
+    mocks.gamification.error = {
+      status: 403,
+      data: { error: 'Gamification is a Pro feature. Upgrade to unlock!', errorCode: 'PAY_GATE' },
+    }
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { status: 403, data: { errorCode: 'PAY_GATE' } }
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
     expect(text).toEqual(expect.arrayContaining([
       'progressScreen.streak.lockedBody',
       'progressScreen.window.lockedBody',
+      'progressScreen.achievements.lockedBody',
     ]))
-    expect(text).not.toContain('progressScreen.achievements.lockedBody')
     expect(text).not.toContain('progressScreen.streak.bankFull:{"count":3}')
     expect(text).not.toContain('progressScreen.streak.gapTitle')
     const lockedCards = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-locked-card')
-    expect(lockedCards).toHaveLength(2)
-    expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).padding)).toEqual([16, 16])
-    expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(2)
+    expect(lockedCards).toHaveLength(3)
+    expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).padding)).toEqual([16, 16, 16])
+    expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(3)
     const labels = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.label)
     expect(labels).toContain('progressScreen.streak.longest')
     expect(labels).toContain('streakDisplay.detail.tierTileLabel')
-  })
-
-  it('keeps free gamification cohorts open while locking only the Pro figures', async () => {
-    mocks.account.profile.canViewGamification = true
-    mocks.account.profile.hasProAccess = false
-
-    const tree = await renderProgress()
-    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
-
-    expect(text).toEqual(expect.arrayContaining([
-      'progressScreen.streak.currentLabel:{"count":4}',
-      'progressScreen.sections.goals',
-      'progressScreen.window.lockedBody',
-    ]))
-    expect(text).not.toContain('progressScreen.streak.lockedBody')
-    expect(text).not.toContain('progressScreen.achievements.lockedBody')
     const route = findPill(tree.root, 'progressScreen.window.lockedAction')
     const routeProps = route.props as Readonly<{ onPress?: unknown; disabled?: boolean; accessibilityState?: { disabled?: boolean } }>
     expect(routeProps.onPress).toEqual(expect.any(Function))
@@ -589,6 +615,56 @@ describe('mobile ProgressContent', () => {
       ;(routeProps.onPress as () => void)()
     })
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith({ pathname: '/upgrade', params: { from: '/progress' } })
+  })
+
+  it('keeps the Pro window locked when free gamification succeeds but retrospective returns PAY_GATE', async () => {
+    mocks.account.profile.canViewGamification = true
+    mocks.account.profile.hasProAccess = false
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = {
+      status: 403,
+      data: { errorCode: 'PAY_GATE' },
+    }
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toEqual(expect.arrayContaining([
+      'progressScreen.streak.currentLabel:{"count":4}',
+      'progressScreen.sections.goals',
+    ]))
+    expect(text).not.toContain('progressScreen.streak.lockedBody')
+    expect(text).not.toContain('progressScreen.achievements.lockedBody')
+    expect(text).toContain('progressScreen.window.lockedBody')
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-xp-summary')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === '75%')).toHaveLength(0)
+    expect(mocks.gamificationEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('renders a server-authorized window for a free account', async () => {
+    mocks.account.profile.hasProAccess = false
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === '75%')).toHaveLength(1)
+    expect(text).not.toContain('progressScreen.window.lockedBody')
+  })
+
+  it('renders a retryable window error when a free retrospective request fails', async () => {
+    mocks.account.profile.hasProAccess = false
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { status: 500, data: { errorCode: 'INTERNAL_SERVER_ERROR' } }
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'error-state')).toHaveLength(1)
+    expect(text).not.toContain('progressScreen.window.lockedBody')
+    await TestRenderer.act(() => {
+      ;(findPill(tree.root, 'progressScreen.retry').props.onPress as () => void)()
+    })
+    expect(mocks.retrospective.refetch).toHaveBeenCalledTimes(1)
   })
 
   it('renders empty weekly and habit figures without substituting unrelated totals', async () => {
@@ -664,7 +740,12 @@ describe('mobile ProgressContent', () => {
     const unearnedMark = progressive.findAll((node) => node.props.testID === 'achievement-mark-unearned')[0]!
     expect(earnedMark.props.accessibilityLabel).toBe('progressScreen.achievements.earnedState:{"name":"gamification.achievements.first_orbit.name"}')
     expect(unearnedMark.props.accessibilityLabel).toBe('progressScreen.achievements.unearnedState:{"name":"gamification.achievements.week_warrior.name"}')
-    expect(StyleSheet.flatten(earnedMark.props.style as ViewStyle).backgroundColor).toBe(createTokensV2('purple', 'dark').statusDone)
+    const earnedStyle = StyleSheet.flatten(earnedMark.props.style as ViewStyle)
+    const unearnedStyle = StyleSheet.flatten(unearnedMark.props.style as ViewStyle)
+    expect(earnedStyle.backgroundColor).toBe(createTokensV2('purple', 'dark').statusDone)
+    expect(earnedStyle.borderWidth).toBeUndefined()
+    expect(unearnedStyle.borderWidth).toBe(1.5)
+    expect(unearnedStyle.backgroundColor).toBeUndefined()
     expect(earned.findAll((node) => node.props.children === 'progressScreen.achievements.earnedLabel').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => node.props.children === 'gamification.achievements.first_friend.name')).toHaveLength(0)
 

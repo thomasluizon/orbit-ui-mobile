@@ -102,7 +102,7 @@ const validateTickets = (tickets) => {
   }
 }
 
-export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranch = "main") => {
+export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranch = "redesign/main") => {
   const configPath = fileURLToPath(configUrl)
   let text
   try {
@@ -138,6 +138,9 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
     throw new Error(".claude/orchestrator.json caps.cloudParallelTasks must be an integer from 4 through 8")
   }
   if (!isRecord(config.cloud)) throw new Error(".claude/orchestrator.json must declare a cloud object")
+  if (typeof config.cloud.enabled !== "boolean") {
+    throw new Error(".claude/orchestrator.json cloud.enabled must be a boolean")
+  }
   nonEmptyString(config.cloud.environmentId, "cloud.environmentId")
   const cloudRepositoryKey = nonEmptyString(config.cloud.repositoryKey, "cloud.repositoryKey")
   if (!isRecord(config.repos) || typeof config.repos[cloudRepositoryKey] !== "string") {

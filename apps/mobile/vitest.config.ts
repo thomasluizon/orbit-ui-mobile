@@ -206,6 +206,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-sharing.ts'),
       },
       {
+        find: 'react-native-share',
+        replacement: path.resolve(__dirname, './test-mocks/react-native-share.ts'),
+      },
+      {
         find: 'react-native-qrcode-svg',
         replacement: path.resolve(__dirname, './test-mocks/react-native-qrcode-svg.ts'),
       },

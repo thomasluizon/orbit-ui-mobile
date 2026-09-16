@@ -122,6 +122,17 @@ describe('mobile useWrapped', () => {
     expect(firstQueryOptions().enabled).toBe(false)
   })
 
+  it('fetches and caches a notification-carried closed month separately', async () => {
+    await renderWrapped('month', { closedMonth: { year: 2026, month: 8 } })
+
+    const options = firstQueryOptions()
+    expect(options.queryKey).toEqual(gamificationKeys.recap('month', 2026, 8))
+    await options.queryFn()
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      '/api/gamification/recap?period=month&year=2026&month=8',
+    )
+  })
+
   it('derives slides and a populated empty flag from a non-empty recap', async () => {
     const recap = createMockRecap()
     mocks.useQuery.mockReturnValue({
@@ -168,6 +179,7 @@ describe('mobile useWrapped', () => {
 
     const api = await renderWrapped('month')
     expect(api.current.isEmpty).toBe(false)
+    expect(api.current.slides.at(-1)?.id).toBe('share')
     expect(api.current.slides).toContainEqual({ id: 'goals', closedGoals: 4 })
   })
 

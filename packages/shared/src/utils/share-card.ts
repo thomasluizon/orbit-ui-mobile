@@ -6,17 +6,79 @@ export const RECAP_SHARE_PERIODS = ['week', 'month', 'year'] as const
 
 export type RecapSharePeriod = (typeof RECAP_SHARE_PERIODS)[number]
 
-/** A single branded stat tile on the share card: an i18n label key, an emoji, and a pre-formatted display value. */
+export interface ClosedRecapMonth {
+  year: number
+  month: number
+}
+
+export interface WrappedRouteSelection {
+  period: RecapSharePeriod
+  closedMonth?: ClosedRecapMonth
+}
+
+export const SHARE_CARD_WIDTH = 360
+export const SHARE_CARD_HEIGHT = 640
+export const SHARE_CARD_FILE_NAME = 'orbit-recap.png'
+
+export const WRAPPED_WEEKDAY_KEYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const
+
+/** A single figure on the share card with its existing i18n label and display value. */
 export interface ShareCardStat {
   labelKey: string
-  emoji: string
   value: string
 }
 
+export interface ShareCardWeekday {
+  labelKey: `dates.daysShort.${(typeof WRAPPED_WEEKDAY_KEYS)[number]}`
+  percentage: number
+}
+
 /** Builds the recap read URL for a share-card period (mirrors `buildRetrospectiveRequestUrl`). */
-export function buildRecapRequestUrl(period: RecapSharePeriod): string {
+export function buildRecapRequestUrl(
+  period: RecapSharePeriod,
+  closedMonth?: ClosedRecapMonth,
+): string {
   const params = new URLSearchParams({ period })
+  if (period === 'month' && closedMonth) {
+    params.set('year', String(closedMonth.year))
+    params.set('month', String(closedMonth.month))
+  }
   return `${API.gamification.recap}?${params.toString()}`
+}
+
+export function parseWrappedRouteSelection(
+  periodValue: unknown,
+  yearValue: unknown,
+  monthValue: unknown,
+): WrappedRouteSelection {
+  const period = typeof periodValue === 'string' && RECAP_SHARE_PERIODS.includes(periodValue as RecapSharePeriod)
+    ? periodValue as RecapSharePeriod
+    : 'week'
+  if (period !== 'month' || typeof yearValue !== 'string' || typeof monthValue !== 'string') {
+    return { period }
+  }
+
+  const year = Number(yearValue)
+  const month = Number(monthValue)
+  if (
+    !/^\d{4}$/.test(yearValue) ||
+    !/^\d{1,2}$/.test(monthValue) ||
+    year < 1 ||
+    year > 9999 ||
+    month < 1 ||
+    month > 12
+  ) {
+    return { period }
+  }
+  return { period, closedMonth: { year, month } }
 }
 
 /** Returns the i18n key for a recap period label (`shareCard.periods.{period}`), covering the full backend period set. */
@@ -37,31 +99,32 @@ export function buildShareCardStats(
 ): ShareCardStat[] {
   return [
     {
-      labelKey: 'shareCard.stats.completionRate',
-      emoji: '🎯',
-      value: formatCompletionRate(metrics.completionRate),
-    },
-    {
       labelKey: 'shareCard.stats.completions',
-      emoji: '✅',
       value: String(metrics.totalCompletions),
     },
     {
       labelKey: 'shareCard.stats.bestStreak',
-      emoji: '🏆',
       value: String(metrics.bestStreak),
     },
     {
-      labelKey: 'shareCard.stats.activeDays',
-      emoji: '📅',
-      value: String(metrics.activeDays),
-    },
-    {
       labelKey: 'shareCard.stats.goalsClosed',
-      emoji: '🏁',
       value: String(goalCompletions),
     },
   ]
+}
+
+/** Finds the strongest Monday-first weekday and keeps its shared three-letter label key. */
+export function buildShareCardWeekday(weeklyConsistency: readonly number[]): ShareCardWeekday {
+  let strongestIndex = 0
+  for (let index = 1; index < WRAPPED_WEEKDAY_KEYS.length; index += 1) {
+    if ((weeklyConsistency[index] ?? 0) > (weeklyConsistency[strongestIndex] ?? 0)) {
+      strongestIndex = index
+    }
+  }
+
+  const key = WRAPPED_WEEKDAY_KEYS[strongestIndex]!
+  const percentage = Math.max(0, Math.min(100, Math.round(weeklyConsistency[strongestIndex] ?? 0)))
+  return { labelKey: `dates.daysShort.${key}`, percentage }
 }
 
 /** True when the recap has no habit or goal completions, so sharing never produces a blank card. */

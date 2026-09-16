@@ -6,6 +6,7 @@ import {
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
   recapPeriodLabelKey,
+  parseWrappedRouteSelection,
 } from '../utils/share-card'
 import { createMockRetrospectiveMetrics } from './factories'
 
@@ -25,6 +26,28 @@ describe('buildRecapRequestUrl', () => {
   it('targets the recap endpoint with the period query', () => {
     expect(buildRecapRequestUrl('week')).toBe('/api/gamification/recap?period=week')
     expect(buildRecapRequestUrl('year')).toBe('/api/gamification/recap?period=year')
+  })
+
+  it('targets the carried closed month without changing the selected period', () => {
+    expect(buildRecapRequestUrl('month', { year: 2026, month: 8 })).toBe(
+      '/api/gamification/recap?period=month&year=2026&month=8',
+    )
+    expect(parseWrappedRouteSelection('month', '2026', '8')).toEqual({
+      period: 'month',
+      closedMonth: { year: 2026, month: 8 },
+    })
+  })
+
+  it('accepts only API-supported closed-month year boundaries', () => {
+    expect(parseWrappedRouteSelection('month', '0000', '3')).toEqual({ period: 'month' })
+    expect(parseWrappedRouteSelection('month', '0001', '3')).toEqual({
+      period: 'month',
+      closedMonth: { year: 1, month: 3 },
+    })
+    expect(parseWrappedRouteSelection('month', '9999', '3')).toEqual({
+      period: 'month',
+      closedMonth: { year: 9999, month: 3 },
+    })
   })
 })
 
@@ -47,18 +70,15 @@ describe('buildShareCardStats', () => {
         bestStreak: 18,
         activeDays: 5,
       }),
-      6,
+      3,
     )
 
     expect(stats.map((stat) => stat.labelKey)).toEqual([
-      'shareCard.stats.completionRate',
       'shareCard.stats.completions',
       'shareCard.stats.bestStreak',
-      'shareCard.stats.activeDays',
       'shareCard.stats.goalsClosed',
     ])
-    expect(stats.map((stat) => stat.value)).toEqual(['74%', '40', '18', '5', '6'])
-    expect(stats.every((stat) => stat.emoji.length > 0)).toBe(true)
+    expect(stats.map((stat) => stat.value)).toEqual(['40', '18', '3'])
   })
 
   it('handles all-zero metrics without throwing', () => {
@@ -72,7 +92,7 @@ describe('buildShareCardStats', () => {
       0,
     )
 
-    expect(stats.map((stat) => stat.value)).toEqual(['0%', '0', '0', '0', '0'])
+    expect(stats.map((stat) => stat.value)).toEqual(['0', '0', '0'])
   })
 })
 
@@ -99,7 +119,7 @@ describe('isRecapShareEmpty', () => {
     expect(
       isRecapShareEmpty(
         createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
-        4,
+        3,
       ),
     ).toBe(false)
   })

@@ -103,7 +103,7 @@ const VERDICTS = {
   ".claude/skills/merge-prs/SKILL.md":
     "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth.",
   ".claude/skills/orchestrate/SKILL.md":
-    "current: high effort, and it earns it: it plans the queue, verifies delivery from artifacts and clears the review, and it is the entry point every other piece of work passes through.",
+    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, verifies delivery from artifacts and clears the review.",
   ".claude/skills/prod-readiness/SKILL.md":
     "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
   ".claude/skills/progress/SKILL.md":
@@ -113,7 +113,7 @@ const VERDICTS = {
   ".claude/skills/second-opinion/SKILL.md":
     "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call.",
   ".claude/skills/sleep/SKILL.md":
-    "undeclared, inherits the session: it takes every decision alone overnight, which is the strongest argument for an explicit high in the follow-up, and the weakest place to guess it in this pass.",
+    "undeclared, inherits the session: it takes every decision alone overnight, including whether configured lanes are available, so explicit high remains the strongest follow-up without guessing it here.",
   ".claude/skills/ticket/SKILL.md":
     "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it.",
   ".claude/skills/validate/SKILL.md":

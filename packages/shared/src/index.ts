@@ -17,6 +17,7 @@ export {
   extractBackendErrorCode,
   extractBackendFieldErrors,
   extractBackendStatus,
+  isPayGateError,
   ApiClientError,
   createApiClientError,
   getFriendlyErrorKey,

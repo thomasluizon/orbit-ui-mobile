@@ -63,7 +63,7 @@ const {
 }))
 
 vi.mock('expo-sharing', () => {
-  return { shareAsync: mockShareAsync }
+  return { isAvailableAsync: vi.fn().mockResolvedValue(true), shareAsync: mockShareAsync }
 })
 
 vi.mock('@react-native-clipboard/clipboard', () => ({

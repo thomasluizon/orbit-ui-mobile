@@ -16,6 +16,7 @@ describe('notification-actions', () => {
     ['/', 'nav.today'],
     ['/calendar', 'nav.calendar'],
     ['/progress', 'nav.progress'],
+    ['/progress?wrapped=month&year=2026&month=8', 'profile.wrappedTitle'],
     ['/profile', 'nav.profile'],
     ['/streak', 'nav.progress'],
     ['/goals?status=Active', 'nav.progress'],
@@ -95,6 +96,18 @@ describe('notification-actions', () => {
   it('resolves legacy conversation and calendar links into the four destinations', () => {
     expect(resolveNotificationUrl('/chat')).toBe('/')
     expect(resolveNotificationUrl('/calendar-sync?mode=review')).toBe('/calendar')
+  })
+
+  it('routes a closed-month notification to the Wrapped cover with its carried month', () => {
+    expect(resolveNotificationUrl('/progress?wrapped=month&year=2026&month=8')).toBe(
+      '/wrapped?period=month&year=2026&month=8',
+    )
+    expect(
+      getNotificationDestination('/progress?wrapped=month&year=2026&month=8'),
+    ).toEqual({
+      url: '/wrapped?period=month&year=2026&month=8',
+      opensAstra: false,
+    })
   })
 
   it('derives notification detail action visibility', () => {

@@ -211,7 +211,7 @@ function buildMoreRows({ profile, t }: RowContext) {
 
   return [
     ...navigationRows,
-    <ShareCardEntryButton key="share" displayName={profile?.name} />,
+    <ShareCardEntryButton key="share" />,
   ]
 }
 

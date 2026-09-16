@@ -22,55 +22,74 @@ import { ShareCard } from './share-card'
 interface ShareCardPanelProps {
   open: boolean
   onClose: () => void
-  displayName?: string
 }
 
 interface LoadedShareCardProps {
   recap: Recap
-  displayName?: string
   shareRef: ReturnType<typeof useShareCard>['shareRef']
   isSharing: boolean
   hasError: boolean
+  canShareFiles: boolean
   share: ReturnType<typeof useShareCard>['share']
+  download: ReturnType<typeof useShareCard>['download']
   styles: ReturnType<typeof createStyles>
 }
 
 function LoadedShareCard({
   recap,
-  displayName,
   shareRef,
   isSharing,
   hasError,
+  canShareFiles,
   share,
+  download,
   styles,
 }: Readonly<LoadedShareCardProps>) {
   const { t } = useTranslation()
   return (
     <View style={styles.cardBlock}>
       <View style={styles.cardWrap}>
-        <ShareCard ref={shareRef} recap={recap} displayName={displayName} />
+        <View style={styles.cardScale}>
+          <ShareCard ref={shareRef} recap={recap} />
+        </View>
       </View>
       {hasError ? <Text style={styles.errorText}>{t('shareCard.shareError')}</Text> : null}
-      <PillButton
-        loading={isSharing}
-        disabled={isSharing}
-        onClick={() => void share(t('shareCard.shareTitle'))}
-      >
-        {t('shareCard.share')}
-      </PillButton>
+      <View style={styles.shareActions}>
+        {canShareFiles ? (
+          <PillButton
+            loading={isSharing}
+            disabled={isSharing}
+            onClick={() => void share({
+              shareTitle: t('shareCard.shareTitle'),
+              shareText: t('shareCard.shareText'),
+              url: recap.shareDeepLink,
+            })}
+          >
+            {t('shareCard.share')}
+          </PillButton>
+        ) : null}
+        <PillButton
+          variant={canShareFiles ? 'ghost' : 'primary'}
+          loading={isSharing}
+          disabled={isSharing}
+          onClick={() => void download()}
+        >
+          {t('shareCard.download')}
+        </PillButton>
+      </View>
     </View>
   )
 }
 
 /** Recap share preview: period selector, recap fetch, branded ShareCard, and native share. */
-export function ShareCardPanel({ open, onClose, displayName }: Readonly<ShareCardPanelProps>) {
+export function ShareCardPanel({ open, onClose }: Readonly<ShareCardPanelProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
   const { data: recap, isLoading, isError, refetch } = useRecap(period, open)
-  const { shareRef, isSharing, hasError, share } = useShareCard()
+  const { shareRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
 
   const isEmpty = recap ? isRecapShareEmpty(recap.metrics, recap.goalCompletions) : false
   const showCard = !isLoading && !isError && recap && !isEmpty
@@ -117,11 +136,12 @@ export function ShareCardPanel({ open, onClose, displayName }: Readonly<ShareCar
         {showCard ? (
           <LoadedShareCard
             recap={recap}
-            displayName={displayName}
             shareRef={shareRef}
             isSharing={isSharing}
             hasError={hasError}
+            canShareFiles={canShareFiles}
             share={share}
+            download={download}
             styles={styles}
           />
         ) : null}
@@ -174,7 +194,21 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     cardBlock: {
       gap: 16,
     },
+    shareActions: {
+      flexDirection: 'row',
+      gap: 8,
+    },
     cardWrap: {
+      width: 216,
+      height: 384,
+      overflow: 'hidden',
+      alignSelf: 'center',
+    },
+    cardScale: {
+      width: 360,
+      height: 640,
+      transform: [{ scale: 0.6 }],
+      transformOrigin: 'top left',
       alignItems: 'center',
     },
     errorText: {

@@ -19,6 +19,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
+  gamificationEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
@@ -61,6 +62,7 @@ const mocks = vi.hoisted(() => ({
     xpProgress: 50,
     isLoading: false,
     isError: false,
+    error: { status: 500, data: { error: 'Server error', errorCode: 'INTERNAL_SERVER_ERROR' } },
     refetch: vi.fn(),
   },
   retrospective: {
@@ -84,7 +86,7 @@ const mocks = vi.hoisted(() => ({
     },
     isLoading: false,
     isError: false,
-    error: null as { data: { errorCode: string } } | null,
+    error: null as { status?: number; data: { errorCode: string } } | null,
     refetch: vi.fn(),
   },
   freeze: {
@@ -135,7 +137,10 @@ vi.mock('@/hooks/use-goals', () => ({
   useUpdateGoalStatus: () => mocks.updateStatus,
 }))
 vi.mock('@/hooks/use-gamification', () => ({
-  useGamificationProfile: () => mocks.gamification,
+  useGamificationProfile: (enabled?: boolean) => {
+    mocks.gamificationEnabled(enabled)
+    return mocks.gamification
+  },
   useRepairStreak: () => mocks.repair,
   useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
     if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
@@ -178,6 +183,15 @@ describe('ProgressContent', () => {
   registerChromeLaunchHook(beforeAll, async (launch) => {
     browserLaunch = launch
     browser = await browserLaunch
+  })
+
+  it('keeps the Wrapped fallback as the first Progresso entry', () => {
+    render(<ProgressPage />)
+    const firstAction = screen.getAllByRole('button')[0]
+
+    expect(firstAction).toHaveAccessibleName('profile.wrappedTitle')
+    fireEvent.click(firstAction!)
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped')
   })
 
   beforeAll(async () => {
@@ -361,6 +375,10 @@ describe('ProgressContent', () => {
       query.isLoading = false
       query.isError = false
     }
+    mocks.gamification.error = {
+      status: 500,
+      data: { error: 'Server error', errorCode: 'INTERNAL_SERVER_ERROR' },
+    }
     Object.assign(mocks.account.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150 })
     Object.assign(mocks.gamification.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150, achievementsEarned: 0 })
     mocks.account.profile.canViewGamification = true
@@ -403,7 +421,8 @@ describe('ProgressContent', () => {
     expect(Array.from(container.querySelectorAll('[data-variant]')).map((unit) => unit.getAttribute('data-variant'))).toEqual([
       'settings', 'settings', 'stat-tile', 'stat-tile', 'stat-tile', 'stat-tile', 'habit-row', 'habit-row', 'habit-row',
     ])
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByRole('button')).toHaveAccessibleName('profile.wrappedTitle')
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
   })
 
@@ -422,7 +441,7 @@ describe('ProgressContent', () => {
     mocks[query].isError = true
     const { rerender } = render(<ProgressPage />)
     expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getAllByRole('button')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
     for (const request of [mocks.account, mocks.goals, mocks.gamification]) expect(request.refetch).toHaveBeenCalledTimes(1)
     mocks[query].isError = false
@@ -439,14 +458,27 @@ describe('ProgressContent', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 
-  it('does not retry a disabled gamification query', () => {
+  it('leaves retry when gamification access is revoked after an error', () => {
+    mocks.gamification.isError = true
+    const { rerender } = render(<ProgressPage />)
+    expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
+
+    mocks.account.profile.canViewGamification = false
+    mocks.account.profile.hasProAccess = false
+    rerender(<ProgressPage />)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
+  })
+
+  it('retries gamification when the account capability hint is false', () => {
     mocks.account.profile.canViewGamification = false
     mocks.goals.isError = true
     render(<ProgressPage />)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
     expect(mocks.account.refetch).toHaveBeenCalledTimes(1)
     expect(mocks.goals.refetch).toHaveBeenCalledTimes(1)
-    expect(mocks.gamification.refetch).not.toHaveBeenCalled()
+    expect(mocks.gamification.refetch).toHaveBeenCalledTimes(1)
   })
 
   it.each([false, true])('renders one orbital empty invitation for Pro access %s', (hasProAccess) => {
@@ -456,7 +488,7 @@ describe('ProgressContent', () => {
     const { container } = render(<ProgressPage />)
     expect(screen.getByText('progressScreen.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getAllByRole('button')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.emptyAction' }))
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
@@ -502,20 +534,34 @@ describe('ProgressContent', () => {
     ])
   })
 
-  it('renders the remaining routed boundaries with a 16px locked-card inset', async () => {
-    mocks.account.profile.canViewGamification = false
+  it('renders pay-gate refusals as the three locked sections', async () => {
     mocks.account.profile.hasProAccess = false
     Object.assign(mocks.account.profile, { streakFreezesAvailable: 3 })
+    mocks.gamification.isError = true
+    mocks.gamification.error = {
+      status: 403,
+      data: { error: 'Gamification is a Pro feature. Upgrade to unlock!', errorCode: 'PAY_GATE' },
+    }
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { status: 403, data: { errorCode: 'PAY_GATE' } }
     const { container, unmount } = render(<ProgressContent />)
 
+    expect(screen.queryByTestId('error-state')).not.toBeInTheDocument()
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
+    expect(screen.getByText('progressScreen.achievements.lockedBody')).toBeInTheDocument()
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.bankFull:{"count":3}')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.gapTitle')).not.toBeInTheDocument()
+    const route = screen.getAllByRole('button', { name: 'progressScreen.window.lockedAction' })
+    expect(route).toHaveLength(1)
+    expect(route[0]).not.toBeDisabled()
+    expect(route[0]).not.toHaveAttribute('aria-disabled')
+    expect(route[0]!.closest('[inert]')).toBeNull()
+    fireEvent.click(route[0]!)
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/upgrade')
 
     const markup = container.innerHTML
     unmount()
@@ -531,30 +577,56 @@ describe('ProgressContent', () => {
       expect(insets).toEqual([
         ['16px', '16px', '16px', '16px'],
         ['16px', '16px', '16px', '16px'],
+        ['16px', '16px', '16px', '16px'],
       ])
     } finally {
       await page.close()
     }
   })
 
-  it('keeps free gamification cohorts open while locking only the Pro figures', () => {
+  it('keeps the Pro window locked when free gamification succeeds but retrospective returns PAY_GATE', () => {
     mocks.account.profile.canViewGamification = true
     mocks.account.profile.hasProAccess = false
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = {
+      status: 403,
+      data: { errorCode: 'PAY_GATE' },
+    }
 
     render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.currentLabel:{"count":4}')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
-    const route = screen.getAllByRole('button', { name: 'progressScreen.window.lockedAction' })
-    expect(route).toHaveLength(1)
-    expect(route[0]).not.toBeDisabled()
-    expect(route[0]).not.toHaveAttribute('aria-disabled')
-    expect(route[0]!.closest('[inert]')).toBeNull()
-    fireEvent.click(route[0]!)
-    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/upgrade')
+    expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
+    expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
+    expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
+    expect(screen.queryByText('75%')).not.toBeInTheDocument()
+    expect(mocks.gamificationEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('renders a server-authorized window for a free account', () => {
+    mocks.account.profile.hasProAccess = false
+
+    render(<ProgressContent />)
+
+    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
+    expect(within(windowSection).getByText('75%')).toBeInTheDocument()
+    expect(within(windowSection).queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
+  })
+
+  it('renders a retryable window error when a free retrospective request fails', () => {
+    mocks.account.profile.hasProAccess = false
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { status: 500, data: { errorCode: 'INTERNAL_SERVER_ERROR' } }
+
+    render(<ProgressContent />)
+
+    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
+    expect(within(windowSection).getByRole('alert')).toHaveTextContent('progressScreen.error')
+    expect(within(windowSection).queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
+    fireEvent.click(within(windowSection).getByRole('button', { name: 'progressScreen.retry' }))
+    expect(mocks.retrospective.refetch).toHaveBeenCalledTimes(1)
   })
 
   it('renders empty weekly and habit figures without substituting unrelated totals', () => {
@@ -622,7 +694,10 @@ describe('ProgressContent', () => {
     })
     expect(earnedMark).toHaveAttribute('data-state', 'earned')
     expect(earnedMark).toHaveStyle({ background: 'var(--status-done)' })
+    expect(earnedMark.style.boxShadow).toBe('')
     expect(unearnedMark).toHaveAttribute('data-state', 'unearned')
+    expect(unearnedMark).toHaveStyle({ boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)' })
+    expect(unearnedMark.style.background).toBe('')
     expect(within(earned as HTMLElement).getByText('progressScreen.achievements.earnedLabel')).toBeInTheDocument()
     expect(screen.queryByText('gamification.achievements.first_friend.name')).not.toBeInTheDocument()
   })

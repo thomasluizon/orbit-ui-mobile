@@ -36,7 +36,7 @@ export function useGamificationProfile(enabled = true) {
 
   const query = useQuery({
     queryKey: gamificationKeys.profile(),
-    queryFn: () => fetchJson<GamificationProfile>(API.gamification.profile, gamificationProfileSchema),
+    queryFn: () => fetchJson<GamificationProfile>(API.gamification.profile, gamificationProfileSchema, { handlesPayGate: true }),
     staleTime: QUERY_STALE_TIMES.gamification,
     refetchOnWindowFocus: true,
     enabled,

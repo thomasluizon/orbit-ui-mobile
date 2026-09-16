@@ -289,7 +289,9 @@ describe('GoalDetailDrawer', () => {
   it('stage 5 shows capacity and the newest three history rows before expanding', () => {
     detailGoal = { ...listGoal, linkedHabits: Array.from({ length: 20 }, (_, index) => ({ id: String(index), title: `Habit ${index}` })), progressHistory: [4, 3, 2, 1].map(value => ({ createdAtUtc: `2026-09-0${value}T00:00:00Z`, previousValue: value - 1, value, note: `entry-${value}` })) }
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-    expect(document.body.textContent).toContain('goals.detail.linkedLimit')
+    const content = document.body.textContent
+    expect(content).toContain('goals.detail.linkedLimit')
+    expect(content.indexOf('goals.linkedHabits')).toBeLessThan(content.indexOf('goals.detail.linkedLimit'))
     expect(document.body.textContent).toContain('entry-4')
     expect(document.body.textContent).not.toContain('entry-1')
     let label = 'goals.detail.showAllHistory:{"count":4}'

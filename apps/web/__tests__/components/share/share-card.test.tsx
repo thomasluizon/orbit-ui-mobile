@@ -1,41 +1,42 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import {
-  createMockRecap,
-  createMockRetrospectiveMetrics,
-} from '@orbit/shared/__tests__/factories'
+import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    if (key === 'shareCard.weeklyBarLabel') return String(params?.day)
+    return params ? `${key}:${JSON.stringify(params)}` : key
+  },
 }))
 
-vi.mock('qrcode', () => ({
-  default: { toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,AAAA') },
+vi.mock('@/components/share/share-card-qr', () => ({
+  ShareCardQr: () => null,
 }))
 
 import { ShareCard } from '@/components/share/share-card'
 
 describe('ShareCard', () => {
-  it('renders the branded capture target from a recap', () => {
+  it('renders the branded capture target at the 9 by 16 story ratio', () => {
     const { container } = render(<ShareCard recap={createMockRecap()} />)
-    expect(screen.getByTestId('share-card')).toBeInTheDocument()
+    expect(screen.getByTestId('share-card')).toHaveStyle({ width: '360px', height: '640px' })
     expect(container.querySelector('[data-asset="orbit-mark-accent"]')).toBeInTheDocument()
   })
 
-  it('renders the streak hero, formatted stats, top habits, and the scannable link', () => {
-    render(<ShareCard recap={createMockRecap()} />)
+  it('contains no controls and exactly one primary figure with two supporting figures', () => {
+    const { container } = render(<ShareCard recap={createMockRecap()} />)
+    const card = screen.getByTestId('share-card')
 
-    expect(screen.getByTestId('share-card-streak')).toHaveTextContent('shareCard.streak')
-    expect(screen.getByText('82%')).toBeInTheDocument()
-    expect(screen.getByText('Morning run')).toBeInTheDocument()
-    expect(screen.getByText('shareCard.scanToJoin')).toBeInTheDocument()
-    expect(screen.getByText('app.useorbit.org/r/ABC123?recap=week')).toBeInTheDocument()
+    expect(within(card).getAllByTestId('share-card-figure')).toHaveLength(3)
+    expect(container.querySelector('button, a, input, select, textarea, [role="button"]')).toBeNull()
   })
 
-  it('hides the scannable link footer when the recap has no deep link', () => {
-    render(<ShareCard recap={createMockRecap({ shareDeepLink: '' })} />)
-    expect(screen.queryByText('shareCard.scanToJoin')).not.toBeInTheDocument()
+  it('prints the same three-letter weekday form as the weekday page', () => {
+    const recap = createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [91, 20, 30, 40, 50, 60, 70] }),
+    })
+    render(<ShareCard recap={recap} />)
+
+    expect(screen.getByTestId('share-card-weekday')).toHaveTextContent('dates.daysShort.monday')
   })
 
   it('renders closed goals for a goal-only recap', () => {
@@ -59,13 +60,5 @@ describe('ShareCard', () => {
 
     expect(screen.getByText('3')).toBeInTheDocument()
     expect(screen.getByText('shareCard.stats.goalsClosed')).toBeInTheDocument()
-  })
-
-  it('spans the fifth stat across both columns', () => {
-    render(<ShareCard recap={createMockRecap()} />)
-
-    const finalStat = screen.getByTestId('share-card-final-stat')
-    expect(finalStat).toHaveStyle({ gridColumn: '1 / -1' })
-    expect(within(finalStat).getByText('shareCard.stats.goalsClosed')).toBeInTheDocument()
   })
 })

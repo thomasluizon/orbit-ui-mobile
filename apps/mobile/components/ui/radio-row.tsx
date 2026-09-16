@@ -1,7 +1,22 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  type ReactNode,
+} from 'react'
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ViewProps,
+} from 'react-native'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+export function RadioGroup({ children, ...props }: Readonly<
+  Omit<ViewProps, 'accessibilityRole'> & { children: ReactNode }
+>) {
+  return <View {...props} accessibilityRole="radiogroup">{children}</View>
+}
 
 export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -32,9 +47,15 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
   ]
 
   return disabled ? (
-    <View accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: true }} style={rowStyle}>{content}</View>
+    <View focusable={false} accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: true }} style={rowStyle}>{content}</View>
   ) : (
-    <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={onSelect} style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.99 }] } : null]}>{content}</Pressable>
+    <Pressable
+      focusable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      onPress={onSelect}
+      style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.99 }] } : null]}
+    >{content}</Pressable>
   )
 }
 

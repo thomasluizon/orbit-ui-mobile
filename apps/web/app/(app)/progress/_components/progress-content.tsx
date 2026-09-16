@@ -30,6 +30,7 @@ import {
   getGamificationLevelTitleKey,
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
+  isPayGateError,
   deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
@@ -46,6 +47,7 @@ import { FreezeBank } from '@/components/ui/freeze-bank'
 import {
   Calendar,
   Flame,
+  Gift,
   Lock,
   Satellite,
   Shield,
@@ -58,6 +60,8 @@ import {
   type IconProps,
 } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
+import { ListRow } from '@/components/ui/list-row'
+import { RowList } from '@/components/ui/row-list'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -371,10 +375,10 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   )
 }
 
-function WindowSection({ hasProAccess }: Readonly<{ hasProAccess: boolean }>) {
+function WindowSection() {
   const t = useTranslations()
-  const retrospective = useProgressRetrospective(hasProAccess)
-  if (!hasProAccess) return <WindowFrame title={t('progressScreen.sections.window')}><div className="max-w-[560px]"><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></div></WindowFrame>
+  const retrospective = useProgressRetrospective()
+  if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')}><div className="max-w-[560px]"><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></div></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
   if (retrospective.isError && !hasNoHabits) {
@@ -464,8 +468,25 @@ function AchievementTile({ achievement }: Readonly<{ achievement: Achievement }>
   )
 }
 
-function AchievementsSection({ profile, xpProgress }: Readonly<{ profile: ReturnType<typeof useGamificationProfile>['profile']; xpProgress: number }>) {
+function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Readonly<{
+  gamificationAvailable: boolean
+  profile: ReturnType<typeof useGamificationProfile>['profile']
+  xpProgress: number
+}>) {
   const t = useTranslations()
+  if (!gamificationAvailable) {
+    return (
+      <Section compact title={t('progressScreen.sections.achievements')}>
+        <div className="max-w-[560px]">
+          <LockedCard
+            title={t('progressScreen.achievements.lockedTitle')}
+            body={t('progressScreen.achievements.lockedBody')}
+            action={t('progressScreen.achievements.lockedAction')}
+          />
+        </div>
+      </Section>
+    )
+  }
   if (!profile) return null
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
@@ -491,26 +512,42 @@ export function ProgressContent() {
   const t = useTranslations()
   const router = useRouter()
   const account = useProfile()
-  const canView = account.profile?.canViewGamification ?? false
   const goals = useGoals()
-  const gamification = useGamificationProfile(canView)
+  const canViewGamification = account.profile?.canViewGamification ?? false
+  const gamification = useGamificationProfile(canViewGamification)
+  const gamificationAvailable = canViewGamification && !isPayGateError(gamification.error)
   const allGoals = goals.data?.allGoals ?? []
-  const { error, loading, empty } = deriveProgressViewState({ goalCount: allGoals.length, account, goals, gamification, canView })
+  const { error, loading, empty } = deriveProgressViewState({
+    goalCount: allGoals.length,
+    account,
+    goals,
+    gamification,
+    canViewGamification,
+  })
   const retry = () => {
     void account.refetch()
     void goals.refetch()
-    if (canView) void gamification.refetch()
+    void gamification.refetch()
   }
   return (
     <main className="flex w-full flex-col gap-8 px-4 py-4 md:px-0">
       {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
       <div hidden={detailGoalId !== null} className="flex flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
+      <RowList>
+        <ListRow
+          accessibilityLabel={t('profile.wrappedTitle')}
+          icon={<Gift size={24} strokeWidth={1.8} aria-hidden="true" />}
+          title={t('profile.wrappedTitle')}
+          description={t('profile.wrappedHint')}
+          onClick={() => router.push('/wrapped')}
+        />
+      </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
       </div>
     </main>
   )

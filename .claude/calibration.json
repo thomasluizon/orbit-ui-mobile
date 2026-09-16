@@ -148,7 +148,7 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "feca9e8d469aca47",
+      "digest": "b4277aa57f47c354",
       "calibratedAt": "2026-09-15",
       "verdict": "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four."
     },
@@ -176,9 +176,9 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "827885a76365f5ca",
-      "calibratedAt": "2026-09-15",
-      "verdict": "current: high effort, and it earns it: it plans the queue, verifies delivery from artifacts and clears the review, and it is the entry point every other piece of work passes through."
+      "digest": "f608550f7697cb39",
+      "calibratedAt": "2026-09-16",
+      "verdict": "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, verifies delivery from artifacts and clears the review."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
@@ -211,9 +211,9 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "3acd8155b2528682",
-      "calibratedAt": "2026-09-14",
-      "verdict": "undeclared, inherits the session: it takes every decision alone overnight, which is the strongest argument for an explicit high in the follow-up, and the weakest place to guess it in this pass."
+      "digest": "9ed01a413c790790",
+      "calibratedAt": "2026-09-16",
+      "verdict": "undeclared, inherits the session: it takes every decision alone overnight, including whether configured lanes are available, so explicit high remains the strongest follow-up without guessing it here."
     },
     ".claude/skills/ticket/SKILL.md": {
       "model": null,

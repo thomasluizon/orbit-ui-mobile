@@ -50,6 +50,7 @@ describe('web useWrapped', () => {
 
     const { result } = renderHook(() => useWrapped('month'))
     expect(result.current.isEmpty).toBe(false)
+    expect(result.current.slides.at(-1)?.id).toBe('share')
     expect(result.current.slides).toContainEqual({ id: 'goals', closedGoals: 4 })
   })
 })

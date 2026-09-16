@@ -68,6 +68,23 @@ These stay until he changes them. Keep his words.
   one pull request becomes a ticket AND gets picked up. A missing branch, gate or tool gets built. The
   only honest early ending is external: the allowance runs out, the machine stops, or he says stop,
   and you say which.
+- **2026-09-15** **The suppressed lint violations are part of finishing the redesign, and speed
+  matters.** "the lint violations fixes, and the redesign finished, as fast as possible." Said after
+  being shown the 367 suppressed violations across 99 files. They are not a separate cleanup effort
+  to be scheduled later: every screen ticket already requires its own share gone with a strict
+  Suppressions Ratchet decrease, and that is now the largest remaining block of work. "As fast as
+  possible" narrows HOW, never WHAT: it means stop idling a worker slot and stop opening fronts that
+  do not close a ticket. It does not license a cheaper implementation, and it never overrides
+  "always the best implementation".
+- **2026-09-16** **Do not ask permission for work he already asked for.** After the beta release
+  was held pending a confirmation he had already given in writing: "you shouldnt have asked me
+  to say 'go', you could've just shipped it." A written instruction IS the authorisation.
+  Ask again only when the scope or the inputs changed.
+- **2026-09-16** Answered directly, both recorded on their tickets: **centred phone IS the
+  large-screen answer**, so no tablet layout is filed and none should be; and the **public Play
+  developer name becomes TL SOFTWARE ENGINEERING LTDA**.
+- **2026-09-16** **The local worker cap is TWO, not three.** Four were killed at once for low
+  memory, every one of them after committing. This supersedes D89's figure of three on this machine.
 - **Standing** Ticket `#74` owns existing copy.
 - **Standing** Never boot the Android emulator. It is his visual testing surface.
 - **Standing** `redesign/main` stays unprotected. Settled; never raise it.
@@ -106,10 +123,8 @@ Pointers, not restatements. The reasoning lives in the ADR.
 - **2026-09-14: every new guard is proven by breaking what it guards.**
 - **2026-09-15: copy that carries a NUMBER or a DATE is checked against the rule that produces it,
   never only against its sibling strings.** Three strings written on 2026-09-14 were each wrong the
-  same way: `profile.deleteAccount.warningPro` promised a date the 30-day cap overrides,
-  `wrapped.slides.consistency.summary` named a quietest weekday the data cannot identify, and
-  `progressScreen.streak.repairPartial` promised a freeze a full bank can never earn. Each read a
-  server value and stated a consequence the server does not guarantee.
+  same way. A fourth joined them on 2026-09-15: `profile.support.offlineReason` promised "the message
+  will go out when your connection returns" and neither platform has a queued send at all.
 - **2026-09-15: a parent pull request must be correct WITHOUT its children.** `960` shipped a goals
   slide that a goal-only recap could not reach, with the fix sitting in its child `961`. "They land
   together" is an assumption, not a property: a child can be reworked or delayed. The fix moved down.
@@ -118,7 +133,9 @@ Pointers, not restatements. The reasoning lives in the ADR.
   control with no stated reason tells a person nothing. `design/canvas/Orbit Sobre.dc.html:484` reads
   `disabled: send === 'sending' || offline || !subject || !message.length`. The concern was real and
   the override was not: the right answer was the canvas behaviour PLUS a stated reason, which the new
-  `Input` `hint` contract now makes possible.
+  `Input` `hint` contract now makes possible. **Applied again on 2026-09-15**: rather than build a
+  queued send to make a false string true, the string was corrected, because the canvas draws a
+  DISABLED send with a reason and a message leaving silently later is not what it specifies.
 - **2026-09-15: a client may mirror a server rule only with a one-line WHY naming its file and
   lines.** The delete-account modal has to reproduce `ConfirmAccountDeletionCommand.cs:31-33` because
   the API exposes no preview of the scheduled date. Write that path by opening it, not from memory: a
@@ -141,7 +158,20 @@ Pointers, not restatements. The reasoning lives in the ADR.
   Thomas's.
 - **2026-09-15: a parameter added with NO default turns a missed caller into a compile error.** Used
   three times that night, on `buildShareCardStats`, `deriveProgressViewState` and the goal count, and
-  it caught a caller each time.
+  it caught a caller each time. The converse also bites: a parameter whose every caller now passes one
+  literal value is DEAD and gets deleted, which is how `useProgressRetrospective(enabled)` was caught.
+- **2026-09-15: enabling a previously disabled request inherits the whole fetch layer, not just the
+  response shape.** Making Progresso's retrospective query always fire was correct, and it introduced
+  a worse defect than it fixed: `apps/web/lib/api-fetch.ts:103-107` sets
+  `globalThis.location.href = '/upgrade'` on a 403 `PAY_GATE` unless the caller passes
+  `{ handlesPayGate: true }`, so a free account was navigated off Progresso before the locked card
+  could render. Reason about what the TRANSPORT does with a response, not only about its body.
+- **2026-09-15: the version metadata on a support request rides in the MESSAGE, with the client
+  reserving room.** Compute the message field's `maxLength` as `SUPPORT_API_MESSAGE_MAX_LENGTH` minus
+  the exact version-suffix length, so nothing can be typed that will not fit and nothing is ever
+  truncated. Rejected: raising the API cap, which puts a live validator change and a deploy on the
+  critical path for about fifteen characters; and moving it into Subject, which turns a four-option
+  CATEGORY into a variable string nothing can filter on.
 
 ## Constraints that are not obvious from the code
 
@@ -150,130 +180,171 @@ Pointers, not restatements. The reasoning lives in the ADR.
   rendered as garbage on Android now render. Two consequences that bind every new string:
   - **In ICU an apostrophe FOLLOWED by `{`, `}` or `#` opens a quoted literal**, so `'{name}'`
     renders the literal `{name}` and never substitutes. Double it: `''{name}''` renders `'Corrida'`.
-    `habits.clarification.successCreated` was broken this way on WEB in production long before
-    mobile, because next-intl always parsed ICU.
   - A guard in `packages/shared/src/__tests__/i18n.test.ts` walks every key in both locale files and
     fails on an unpaired apostrophe next to ICU syntax. Any new string has to pass it.
 - **A MOBILE test must render through the app's own i18n instance**, imported from `@/lib/i18n`, not
-  through next-intl's `createTranslator`. Two separate pull requests shipped mobile assertions that
-  passed while Android rendered fragments, because `createTranslator` is web's translator. Web keeps
-  `createTranslator`; it is what web actually renders through.
+  through next-intl's `createTranslator`. Web keeps `createTranslator`.
 - **Deleting an account DEACTIVATES, and the schedule has two gates.**
   `ConfirmAccountDeletionCommand.cs:31-35` takes the EARLIER of plan expiry plus seven days and
-  `nowAtUtc + AppConstants.MaxDeletionGraceDays`, which is **30**. It uses the plan date only when
-  `HasProAccess && PlanExpiresAt.HasValue && PlanExpiresAt > now`, so an active trial and a lifetime
-  grant both fall to the seven-day branch. `VerifyCodeCommand.cs:104-110` and
-  `GoogleAuthCommand.cs:139-149` cancel the deactivation on sign in. **`#71` stage 8's instruction to
-  say "there is no way back" is wrong about the product.**
+  `nowAtUtc + AppConstants.MaxDeletionGraceDays`, which is **30**. `VerifyCodeCommand.cs:104-110` and
+  `GoogleAuthCommand.cs:139-149` cancel the deactivation on sign in. **`#71`'s acceptance criterion
+  "Delete account says there is no way back" is WRONG about the product and must never be executed.**
+  954 landed the honest wording; an errata sits on the ticket.
 - **A streak freeze is banked automatically and spent by hand.** `AwardStreakFreezeIfEligible` banks
   one per `StreakDaysPerFreeze` (7) days of streak, capped at `MaxStreakFreezesAccumulated` (3) held;
   `MaxStreakFreezesPerMonth` (3) caps SPENDING. `UserStreakService.EvaluateRepair:193` offers a repair
-  for YESTERDAY only, and only when it lengthens the streak. Nothing applies a freeze on its own, so
-  copy must never say a freeze shields a missed day by itself.
+  for YESTERDAY only. Nothing applies a freeze on its own. This does NOT contradict D73: banking is
+  automatic, spending is by hand, and `#57`'s criterion is about applying.
 - **`RepairableGapDates` is independent of the freeze bank, on purpose.**
   `GetRepairableGapDatesAsync:84-127` walks SCHEDULED occurrences back from yesterday, and
-  `EvaluateGapRepair:169-242` never reads `StreakFreezesAccumulated`. It checks the gap's shape, the
-  predecessor, the PER CALENDAR MONTH spend cap, and whether the repair lengthens the streak. So a
-  four-date gap split across a month boundary is a valid response that no bank can ever fund.
-  The wire type is nullable: `openapi.json` declares `"type": ["null", "array"]`.
+  `EvaluateGapRepair:169-242` never reads `StreakFreezesAccumulated`. The wire type is nullable:
+  `openapi.json` declares `"type": ["null", "array"]`.
 - **No display-complete calendar events endpoint.** `useCalendarEvents` is the manual-import feed:
   bounded to 60 days ahead, keeps only the first occurrence of a repeating event, and strips
   already-imported ids. Recorded as a comment on ticket `#56`.
 - **`/api/calendar/events` reports the EVENT's timezone, not the account's.** Ticket `#526`,
-  orbit-api pull request 521, still open on `main`.
+  orbit-api pull request 521, still open on `main` with one live finding.
+- **The retrospective is Pro-only BY DEFAULT and CONFIG-CONTROLLED, not by construction.**
+  `PayGateService.cs:131-142` reads `AppConfigKeys.RetrospectiveProOnly`, default true, and only then
+  checks `HasProAccess`. So a client must never hard-code `hasProAccess` for it; it reads the server's
+  answer. `gamification_free_tier` is a different thing again: a PostHog flag evaluated PER USER,
+  returned as `canViewGamification` by `GetProfileQuery.cs:83-84`.
 - **Listing and revoking API keys are protected by Pro entitlement only.** `GetApiKeysQuery.cs:30`
-  and `RevokeApiKeyCommand.cs:22` check no step-up grant, while `CreateApiKeyCommand.cs:40-75`
-  verifies and consumes one exactly once. Ticket `#529`, and see the deploy-order conflict recorded
-  as a comment on it.
+  and `RevokeApiKeyCommand.cs:22` check no step-up grant. Ticket `#529`, and see the deploy-order
+  conflict recorded as a comment on it.
 - **The API's create-key grant is one use AND expires.** `ConfirmApiKeyCreationChallengeCommand.cs:31-34`
   calls `AuthorizeOnce`, `CreateApiKeyCommand.cs:72-75` consumes it, and
   `ResultActionResultExtensions.cs:49` maps the failure to `428` with
   `errorCode = API_KEY_CREATION_CHALLENGE_REQUIRED`. The failure body is exactly `{ error, errorCode }`.
-- **`send_support_request` activates only on five literal phrases.** `ChatToolGroups.cs:28-29`.
-  Tickets `#532` (api, MERGED as 523) and `#533` (ui, now unblocked).
-- **`gamification_free_tier` is a PostHog flag evaluated PER USER.** `GetProfileQuery.cs:83-84`
-  returns `canViewGamification` from it, so the client must never recompute the entitlement. The
-  retrospective is a DIFFERENT entitlement: `GetRetrospectiveQuery.cs:61-63` and
-  `PayGateService.cs:132-140` keep it Pro-only.
+- **The support endpoint's real limits**, read at
+  `src/Orbit.Application/Support/Validators/SendSupportCommandValidator.cs`: Subject `MaximumLength(200)`,
+  Message `MaximumLength(5000)`, both `NotEmpty`. `send_support_request` activates only on five literal
+  phrases, `ChatToolGroups.cs:28-29`.
 - **The Astra tool count "81 tools across 15 areas" is CORRECT**, counted 2026-09-14: 96 matches of
-  `[McpServerTool` minus the 15 `[McpServerToolType]` class attributes. `FEATURES.md` agrees. The
-  prefix match is a trap; recount before changing it.
-- **The support API accepts more than the form allowed.** `SendSupportCommandValidator.cs` allows a
-  200 character subject and a 5,000 character message. Pull request 951 raised the client to match.
+  `[McpServerTool` minus the 15 `[McpServerToolType]` class attributes. The prefix match is a trap.
 - **No device list**, **no `uses24HourClock` write** (response-only at `GetProfileQuery.cs:147`),
   **no Astra eval trace** (`/api/chat` omits tool arguments, so `#26`'s assertion cannot be written).
 - **`goals.filters.*` is dead**: seven keys in both locale files with zero production readers. The
-  live filter strings are `progressScreen.goals.filterEmpty` and `clearFilter`. Recorded on `#53`,
-  which owns that namespace.
+  live filter strings are `progressScreen.goals.filterEmpty` and `clearFilter`. Recorded on `#53`.
+- **Expo's SAF copy DELETES an existing destination document before writing to it.**
+  `node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/fsops/CopyMoveStrategy.kt`,
+  `class SAF`, `prepareAsDestination`: given a destination that is a FILE it calls
+  `file.deleteRecursively()` and then returns a sink pointing at what it deleted. Given the DIRECTORY
+  it finds the existing child by the source's file name, deletes that, and writes a fresh child. So
+  always copy to the directory, and name the SOURCE correctly first. `Directory.createFile(name,
+  mimeType)` is declared at `build/Directory.d.ts:39`; the `Directory` constructor takes `file:///`
+  URIs only, so joining a name onto a `content://` tree URI is never right.
+- **Android's key map carries no Home and no End.**
+  `node_modules/react-native/ReactAndroid/src/main/java/com/facebook/react/uimanager/events/KeyEvent.kt`
+  maps only four DPAD codes at `:149-152` to `ArrowUp`, `ArrowDown`, `ArrowLeft` and `ArrowRight`, and
+  `:57` returns `KEY_NAME_MAP[keyCode] ?: UNIDENTIFIED` with `UNIDENTIFIED = "Unidentified"` at `:65`.
+  A mobile test that fabricates `'Home'` or `'End'` asserts something the platform cannot produce.
+- **Android ignores an accessibility node it considers invisible**, both at `opacity: 0` and fully
+  off-screen. The answer is `AccessibilityInfo.announceForAccessibility`, declared at
+  `AccessibilityInfo.d.ts:146`. Never hide a live region and expect it to announce.
+- **A Server Action strips everything but `digest` from a thrown error.** Installed Next 16.3.4,
+  `react-server-dom-webpack-server.node.production.js:1925-1928`: a thrown `ApiClientError` reaches
+  the browser as `{ digest: string }` and nothing else. Return a serializable discriminated
+  `ActionResult` instead; the shared one is `apps/web/app/actions/action-result.ts`. A test that
+  rejects from a MOCKED action never crosses the boundary and so passes over the defect. **The same
+  shape bit again on 2026-09-15**: a test that mocks a HOOK cannot see a redirect that lives in the
+  fetch layer below it.
+- **Editing any calibrated file invalidates its digest and fails `Harness Calibration`.**
+  `tools/check-calibration.mjs:217` digests the file's complete normalized content. Run
+  `node tools/reseed-calibration.mjs` in the same pull request AND reconsider the verdict, whose text
+  lives in `VERDICTS` inside `tools/reseed-calibration.mjs`. On 2026-09-15 a reseed also caught two
+  entries that had drifted earlier and never been reseeded, one of them from a DIRECT commit to
+  `redesign/main` that ran no pull request checks.
+- **A Codex Cloud command run from the repository root drops an `error.log` there and blocks the next
+  commit.** `runCodex` at `tools/lib/cloud-worker.mjs:141` passes `cwd: options.cwd`, so a caller that
+  omits it lets the CLI write into the orchestrator's working directory.
+  `check-root-allowlist.mjs` then refuses the commit, and `.gitignore:98` hides the file from
+  `git status`, so the symptom looks unrelated. Ticket **`#544`**. Until it lands, delete the stray
+  file rather than declaring it in `root-allowlist.json`.
 - **GitHub's `reviewDecision` is not the Pullfrog verdict.** Read `list-bot-threads.mjs` and the
   `pullfrog-approval` check, never the aggregate. **`counts.unresolved = 0` is not a clean review**:
-  a finding can live in the review BODY with no thread, and `reviewBody` is truncated at 4,000
-  characters. **A COMMENTED review with an EMPTY body and zero threads still leaves
-  `pullfrog-approval` red**; only `--re-review` produces the APPROVED state that flips it.
+  a finding can live in the review BODY with no thread. **A COMMENTED review with an EMPTY body and
+  zero threads still leaves `pullfrog-approval` red.**
 - **Pullfrog posts EMPTY-bodied COMMENTED reviews as progress markers while it works**, and
-  `list-bot-threads.mjs` accepts the first one as `REVIEWED` and returns. On 953 two arrived at
-  01:52 and 01:54 and the real APPROVED review only landed at 02:00; on 958 three arrived within
-  three seconds. Ticket `#541` owns the fix. Until it lands, the verdict is the
-  `pullfrog-approval` CHECK RUN at the exact head, or, when that check is absent from the rollup, a
-  review whose `reviewState` is APPROVED and whose `reviewedCommit` is that head. That disjunction is
-  what `readiness-receipt.mjs:215-218,568-571` actually implements.
+  `list-bot-threads.mjs` accepts the first one as `REVIEWED` and returns. Ticket `#541` owns the fix.
+  Until it lands, the verdict is the `pullfrog-approval` CHECK RUN at the exact head.
+- **Pullfrog runs on the SAME GPT Sol allowance as the local Codex workers.** On 2026-09-15 three
+  review runs failed with `action failed: provider error: The usage limit has been reached`,
+  `providerID=openai modelID=gpt-5.6-sol`. A failed Pullfrog run looks exactly like a pending review:
+  read the linked workflow run, and `gh run rerun <id> --failed` rather than posting a fresh request.
 - **Read only the LATEST check run per name.** A push while a workflow is in flight leaves the
-  superseded run's `failure` or `cancelled` on the same commit, so reading every row reports a red
-  GitHub itself already replaced. This nearly cost a worker on 966, whose Cross-Platform Parity had
-  an old `failure` sitting beside the newer `skipped` the exemption label produced.
+  superseded run's `failure` on the same commit.
 - **`tools/resolve-bot-thread.mjs` replies and resolves in one step.** Use it only when the finding
   is actually fixed. Its reply body comes from stdin.
-- **`list-bot-threads.mjs` posts "@pullfrog review" only when `--wait-seconds` is above 0.** With
-  `--wait-seconds 0` it polls once and requests nothing.
-- **`orbit-api`'s Pullfrog runs by manual dispatch only**, so a redesign pull request there gets no
-  review until one is requested.
+- **`list-bot-threads.mjs` posts "@pullfrog review" only when `--wait-seconds` is above 0.**
+- **`orbit-api`'s Pullfrog runs by manual dispatch only.**
+- **`gh api .../comments` without `--paginate` returns the OLDEST page**, so the newest comment looks
+  missing. Always paginate when checking whether a routing comment landed.
 - **The orchestrator guardrail refuses any shell redirect whose target contains a variable.** Write
   literal paths or a small node script.
 - **`compose-prompt.mjs` appends EVERY ticket comment in order**, so the newest comment is the
-  freshest instruction a worker sees. With several branches live on one ticket, post a routing
-  comment last naming which branch runs which stage. This hazard appeared three times on 2026-09-15.
-- **Cloud has a circuit breaker.** Two empty diffs in one session open it and every later ticket
-  routes local. It fired again on 2026-09-15, after three empty results across two tickets, and every
-  round that night ran local afterwards.
-- **A Cloud container has NO origin remote and cannot fetch.** A `#537` worker recorded it directly:
-  `git fetch origin <branch>` failed and `gh` could not authenticate. So a MERGE-FORWARD can never run
-  in Cloud; it is always local. A Cloud worker also cannot read another branch's source, so an order
-  that says "read pull request N's diff" has to be local too.
-- **The local worker pool is ONE at a time on this machine.** Two was the old figure. On 2026-09-15
-  the host's memory guard killed two codex workers and three background node waiters in one go with
-  8.5 GB free. One worker, and poll reviews inline rather than holding background waiters open.
-- **A fresh worktree needs `npm install` before any hook or harness runs.** Two separate worktrees
-  failed a commit or a harness on a missing `typescript` and a missing `sharp`, because their
-  `node_modules` predated a dependency. Install once, staggered, never in parallel.
+  freshest instruction a worker sees. Post a routing comment LAST, naming the round.
+- **Cloud is UNUSABLE and is being turned off by default.** On 2026-09-15 it returned an empty diff
+  **five times out of five**: twice on `#76` stage 9, then on `#56` stage 13, `#545` stage 1 and
+  `#547`. `materialize-cloud-result.mjs` exits 3 with `CLOUD_TASK_EMPTY` and classification
+  `lost-work suspect`; the harness behaves correctly and the container is what fails. Thomas: "if
+  cloud is bugged, just remove this funcionality ... just disable it by default". Ticket `#551`.
+  **Do not pass `--cloud` until it lands.**
+- **A Cloud container has NO origin remote, cannot fetch, and installs no dependencies reliably.** So
+  a merge-forward is always local, and a Cloud handoff's `testResults` is a CLAIM. On 2026-09-15 a
+  container reported "PASS: npm run type-check completed for @orbit/shared, @orbit/web, and
+  @orbit/mobile" while the root type-check failed with five errors. **Re-run every check locally.**
+- **The local worker pool is THREE at a time on this machine.** One was the old figure; Thomas asked
+  for parallel worktrees on 2026-09-15, and five concurrent workers then drove the machine to 45% CPU
+  with 6.6 GB free and he asked for it cut. Three holds at about 8% CPU and 8 GB free.
+- **`caps.workerLaunchesPerBranch` is 2 and it WILL refuse a legitimate review-fix round.** Pass
+  `--relaunch-reason "<text>"` naming the new head and the new findings. Do not raise the cap.
+- **The ORCHESTRATING checkout's dependencies go stale too.** On 2026-09-15 the root type-check
+  failed with two `TS2307`s for `@resvg/resvg-js` and `@vvo/tzdb`, both DECLARED and both absent, so
+  every local verification before the install was worthless. Install in the checkout doing the
+  judging, not only in fresh worktrees.
 - A stale eslint cache at `apps/mobile/.expo/cache/eslint` blocks every commit in a worktree.
-- **`apps/mobile/__tests__/scripts/__snapshots__/widget-header.test.ts.snap` flips its line endings
-  on its own.** Restore it and keep it out of every commit.
-- **A squash merge duplicates content into every stacked branch.** Resolve by reading both sides,
-  never by taking one whole. For `eslint-suppressions.json`, keep BOTH sides' deletions and the LOWER
-  count, then prove it with `GITHUB_BASE_REF=redesign/main node tools/check-suppressions-ratchet.mjs`.
-- **A Server Action strips everything but `digest` from a thrown error.** Installed Next 16.3.4,
-  `react-server-dom-webpack-server.node.production.js:1925-1928` and the matching client lines: a
-  thrown `ApiClientError` reaches the browser as `{ digest: string }` and nothing else. So a web hook
-  that reads `status` off a caught action error never fires in production. Return a serializable
-  discriminated `ActionResult` instead; the shared one is
-  `apps/web/app/actions/action-result.ts`. A test that rejects from a MOCKED action never crosses the
-  boundary and so passes over the defect.
-- **Android ignores an accessibility node it considers invisible, and there are two ways to lose it.**
-  `opacity: 0` maps to `View.setAlpha(0)`, and a fully off-screen view has no visible rect, so
-  `View.isVisibleToUser()` returns false. Both were tried on the support success announcement and both
-  failed. The answer is `AccessibilityInfo.announceForAccessibility`, declared in the installed React
-  Native at `AccessibilityInfo.d.ts:146` and implemented at `AccessibilityInfo.js:474-478`. Never hide
-  a live region and expect it to announce.
-- **Run `npm run type-check` from the repository ROOT, never per workspace.** Per-workspace runs
-  never reach `packages/shared`'s contract type tests. That gap shipped a TS2345 on one pull request
-  and four TS2344s on another, both from containers that had run only `--workspace=apps/...`.
-- Worktree and branch debt is large and harmless. Read 2026-09-15 at 10:20 UTC: dirty worktrees are
-  `ticket-351-primitives` 179 files, `orb-70-android-widget` 34, `orb65-red-evidence` 4 on a detached
-  HEAD, `ticket-174-measure` 1, and `ticket-73-static-s5` 8, which is the only live one and is listed
-  in State. Four stashes, all from tickets that shipped. Three detached HEADs whose commits are
-  reachable. `ticket-335-avisos` shows 11 "unpushed" commits and `ticket-329-progresso-s7b` six; both
-  are artefacts, the first of a squash merge that landed as pull request 843 and the second of an
-  upstream pointed at its stack parent. `orbit-api` has no dirty worktree and no stash.
+- **`apps/mobile/__tests__/scripts/__snapshots__/widget-header.test.ts.snap` flips its line endings on
+  its own.** Restore it and keep it out of every commit.
+- **A squash merge duplicates content into every stacked branch.** Resolve by reading both sides. For
+  `eslint-suppressions.json`, keep BOTH sides' deletions and the LOWER count, then prove it with
+  `GITHUB_BASE_REF=redesign/main node tools/check-suppressions-ratchet.mjs`.
+- **Run `npm run type-check` from the repository ROOT, never per workspace.**
+- **`node tools/redesign-coverage.mjs` validates against a COMMITTED manifest that nothing regenerates
+  automatically.** No CI job runs `surface-manifest.mjs` or `redesign-coverage.mjs`; they are a manual
+  completion gate. So a change that deletes surfaces reports `valid` until the manifest is
+  regenerated, and only then fails with `mapping surfaceId is absent from manifest`. Any pull request
+  that deletes a drawn surface regenerates the manifest AND moves the ids into
+  `tools/redesign-groups.json`'s `deleted` section with the decision that removed them, in the same
+  commit.
+- Worktree and branch debt is large and mostly harmless. Read 2026-09-15 at 14:04 UTC under State.
+
+## The suppressed lint violations, which are now the largest block of work
+
+Read live on `redesign/main` at `52ec075e`:
+
+    web     180 violations across 54 files
+    mobile  187 violations across 45 files
+
+By rule: `local/spacing-scale` 122 web and 146 mobile, `local/icon-size-grid` 38 and 36,
+`local/no-space-x-y` 9 web, `local/require-focus-replacement` 5 web, `local/no-arbitrary-zindex` 3 web
+and 5 mobile, plus three singletons on web. Reproduce with a read of both
+`eslint-suppressions.json` files.
+
+**Every screen ticket already requires its own share gone**, with a strict Suppressions Ratchet
+decrease, so this is not new scope: it is scope that was never counted. It is also the reason a screen
+that "looks done" is not closeable, which is how `#56`, `#71` and `#76` were all found open after being
+called finished.
+
+Two rules for this work, both learned the hard way:
+
+- **Fix the VALUE, never the count.** Never raise a count, never add an inline disable, and never
+  remove a rule from the ESLint config to make a file pass.
+- **A shared primitive needs a caller sweep before it is touched.** `settings-row.tsx`,
+  `settings-group.tsx` and `settings-description.tsx` are used by more than one screen, so a spacing
+  fix there moves gaps on surfaces the ticket does not own. Name what you found in the pull request
+  body. `components/navigation/notification-bell` is navigation chrome and belongs to the shell, not
+  to Perfil.
 
 ## How to run a stage, learned 2026-09-13 to 2026-09-15
 
@@ -281,172 +352,188 @@ Pointers, not restatements. The reasoning lives in the ADR.
 - **A review order names the tests that pass with the bug present.**
 - **Capture a test run to a file, never through `tail`.**
 - **Read the worker's `## Assumptions` at EVERY exit, including a clean one.** They are also where a
-  worker records that it corrected YOUR order: on 2026-09-15 one caught that Monday-first index 5 is
-  Saturday, not Friday, and fixed the fixture rather than the sentence.
+  worker records that it corrected YOUR order. On 2026-09-15 one REFUSED an item and was right: the
+  order demanded all 5,000 of a person's characters plus a version suffix inside a 5,000-character
+  field. A refusal with a reason beats a guess.
 - **Check the ticket's requirements against the tree, not against the worker's report.**
-- **Grep for the BEHAVIOUR, not the identifier you expect**, and never hand a worker a caller list
-  from memory. Two such lists were wrong on 2026-09-15; `isRecapShareEmpty` had five call sites where
-  the order named three. Adding a parameter with NO default turns a missed caller into a compile error.
+- **Judge a ticket against its own acceptance criteria before closing it.** Three tickets called
+  finished were not: `#76` ships one empty widget string where the canvas owes two, `#56`'s calendar
+  import prompt still carries three off-scale spacing suppressions, and `#71` carries thirteen files'
+  worth. `redesign-coverage.mjs` cannot see any of this; it checks the MAPPING, not the ticket.
+- **Grep for the BEHAVIOUR, not the identifier you expect.**
 - **A stacked child is not blocked by a blocked parent.**
-- **Verify a Pullfrog finding against the tree before acting on it.** Its own metadata warns that a
-  finding written against an older head may be stale, and two on 2026-09-15 were: the code was
-  already correct and a worker launch would have proved only that.
-- **The orchestrator can clear a finding itself when the evidence is a read, not an edit.** A missing
-  external-interface proof was answered by pulling the expansion out of a real workflow run log and
-  appending it to the pull request body; no worker launch, no branch change. On 2026-09-15 this
-  cleared four findings without a worker: an `i18next-icu/cjs` namespace shape, a `PAY_GATE` response
-  proved through five `orbit-api` files, a fix that had already landed on the branch's own parent, and
-  a copy question that was never Thomas's to answer.
-- **Measure a stacked branch's OWN diff BEFORE ordering its merge-forward**, with
-  `git diff <parent's final head>...<branch> --stat`, and put the figure in the order together with
-  the check that proves it: after committing, `git diff origin/redesign/main...HEAD --stat` must
-  report exactly those files. Four merge-forwards resolved that way on 2026-09-15 and every one came
-  back matching the measurement.
-- **A worker order that says "read pull request N" or "fetch a branch" must run LOCAL.** A Cloud
-  container has no origin remote, so it will silently document from your comment instead, which is
-  how `--tier` and `--relaunch-reason` nearly landed unverified.
-- **Post a routing comment LAST, naming the round.** With several branches live on one ticket, a
-  routing comment that names an older round is worse than none: `compose-prompt.mjs` appends every
-  comment and the worker reads the newest as current.
+- **Retarget a stacked child onto the integration branch BEFORE merging its parent.**
+- **Verify a Pullfrog finding against the tree before acting on it**, and verify an external-interface
+  claim against the INSTALLED source. Three findings on 2026-09-15 were confirmed that way and one
+  earlier one was dismissed as stale.
+- **The orchestrator can clear a finding itself when the evidence is a read, not an edit.**
+- **Measure a stacked branch's OWN diff BEFORE ordering its merge-forward**, against its parent's
+  FINAL head rather than the head it was stacked on, with
+  `git diff <parent final head>...<branch> --stat`, and put the figure in the order together with the
+  check that proves it: after committing, `git diff origin/redesign/main...HEAD --stat` must report
+  exactly those files.
+- **A merge-forward order forbids fixing anything it finds.** Say it in the pull request body and give
+  it its own round; a merge-forward carrying a behaviour change is a review nobody gave.
+- **A worker order that says "read pull request N" or "fetch a branch" must run LOCAL.**
+- **Post a routing comment LAST, naming the round.**
 
+
+## What 2026-09-15 into 09-16 proved about reviews and checks
+
+- **A forced `--re-review` is worth its cost.** Four times in one night it returned a NEW P1 on a
+  head that already carried a green approval. The worst was 972: an empty rendered set fell back to
+  a stale visibility calculation, so Select all reached habits the screen was not showing and bulk
+  delete could remove them. Ask for one on any head that matters.
+- **`pullfrog-approval` does not publish on a MERGE-ONLY head.** A push with a real diff publishes
+  it; an `update-branch` or a bare merge commit does not, even though Pullfrog reviews and APPROVES
+  that exact commit. It arrives later from the mention runs, so wait. **Never push an empty commit
+  to manufacture a diff**: a required check satisfied by a commit written to satisfy it proves
+  nothing.
+- **A red check is not always a defect.** On 974 a `Type Check` red was `npm error code ECONNRESET`
+  inside `npm ci`, while the same commit passed uncached locally. Read the log before ordering a
+  round.
+- **Rounds that keep opening new findings mean the STATE MODEL is wrong.** 973 took six. Rounds 3
+  and 4 each fixed one finding and opened the next, until round 5 replaced four disagreeing replay
+  flags with one state. Order the model change rather than a third guard.
+- **A test that was never shown to fail has not been shown to notice anything.** 971 shipped eight
+  press tests that all stayed green with both handlers replaced by no-ops. The order that fixed it
+  required running that no-op experiment and capturing the output before and after.
+- **A worker killed for memory or ceiling has usually COMMITTED.** All six did. Read the worktree
+  before assuming loss. The orchestrator may then run the verification and push that commit itself,
+  which is delivery rather than editing and saves a launch. Say so plainly in the pull request body,
+  and never claim red-first runs that happened only inside the killed session.
+- **A refusal with a reason beats a guess.** `#551` round 1 was pointed at `main`, where no Cloud
+  system exists at all, and the worker stopped before editing anything rather than inventing a
+  config block. Verify such a refusal, then fix the ORDER.
 ## State
 
-Read live 2026-09-15 at 10:20 UTC. `redesign/main` is `2704aa3f`.
+Read live 2026-09-16 at 01:30 UTC. `redesign/main` is `c4071c5a`. `main` is `adc070bc` and FINAL:
+the beta release shipped and no pull request is open against it.
 
-### Built and merged
+**The second effort is DONE.** `.claude/specs/beta-release.md` is now a record, not a queue. Its
+constraints still bite and are worth reading once. Its five merges reach this branch through the
+drift merge, `#556`, which is the one piece of integration work left over from it.
 
-- **The calendar is finished**, all twelve stages, including the Google import candidates beside
-  habits, the sync Pro boundary, and the timezone-partitioned event cache.
-- **Privacy and Terms** ship with the 62ch measure reaching the live route, one `main` landmark, and
-  the Android bottom inset reserved.
-- **About** stages 1, 2, 4 and 5 are merged. Stage 5 rebuilt the support form on the system controls:
-  Send is disabled while the subject or the message is empty, as the canvas draws it, with a line
-  naming which one is missing; whitespace does not fool it; a field the profile fills no longer keeps
-  the error for the value it replaced; and a successful send announces through
-  `AccessibilityInfo.announceForAccessibility`.
-- **Perfil** has its five-group frame, data export, the Astra allowance panel, the product email
-  consent question, the API keys and MCP surface behind the plan gate with step-up bound to the auth
-  session, the more-of-Orbit routes group, and its ending actions. The deletion warning now states
-  only the 30-day cap the server guarantees.
-- **Wrapped** has its cover, its paging and stage 4. A recap made shareable only by closed goals no
-  longer exports an image of zeroes: the card carries the goal count and its label as the canvas
-  draws it, and the goals caption renders on Android.
-- **Progresso** exists as the fourth destination with XP and achievements, and stages 3 and 4 are in.
-  A locked account no longer sees a false full-bank notice or a repair it cannot use; a 409 during a
-  repair re-reads the server; and on web that path works at all for the first time.
-- **The Android widget is finished**, all eight stages. A good parent whose children are all bad
-  habits counts as one rather than vanishing from both figures, with JVM tests that call
-  `prepareWidgetDay` directly.
-- **Mobile renders ICU**, so the eleven plural strings that were garbage on Android now render, and a
-  shared guard fails any future string that would swallow a placeholder.
-- **The harness work is done.** `#536` capped worker launch cost by tier and branch, `#537` gave the
-  orchestrate skill its batching contract and tier routing, and `#356` rebuilt the coverage mapping.
-- The standalone streak, achievements, insights and retrospective routes are GONE on both platforms,
-  and mobile ships four tabs. So `#57` and `#58` have no removal work left; their section content is
-  `#329`'s stack.
+### Merged to `redesign/main` on 2026-09-15 into 09-16
 
-### The completion check works now
+    969  c9883aca  About stages 6 to 8, the support request states
+    959  f3ea49ca  Progresso stage 5b, the linked goal limit ordering
+    980  c4071c5a  Cloud submissions off by default (`#551`, closed)
 
-`node tools/redesign-coverage.mjs` validates on `redesign/main`: **190 manifest surfaces across the 21
-canvas documents, 8 deleted with their decisions, 3 named exclusions.** It derives the document set by
-reading `design/canvas/*.dc.html`, rejects an invented or missing document name, and refuses a
-`deleted` id that is still live in the manifest. A live surface no canvas draws stays visible as a
-NAMED exclusion rather than being parked under a document that does not draw it; the three are the
-store-review prompt, the Astra import prompt and the session-expiry warning.
+`#551` is worth knowing about: a Cloud submission now exits before any lock, receipt or Codex
+contact, the flag cannot be bypassed from the command line, and the recovery paths for
+already-started work still function. That closes the failure that returned five empty diffs in one
+day. **Do not pass `--cloud`; it will refuse, and that is correct.**
 
-This is the completion gate for the whole effort. Before `#356` merged it reported zero surfaces for
-three built screens and ten for a route D69 deleted.
+### Open pull requests against `redesign/main`
 
-### Open pull requests, all in `orbit-ui-mobile`
+| pull request | head | state |
+|---|---|---|
+| 979 | `cbe08904` | the drift merge, `#556`. A worker is mid-merge. Approved earlier at `aa1b8105`, and its one finding is already fixed in `e9ecd7fd` |
+| 963 | `8d69cb53` | Wrapped stage 7. Two P1s were opened on 2026-09-15 and are NOT fixed: the `"0000"` year and the Expo cached launch response. Round 2 order is on `#63` |
+| 970 | `e15d5228` | `/progress` generic plus `--full`. DIRTY, two findings, no round run |
 
-Read live 2026-09-15 at 10:20 UTC. None waits on Thomas.
+### The drift merge, `#556`, is the first thing to finish
 
-| pull request | base | head | state |
-|---|---|---|---|
-| 954, Perfil s9 | `redesign/main` | `efa88425` | merged forward, CLEAN, no review of this head yet |
-| 957, Progresso s6 | `redesign/main` | `2bd5ce88` | merged forward, CLEAN, no review of this head yet |
-| 961, Wrapped s5 | `redesign/main` | `0a5ad417` | merged forward, only SonarCloud red, no review of this head yet |
-| 958, Progresso s7 | 957's branch | `b6fb6396` | CONFLICTING after 957's parent merged; needs a merge-forward |
-| 959, Progresso s5 | 958's branch | `4557939f` | APPROVED and clean, waits on its parents |
-| 962, Wrapped s6 | 961's branch | `6e40e930` | APPROVED, CONFLICTING; needs a merge-forward after 961 |
-| 963, Wrapped s7 | 962's branch | `b34c0d88` | APPROVED and clean, waits on its parents |
+It exists because `redesign/main` no longer contained `main`, and that broke more than tidiness:
+every orchestrator tool refuses to run from a stale `redesign/main` checkout, including
+`launch-worker.mjs`. The workaround was to move the orchestrating checkout to `main`, which cost the
+`progress`, `questions`, `drift-review` and `sleep` skills, because those exist only on
+`redesign/main`.
 
-Four dependabot pull requests sit on UI `main` and are not this effort.
+Rounds 1 and 2 kept re-conflicting because each `main` merge moved the target. `main` is now final,
+so round 3 merges once and stays merged. **Once 979 lands, put the orchestrating checkout back on
+`redesign/main` and the skills return.**
 
-### `orbit-api`
-
-`redesign/main` is `827b99bd` and runs the full CI suite on its pull requests. Two open pull requests
-are real work and both are BLOCKED on review, not on the redesign: 521 (`cc86c612`, the live calendar
-timezone defect `#526`, CHANGES_REQUESTED) and 520 (`ce610484`, gating matrix tooling). Three
-dependabot ones sit beside them. Thomas's standing instruction routes both to `main`.
+Four behaviours from `main` must survive its conflicts, each a defect someone hit:
+bulk selection targeting only rendered habits including a valid empty set; one replay state for the
+offline queue; the Astra marker rather than `Sparkles`; and the corrected AA status text colours.
 
 ### Not started, or half started
 
-- **About stages 6, 7 and 8 are half built and UNCOMMITTED.** The worker died mid-change when the
-  Codex allowance ran out at 08:30. `C:/Users/thoma/orca/workspaces/orbit-ui-mobile/ticket-73-static-s5`
-  holds 8 modified files, +263/-61, on branch `feature/ticket-73-static-s678` cut from `56ddfdd6`. It
-  is **WEB ONLY**: `apps/mobile/app/support.tsx` is untouched, so it would fail Cross-Platform Parity
-  and cannot be finished without a worker. It was deliberately not committed: the salvage rule forbids
-  writing the implementation by hand, and half a screen is worse than none.
-- **About stage 3**, the feature guide subjects. The verified product facts are posted on `#73`.
-- **Onboarding, the tour and the feature guide** (`#67`): nothing built, almost entirely copy.
-- **Progresso's six accessibility sweeps**: `#472`, `#473`, `#476`, `#477`, `#478`, `#480`.
-- **`#53` Goals** and **`#74`'s copy pass**, whose 32 drafted labels across 58 sites have never landed.
+- **`#545`**, 196 suppressed violations on surfaces whose screen ticket already closed. Stage 1 IS
+  committed as `49a913bb` in `ticket-545-form-fields`, 14 files with 63 suppressions dropped from
+  `apps/web/eslint-suppressions.json`, seven commits unpushed. It needs a merge-forward and a push,
+  not a rewrite. A delivery-only order is already the newest comment on `#545`.
+- **`#67` onboarding stage 1** is BUILT and STAGED, not committed: 132 files in
+  `ticket-67-onboarding-s1`. Round 2 order is the newest comment on `#67`.
+- **`#557`**, filed 2026-09-15: Android says "You were signed out" and offers Log in while the
+  session is still recoverable. `expiry-warning.tsx:116` renders `auth.login` with `handleLogin()`
+  behind it, and nothing in that component clears auth state, while the API client would have
+  refreshed silently on its next request. 974 fixed the WORDS; this fixes the ACTION.
+- **`#546`**, the Gate Charter that never installs `js-yaml`. **D95 still forbids the run that is
+  judged by `Guards` from fixing it.**
+- **`#76` stage 9**, **`#56` stage 13**, **`#71` stage 10**, **`#73` stage 3**, **`#53`**, **`#74`**,
+  **`#543`**, **`#544`**, and Progresso's six sweeps `#472`, `#473`, `#476`, `#477`, `#478`, `#480`.
+
+### `orbit-api`, both still open on `main`
+
+Each has exactly ONE live finding and everything else green. Both were re-read at 19:46 UTC.
+
+- **521** `cc86c612`, `GetCalendarEventsQuery.cs:46`: `TimeOfDay` keeps seconds while the response is
+  truncated to `HH:mm`, so 10:00:10 to 10:00:50 emits equal times the bulk import rejects. Two other
+  threads on this pull request are already resolved.
+- **520** `ce610484`, `tools/gating-matrix.mjs:434`: `planRequirement` becomes `null` for any gate
+  not written in the one ternary shape the parser knows, publishing every caller as ungated while
+  tests stay green. The order refuses the cheap fix of adding a pattern and requires a three-way
+  distinction with a fail-closed unknown.
+
+A fresh order naming the exact live finding is the newest comment on `#526` and `#229`.
+
+### Worktree and branch debt, read 2026-09-16 at 01:30
+
+Holding real work: `ticket-545-form-fields` 7 unpushed; `ticket-556-drift-merge` 161 dirty with a
+merge in progress, which is the live worker; `ticket-67-onboarding-s1` 132 staged;
+`ticket-335-avisos` 11 unpushed, an artefact of a squash that landed as 843.
+
+Old debt that blocks nothing: `ticket-351-primitives` 179 dirty, `orb-70-android-widget` 34,
+`ticket-174-measure` 1, `ticket-329-progresso-s5b` 2.
+
+Four stashes, all from tickets that shipped. Four detached HEADs: `orb65-red-evidence` at `20d729c6`,
+`ticket-397-accent` at `a27a8e43`, `ticket-468-control` at `f1b2991c`, and `ticket-550-r3-red` at
+`386939e0`. Their commits are reachable.
+
+Two worktrees were created on 2026-09-16 and can be removed once used:
+`ticket-551-cloud-default`, cut from `main` and holding nothing, and `handoff-0916`.
+**Never `git worktree remove --force` on Windows**: it follows a junction and deletes the target.
+Remove junctions with `rmdir` first.
 
 ### Tickets
 
-121 carry `repo:ui` and 65 carry `repo:api`. Reproduce with
+**129 carry `repo:ui`**, down from 133. Reproduce with
 
-    gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 200
+    gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 300
 
-Ten screen tickets remain open: `#53` Goals, `#56` calendar, `#57` streak, `#58` achievements, `#63`
-Wrapped, `#67` onboarding, `#71` settings, `#73` About, `#74` copy pass, `#76` widget, plus `#329`
-Progresso. `#76`'s work is complete and it can close as soon as someone judges it against the
-coverage command; the rest have work left.
-
-Closed during the 2026-09-14 into 09-15 run: `#538`, `#539`, `#536`, `#537`, `#540`, `#534`, `#356`.
-Filed and still open: `#535` (the layout guard has no 320px width), `#541` (list-bot-threads accepts a
-Pullfrog progress marker as a finished review), `#542` (a review-fix worker pushes before its threads
-can be resolved).
+All eleven screen tickets are still open: `#53`, `#56`, `#57`, `#58`, `#63`, `#67`, `#71`, `#73`,
+`#74`, `#76`, `#329`.
 
 ## Open questions
 
-**None are his.** Two future actions are his alone and neither blocks this spec:
+**None are his.** Two future actions are his alone and neither blocks this spec: raising
+`AppConfig.MinSupportedVersion` for `#529` once the carrying build is live in the Play fleet, and the
+GPT Sol allowance, which he reset by hand on 2026-09-15 at about 10:20 after it ran out at 08:30. If a
+worker or a Pullfrog run fails for quota rather than for code, that is the one external ending this run
+may take, and it is reported as external.
 
-- raising `AppConfig.MinSupportedVersion` for `#529`, after the carrying build is live in the Play
-  fleet;
-- the Codex allowance, which ran out at 2026-09-15 08:30 UTC and would otherwise have returned on
-  2026-09-19 05:09. He reset it by hand the same morning. If a worker fails for quota rather than for
-  code, that is the one external ending this run may take, and it is reported as external.
+**Answered on 2026-09-15, previously marked his on `#73`:** whether the support request attaches the
+app version. It does, with a visible line saying so, because the picker's "something does not work"
+option is useless to support without it. The how is under Decisions.
 
 ## Copy, which is yours
 
-Landed during the 2026-09-14 into 09-15 run: the deletion warning and its Pro variant,
-`profile.freshStart.description`, `profile.support.subjectRequired`, `messageRequired`,
-`emailLockedReason`, `sendIncomplete`, `sendNeedsSubject`, `sendNeedsMessage`,
-`shareCard.stats.goalsClosed`, `wrapped.slides.goals.some`, `wrapped.slides.consistency.summary`,
-`.even`, and `progressScreen.streak.repairPartial`, `repairEmpty` and `repairCapped`.
-
-Three of those were rewritten a second time, and each for the same reason: **a string that reads a
-server value must state only what the server guarantees.** `warningPro` promised a date the 30-day cap
-overrides. `repairEmpty` and `repairPartial` told an underfunded person to wait for the next earned
-freeze, which cannot rescue that gap at all, because `UserStreakService.cs:107-123` only ever offers a
-gap ending LOCAL YESTERDAY and `StreakFreeze.cs:24-39` rejects it after that. And `repairPartial`
-rendered "only 2 is banked" until `banked` got its own plural in both locales.
+Landed 2026-09-14 into 09-15: the deletion warning and its Pro variant,
+`profile.freshStart.description`, the support field and send reasons, `shareCard.stats.goalsClosed`,
+`wrapped.slides.goals.some`, `wrapped.slides.consistency.summary` and `.even`, the three
+`progressScreen.streak.repair*` strings, `profile.support.offlineReason` rewritten to promise only
+local retention, and `profile.support.subjectSendingReason`.
 
 Still to write:
 
-1. **The four support subject options** for About stage 6, each with a short description: something
-   does not work, billing or plan, account and access, something else. The API takes `subject` as free
-   text, so they are authored phrasings of that same string. Note that with a picker there is no empty
-   subject, so `sendNeedsSubject` and `sendIncomplete` need rereading and any unreachable one deleted.
-2. **The feature guide's rewritten entry sets** for About stage 3. The verified product facts are
-   posted on `#73`; the words are the worker's to write from `BRAND.md`.
-3. **Onboarding, the tour and the feature guide** (`#67`), almost entirely copy.
-4. **The 32 shortened control labels** for ticket `#74`, drafted across 58 sites in both locales and
-   never landed. Landing them retires the matching inline suppressions.
-5. `progressScreen.achievements.lockedBody` was REVIEWED and KEPT as "Orbit Pro tracks achievements
-   and XP." It matches its siblings `streak.lockedBody` and `window.lockedBody` and is true for the
-   person who sees it: the locked card renders only when `canViewGamification` is false, which means
-   no Pro and no flag. Do not reopen it. Pullfrog asked for "the product owner's ruling" on it on
-   2026-09-15 and that request was declined, because copy is not his.
+1. **The feature guide's rewritten entry sets** for About stage 3.
+2. **Onboarding stages 2 to 9** (`#67`), almost entirely copy.
+3. **The 32 shortened control labels** for ticket `#74`, across 58 sites in both locales.
+4. **The widget's second empty string** for `#76` stage 9. Decided: `Nothing scheduled` and
+   `Nada agendado`, with `widget_all_clear` untouched for the everything-done case.
+5. **The support version line** for `#73`.
+6. `progressScreen.achievements.lockedBody` was REVIEWED and KEPT as "Orbit Pro tracks achievements
+   and XP." Do not reopen it.

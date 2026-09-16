@@ -5,7 +5,7 @@ import { useThrottleStore } from '@/stores/throttle-store'
 import {
   buildClientTimeZoneHeaders,
   extractBackendError,
-  extractBackendErrorCode,
+  isPayGateError,
   validateApiResponse,
 } from '@orbit/shared/utils'
 import type { ZodType } from 'zod'
@@ -23,6 +23,7 @@ type TranslateFn = (key: string) => string
 
 export interface ApiFetchBehavior {
   handlesError?: boolean
+  handlesPayGate?: boolean
 }
 
 let _translate: TranslateFn | null = null
@@ -75,10 +76,7 @@ const reportedApiErrors = new WeakSet<ApiError>()
 export function reportApiError(error: unknown): void {
   if (!(error instanceof ApiError) || reportedApiErrors.has(error)) return
   if (error.status === 401 || error.status === 426) return
-  if (
-    error.status === 403 &&
-    extractBackendErrorCode({ data: error.data }) === 'PAY_GATE'
-  ) {
+  if (isPayGateError(error)) {
     return
   }
 
@@ -92,6 +90,7 @@ export function reportApiError(error: unknown): void {
 async function getStatusError(
   status: number,
   body: unknown,
+  behavior?: ApiFetchBehavior,
 ): Promise<ApiError | null> {
   if (status === 401) {
     const { useAuthStore } = await import('@/stores/auth-store')
@@ -99,8 +98,9 @@ async function getStatusError(
     return new ApiError(status, 'Unauthorized', body)
   }
 
-  if (status === 403 && extractBackendErrorCode({ data: body }) === 'PAY_GATE') {
+  if (isPayGateError({ status, data: body })) {
     if (
+      !behavior?.handlesPayGate &&
       typeof location !== 'undefined' &&
       globalThis.location.pathname !== '/upgrade'
     ) {
@@ -150,7 +150,7 @@ export async function apiFetch<T>(
     const body: unknown = await res.json().catch(() => null)
     const status = res.status
 
-    const statusError = await getStatusError(status, body)
+    const statusError = await getStatusError(status, body, behavior)
     if (statusError) {
       throw statusError
     }
