@@ -29,7 +29,7 @@ import {
   markAllNotificationsRead,
   deleteNotification as deleteNotificationAction,
   deleteAllNotifications as deleteAllNotificationsAction,
-} from '@/app/actions/notifications'
+} from '@/lib/actions/notifications'
 import { fetchJson } from '@/lib/api-fetch'
 
 export function useNotifications() {

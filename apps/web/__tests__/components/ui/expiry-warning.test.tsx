@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 const mockLogout = vi.fn()
-let mockExpiresAt: number | null = null
+let mockSessionRefreshFailed = false
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -13,8 +13,8 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({
-    get expiresAt() {
-      return mockExpiresAt
+    get sessionRefreshFailed() {
+      return mockSessionRefreshFailed
     },
     logout: mockLogout,
   }),
@@ -25,47 +25,30 @@ import { ExpiryWarning } from '@/components/ui/expiry-warning'
 describe('ExpiryWarning', () => {
   beforeEach(() => {
     mockLogout.mockClear()
-    mockExpiresAt = null
+    mockSessionRefreshFailed = false
   })
 
-  it('renders nothing when expiresAt is null', () => {
+  it('renders nothing while silent session refreshes succeed', () => {
     const { container } = render(<ExpiryWarning />)
     expect(container.innerHTML).toBe('')
   })
 
-  it('renders nothing when session is far from expiring', () => {
-    mockExpiresAt = Date.now() + 60 * 60000
-    const { container } = render(<ExpiryWarning />)
-    expect(container.innerHTML).toBe('')
-  })
-
-  it('shows warning when session is about to expire', () => {
-    mockExpiresAt = Date.now() + 3 * 60000
+  it('shows the signed-out message only after refresh fails', () => {
+    mockSessionRefreshFailed = true
     render(<ExpiryWarning />)
-    const alert = screen.getByRole('alert')
-    expect(alert).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('auth.sessionSignedOut')).toBeInTheDocument()
   })
 
-  it('shows expired state when time has passed', () => {
-    mockExpiresAt = Date.now() - 1000
-    render(<ExpiryWarning />)
-    expect(screen.getByText('auth.sessionExpired')).toBeInTheDocument()
-  })
-
-  it('shows refresh button for expiring session', () => {
-    mockExpiresAt = Date.now() + 2 * 60000
-    render(<ExpiryWarning />)
-    expect(screen.getByText('auth.refresh')).toBeInTheDocument()
-  })
-
-  it('shows login button for expired session', () => {
-    mockExpiresAt = Date.now() - 1000
+  it('offers sign in after refresh fails and never offers refresh', () => {
+    mockSessionRefreshFailed = true
     render(<ExpiryWarning />)
     expect(screen.getByText('auth.login')).toBeInTheDocument()
+    expect(screen.queryByText('auth.refresh')).not.toBeInTheDocument()
   })
 
-  it('calls logout when the login button is clicked (logout owns navigation)', () => {
-    mockExpiresAt = Date.now() - 1000
+  it('navigates through logout when sign in is clicked', () => {
+    mockSessionRefreshFailed = true
     render(<ExpiryWarning />)
     fireEvent.click(screen.getByText('auth.login'))
     expect(mockLogout).toHaveBeenCalled()

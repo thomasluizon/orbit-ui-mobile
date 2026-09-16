@@ -57,7 +57,7 @@ import {
   bulkDeleteHabits as bulkDeleteHabitsAction,
   bulkLogHabits as bulkLogHabitsAction,
   bulkSkipHabits as bulkSkipHabitsAction,
-} from '@/app/actions/habits'
+} from '@/lib/actions/habits'
 import { getMilestoneShareStreakKey } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'

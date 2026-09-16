@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { serverAuthFetch, serverPublicFetch } from '@/lib/server-fetch'
+import { API } from '@orbit/shared/api'
 
 /**
  * vi.hoisted, because vi.mock is hoisted above the static import and a plain `const` would not be
@@ -119,6 +120,8 @@ describe('serverAuthFetch', () => {
     const result = await serverAuthFetch('/api/habits')
 
     expect(result).toEqual({ ok: true })
+    expect(resolveServerSessionMock).toHaveBeenCalledTimes(2)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(resolveServerSessionMock).toHaveBeenNthCalledWith(1)
     expect(resolveServerSessionMock).toHaveBeenNthCalledWith(2, { forceRefresh: true })
     expect(mockFetch).toHaveBeenNthCalledWith(
@@ -130,6 +133,32 @@ describe('serverAuthFetch', () => {
         }),
       }),
     )
+  })
+
+  it('does not recurse when the refresh endpoint returns 401', async () => {
+    resolveServerSessionMock
+      .mockResolvedValueOnce({
+        token: 'stale-token',
+        expiresAt: Date.now() + 30000,
+        refreshed: false,
+      })
+      .mockResolvedValueOnce({
+        token: 'unexpected-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+      })
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ error: 'Unauthorized' }),
+    })
+
+    await expect(serverAuthFetch(API.auth.refresh, { method: 'POST' })).rejects.toMatchObject({
+      status: 401,
+    })
+
+    expect(resolveServerSessionMock).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
   it('throws unauthorized when no session token can be resolved', async () => {

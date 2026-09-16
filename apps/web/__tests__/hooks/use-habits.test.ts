@@ -29,7 +29,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/app/actions/habits', () => ({
+vi.mock('@/lib/actions/habits', () => ({
   createHabit: vi.fn(),
   updateHabit: vi.fn(),
   deleteHabit: vi.fn(),
@@ -280,7 +280,7 @@ describe('useLogHabit', () => {
   })
 
   it('calls logHabit action and invalidates caches on settled', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
       logId: 'log-1',
@@ -307,7 +307,7 @@ describe('useLogHabit', () => {
   })
 
   it('reconciles habit data without refetching response-backed or AI summary families', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-x',
       isFirstCompletionToday: false,
@@ -335,7 +335,7 @@ describe('useLogHabit', () => {
   })
 
   it('passes date to logHabit action', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
       logId: 'log-2',
@@ -359,7 +359,7 @@ describe('useLogHabit', () => {
   })
 
   it('optimistically completes before query cancellation resolves', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
       logId: 'log-3',
@@ -403,7 +403,7 @@ describe('useSkipHabit', () => {
   })
 
   it('calls skipHabit action', async () => {
-    const { skipHabit } = await import('@/app/actions/habits')
+    const { skipHabit } = await import('@/lib/actions/habits')
     const mockedSkipHabit = vi.mocked(skipHabit)
     mockedSkipHabit.mockResolvedValue(undefined)
 
@@ -418,7 +418,7 @@ describe('useSkipHabit', () => {
   })
 
   it('invalidates lists, summary, goals, gamification, and profile on settle (parity with mobile)', async () => {
-    const { skipHabit } = await import('@/app/actions/habits')
+    const { skipHabit } = await import('@/lib/actions/habits')
     vi.mocked(skipHabit).mockResolvedValue(undefined)
 
     const queryClient = createQueryClient()
@@ -440,7 +440,7 @@ describe('useSkipHabit', () => {
   })
 
   it('passes date to skipHabit action', async () => {
-    const { skipHabit } = await import('@/app/actions/habits')
+    const { skipHabit } = await import('@/lib/actions/habits')
     const mockedSkipHabit = vi.mocked(skipHabit)
     mockedSkipHabit.mockResolvedValue(undefined)
 
@@ -458,7 +458,7 @@ describe('useSkipHabit', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
 
-    const { skipHabit } = await import('@/app/actions/habits')
+    const { skipHabit } = await import('@/lib/actions/habits')
     const mockedSkipHabit = vi.mocked(skipHabit)
     mockedSkipHabit.mockResolvedValue(undefined)
 
@@ -499,7 +499,7 @@ describe('useCreateHabit', () => {
   })
 
   it('calls createHabit action with request data', async () => {
-    const { createHabit } = await import('@/app/actions/habits')
+    const { createHabit } = await import('@/lib/actions/habits')
     const mockedCreateHabit = vi.mocked(createHabit)
     mockedCreateHabit.mockResolvedValue({ id: 'new-h' })
 
@@ -520,7 +520,7 @@ describe('useDeleteHabit', () => {
   })
 
   it('calls deleteHabit action with habit ID', async () => {
-    const { deleteHabit } = await import('@/app/actions/habits')
+    const { deleteHabit } = await import('@/lib/actions/habits')
     const mockedDeleteHabit = vi.mocked(deleteHabit)
     mockedDeleteHabit.mockResolvedValue(undefined)
 
@@ -536,7 +536,7 @@ describe('useDeleteHabit', () => {
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
     mockShowQueued.mockReset()
-    const { deleteHabit, restoreHabit } = await import('@/app/actions/habits')
+    const { deleteHabit, restoreHabit } = await import('@/lib/actions/habits')
     vi.mocked(deleteHabit).mockResolvedValue(undefined)
     vi.mocked(restoreHabit).mockResolvedValue(undefined)
 
@@ -570,7 +570,7 @@ describe('useRestoreHabit', () => {
   })
 
   it('calls restoreHabit action, invalidates delete-affected queries, and confirms', async () => {
-    const { restoreHabit } = await import('@/app/actions/habits')
+    const { restoreHabit } = await import('@/lib/actions/habits')
     vi.mocked(restoreHabit).mockResolvedValue(undefined)
 
     const { useRestoreHabit } = await import('@/hooks/use-habits')
@@ -594,7 +594,7 @@ describe('useRestoreHabit', () => {
   })
 
   it('surfaces an error toast when restore fails', async () => {
-    const { restoreHabit } = await import('@/app/actions/habits')
+    const { restoreHabit } = await import('@/lib/actions/habits')
     vi.mocked(restoreHabit).mockRejectedValue(new Error('nope'))
 
     const { useRestoreHabit } = await import('@/hooks/use-habits')
@@ -625,7 +625,7 @@ describe('useLogHabit onSuccess', () => {
    * it. That gate is what dropped every reward for a habit missing from the list cache.
    */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-streak',
       isFirstCompletionToday: true,
@@ -664,7 +664,7 @@ describe('useLogHabit onSuccess', () => {
    * was never refreshed, both silently.
    */
   it('banks XP and refreshes achievements for a habit that is not in the list cache', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-uncached',
       isFirstCompletionToday: true,
@@ -736,7 +736,7 @@ describe('useLogHabit onSuccess', () => {
       celebrates: false,
     },
   ])('$name', async ({ habits, habitId, isFirstCompletionToday, celebrates }) => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-streak',
       isFirstCompletionToday,
@@ -765,7 +765,7 @@ describe('useLogHabit onSuccess', () => {
   })
 
   it('completes successfully with streak response', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
       logId: 'log-streak',
@@ -792,7 +792,7 @@ describe('useLogHabit onSuccess', () => {
   })
 
   it('completes without triggering streak when not first today', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
       logId: 'log-no-streak',
@@ -819,7 +819,7 @@ describe('useLogHabit onSuccess', () => {
   })
 
   it('refreshes linked-goal, gamification, and profile caches after a completion awards XP', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
       logId: 'log-goal',
@@ -857,7 +857,7 @@ describe('useLogHabit onSuccess', () => {
   })
 
   it('handles gamification XP in response', async () => {
-    const { logHabit } = await import('@/app/actions/habits')
+    const { logHabit } = await import('@/lib/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
       logId: 'log-xp',
@@ -894,7 +894,7 @@ describe('useUpdateHabit', () => {
 
   it('calls updateHabit action with habitId and data', async () => {
     const { useUpdateHabit } = await import('@/hooks/use-habits')
-    const { updateHabit } = await import('@/app/actions/habits')
+    const { updateHabit } = await import('@/lib/actions/habits')
     const mockedUpdateHabit = vi.mocked(updateHabit)
     mockedUpdateHabit.mockResolvedValue(undefined)
 
@@ -913,7 +913,7 @@ describe('useUpdateHabit', () => {
 
   it('optimistically patches emoji changes', async () => {
     const { useUpdateHabit } = await import('@/hooks/use-habits')
-    const { updateHabit } = await import('@/app/actions/habits')
+    const { updateHabit } = await import('@/lib/actions/habits')
     const mockedUpdateHabit = vi.mocked(updateHabit)
     mockedUpdateHabit.mockResolvedValue(undefined)
 
@@ -948,7 +948,7 @@ describe('useReorderHabits', () => {
 
   it('calls reorderHabits action with position data', async () => {
     const { useReorderHabits } = await import('@/hooks/use-habits')
-    const { reorderHabits } = await import('@/app/actions/habits')
+    const { reorderHabits } = await import('@/lib/actions/habits')
     const mockedReorderHabits = vi.mocked(reorderHabits)
     mockedReorderHabits.mockResolvedValue(undefined)
 
@@ -971,7 +971,7 @@ describe('useReorderHabits', () => {
 
   it('optimistically applies the new positions to the cached list before the action resolves', async () => {
     const { useReorderHabits } = await import('@/hooks/use-habits')
-    const { reorderHabits } = await import('@/app/actions/habits')
+    const { reorderHabits } = await import('@/lib/actions/habits')
     vi.mocked(reorderHabits).mockImplementation(() => new Promise(() => {}))
 
     const queryClient = createQueryClient()
@@ -1017,7 +1017,7 @@ describe('useReorderHabits', () => {
 
   it('rolls back the cached order and surfaces an error toast when the reorder fails', async () => {
     const { useReorderHabits } = await import('@/hooks/use-habits')
-    const { reorderHabits } = await import('@/app/actions/habits')
+    const { reorderHabits } = await import('@/lib/actions/habits')
     vi.mocked(reorderHabits).mockRejectedValue(new Error('boom'))
 
     const queryClient = createQueryClient()
@@ -1057,7 +1057,7 @@ describe('useDuplicateHabit', () => {
 
   it('calls duplicateHabit action with habit ID', async () => {
     const { useDuplicateHabit } = await import('@/hooks/use-habits')
-    const { duplicateHabit } = await import('@/app/actions/habits')
+    const { duplicateHabit } = await import('@/lib/actions/habits')
     const mockedDuplicateHabit = vi.mocked(duplicateHabit)
     mockedDuplicateHabit.mockResolvedValue(undefined)
 
@@ -1080,7 +1080,7 @@ describe('useUpdateChecklist', () => {
 
   it('calls updateChecklist action with habitId and items', async () => {
     const { useUpdateChecklist } = await import('@/hooks/use-habits')
-    const { updateChecklist } = await import('@/app/actions/habits')
+    const { updateChecklist } = await import('@/lib/actions/habits')
     const mockedUpdateChecklist = vi.mocked(updateChecklist)
     mockedUpdateChecklist.mockResolvedValue(undefined)
 
@@ -1101,7 +1101,7 @@ describe('useUpdateChecklist', () => {
 
   it('optimistically updates the detail and fullDetail caches', async () => {
     const { useUpdateChecklist } = await import('@/hooks/use-habits')
-    const { updateChecklist } = await import('@/app/actions/habits')
+    const { updateChecklist } = await import('@/lib/actions/habits')
     vi.mocked(updateChecklist).mockImplementation(
       () => new Promise(() => {}),
     )
@@ -1145,7 +1145,7 @@ describe('useUpdateChecklist', () => {
 
   it('rolls back detail and fullDetail caches when the mutation errors', async () => {
     const { useUpdateChecklist } = await import('@/hooks/use-habits')
-    const { updateChecklist } = await import('@/app/actions/habits')
+    const { updateChecklist } = await import('@/lib/actions/habits')
     vi.mocked(updateChecklist).mockRejectedValue(new Error('boom'))
 
     const queryClient = createQueryClient()
@@ -1198,7 +1198,7 @@ describe('useCreateSubHabit', () => {
 
   it('calls createSubHabit action with parentId and data', async () => {
     const { useCreateSubHabit } = await import('@/hooks/use-habits')
-    const { createSubHabit } = await import('@/app/actions/habits')
+    const { createSubHabit } = await import('@/lib/actions/habits')
     const mockedCreateSubHabit = vi.mocked(createSubHabit)
     mockedCreateSubHabit.mockResolvedValue(undefined)
 
@@ -1224,7 +1224,7 @@ describe('useMoveHabitParent', () => {
 
   it('calls moveHabitParent action with habitId and data', async () => {
     const { useMoveHabitParent } = await import('@/hooks/use-habits')
-    const { moveHabitParent } = await import('@/app/actions/habits')
+    const { moveHabitParent } = await import('@/lib/actions/habits')
     const mockedMoveHabitParent = vi.mocked(moveHabitParent)
     mockedMoveHabitParent.mockResolvedValue(undefined)
 
@@ -1250,7 +1250,7 @@ describe('useBulkCreateHabits', () => {
 
   it('calls bulkCreateHabits action', async () => {
     const { useBulkCreateHabits } = await import('@/hooks/use-habits')
-    const { bulkCreateHabits } = await import('@/app/actions/habits')
+    const { bulkCreateHabits } = await import('@/lib/actions/habits')
     const mockedBulkCreate = vi.mocked(bulkCreateHabits)
     mockedBulkCreate.mockResolvedValue({
       results: [
@@ -1278,7 +1278,7 @@ describe('useBulkDeleteHabits', () => {
 
   it('calls bulkDeleteHabits action', async () => {
     const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
-    const { bulkDeleteHabits } = await import('@/app/actions/habits')
+    const { bulkDeleteHabits } = await import('@/lib/actions/habits')
     const mockedBulkDelete = vi.mocked(bulkDeleteHabits)
     mockedBulkDelete.mockResolvedValue({
       results: [
@@ -1305,7 +1305,7 @@ describe('useBulkLogHabits', () => {
 
   it('calls bulkLogHabits action', async () => {
     const { useBulkLogHabits } = await import('@/hooks/use-habits')
-    const { bulkLogHabits } = await import('@/app/actions/habits')
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
     const mockedBulkLog = vi.mocked(bulkLogHabits)
     mockedBulkLog.mockResolvedValue({
       results: [
@@ -1333,7 +1333,7 @@ describe('useBulkSkipHabits', () => {
 
   it('calls bulkSkipHabits action', async () => {
     const { useBulkSkipHabits } = await import('@/hooks/use-habits')
-    const { bulkSkipHabits } = await import('@/app/actions/habits')
+    const { bulkSkipHabits } = await import('@/lib/actions/habits')
     const mockedBulkSkip = vi.mocked(bulkSkipHabits)
     mockedBulkSkip.mockResolvedValue({
       results: [

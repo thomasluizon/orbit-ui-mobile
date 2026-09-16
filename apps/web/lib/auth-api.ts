@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { API } from '@orbit/shared/api'
 
 export const AUTH_COOKIE = 'auth_token'
 export const REFRESH_COOKIE = 'refresh_token'
@@ -37,9 +38,15 @@ type ResolvedServerSession = {
   token: string | null
   expiresAt: number | null
   refreshed: boolean
+  refreshFailed: boolean
 }
 
-const refreshRequests = new Map<string, Promise<SessionTokens | null>>()
+type RefreshSessionResult =
+  | { outcome: 'refreshed'; tokens: SessionTokens }
+  | { outcome: 'rejected' }
+  | { outcome: 'retryable' }
+
+const refreshRequests = new Map<string, Promise<RefreshSessionResult>>()
 
 function getCookieValue(source: CookieValueReader, name: string): string | null {
   return source.get(name)?.value ?? null
@@ -154,7 +161,7 @@ export async function clearSessionCookies(
 
 export async function refreshSessionTokens(
   refreshToken: string,
-): Promise<SessionTokens | null> {
+): Promise<RefreshSessionResult> {
   const inFlight = refreshRequests.get(refreshToken)
   if (inFlight) {
     return inFlight
@@ -162,9 +169,9 @@ export async function refreshSessionTokens(
 
   const apiBase = process.env.API_BASE ?? 'http://localhost:5000'
 
-  const request = (async () => {
+  const request = (async (): Promise<RefreshSessionResult> => {
     try {
-      const response = await fetch(`${apiBase}/api/auth/refresh`, {
+      const response = await fetch(`${apiBase}${API.auth.refresh}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
@@ -172,12 +179,15 @@ export async function refreshSessionTokens(
       })
 
       if (!response.ok) {
-        return null
+        return { outcome: response.status === 401 ? 'rejected' : 'retryable' }
       }
 
-      return (await response.json()) as SessionTokens
+      return {
+        outcome: 'refreshed',
+        tokens: (await response.json()) as SessionTokens,
+      }
     } catch {
-      return null
+      return { outcome: 'retryable' }
     }
   })()
 
@@ -210,14 +220,15 @@ export async function tryRefreshSession(options?: {
     return null
   }
 
-  const tokens = await refreshSessionTokens(refreshToken)
-  if (!tokens) {
-    if (clearOnFailure) {
+  const refreshResult = await refreshSessionTokens(refreshToken)
+  if (refreshResult.outcome !== 'refreshed') {
+    if (clearOnFailure && refreshResult.outcome === 'rejected') {
       await clearSessionCookies(options?.cookieTarget)
     }
     return null
   }
 
+  const { tokens } = refreshResult
   await setSessionCookies(tokens.token, tokens.refreshToken, options?.cookieTarget)
   return tokens.token
 }
@@ -238,8 +249,8 @@ export async function resolveServerSession(options?: {
     persistSession: async (tokens) => {
       await setSessionCookies(tokens.token, tokens.refreshToken, cookieStore)
     },
-    clearRefreshToken: async () => {
-      await clearRefreshCookie(cookieStore)
+    clearSession: async () => {
+      await clearSessionCookies(cookieStore)
     },
   })
 }
@@ -250,7 +261,7 @@ export async function resolveSessionTokens(options: {
   forceRefresh?: boolean
   refreshThresholdMs?: number
   persistSession?: (tokens: SessionTokens) => void | Promise<void>
-  clearRefreshToken?: () => void | Promise<void>
+  clearSession?: () => void | Promise<void>
 }): Promise<ResolvedServerSession> {
   const forceRefresh = options.forceRefresh ?? false
   const refreshThresholdMs =
@@ -269,36 +280,57 @@ export async function resolveSessionTokens(options: {
       token: options.authToken,
       expiresAt: currentExpiry,
       refreshed: false,
+      refreshFailed: false,
     }
   }
 
   if (options.refreshToken) {
-    const refreshedTokens = await refreshSessionTokens(options.refreshToken)
-    if (refreshedTokens) {
+    const refreshResult = await refreshSessionTokens(options.refreshToken)
+    if (refreshResult.outcome === 'refreshed') {
+      const { tokens: refreshedTokens } = refreshResult
       await options.persistSession?.(refreshedTokens)
       return {
         token: refreshedTokens.token,
         expiresAt: getTokenExpiry(refreshedTokens.token),
         refreshed: true,
+        refreshFailed: false,
       }
+    }
+
+    if (!forceRefresh && options.authToken && currentExpiry && currentExpiry > Date.now()) {
+      return {
+        token: options.authToken,
+        expiresAt: currentExpiry,
+        refreshed: false,
+        refreshFailed: false,
+      }
+    }
+
+    return {
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: refreshResult.outcome === 'rejected',
     }
   }
 
-  if (options.authToken && currentExpiry && currentExpiry > Date.now()) {
+  if (!forceRefresh && options.authToken && currentExpiry && currentExpiry > Date.now()) {
     return {
       token: options.authToken,
       expiresAt: currentExpiry,
       refreshed: false,
+      refreshFailed: false,
     }
   }
 
-  if (options.refreshToken) {
-    await options.clearRefreshToken?.()
+  if (forceRefresh) {
+    await options.clearSession?.()
   }
 
   return {
     token: null,
     expiresAt: null,
     refreshed: false,
+    refreshFailed: false,
   }
 }

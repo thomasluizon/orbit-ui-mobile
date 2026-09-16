@@ -11,6 +11,8 @@ vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
     getState: () => ({
       logout: vi.fn(),
+      confirmSessionRefreshFailure: vi.fn(),
+      recoverSessionRefreshFailure: vi.fn(),
     }),
   },
 }))

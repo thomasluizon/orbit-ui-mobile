@@ -12,7 +12,7 @@ import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile
 import { useOffline } from '@/hooks/use-offline'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { openCustomerPortal } from '@/app/actions/subscription'
+import { openCustomerPortal } from '@/lib/actions/subscription'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { RetrospectiveLockedStates } from './_components/retrospective-locked-states'

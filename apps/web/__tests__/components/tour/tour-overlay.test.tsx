@@ -17,7 +17,7 @@ vi.mock('@/stores/tour-store', () => ({
   useTourStore: Object.assign(() => mocks.store, { getState: () => mocks.staticState }),
 }))
 vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueryData }) }))
-vi.mock('@/app/actions/profile', () => ({ completeTour: () => completeTour() }))
+vi.mock('@/lib/actions/profile', () => ({ completeTour: () => completeTour() }))
 vi.mock('@/hooks/use-overlay-escape', () => ({ useOverlayEscape: () => {} }))
 vi.mock('@/components/tour/tour-spotlight', () => ({ TourSpotlight: () => <div data-testid="spotlight" /> }))
 vi.mock('@/components/tour/tour-tooltip', () => ({

@@ -17,7 +17,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 const mockResetAccount = vi.fn()
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   resetAccount: (...args: unknown[]) => mockResetAccount(...args),
 }))
 

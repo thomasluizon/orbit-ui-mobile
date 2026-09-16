@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { useProfile } from '@/hooks/use-profile'
-import { updateMarketingConsent } from '@/app/actions/profile'
+import { updateMarketingConsent } from '@/lib/actions/profile'
 
 /** Self-contained "Product updates by email" preference row: reflects and optimistically toggles marketing-email consent, rolling back on error. Never Pro-gated. */
 export function MarketingConsentSection() {

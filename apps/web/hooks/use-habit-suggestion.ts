@@ -7,7 +7,7 @@ import {
   type HabitSetupSuggestion,
   type HabitSetupSuggestionRequest,
 } from '@orbit/shared/types/habit'
-import { suggestHabitSetup } from '@/app/actions/habits'
+import { suggestHabitSetup } from '@/lib/actions/habits'
 
 /**
  * Requests an AI setup suggestion (emoji, schedule, sub-habit breakdown) for a habit title and

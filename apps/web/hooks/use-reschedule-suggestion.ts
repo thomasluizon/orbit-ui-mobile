@@ -7,6 +7,7 @@ import type {
   RescheduleSuggestion,
   RescheduleSuggestionResponse,
 } from '@orbit/shared/types/habit'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 interface UseRescheduleSuggestionOptions {
   habitId: string
@@ -28,7 +29,7 @@ export function useRescheduleSuggestion({
     queryKey: habitKeys.rescheduleSuggestion(habitId),
     queryFn: async (): Promise<RescheduleSuggestion> => {
       const params = new URLSearchParams({ language: locale })
-      const res = await fetch(
+      const res = await sessionAwareFetch(
         `${API.habits.rescheduleSuggestion(habitId)}?${params.toString()}`,
       )
       if (!res.ok) {

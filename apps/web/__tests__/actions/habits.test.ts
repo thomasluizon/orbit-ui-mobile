@@ -1,34 +1,44 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+const { resolveServerSessionMock } = vi.hoisted(() => ({
+  resolveServerSessionMock: vi.fn(),
+}))
+
 vi.mock('@/lib/auth-api', () => ({
   getAuthHeaders: vi.fn().mockResolvedValue({
     Authorization: 'Bearer test-token',
   }),
-  resolveServerSession: vi.fn().mockResolvedValue({
-    token: 'test-token',
-    expiresAt: null,
-    refreshed: false,
-  }),
+  resolveServerSession: resolveServerSessionMock,
 }))
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-const {
-  createHabit,
-  updateHabit,
-  deleteHabit,
-  logHabit,
-  skipHabit,
-  reorderHabits,
-  duplicateHabit,
-  bulkCreateHabits,
-  bulkDeleteHabits,
-} = await import('@/app/actions/habits')
+const habitServerActions = await import('@/app/actions/habits')
+const { bindServerAction, runServerAction } = await import('@/lib/client-action')
+const { useAuthStore } = await import('@/stores/auth-store')
+
+const createHabit = bindServerAction(habitServerActions.createHabit)
+const updateHabit = bindServerAction(habitServerActions.updateHabit)
+const deleteHabit = bindServerAction(habitServerActions.deleteHabit)
+const logHabit = bindServerAction(habitServerActions.logHabit)
+const skipHabit = bindServerAction(habitServerActions.skipHabit)
+const reorderHabits = bindServerAction(habitServerActions.reorderHabits)
+const duplicateHabit = bindServerAction(habitServerActions.duplicateHabit)
+const bulkCreateHabits = bindServerAction(habitServerActions.bulkCreateHabits)
+const bulkDeleteHabits = bindServerAction(habitServerActions.bulkDeleteHabits)
 
 describe('habit server actions', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    useAuthStore.setState({ sessionRefreshFailed: false })
+    resolveServerSessionMock.mockReset()
+    resolveServerSessionMock.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
   })
 
   function mockApiResponse(body: any, status = 200) {
@@ -50,6 +60,42 @@ describe('habit server actions', () => {
 
 
   describe('createHabit', () => {
+    it('returns a serializable refresh rejection for the client boundary', async () => {
+      resolveServerSessionMock
+        .mockResolvedValueOnce({
+          token: 'stale-token',
+          expiresAt: null,
+          refreshed: false,
+          refreshFailed: false,
+        })
+        .mockResolvedValueOnce({
+          token: null,
+          expiresAt: null,
+          refreshed: false,
+          refreshFailed: true,
+        })
+      mockApiResponse({ error: 'Unauthorized' }, 401)
+
+      const result = await habitServerActions.createHabit({ title: 'Exercise' })
+
+      const serializedResult = JSON.parse(JSON.stringify(result))
+      expect(serializedResult).toEqual({
+        ok: false,
+        error: 'Unauthorized',
+        status: 401,
+        sessionRefreshFailed: true,
+      })
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ expiresAt: null, refreshFailed: true }),
+      })
+      await expect(runServerAction(Promise.resolve(serializedResult))).rejects.toThrow(
+        'Unauthorized',
+      )
+      expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+    })
+
     it('sends POST to /api/habits with request body', async () => {
       mockApiResponse({ id: 'new-habit' })
 

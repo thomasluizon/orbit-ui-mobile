@@ -8,6 +8,7 @@ import {
   type RetrospectiveResponse,
 } from '@orbit/shared/utils/retrospective'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 export type { RetrospectivePeriod } from '@orbit/shared/utils/retrospective'
 
@@ -35,7 +36,7 @@ export function useRetrospective() {
     setData(null)
 
     try {
-      const res = await fetch(buildRetrospectiveRequestUrl(period, locale))
+      const res = await sessionAwareFetch(buildRetrospectiveRequestUrl(period, locale))
       if (isStale()) return
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as
