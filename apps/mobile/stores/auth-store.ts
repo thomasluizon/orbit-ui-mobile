@@ -35,9 +35,10 @@ import { useThrottleStore } from './throttle-store'
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
 let authTransitionInFlight = false
+let sessionGeneration = 0
 
 let profileHydrationInFlight: Promise<void> | null = null
-let refreshSessionInFlight: Promise<RefreshSessionOutcome> | null = null
+let refreshSessionInFlight: Promise<RefreshSessionAttempt> | null = null
 
 /**
  * True while login() is swapping the session — between persisting the new token
@@ -47,6 +48,10 @@ let refreshSessionInFlight: Promise<RefreshSessionOutcome> | null = null
  */
 export function isAuthTransitionInFlight(): boolean {
   return authTransitionInFlight
+}
+
+export function getSessionGeneration(): number {
+  return sessionGeneration
 }
 
 /**
@@ -105,15 +110,33 @@ function isTokenExpired(token: string): boolean {
   return expiresAt < Date.now() + 60_000
 }
 
-export async function clearSessionAndResetAuth(): Promise<void> {
+function isCurrentSessionGeneration(generation: number): boolean {
+  return sessionGeneration === generation
+}
+
+async function runSessionTeardownStep(
+  generation: number,
+  step: () => void | Promise<void>,
+): Promise<boolean> {
+  if (!isCurrentSessionGeneration(generation)) return false
+  await step()
+  return isCurrentSessionGeneration(generation)
+}
+
+export async function clearSessionAndResetAuth(generation: number): Promise<void> {
+  if (!isCurrentSessionGeneration(generation)) return
   clearStepUpState()
-  await clearAllTokens()
-  await clearWidgetToken().catch(() => {})
+
+  if (!(await runSessionTeardownStep(generation, clearAllTokens))) return
+  if (!(await runSessionTeardownStep(generation, () => clearWidgetToken().catch(() => {})))) return
+
   queryClient.clear()
-  await clearPersistedQueryCache()
-  await setQueryCacheScope(null)
+  if (!(await runSessionTeardownStep(generation, clearPersistedQueryCache))) return
+  if (!(await runSessionTeardownStep(generation, () => setQueryCacheScope(null)))) return
+
   cancelScheduledFlush()
-  await clearOfflineState()
+  if (!(await runSessionTeardownStep(generation, clearOfflineState))) return
+
   useChatStore.getState().clearMessages()
   useReviewReminderStore.getState().setAccountScope(null)
   resetOnboardingDraftForSignOut()
@@ -129,6 +152,11 @@ export type RefreshSessionOutcome =
   | { status: 'refreshed'; token: string }
   | { status: 'unauthorized' }
   | { status: 'network-error' }
+
+type RefreshSessionAttempt = {
+  generation: number
+  outcome: RefreshSessionOutcome
+}
 
 function isTransientNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true
@@ -191,24 +219,29 @@ async function rotateSessionToken(): Promise<RefreshSessionOutcome> {
   const data = (await response.json()) as RefreshResponse
   await setToken(data.token)
   await setRefreshToken(data.refreshToken)
-  await saveWidgetToken(data.token).catch(() => {})
 
   const currentUser = useAuthStore.getState().user
   const tokenUser = getUserFromToken(data.token, currentUser?.name)
   if (tokenUser) bindStepUpStateToAccount(tokenUser.userId)
+  sessionGeneration += 1
   useAuthStore.setState({
     isAuthenticated: true,
     user: currentUser ?? tokenUser,
     expiresAt: getExpiresAt(data.token),
   })
+  await saveWidgetToken(data.token).catch(() => {})
   resumeOfflineReplay()
 
   return { status: 'refreshed', token: data.token }
 }
 
-async function runRefreshSession(): Promise<RefreshSessionOutcome> {
+async function runRefreshSession(): Promise<RefreshSessionAttempt> {
+  const generation = sessionGeneration
   try {
-    return await rotateSessionToken()
+    return {
+      generation,
+      outcome: await rotateSessionToken(),
+    }
   } finally {
     refreshSessionInFlight = null
   }
@@ -218,13 +251,13 @@ export async function refreshSession(options?: {
   clearOnFailure?: boolean
 }): Promise<RefreshSessionOutcome> {
   const clearOnFailure = options?.clearOnFailure ?? true
-  const outcome = await (refreshSessionInFlight ??= runRefreshSession())
+  const attempt = await (refreshSessionInFlight ??= runRefreshSession())
 
-  if (outcome.status === 'unauthorized' && clearOnFailure) {
-    await clearSessionAndResetAuth()
+  if (attempt.outcome.status === 'unauthorized' && clearOnFailure) {
+    await clearSessionAndResetAuth(attempt.generation)
   }
 
-  return outcome
+  return attempt.outcome
 }
 
 /**
@@ -253,6 +286,7 @@ function applyProfilePresentation(profile: Profile): void {
 }
 
 async function hydrateSessionProfile(): Promise<void> {
+  const generation = sessionGeneration
   try {
     const profile = await apiClient<Profile>(API.profile.get)
     queryClient.setQueryData(profileKeys.detail(), profile)
@@ -266,7 +300,7 @@ async function hydrateSessionProfile(): Promise<void> {
     }
   } catch (err: unknown) {
     if (err instanceof Error && err.message === 'Unauthorized') {
-      await clearSessionAndResetAuth()
+      await clearSessionAndResetAuth(generation)
     }
   }
 }

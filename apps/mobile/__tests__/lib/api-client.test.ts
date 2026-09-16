@@ -18,6 +18,7 @@ const {
   fetchMock,
   refreshSessionMock,
   clearSessionAndResetAuthMock,
+  getSessionGenerationMock,
   isAuthTransitionInFlightMock,
   buildAppVersionHeadersMock,
   markUpgradeRequiredMock,
@@ -28,6 +29,7 @@ const {
   fetchMock: vi.fn(),
   refreshSessionMock: vi.fn(),
   clearSessionAndResetAuthMock: vi.fn(),
+  getSessionGenerationMock: vi.fn(() => 7),
   isAuthTransitionInFlightMock: vi.fn(() => false),
   buildAppVersionHeadersMock: vi.fn(() => ({ 'X-App-Version': '1.1.4' })),
   markUpgradeRequiredMock: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock('@/stores/version-gate-store', () => ({
 vi.mock('@/stores/auth-store', () => ({
   refreshSession: refreshSessionMock,
   clearSessionAndResetAuth: clearSessionAndResetAuthMock,
+  getSessionGeneration: getSessionGenerationMock,
   isAuthTransitionInFlight: isAuthTransitionInFlightMock,
 }))
 
@@ -76,6 +79,8 @@ describe('mobile apiClient', () => {
     fetchMock.mockReset()
     refreshSessionMock.mockReset()
     clearSessionAndResetAuthMock.mockReset()
+    getSessionGenerationMock.mockReset()
+    getSessionGenerationMock.mockReturnValue(7)
     isAuthTransitionInFlightMock.mockReset()
     isAuthTransitionInFlightMock.mockReturnValue(false)
     markUpgradeRequiredMock.mockReset()

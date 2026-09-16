@@ -4,6 +4,7 @@ import { getErrorSurface } from '@orbit/shared/utils'
 
 import {
   clearSessionAndResetAuth,
+  getSessionGeneration,
   isAuthTransitionInFlight,
   refreshSession,
   refreshSessionToken,
@@ -261,7 +262,7 @@ describe('mobile auth store security paths', () => {
 
   it('keeps the session authenticated when a concurrent clear fires mid-login', async () => {
     apiClientMock.mockImplementation(async () => {
-      await clearSessionAndResetAuth()
+      await clearSessionAndResetAuth(getSessionGeneration())
       return undefined
     })
 
@@ -597,6 +598,69 @@ describe('mobile auth store security paths', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(clearAllTokensMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('keeps a newer rotated session when an older failed refresh finishes teardown', async () => {
+    const rotatedExpirySeconds = Math.floor(Date.now() / 1000) + 3600
+    const rotatedToken = makeJwtWithClaims(
+      rotatedExpirySeconds,
+      'rotated-user',
+      'rotated@example.com',
+    )
+    let storedToken: string | null = 'expired-token'
+    let storedRefreshToken: string | null = 'refresh-token'
+    let releaseTeardown!: () => void
+
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    setTokenMock.mockImplementation((token: string) => {
+      storedToken = token
+      return Promise.resolve()
+    })
+    setRefreshTokenMock.mockImplementation((token: string) => {
+      storedRefreshToken = token
+      return Promise.resolve()
+    })
+    clearAllTokensMock.mockImplementation(() => {
+      storedToken = null
+      storedRefreshToken = null
+      return Promise.resolve()
+    })
+    clearPersistedQueryCacheMock
+      .mockImplementationOnce(
+        () => new Promise<void>((resolve) => { releaseTeardown = resolve }),
+      )
+      .mockResolvedValue(undefined)
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 500 }))
+      .mockResolvedValueOnce(Response.json({
+        token: rotatedToken,
+        refreshToken: 'next-refresh',
+      }))
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() - 1000,
+    })
+
+    const failedRefresh = refreshSession()
+    await vi.waitFor(() => expect(releaseTeardown).toBeTypeOf('function'))
+
+    const successfulRefresh = refreshSession()
+    await expect(successfulRefresh).resolves.toEqual({
+      status: 'refreshed',
+      token: rotatedToken,
+    })
+    releaseTeardown()
+    await expect(failedRefresh).resolves.toEqual({ status: 'unauthorized' })
+
+    expect(storedToken).toBe(rotatedToken)
+    expect(storedRefreshToken).toBe('next-refresh')
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: { userId: 'user-1' },
+      expiresAt: rotatedExpirySeconds * 1000,
+    })
   })
 
   it('clears the session when refreshSession finds no stored refresh token', async () => {

@@ -205,8 +205,14 @@ async function handleUnauthorized<T>(
     }
   }
 
-  const { clearSessionAndResetAuth, refreshSession, isAuthTransitionInFlight } =
+  const {
+    clearSessionAndResetAuth,
+    getSessionGeneration,
+    refreshSession,
+    isAuthTransitionInFlight,
+  } =
     await import('@/stores/auth-store')
+  const refreshGeneration = getSessionGeneration()
   const refreshOutcome = await refreshSession({ clearOnFailure: false })
 
   if (refreshOutcome.status === 'network-error') {
@@ -214,6 +220,7 @@ async function handleUnauthorized<T>(
   }
 
   if (refreshOutcome.status === 'refreshed') {
+    const refreshedGeneration = getSessionGeneration()
     const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
     if (retry.response.status !== 401) {
       return {
@@ -223,14 +230,14 @@ async function handleUnauthorized<T>(
     }
 
     if (!isAuthTransitionInFlight()) {
-      await clearSessionAndResetAuth()
+      await clearSessionAndResetAuth(refreshedGeneration)
       await redirectToLogin()
     }
     throw toUnauthorizedError(retry.requestId)
   }
 
   if (!isAuthTransitionInFlight()) {
-    await clearSessionAndResetAuth()
+    await clearSessionAndResetAuth(refreshGeneration)
     await redirectToLogin()
   }
   throw toUnauthorizedError(requestId)
