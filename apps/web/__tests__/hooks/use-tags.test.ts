@@ -26,7 +26,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/app/actions/tags', () => ({
+vi.mock('@/lib/actions/tags', () => ({
   getTags: vi.fn(),
   createTag: vi.fn(),
   updateTag: vi.fn(),
@@ -86,7 +86,7 @@ describe('web tag hooks', () => {
     vi.clearAllMocks()
   })
   it('invalidates every search page after renaming a tag without applying array updates to pages', async () => {
-    const { updateTag } = await import('@/app/actions/tags')
+    const { updateTag } = await import('@/lib/actions/tags')
     vi.mocked(updateTag).mockResolvedValue(undefined)
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
     const keys = [habitKeys.search({ search: 'Health', page: 1 }), habitKeys.search({ search: 'Focus', page: 2 })]
@@ -104,7 +104,7 @@ describe('web tag hooks', () => {
 
 
   it('creates a tag optimistically and remaps the temp id on success', async () => {
-    const { createTag } = await import('@/app/actions/tags')
+    const { createTag } = await import('@/lib/actions/tags')
     vi.mocked(createTag).mockResolvedValue({ id: 'tag-2' })
     vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('temp-id')
 
@@ -131,7 +131,7 @@ describe('web tag hooks', () => {
   })
 
   it('updates tag names/colors across both tag and habit caches', async () => {
-    const { updateTag } = await import('@/app/actions/tags')
+    const { updateTag } = await import('@/lib/actions/tags')
     vi.mocked(updateTag).mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(undefined), 50)),
     )
@@ -163,7 +163,7 @@ describe('web tag hooks', () => {
   })
 
   it('restores tag and habit caches when deleting a tag fails', async () => {
-    const { deleteTag } = await import('@/app/actions/tags')
+    const { deleteTag } = await import('@/lib/actions/tags')
     vi.mocked(deleteTag).mockRejectedValue(new Error('Delete failed'))
 
     const queryClient = new QueryClient({
@@ -190,7 +190,7 @@ describe('web tag hooks', () => {
   })
 
   it('returns AI tag suggestions from the suggest action', async () => {
-    const { suggestTags } = await import('@/app/actions/tags')
+    const { suggestTags } = await import('@/lib/actions/tags')
     const response = {
       tags: [
         { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-1' },
@@ -224,7 +224,7 @@ describe('web tag hooks', () => {
   })
 
   it('optimistically assigns tags onto the habit cache', async () => {
-    const { assignTags } = await import('@/app/actions/tags')
+    const { assignTags } = await import('@/lib/actions/tags')
     vi.mocked(assignTags).mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(undefined), 50)),
     )
@@ -256,7 +256,7 @@ describe('web tag hooks', () => {
   })
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
-    const { deleteTag, restoreTag } = await import('@/app/actions/tags')
+    const { deleteTag, restoreTag } = await import('@/lib/actions/tags')
     vi.mocked(deleteTag).mockResolvedValue(undefined)
     vi.mocked(restoreTag).mockResolvedValue(undefined)
 
@@ -289,7 +289,7 @@ describe('web tag hooks', () => {
   })
 
   it('restores a tag, invalidates tag and habit lists, and confirms', async () => {
-    const { restoreTag } = await import('@/app/actions/tags')
+    const { restoreTag } = await import('@/lib/actions/tags')
     vi.mocked(restoreTag).mockResolvedValue(undefined)
 
     const queryClient = new QueryClient({
@@ -312,7 +312,7 @@ describe('web tag hooks', () => {
   })
 
   it('surfaces an error toast when restoring a tag fails', async () => {
-    const { restoreTag } = await import('@/app/actions/tags')
+    const { restoreTag } = await import('@/lib/actions/tags')
     vi.mocked(restoreTag).mockRejectedValue(new Error('nope'))
 
     const queryClient = new QueryClient({

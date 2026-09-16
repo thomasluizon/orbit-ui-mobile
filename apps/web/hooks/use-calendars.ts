@@ -8,7 +8,7 @@ import { isCalendarSyncNotConnectedMessage } from '@orbit/shared/utils'
 import {
   getUserCalendars as getUserCalendarsAction,
   setSelectedCalendars as setSelectedCalendarsAction,
-} from '@/app/actions/calendar'
+} from '@/lib/actions/calendar'
 
 interface CalendarsQueryOptions {
   enabled?: boolean

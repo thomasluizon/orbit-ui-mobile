@@ -9,7 +9,7 @@ vi.mock('next-intl', () => ({
 
 const mockUpdateName = vi.fn()
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateName: (...args: unknown[]) => mockUpdateName(...args),
 }))
 

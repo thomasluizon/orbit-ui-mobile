@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, goalKeys, profileKeys, gamificationKeys } from '@orbit/shared/query'
-import { applyOnboarding } from '@/app/actions/onboarding'
+import { applyOnboarding } from '@/lib/actions/onboarding'
 import { useProfile } from '@/hooks/use-profile'
 import {
   useOnboardingDraftStore,

@@ -3,7 +3,7 @@ import {
   UPLOAD_ALLOWED_CONTENT_TYPES,
   type StoredFile,
 } from '@orbit/shared'
-import { signUpload } from '@/app/actions/uploads'
+import { signUpload } from '@/lib/actions/uploads'
 
 type AllowedContentType = (typeof UPLOAD_ALLOWED_CONTENT_TYPES)[number]
 

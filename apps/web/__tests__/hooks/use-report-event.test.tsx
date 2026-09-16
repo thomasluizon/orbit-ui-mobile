@@ -13,7 +13,7 @@ vi.mock('@/stores/ui-store', () => ({
   ) => selector({ enqueueCelebration }),
 }))
 
-vi.mock('@/app/actions/gamification', () => ({
+vi.mock('@/lib/actions/gamification', () => ({
   reportAchievementEvent: (eventKey: string) => reportAchievementEvent(eventKey),
 }))
 

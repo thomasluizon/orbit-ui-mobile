@@ -1,6 +1,19 @@
 export type ServerActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; status: number; code?: string }
+  | {
+      ok: false
+      error: string
+      status: number
+      code?: string
+      sessionRefreshFailed: boolean
+    }
+
+function reportsSessionRefreshFailure(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'sessionRefreshFailed' in error
+    && (error as { sessionRefreshFailed?: unknown }).sessionRefreshFailed === true
+}
 
 export async function wrapServerAction<T>(fn: () => Promise<T>): Promise<ServerActionResult<T>> {
   try {
@@ -21,6 +34,12 @@ export async function wrapServerAction<T>(fn: () => Promise<T>): Promise<ServerA
       ? (error as { code: string }).code
       : undefined
 
-    return { ok: false, error: message, status, code }
+    return {
+      ok: false,
+      error: message,
+      status,
+      ...(code ? { code } : {}),
+      sessionRefreshFailed: reportsSessionRefreshFailure(error),
+    }
   }
 }

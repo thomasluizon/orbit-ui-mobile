@@ -13,6 +13,7 @@ import {
   validateApiResponse,
 } from '@orbit/shared/utils'
 import { serverAuthFetch } from '@/lib/server-fetch'
+import { wrapServerAction, type ServerActionResult } from './action-result'
 
 type ConfirmDeletionResult =
   | { success: true; response: AccountDeactivationResponse }
@@ -21,36 +22,42 @@ type ConfirmDeletionResult =
 /**
  * Request account deletion. Sends a confirmation code to the user's email.
  */
-export async function requestDeletion(): Promise<void> {
-  const response: unknown = await serverAuthFetch(API.auth.requestDeletion, {
-    method: 'POST',
+export async function requestDeletion(): Promise<ServerActionResult<void>> {
+  return wrapServerAction(async () => {
+    const response: unknown = await serverAuthFetch(API.auth.requestDeletion, {
+      method: 'POST',
+    })
+    validateApiResponse(response, stepUpMessageResponseSchema, API.auth.requestDeletion)
   })
-  validateApiResponse(response, stepUpMessageResponseSchema, API.auth.requestDeletion)
 }
 
 /**
  * Confirm account deletion with the code received via email.
  * Returns the scheduled deletion response or a serializable expected failure.
  */
-export async function confirmDeletion(code: string): Promise<ConfirmDeletionResult> {
-  try {
-    const response: unknown = await serverAuthFetch(API.auth.confirmDeletion, {
-      method: 'POST',
-      body: JSON.stringify({ code }),
-    })
-    return {
-      success: true,
-      response: validateApiResponse(
-        response,
-        accountDeactivationResponseSchema,
-        API.auth.confirmDeletion,
-      ),
+export async function confirmDeletion(
+  code: string,
+): Promise<ServerActionResult<ConfirmDeletionResult>> {
+  return wrapServerAction(async () => {
+    try {
+      const response: unknown = await serverAuthFetch(API.auth.confirmDeletion, {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      })
+      return {
+        success: true,
+        response: validateApiResponse(
+          response,
+          accountDeactivationResponseSchema,
+          API.auth.confirmDeletion,
+        ),
+      }
+    } catch (caught: unknown) {
+      return {
+        success: false,
+        errorCode: extractBackendErrorCode(caught) ?? null,
+        remaining: extractStepUpAttemptsRemaining(extractBackendError(caught)),
+      }
     }
-  } catch (caught: unknown) {
-    return {
-      success: false,
-      errorCode: extractBackendErrorCode(caught) ?? null,
-      remaining: extractStepUpAttemptsRemaining(extractBackendError(caught)),
-    }
-  }
+  })
 }

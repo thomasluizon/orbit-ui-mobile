@@ -25,7 +25,8 @@ import {
 } from '@orbit/shared/utils'
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
 import { fetchJson } from '@/lib/api-fetch'
-import { repairStreakGap, reportAchievementEvent } from '@/app/actions/gamification'
+import { repairStreakGap } from '@/app/actions/gamification'
+import { reportAchievementEvent } from '@/lib/actions/gamification'
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()

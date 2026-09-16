@@ -15,7 +15,7 @@ import type { NotificationsResponse } from '@orbit/shared/types/notification'
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-vi.mock('@/app/actions/notifications', () => ({
+vi.mock('@/lib/actions/notifications', () => ({
   markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
   deleteNotification: vi.fn(),
@@ -102,7 +102,7 @@ describe('useMarkNotificationRead', () => {
   })
 
   it('calls markNotificationRead action', async () => {
-    const { markNotificationRead } = await import('@/app/actions/notifications')
+    const { markNotificationRead } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(markNotificationRead)
     mockedAction.mockResolvedValue(undefined as any)
 
@@ -123,7 +123,7 @@ describe('useMarkAllNotificationsRead', () => {
   })
 
   it('calls markAllNotificationsRead action', async () => {
-    const { markAllNotificationsRead } = await import('@/app/actions/notifications')
+    const { markAllNotificationsRead } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(markAllNotificationsRead)
     mockedAction.mockResolvedValue(undefined as any)
 
@@ -140,7 +140,7 @@ describe('useMarkAllNotificationsRead', () => {
 
 describe('useMarkNotificationRead optimistic update', () => {
   it('optimistically marks notification as read and decrements unread count', async () => {
-    const { markNotificationRead } = await import('@/app/actions/notifications')
+    const { markNotificationRead } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(markNotificationRead)
     mockedAction.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(undefined as any), 100)))
 
@@ -186,7 +186,7 @@ describe('useMarkNotificationRead optimistic update', () => {
 
 describe('useMarkAllNotificationsRead optimistic update', () => {
   it('optimistically marks all notifications as read', async () => {
-    const { markAllNotificationsRead } = await import('@/app/actions/notifications')
+    const { markAllNotificationsRead } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(markAllNotificationsRead)
     mockedAction.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(undefined as any), 100)))
 
@@ -231,7 +231,7 @@ describe('useMarkAllNotificationsRead optimistic update', () => {
   })
 
   it('rolls back on error', async () => {
-    const { markAllNotificationsRead } = await import('@/app/actions/notifications')
+    const { markAllNotificationsRead } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(markAllNotificationsRead)
     mockedAction.mockRejectedValue(new Error('Server error'))
 
@@ -283,7 +283,7 @@ describe('useDeleteNotification', () => {
   })
 
   it('calls deleteNotification action', async () => {
-    const { deleteNotification } = await import('@/app/actions/notifications')
+    const { deleteNotification } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(deleteNotification)
     mockedAction.mockResolvedValue(undefined as any)
 
@@ -298,7 +298,7 @@ describe('useDeleteNotification', () => {
   })
 
   it('rolls back on error', async () => {
-    const { deleteNotification } = await import('@/app/actions/notifications')
+    const { deleteNotification } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(deleteNotification)
     mockedAction.mockRejectedValue(new Error('Server error'))
 
@@ -344,7 +344,7 @@ describe('useDeleteNotification', () => {
   })
 
   it('optimistically removes the notification and adjusts unread count', async () => {
-    const { deleteNotification } = await import('@/app/actions/notifications')
+    const { deleteNotification } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(deleteNotification)
     mockedAction.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(undefined as any), 100)))
 
@@ -395,7 +395,7 @@ describe('useDeleteAllNotifications', () => {
   })
 
   it('calls deleteAllNotifications action', async () => {
-    const { deleteAllNotifications } = await import('@/app/actions/notifications')
+    const { deleteAllNotifications } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(deleteAllNotifications)
     mockedAction.mockResolvedValue(undefined as any)
 
@@ -410,7 +410,7 @@ describe('useDeleteAllNotifications', () => {
   })
 
   it('rolls back on error', async () => {
-    const { deleteAllNotifications } = await import('@/app/actions/notifications')
+    const { deleteAllNotifications } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(deleteAllNotifications)
     mockedAction.mockRejectedValue(new Error('Server error'))
 
@@ -456,7 +456,7 @@ describe('useDeleteAllNotifications', () => {
   })
 
   it('optimistically clears all notifications', async () => {
-    const { deleteAllNotifications } = await import('@/app/actions/notifications')
+    const { deleteAllNotifications } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(deleteAllNotifications)
     mockedAction.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(undefined as any), 100)))
 
