@@ -134,10 +134,6 @@ vi.mock('@/components/navigation/notification-bell', () => ({
   NotificationBell: () => null,
 }))
 
-vi.mock('@/app/(app)/profile/_components/subscription-card', () => ({
-  SubscriptionCard: () => null,
-}))
-
 vi.mock('@/app/(app)/profile/_components/fresh-start-modal', () => ({
   FreshStartModal: () => null,
 }))
