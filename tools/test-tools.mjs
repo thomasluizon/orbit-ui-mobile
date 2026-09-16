@@ -113,6 +113,7 @@ const CASE_MODULES = [
   ["lib/identifier-ledger.mjs", "identifier-ledger"],
   ["lib/manual-steps.mjs", "manual-steps"],
   ["lib/readiness-receipt.mjs", "readiness-receipt"],
+  ["lib/review-harness.mjs", "review-harness"],
   ["lib/run-state.mjs", "run-state"],
   ["lib/ticket-executability.mjs", "ticket-executability"],
   ["list-bot-threads.mjs", "list-bot-threads"],

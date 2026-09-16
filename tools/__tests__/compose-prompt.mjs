@@ -6,6 +6,8 @@ import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, root, stag
 
 const TOOL = "compose-prompt.mjs"
 const REPO_PATH = join(root, "compose-prompt", "repo-ui")
+const API_REPO_PATH = join(root, "compose-prompt", "repo-api")
+const LANDING_REPO_PATH = join(root, "compose-prompt", "repo-landing")
 const projectItems = JSON.stringify({ items: [], totalCount: 0 })
 const ticket = (overrides = {}) => ({
   blockedBy: { nodes: [], totalCount: 0 },
@@ -34,7 +36,10 @@ const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
 export const cases = () => {
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
   const real = realOrchestratorConfig()
-  const staged = stageWithConfig("compose-prompt", TOOL, { ...real, repos: { ui: REPO_PATH } })
+  const staged = stageWithConfig("compose-prompt", TOOL, {
+    ...real,
+    repos: { ui: REPO_PATH, api: API_REPO_PATH, landing: LANDING_REPO_PATH },
+  })
   stage("staged/compose-prompt/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-215": { number: 221 } } }))
   const options = (plan) => ({ path: staged.path, env: plan ? orcaEnv(plan) : undefined })
   const out = join(root, "compose-prompt", "orb-215.md")
@@ -122,6 +127,57 @@ export const cases = () => {
       !/gh pr checks|must be GREEN before you report|## Cloud finishing contract/.test(prompt),
     prompt,
   )
+  T(
+    `${TOOL}: a main-based UI order carries no redesign review sweep`,
+    !prompt.includes("## UI review sweep"),
+    prompt,
+  )
+
+  const redesignOut = join(root, "compose-prompt", "ui-redesign.md")
+  check(
+    TOOL,
+    "composes the redesign UI review sweep",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", redesignOut, "--base", "redesign/main"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const redesignPrompt = composed(redesignOut)
+  T(
+    `${TOOL}: a redesign UI order requires both raw skills, in-scope fixes, and the PR block`,
+    redesignPrompt.includes("## UI review sweep") &&
+      /raw\.githubusercontent\.com\/jakubkrehel\/skills\/[^\s`]+\/skills\/interface-review\/SKILL\.md/.test(redesignPrompt) &&
+      /raw\.githubusercontent\.com\/jakubkrehel\/skills\/[^\s`]+\/skills\/better-interface\/SKILL\.md/.test(redesignPrompt) &&
+      /Fix every in-scope finding in this pull request/.test(redesignPrompt) &&
+      /## Review harness/.test(redesignPrompt) &&
+      /- interface-review: <what it found, or "no findings">/.test(redesignPrompt) &&
+      /- better-interface \(full mode\): <what it found, or "no findings">/.test(redesignPrompt) &&
+      /A line claiming a review you did not run is forbidden/.test(redesignPrompt),
+    redesignPrompt,
+  )
+  T(
+    `${TOOL}: the redesign UI order exempts a diff with no path in the gate's exact scope`,
+    /\^apps\\\/\(\?:web\|mobile\)\\\/\(\?:app\|components\|hooks\|stores\|lib\)\\\//.test(redesignPrompt) &&
+      /If no changed path matches, skip this sweep and omit the Review harness block/.test(redesignPrompt),
+    redesignPrompt,
+  )
+
+  for (const [repository, repositoryPath] of [["api", API_REPO_PATH], ["landing", LANDING_REPO_PATH]]) {
+    const repositoryOut = join(root, "compose-prompt", `${repository}-redesign.md`)
+    check(
+      TOOL,
+      `composes a redesign order for ${repository}`,
+      ["--issue", "ORB-215", "--repo", repository, "--out", repositoryOut, "--base", "redesign/main"],
+      { status: 0 },
+      options(ticketPlan(ticket({ labels: [{ name: `repo:${repository}` }] }))),
+    )
+    const repositoryPrompt = composed(repositoryOut)
+    T(
+      `${TOOL}: a redesign ${repository} order carries no UI review sweep`,
+      !repositoryPrompt.includes("## UI review sweep") && repositoryPrompt.includes(`Repository \`${repository}\` at \`${repositoryPath}\``),
+      repositoryPrompt,
+    )
+  }
+
   const cloudOut = join(root, "compose-prompt", "cloud.md")
   check(
     TOOL,

@@ -21,6 +21,7 @@ import { isAbsolute, resolve } from "node:path"
 import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
+import { UI_SCOPE, composedOrderNeedsUiReview } from "./lib/review-harness.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
 
@@ -121,6 +122,29 @@ const outputInstruction = cloud
   : `One commit series on your branch, pushed, with exactly one open pull request that links
 ${ticketReference}. The orchestrator verifies delivery from git and GitHub artifacts with
 tools/verify-delivery.mjs; your own exit code counts for nothing. It owns CI waiting after handoff.`
+
+const uiReviewSweep = !cloud && composedOrderNeedsUiReview(repoKey, baseBranch)
+  ? `## UI review sweep
+
+After implementation, inspect the complete diff. This sweep applies only when at least one changed
+path matches \`${UI_SCOPE}\`. If no changed path matches, skip this sweep and omit the Review harness block.
+
+1. Fetch and follow both skill files by raw URL:
+   - \`https://raw.githubusercontent.com/jakubkrehel/skills/main/skills/interface-review/SKILL.md\`
+   - \`https://raw.githubusercontent.com/jakubkrehel/skills/main/skills/better-interface/SKILL.md\`
+2. Run \`jakubkrehel/interface-review\` and \`jakubkrehel/better-interface\` in full mode against the complete diff.
+3. Fix every in-scope finding in this pull request.
+4. Write this block in the pull request body, with one line per completed review:
+
+\`\`\`md
+## Review harness
+
+- interface-review: <what it found, or "no findings">
+- better-interface (full mode): <what it found, or "no findings">
+\`\`\`
+
+A line claiming a review you did not run is forbidden.`
+  : ""
 
 /**
  * WHY this block is in EVERY prompt, measured 2026-08-06. The ticket is quoted verbatim (D2), and a
@@ -255,5 +279,9 @@ migration or backfill), each naming the exact key, the exact console or screen, 
 took effect. The harness reads both sections mechanically at handover; prose elsewhere in the body
 does not reach it.`
 
-writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${cloud ? CLOUD_FINISHING_CONTRACT : finishing}\n`, "utf8")
+const finishingContract = cloud
+  ? CLOUD_FINISHING_CONTRACT
+  : [uiReviewSweep, finishing].filter(Boolean).join("\n\n")
+
+writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${finishingContract}\n`, "utf8")
 console.log(resolve(out))
