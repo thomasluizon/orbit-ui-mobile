@@ -5,6 +5,7 @@ import { calendarKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { isCalendarSyncNotConnectedMessage } from '@orbit/shared/utils'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 interface CalendarEventsQueryOptions {
   enabled?: boolean
@@ -27,7 +28,7 @@ export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
   return useQuery<CalendarEventsResult>({
     queryKey: CALENDAR_EVENTS_KEY,
     queryFn: async () => {
-      const res = await fetch(API.calendar.events)
+      const res = await sessionAwareFetch(API.calendar.events)
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as
           | { error?: string; message?: string }

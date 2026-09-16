@@ -9,6 +9,7 @@ import {
   VOICE_WEB_SPEECH_RMS_THRESHOLD,
 } from '@orbit/shared/chat'
 import { ERROR_CODE_TO_KEY } from '@orbit/shared/utils'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
@@ -83,7 +84,10 @@ export function useSpeechToText() {
       try {
         const formData = new FormData()
         formData.append('audio', blob, 'recording.webm')
-        const response = await fetch(API.chat.transcribe, { method: 'POST', body: formData })
+        const response = await sessionAwareFetch(API.chat.transcribe, {
+          method: 'POST',
+          body: formData,
+        })
         const data = (await response.json().catch(() => null)) as TranscriptionResponse | null
         const text = data?.text?.trim() ?? ''
         if (!response.ok || !text) {

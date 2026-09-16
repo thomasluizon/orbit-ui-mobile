@@ -7,7 +7,7 @@ vi.mock('@/lib/server-fetch', () => ({
   serverAuthFetch: mockServerAuthFetch,
 }))
 
-const { signUpload } = await import('@/app/actions/uploads')
+const { signUpload } = await import('@/lib/actions/uploads')
 
 describe('uploads server action', () => {
   beforeEach(() => {

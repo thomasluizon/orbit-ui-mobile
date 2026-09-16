@@ -3,13 +3,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { resolveClarification } from '@/app/actions/chat'
 import { habitKeys } from '@orbit/shared/query'
+import { applyServerActionFailure } from '@/lib/client-action'
 
 export function useResolveClarification() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ operationId, value }: { operationId: string; value: string }) =>
-      resolveClarification(operationId, value),
+    mutationFn: async ({ operationId, value }: { operationId: string; value: string }) => {
+      const result = await resolveClarification(operationId, value)
+      await applyServerActionFailure(result)
+      return result
+    },
 
     onSuccess: (result) => {
       if (!result.ok) return

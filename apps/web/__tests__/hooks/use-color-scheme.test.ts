@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
 }))
@@ -238,7 +238,7 @@ describe('useColorScheme', () => {
   })
 
   it('detectAndSaveThemeIfNeeded no-ops when DB has dark', async () => {
-    const { updateThemePreference } = await import('@/app/actions/profile')
+    const { updateThemePreference } = await import('@/lib/actions/profile')
     const mock = vi.mocked(updateThemePreference)
     mock.mockClear()
 
@@ -252,7 +252,7 @@ describe('useColorScheme', () => {
   })
 
   it('detectAndSaveThemeIfNeeded no-ops when DB has light', async () => {
-    const { updateThemePreference } = await import('@/app/actions/profile')
+    const { updateThemePreference } = await import('@/lib/actions/profile')
     const mock = vi.mocked(updateThemePreference)
     mock.mockClear()
 
@@ -266,7 +266,7 @@ describe('useColorScheme', () => {
   })
 
   it('detectAndSaveThemeIfNeeded persists detected theme when DB is null', async () => {
-    const { updateThemePreference } = await import('@/app/actions/profile')
+    const { updateThemePreference } = await import('@/lib/actions/profile')
     const mock = vi.mocked(updateThemePreference)
     mock.mockClear()
 
@@ -280,7 +280,7 @@ describe('useColorScheme', () => {
   })
 
   it('detectAndSaveThemeIfNeeded persists detected theme when DB is undefined', async () => {
-    const { updateThemePreference } = await import('@/app/actions/profile')
+    const { updateThemePreference } = await import('@/lib/actions/profile')
     const mock = vi.mocked(updateThemePreference)
     mock.mockClear()
 
@@ -294,7 +294,7 @@ describe('useColorScheme', () => {
   })
 
   it('applyTheme persists to DB by default', async () => {
-    const { updateThemePreference } = await import('@/app/actions/profile')
+    const { updateThemePreference } = await import('@/lib/actions/profile')
     const mock = vi.mocked(updateThemePreference)
     mock.mockClear()
 
@@ -308,7 +308,7 @@ describe('useColorScheme', () => {
   })
 
   it('applyTheme skips persistence when persistToDb is false', async () => {
-    const { updateThemePreference } = await import('@/app/actions/profile')
+    const { updateThemePreference } = await import('@/lib/actions/profile')
     const mock = vi.mocked(updateThemePreference)
     mock.mockClear()
 

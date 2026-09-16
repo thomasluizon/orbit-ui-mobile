@@ -15,8 +15,9 @@ import { API } from '@orbit/shared/api'
 import { useProfile, useHasProAccess, useTrialDaysLeft } from '@/hooks/use-profile'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
-import { openCustomerPortal } from '@/app/actions/subscription'
+import { openCustomerPortal } from '@/lib/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 
@@ -54,7 +55,7 @@ export default function UpgradePage() {
       const checkoutUrl = timeZone
         ? `${API.subscription.checkout}?timeZone=${encodeURIComponent(timeZone)}`
         : API.subscription.checkout
-      const response = await fetch(checkoutUrl, {
+      const response = await sessionAwareFetch(checkoutUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ interval }),

@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { APP_VERSION_HEADER } from '@orbit/shared/utils'
+import { API } from '@orbit/shared/api'
 import { resolveServerSession } from '@/lib/auth-api'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
+import {
+  SESSION_REFRESH_FAILED_VALUE,
+  SESSION_REFRESH_HEADER,
+} from '@/lib/session-refresh'
 
 /**
  * BFF: Catch-all proxy for API routes.
@@ -159,12 +164,19 @@ function buildResponseHeaders(source: Response): Headers {
 }
 
 const NULL_BODY_STATUSES = new Set([204, 205, 304])
-
-async function toNextResponse(source: Response): Promise<NextResponse> {
+const REFRESH_PATH = API.auth.refresh.replace(/^\/api\//, '')
+async function toNextResponse(
+  source: Response,
+  sessionRefreshFailed = false,
+): Promise<NextResponse> {
   const body = NULL_BODY_STATUSES.has(source.status) ? null : await source.text()
+  const headers = buildResponseHeaders(source)
+  if (sessionRefreshFailed) {
+    headers.set(SESSION_REFRESH_HEADER, SESSION_REFRESH_FAILED_VALUE)
+  }
   return new NextResponse(body, {
     status: source.status,
-    headers: buildResponseHeaders(source),
+    headers,
   })
 }
 
@@ -172,15 +184,19 @@ async function handleProxy(request: NextRequest, path: string) {
   const session = await resolveServerSession()
   const response = await proxyRequest(request, path, session.token)
 
-  if (response.status === 401) {
+  if (response.status === 401 && path !== REFRESH_PATH) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (refreshedSession.token) {
       const retryResponse = await proxyRequest(request, path, refreshedSession.token)
       return toNextResponse(retryResponse)
     }
+    return toNextResponse(
+      response,
+      session.refreshFailed || refreshedSession.refreshFailed,
+    )
   }
 
-  return toNextResponse(response)
+  return toNextResponse(response, session.refreshFailed)
 }
 
 /** Single handler for all HTTP methods -- eliminates S4144 duplicate functions */

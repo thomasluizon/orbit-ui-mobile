@@ -7,35 +7,9 @@ import type {
   PendingAgentOperationConfirmation,
 } from '@orbit/shared'
 import { serverAuthFetch } from '@/lib/server-fetch'
+import { wrapServerAction, type ServerActionResult } from './action-result'
 
-type ActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; status: number; code?: string }
-
-export type PendingOperationActionResult<T> = ActionResult<T>
-
-async function wrapServerAction<T>(fn: () => Promise<T>): Promise<PendingOperationActionResult<T>> {
-  try {
-    const data = await fn()
-    return { ok: true, data }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    const status = typeof error === 'object' &&
-      error !== null &&
-      'status' in error &&
-      typeof (error as { status?: unknown }).status === 'number'
-      ? ((error as { status: number }).status)
-      : 500
-    const code = typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      typeof (error as { code?: unknown }).code === 'string'
-      ? (error as { code: string }).code
-      : undefined
-
-    return { ok: false, error: message, status, code }
-  }
-}
+export type PendingOperationActionResult<T> = ServerActionResult<T>
 
 // react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the wrapServerAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function confirmPendingOperation(
@@ -96,10 +70,20 @@ export async function resolveClarification(
   value: string,
 ): Promise<PendingOperationActionResult<AgentExecuteOperationResponse>> {
   if (!UUID_RE.test(operationId)) {
-    return { ok: false, error: 'Invalid operationId', status: 400 }
+    return {
+      ok: false,
+      error: 'Invalid operationId',
+      status: 400,
+      sessionRefreshFailed: false,
+    }
   }
   if (typeof value !== 'string' || value.trim().length === 0 || value.length > MAX_CLARIFICATION_VALUE_LENGTH) {
-    return { ok: false, error: 'Invalid value', status: 400 }
+    return {
+      ok: false,
+      error: 'Invalid value',
+      status: 400,
+      sessionRefreshFailed: false,
+    }
   }
 
   return wrapServerAction(() =>

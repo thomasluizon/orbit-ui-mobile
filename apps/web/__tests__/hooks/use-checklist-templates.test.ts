@@ -5,7 +5,7 @@ import React from 'react'
 import { checklistTemplateKeys } from '@orbit/shared/query'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 
-vi.mock('@/app/actions/checklist-templates', () => ({
+vi.mock('@/lib/actions/checklist-templates', () => ({
   listChecklistTemplatesAction: vi.fn(),
   createChecklistTemplateAction: vi.fn(),
   deleteChecklistTemplateAction: vi.fn(),
@@ -20,7 +20,7 @@ const {
   listChecklistTemplatesAction,
   createChecklistTemplateAction,
   deleteChecklistTemplateAction,
-} = await import('@/app/actions/checklist-templates')
+} = await import('@/lib/actions/checklist-templates')
 
 function makeQueryClient() {
   return new QueryClient({

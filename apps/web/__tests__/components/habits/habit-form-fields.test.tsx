@@ -67,7 +67,7 @@ vi.mock('@/components/ui/astra-avatar', () => ({
   AstraMark: () => <span data-testid="astra-mark" />,
 }))
 
-vi.mock('@/app/actions/tags', () => ({
+vi.mock('@/lib/actions/tags', () => ({
   getTags: vi.fn().mockResolvedValue([]),
   createTag: vi.fn(),
   updateTag: vi.fn(),
@@ -1729,7 +1729,7 @@ describe('HabitFormFields', () => {
   })
 
   it('suggests tags and accepts an existing suggestion as the real tag', async () => {
-    const { suggestTags } = await import('@/app/actions/tags')
+    const { suggestTags } = await import('@/lib/actions/tags')
     vi.mocked(suggestTags).mockResolvedValue({
       tags: [
         { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-1' },
@@ -1783,7 +1783,7 @@ describe('HabitFormFields', () => {
   })
 
   it('shows the empty state when no tag suggestions are returned', async () => {
-    const { suggestTags } = await import('@/app/actions/tags')
+    const { suggestTags } = await import('@/lib/actions/tags')
     vi.mocked(suggestTags).mockResolvedValue({ tags: [] })
 
     const formHelpers = createMockFormHelpers()

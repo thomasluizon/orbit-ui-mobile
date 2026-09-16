@@ -15,12 +15,12 @@ vi.mock('lucide-react', async (importOriginal) => {
   }
 })
 
-vi.mock('@/app/actions/notifications', () => ({
+vi.mock('@/lib/actions/notifications', () => ({
   subscribePush: vi.fn().mockResolvedValue(undefined),
 }))
 
 import { PushPrompt } from '@/components/ui/push-prompt'
-import { subscribePush } from '@/app/actions/notifications'
+import { subscribePush } from '@/lib/actions/notifications'
 
 let mockNotificationPermission = 'default' as NotificationPermission
 

@@ -8,7 +8,8 @@ import type {
   ApiKeyCreateResponse,
 } from '@orbit/shared/types'
 import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
-import { createApiKey, revokeApiKey } from '@/app/actions/api-keys'
+import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 const MAX_API_KEYS = 5
 
@@ -19,7 +20,7 @@ interface ScopeOption {
 }
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
-  const res = await fetch(API.apiKeys.list)
+  const res = await sessionAwareFetch(API.apiKeys.list)
   if (!res.ok) {
     throw new Error('Failed to load API keys')
   }
@@ -27,7 +28,7 @@ async function fetchApiKeys(): Promise<ApiKey[]> {
 }
 
 async function fetchCapabilities(): Promise<AgentCapability[]> {
-  const res = await fetch(API.ai.capabilities)
+  const res = await sessionAwareFetch(API.ai.capabilities)
   if (!res.ok) {
     throw new Error('Failed to load AI capabilities')
   }
