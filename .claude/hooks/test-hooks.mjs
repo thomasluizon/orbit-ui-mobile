@@ -1149,6 +1149,21 @@ for (const [relative, tool, problem] of prescribed) {
 T("skill commands: every prescribed tool invocation names flags the tool accepts", prescribed.length === 0, true)
 T("skill commands: the scan actually found invocations", toolFlagSets.size > 0, true)
 
+const progressSkill = readFileSync(join(repoRoot, ".claude", "skills", "progress", "SKILL.md"), "utf8")
+T("progress: integration discovery starts from the current PR head and removes stacked heads", {
+  readsHeads: progressSkill.includes("headRefName"),
+  readsBases: progressSkill.includes("baseRefName"),
+  excludesStackedHeads: progressSkill.includes("not the integration branch"),
+  refreshesIntegrationRef: progressSkill.includes("git fetch origin <integration-branch>"),
+}, { readsHeads: true, readsBases: true, excludesStackedHeads: true, refreshesIntegrationRef: true })
+T("progress: session discovery uses the current run ledger and live merge state", {
+  checksSessionIdentity: progressSkill.includes("currentRunIdentifier"),
+  readsLedger: progressSkill.includes("readinessLedger"),
+  readsLiveState: progressSkill.includes("gh pr view <number> --json state"),
+  claimsMergedField: /readRunState[^\n]*\bmerged\b/.test(progressSkill),
+  readsWorkingTree: progressSkill.includes("git status --short"),
+}, { checksSessionIdentity: true, readsLedger: true, readsLiveState: true, claimsMergedField: false, readsWorkingTree: true })
+
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
  * looking rather than by any gate. A pre-commit hook does not check for them and neither did

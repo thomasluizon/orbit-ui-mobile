@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-09-15",
+  "calibratedAt": "2026-09-16",
   "workerEngine": "codex",
   "workerCommand": "codex",
   "workerTiers": {
@@ -190,8 +190,8 @@
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "04405175a717e173",
-      "calibratedAt": "2026-09-15",
+      "digest": "eb1a2a8adca2f5d2",
+      "calibratedAt": "2026-09-16",
       "verdict": "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up. The 2026-09-15 rewrite made it effort-agnostic and added --full, so it now resolves its own branch, spec and ticket meanings at answer time instead of reading them from a table here; that is more judgement per call, not less."
     },
     ".claude/skills/questions/SKILL.md": {

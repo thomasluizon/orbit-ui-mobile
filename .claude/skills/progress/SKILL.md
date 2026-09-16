@@ -35,17 +35,35 @@ summary buries that under work he already knows about.
 Never answer from memory, and never from a standing notes file such as `hot.md`. Both go stale
 within a day.
 
-**Find the working branch rather than assuming one.** `git rev-parse --abbrev-ref HEAD` in the
-repository you are in. Compare against its integration branch: the one the open pull requests target,
-read from `gh pr list --json baseRefName`, not a name you remember.
+**State the integration branch rather than assuming one.** Resolve it this way:
+
+1. Read the checkout branch with `git rev-parse --abbrev-ref HEAD`.
+2. Read the repository's open pull requests with
+   `gh pr list --state open --limit 100 --json number,headRefName,baseRefName`.
+3. If one row's `headRefName` exactly matches the checkout branch, start with its `baseRefName`.
+   While that candidate is itself an open row's `headRefName`, it is a stacked pull request head,
+   not the integration branch; replace it with that row's `baseRefName`. The first candidate that is
+   not an open head is the integration branch. If no row matches the checkout branch, the checkout
+   branch itself is the integration branch. A duplicate matching head or a cycle is ambiguity: say
+   so and do not guess. This rule is anchored to one exact head, so unrelated bases cannot tie it.
+4. State the resolved branch in the answer. Run `git fetch origin <integration-branch>` before
+   comparing commits, and read `origin/<integration-branch>`. If the fetch fails, say it could not be
+   verified rather than claiming work landed.
 
 For the session scope:
 
-1. `readRunState` in `tools/lib/run-state.mjs` gives this session's `merged` and `remaining` when an
-   orchestrated run wrote one. Use it only when its `sessionId` is this session's.
-2. `git log --oneline <branch>@{<when the session started>}..<branch>`, or the merge commits whose
-   times fall inside the session, for what actually landed.
-3. `gh pr list --state open` for what is mid flight, and the session's own decision log if one exists.
+1. Get the live session id from `currentRunIdentifier()` in
+   `tools/lib/identifier-ledger.mjs`. Use `readRunState()` only when its `sessionId` exactly matches.
+   With no matching record, limit the session report to the current checkout and say that boundary.
+2. Enumerate the matching record's append-only `readinessLedger`. Each row's `repositoryKey` maps to
+   a repository path in `.claude/orchestrator.json`; `prNumber` identifies the session-owned pull
+   request; `receiptPath` is provenance, not merge status. Ignore any undeclared top-level key.
+3. In each mapped repository, run `gh pr view <number> --json state` at answer time. Only `MERGED`
+   means merged; `OPEN` is mid flight and `CLOSED` did not merge. Read the pull request and its ticket
+   for the behaviour it carries. The ledger establishes ownership across repositories; live GitHub
+   state establishes what landed.
+4. Run `git status --short` in the current checkout so work before its first commit or pull request is
+   visible. Use `remaining` for queued work and the session's decision log for unresolved decisions.
 
 For the full scope, add:
 
