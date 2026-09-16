@@ -39,6 +39,7 @@
     "workerLogMegabytes": 512
   },
   "cloud": {
+    "enabled": false,
     "environmentId": "6a95b419b608819199eb78d9eabc9579",
     "repositoryKey": "ui"
   },
