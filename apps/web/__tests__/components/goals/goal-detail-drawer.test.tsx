@@ -1,5 +1,8 @@
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
+import { updateGoalProgressDetail } from '@orbit/shared/utils'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -88,6 +91,27 @@ describe('GoalDetailDrawer', () => {
       <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
     )
     expect(screen.getByText('Read 12 books')).toBeInTheDocument()
+  })
+
+  it.each([
+    {
+      locale: 'en',
+      messages: en,
+      manual: 'Update progress. Reaching the target completes the goal.',
+      open: 'This goal reached its target but is still open. Complete it when you are ready.',
+    },
+    {
+      locale: 'pt-BR',
+      messages: ptBR,
+      manual: 'Atualize o progresso. Ao alcançar o alvo, a meta é concluída.',
+      open: 'Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.',
+    },
+  ])('keeps manual completion copy truthful in $locale', async ({ locale, messages, manual, open }) => {
+    const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+    const translate = createTranslator({ locale, messages })
+
+    expect(translate('goals.detail.manualProgress')).toBe(manual)
+    expect(translate('goals.detail.completeWhy')).toBe(open)
   })
 
   it('keeps the linked habits section visible at count zero', () => {
@@ -243,7 +267,22 @@ describe('GoalDetailDrawer', () => {
 
   it('stage 5 lets the progress write complete a manual goal at its target', async () => {
     detailGoal = { ...listGoal, currentValue: 11, progressPercentage: 92, progressHistory: [] }
-    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+    updateProgressMutateAsync.mockImplementationOnce(({ data }) => {
+      const optimisticDetail = updateGoalProgressDetail({
+        goal: detailGoal,
+        metrics: {
+          progressPercentage: detailGoal.progressPercentage,
+          velocityPerDay: 0,
+          projectedCompletionDate: null,
+          daysToDeadline: null,
+          trackingStatus: 'no_deadline',
+          habitAdherence: [],
+        },
+      }, data.currentValue)
+      detailGoal = optimisticDetail!.goal
+      return Promise.resolve(undefined)
+    })
+    const { rerender } = render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
 
@@ -256,6 +295,8 @@ describe('GoalDetailDrawer', () => {
     })
     expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(refetchDetail).toHaveBeenCalled())
+    rerender(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+    expect(detailGoal.status).toBe('Completed')
     expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).toBeNull()
     expect(updateStatusMutateAsync).not.toHaveBeenCalled()
   })

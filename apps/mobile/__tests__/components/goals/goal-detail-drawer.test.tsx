@@ -1,6 +1,7 @@
 import { BackHandler } from 'react-native'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
+import { updateGoalProgressDetail } from '@orbit/shared/utils'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -473,6 +474,21 @@ describe('GoalDetailDrawer', () => {
 
   it('stage 5 lets the progress write complete a manual goal at its target', async () => {
     detailGoal = { ...listGoal, currentValue: 11, progressPercentage: 92, progressHistory: [] }
+    updateProgressMutateAsync.mockImplementationOnce(({ data }) => {
+      const optimisticDetail = updateGoalProgressDetail({
+        goal: detailGoal,
+        metrics: {
+          progressPercentage: detailGoal.progressPercentage,
+          velocityPerDay: 0,
+          projectedCompletionDate: null,
+          daysToDeadline: null,
+          trackingStatus: 'no_deadline',
+          habitAdherence: [],
+        },
+      }, data.currentValue)
+      detailGoal = optimisticDetail!.goal
+      return Promise.resolve({ queued: true, queuedMutationId: 'mutation-1' })
+    })
     const tree = renderDrawer()
 
     press(tree, 'goals.detail.increase')
@@ -489,6 +505,10 @@ describe('GoalDetailDrawer', () => {
     })
     expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
     expect(refetchDetail).toHaveBeenCalled()
+    TestRenderer.act(() => {
+      tree.update(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />)
+    })
+    expect(detailGoal.status).toBe('Completed')
     expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === 'goals.detail.markCompleted')).toHaveLength(0)
     expect(mockStatusMutateAsync).not.toHaveBeenCalled()
   })
