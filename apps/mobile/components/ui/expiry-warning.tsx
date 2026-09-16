@@ -1,12 +1,18 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/stores/auth-store'
+import {
+  clearSessionAndResetAuth,
+  refreshSession,
+  useAuthStore,
+} from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const WARN_AT_MINUTES = 5
+
+type RefreshState = 'ready' | 'refreshing' | 'network-error' | 'rejected'
 
 function stripTrailingPeriod(text: string): string {
   const trimmed = text.trimEnd()
@@ -55,10 +61,14 @@ export function ExpiryWarning() {
   const handleLogout = useLogout()
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
+  const [refreshState, setRefreshState] = useState<RefreshState>('ready')
 
   const [prevExpiresAt, setPrevExpiresAt] = useState(expiresAt)
   if (expiresAt !== prevExpiresAt) {
     setPrevExpiresAt(expiresAt)
+    if (expiresAt || refreshState !== 'rejected') {
+      setRefreshState('ready')
+    }
     if (!expiresAt) {
       setMinutesLeft(null)
       setIsExpired(false)
@@ -91,18 +101,47 @@ export function ExpiryWarning() {
     return () => clearInterval(interval)
   }, [expiresAt])
 
-  const handleLogin = useCallback(async () => {
-    await handleLogout()
-  }, [handleLogout])
+  const isTerminal = refreshState === 'rejected'
 
-  if (minutesLeft === null && !isExpired) return null
+  const handleAction = useCallback(async () => {
+    if (!isExpired || isTerminal) {
+      await handleLogout()
+      return
+    }
+
+    if (refreshState === 'refreshing') return
+
+    setRefreshState('refreshing')
+    const outcome = await refreshSession({ clearOnFailure: false })
+
+    if (outcome.status === 'refreshed') {
+      setRefreshState('ready')
+      return
+    }
+
+    if (outcome.status === 'network-error') {
+      setRefreshState('network-error')
+      return
+    }
+
+    await clearSessionAndResetAuth()
+    setRefreshState('rejected')
+  }, [handleLogout, isExpired, isTerminal, refreshState])
+
+  if (minutesLeft === null && !isExpired && !isTerminal) return null
+
+  const expiredMessage = isTerminal
+    ? t('auth.sessionSignedOut')
+    : refreshState === 'network-error'
+      ? t('auth.sessionRefreshFailed')
+      : t('auth.sessionExpired')
 
   return (
     <View style={styles.wrapper} accessibilityRole="alert">
       <View style={styles.banner}>
         <Text style={styles.text}>
-          {isExpired ? (
-            <Text style={styles.urgent}>{t('auth.sessionExpired')}</Text>
+          {isExpired || isTerminal ? (
+            <Text style={styles.urgent}>{expiredMessage}</Text>
           ) : (
             <>
               {stripTrailingPeriod(t('auth.sessionExpiring', { minutes: '' }))}{' '}
@@ -112,9 +151,16 @@ export function ExpiryWarning() {
             </>
           )}
         </Text>
-        <Pressable onPress={() => void handleLogin()} hitSlop={6} style={styles.actionPress} accessibilityRole="button">
+        <Pressable
+          onPress={() => void handleAction()}
+          disabled={refreshState === 'refreshing'}
+          hitSlop={6}
+          style={styles.actionPress}
+          accessibilityRole="button"
+          accessibilityState={{ busy: refreshState === 'refreshing' }}
+        >
           <Text style={styles.actionText}>
-            {isExpired ? t('auth.login') : t('auth.refresh')}
+            {isTerminal ? t('auth.login') : t('auth.refresh')}
           </Text>
         </Pressable>
       </View>
