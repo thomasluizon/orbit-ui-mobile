@@ -6,6 +6,15 @@ type SuggestionScheduleTarget = Pick<
   'form' | 'setFlexible' | 'setRecurring' | 'setOneTime'
 >
 
+export function applySuggestionEmoji(
+  patch: HabitFormSuggestionPatch,
+  form: HabitFormHelpers['form'],
+): boolean {
+  if (!patch.emoji) return false
+  form.setValue('emoji', patch.emoji, { shouldDirty: true })
+  return true
+}
+
 export function applySuggestionSchedule(
   patch: HabitFormSuggestionPatch,
   target: SuggestionScheduleTarget,

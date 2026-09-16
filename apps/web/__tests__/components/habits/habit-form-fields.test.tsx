@@ -63,6 +63,10 @@ vi.mock('@/components/ui/app-select', () => ({
   ),
 }))
 
+vi.mock('@/components/ui/astra-avatar', () => ({
+  AstraMark: () => <span data-testid="astra-mark" />,
+}))
+
 vi.mock('@/lib/actions/tags', () => ({
   getTags: vi.fn().mockResolvedValue([]),
   createTag: vi.fn(),
@@ -163,9 +167,11 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-  )
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  })
 }
 
 function pad(value: number): string {
@@ -241,6 +247,129 @@ describe('HabitFormFields', () => {
     await waitFor(() =>
       expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull(),
     )
+  })
+
+  it('keeps the empty-title emoji suggestion reason keyboard-accessible', () => {
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+    const onSuggestEmoji = vi.fn()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+        onSuggestEmoji={onSuggestEmoji}
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    button.focus()
+    expect(button).toHaveFocus()
+    expect(button).not.toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveAttribute('title', 'habits.form.titleRequired')
+    expect(button).toHaveAccessibleDescription('habits.form.titleRequired')
+    fireEvent.click(button)
+    expect(onSuggestEmoji).not.toHaveBeenCalled()
+  })
+
+  it('disables the emoji suggestion control and names its pending state', () => {
+    const formHelpers = createMockFormHelpers()
+    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
+    formHelpers.form.watch = ((field: string) =>
+      field === 'title' ? 'Read' : baseWatch(field)) as typeof formHelpers.form.watch
+    const onSuggestEmoji = vi.fn()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={createMockTags()}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+        onSuggestEmoji={onSuggestEmoji}
+        isSuggestingEmoji
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(button)
+    expect(onSuggestEmoji).not.toHaveBeenCalled()
+  })
+
+  it('disables both suggestion controls while either request is pending', () => {
+    const formHelpers = createMockFormHelpers()
+    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
+    formHelpers.form.watch = ((field: string) =>
+      field === 'title' ? 'Read' : baseWatch(field)) as typeof formHelpers.form.watch
+
+    const { rerender } = renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={createMockTags()}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+        onSuggestSetup={vi.fn()}
+        onSuggestEmoji={vi.fn()}
+        isSuggesting
+      />,
+    )
+
+    expect(screen.getByTestId('habit-suggest-setup')).toBeDisabled()
+    expect(screen.getByTestId('habit-suggest-emoji')).toBeDisabled()
+
+    rerender(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={createMockTags()}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+        onSuggestSetup={vi.fn()}
+        onSuggestEmoji={vi.fn()}
+        isSuggestingEmoji
+      />,
+    )
+
+    expect(screen.getByTestId('habit-suggest-setup')).toBeDisabled()
+    expect(screen.getByTestId('habit-suggest-emoji')).toBeDisabled()
+  })
+
+  it('uses the Astra marker for both habit suggestion controls', () => {
+    const formHelpers = createMockFormHelpers()
+    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
+    formHelpers.form.watch = ((field: string) =>
+      field === 'title' ? 'Read' : baseWatch(field)) as typeof formHelpers.form.watch
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={createMockTags()}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+        onSuggestSetup={vi.fn()}
+        onSuggestEmoji={vi.fn()}
+      />,
+    )
+
+    expect(screen.getAllByTestId('astra-mark')).toHaveLength(2)
   })
 
   it('filters emojis by category when clicking a category chip', () => {
