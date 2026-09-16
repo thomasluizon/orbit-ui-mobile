@@ -4,11 +4,6 @@
       "count": 1
     }
   },
-  "app/preferences-styles.ts": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
   "components/chat/conflict-warning.tsx": {
     "local/icon-size-grid": {
       "count": 1
