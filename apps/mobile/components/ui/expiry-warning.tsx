@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   clearSessionAndResetAuth,
@@ -157,8 +157,14 @@ export function ExpiryWarning() {
           hitSlop={6}
           style={styles.actionPress}
           accessibilityRole="button"
-          accessibilityState={{ busy: refreshState === 'refreshing' }}
+          accessibilityState={{
+            busy: refreshState === 'refreshing',
+            disabled: refreshState === 'refreshing',
+          }}
         >
+          {refreshState === 'refreshing' ? (
+            <ActivityIndicator size={14} color={tokens.fg1} />
+          ) : null}
           <Text style={styles.actionText}>
             {isTerminal ? t('auth.login') : t('auth.refresh')}
           </Text>
@@ -207,6 +213,9 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.statusOverdueText,
     },
     actionPress: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
       paddingVertical: 8,
       paddingHorizontal: 4,
     },

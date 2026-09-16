@@ -165,4 +165,31 @@ describe('ExpiryWarning', () => {
     expect(mocks.clearSessionAndResetAuth).not.toHaveBeenCalled()
     expect(mocks.authState.isAuthenticated).toBe(true)
   })
+
+  it('shows progress while session recovery is running', async () => {
+    type RefreshedOutcome = { status: 'refreshed'; token: string }
+    let resolveRefresh!: (outcome: RefreshedOutcome) => void
+    mocks.refreshSession.mockImplementation(
+      () =>
+        new Promise<RefreshedOutcome>((resolve) => {
+          resolveRefresh = resolve
+        }),
+    )
+    const instance = await renderExpiredWarning()
+    let refreshPromise!: Promise<void>
+
+    await TestRenderer.act(async () => {
+      refreshPromise = (action(instance, 'auth.refresh').props.onPress as () => Promise<void>)()
+      await Promise.resolve()
+    })
+
+    expect(action(instance, 'auth.refresh').props.disabled).toBe(true)
+    expect(hostNodes(instance, 'ActivityIndicator')).toHaveLength(1)
+    expect(renderedText(instance)).toContain('auth.refresh')
+
+    await TestRenderer.act(async () => {
+      resolveRefresh({ status: 'refreshed', token: 'fresh-access-token' })
+      await refreshPromise
+    })
+  })
 })
