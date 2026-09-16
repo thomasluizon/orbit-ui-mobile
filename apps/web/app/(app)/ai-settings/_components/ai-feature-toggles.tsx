@@ -59,7 +59,7 @@ export function AiFeatureToggles({
           accessory="chevron"
           divider={false}
         >
-          <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
+          <Lock size={20} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
         </SettingsRow>
       )}
       {hasProAccess ? (
@@ -81,7 +81,7 @@ export function AiFeatureToggles({
           accessory="chevron"
           divider={false}
         >
-          <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
+          <Lock size={20} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
         </SettingsRow>
       )}
     </>

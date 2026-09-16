@@ -1,6 +1,9 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 
+import { Home } from '@/components/ui/icons'
+import { SettingsRow } from '@/components/ui/settings-row'
 import { Switch } from '@/components/ui/switch'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -45,5 +48,25 @@ describe('Switch', () => {
       (node: any) => node.props.accessibilityRole === 'switch',
     )
     expect(control.props.accessibilityState).toEqual({ checked: true })
+  })
+})
+
+describe('SettingsRow', () => {
+  it('draws the canonical ListRow leading icon geometry', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <SettingsRow label="Account" icon={Home} accessory="none" />,
+      )
+    })
+
+    const icon = tree.root.findByType('Home')
+    const iconSlot = tree.root.findAllByType('View').find(
+      (node: any) => StyleSheet.flatten(node.props.style)?.width === 28,
+    )
+    expect(icon.props.size).toBe(24)
+    expect(icon.props.strokeWidth).toBe(1.5)
+    expect(StyleSheet.flatten(iconSlot?.props.style)).toMatchObject({ width: 28 })
   })
 })

@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronRight } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { ProBadge } from '@/components/ui/pro-badge'
 
 interface SettingsGroupProps {
   children: ReactNode
@@ -34,7 +33,7 @@ export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
 }
 
 interface SettingsGroupRowProps {
-  /** Pre-rendered leading icon (e.g. `<Settings size={22} color={tokens.fg1} />`). */
+  /** Pre-rendered leading icon (e.g. `<Settings size={24} color={tokens.fg1} />`). */
   icon?: ReactNode
   label: string
   /** Screen-reader name; defaults to `label` when omitted (e.g. announce plan state on a subscription row). */
@@ -46,8 +45,6 @@ interface SettingsGroupRowProps {
   /** Trailing accessory. Defaults to `'chevron'` when `onPress` is set, else `'none'`. */
   accessory?: 'chevron' | 'none'
   onPress?: () => void
-  proBadge?: boolean
-  proBadgeLabel?: string
 }
 
 /** Flat row inside a SettingsGroup. Carries no divider; the group draws them. */
@@ -59,8 +56,6 @@ export function SettingsGroupRow({
   trailing,
   accessory,
   onPress,
-  proBadge = false,
-  proBadgeLabel,
 }: Readonly<SettingsGroupRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -86,9 +81,6 @@ export function SettingsGroupRow({
           >
             {label}
           </Text>
-          {proBadge ? (
-            <ProBadge alwaysVisible label={proBadgeLabel} style={styles.proBadgeSpacing} />
-          ) : null}
         </View>
         {hint ? (
           <Text style={[styles.hint, { color: tokens.fg3 }]} numberOfLines={1}>
@@ -99,7 +91,7 @@ export function SettingsGroupRow({
       <View style={styles.trailingBlock}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
-          <ChevronRight size={22} color={tokens.fg4} strokeWidth={1.8} />
+          <ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} />
         ) : null}
       </View>
     </Pressable>
@@ -113,9 +105,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     minHeight: 48,
   },
   iconSlot: {
@@ -139,13 +131,10 @@ const styles = StyleSheet.create({
     lineHeight: 22.5,
     flexShrink: 1,
   },
-  proBadgeSpacing: {
-    marginLeft: 6,
-  },
   trailingBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flexShrink: 0,
   },
   hint: {

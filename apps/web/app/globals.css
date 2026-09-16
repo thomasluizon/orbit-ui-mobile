@@ -1301,6 +1301,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: 2px;
 }
 
+@media (forced-colors: active) {
+  :focus-visible {
+    /* WHY: Forced colors mode removes box-shadow focus indicators. */
+    outline: 2px solid CanvasText !important;
+  }
+}
+
 .orbit-notification-row:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: -3px;

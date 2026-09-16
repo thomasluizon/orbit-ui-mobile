@@ -102,7 +102,7 @@ export function DeleteAccountModal({
                 { backgroundColor: `${tokens.statusBad}24` },
               ]}
             >
-              <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
+              <TriangleAlert size={24} color={tokens.statusBad} strokeWidth={1.8} />
             </View>
             <View style={styles.copy}>
               <Text style={[styles.title, { color: tokens.statusBadText }]}>
