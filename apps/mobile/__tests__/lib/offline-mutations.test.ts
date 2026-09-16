@@ -1514,12 +1514,14 @@ describe('offline mutations', () => {
       try {
         await expect(flushQueuedMutations()).rejects.toThrow('Initial queue persistence failed')
         await vi.advanceTimersByTimeAsync(2_000)
-        await new Promise<void>((resolve) => nativeSetImmediate(resolve))
+        await vi.waitFor(async () => {
+          await new Promise<void>((resolve) => nativeSetImmediate(resolve))
+          expect(mocks.captureError).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Timer queue persistence failed' }),
+          )
+        })
 
         expect(unhandledRejections).toEqual([])
-        expect(mocks.captureError).toHaveBeenCalledWith(
-          expect.objectContaining({ message: 'Timer queue persistence failed' }),
-        )
         expect(canAutoFlush()).toBe(false)
       } finally {
         process.off('unhandledRejection', recordUnhandledRejection)
