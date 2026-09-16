@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
@@ -59,10 +59,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     router.push(`/habits/${entityId}`)
   }, [close, router])
 
-  const handleLinkedHabitNavigate = useCallback((habitId: string, event: MouseEvent<HTMLElement>) => {
-    if (event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-
-    event.preventDefault()
+  const handleLinkedHabitNavigate = useCallback((habitId: string) => {
     setSelectedGoalId(null)
     close()
     router.push(`/habits/${habitId}`)

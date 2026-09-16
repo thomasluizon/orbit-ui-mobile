@@ -23,7 +23,7 @@ interface GoalDetailDrawerProps {
   inline?: boolean
   goalId: string
   onOpenChange: (open: boolean) => void
-  onLinkedHabitNavigate?: (habitId: string, event: MouseEvent<HTMLElement>) => void
+  onLinkedHabitNavigate?: (habitId: string) => void
   initialAction?: GoalDrawerInitialAction | null
 }
 
@@ -40,10 +40,22 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   const [deleting, setDeleting] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const onClose = useCallback(() => onOpenChange(false), [onOpenChange])
-  const close = useCallback(() => {
-    if (inline) onClose()
-    else closeSheet(onClose)
+  const close = useCallback((exitAction?: () => void) => {
+    const finish = () => {
+      onClose()
+      exitAction?.()
+    }
+    if (inline) finish()
+    else closeSheet(finish)
   }, [inline, closeSheet, onClose])
+  const openLinkedHabit = useCallback((habitId: string, event: MouseEvent<HTMLElement>) => {
+    if (!onLinkedHabitNavigate || event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+
+    event.preventDefault()
+    const navigate = () => onLinkedHabitNavigate(habitId)
+    if (inline) navigate()
+    else close(navigate)
+  }, [inline, close, onLinkedHabitNavigate])
   const actions = useGoalStatusActions({
     goalId,
     goalName: goal?.title,
@@ -79,7 +91,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
     <div ref={contentRef} tabIndex={inline ? -1 : undefined} data-goal-detail className="flex flex-col gap-6">
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
-        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={onLinkedHabitNavigate} />
+        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={openLinkedHabit} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} /> : null}
@@ -88,7 +100,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
 
   return (
     <>
-      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} onBack={close} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
+      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} onBack={() => close()} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
       {goal ? <EditGoalModal open={editing} onOpenChange={setEditing} goal={goal} /> : null}
       <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>
