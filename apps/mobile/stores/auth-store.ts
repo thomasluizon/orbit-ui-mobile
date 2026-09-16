@@ -146,6 +146,7 @@ async function clearSessionCredentials(
     clearStepUpState()
     sessionGeneration += 1
     await clearAllTokens()
+    await clearWidgetToken().catch(() => {})
     return { generation: sessionGeneration, refreshToken }
   })
 }
@@ -176,7 +177,6 @@ async function runSessionTeardown(
     })
   }
 
-  if (!(await runSessionTeardownStep(generation, () => clearWidgetToken().catch(() => {})))) return null
   if (!(await runSessionTeardownStep(generation, () => cancelPersistentReminder().catch(() => {})))) return null
 
   queryClient.clear()
@@ -284,6 +284,7 @@ async function rotateSessionToken(generation: number): Promise<RefreshSessionOut
     if (!isCurrentSessionGeneration(generation)) return false
     await setToken(data.token)
     await setRefreshToken(data.refreshToken)
+    await saveWidgetToken(data.token).catch(() => {})
     if (tokenUser) bindStepUpStateToAccount(tokenUser.userId)
     sessionGeneration += 1
     useAuthStore.setState({
@@ -294,7 +295,6 @@ async function rotateSessionToken(generation: number): Promise<RefreshSessionOut
     return true
   })
   if (!published) return { status: 'unauthorized' }
-  await saveWidgetToken(data.token).catch(() => {})
   resumeOfflineReplay()
 
   return { status: 'refreshed', token: data.token }
@@ -386,6 +386,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         } else {
           await clearRefreshToken()
         }
+        await saveWidgetToken(token).catch(() => {})
         bindStepUpStateToAccount(user.userId)
         sessionGeneration += 1
         set({
@@ -396,7 +397,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         })
         return sessionGeneration
       })
-      await saveWidgetToken(token).catch(() => {})
       if (!isCurrentSessionGeneration(generation)) return
       queryClient.clear()
       await clearPersistedQueryCache()
@@ -466,51 +466,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   checkAuth: async () => {
+    let generation = sessionGeneration
     let token = await getToken()
+    if (!isCurrentSessionGeneration(generation)) return false
     if (!token) {
-      clearStepUpState()
-      await clearWidgetToken().catch(() => {})
-      await cancelPersistentReminder().catch(() => {})
-      useReviewReminderStore.getState().setAccountScope(null)
-      set({ isAuthenticated: false, user: null, expiresAt: null })
+      await clearSessionAndResetAuth(generation)
       return false
     }
 
     if (isTokenExpired(token)) {
       const outcome = await refreshSession()
-      if (outcome.status === 'network-error') {
-        const payload = decodeJwtPayload(token)
-        const accountId = getAccountIdFromPayload(payload)
-        if (accountId) bindStepUpStateToAccount(accountId)
-        set((state) => ({
-          isAuthenticated: true,
-          user: state.user ?? getUserFromPayload(payload),
-          expiresAt: getExpiresAtFromPayload(payload),
-        }))
-        await setQueryCacheScope(get().user?.userId ?? null)
-        return true
+      if (outcome.status === 'unauthorized') return false
+      if (outcome.status === 'refreshed') {
+        token = outcome.token
+        generation = sessionGeneration
       }
-      if (outcome.status !== 'refreshed') {
-        return false
-      }
-      token = outcome.token
     }
 
     const payload = decodeJwtPayload(token)
     const accountId = getAccountIdFromPayload(payload)
-    if (accountId) bindStepUpStateToAccount(accountId)
-    await saveWidgetToken(token).catch(() => {})
-    set((state) => ({
-      isAuthenticated: true,
-      user: state.user ?? getUserFromPayload(payload),
-      expiresAt: getExpiresAtFromPayload(payload),
-    }))
+    const restored = await withCredentialMutationLock(async () => {
+      if (!isCurrentSessionGeneration(generation)) return false
+      await saveWidgetToken(token).catch(() => {})
+      if (accountId) bindStepUpStateToAccount(accountId)
+      set((state) => ({
+        isAuthenticated: true,
+        user: state.user ?? getUserFromPayload(payload),
+        expiresAt: getExpiresAtFromPayload(payload),
+      }))
+      return true
+    })
+    if (!restored) return false
     await setQueryCacheScope(get().user?.userId ?? null)
 
-    return true
+    return isCurrentSessionGeneration(generation)
   },
 
   initialize: async () => {
+    const generation = sessionGeneration
     set({ isLoading: true })
     try {
       const isValid = await get().checkAuth()
@@ -528,8 +521,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })()
       void profileHydrationInFlight
     } catch {
-      clearStepUpState()
-      set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
+      await clearSessionAndResetAuth(generation)
     }
   },
 }))

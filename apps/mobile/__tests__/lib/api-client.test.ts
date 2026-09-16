@@ -452,13 +452,13 @@ describe('mobile apiClient', () => {
     await expect(apiClient('/api/ping')).resolves.toBeUndefined()
   })
 
-  it('clears tokens without retrying when the refresh endpoint itself returns 401', async () => {
+  it('clears the session without retrying when the refresh endpoint itself returns 401', async () => {
     getTokenMock.mockResolvedValue('token-123')
     fetchMock.mockResolvedValue({ ok: false, status: 401 })
 
     await expect(apiClient(API.auth.refresh)).rejects.toThrow('Unauthorized')
 
-    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+    expect(clearSessionAndResetAuthMock).toHaveBeenCalledWith(7)
     expect(refreshSessionMock).not.toHaveBeenCalled()
   })
 })

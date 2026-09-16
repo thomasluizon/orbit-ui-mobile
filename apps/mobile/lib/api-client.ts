@@ -1,5 +1,5 @@
 import { useThrottleStore } from '@/stores/throttle-store'
-import { getToken, clearAllTokens } from './secure-store'
+import { getToken } from './secure-store'
 import { buildClientTimeZoneHeaders, createApiClientError, validateApiResponse } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { buildAppVersionHeaders } from './app-version'
@@ -284,7 +284,9 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   }
 
   if (response.status === 401) {
-    await clearAllTokens()
+    const { clearSessionAndResetAuth, getSessionGeneration } =
+      await import('@/stores/auth-store')
+    await clearSessionAndResetAuth(getSessionGeneration())
     throw toUnauthorizedError(requestId)
   }
 
