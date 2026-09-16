@@ -296,8 +296,6 @@ function getDeleteConfirmation(
   }
 }
 
-const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
-
 // react-doctor-disable-next-line no-giant-component -- top-level habit-list surface owning query data, visibility, drill navigation, collapse state, and the full confirm-dialog cluster as one imperative-handle unit; extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitList({
   ref,
@@ -338,9 +336,6 @@ export function HabitList({
   const childrenByParent = data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const topLevelHabits = data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
-  const tourCardHabitId = habitsById.has(TOUR_FEATURED_HABIT_ID)
-    ? TOUR_FEATURED_HABIT_ID
-    : topLevelHabits[0]?.id
 
   const getChildren = habitsQuery.getChildren
 
@@ -1212,14 +1207,10 @@ export function HabitList({
     const readOnly = boundary === 'read-only'
     const completionReadOnly = readOnly || (boundary === 'future' && !canLog)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
-    const tourTargetId =
-      habit.id === tourCardHabitId ? 'tour-habit-card' : undefined
-
     return (
       <HabitRow
         key={habit.id}
         habit={habit}
-        tourTargetId={tourTargetId}
         state={state}
         meta={meta}
         canLog={canLog}
@@ -1416,7 +1407,6 @@ export function HabitList({
 
   return (
     <div
-      data-tour="tour-habit-list"
       ref={listContainerRef}
       className="px-4 pb-24"
     >

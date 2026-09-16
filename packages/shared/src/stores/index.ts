@@ -4,11 +4,6 @@ export {
   type VersionGateStoreState,
 } from './version-gate-store'
 export {
-  createTourStoreState,
-  type TourStoreState,
-  type TourTargetRect,
-} from './tour-store'
-export {
   ENGAGEMENT_PROMPT_PRIORITY,
   MARKETING_CONSENT_MILESTONE_KEY,
   STREAK_CROSSING_MILESTONES,
@@ -51,10 +46,8 @@ export {
   type PersistedOnboardingDraft,
 } from './onboarding-draft'
 export {
-  createTourUIState,
   createUIStoreState,
   getPersistedUIState,
-  getTourSessionUIState,
   migratePersistedUIState,
   type ActiveView,
   type CelebrationKind,
@@ -62,7 +55,6 @@ export {
   type CelebrationQueueItem,
   type HabitFrequencyFilter,
   type PersistedUIState,
-  type TourUIState,
   type UIStoreState,
 } from './ui-store'
 export {

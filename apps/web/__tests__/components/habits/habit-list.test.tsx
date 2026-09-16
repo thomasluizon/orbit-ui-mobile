@@ -11,7 +11,6 @@ import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibilit
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
-const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 
 const mockHabitsData = {
@@ -144,7 +143,6 @@ vi.mock('@/components/habits/habit-row', () => ({
   HabitRow: ({
     habit,
     childProgress,
-    tourTargetId,
     state,
     selectMode,
     selected,
@@ -154,7 +152,6 @@ vi.mock('@/components/habits/habit-row', () => ({
   }: {
     habit: NormalizedHabit
     childProgress?: { done: number; total: number }
-    tourTargetId?: string
     state?: string
     selectMode?: boolean
     selected?: boolean
@@ -173,7 +170,6 @@ vi.mock('@/components/habits/habit-row', () => ({
   }) => (
     <div
       data-testid={`habit-card-${habit.id}`}
-      data-tour={tourTargetId}
       data-select-mode={selectMode ? 'yes' : 'no'}
       data-selected={selected ? 'yes' : 'no'}
       data-state={state}
@@ -477,32 +473,6 @@ describe('HabitList', () => {
     expect(screen.getByText('Read')).toBeDefined()
   })
 
-  it('targets the featured demo habit for the card tour steps', () => {
-    const meditation = createMockHabit({
-      id: 'tour-habit-1',
-      title: 'Meditation',
-      position: 0,
-    })
-    const exercise = createMockHabit({
-      id: TOUR_FEATURED_HABIT_ID,
-      title: 'Exercise',
-      position: 1,
-    })
-
-    mockHabitsData.habitsById.set(meditation.id, meditation)
-    mockHabitsData.habitsById.set(exercise.id, exercise)
-    mockHabitsData.topLevelHabits = [meditation, exercise]
-
-    renderWithProviders(<HabitList filters={defaultFilters} />)
-
-    expect(screen.getByTestId('habit-card-tour-habit-1')).not.toHaveAttribute(
-      'data-tour',
-      'tour-habit-card',
-    )
-    expect(
-      screen.getByTestId(`habit-card-${TOUR_FEATURED_HABIT_ID}`),
-    ).toHaveAttribute('data-tour', 'tour-habit-card')
-  })
 
   it('hides one-time tasks completed before the selected day when completed items are shown', () => {
     useActualHabitVisibility = true

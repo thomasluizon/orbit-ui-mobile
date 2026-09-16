@@ -101,18 +101,6 @@ export async function completeOnboarding(): Promise<ServerActionResult<void>> {
   }))
 }
 
-export async function completeTour(): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.profile.tour, {
-    method: 'PUT',
-  }))
-}
-
-export async function resetTour(): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.profile.tour, {
-    method: 'DELETE',
-  }))
-}
-
 export async function resetAccount(): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthFetch(API.profile.reset, {
     method: 'POST',

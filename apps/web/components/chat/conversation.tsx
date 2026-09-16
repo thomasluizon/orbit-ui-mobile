@@ -97,7 +97,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       </div>
 
       <div
-        data-tour="tour-chat-area"
         ref={registerChatContainer}
         className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden"
         style={{ paddingTop: 8 }}

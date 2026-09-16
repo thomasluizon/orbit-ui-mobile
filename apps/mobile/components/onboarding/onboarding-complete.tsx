@@ -5,10 +5,7 @@ import { parseISO } from 'date-fns'
 import { Check } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
-import {
-  useOnboardingHasProAccess,
-  useOnboardingIsLive,
-} from './onboarding-actions-context'
+import { useOnboardingIsLive } from './onboarding-actions-context'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
@@ -19,7 +16,6 @@ import { VerifiedBadge } from '@/components/ui/verified-badge'
 
 interface OnboardingCompleteProps {
   createdHabit: string
-  createdGoal: boolean
   finishLabel?: string
   onFinish: () => void
 }
@@ -30,7 +26,6 @@ interface OnboardingCompleteProps {
  */
 export function OnboardingComplete({
   createdHabit,
-  createdGoal,
   finishLabel,
   onFinish,
 }: Readonly<OnboardingCompleteProps>) {
@@ -38,7 +33,6 @@ export function OnboardingComplete({
   const { displayDate } = useDateFormat()
   const isLive = useOnboardingIsLive()
   const { profile } = useProfile({ enabled: isLive })
-  const hasProAccess = useOnboardingHasProAccess()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -114,31 +108,14 @@ export function OnboardingComplete({
     return displayDate(parseISO(profile.trialEndsAt))
   }, [profile, displayDate])
 
-  const recapItems = useMemo(() => {
-    const items = [
+  const recapItems = createdHabit
+    ? [
       {
         key: 'habit',
         label: t('onboarding.flow.complete.recap.habit'),
-        show: !!createdHabit,
-      },
-      {
-        key: 'goal',
-        label: t('onboarding.flow.complete.recap.goal'),
-        show: createdGoal,
-      },
-      {
-        key: 'theme',
-        label: t('onboarding.flow.complete.recap.theme'),
-        show: hasProAccess,
-      },
-      {
-        key: 'astra',
-        label: t('onboarding.flow.complete.recap.astra'),
-        show: true,
       },
     ]
-    return items.filter((item) => item.show)
-  }, [createdHabit, createdGoal, hasProAccess, t])
+    : []
 
   return (
     <View style={styles.container}>

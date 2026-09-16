@@ -45,13 +45,6 @@
       "switchToDark": "Switch to dark mode"
     }
   },
-  "pushPrompt": {
-    "title": "Stay on track",
-    "description": "Enable notifications to get reminders for your habits",
-    "enable": "Enable",
-    "later": "Not now",
-    "retryHint": "Notification setup failed. Tap Enable to retry."
-  },
   "notFoundPage": {
     "title": "This page does not exist",
     "description": "The address may have changed, or the item was deleted. Your day is still where it was.",
@@ -1034,7 +1027,6 @@
   "explore": {
     "title": "Explore",
     "subtitle": "Everything Orbit can do, in one place.",
-    "tourHint": "Replay the guided tour of each area",
     "sections": {
       "discover": "Discover",
       "progress": "Your progress",
@@ -1775,86 +1767,11 @@
   },
   "onboarding": {
     "flow": {
-      "templatePacks": {
-        "title": "Start with a pack",
-        "subtitle": "Pick a set of habits to begin. You can tweak everything later.",
-        "customizeTitle": "Customize your pack",
-        "customizeSubtitle": "Turn off anything you don't want. We'll add the rest.",
-        "createCta": "Add {count} habits",
-        "createCtaOne": "Add 1 habit",
-        "createOwn": "Create my own instead",
-        "skip": "Skip for now",
-        "created": "Your habits are ready",
-        "packs": {
-          "morningRoutine": {
-            "name": "Morning Routine",
-            "description": "Start every day with intention.",
-            "habits": {
-              "makeBed": "Make your bed",
-              "water": "Drink a glass of water",
-              "stretch": "5-minute stretch",
-              "breakfast": "Eat a healthy breakfast",
-              "planDay": "Plan your top 3 tasks"
-            }
-          },
-          "fitnessMovement": {
-            "name": "Fitness & Movement",
-            "description": "Keep your body active and strong.",
-            "habits": {
-              "walk": "30-minute walk",
-              "strength": "Strength workout",
-              "mobility": "10-minute mobility",
-              "stairs": "Take the stairs",
-              "steps": "Hit your step goal"
-            }
-          },
-          "studyFocus": {
-            "name": "Study & Focus",
-            "description": "Build deep, distraction-free focus.",
-            "habits": {
-              "deepWork": "Deep work block",
-              "read": "Read for 20 minutes",
-              "reviewNotes": "Review your notes",
-              "phoneFree": "Phone-free first hour",
-              "singleTask": "Single-task one session"
-            }
-          },
-          "mindfulnessWellbeing": {
-            "name": "Mindfulness & Wellbeing",
-            "description": "Slow down and check in with yourself.",
-            "habits": {
-              "meditate": "Meditate 10 minutes",
-              "gratitude": "Gratitude journal",
-              "digitalSunset": "Digital sunset",
-              "breathing": "Deep breathing",
-              "reachOut": "Reach out to someone"
-            }
-          }
-        },
-        "tags": {
-          "morning": "morning",
-          "health": "health",
-          "movement": "movement",
-          "focus": "focus",
-          "fitness": "fitness",
-          "learning": "learning",
-          "mindfulness": "mindfulness",
-          "journal": "journal",
-          "sleep": "sleep",
-          "social": "social"
-        }
-      },
       "step": "{current} of {total}",
       "skip": "Skip",
       "next": "Continue",
       "begin": "Begin",
       "back": "Back",
-      "meetAstra": {
-        "title": "Meet Astra.",
-        "subtitle": "Orbit's assistant. It can create habits, recap your day, plan ahead, and reflect on what's drifting. Ask plainly. It listens.",
-        "import": "Import from another app",
-        "importPrompt": "Help me import my habits from another app. I'll attach a file or paste my list, and you create the habits."
-      },
       "welcome": {
         "title": "Welcome to Orbit",
         "subtitle": "Let's set up your experience and create your first habit.",
@@ -1890,69 +1807,18 @@
           "meditate": "Meditate"
         }
       },
-      "completeHabit": {
-        "title": "Now complete it",
-        "instruction": "Tap the circle to mark it done",
-        "tapHint": "Tap the circle to complete",
-        "success": "Your streak starts now"
-      },
-      "createGoal": {
-        "title": "Set a goal",
-        "proTag": "PRO",
-        "starters": "Or try one",
-        "subtitle": "Goals give your habits a bigger purpose.",
-        "descriptionLabel": "Goal",
-        "descriptionPlaceholder": "e.g., Read 12 books this year",
-        "targetLabel": "Target",
-        "targetPlaceholder": "Quantity",
-        "unitLabel": "Unit",
-        "unitPlaceholder": "Unit (km, books...)",
-        "create": "Create goal",
-        "creating": "Creating...",
-        "success": "Goal created",
-        "skipStep": "Skip for now",
-        "suggestions": {
-          "run": "Run 100km",
-          "books": "Read 12 books",
-          "booksUnit": "books",
-          "save": "Save $5000"
-        }
-      },
-      "features": {
-        "title": "More to explore",
-        "chat": {
-          "title": "Chat with Astra",
-          "desc": "Ask Astra to create habits, get insights, or analyze your progress."
-        },
-        "subHabits": {
-          "title": "Sub-habits",
-          "desc": "Break big habits into smaller steps nested under a parent."
-        },
-        "calendar": {
-          "title": "Calendar",
-          "desc": "See your completion history with a color-coded heatmap."
-        },
-        "achievements": {
-          "title": "Achievements",
-          "desc": "Earn XP, level up, and collect badges as you build streaks."
-        },
-        "notifications": {
-          "title": "Notifications",
-          "desc": "Get reminded before habits are due."
-        }
-      },
       "complete": {
         "title": "You're all set",
         "subtitle": "Everything is real. Your habit and progress are already saved.",
         "start": "Start using Orbit",
         "recap": {
-          "habit": "Habit created",
-          "goal": "Goal created",
-          "theme": "Theme personalized",
-          "astra": "AI assistant"
+          "habit": "Habit created"
         },
         "trialTitle": "7 days of Pro, free",
         "trialDesc": "No card required. You have full Pro access until {date}."
+      },
+      "meetAstra": {
+        "importPrompt": "Help me import my habits from another app. I'll attach a file or paste my list, and you create the habits."
       }
     },
     "wizard": {
@@ -2896,181 +2762,6 @@
       "progress": "{done} of {total} done",
       "complete": "You're all set.",
       "dismiss": "Dismiss"
-    }
-  },
-  "tour": {
-    "coachmarks": {
-      "today": {
-        "title": "Your day, at a glance",
-        "description": "Every habit due today lives here. Tap a circle to mark it done."
-      },
-      "astra": {
-        "title": "Meet Astra",
-        "description": "Your AI assistant. Ask it to create habits, plan ahead, or recap your day."
-      },
-      "calendar": {
-        "title": "See your history",
-        "description": "A color-coded heatmap of everything you've completed over time."
-      }
-    },
-    "mockData": {
-      "habits": {
-        "meditation": {
-          "title": "Morning Meditation",
-          "description": "10 minutes of mindfulness to start the day"
-        },
-        "exercise": {
-          "title": "Exercise",
-          "description": "Stay active with regular workouts"
-        },
-        "pushups": {
-          "title": "Push-ups"
-        },
-        "stretching": {
-          "title": "Stretching"
-        },
-        "screenTime": {
-          "title": "Reduce Screen Time",
-          "description": "Keep screen time under 2 hours per day"
-        },
-        "readBooks": {
-          "title": "Read Books",
-          "description": "Read at least 5 times this week"
-        },
-        "drinkWater": {
-          "title": "Drink More Water",
-          "description": "Stay hydrated throughout the day"
-        }
-      },
-      "goals": {
-        "marathon": {
-          "title": "Run a Marathon",
-          "description": "Train for and complete a full marathon"
-        },
-        "readGoal": {
-          "title": "Read 24 Books",
-          "description": "Read 2 books per month this year"
-        }
-      },
-      "tags": {
-        "mindfulness": "Mindfulness",
-        "health": "Health",
-        "learning": "Learning"
-      },
-      "checklists": {
-        "warmUp": "Warm up",
-        "mainWorkout": "Main workout",
-        "coolDown": "Cool down"
-      }
-    },
-    "ui": {
-      "next": "Next",
-      "back": "Back",
-      "skip": "Skip tour",
-      "finish": "Finish",
-      "stepOf": "Step {current} of {total}",
-      "pro": "PRO"
-    },
-    "sections": {
-      "habits": "Habits",
-      "goals": "Goals",
-      "chat": "AI Chat",
-      "calendar": "Calendar",
-      "profile": "Profile",
-      "coach-today": "Today",
-      "coach-astra": "Astra",
-      "coach-calendar": "Calendar"
-    },
-    "replay": {
-      "title": "Feature Tour",
-      "hint": "Explore all features with a guided walkthrough",
-      "modalTitle": "Replay Tour",
-      "replayAll": "Replay Full Tour",
-      "steps": "{count} steps"
-    },
-    "habits": {
-      "list": {
-        "title": "Your Habits",
-        "description": "This is your daily dashboard. It shows all habits scheduled for today, organized by priority. Completed habits appear with a checkmark."
-      },
-      "card": {
-        "title": "Habit Card",
-        "description": "Each habit shows its status, tags, and frequency. Tap the circle to mark it complete, or use the menu for more options like edit, skip, or delete."
-      },
-      "tabs": {
-        "title": "View Tabs",
-        "description": "Use the four destinations for Today, Calendar, Progress, and Profile. Goals live inside Progress."
-      },
-      "dateNav": {
-        "title": "Date Navigation",
-        "description": "Navigate between days to view past completions or upcoming habits. Tap the arrows or swipe to move between dates."
-      },
-      "fab": {
-        "title": "Create New",
-        "description": "Tap here to create a new habit. Create a goal from a habit or by asking Astra."
-      },
-      "streak": {
-        "title": "Streak Counter",
-        "description": "Your streak tracks consecutive days where you completed all scheduled habits. Keep it going to earn achievements and build momentum"
-      },
-      "notifications": {
-        "title": "Notifications",
-        "description": "Check reminders, achievement alerts, and updates here. Set up push notifications in settings to never miss a habit."
-      }
-    },
-    "chat": {
-      "area": {
-        "title": "AI Chat",
-        "description": "Your AI assistant can create, edit, and manage habits using natural language. Just describe what you want and it will handle the rest."
-      },
-      "input": {
-        "title": "Chat Input",
-        "description": "Type your message, attach images for context, or use voice input. Ask questions, get insights, or manage your habits conversationally."
-      },
-      "suggestions": {
-        "title": "Quick Suggestions",
-        "description": "Tap any suggestion chip to quickly start a conversation. These are common actions to help you get started."
-      },
-      "voice": {
-        "title": "Voice Input",
-        "description": "Speak to log habits or ask questions. Supports multiple languages with automatic speech-to-text conversion."
-      }
-    },
-    "calendar": {
-      "grid": {
-        "title": "Calendar View",
-        "description": "See your completion history at a glance. Each day is color-coded based on how many habits you completed."
-      },
-      "legend": {
-        "title": "Color Legend",
-        "description": "Your accent color marks today. A solid neutral circle means every habit was done, the primary progress ring means partial completion, and a neutral outline means none were logged. Build a streak of solid days"
-      },
-      "monthNav": {
-        "title": "Month Navigation",
-        "description": "Navigate between months to review your long-term consistency. Swipe left or right to move quickly."
-      },
-      "day": {
-        "title": "Day Detail",
-        "description": "Tap any day to see which habits were scheduled, completed, or missed. You can also log completions for past days."
-      }
-    },
-    "profile": {
-      "streak": {
-        "title": "Streak & Freezes",
-        "description": "View your current and longest streak. Activate streak freezes to protect your streak on off days (limited per month)."
-      },
-      "preferences": {
-        "title": "Preferences",
-        "description": "Customize your experience: language, timezone, week start day, push notifications, and more."
-      },
-      "subscription": {
-        "title": "Subscription",
-        "description": "Free includes 5 Astra messages a day. Pro includes 50, which is ten times more."
-      },
-      "achievements": {
-        "title": "Achievements & Levels",
-        "description": "Earn XP and level up as you build habits. Earn achievements for milestones like streak records, completion rates, and more."
-      }
     }
   },
   "terms": {

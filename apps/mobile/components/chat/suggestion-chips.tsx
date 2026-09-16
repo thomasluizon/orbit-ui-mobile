@@ -4,7 +4,6 @@ import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
-import { useTourTarget } from "@/hooks/use-tour-target";
 
 type AppTokens = ReturnType<typeof createTokensV2>;
 
@@ -22,7 +21,6 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
 
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const suggestionsRef = useRef<View>(null);
-  useTourTarget("tour-chat-suggestions", suggestionsRef);
 
   const suggestions = useMemo(
     () => [

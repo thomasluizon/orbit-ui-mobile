@@ -13,7 +13,5 @@ export const updateWeekStartDay = bindServerAction(serverActions.updateWeekStart
 export const updateThemePreference = bindServerAction(serverActions.updateThemePreference)
 export const updateColorScheme = bindServerAction(serverActions.updateColorScheme)
 export const completeOnboarding = bindServerAction(serverActions.completeOnboarding)
-export const completeTour = bindServerAction(serverActions.completeTour)
-export const resetTour = bindServerAction(serverActions.resetTour)
 export const resetAccount = bindServerAction(serverActions.resetAccount)
 export const exportUserData = bindServerAction(serverActions.exportUserData)

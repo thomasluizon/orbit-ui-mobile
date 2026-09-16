@@ -154,9 +154,6 @@ vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
 
-vi.mock('@/app/(app)/profile/_components/tour-replay-card', () => ({
-  TourReplayCard: () => null,
-}))
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) => (
