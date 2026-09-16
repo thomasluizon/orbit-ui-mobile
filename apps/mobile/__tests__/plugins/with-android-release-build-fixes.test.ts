@@ -9,62 +9,9 @@ import withAndroidReleaseBuildFixes from '../../plugins/with-android-release-bui
 
 type PropertiesItem = AndroidConfig.Properties.PropertiesItem
 type ResourceXML = AndroidConfig.Resources.ResourceXML
-type ApplicationProjectFile = AndroidConfig.Paths.ApplicationProjectFile
 
 const TEMPLATE_DEFAULT = '-Xmx2048m -XX:MaxMetaspaceSize=512m'
 const CLOBBERED_VALUE = '-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
-const MAIN_APPLICATION_TEMPLATE = `package org.useorbit.app
-
-import android.app.Application
-import android.content.res.Configuration
-
-import com.facebook.react.PackageList
-import com.facebook.react.ReactApplication
-import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
-import com.facebook.react.ReactPackage
-import com.facebook.react.ReactHost
-import com.facebook.react.common.ReleaseLevel
-import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
-import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags
-import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults
-
-import expo.modules.ApplicationLifecycleDispatcher
-import expo.modules.ExpoReactHostFactory
-
-class MainApplication : Application(), ReactApplication {
-
-  override val reactHost: ReactHost by lazy {
-    ExpoReactHostFactory.getDefaultReactHost(
-      context = applicationContext,
-      packageList =
-        PackageList(this).packages.apply {
-          // Packages that cannot be autolinked yet can be added manually here, for example:
-          // add(MyReactNativePackage())
-        }
-    )
-  }
-
-  override fun onCreate() {
-    ReactNativeFeatureFlags.override(object : ReactNativeFeatureFlagsDefaults() {
-      override fun enableKeyEvents(): Boolean = true
-      override fun enableImperativeFocus(): Boolean = true
-    })
-    super.onCreate()
-    DefaultNewArchitectureEntryPoint.releaseLevel = try {
-      ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
-    } catch (e: IllegalArgumentException) {
-      ReleaseLevel.STABLE
-    }
-    loadReactNative(this)
-    ApplicationLifecycleDispatcher.onApplicationCreate(this)
-  }
-
-  override fun onConfigurationChanged(newConfig: Configuration) {
-    super.onConfigurationChanged(newConfig)
-    ApplicationLifecycleDispatcher.onConfigurationChanged(this, newConfig)
-  }
-}
-`
 
 async function resolveJvmArgs(startingValue: string | null): Promise<string> {
   const config = withAndroidReleaseBuildFixes({ name: 'Orbit', slug: 'orbit' }) as ExportedConfig
@@ -100,36 +47,6 @@ async function resolveJvmArgs(startingValue: string | null): Promise<string> {
   )
 
   return jvmArgs?.value ?? ''
-}
-
-async function resolveMainApplication(contents: string): Promise<string> {
-  const config = withAndroidReleaseBuildFixes({ name: 'Orbit', slug: 'orbit' }) as ExportedConfig
-  const mainApplicationMod = config.mods?.android?.mainApplication
-
-  if (!mainApplicationMod) {
-    throw new Error('plugin registered no mainApplication mod')
-  }
-
-  const modResults: ApplicationProjectFile = {
-    contents,
-    language: 'kt',
-    path: 'android/app/src/main/java/org/useorbit/app/MainApplication.kt',
-  }
-  const modConfig: ExportedConfigWithProps<ApplicationProjectFile> = {
-    ...config,
-    modResults,
-    modRequest: {
-      projectRoot: '.',
-      platformProjectRoot: 'android',
-      modName: 'mainApplication',
-      platform: 'android',
-      introspect: false,
-    },
-    modRawConfig: config,
-  }
-
-  const result = await mainApplicationMod(modConfig)
-  return result.modResults.contents
 }
 
 describe('withAndroidReleaseBuildFixes gradle.properties memory', () => {
@@ -216,33 +133,5 @@ describe('withAndroidReleaseBuildFixes system bars', () => {
 
     expect(appTheme).not.toHaveProperty('android:statusBarColor')
     expect(appTheme).not.toHaveProperty('android:navigationBarColor')
-  })
-})
-
-describe('withAndroidReleaseBuildFixes React Native keyboard support', () => {
-  it('preserves the release-level provider and overrides keyboard flags after React Native initializes', async () => {
-    const mainApplication = await resolveMainApplication(MAIN_APPLICATION_TEMPLATE)
-    const loadReactNativeIndex = mainApplication.indexOf('loadReactNative(this)')
-    const overrideIndex = mainApplication.indexOf('ReactNativeFeatureFlags.dangerouslyForceOverride')
-    const lifecycleDispatcherIndex = mainApplication.indexOf(
-      'ApplicationLifecycleDispatcher.onApplicationCreate(this)',
-    )
-
-    expect(mainApplication).toContain(
-      'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags',
-    )
-    expect(mainApplication.match(/ReactNativeFeatureFlags\.override\(/g) ?? []).toHaveLength(0)
-    expect(mainApplication).toContain('DefaultNewArchitectureEntryPoint.releaseLevel')
-    expect(mainApplication).toContain('ReleaseLevel.EXPERIMENTAL ->')
-    expect(mainApplication).toContain('ReleaseLevel.CANARY ->')
-    expect(mainApplication).toContain('ReleaseLevel.STABLE ->')
-    expect(mainApplication).toContain('ReactNativeFeatureFlagsOverrides_RNOSS_Experimental_Android')
-    expect(mainApplication).toContain('ReactNativeFeatureFlagsOverrides_RNOSS_Canary_Android')
-    expect(mainApplication).toContain('ReactNativeFeatureFlagsOverrides_RNOSS_Stable_Android')
-    expect(mainApplication).toContain('override fun enableKeyEvents(): Boolean = true')
-    expect(mainApplication).toContain('override fun enableImperativeFocus(): Boolean = true')
-    expect(overrideIndex).toBeGreaterThan(-1)
-    expect(overrideIndex).toBeGreaterThan(loadReactNativeIndex)
-    expect(overrideIndex).toBeLessThan(lifecycleDispatcherIndex)
   })
 })

@@ -3,7 +3,6 @@ const {
   withAndroidStyles,
   withProjectBuildGradle,
   withGradleProperties,
-  withMainApplication,
   AndroidConfig,
 } = require('@expo/config-plugins')
 
@@ -13,36 +12,6 @@ const ENCODING_FLAG = '-Dfile.encoding=UTF-8'
 const HEAP_DUMP_FLAG = '-XX:+HeapDumpOnOutOfMemoryError'
 
 const STAGING_DIR_MARKER = 'orbit.cmakeBuildStagingDirectory'
-const FEATURE_FLAGS_IMPORT_ANCHOR =
-  'import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint'
-const LEGACY_FEATURE_FLAGS_DEFAULTS_IMPORT =
-  'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults'
-const FEATURE_FLAGS_IMPORTS = [
-  'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags',
-  'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsOverrides_RNOSS_Canary_Android',
-  'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsOverrides_RNOSS_Experimental_Android',
-  'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsOverrides_RNOSS_Stable_Android',
-  'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsProvider',
-]
-const LEGACY_FEATURE_FLAGS_OVERRIDE = `    ReactNativeFeatureFlags.override(object : ReactNativeFeatureFlagsDefaults() {
-      override fun enableKeyEvents(): Boolean = true
-      override fun enableImperativeFocus(): Boolean = true
-    })
-`
-const FEATURE_FLAGS_OVERRIDE = `    val reactNativeFeatureFlagsProvider: ReactNativeFeatureFlagsProvider =
-      when (DefaultNewArchitectureEntryPoint.releaseLevel) {
-        ReleaseLevel.EXPERIMENTAL ->
-          ReactNativeFeatureFlagsOverrides_RNOSS_Experimental_Android()
-        ReleaseLevel.CANARY -> ReactNativeFeatureFlagsOverrides_RNOSS_Canary_Android()
-        ReleaseLevel.STABLE -> ReactNativeFeatureFlagsOverrides_RNOSS_Stable_Android()
-      }
-    ReactNativeFeatureFlags.dangerouslyForceOverride(
-      object : ReactNativeFeatureFlagsProvider by reactNativeFeatureFlagsProvider {
-        override fun enableKeyEvents(): Boolean = true
-        override fun enableImperativeFocus(): Boolean = true
-      }
-    )
-`
 
 const APP_STAGING_SNIPPET = `android {
     if (project.hasProperty("${STAGING_DIR_MARKER}")) {
@@ -91,7 +60,7 @@ allprojects {
 `
 
 function withAndroidReleaseBuildFixes(config) {
-  let nextConfig = withReactNativeKeyboardSupport(config)
+  let nextConfig = config
 
   nextConfig = withAppBuildGradle(nextConfig, (mod) => {
     if (mod.modResults.language !== 'groovy') {
@@ -158,46 +127,6 @@ function withAndroidReleaseBuildFixes(config) {
   })
 
   return nextConfig
-}
-
-function withReactNativeKeyboardSupport(config) {
-  return withMainApplication(config, (mod) => {
-    if (mod.modResults.language !== 'kt') {
-      return mod
-    }
-
-    if (!mod.modResults.contents.includes(FEATURE_FLAGS_IMPORT_ANCHOR)) {
-      throw new Error('MainApplication.kt is missing the React Native import anchor')
-    }
-
-    mod.modResults.contents = mod.modResults.contents.replace(
-      `${LEGACY_FEATURE_FLAGS_DEFAULTS_IMPORT}\n`,
-      '',
-    )
-    const missingImports = FEATURE_FLAGS_IMPORTS.filter(
-      (featureFlagsImport) => !mod.modResults.contents.includes(featureFlagsImport),
-    )
-    if (missingImports.length > 0) {
-      mod.modResults.contents = mod.modResults.contents.replace(
-        FEATURE_FLAGS_IMPORT_ANCHOR,
-        `${FEATURE_FLAGS_IMPORT_ANCHOR}\n${missingImports.join('\n')}`,
-      )
-    }
-
-    mod.modResults.contents = mod.modResults.contents.replace(LEGACY_FEATURE_FLAGS_OVERRIDE, '')
-    if (!mod.modResults.contents.includes('ReactNativeFeatureFlags.dangerouslyForceOverride')) {
-      const loadReactNativeAnchor = '    loadReactNative(this)'
-      if (!mod.modResults.contents.includes(loadReactNativeAnchor)) {
-        throw new Error('MainApplication.kt is missing the React Native load anchor')
-      }
-      mod.modResults.contents = mod.modResults.contents.replace(
-        loadReactNativeAnchor,
-        `${loadReactNativeAnchor}\n${FEATURE_FLAGS_OVERRIDE}`,
-      )
-    }
-
-    return mod
-  })
 }
 
 function forceJvmFlag(value, pattern, flag) {

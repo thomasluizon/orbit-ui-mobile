@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { findNodeHandle, StyleSheet, View, type ViewProps } from 'react-native'
+import { findNodeHandle, View, type ViewProps } from 'react-native'
 
 interface RadioItemState {
   disabled: boolean
@@ -22,7 +22,6 @@ interface RadioItemState {
 interface RadioNavigationProps {
   focusable: boolean
   nextFocusDown?: number
-  nextFocusForward?: number
   nextFocusLeft?: number
   nextFocusRight?: number
   nextFocusUp?: number
@@ -40,7 +39,6 @@ const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
 function navigationProps(
   id: string,
   enabledItems: readonly RadioItemState[],
-  forwardTargetHandle: number | null,
 ): RadioNavigationProps {
   const itemIndex = enabledItems.findIndex((item) => item.id === id)
   if (itemIndex < 0) return { focusable: false }
@@ -53,7 +51,6 @@ function navigationProps(
   return {
     focusable: true,
     nextFocusDown: nextHandle,
-    nextFocusForward: forwardTargetHandle ?? undefined,
     nextFocusLeft: previousHandle,
     nextFocusRight: nextHandle,
     nextFocusUp: previousHandle,
@@ -64,7 +61,6 @@ export function RadioGroup({ children, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & { children: ReactNode }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
-  const [forwardTargetHandle, setForwardTargetHandle] = useState<number | null>(null)
   const itemHandlesRef = useRef(new Map<string, number | null>())
   const register = useCallback((id: string) => {
     setItems((current) => [...current.filter((item) => item.id !== id), {
@@ -98,8 +94,8 @@ export function RadioGroup({ children, ...props }: Readonly<
     .sort((first, second) => first.index - second.index)
     .filter((item) => !item.disabled), [items])
   const getNavigationProps = useCallback(
-    (id: string) => navigationProps(id, enabledItems, forwardTargetHandle),
-    [enabledItems, forwardTargetHandle],
+    (id: string) => navigationProps(id, enabledItems),
+    [enabledItems],
   )
   const contextValue = useMemo(() => ({
     getNavigationProps,
@@ -107,22 +103,9 @@ export function RadioGroup({ children, ...props }: Readonly<
     setElement,
     update,
   }), [getNavigationProps, register, setElement, update])
-  const setForwardTarget = useCallback((element: View | null) => {
-    if (element) setForwardTargetHandle(findNodeHandle(element))
-  }, [])
-
   return (
     <RadioGroupContext.Provider value={contextValue}>
       <View {...props} accessibilityRole="radiogroup">{children}</View>
-      <View
-        ref={setForwardTarget}
-        accessibilityElementsHidden
-        collapsable={false}
-        focusable
-        importantForAccessibility="no"
-        style={styles.forwardTarget}
-        testID="radio-group-forward-target"
-      />
     </RadioGroupContext.Provider>
   )
 }
@@ -161,19 +144,9 @@ export function useRadioGroupItem({
     elementRef,
     focusable: groupNavigationProps?.focusable ?? !disabled,
     nextFocusDown: groupNavigationProps?.nextFocusDown,
-    nextFocusForward: groupNavigationProps?.nextFocusForward,
     nextFocusLeft: groupNavigationProps?.nextFocusLeft,
     nextFocusRight: groupNavigationProps?.nextFocusRight,
     nextFocusUp: groupNavigationProps?.nextFocusUp,
     onFocus,
   }
 }
-
-const styles = StyleSheet.create({
-  forwardTarget: {
-    height: 1,
-    opacity: 0,
-    position: 'absolute',
-    width: 1,
-  },
-})

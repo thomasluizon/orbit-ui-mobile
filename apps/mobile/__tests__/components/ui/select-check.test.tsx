@@ -41,11 +41,6 @@ describe('select-check RadioRow group', () => {
     const options = radios()
     const handles = options.map((option: any) => option.props.__nativeTag)
     const [first, , third, last] = options
-    const forwardTarget = tree.root.find(
-      (node: any) => typeof node.type === 'string'
-        && node.props.testID === 'radio-group-forward-target',
-    )
-
     expect(options.map((option: any) => option.props.focusable)).toEqual([true, false, true, true])
     expect(handles.every((handle: unknown) => typeof handle === 'number')).toBe(true)
     expect(first.props.nextFocusUp).toBe(handles[3])
@@ -56,17 +51,26 @@ describe('select-check RadioRow group', () => {
     expect(third.props.nextFocusDown).toBe(handles[3])
     expect(last.props.nextFocusUp).toBe(handles[2])
     expect(last.props.nextFocusDown).toBe(handles[0])
-    expect(options.filter((option: any) => !option.props.accessibilityState.disabled)
-      .map((option: any) => option.props.nextFocusForward))
-      .toEqual([
-        forwardTarget.props.__nativeTag,
-        forwardTarget.props.__nativeTag,
-        forwardTarget.props.__nativeTag,
-      ])
+    expect(options.every((option: any) => option.props.nextFocusForward === undefined)).toBe(true)
     expect(options.every((option: any) => option.props.onKeyDown === undefined)).toBe(true)
 
     void act(() => third.props.onFocus())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
+  })
+
+  it('renders no empty focusable target alongside the visible radio options', () => {
+    let tree: any
+    void act(() => {
+      tree = create(<RadioRows onChange={vi.fn()} />)
+    })
+
+    const emptyFocusableHosts = tree.root.findAll(
+      (node: any) => typeof node.type === 'string'
+        && node.props.focusable === true
+        && node.children.length === 0,
+    )
+
+    expect(emptyFocusableHosts).toEqual([])
   })
 
   it('keeps touch selection unchanged and blocks disabled rows', () => {

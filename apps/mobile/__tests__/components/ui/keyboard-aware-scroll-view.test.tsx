@@ -1,9 +1,11 @@
 import React from 'react'
+import { TextInput } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   __emitKeyboardEvent,
   __resetTestHostConfig,
   __setHostRefsNull,
+  __setMeasureInWindowImpl,
 } from '../../../test-mocks/react-native'
 import {
   KeyboardAwareFlatList,
@@ -30,11 +32,13 @@ interface MeasureResult {
 }
 
 function createFocusableInput({ y, height }: MeasureResult) {
-  return Object.assign(new React.Component({}), {
-    measureInWindow: (
-      callback: (x: number, y: number, width: number, height: number) => void,
-    ) => callback(0, y, 0, height),
+  __setMeasureInWindowImpl((callback) => callback(0, y, 0, height))
+  const inputRef = React.createRef<TextInput>()
+  TestRenderer.act(() => {
+    TestRenderer.create(<TextInput ref={inputRef} />)
   })
+  if (!inputRef.current) throw new Error('TextInput host ref was not assigned')
+  return inputRef.current
 }
 
 function renderScrollView(onScroll?: (event: unknown) => void) {
@@ -86,8 +90,9 @@ describe('KeyboardAwareScrollView (mobile)', () => {
   it('ignores revealInput while the keyboard is hidden', () => {
     vi.useFakeTimers()
     renderScrollView()
+    const input = createFocusableInput({ y: 500, height: 40 })
     TestRenderer.act(() => {
-      capturedContext?.revealInput(createFocusableInput({ y: 500, height: 40 }))
+      capturedContext?.revealInput(input)
       vi.advanceTimersByTime(60)
     })
     expect(capturedContext).not.toBeNull()
@@ -152,9 +157,9 @@ describe('KeyboardAwareScrollView (mobile)', () => {
 
   it('returns early when the scrollable ref is null', () => {
     vi.useFakeTimers()
+    const input = createFocusableInput({ y: 700, height: 40 })
     __setHostRefsNull(true)
     renderScrollView()
-    const input = createFocusableInput({ y: 700, height: 40 })
     TestRenderer.act(() => {
       capturedContext?.revealInput(input)
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400 } })
