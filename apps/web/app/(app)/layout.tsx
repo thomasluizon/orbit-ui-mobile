@@ -398,7 +398,7 @@ function GlobalOverlays({
         onClose={() => (onCalendarPromptOpenChange)(false)}
         title={t('onboarding.wizard.calendarTitle')}
       >
-        <div className="flex flex-col items-center text-center gap-5 py-2">
+        <div className="flex flex-col items-center text-center gap-6 py-2">
           <p className="text-sm text-[var(--fg-2)] leading-relaxed">
             {t('onboarding.wizard.calendarDescription')}
           </p>

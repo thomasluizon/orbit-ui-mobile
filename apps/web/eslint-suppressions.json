@@ -16,7 +16,7 @@
   },
   "app/(app)/layout.tsx": {
     "local/spacing-scale": {
-      "count": 2
+      "count": 1
     }
   },
   "app/(app)/preferences/_components/push-notification-section.tsx": {
