@@ -4,7 +4,6 @@ import {
   useEffect,
   useId,
   useMemo,
-  useRef,
   useState,
   type ComponentType,
   type KeyboardEvent,
@@ -356,19 +355,10 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   const t = useTranslations()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
-  const [reorderAnnouncement, setReorderAnnouncement] = useState('')
-  const reorderAnnouncementTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
-  useEffect(() => () => {
-    for (const timer of reorderAnnouncementTimers.current) clearTimeout(timer)
-    reorderAnnouncementTimers.current.clear()
-  }, [])
+  // WHY: Repeated text must move between mounted regions so assistive technology sees a DOM change. https://github.com/thomasluizon/orbit-tickets/issues/480
+  const [reorderAnnouncements, setReorderAnnouncements] = useState<readonly [string, string]>(['', ''])
   const announceReorderResult = (message: string) => {
-    setReorderAnnouncement('')
-    const timer = setTimeout(() => {
-      reorderAnnouncementTimers.current.delete(timer)
-      setReorderAnnouncement(message)
-    }, 0)
-    reorderAnnouncementTimers.current.add(timer)
+    setReorderAnnouncements(([first]) => first === '' ? [message, ''] : ['', message])
   }
   const filtered = filterProgressGoals(goals, filter)
   const commitMove = (positions: NonNullable<ReturnType<typeof buildGoalMovePositions>>, goalId: string, target: number) => {
@@ -409,7 +399,9 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
           })}
         </div></SortableContext></DndContext>
       ) : null}
-      <p role="status" aria-live="polite" aria-atomic="true" data-testid="goal-reorder-status" className="sr-only">{reorderAnnouncement}</p>
+      {reorderAnnouncements.map((message, index) => (
+        <p key={index} role="status" aria-live="polite" aria-atomic="true" data-testid="goal-reorder-status" className="sr-only">{message}</p>
+      ))}
       {reorder.isError ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.reorderError')}</p> : null}
     </section>
   )
