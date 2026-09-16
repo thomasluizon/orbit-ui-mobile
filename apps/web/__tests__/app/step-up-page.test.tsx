@@ -40,12 +40,20 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.prof
 vi.mock('@/hooks/use-date-format', () => ({
   useDateFormat: () => ({ displayDate: (value: string) => `local:${value}` }),
 }))
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: unknown) => unknown) => selector({
+vi.mock('@/stores/auth-store', () => {
+  const state = {
     user: { email: 'session@example.com' },
     logout: mocks.logout,
-  }),
-}))
+    confirmSessionRefreshFailure: vi.fn(),
+    recoverSessionRefreshFailure: vi.fn(),
+  }
+  return {
+    useAuthStore: Object.assign(
+      (selector: (current: unknown) => unknown) => selector(state),
+      { getState: () => state },
+    ),
+  }
+})
 vi.mock('@/lib/server-fetch', () => ({
   serverAuthFetch: (...args: unknown[]) => mocks.serverAuthFetch(...args),
 }))

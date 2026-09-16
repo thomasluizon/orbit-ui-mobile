@@ -30,7 +30,7 @@ vi.mock('@/hooks/use-goals', () => ({
   useCreateGoal: () => ({ mutateAsync: mocks.createGoal }),
 }))
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   completeOnboarding: (...args: unknown[]) => mocks.completeOnboarding(...args),
   updateWeekStartDay: (...args: unknown[]) => mocks.updateWeekStartDay(...args),
 }))

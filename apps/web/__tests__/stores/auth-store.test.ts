@@ -13,6 +13,7 @@ describe('auth store', () => {
       isAuthenticated: false,
       user: null,
       expiresAt: null,
+      sessionRefreshFailed: false,
     })
     mockFetch.mockReset()
     mockFetch.mockResolvedValue({
@@ -62,6 +63,25 @@ describe('auth store', () => {
       isAuthenticated: false,
       user: null,
       expiresAt: null,
+      sessionRefreshFailed: false,
+    })
+  })
+
+  it('marks the session as signed out after confirming a refresh rejection', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ expiresAt: null, refreshFailed: true }),
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    await useAuthStore.getState().confirmSessionRefreshFailure()
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+      sessionRefreshFailed: true,
     })
   })
 
@@ -88,6 +108,7 @@ describe('auth store', () => {
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
       expiresAt,
+      sessionRefreshFailed: false,
     })
   })
 
@@ -105,6 +126,7 @@ describe('auth store', () => {
       isAuthenticated: false,
       user: null,
       expiresAt: null,
+      sessionRefreshFailed: false,
     })
     expect(isStepUpVerified('keys')).toBe(false)
   })
@@ -125,7 +147,7 @@ describe('auth store', () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
-      json: () => Promise.resolve({ expiresAt: null }),
+      json: () => Promise.resolve({ expiresAt: null, refreshFailed: true }),
     })
     useAuthStore.getState().setAuth(makeLoginResponse())
     markStepUpVerified('keys')
@@ -136,6 +158,7 @@ describe('auth store', () => {
       isAuthenticated: false,
       user: null,
       expiresAt: null,
+      sessionRefreshFailed: true,
     })
     expect(isStepUpVerified('keys')).toBe(false)
   })
@@ -195,6 +218,67 @@ describe('auth store', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
       expect(mockFetch).toHaveBeenCalledWith('/api/auth/session')
+      cleanup()
+    })
+
+    it('keeps polling after a retryable 401 and recovers on the next check', async () => {
+      const expiresAt = Date.now() + 3600000
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({ expiresAt: null, refreshFailed: false }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ expiresAt, refreshFailed: false }),
+        })
+      useAuthStore.getState().setAuth(makeLoginResponse())
+
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(60000)
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(useAuthStore.getState()).toMatchObject({
+        isAuthenticated: true,
+        expiresAt,
+        sessionRefreshFailed: false,
+      })
+      cleanup()
+    })
+
+    it('keeps polling after a confirmed failure so a delayed winner can recover', async () => {
+      const expiresAt = Date.now() + 3600000
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ expiresAt, refreshFailed: false }),
+      })
+      useAuthStore.getState().setAuth(makeLoginResponse())
+
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      await vi.waitFor(() => expect(useAuthStore.getState().expiresAt).toBe(expiresAt))
+      mockFetch.mockClear()
+      useAuthStore.setState({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: true,
+      })
+
+      await vi.advanceTimersByTimeAsync(60000)
+
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      expect(useAuthStore.getState()).toMatchObject({
+        isAuthenticated: true,
+        expiresAt,
+        sessionRefreshFailed: false,
+      })
       cleanup()
     })
 

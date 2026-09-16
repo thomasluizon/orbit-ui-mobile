@@ -4,6 +4,7 @@ import {
   buildForwardedClientHeaders,
   sanitizeClientTimeZone,
 } from '@/app/api/_utils/forwarded-client-context'
+import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
 
 const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
 
@@ -54,6 +55,21 @@ function resolveForwardedClientHeaders(request: NextRequest): Record<string, str
   return forwardedClientHeaders
 }
 
+async function toNoStoreResponse(
+  source: Response,
+  refreshFailed = false,
+): Promise<NextResponse> {
+  const body = await source.text()
+  return new NextResponse(body, {
+    status: source.status,
+    headers: {
+      'Cache-Control': NO_STORE_CACHE_CONTROL,
+      'Content-Type': source.headers.get('Content-Type') ?? 'application/json',
+      ...buildSessionRefreshHeaders(refreshFailed),
+    },
+  })
+}
+
 export async function GET(request: NextRequest) {
   const session = await resolveServerSession()
   const forwardedClientHeaders = resolveForwardedClientHeaders(request)
@@ -64,23 +80,13 @@ export async function GET(request: NextRequest) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (refreshedSession.token) {
       const retryResponse = await proxyPlans(refreshedSession.token, forwardedClientHeaders)
-      const retryData = await retryResponse.text()
-      return new NextResponse(retryData, {
-        status: retryResponse.status,
-        headers: {
-          'Cache-Control': NO_STORE_CACHE_CONTROL,
-          'Content-Type': retryResponse.headers.get('Content-Type') ?? 'application/json',
-        },
-      })
+      return toNoStoreResponse(retryResponse)
     }
+    return toNoStoreResponse(
+      response,
+      session.refreshFailed || refreshedSession.refreshFailed,
+    )
   }
 
-  const data = await response.text()
-  return new NextResponse(data, {
-    status: response.status,
-    headers: {
-      'Cache-Control': NO_STORE_CACHE_CONTROL,
-      'Content-Type': response.headers.get('Content-Type') ?? 'application/json',
-    },
-  })
+  return toNoStoreResponse(response, session.refreshFailed)
 }

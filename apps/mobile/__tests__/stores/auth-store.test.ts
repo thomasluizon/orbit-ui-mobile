@@ -35,6 +35,7 @@ const {
   fetchMock,
   setQueryCacheScopeMock,
   cancelScheduledFlushMock,
+  resumeOfflineReplayMock,
   cancelPersistentReminderMock,
 } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
@@ -59,6 +60,7 @@ const {
   fetchMock: vi.fn(),
   setQueryCacheScopeMock: vi.fn(),
   cancelScheduledFlushMock: vi.fn(),
+  resumeOfflineReplayMock: vi.fn(),
   cancelPersistentReminderMock: vi.fn(),
 }))
 
@@ -97,6 +99,7 @@ vi.mock('@/lib/offline-queue', () => ({
 
 vi.mock('@/lib/offline-mutations', () => ({
   cancelScheduledFlush: cancelScheduledFlushMock,
+  resumeOfflineReplay: resumeOfflineReplayMock,
 }))
 
 vi.mock('@/lib/offline-state', () => ({
@@ -173,6 +176,7 @@ describe('mobile auth store security paths', () => {
     fetchMock.mockReset()
     setQueryCacheScopeMock.mockReset()
     cancelScheduledFlushMock.mockReset()
+    resumeOfflineReplayMock.mockReset()
     cancelPersistentReminderMock.mockReset()
     cancelPersistentReminderMock.mockResolvedValue(undefined)
     setQueryCacheScopeMock.mockResolvedValue(undefined)
@@ -518,6 +522,7 @@ describe('mobile auth store security paths', () => {
     expect(setTokenMock).toHaveBeenCalledWith(rotatedToken)
     expect(setRefreshTokenMock).toHaveBeenCalledWith('next-refresh')
     expect(saveWidgetTokenMock).toHaveBeenCalledWith(rotatedToken)
+    expect(resumeOfflineReplayMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState().user).toMatchObject({
       userId: 'rotated-user',
       email: 'rotated@example.com',

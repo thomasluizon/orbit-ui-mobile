@@ -18,7 +18,7 @@ const {
   listChecklistTemplatesAction,
   createChecklistTemplateAction,
   deleteChecklistTemplateAction,
-} = await import('@/app/actions/checklist-templates')
+} = await import('@/lib/actions/checklist-templates')
 
 function mockJson(body: unknown, status = 200) {
   mockFetch.mockResolvedValue({

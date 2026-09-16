@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
+  confirmSessionRefreshFailure: vi.fn().mockResolvedValue(undefined),
+  recoverSessionRefreshFailure: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('next-intl', () => ({
@@ -30,7 +32,14 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks
 
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 
-vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => ({ setAuth: mocks.setAuth }) }))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: Object.assign(() => ({ setAuth: mocks.setAuth }), {
+    getState: () => ({
+      confirmSessionRefreshFailure: mocks.confirmSessionRefreshFailure,
+      recoverSessionRefreshFailure: mocks.recoverSessionRefreshFailure,
+    }),
+  }),
+}))
 
 vi.mock('@/lib/supabase', () => ({
   getSupabaseClient: () => ({ auth: { signInWithOAuth: vi.fn() } }),

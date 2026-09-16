@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
-import { updateName } from '@/app/actions/profile'
+import { updateName } from '@/lib/actions/profile'
 
 interface EditNameSheetProps {
   open: boolean

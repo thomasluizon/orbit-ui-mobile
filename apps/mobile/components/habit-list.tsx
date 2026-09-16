@@ -525,7 +525,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const visibleHabits = useMemo(() => {
       if (view === 'today') {
-        if (showCompleted) return topLevelHabits
         return topLevelHabits.filter((habit) =>
           visibility.hasVisibleContent(habit),
         )
@@ -537,10 +536,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         )
       }
 
-      if (showCompleted) return topLevelHabits
-      return topLevelHabits.filter(
-        (habit) => !habit.isCompleted || recentlyCompletedIds.has(habit.id),
-      )
+      return showCompleted
+        ? topLevelHabits
+        : topLevelHabits.filter(
+            (habit) => !habit.isCompleted || recentlyCompletedIds.has(habit.id),
+          )
     // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is the extracted habitsQuery.data.topLevelHabits and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [recentlyCompletedIds, showCompleted, topLevelHabits, view, visibility])
 

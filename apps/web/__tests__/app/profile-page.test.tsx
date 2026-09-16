@@ -41,13 +41,13 @@ const {
   },
 }))
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   exportUserData: mockExportUserData,
   updateAiSummary: mockUpdateAiSummary,
   updateProactiveAstra: mockUpdateProactiveAstra,
 }))
 
-vi.mock('@/app/actions/api-keys', () => ({
+vi.mock('@/lib/actions/api-keys', () => ({
   createApiKey: mockCreateApiKey,
   revokeApiKey: vi.fn(),
   requestApiKeyCreationChallenge: mockRequestApiKeyCreationChallenge,

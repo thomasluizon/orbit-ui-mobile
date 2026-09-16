@@ -17,7 +17,7 @@ import { useCreateGoal } from '@/hooks/use-goals'
 import {
   completeOnboarding,
   updateWeekStartDay as updateWeekStartDayAction,
-} from '@/app/actions/profile'
+} from '@/lib/actions/profile'
 
 /** Canonical mode-blind action surface consumed by every onboarding step. */
 export interface OnboardingActions {

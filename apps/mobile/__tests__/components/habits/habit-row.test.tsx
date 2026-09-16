@@ -422,20 +422,11 @@ describe('HabitRow menu (mobile)', () => {
 
 
 describe('offline row presentation', () => {
-  it('keeps the logged row identical across all queue notice states', () => {
+  it('keeps the logged row identical while recovery notices exist', () => {
     const habit = createMockHabit({ title: 'Walk', isCompleted: true })
     let tree: { toJSON: () => unknown; update: (element: React.ReactNode) => void; unmount: () => void }
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} />) })
     const onlineRow = JSON.stringify(tree!.toJSON())
-    for (const state of [
-      { isFlushing: false, isRetrying: false },
-      { isFlushing: true, isRetrying: false },
-      { isFlushing: false, isRetrying: true },
-      { isFlushing: false, isRetrying: false },
-    ]) {
-      TestRenderer.act(() => { useOfflineSyncStore.setState(state); tree.update(<HabitRow habit={habit} />) })
-      expect(JSON.stringify(tree!.toJSON())).toBe(onlineRow)
-    }
     TestRenderer.act(() => {
       useOfflineSyncStore.setState({ drops: [{ id: 'lost-log', type: 'logHabit', lastError: '500', mutation: {
         id: 'lost-log', type: 'logHabit', timestamp: 1, retries: 3, maxRetries: 3,
@@ -444,6 +435,6 @@ describe('offline row presentation', () => {
       tree.update(<HabitRow habit={habit} />)
     })
     expect(JSON.stringify(tree!.toJSON())).toBe(onlineRow)
-    TestRenderer.act(() => { tree.unmount(); useOfflineSyncStore.setState({ isFlushing: false, isRetrying: false, drops: [] }) })
+    TestRenderer.act(() => { tree.unmount(); useOfflineSyncStore.setState({ drops: [] }) })
   })
 })

@@ -118,8 +118,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }))
 
-vi.mock('react-native', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-native')>()
+vi.mock('react-native', async () => {
+  const actual = await import('../../test-mocks/react-native')
   const keyboardListener = {
     remove: vi.fn(),
   }
@@ -137,6 +137,10 @@ vi.mock('react-native', async (importOriginal) => {
 vi.mock('expo', () => ({
   __esModule: true,
   requireNativeModule: vi.fn(() => ({})),
+}))
+
+vi.mock('@/stores/offline-sync-store', () => ({
+  useOfflineSyncStore: { getState: () => ({ clearDrops: vi.fn(() => Promise.resolve()) }) },
 }))
 
 vi.mock('expo-router', () => ({

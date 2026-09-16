@@ -8,10 +8,14 @@ vi.mock('sonner', () => ({
 }))
 
 const mockLogout = vi.fn()
+const mockConfirmSessionRefreshFailure = vi.fn()
+const mockRecoverSessionRefreshFailure = vi.fn()
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
     getState: () => ({
       logout: mockLogout,
+      confirmSessionRefreshFailure: mockConfirmSessionRefreshFailure,
+      recoverSessionRefreshFailure: mockRecoverSessionRefreshFailure,
     }),
   },
 }))
@@ -52,6 +56,8 @@ describe('apiFetch', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     mockLogout.mockReset()
+    mockConfirmSessionRefreshFailure.mockReset()
+    mockRecoverSessionRefreshFailure.mockReset()
     mockMarkUpgradeRequired.mockReset()
     vi.mocked(toast.error).mockReset()
   })
@@ -99,15 +105,31 @@ describe('apiFetch', () => {
     expect(headers.get('X-Orbit-Time-Zone')).toBe('America/Sao_Paulo')
   })
 
-  it('calls logout on 401 without toast', async () => {
+  it('shows the failed-refresh state on 401 without logging out or showing a toast', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
+      headers: new Headers({ 'x-orbit-session-refresh': 'failed' }),
       json: () => Promise.resolve({ error: 'Unauthorized' }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(mockLogout).toHaveBeenCalled()
+    expect(mockConfirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
+    expect(mockLogout).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('shows the failed-refresh state when a public endpoint still succeeds', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'x-orbit-session-refresh': 'failed' }),
+      json: () => Promise.resolve({ plans: [] }),
+    })
+
+    await expect(apiFetch('/api/subscriptions/plans')).resolves.toEqual({ plans: [] })
+    expect(mockConfirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
+    expect(mockLogout).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalled()
   })
 
@@ -115,6 +137,7 @@ describe('apiFetch', () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
+      headers: new Headers(),
       json: () => Promise.resolve({ error: 'Token expired' }),
     })
 
@@ -125,6 +148,7 @@ describe('apiFetch', () => {
       expect((err as ApiError).status).toBe(401)
       expect((err as ApiError).message).toBe('Unauthorized')
     }
+    expect(mockConfirmSessionRefreshFailure).not.toHaveBeenCalled()
   })
 
   it('redirects to /upgrade on a 403 PAY_GATE without toast', async () => {

@@ -140,6 +140,10 @@ vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: true }),
 }))
 
+vi.mock('@/stores/offline-sync-store', () => ({
+  useOfflineSyncStore: { getState: () => ({ clearDrops: vi.fn(() => Promise.resolve()) }) },
+}))
+
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: new Proxy({}, { get: () => '#111111' }),

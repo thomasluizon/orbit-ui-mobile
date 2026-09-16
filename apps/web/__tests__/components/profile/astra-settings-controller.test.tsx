@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   updateProactiveAstra: vi.fn(),
 }))
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateAiSummary: mocks.updateAiSummary,
   updateProactiveAstra: mocks.updateProactiveAstra,
 }))

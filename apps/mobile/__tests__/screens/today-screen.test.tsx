@@ -1,5 +1,5 @@
 import React from 'react'
-import { Animated } from 'react-native'
+import { Animated, StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -286,6 +286,23 @@ describe('Hoje date boundaries', () => {
     })
     expect(mocks.clearSelection).toHaveBeenCalledTimes(1)
     expect(mocks.composerEnabled.at(-1)).toBe(false)
+  })
+
+  it('keeps the Today list within the large-screen content column', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+    const contentColumn = tree.root.findAll(
+      (node) => node.props.testID === 'today-content-column',
+    )[0]
+    expect(contentColumn).toBeDefined()
+    expect(StyleSheet.flatten(contentColumn?.props.style)).toMatchObject({
+      alignSelf: 'center',
+      maxWidth: 740,
+      width: '100%',
+    })
   })
 
   it('releases the Astra composer and conversation owner when Today blurs', async () => {

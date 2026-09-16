@@ -477,7 +477,6 @@ export function HabitList({
             (h) => !h.isCompleted || recentlyCompletedIds.has(h.id),
           )
     }
-    if (showCompleted) return topLevelHabits
     return topLevelHabits.filter((h) => visibility.hasVisibleContent(h))
     // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is destructured from the query data every render and already listed; the memo keys off the resolved array, not data.topLevelHabits https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility])

@@ -297,6 +297,24 @@ export function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tintFromPrimary(tokens, 0.22),
     },
+    emojiField: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: 8,
+    },
+    emojiSuggestButton: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: tintFromPrimary(tokens, 0.1),
+      borderWidth: 1,
+      borderColor: tintFromPrimary(tokens, 0.22),
+    },
+    emojiSuggestButtonDisabled: {
+      opacity: 0.45,
+    },
     emojiWell: {
       width: 56,
       height: 56,

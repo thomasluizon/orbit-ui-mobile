@@ -9,6 +9,7 @@ import {
   buildWrappedSlides,
   isRecapShareEmpty,
   type RecapSharePeriod,
+  type ClosedRecapMonth,
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { useReportEvent } from '@/hooks/use-gamification'
@@ -18,16 +19,17 @@ const WRAPPED_YEAR_SEEN_STORAGE_KEY = 'orbit_wrapped_year_seen'
 interface UseWrappedOptions {
   enabled?: boolean
   active?: boolean
+  closedMonth?: ClosedRecapMonth
 }
 
 /** Fetches and validates the free recap for a Wrapped period and derives the ordered story slides. */
 export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions = {}) {
-  const { enabled = true, active = false } = options
+  const { enabled = true, active = false, closedMonth } = options
   const { mutate: reportEvent } = useReportEvent()
 
   const query = useQuery({
-    queryKey: gamificationKeys.recap(period),
-    queryFn: async () => recapResponseSchema.parse(await fetchJson(buildRecapRequestUrl(period))),
+    queryKey: gamificationKeys.recap(period, closedMonth?.year, closedMonth?.month),
+    queryFn: async () => recapResponseSchema.parse(await fetchJson(buildRecapRequestUrl(period, closedMonth))),
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })

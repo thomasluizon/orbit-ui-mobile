@@ -14,86 +14,101 @@ import type {
 } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { serverAuthFetch } from '@/lib/server-fetch'
+import { wrapServerAction, type ServerActionResult } from './action-result'
 
-export async function updateName(data: SetNameRequest): Promise<void> {
-  await serverAuthFetch(API.profile.name, {
+export async function updateName(data: SetNameRequest): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.name, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }))
 }
 
-export async function updateTimezone(data: UpdateTimezoneRequest): Promise<void> {
-  await serverAuthFetch(API.profile.timezone, {
+export async function updateTimezone(
+  data: UpdateTimezoneRequest,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.timezone, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }))
 }
 
-export async function updateLanguage(data: SetLanguageRequest): Promise<void> {
-  await serverAuthFetch(API.profile.language, {
+export async function updateLanguage(
+  data: SetLanguageRequest,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.language, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }))
 }
 
-export async function updateAiSummary(data: SetAiSummaryRequest): Promise<void> {
-  await serverAuthFetch(API.profile.aiSummary, {
+export async function updateAiSummary(
+  data: SetAiSummaryRequest,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.aiSummary, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }))
 }
 
-export async function updateProactiveAstra(data: SetProactiveAstraRequest): Promise<void> {
-  await serverAuthFetch(API.profile.proactiveAstra, {
+export async function updateProactiveAstra(
+  data: SetProactiveAstraRequest,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.proactiveAstra, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }))
 }
 
 export async function updateMarketingConsent(
   data: SetMarketingEmailConsentRequest,
-): Promise<void> {
-  await serverAuthFetch(API.profile.marketingConsent, {
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.marketingConsent, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }))
 }
 
-export async function updateWeekStartDay(data: SetWeekStartDayRequest): Promise<void> {
-  await serverAuthFetch(API.profile.weekStartDay, {
+export async function updateWeekStartDay(
+  data: SetWeekStartDayRequest,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.weekStartDay, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }))
 }
 
-export async function updateThemePreference(data: SetThemePreferenceRequest): Promise<void> {
-  await serverAuthFetch(API.profile.themePreference, {
+export async function updateThemePreference(
+  data: SetThemePreferenceRequest,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.themePreference, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }))
 }
 
-export async function updateColorScheme(data: SetColorSchemeRequest): Promise<void> {
-  await serverAuthFetch(API.profile.colorScheme, {
+export async function updateColorScheme(
+  data: SetColorSchemeRequest,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.colorScheme, {
     method: 'PUT',
     body: JSON.stringify(data),
-  })
+  }))
 }
 
-export async function completeOnboarding(): Promise<void> {
-  await serverAuthFetch(API.profile.onboarding, {
+export async function completeOnboarding(): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.onboarding, {
     method: 'PUT',
-  })
+  }))
 }
 
-export async function resetAccount(): Promise<void> {
-  await serverAuthFetch(API.profile.reset, {
+export async function resetAccount(): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthFetch(API.profile.reset, {
     method: 'POST',
-  })
+  }))
 }
 
-export async function exportUserData(): Promise<UserDataExport> {
-  return serverAuthFetch<UserDataExport>(API.profile.export, {
+export async function exportUserData(): Promise<ServerActionResult<UserDataExport>> {
+  return wrapServerAction(() => serverAuthFetch<UserDataExport>(API.profile.export, {
     method: 'GET',
-  })
+  }))
 }

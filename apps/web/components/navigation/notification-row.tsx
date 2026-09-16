@@ -3,13 +3,14 @@
 import { useTranslations } from 'next-intl'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { formatNotificationRelativeTime, getNotificationTargetKey } from '@orbit/shared/utils'
-import { Calendar, ChartLine, CircleDot, Home, Trash2, User } from '@/components/ui/icons'
+import { Calendar, ChartLine, CircleDot, Gift, Home, Trash2, User } from '@/components/ui/icons'
 
 const TARGET_ICONS = {
   'nav.today': Home,
   'nav.calendar': Calendar,
   'nav.progress': ChartLine,
   'nav.profile': User,
+  'profile.wrappedTitle': Gift,
   'notifications.habit': CircleDot,
 }
 

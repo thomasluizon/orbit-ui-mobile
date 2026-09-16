@@ -252,7 +252,9 @@ vi.mock('@/hooks/use-config', () => ({
 }))
 
 vi.mock('@/hooks/use-habit-visibility', async () => {
-  const { createHabitVisibilityHelpers } = await import('@orbit/shared/utils/habit-visibility')
+  const { createHabitVisibilityHelpers, getChildrenFromIndex } = await import(
+    '@orbit/shared/utils/habit-visibility'
+  )
 
   return {
     useHabitVisibility: (options: HabitVisibilityOptions) => {
@@ -263,6 +265,16 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
         hasVisibleContent: useActualHabitVisibility
           ? helpers.hasVisibleContent
           : () => true,
+        getVisibleChildren: useActualHabitVisibility
+          ? helpers.getVisibleChildren
+          : (parentId: string, view: 'today' | 'all' | 'general') =>
+              options.showCompleted && view !== 'all'
+                ? getChildrenFromIndex(
+                    parentId,
+                    options.habitsById,
+                    options.childrenByParent,
+                  )
+                : helpers.getVisibleChildren(parentId, view),
         isRelevantToday: () => true,
         isDueOnSelectedDate: () => true,
       }
@@ -470,6 +482,93 @@ describe('HabitList', () => {
     mockDrillState.drillError = null
     mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('hides one-time tasks completed before the selected day when completed items are shown', () => {
+    useActualHabitVisibility = true
+    const dueToday = createMockHabit({
+      id: 'due-today',
+      dueDate: '2026-09-15',
+      scheduledDates: ['2026-09-15'],
+      instances: [{ date: '2026-09-15', status: 'Pending', logId: null }],
+    })
+    const completedEarlier = createMockHabit({
+      id: 'completed-earlier',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      dueDate: '2026-08-01',
+      scheduledDates: [],
+      instances: [],
+    })
+    seedHabits([dueToday, completedEarlier])
+
+    let tree: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
+          selectedDate={new Date(2026, 8, 15, 12)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    expect(
+      tree!.root
+        .findAll((node) => node.type === HabitRow)
+        .map((node) => (node.props.habit as NormalizedHabit).id),
+    ).toEqual(['due-today'])
+  })
+
+  it('shows only selected-day completions alongside habits due that day', () => {
+    useActualHabitVisibility = true
+    const dueToday = createMockHabit({
+      id: 'due-today',
+      dueDate: '2026-09-15',
+      scheduledDates: ['2026-09-15'],
+      instances: [{ date: '2026-09-15', status: 'Pending', logId: null }],
+    })
+    const completedToday = createMockHabit({
+      id: 'completed-today',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: true,
+      dueDate: '2026-09-15',
+      scheduledDates: [],
+      instances: [],
+    })
+    const completedEarlier = createMockHabit({
+      id: 'completed-earlier',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      dueDate: '2026-08-01',
+      scheduledDates: [],
+      instances: [],
+    })
+    seedHabits([dueToday, completedToday, completedEarlier])
+
+    let tree: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
+          selectedDate={new Date(2026, 8, 15, 12)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    expect(
+      tree!.root
+        .findAll((node) => node.type === HabitRow)
+        .map((node) => (node.props.habit as NormalizedHabit).id),
+    ).toEqual(['due-today', 'completed-today'])
   })
 
   it('renders the all-done upcoming action only when it can navigate', () => {
