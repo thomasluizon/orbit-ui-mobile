@@ -176,8 +176,6 @@ vi.mock('@/lib/offline-queue', () => ({
   replaceEntityReferences: mocks.replaceEntityReferences,
 }))
 
-vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
-
 vi.mock('@/lib/offline-state', () => ({
   upsertOfflineEntity: mocks.upsertOfflineEntity,
   setOfflineEntityStatus: mocks.setOfflineEntityStatus,
@@ -211,6 +209,7 @@ async function waitForCapturedError(maximumMacrotasks = 20): Promise<void> {
   for (let tick = 0; tick < maximumMacrotasks; tick += 1) {
     if (mocks.captureError.mock.calls.length > 0) return
     await new Promise<void>((resolve) => nativeSetImmediate(resolve))
+    await vi.advanceTimersByTimeAsync(1)
   }
 }
 
