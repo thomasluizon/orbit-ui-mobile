@@ -121,7 +121,7 @@ function WindowFrame({ children, title, tokens }: Readonly<{
 function LockedCard({ title, body, action, tokens }: Readonly<{ title: string; body: string; action: string; tokens: AppTokensV2 }>) {
   const router = useRouter()
   return (
-    <View testID="progress-locked-card" style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+    <View testID="progress-locked-card" style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
       <View style={styles.lockHeader}><Lock size={20} strokeWidth={2} color={tokens.fg2} /><ProBadge alwaysVisible /></View>
       <View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{title}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{body}</Text></View>
       <View style={styles.actionStart}><PillButton variant="ghost" size="sm" onClick={() => router.push(buildUpgradeHref('/progress'))}>{action}</PillButton></View>
@@ -468,6 +468,7 @@ export function ProgressContent() {
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const { t } = useTranslation()
   const router = useRouter()
+  const { width } = useWindowDimensions()
   const theme = useAppTheme()
   const tokens = useMemo(() => createTokensV2(theme.currentScheme, theme.currentTheme), [theme.currentScheme, theme.currentTheme])
   const account = useProfile()
@@ -503,9 +504,9 @@ export function ProgressContent() {
         />
       </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
-      {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
+      {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
-      {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
+      {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
       {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
     </NestableScrollContainer>
     </>

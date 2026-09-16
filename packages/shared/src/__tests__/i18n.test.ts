@@ -157,6 +157,17 @@ describe('i18n locale parity', () => {
     }
   })
 
+  it('keeps goal filter copy under the Progress screen namespace', () => {
+    for (const locale of [en, ptBR]) {
+      const localeRecord = locale as Record<string, unknown>
+      const goals = localeRecord.goals as Record<string, unknown>
+
+      expect(goals).not.toHaveProperty('filters')
+      expect(locale.progressScreen.goals.filterEmpty).toBeTruthy()
+      expect(locale.progressScreen.goals.clearFilter).toBeTruthy()
+    }
+  })
+
   it('keeps sharing and referral guide rows under rewards', () => {
     for (const flat of [enFlat, ptFlat]) {
       expect(flat.get('onboarding.featureGuide.rewardsSection.milestoneShareTitle')).toBeTruthy()

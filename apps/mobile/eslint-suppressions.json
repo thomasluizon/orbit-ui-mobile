@@ -119,11 +119,6 @@
       "count": 3
     }
   },
-  "components/onboarding/calendar-import-prompt.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "components/onboarding/feature-guide-drawer.tsx": {
     "local/spacing-scale": {
       "count": 4
