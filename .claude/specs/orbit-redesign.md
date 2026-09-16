@@ -93,6 +93,13 @@ These stay until he changes them. Keep his words.
   matter if it will break (for now)." This narrows deploy-API-first while the fleet is him alone. It
   does NOT narrow "always the best implementation": it buys a simpler deploy order, never simpler code.
 - **Standing** Ticket `#74` owns existing copy.
+- **2026-09-16** **Device verification is NOT a gate on building something. Build it.** "just build
+  it, we dont test now ... when we finish the WHOLE REDESIGN, i will generate an apk and test on my
+  phone." Said when `#543`'s React Native feature-flag override was held back because no test can see
+  whether it works and the emulator is his. So: "this needs a device to verify" is never a reason to
+  stop, scale down, or hand the decision back. Build the correct thing, say plainly in the pull
+  request body what only a device can confirm, and move on. He tests the whole redesign once, on his
+  phone, from an APK he generates himself at the end.
 - **Standing** Never boot the Android emulator. It is his visual testing surface.
 - **Standing** `redesign/main` stays unprotected. Settled; never raise it.
 
