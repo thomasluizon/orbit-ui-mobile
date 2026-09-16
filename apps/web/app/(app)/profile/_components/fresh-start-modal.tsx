@@ -29,7 +29,7 @@ function AmberPillButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-0 px-[26px] py-4 text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-0 px-6 py-4 text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
       style={{
         fontFamily: 'var(--font-sans)',
         background: 'var(--status-overdue)',
@@ -53,7 +53,7 @@ function FreshStartHero({ body }: Readonly<{ body: string }>) {
           background: 'color-mix(in srgb, var(--status-overdue) 14%, transparent)',
         }}
       >
-        <RotateCcw size={34} strokeWidth={1.8} color="var(--status-overdue)" />
+        <RotateCcw size={24} strokeWidth={1.8} color="var(--status-overdue)" />
       </div>
       <p
         style={{
@@ -172,7 +172,7 @@ function ListBlock({
       className="flex flex-col rounded-[16px]"
       style={{
         gap: 8,
-        padding: '14px 16px',
+        padding: '12px 16px',
         background: 'var(--bg-card)',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
@@ -189,26 +189,26 @@ function ListBlock({
       >
         {title}
       </div>
-      <div className="flex flex-col" style={{ gap: 6 }}>
+      <div className="flex flex-col" style={{ gap: 4 }}>
         {items.map((item) => (
           <span key={item} className="flex items-start" style={{ gap: 8 }}>
             {itemIcon === 'delete' ? (
               <X
-                size={14}
+                size={16}
                 strokeWidth={1.8}
                 color="var(--status-bad)"
                 aria-hidden="true"
                 className="shrink-0"
-                style={{ marginTop: 2 }}
+                style={{ marginTop: 0 }}
               />
             ) : (
               <Check
-                size={14}
+                size={16}
                 strokeWidth={1.8}
                 color="var(--status-done)"
                 aria-hidden="true"
                 className="shrink-0"
-                style={{ marginTop: 2 }}
+                style={{ marginTop: 0 }}
               />
             )}
             <span

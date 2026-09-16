@@ -4,29 +4,6 @@
       "count": 1
     }
   },
-  "app/(tabs)/profile/_components/delete-account-modal.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "app/(tabs)/profile/_components/edit-name-sheet.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(tabs)/profile/_components/fresh-start-modal.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/ai-settings-styles.ts": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "app/preferences-styles.ts": {
     "local/spacing-scale": {
       "count": 5
@@ -145,11 +122,6 @@
       "count": 3
     }
   },
-  "components/profile/ai-settings-sections.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    }
-  },
   "components/ui/app-text-input.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -176,27 +148,6 @@
   "components/ui/scroll-to-top-button.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
-    }
-  },
-  "components/ui/settings-description.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/ui/settings-group.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/ui/settings-row.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 3
     }
   },
   "components/ui/year-picker.tsx": {
