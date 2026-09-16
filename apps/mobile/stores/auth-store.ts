@@ -34,7 +34,6 @@ import { useThrottleStore } from './throttle-store'
 
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
-let authTransitionInFlight = false
 let sessionGeneration = 0
 let credentialMutationTail = Promise.resolve()
 
@@ -43,12 +42,12 @@ let refreshSessionInFlight: Promise<RefreshSessionAttempt> | null = null
 
 /**
  * True while login() is swapping the session — between persisting the new token
- * and committing isAuthenticated:true. apiClient consults this to avoid tearing
+ * and reaching the signed-in phase. apiClient consults this to avoid tearing
  * down the session on a transient 401 fired in that window (the freshly written
  * SecureStore token isn't yet readable by an in-flight authed GET).
  */
 export function isAuthTransitionInFlight(): boolean {
-  return authTransitionInFlight
+  return useAuthStore.getState().sessionPhase === 'establishing'
 }
 
 export function getSessionGeneration(): number {
@@ -65,7 +64,10 @@ export function whenProfileHydrated(): Promise<void> {
   return profileHydrationInFlight ?? Promise.resolve()
 }
 
+export type SessionPhase = 'signed-out' | 'establishing' | 'signed-in'
+
 interface AuthState {
+  sessionPhase: SessionPhase
   isAuthenticated: boolean
   user: User | null
   isLoading: boolean
@@ -115,6 +117,13 @@ function isCurrentSessionGeneration(generation: number): boolean {
   return sessionGeneration === generation
 }
 
+function deriveSessionPhase(sessionPhase: SessionPhase) {
+  return {
+    sessionPhase,
+    isAuthenticated: sessionPhase === 'signed-in',
+  }
+}
+
 async function withCredentialMutationLock<T>(mutation: () => Promise<T>): Promise<T> {
   const previousMutation = credentialMutationTail
   let releaseMutation!: () => void
@@ -145,6 +154,11 @@ async function clearSessionCredentials(
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
     clearStepUpState()
     sessionGeneration += 1
+    useAuthStore.setState({
+      ...deriveSessionPhase('signed-out'),
+      isLoading: false,
+      expiresAt: null,
+    })
     await clearAllTokens()
     await clearWidgetToken().catch(() => {})
     return { generation: sessionGeneration, refreshToken }
@@ -163,20 +177,10 @@ async function runSessionTeardownStep(
 async function runSessionTeardown(
   expectedGeneration: number | null,
   captureRefreshToken: boolean,
-  publishSignedOutImmediately: boolean,
 ): Promise<SessionTeardownResult | null> {
   const teardown = await clearSessionCredentials(expectedGeneration, captureRefreshToken)
   if (!teardown) return null
   const { generation } = teardown
-  if (publishSignedOutImmediately) {
-    useAuthStore.setState({
-      isAuthenticated: false,
-      user: null,
-      isLoading: false,
-      expiresAt: null,
-    })
-  }
-
   if (!(await runSessionTeardownStep(generation, () => cancelPersistentReminder().catch(() => {})))) return null
 
   queryClient.clear()
@@ -189,19 +193,13 @@ async function runSessionTeardown(
   useChatStore.getState().clearMessages()
   useReviewReminderStore.getState().setAccountScope(null)
   resetOnboardingDraftForSignOut()
-  if (!publishSignedOutImmediately) {
-    useAuthStore.setState({
-      isAuthenticated: false,
-      user: null,
-      isLoading: false,
-      expiresAt: null,
-    })
-  }
+  if (!isCurrentSessionGeneration(generation)) return null
+  useAuthStore.setState({ user: null })
   return teardown
 }
 
 export async function clearSessionAndResetAuth(generation: number): Promise<void> {
-  await runSessionTeardown(generation, false, false)
+  await runSessionTeardown(generation, false)
 }
 
 /**
@@ -255,6 +253,7 @@ async function rotateSessionToken(generation: number): Promise<RefreshSessionOut
   if (!refreshToken) {
     return { status: 'unauthorized' }
   }
+  const currentUser = useAuthStore.getState().user
 
   let response: Response
   try {
@@ -278,7 +277,6 @@ async function rotateSessionToken(generation: number): Promise<RefreshSessionOut
   }
 
   const data = (await response.json()) as RefreshResponse
-  const currentUser = useAuthStore.getState().user
   const tokenUser = getUserFromToken(data.token, currentUser?.name)
   const published = await withCredentialMutationLock(async () => {
     if (!isCurrentSessionGeneration(generation)) return false
@@ -288,7 +286,7 @@ async function rotateSessionToken(generation: number): Promise<RefreshSessionOut
     if (tokenUser) bindStepUpStateToAccount(tokenUser.userId)
     sessionGeneration += 1
     useAuthStore.setState({
-      isAuthenticated: true,
+      ...deriveSessionPhase('signed-in'),
       user: currentUser ?? tokenUser,
       expiresAt: getExpiresAt(data.token),
     })
@@ -371,15 +369,16 @@ async function hydrateSessionProfile(): Promise<void> {
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  isAuthenticated: false,
+  ...deriveSessionPhase('signed-out'),
   user: null,
   isLoading: true,
   expiresAt: null,
 
   login: async (token, refreshToken, user) => {
-    authTransitionInFlight = true
+    let generation = sessionGeneration
+    set(deriveSessionPhase('establishing'))
     try {
-      const generation = await withCredentialMutationLock(async () => {
+      generation = await withCredentialMutationLock(async () => {
         await setToken(token)
         if (refreshToken) {
           await setRefreshToken(refreshToken)
@@ -390,7 +389,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         bindStepUpStateToAccount(user.userId)
         sessionGeneration += 1
         set({
-          isAuthenticated: true,
+          ...deriveSessionPhase('establishing'),
           user,
           isLoading: false,
           expiresAt: getExpiresAt(token),
@@ -437,13 +436,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!isCurrentSessionGeneration(generation)) return
       bindStepUpStateToAccount(user.userId)
       set({
-        isAuthenticated: true,
+        ...deriveSessionPhase('signed-in'),
         user: hydratedUser,
         isLoading: false,
         expiresAt: getExpiresAt(token),
       })
-    } finally {
-      authTransitionInFlight = false
+    } catch (error: unknown) {
+      await runSessionTeardown(generation, false).catch(() => {})
+      throw error
     }
   },
 
@@ -452,7 +452,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .then((module) => module.unsubscribePushToken())
       .catch(() => {})
 
-    const teardown = await runSessionTeardown(null, true, true)
+    const teardown = await runSessionTeardown(null, true)
     const refreshToken = teardown?.refreshToken ?? null
     if (refreshToken) {
       await apiClient(API.auth.logout, {
@@ -490,7 +490,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await saveWidgetToken(token).catch(() => {})
       if (accountId) bindStepUpStateToAccount(accountId)
       set((state) => ({
-        isAuthenticated: true,
+        ...deriveSessionPhase('signed-in'),
         user: state.user ?? getUserFromPayload(payload),
         expiresAt: getExpiresAtFromPayload(payload),
       }))
@@ -508,7 +508,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const isValid = await get().checkAuth()
       if (!isValid) {
-        set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
+        set({
+          ...deriveSessionPhase('signed-out'),
+          user: null,
+          isLoading: false,
+          expiresAt: null,
+        })
         return
       }
 

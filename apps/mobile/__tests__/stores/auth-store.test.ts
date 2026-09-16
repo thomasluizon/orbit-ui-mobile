@@ -193,6 +193,7 @@ describe('mobile auth store security paths', () => {
     apiClientMock.mockResolvedValue(undefined)
 
     useAuthStore.setState({
+      sessionPhase: 'signed-out',
       isAuthenticated: false,
       user: null,
       isLoading: true,
@@ -238,6 +239,64 @@ describe('mobile auth store security paths', () => {
     expect(callOrder.indexOf('setToken')).toBeGreaterThanOrEqual(0)
     expect(callOrder.indexOf('setToken')).toBeLessThan(callOrder.indexOf('queryClient.clear'))
     expect(callOrder.indexOf('setRefreshToken')).toBeLessThan(callOrder.indexOf('queryClient.clear'))
+  })
+
+  it('keeps the protected tree unavailable until account cleanup completes', async () => {
+    let releasePersistedCacheClear!: () => void
+    const persistedCacheClearReleased = new Promise<void>((resolve) => {
+      releasePersistedCacheClear = resolve
+    })
+    clearPersistedQueryCacheMock.mockReturnValue(persistedCacheClearReleased)
+
+    let protectedTreeMounts = 0
+    let sharedProfileCacheReads = 0
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (!state.isAuthenticated) return
+      protectedTreeMounts += 1
+      sharedProfileCacheReads += 1
+    })
+
+    const login = useAuthStore.getState().login('access-token', 'refresh-token', {
+      userId: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+    })
+
+    await vi.waitFor(() => expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1))
+    try {
+      expect(useAuthStore.getState()).toMatchObject({
+        sessionPhase: 'establishing',
+        isAuthenticated: false,
+      })
+      expect(protectedTreeMounts).toBe(0)
+      expect(sharedProfileCacheReads).toBe(0)
+    } finally {
+      releasePersistedCacheClear()
+      await login
+      unsubscribe()
+    }
+
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+    })
+    expect(protectedTreeMounts).toBe(1)
+    expect(sharedProfileCacheReads).toBe(1)
+  })
+
+  it('returns to signed out when account cleanup rejects during login', async () => {
+    clearPersistedQueryCacheMock.mockRejectedValueOnce(new Error('cache cleanup failed'))
+
+    await expect(useAuthStore.getState().login('access-token', 'refresh-token', {
+      userId: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+    })).rejects.toThrow('cache cleanup failed')
+
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-out',
+      isAuthenticated: false,
+    })
   })
 
   it('flags an auth transition between persisting the token and committing the session', async () => {
