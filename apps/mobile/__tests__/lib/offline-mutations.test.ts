@@ -207,6 +207,13 @@ vi.mock('@/lib/sentry', () => ({
 
 const nativeSetImmediate = setImmediate
 
+async function waitForCapturedError(maximumMacrotasks = 20): Promise<void> {
+  for (let tick = 0; tick < maximumMacrotasks; tick += 1) {
+    if (mocks.captureError.mock.calls.length > 0) return
+    await new Promise<void>((resolve) => nativeSetImmediate(resolve))
+  }
+}
+
 describe('offline mutations', () => {
   beforeEach(() => {
     mocks.queued.length = 0
@@ -1514,12 +1521,10 @@ describe('offline mutations', () => {
       try {
         await expect(flushQueuedMutations()).rejects.toThrow('Initial queue persistence failed')
         await vi.advanceTimersByTimeAsync(2_000)
-        await vi.waitFor(async () => {
-          await new Promise<void>((resolve) => nativeSetImmediate(resolve))
-          expect(mocks.captureError).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'Timer queue persistence failed' }),
-          )
-        })
+        await waitForCapturedError()
+        expect(mocks.captureError).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'Timer queue persistence failed' }),
+        )
 
         expect(unhandledRejections).toEqual([])
         expect(canAutoFlush()).toBe(false)
