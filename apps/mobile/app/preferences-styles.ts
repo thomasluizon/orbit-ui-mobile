@@ -6,9 +6,9 @@ export type Tokens = ReturnType<typeof createTokensV2>
 export const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: { paddingBottom: 32 },
   statusBlock: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 4,
   },
@@ -18,8 +18,8 @@ export const styles = StyleSheet.create({
   },
   linkChip: {
     alignSelf: 'flex-start',
-    marginHorizontal: 20,
-    marginTop: 6,
+    marginHorizontal: 16,
+    marginTop: 4,
     borderRadius: 999,
     borderWidth: 1,
     paddingVertical: 8,
@@ -38,7 +38,7 @@ export const styles = StyleSheet.create({
     flexGrow: 0,
   },
   sheetContent: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 24,
     paddingBottom: 24,
   },
   sheetDescription: {
