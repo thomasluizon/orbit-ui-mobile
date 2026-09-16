@@ -76,6 +76,15 @@ These stay until he changes them. Keep his words.
   possible" narrows HOW, never WHAT: it means stop idling a worker slot and stop opening fronts that
   do not close a ticket. It does not license a cheaper implementation, and it never overrides
   "always the best implementation".
+- **2026-09-16** **Do not ask permission for work he already asked for.** After the beta release
+  was held pending a confirmation he had already given in writing: "you shouldnt have asked me
+  to say 'go', you could've just shipped it." A written instruction IS the authorisation.
+  Ask again only when the scope or the inputs changed.
+- **2026-09-16** Answered directly, both recorded on their tickets: **centred phone IS the
+  large-screen answer**, so no tablet layout is filed and none should be; and the **public Play
+  developer name becomes TL SOFTWARE ENGINEERING LTDA**.
+- **2026-09-16** **The local worker cap is TWO, not three.** Four were killed at once for low
+  memory, every one of them after committing. This supersedes D89's figure of three on this machine.
 - **Standing** Ticket `#74` owns existing copy.
 - **Standing** Never boot the Android emulator. It is his visual testing surface.
 - **Standing** `redesign/main` stays unprotected. Settled; never raise it.
@@ -368,77 +377,135 @@ Two rules for this work, both learned the hard way:
 - **A worker order that says "read pull request N" or "fetch a branch" must run LOCAL.**
 - **Post a routing comment LAST, naming the round.**
 
+
+## What 2026-09-15 into 09-16 proved about reviews and checks
+
+- **A forced `--re-review` is worth its cost.** Four times in one night it returned a NEW P1 on a
+  head that already carried a green approval. The worst was 972: an empty rendered set fell back to
+  a stale visibility calculation, so Select all reached habits the screen was not showing and bulk
+  delete could remove them. Ask for one on any head that matters.
+- **`pullfrog-approval` does not publish on a MERGE-ONLY head.** A push with a real diff publishes
+  it; an `update-branch` or a bare merge commit does not, even though Pullfrog reviews and APPROVES
+  that exact commit. It arrives later from the mention runs, so wait. **Never push an empty commit
+  to manufacture a diff**: a required check satisfied by a commit written to satisfy it proves
+  nothing.
+- **A red check is not always a defect.** On 974 a `Type Check` red was `npm error code ECONNRESET`
+  inside `npm ci`, while the same commit passed uncached locally. Read the log before ordering a
+  round.
+- **Rounds that keep opening new findings mean the STATE MODEL is wrong.** 973 took six. Rounds 3
+  and 4 each fixed one finding and opened the next, until round 5 replaced four disagreeing replay
+  flags with one state. Order the model change rather than a third guard.
+- **A test that was never shown to fail has not been shown to notice anything.** 971 shipped eight
+  press tests that all stayed green with both handlers replaced by no-ops. The order that fixed it
+  required running that no-op experiment and capturing the output before and after.
+- **A worker killed for memory or ceiling has usually COMMITTED.** All six did. Read the worktree
+  before assuming loss. The orchestrator may then run the verification and push that commit itself,
+  which is delivery rather than editing and saves a launch. Say so plainly in the pull request body,
+  and never claim red-first runs that happened only inside the killed session.
+- **A refusal with a reason beats a guess.** `#551` round 1 was pointed at `main`, where no Cloud
+  system exists at all, and the worker stopped before editing anything rather than inventing a
+  config block. Verify such a refusal, then fix the ORDER.
 ## State
 
-Read live 2026-09-15 at 18:00 UTC. `redesign/main` is `2cf18c36`.
+Read live 2026-09-16 at 01:30 UTC. `redesign/main` is `c4071c5a`. `main` is `adc070bc` and FINAL:
+the beta release shipped and no pull request is open against it.
 
-**A second effort now runs beside this one.** `.claude/specs/beta-release.md` covers the fixes that
-ship to the Play open track off `main`. It is separate work with its own pull requests, and
-`.github/workflows/redesign-drift.yml` carries anything it lands into `redesign/main`. When the
-machine cannot run both, the release wins and this effort is what gets stopped: Thomas said "the pc
-is very slow, maybe too many workers, fix this" on 2026-09-15, and **three concurrent workers is the
-working ceiling on this machine**.
+**The second effort is DONE.** `.claude/specs/beta-release.md` is now a record, not a queue. Its
+constraints still bite and are worth reading once. Its five merges reach this branch through the
+drift merge, `#556`, which is the one piece of integration work left over from it.
 
-### Merged during the 2026-09-15 run
+### Merged to `redesign/main` on 2026-09-15 into 09-16
 
-962 Wrapped stage 6, the page motion, as `2cf18c36`.
+    969  c9883aca  About stages 6 to 8, the support request states
+    959  f3ea49ca  Progresso stage 5b, the linked goal limit ordering
+    980  c4071c5a  Cloud submissions off by default (`#551`, closed)
 
-### Open pull requests, all against `redesign/main`
+`#551` is worth knowing about: a Cloud submission now exits before any lock, receipt or Codex
+contact, the flag cannot be bypassed from the command line, and the recovery paths for
+already-started work still function. That closes the failure that returned five empty diffs in one
+day. **Do not pass `--cloud`; it will refuse, and that is correct.**
 
-| pull request | state |
-|---|---|
-| 970 | `/progress` generic plus `--full`. Two findings from a review, no round run |
-| 969 | About stages 6 to 8. APPROVED at `9dc11daf` after the round-4 fix |
-| 963 | Wrapped stage 7. APPROVED, merge-forward landed at `8d69cb53`, needs a re-review at that head |
-| 959 | Progresso stage 5b. APPROVED, merge-forward landed at `061dddb7`, review-harness block written by hand |
+### Open pull requests against `redesign/main`
 
-959's `Redesign Review Harness` was cleared by running the `interface-review` and `better-interface`
-sweep as the orchestrator and writing the block into the pull request body. That sweep found one
-pre-existing MEDIUM: both platforms hand-build the linked-habit row rather than using the canonical
-`ListRow` the canvas draws with `on-click`, so a linked habit cannot be opened. `#473` owns it.
+| pull request | head | state |
+|---|---|---|
+| 979 | `cbe08904` | the drift merge, `#556`. A worker is mid-merge. Approved earlier at `aa1b8105`, and its one finding is already fixed in `e9ecd7fd` |
+| 963 | `8d69cb53` | Wrapped stage 7. Two P1s were opened on 2026-09-15 and are NOT fixed: the `"0000"` year and the Expo cached launch response. Round 2 order is on `#63` |
+| 970 | `e15d5228` | `/progress` generic plus `--full`. DIRTY, two findings, no round run |
+
+### The drift merge, `#556`, is the first thing to finish
+
+It exists because `redesign/main` no longer contained `main`, and that broke more than tidiness:
+every orchestrator tool refuses to run from a stale `redesign/main` checkout, including
+`launch-worker.mjs`. The workaround was to move the orchestrating checkout to `main`, which cost the
+`progress`, `questions`, `drift-review` and `sleep` skills, because those exist only on
+`redesign/main`.
+
+Rounds 1 and 2 kept re-conflicting because each `main` merge moved the target. `main` is now final,
+so round 3 merges once and stays merged. **Once 979 lands, put the orchestrating checkout back on
+`redesign/main` and the skills return.**
+
+Four behaviours from `main` must survive its conflicts, each a defect someone hit:
+bulk selection targeting only rendered habits including a valid empty set; one replay state for the
+offline queue; the Astra marker rather than `Sparkles`; and the corrected AA status text colours.
 
 ### Not started, or half started
 
-- **`#545`**, new this session: **196 of the 367 suppressed lint violations belong to surfaces whose
-  screen ticket is already CLOSED**, so no open ticket reaches them. Five stages, file-by-file with
-  per-rule counts. Stage 1 is the habit form fields, 81 violations across 11 files; its worker was
-  stopped for machine load with no commits and 13 files dirty in
-  `C:/Users/thoma/orca/workspaces/orbit-ui-mobile/ticket-545-form-fields`.
-- **`#549`**, new this session: a day older than seven days switches off every habit action, not just
-  logging. `today-date.ts:16-22` returns `read-only`, `habit-row-trailing.tsx:123` disables the menu
-  button and `habit-row.tsx:300` returns early, so the three-dot control is silently dead. Thomas
-  approved the rule: edit, duplicate, move, add sub-habit, select, open sub-habits and delete stay
-  available on every day; only logging, skip and reschedule are gated, each with a stated reason.
-- **`#546`**, new this session: `Gate Charter` never runs `npm ci`, so `check-gate-charter.mjs` dies
-  on a missing `js-yaml` and D92's fail-closed registry has never executed once. **D95 forbids this
-  run fixing it**, because every pull request here is judged by `Guards`. A later run does it.
-- **`#67` onboarding stage 1** is BUILT and STAGED, not committed: 132 files, +133 and -10,822, the
-  tour, the push prompt and the template pack step deleted on both platforms. The root type-check
-  fails with five `TS2554`s and the surface manifest is untouched. A round 2 order is the newest
-  comment on `#67`.
+- **`#545`**, 196 suppressed violations on surfaces whose screen ticket already closed. Stage 1 IS
+  committed as `49a913bb` in `ticket-545-form-fields`, 14 files with 63 suppressions dropped from
+  `apps/web/eslint-suppressions.json`, seven commits unpushed. It needs a merge-forward and a push,
+  not a rewrite. A delivery-only order is already the newest comment on `#545`.
+- **`#67` onboarding stage 1** is BUILT and STAGED, not committed: 132 files in
+  `ticket-67-onboarding-s1`. Round 2 order is the newest comment on `#67`.
+- **`#557`**, filed 2026-09-15: Android says "You were signed out" and offers Log in while the
+  session is still recoverable. `expiry-warning.tsx:116` renders `auth.login` with `handleLogin()`
+  behind it, and nothing in that component clears auth state, while the API client would have
+  refreshed silently on its next request. 974 fixed the WORDS; this fixes the ACTION.
+- **`#546`**, the Gate Charter that never installs `js-yaml`. **D95 still forbids the run that is
+  judged by `Guards` from fixing it.**
 - **`#76` stage 9**, **`#56` stage 13**, **`#71` stage 10**, **`#73` stage 3**, **`#53`**, **`#74`**,
-  and Progresso's six accessibility sweeps `#472`, `#473`, `#476`, `#477`, `#478`, `#480`.
-- **`#543`**, the custom radio callers the shared `RadioGroup` could not take. **`#544`**, the Codex
-  root `error.log` leak.
+  **`#543`**, **`#544`**, and Progresso's six sweeps `#472`, `#473`, `#476`, `#477`, `#478`, `#480`.
 
-### Worktree and branch debt
+### `orbit-api`, both still open on `main`
 
-Dirty and holding work: `ticket-67-onboarding-s1` 132 files, which is LIVE; `ticket-545-form-fields`
-13; `ticket-548-icon-suggest` 15, which belongs to the release effort; `ticket-351-primitives` 179,
-`orb-70-android-widget` 34, `orb65-red-evidence` 4 on a detached HEAD, `ticket-174-measure` 1, and
-`ticket-329-progresso-s5b` 2 with 1 unpushed, all old debt that blocks nothing.
-`ticket-335-avisos` shows 11 unpushed commits, an artefact of a squash that landed as 843. Four
-stashes, all from tickets that shipped. Three detached HEADs whose commits are reachable.
+Each has exactly ONE live finding and everything else green. Both were re-read at 19:46 UTC.
+
+- **521** `cc86c612`, `GetCalendarEventsQuery.cs:46`: `TimeOfDay` keeps seconds while the response is
+  truncated to `HH:mm`, so 10:00:10 to 10:00:50 emits equal times the bulk import rejects. Two other
+  threads on this pull request are already resolved.
+- **520** `ce610484`, `tools/gating-matrix.mjs:434`: `planRequirement` becomes `null` for any gate
+  not written in the one ternary shape the parser knows, publishing every caller as ungated while
+  tests stay green. The order refuses the cheap fix of adding a pattern and requires a three-way
+  distinction with a fail-closed unknown.
+
+A fresh order naming the exact live finding is the newest comment on `#526` and `#229`.
+
+### Worktree and branch debt, read 2026-09-16 at 01:30
+
+Holding real work: `ticket-545-form-fields` 7 unpushed; `ticket-556-drift-merge` 161 dirty with a
+merge in progress, which is the live worker; `ticket-67-onboarding-s1` 132 staged;
+`ticket-335-avisos` 11 unpushed, an artefact of a squash that landed as 843.
+
+Old debt that blocks nothing: `ticket-351-primitives` 179 dirty, `orb-70-android-widget` 34,
+`ticket-174-measure` 1, `ticket-329-progresso-s5b` 2.
+
+Four stashes, all from tickets that shipped. Four detached HEADs: `orb65-red-evidence` at `20d729c6`,
+`ticket-397-accent` at `a27a8e43`, `ticket-468-control` at `f1b2991c`, and `ticket-550-r3-red` at
+`386939e0`. Their commits are reachable.
+
+Two worktrees were created on 2026-09-16 and can be removed once used:
+`ticket-551-cloud-default`, cut from `main` and holding nothing, and `handoff-0916`.
+**Never `git worktree remove --force` on Windows**: it follows a junction and deletes the target.
+Remove junctions with `rmdir` first.
 
 ### Tickets
 
-**133 carry `repo:ui`**, up from 123 because this session filed `#545`, `#546`, `#547`, `#548`,
-`#549`, `#550`, `#551`, `#552`, `#553`, `#554` and `#555`. Reproduce with
+**129 carry `repo:ui`**, down from 133. Reproduce with
 
-    gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 200
+    gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 300
 
-Eleven screen tickets remain open: `#53`, `#56`, `#57`, `#58`, `#63`, `#67`, `#71`, `#73`, `#74`,
-`#76`, `#329`. `#57` and `#58` both close on Progresso carrying their sections, and 959 is still open.
+All eleven screen tickets are still open: `#53`, `#56`, `#57`, `#58`, `#63`, `#67`, `#71`, `#73`,
+`#74`, `#76`, `#329`.
 
 ## Open questions
 

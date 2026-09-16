@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
 import { Repeat, type Icon } from '@/components/ui/icons'
 import type { Goal } from '@orbit/shared/types/goal'
 
@@ -119,17 +119,19 @@ interface GoalLinkedHabitsSectionProps {
   title: string
   emptyLabel: string
   linkedHabits: NonNullable<Goal['linkedHabits']>
+  notice?: ReactNode
 }
 
-/** Linked-habits list: ListRow language, icon well, Rubik 16 title, hairline dividers. */
 export function GoalLinkedHabitsSection({
   title,
   emptyLabel,
   linkedHabits,
+  notice,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
   return (
     <div data-tour="tour-goal-link" className="flex flex-col gap-3">
       <h3 className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h3>
+      {notice}
       {linkedHabits.length === 0 ? (
         <p className="text-[14px] text-[var(--fg-3)]">{emptyLabel}</p>
       ) : <ul className="list-none" style={{ margin: 0, padding: 0 }}>

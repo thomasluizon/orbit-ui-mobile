@@ -59,8 +59,9 @@ One entry per decision, in this shape:
 If no `/orchestrate` run is active, `/sleep` must enter `/orchestrate <scope> --sleep` in this
 session. Read and execute `.claude/skills/orchestrate/SKILL.md`, including preflight and step 2b,
 before you start queue work or end a turn. Use the supplied focus to select its scope. Without a
-focus, use its `--auto` queue selection. Apply `--cloud --parallel` only for the repository bound by
-`cloud.repositoryKey`. Do not run a separate loop from this document. If the runtime cannot execute
+focus, use its `--auto` queue selection. Apply `--cloud --parallel` only when `cloud.enabled` is true
+and only for the repository bound by `cloud.repositoryKey`. No command-line option overrides a false
+flag. Do not run a separate loop from this document. If the runtime cannot execute
 that lifecycle with a background task that re-invokes this session, report that unattended
 continuation is unavailable. A decision log or a run record alone never establishes a working
 sleep run.
@@ -132,10 +133,10 @@ serial lane. `materialize-cloud-result.mjs` is serial across the fleet: local te
 commit, push and pull request delivery happen on one laptop, one ticket at a time. Core count does
 not set the local pool, and sleep mode does not raise it.
 
-Cloud implementations use `caps.cloudParallelTasks`, currently **8**. `--cloud` is bound to one
-repository by `cloud.repositoryKey`, currently `ui`; `orbit-api` and `orbit-landing-page` tickets
-stay local. These are the same caps used by `/orchestrate` and `.claude/orchestrator.json`, as in
-#829's D89 operating contract. Both attended and sleep runs use these caps.
+Cloud implementations are unavailable while `cloud.enabled` is false. When enabled, they use
+`caps.cloudParallelTasks`, currently **8**, and remain bound to `ui` by `cloud.repositoryKey`.
+`orbit-api` and `orbit-landing-page` tickets stay local. These are the same caps used by
+`/orchestrate` and `.claude/orchestrator.json`, as in #829's D89 operating contract.
 
 ## 6. Hard stops, which sleep mode never relaxes
 
@@ -196,8 +197,9 @@ productive and is not. Prefer driving what is open to mergeable.
 
 ## 8b. Generate one completion contract for the worker's mode
 
-Use `tools/compose-prompt.mjs` for local orders and pass `--cloud` for Cloud orders. Do not append
-push-and-stop text to every order: the canonical generator selects one consistent contract.
+Use `tools/compose-prompt.mjs` for local orders. Only pass `--cloud` for Cloud orders after confirming
+`.claude/orchestrator.json` has `cloud.enabled: true`. Do not append push-and-stop text to every
+order: the canonical generator selects one consistent contract.
 
 **Local order:** compile and run focused tests, commit, run broader verification, push and open or
 update exactly one non-draft pull request against the supplied base. Report its URL and tests, then
