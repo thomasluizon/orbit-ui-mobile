@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 
 const mockSubscribePush = vi.fn()
 const mockUnsubscribePush = vi.fn()
-vi.mock('@/app/actions/notifications', () => ({
+vi.mock('@/lib/actions/notifications', () => ({
   subscribePush: (...args: unknown[]) => mockSubscribePush(...args),
   unsubscribePush: (...args: unknown[]) => mockUnsubscribePush(...args),
 }))

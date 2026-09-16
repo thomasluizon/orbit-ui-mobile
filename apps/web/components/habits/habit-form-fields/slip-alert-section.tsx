@@ -17,11 +17,11 @@ export function SlipAlertSection({
   const router = useRouter()
 
   return (
-    <div className="space-y-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className="flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
       {hasProAccess ? (
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <ShieldAlert size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
               <span
                 className="text-[var(--fg-1)]"
@@ -30,7 +30,7 @@ export function SlipAlertSection({
                 {t('habits.form.slipAlert')}
               </span>
             </div>
-            <span className="text-[13px] text-[var(--fg-3)]" style={{ marginLeft: 30 }}>
+            <span className="text-[13px] text-[var(--fg-3)]" style={{ marginLeft: 32 }}>
               {t('habits.form.slipAlertDescription')}
             </span>
           </div>
@@ -47,7 +47,7 @@ export function SlipAlertSection({
           onClick={() => router.push('/upgrade')}
         >
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <ShieldAlert size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />
               <span
                 className="text-[var(--fg-3)]"
@@ -57,7 +57,7 @@ export function SlipAlertSection({
               </span>
               <Badge >{t('common.proBadge')}</Badge>
             </div>
-            <span className="text-[13px] text-[var(--fg-3)]" style={{ marginLeft: 30 }}>
+            <span className="text-[13px] text-[var(--fg-3)]" style={{ marginLeft: 32 }}>
               {t('habits.form.slipAlertDescription')}
             </span>
           </div>

@@ -42,7 +42,6 @@ interface CalendarGridDayProps {
   cell: CalendarMonthDay
   future: boolean
   inRange: boolean
-  isFirst: boolean
   onSelectDay: (dateStr: string) => void
   selected: boolean
   words: DayCellWords
@@ -129,7 +128,6 @@ function CalendarGridDay({
   cell,
   future,
   inRange,
-  isFirst,
   onSelectDay,
   selected,
   words,
@@ -165,7 +163,6 @@ function CalendarGridDay({
       data-calendar-date={cell.dateStr}
       data-in-range={inRange ? 'true' : undefined}
       data-selected={selected ? 'true' : undefined}
-      data-tour={isFirst ? 'tour-calendar-day' : undefined}
       style={{
         position: 'relative',
         display: 'grid',
@@ -237,7 +234,6 @@ export function CalendarGrid({
     return (
       <div
         data-testid="calendar-grid"
-        data-tour="tour-calendar-grid"
         style={{ padding: '16px 4px 8px', overflowX: 'auto' }}
       >
         <div
@@ -264,7 +260,6 @@ export function CalendarGrid({
   return (
     <div
       data-testid="calendar-grid"
-      data-tour="tour-calendar-grid"
       style={{ padding: '16px 4px 8px', overflowX: 'auto' }}
     >
       <div
@@ -285,7 +280,7 @@ export function CalendarGrid({
           label={displayMonthYear(currentMonth)}
           minimumDayGridHeight={CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT}
         >
-          {gridDays.map((cell, index) => {
+          {gridDays.map((cell) => {
             const future = cell.dateStr > todayKey
             const selected = cell.isCurrentMonth && (
               cell.dateStr === selectedDateStr ||
@@ -299,7 +294,6 @@ export function CalendarGrid({
                 cell={cell}
                 future={future}
                 inRange={inRange}
-                isFirst={index === 0}
                 onSelectDay={onSelectDay}
                 selected={selected}
                 words={words}

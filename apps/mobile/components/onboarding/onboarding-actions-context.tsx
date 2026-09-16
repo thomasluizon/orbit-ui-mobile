@@ -35,7 +35,6 @@ export interface OnboardingActions {
 
 interface OnboardingActionsContextValue {
   actions: OnboardingActions
-  hasProAccess: boolean
   isLive: boolean
 }
 
@@ -44,18 +43,16 @@ const OnboardingActionsContext = createContext<OnboardingActionsContextValue | n
 /** Provides the active onboarding action set (pre-auth buffering or post-auth live) to the steps below. */
 export function OnboardingActionsProvider({
   actions,
-  hasProAccess,
   isLive,
   children,
 }: Readonly<{
   actions: OnboardingActions
-  hasProAccess: boolean
   isLive: boolean
   children: ReactNode
 }>) {
   const value = useMemo(
-    () => ({ actions, hasProAccess, isLive }),
-    [actions, hasProAccess, isLive],
+    () => ({ actions, isLive }),
+    [actions, isLive],
   )
   return (
     <OnboardingActionsContext.Provider value={value}>
@@ -75,11 +72,6 @@ function useOnboardingActionsContext(): OnboardingActionsContextValue {
 /** Reads the onboarding actions from context; throws when used outside the provider. */
 export function useOnboardingActions(): OnboardingActions {
   return useOnboardingActionsContext().actions
-}
-
-/** Whether the current onboarding mode grants the Pro-gated goal step. */
-export function useOnboardingHasProAccess(): boolean {
-  return useOnboardingActionsContext().hasProAccess
 }
 
 /** Whether onboarding is running post-auth (live). False in the pre-auth buffering flow. */

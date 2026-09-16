@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { habitKeys } from '@orbit/shared/query'
-import { updateAiSummary, updateProactiveAstra } from '@/app/actions/profile'
+import { updateAiSummary, updateProactiveAstra } from '@/lib/actions/profile'
 import { Switch } from '@/components/ui/switch'
 
 export interface AstraSettingsController {

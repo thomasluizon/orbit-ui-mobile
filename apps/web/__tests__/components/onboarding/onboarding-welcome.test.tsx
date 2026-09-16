@@ -27,9 +27,9 @@ const stubActions: OnboardingActions = {
   finishOnboarding: vi.fn().mockResolvedValue(undefined),
 }
 
-function renderWelcome(hasProAccess: boolean) {
+function renderWelcome() {
   return render(
-    <OnboardingActionsProvider actions={stubActions} hasProAccess={hasProAccess} isLive={false}>
+    <OnboardingActionsProvider actions={stubActions} isLive={false}>
       <OnboardingWelcome />
     </OnboardingActionsProvider>,
   )
@@ -37,17 +37,17 @@ function renderWelcome(hasProAccess: boolean) {
 
 describe('OnboardingWelcome', () => {
   it('renders welcome title heading', () => {
-    renderWelcome(false)
+    renderWelcome()
     expect(screen.getByText('onboarding.flow.welcome.title')).toBeInTheDocument()
   })
 
   it('renders the week start day section label', () => {
-    renderWelcome(false)
+    renderWelcome()
     expect(screen.getByText('onboarding.flow.welcome.weekStart')).toBeInTheDocument()
   })
 
   it('renders exactly the monday and sunday week-start choices', () => {
-    renderWelcome(false)
+    renderWelcome()
     expect(
       screen.getByRole('button', { name: 'settings.weekStartDay.monday' }),
     ).toBeInTheDocument()
@@ -56,9 +56,8 @@ describe('OnboardingWelcome', () => {
     ).toBeInTheDocument()
   })
 
-  it('does not require a color scheme choice for any user', () => {
-    renderWelcome(false)
-    renderWelcome(true)
+  it('does not require a color scheme choice', () => {
+    renderWelcome()
     expect(screen.queryByText('onboarding.flow.welcome.colorScheme')).not.toBeInTheDocument()
   })
 })

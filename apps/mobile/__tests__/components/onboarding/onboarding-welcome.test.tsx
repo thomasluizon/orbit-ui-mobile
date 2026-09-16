@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
+  ONBOARDING_TOTAL_STEPS,
   ONBOARDING_WEEK_START_OPTIONS,
 } from '@orbit/shared/utils'
 import { OnboardingWelcome } from '@/components/onboarding/onboarding-welcome'
@@ -52,15 +53,15 @@ describe('OnboardingWelcome helpers', () => {
     ])
   })
 
-  it('keeps the free-user display total one step shorter', () => {
-    expect(getOnboardingDisplayTotal(true)).toBe(7)
-    expect(getOnboardingDisplayTotal(false)).toBe(6)
+  it('uses the same three-step display for every account', () => {
+    expect(getOnboardingDisplayTotal()).toBe(ONBOARDING_TOTAL_STEPS)
   })
 
-  it('compresses the display step after the skipped goal step for free users', () => {
-    expect(getOnboardingDisplayStep(0, false)).toBe(1)
-    expect(getOnboardingDisplayStep(5, false)).toBe(5)
-    expect(getOnboardingDisplayStep(5, true)).toBe(6)
+  it('maps the zero-based flow index to the displayed position', () => {
+    expect(getOnboardingDisplayStep(0)).toBe(1)
+    expect(getOnboardingDisplayStep(ONBOARDING_TOTAL_STEPS - 1)).toBe(
+      ONBOARDING_TOTAL_STEPS,
+    )
   })
 })
 

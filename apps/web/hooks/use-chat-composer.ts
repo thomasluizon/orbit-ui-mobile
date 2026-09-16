@@ -35,6 +35,7 @@ import {
   invalidateAgentQueries,
   selectActionInvalidations,
 } from '@orbit/shared/hooks'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 import {
   buildRecentChatHistory,
   detectDefaultTimeFormat,
@@ -424,12 +425,11 @@ export function useChatComposer() {
 
     try {
       armIdleTimer()
-      const response = await fetch(API.chat.stream, {
+      const response = await sessionAwareFetch(API.chat.stream, {
         method: 'POST',
         body: buildChatFormData(attempted),
         signal: controller.signal,
       })
-
       if (!response.ok || !response.body) {
         const errorBody = (await response.json().catch(() => null)) as
           | { error?: string; errorCode?: string }

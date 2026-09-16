@@ -9,7 +9,7 @@ import {
 import {
   updateColorScheme as updateColorSchemeAction,
   updateThemePreference as updateThemePreferenceAction,
-} from '@/app/actions/profile'
+} from '@/lib/actions/profile'
 import {
   applyThemeTokensToDOM,
   normalizeColorScheme,

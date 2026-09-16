@@ -17,7 +17,7 @@ import {
   type SupportSubjectId,
 } from '@orbit/shared/utils'
 import { isValidEmail } from '@orbit/shared/utils/email'
-import { sendSupportMessage } from '@/app/actions/support'
+import { sendSupportMessage } from '@/lib/actions/support'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { SupportSuccessState } from './_components/support-success-state'

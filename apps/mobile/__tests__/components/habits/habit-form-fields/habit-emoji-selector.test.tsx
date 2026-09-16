@@ -75,6 +75,7 @@ function renderSelector(
   selectedEmoji = "",
   onSelect = vi.fn(),
   wellSize?: number,
+  isDisabled = false,
 ) {
   let tree!: TestTree;
   TestRenderer.act(() => {
@@ -85,6 +86,7 @@ function renderSelector(
         styles={styles}
         onSelect={onSelect}
         wellSize={wellSize}
+        isDisabled={isDisabled}
       />,
     );
   });
@@ -164,5 +166,15 @@ describe("HabitEmojiSelector mobile", () => {
     press(remove);
     expect(removal.onSelect).toHaveBeenCalledWith("");
     expect(mockCloseSheet).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables manual emoji changes while a suggestion is pending", () => {
+    const { tree, onSelect } = renderSelector("", vi.fn(), undefined, true);
+    const opener = button(tree, "habits.form.emojiOpenPicker");
+
+    expect(opener.props.disabled).toBe(true);
+    expect(opener.props.accessibilityState).toEqual({ disabled: true });
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(tree.root.findAll((node) => node.type === "Sheet")).toHaveLength(0);
   });
 });

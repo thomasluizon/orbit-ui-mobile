@@ -69,7 +69,7 @@ const dangerPillStyles = StyleSheet.create({
     gap: 8,
     borderRadius: 999,
     paddingVertical: 16,
-    paddingHorizontal: 26,
+    paddingHorizontal: 24,
     width: '100%',
   },
   disabled: {
@@ -146,6 +146,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
       })
 
       offlineQueue.clear()
+      await useOfflineSyncStore.getState().clearDrops()
       if (isQueuedResult(result)) {
         offlineQueue.enqueue(queuedResetMutation)
       }
@@ -194,7 +195,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                   { backgroundColor: `${tokens.statusOverdue}24` },
                 ]}
               >
-                <RotateCcw size={34} color={tokens.statusOverdue} strokeWidth={1.8} />
+                <RotateCcw size={24} color={tokens.statusOverdue} strokeWidth={1.8} />
               </View>
               <Text
                 style={[
@@ -218,7 +219,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 </Text>
                 {deletedItems.map((item) => (
                   <View key={item} style={styles.boxItem}>
-                    <X size={14} color={tokens.statusBad} strokeWidth={1.8} />
+                    <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
                     <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
                       {item}
                     </Text>
@@ -237,7 +238,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                 </Text>
                 {preservedItems.map((item) => (
                   <View key={item} style={styles.boxItem}>
-                    <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
+                    <Check size={16} color={tokens.statusDone} strokeWidth={1.8} />
                     <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
                       {item}
                     </Text>
@@ -316,7 +317,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 24,
     paddingBottom: 8,
     gap: 16,
   },

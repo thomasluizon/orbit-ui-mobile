@@ -97,7 +97,7 @@ export function ReminderSection({
                   accessibilityLabel={t("habits.form.removeReminder")}
                   onPress={() => removeReminder(time)}
                 >
-                  <X size={13} color={tokens.primary} strokeWidth={2.2} />
+                  <X size={16} color={tokens.primary} strokeWidth={2.2} />
                 </Pressable>
               </View>
             ))}
@@ -120,7 +120,7 @@ export function ReminderSection({
               setShowCustomInput(false);
             }}
           >
-            <Plus size={14} color={tokens.fg2} strokeWidth={2} />
+            <Plus size={16} color={tokens.fg2} strokeWidth={2} />
             <Text style={sectionStyles.addButtonText}>
               {t("habits.form.reminderAdd")}
             </Text>

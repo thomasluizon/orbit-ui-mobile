@@ -63,8 +63,6 @@ interface HabitRowProps {
   childProgress?: { done: number; total: number }
   /** Whether to render the small linked-goal indicator (5px primary dot before the status). */
   showLinkedGoalDot?: boolean
-  /** Optional data attribute (`data-tour`) used by the feature tour. */
-  tourTargetId?: string
   hasProAccess?: boolean
   actions?: HabitRowActions
 }
@@ -160,7 +158,6 @@ export function HabitRow({
   hasSubHabits = false,
   expanded = false,
   childProgress,
-  tourTargetId,
   hasProAccess = true,
   actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
@@ -205,7 +202,6 @@ export function HabitRow({
 
   return (
     <div
-      data-tour={tourTargetId}
       data-testid="habit-row"
       data-habit-title={habit.title}
       data-depth={depth}

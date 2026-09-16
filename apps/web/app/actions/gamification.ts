@@ -12,15 +12,15 @@ import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export async function reportAchievementEvent(
   eventKey: AchievementEventKey,
-): Promise<ReportEventResponse> {
-  return serverAuthFetch(
+): Promise<ServerActionResult<ReportEventResponse>> {
+  return wrapServerAction(() => serverAuthFetch(
     API.gamification.reportEvent,
     {
       method: 'POST',
       body: JSON.stringify({ eventKey }),
     },
     reportEventResponseSchema,
-  )
+  ))
 }
 
 export async function repairStreakGap(dates: string[]): Promise<ServerActionResult<StreakInfo>> {

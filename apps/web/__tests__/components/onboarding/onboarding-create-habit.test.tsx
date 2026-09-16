@@ -27,7 +27,7 @@ const stubActions: OnboardingActions = {
 
 function renderStep(onCreated: (id: string, title: string) => void) {
   return render(
-    <OnboardingActionsProvider actions={stubActions} hasProAccess={false} isLive={false}>
+    <OnboardingActionsProvider actions={stubActions} isLive={false}>
       <OnboardingCreateHabit onCreated={onCreated} />
     </OnboardingActionsProvider>,
   )

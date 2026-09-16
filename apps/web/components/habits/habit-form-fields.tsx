@@ -54,6 +54,8 @@ import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced
 
 interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   titleInputRef?: RefObject<HTMLInputElement | null>
+  onSuggestEmoji?: () => void
+  isSuggestingEmoji?: boolean
 }
 
 function renderSubHabitChildren(
@@ -226,7 +228,9 @@ export function HabitFormFields({
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
+  onSuggestEmoji,
   isSuggesting = false,
+  isSuggestingEmoji = false,
   readPhraseLocally = false,
   lockedGeneral = null,
   startDate,
@@ -386,6 +390,9 @@ export function HabitFormFields({
           controller.setTitle(value)
         }}
         onEmojiSelect={controller.setEmoji}
+        onSuggestEmoji={onSuggestEmoji}
+        isSuggestingEmoji={isSuggestingEmoji}
+        isSuggestionDisabled={isSuggesting || isSuggestingEmoji}
         onToggleDay={controller.toggleDay}
         onQuantityChange={controller.setQuantity}
         onModeChange={controller.setScheduleMode}

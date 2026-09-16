@@ -16,7 +16,7 @@ import {
   useLinkHabitsToGoal,
 } from '@/hooks/use-goals'
 import { goalKeys } from '@orbit/shared/query'
-import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
+import type { Goal, GoalDetailWithMetrics, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
@@ -42,7 +42,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/app/actions/goals', () => ({
+vi.mock('@/lib/actions/goals', () => ({
   createGoal: vi.fn(),
   updateGoal: vi.fn(),
   deleteGoal: vi.fn(),
@@ -191,7 +191,7 @@ describe('useCreateGoal', () => {
   })
 
   it('calls createGoal action', async () => {
-    const { createGoal } = await import('@/app/actions/goals')
+    const { createGoal } = await import('@/lib/actions/goals')
     const mockedCreateGoal = vi.mocked(createGoal)
     mockedCreateGoal.mockResolvedValue({ id: 'new-goal' } as any)
 
@@ -220,7 +220,7 @@ describe('useUpdateGoal', () => {
   })
 
   it('calls updateGoal action with goalId and data', async () => {
-    const { updateGoal } = await import('@/app/actions/goals')
+    const { updateGoal } = await import('@/lib/actions/goals')
     const mockedUpdateGoal = vi.mocked(updateGoal)
     mockedUpdateGoal.mockResolvedValue(undefined as any)
 
@@ -248,7 +248,7 @@ describe('useDeleteGoal', () => {
   })
 
   it('calls deleteGoal action', async () => {
-    const { deleteGoal } = await import('@/app/actions/goals')
+    const { deleteGoal } = await import('@/lib/actions/goals')
     const mockedDeleteGoal = vi.mocked(deleteGoal)
     mockedDeleteGoal.mockResolvedValue(undefined as any)
 
@@ -264,7 +264,7 @@ describe('useDeleteGoal', () => {
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
     mockShowQueued.mockReset()
-    const { deleteGoal, restoreGoal } = await import('@/app/actions/goals')
+    const { deleteGoal, restoreGoal } = await import('@/lib/actions/goals')
     vi.mocked(deleteGoal).mockResolvedValue(undefined as never)
     vi.mocked(restoreGoal).mockResolvedValue(undefined as never)
 
@@ -298,7 +298,7 @@ describe('useRestoreGoal', () => {
   })
 
   it('calls restoreGoal action, invalidates goal lists, and confirms', async () => {
-    const { restoreGoal } = await import('@/app/actions/goals')
+    const { restoreGoal } = await import('@/lib/actions/goals')
     vi.mocked(restoreGoal).mockResolvedValue(undefined as never)
 
     const queryClient = new QueryClient({
@@ -320,7 +320,7 @@ describe('useRestoreGoal', () => {
   })
 
   it('surfaces an error toast when restore fails', async () => {
-    const { restoreGoal } = await import('@/app/actions/goals')
+    const { restoreGoal } = await import('@/lib/actions/goals')
     vi.mocked(restoreGoal).mockRejectedValue(new Error('nope'))
 
     const { result } = renderHook(() => useRestoreGoal(), { wrapper: createWrapper() })
@@ -343,7 +343,7 @@ describe('useUpdateGoalProgress', () => {
   })
 
   it('calls the progress action and enqueues one target completion', async () => {
-    const { updateGoalProgress } = await import('@/app/actions/goals')
+    const { updateGoalProgress } = await import('@/lib/actions/goals')
     const mockedUpdateProgress = vi.mocked(updateGoalProgress)
     mockedUpdateProgress.mockResolvedValue(undefined as any)
 
@@ -371,6 +371,49 @@ describe('useUpdateGoalProgress', () => {
     })
     expect(mockSetGoalCompleted).toHaveBeenCalledTimes(1)
   })
+
+  it('optimistically completes a manual goal when progress reaches its target', async () => {
+    const { updateGoalProgress } = await import('@/lib/actions/goals')
+    vi.mocked(updateGoalProgress).mockResolvedValue(undefined as never)
+    const goal = createMockGoal({
+      id: 'g-1',
+      currentValue: 11,
+      targetValue: 12,
+      progressPercentage: 92,
+      status: 'Active',
+      isProgressDerived: false,
+    })
+    const detail: GoalDetailWithMetrics = {
+      goal: { ...goal, progressHistory: [] },
+      metrics: {
+        progressPercentage: 92,
+        velocityPerDay: 0,
+        projectedCompletionDate: null,
+        daysToDeadline: null,
+        trackingStatus: 'on_track',
+        habitAdherence: [],
+      },
+    }
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    queryClient.setQueryData(goalKeys.lists(), [goal])
+    queryClient.setQueryData(goalKeys.detail('g-1'), detail)
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    const { result } = renderHook(() => useUpdateGoalProgress(), { wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        goalId: 'g-1',
+        data: { currentValue: 12 },
+      })
+    })
+
+    expect(queryClient.getQueryData<Goal[]>(goalKeys.lists())?.[0]?.status).toBe('Completed')
+    expect(queryClient.getQueryData<GoalDetailWithMetrics>(goalKeys.detail('g-1'))?.goal.status).toBe('Completed')
+    expect(mockSetGoalCompleted).not.toHaveBeenCalled()
+  })
 })
 
 describe('useUpdateGoalStatus', () => {
@@ -380,7 +423,7 @@ describe('useUpdateGoalStatus', () => {
   })
 
   it('calls updateGoalStatus action', async () => {
-    const { updateGoalStatus } = await import('@/app/actions/goals')
+    const { updateGoalStatus } = await import('@/lib/actions/goals')
     const mockedUpdateStatus = vi.mocked(updateGoalStatus)
     mockedUpdateStatus.mockResolvedValue(undefined as any)
 
@@ -476,7 +519,7 @@ describe('useReorderGoals', () => {
   })
 
   it('calls reorderGoals action', async () => {
-    const { reorderGoals } = await import('@/app/actions/goals')
+    const { reorderGoals } = await import('@/lib/actions/goals')
     const mockedReorder = vi.mocked(reorderGoals)
     mockedReorder.mockResolvedValue(undefined as any)
 
@@ -496,7 +539,7 @@ describe('useReorderGoals', () => {
   })
 
   it('rolls back on error', async () => {
-    const { reorderGoals } = await import('@/app/actions/goals')
+    const { reorderGoals } = await import('@/lib/actions/goals')
     const mockedReorder = vi.mocked(reorderGoals)
     mockedReorder.mockRejectedValue(new Error('Server error'))
 
@@ -522,7 +565,7 @@ describe('useLinkHabitsToGoal', () => {
   })
 
   it('calls linkHabitsToGoal action', async () => {
-    const { linkHabitsToGoal } = await import('@/app/actions/goals')
+    const { linkHabitsToGoal } = await import('@/lib/actions/goals')
     const mockedLink = vi.mocked(linkHabitsToGoal)
     mockedLink.mockResolvedValue(undefined as any)
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { requestDeletion } from '@/app/actions/auth'
+import { requestDeletion } from '@/lib/actions/auth'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -91,7 +91,7 @@ export function DeleteAccountModal({
               background: 'color-mix(in srgb, var(--status-bad) 14%, transparent)',
             }}
           >
-            <TriangleAlert size={34} strokeWidth={1.8} color="var(--status-bad)" />
+            <TriangleAlert size={24} strokeWidth={1.8} color="var(--status-bad)" />
           </div>
           <div className="flex flex-col" style={{ gap: 8 }}>
             <p style={{ color: 'var(--status-bad-text)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>

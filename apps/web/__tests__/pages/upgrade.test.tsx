@@ -39,7 +39,7 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => mockGoBackOrFallback,
 }))
 
-vi.mock('@/app/actions/subscription', () => ({
+vi.mock('@/lib/actions/subscription', () => ({
   openCustomerPortal: (...args: unknown[]) => mockOpenCustomerPortal(...args),
 }))
 

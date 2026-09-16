@@ -11,7 +11,6 @@ import {
 } from 'react'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { Achievement } from '@orbit/shared/types/gamification'
@@ -59,7 +58,7 @@ import {
   Zap,
   type IconProps,
 } from '@/components/ui/icons'
-import { PillButton } from '@/components/ui/pill-button'
+import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -113,9 +112,8 @@ function WindowFrame({ children, title }: Readonly<{ children: ReactNode; title:
 }
 
 function LockedCard({ title, body, action }: Readonly<{ title: string; body: string; action: string }>) {
-  const router = useRouter()
   return (
-    <div data-testid="progress-locked-card" className="flex flex-col items-start gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div data-testid="progress-locked-card" className="flex flex-col items-start gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
       <div className="flex items-center gap-3">
         <Lock size={20} strokeWidth={2} aria-hidden="true" className="text-[var(--fg-2)]" />
         <ProBadge alwaysVisible />
@@ -124,7 +122,7 @@ function LockedCard({ title, body, action }: Readonly<{ title: string; body: str
         <p className="text-[16px] font-medium text-[var(--fg-1)]">{title}</p>
         <p className="text-[14px] text-[var(--fg-3)]">{body}</p>
       </div>
-      <PillButton variant="ghost" size="sm" onClick={() => router.push('/upgrade')}>{action}</PillButton>
+      <PillLink href="/upgrade" variant="ghost" size="sm">{action}</PillLink>
     </div>
   )
 }
@@ -302,9 +300,10 @@ function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
 }
 
-function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
+function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
   goal: Goal
   index: number
+  total: number
   canReorder: boolean
   onMove: (goalId: string, target: number) => void
   onOpen: () => void
@@ -313,20 +312,35 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
   const { setNodeRef, listeners, transform, isDragging } = useSortable({ id: goal.id, disabled: !canReorder })
   const labelKey = getProgressGoalLabelKey(goal)
   const abandoned = goal.status === 'Abandoned'
+  const state = t(labelKey ?? 'goals.status.active')
+  const position = t('progressScreen.goals.position', { position: index + 1, total })
+  const accessibilityLabel = abandoned
+    ? t('progressScreen.goals.accessibleLabelWithoutProgress', { title: goal.title, state, position })
+    : t('progressScreen.goals.accessibleLabel', {
+        title: goal.title,
+        state,
+        progress: t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit }),
+        position,
+      })
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
     event.preventDefault()
     onMove(goal.id, index + (event.key === 'ArrowUp' ? -1 : 1))
   }
   return (
-    <button type="button" aria-label={goal.title} data-goal-id={goal.id} data-dragging={isDragging}
+    // eslint-disable-next-line local/max-button-words -- ORB-480 requires the control name to expose goal state, progress, and position.
+    <button type="button" aria-label={accessibilityLabel} data-goal-id={goal.id} data-dragging={isDragging}
       ref={setNodeRef} {...listeners}
-      style={{ transform: CSS.Transform.toString(transform) }}
+      style={{
+        translate: transform ? `${transform.x}px ${transform.y}px` : undefined,
+        transform: transform ? `scaleX(${transform.scaleX}) scaleY(${transform.scaleY})` : undefined,
+        transition: 'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)',
+      }}
       aria-roledescription={canReorder ? t('goals.dragItem') : undefined}
       aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
       onKeyDown={canReorder ? handleKeyDown : undefined}
       onClick={onOpen}
-      className="flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] data-[dragging=true]:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+      className="relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:scale-[0.96] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className={`text-[17px] font-medium ${abandoned ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</span>
         <span className="flex flex-wrap items-center gap-2">
@@ -342,14 +356,33 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
 function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {
   const headingId = useId()
   const t = useTranslations()
-  const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
-  const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
+  // WHY: Repeated text must move between mounted regions so assistive technology sees a DOM change. https://github.com/thomasluizon/orbit-tickets/issues/480
+  const [reorderAnnouncements, setReorderAnnouncements] = useState<readonly [string, string]>(['', ''])
+  const announceReorderResult = (message: string) => {
+    setReorderAnnouncements(([first]) => first === '' ? [message, ''] : ['', message])
+  }
   const filtered = filterProgressGoals(goals, filter)
+  const commitMove = (positions: NonNullable<ReturnType<typeof buildGoalMovePositions>>, goalId: string, target: number) => {
+    const goal = goals.find((item) => item.id === goalId)
+    if (!goal) return
+    reorder.mutate(positions, {
+      onSuccess: () => announceReorderResult(t('progressScreen.goals.reorderMoved', { title: goal.title, position: target + 1, total: goals.length })),
+    })
+  }
+  const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
   const move = (goalId: string, target: number) => {
+    const currentIndex = goals.findIndex((item) => item.id === goalId)
+    const goal = goals[currentIndex]
+    if (!goal) return
+    const boundedTarget = Math.max(0, Math.min(goals.length - 1, target))
     const positions = buildGoalMovePositions(goals, goalId, target)
-    if (positions) reorder.mutate(positions)
+    if (!positions) {
+      announceReorderResult(t('progressScreen.goals.reorderBoundary', { title: goal.title, position: currentIndex + 1, total: goals.length }))
+      return
+    }
+    commitMove(positions, goalId, boundedTarget)
   }
   const options = [
     { value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') },
@@ -358,18 +391,20 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id)} label={t('progressScreen.goals.views')} /> : null}
-      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
-      {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
+      {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillLink href="/" variant="ghost">{t('progressScreen.startHabit')}</PillLink>} /> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
         <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
           {filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
-            return <GoalCard key={goal.id} goal={goal} index={index} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />
+            return <GoalCard key={goal.id} goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />
           })}
         </div></SortableContext></DndContext>
       ) : null}
+      {reorderAnnouncements.map((message, index) => (
+        <p key={index} role="status" aria-live="polite" aria-atomic="true" data-testid="goal-reorder-status" className="sr-only">{message}</p>
+      ))}
       {reorder.isError ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.reorderError')}</p> : null}
     </section>
   )
@@ -511,6 +546,7 @@ export function ProgressContent() {
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const t = useTranslations()
   const router = useRouter()
+  const isDesktop = useIsDesktop()
   const account = useProfile()
   const goals = useGoals()
   const canViewGamification = account.profile?.canViewGamification ?? false
@@ -544,9 +580,8 @@ export function ProgressContent() {
         />
       </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
-      {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
-      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
-      {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
+      {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
+      {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillLink href="/" variant={isDesktop ? 'secondary' : 'primary'} size="sm">{t('progressScreen.emptyAction')}</PillLink>} /></div> : null}
       {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
       </div>
     </main>

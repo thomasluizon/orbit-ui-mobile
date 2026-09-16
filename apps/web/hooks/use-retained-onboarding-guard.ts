@@ -6,7 +6,7 @@ import {
   resolveRetainedOnboarding,
 } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
-import { completeOnboarding } from '@/app/actions/profile'
+import { completeOnboarding } from '@/lib/actions/profile'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useProfile } from '@/hooks/use-profile'
 

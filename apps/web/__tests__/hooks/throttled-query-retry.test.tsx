@@ -13,7 +13,7 @@ import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
 import { createQueryClient } from '@/lib/query-client'
 import { useThrottleStore } from '@/stores/throttle-store'
 
-vi.mock('@/app/actions/api-keys', () => ({ createApiKey: vi.fn(), revokeApiKey: vi.fn() }))
+vi.mock('@/lib/actions/api-keys', () => ({ createApiKey: vi.fn(), revokeApiKey: vi.fn() }))
 
 const clients: QueryClient[] = []
 

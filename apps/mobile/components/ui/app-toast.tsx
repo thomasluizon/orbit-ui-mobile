@@ -6,12 +6,14 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native'
 import { Check } from '@/components/ui/icons'
 import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { resolveCenteredOverlayFrame } from './centered-overlay-frame'
 
 const MINIMUM_DONE_LIFE_MS = 5000
 
@@ -151,6 +153,8 @@ export function Toast(props: Readonly<ToastProps>) {
 /** Legacy root mount. The host owns placement and adapts the queue to the prop-driven Toast. */
 export function AppToast({ placement = 'overlay' }: Readonly<{ placement?: 'overlay' | 'slot' }>) {
   const insets = useSafeAreaInsets()
+  const { width: screenWidth } = useWindowDimensions()
+  const overlayFrame = resolveCenteredOverlayFrame(screenWidth, 420)
   const currentToast = useAppToastStore((state) => state.currentToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
 
@@ -165,7 +169,7 @@ export function AppToast({ placement = 'overlay' }: Readonly<{ placement?: 'over
   if (placement === 'slot') return <Toast {...hostedToast} />
 
   return (
-    <View pointerEvents="box-none" style={[styles.host, styles.overlay, { bottom: insets.bottom }]}>
+    <View pointerEvents="box-none" style={[styles.host, styles.overlay, overlayFrame, { bottom: insets.bottom + 16 }]}>
       <Toast {...hostedToast} />
     </View>
   )
@@ -174,11 +178,8 @@ export function AppToast({ placement = 'overlay' }: Readonly<{ placement?: 'over
 const styles = StyleSheet.create({
   overlay: {
     position: 'absolute',
-    left: 0,
-    right: 0,
   },
   host: {
-    padding: 16,
     zIndex: zLayers.toast,
   },
   toast: {

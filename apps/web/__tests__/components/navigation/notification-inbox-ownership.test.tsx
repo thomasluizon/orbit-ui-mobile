@@ -14,7 +14,7 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: vi.fn() }))
-vi.mock('@/app/actions/notifications', () => ({
+vi.mock('@/lib/actions/notifications', () => ({
   markNotificationRead: vi.fn(), markAllNotificationsRead: vi.fn(),
   deleteNotification: vi.fn(), deleteAllNotifications: vi.fn(),
 }))

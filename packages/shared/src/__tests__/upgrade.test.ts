@@ -59,18 +59,6 @@ describe('upgrade utils', () => {
     expect(ptBR.onboarding.featureGuide.settingsSection.subscriptionDesc).toBe(
       'O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário, a retrospectiva periódica e a análise de metas por IA.',
     )
-    expect(en.tour.profile.preferences.description).toBe(
-      'Customize your experience: language, timezone, week start day, push notifications, and more.',
-    )
-    expect(ptBR.tour.profile.preferences.description).toBe(
-      'Deixe tudo do seu jeito: idioma, fuso horário, dia de início da semana, notificações push e mais.',
-    )
-    expect(en.tour.profile.subscription.description).toBe(
-      'Free includes 5 Astra messages a day. Pro includes 50, which is ten times more.',
-    )
-    expect(ptBR.tour.profile.subscription.description).toBe(
-      'O plano grátis inclui 5 mensagens da Astra por dia. O Pro inclui 50, dez vezes mais.',
-    )
     expect(en.profile.freshStart.preservePreferences).toBe(
       'Theme, language, and timezone',
     )

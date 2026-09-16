@@ -8,8 +8,6 @@ import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibilit
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
-import { tourScrollRegistry } from '@/components/tour/tour-target-context'
-import { useTourStore } from '@/stores/tour-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
 import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
@@ -18,7 +16,6 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
-const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
@@ -255,7 +252,9 @@ vi.mock('@/hooks/use-config', () => ({
 }))
 
 vi.mock('@/hooks/use-habit-visibility', async () => {
-  const { createHabitVisibilityHelpers } = await import('@orbit/shared/utils/habit-visibility')
+  const { createHabitVisibilityHelpers, getChildrenFromIndex } = await import(
+    '@orbit/shared/utils/habit-visibility'
+  )
 
   return {
     useHabitVisibility: (options: HabitVisibilityOptions) => {
@@ -266,6 +265,16 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
         hasVisibleContent: useActualHabitVisibility
           ? helpers.hasVisibleContent
           : () => true,
+        getVisibleChildren: useActualHabitVisibility
+          ? helpers.getVisibleChildren
+          : (parentId: string, view: 'today' | 'all' | 'general') =>
+              options.showCompleted && view !== 'all'
+                ? getChildrenFromIndex(
+                    parentId,
+                    options.habitsById,
+                    options.childrenByParent,
+                  )
+                : helpers.getVisibleChildren(parentId, view),
         isRelevantToday: () => true,
         isDueOnSelectedDate: () => true,
       }
@@ -473,6 +482,93 @@ describe('HabitList', () => {
     mockDrillState.drillError = null
     mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('hides one-time tasks completed before the selected day when completed items are shown', () => {
+    useActualHabitVisibility = true
+    const dueToday = createMockHabit({
+      id: 'due-today',
+      dueDate: '2026-09-15',
+      scheduledDates: ['2026-09-15'],
+      instances: [{ date: '2026-09-15', status: 'Pending', logId: null }],
+    })
+    const completedEarlier = createMockHabit({
+      id: 'completed-earlier',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      dueDate: '2026-08-01',
+      scheduledDates: [],
+      instances: [],
+    })
+    seedHabits([dueToday, completedEarlier])
+
+    let tree: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
+          selectedDate={new Date(2026, 8, 15, 12)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    expect(
+      tree!.root
+        .findAll((node) => node.type === HabitRow)
+        .map((node) => (node.props.habit as NormalizedHabit).id),
+    ).toEqual(['due-today'])
+  })
+
+  it('shows only selected-day completions alongside habits due that day', () => {
+    useActualHabitVisibility = true
+    const dueToday = createMockHabit({
+      id: 'due-today',
+      dueDate: '2026-09-15',
+      scheduledDates: ['2026-09-15'],
+      instances: [{ date: '2026-09-15', status: 'Pending', logId: null }],
+    })
+    const completedToday = createMockHabit({
+      id: 'completed-today',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: true,
+      dueDate: '2026-09-15',
+      scheduledDates: [],
+      instances: [],
+    })
+    const completedEarlier = createMockHabit({
+      id: 'completed-earlier',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      dueDate: '2026-08-01',
+      scheduledDates: [],
+      instances: [],
+    })
+    seedHabits([dueToday, completedToday, completedEarlier])
+
+    let tree: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
+          selectedDate={new Date(2026, 8, 15, 12)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    expect(
+      tree!.root
+        .findAll((node) => node.type === HabitRow)
+        .map((node) => (node.props.habit as NormalizedHabit).id),
+    ).toEqual(['due-today', 'completed-today'])
   })
 
   it('renders the all-done upcoming action only when it can navigate', () => {
@@ -1671,49 +1767,6 @@ describe('HabitList', () => {
 
     expect(grandparentCard?.props.childrenDone).toBe(1)
     expect(grandparentCard?.props.childrenTotal).toBe(3)
-  })
-
-  it('anchors the featured demo habit row for the card tour steps', () => {
-    seedHabits([
-      createMockHabit({
-        id: 'tour-habit-1',
-        title: 'Meditation',
-        position: 0,
-      }),
-      createMockHabit({
-        id: TOUR_FEATURED_HABIT_ID,
-        title: 'Exercise',
-        position: 1,
-      }),
-    ])
-
-    const useTourTargetMock = vi.fn()
-    vi.doMock('@/hooks/use-tour-target', () => ({
-      useTourTarget: useTourTargetMock,
-    }))
-
-    let tree: any
-
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <HabitList
-          view="today"
-          filters={{}}
-          showCompleted
-          onCreatePress={vi.fn()}
-        />,
-      )
-    })
-
-    const meditationCard = tree.root
-      .findAllByType(HabitRow)
-      .find((node: any) => node.props.habit.id === 'tour-habit-1')
-    const exerciseCard = tree.root
-      .findAllByType(HabitRow)
-      .find((node: any) => node.props.habit.id === TOUR_FEATURED_HABIT_ID)
-
-    expect(meditationCard).toBeTruthy()
-    expect(exerciseCard).toBeTruthy()
   })
 
   it('logs an incomplete parent immediately without confirmation', async () => {
@@ -3860,12 +3913,6 @@ describe('HabitList', () => {
   })
 
   describe('today view scroll offset wiring', () => {
-    afterEach(() => {
-      TestRenderer.act(() => {
-        useTourStore.setState({ isActive: false })
-      })
-    })
-
     function renderTodayList(onScroll?: (offsetY: number) => void) {
       let tree: any
       TestRenderer.act(() => {
@@ -3901,18 +3948,5 @@ describe('HabitList', () => {
       expect(onScroll).toHaveBeenLastCalledWith(120)
     })
 
-    it('tracks the tour scroll position from onScrollOffsetChange while a tour is active', () => {
-      TestRenderer.act(() => {
-        useTourStore.setState({ isActive: true })
-      })
-      const tree = renderTodayList()
-
-      const draggableList = tree.root.findByType('DraggableFlatList')
-      TestRenderer.act(() => {
-        draggableList.props.onScrollOffsetChange(320)
-      })
-
-      expect(tourScrollRegistry.get('/')?.scrollY).toBe(320)
-    })
   })
 })

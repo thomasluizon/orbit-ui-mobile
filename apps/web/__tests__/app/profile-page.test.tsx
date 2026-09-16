@@ -41,13 +41,13 @@ const {
   },
 }))
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   exportUserData: mockExportUserData,
   updateAiSummary: mockUpdateAiSummary,
   updateProactiveAstra: mockUpdateProactiveAstra,
 }))
 
-vi.mock('@/app/actions/api-keys', () => ({
+vi.mock('@/lib/actions/api-keys', () => ({
   createApiKey: mockCreateApiKey,
   revokeApiKey: vi.fn(),
   requestApiKeyCreationChallenge: mockRequestApiKeyCreationChallenge,
@@ -134,10 +134,6 @@ vi.mock('@/components/navigation/notification-bell', () => ({
   NotificationBell: () => null,
 }))
 
-vi.mock('@/app/(app)/profile/_components/subscription-card', () => ({
-  SubscriptionCard: () => null,
-}))
-
 vi.mock('@/app/(app)/profile/_components/fresh-start-modal', () => ({
   FreshStartModal: () => null,
 }))
@@ -154,9 +150,6 @@ vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
 
-vi.mock('@/app/(app)/profile/_components/tour-replay-card', () => ({
-  TourReplayCard: () => null,
-}))
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) => (

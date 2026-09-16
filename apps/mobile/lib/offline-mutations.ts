@@ -82,9 +82,21 @@ export interface DroppedMutation {
   itemName?: string
 }
 
+export type OfflineReplayState = 'idle' | 'flushing' | 'waiting-on-backoff' | 'stopped-for-auth'
+
+export interface OfflineFlushResult {
+  succeeded: number
+  failed: number
+  remaining: number
+  droppedMutations: DroppedMutation[]
+  replayState: OfflineReplayState
+}
+
 type DroppedMutationListener = (dropped: DroppedMutation) => void
+type FlushResultListener = (result: OfflineFlushResult) => void
 
 const droppedMutationListeners = new Set<DroppedMutationListener>()
+const flushResultListeners = new Set<FlushResultListener>()
 
 /**
  * Subscribe to mutations dropped from the queue (permanent/validation errors or
@@ -103,6 +115,17 @@ function notifyDroppedMutation(dropped: DroppedMutation): void {
   useOfflineSyncStore.getState().addDrop(dropped)
   captureError(new Error(`Offline mutation dropped: ${dropped.type}: ${dropped.lastError}`))
   for (const listener of droppedMutationListeners) listener(dropped)
+}
+
+export function subscribeFlushResults(listener: FlushResultListener): () => void {
+  flushResultListeners.add(listener)
+  return () => {
+    flushResultListeners.delete(listener)
+  }
+}
+
+function notifyFlushResult(result: OfflineFlushResult): void {
+  for (const listener of flushResultListeners) listener(result)
 }
 
 export interface QueuedMutationBuildOptions {
@@ -296,15 +319,7 @@ const BACKOFF_MAX_DELAY_MS = 60_000
 const DEPENDENCY_MAX_AGE_MS = 24 * 60 * 60 * 1000
 const RECOVERY_KEY = '@orbit/offline-queue-recovery-310'
 
-let backoffAttempt = 0
-let backoffTimer: ReturnType<typeof setTimeout> | null = null
-let flushInFlight = false
-let flushStoppedForAuth = false
 let installedQueueRecovered = false
-
-export function canAutoFlush(): boolean {
-  return !flushInFlight && !flushStoppedForAuth && backoffTimer === null
-}
 
 function describeDroppedMutation(mutation: PersistedQueuedMutation, lastError: string): DroppedMutation {
   const dropped: DroppedMutation = { id: mutation.id, type: mutation.type, lastError, mutation }
@@ -343,15 +358,50 @@ async function recoverInstalledQueue(): Promise<void> {
   }
 }
 
+type ReplayControlState =
+  | { status: 'idle'; backoffAttempt: number }
+  | { status: 'flushing'; backoffAttempt: number; cancelled: boolean }
+  | { status: 'waiting-on-backoff'; backoffAttempt: number; timer: ReturnType<typeof setTimeout> }
+  | { status: 'stopped-for-auth' }
+
+type ReplayStateListener = (state: OfflineReplayState) => void
+
+let replayControlState: ReplayControlState = { status: 'idle', backoffAttempt: 0 }
+const replayStateListeners = new Set<ReplayStateListener>()
+
+function setReplayControlState(state: ReplayControlState): void {
+  replayControlState = state
+  for (const listener of replayStateListeners) listener(state.status)
+}
+
+export function getReplayState(): OfflineReplayState {
+  return replayControlState.status
+}
+
+export function subscribeReplayState(listener: ReplayStateListener): () => void {
+  replayStateListeners.add(listener)
+  listener(replayControlState.status)
+  return () => {
+    replayStateListeners.delete(listener)
+  }
+}
+
+export function canAutoFlush(): boolean {
+  return replayControlState.status === 'idle'
+}
+
 function computeBackoffDelay(attempt: number): number {
   return Math.min(BACKOFF_BASE_DELAY_MS * 2 ** attempt, BACKOFF_MAX_DELAY_MS)
 }
 
-function clearBackoffTimer(): void {
-  if (backoffTimer !== null) {
-    clearTimeout(backoffTimer)
-    backoffTimer = null
-  }
+function getBackoffAttempt(): number {
+  return replayControlState.status === 'stopped-for-auth'
+    ? 0
+    : replayControlState.backoffAttempt
+}
+
+function wasFlushCancelled(): boolean {
+  return replayControlState.status === 'flushing' && replayControlState.cancelled
 }
 
 /**
@@ -360,32 +410,56 @@ function clearBackoffTimer(): void {
  * cleared queue or a different account.
  */
 export function cancelScheduledFlush(): void {
-  clearBackoffTimer()
-  backoffAttempt = 0
-  flushStoppedForAuth = false
-  useOfflineSyncStore.setState({ isRetrying: false })
+  if (replayControlState.status === 'waiting-on-backoff') {
+    clearTimeout(replayControlState.timer)
+  }
+  if (replayControlState.status === 'flushing') {
+    setReplayControlState({ ...replayControlState, cancelled: true })
+    return
+  }
+  setReplayControlState({ status: 'idle', backoffAttempt: 0 })
 }
 
-function scheduleBackoffFlush(): void {
-  if (backoffTimer !== null) return
-  useOfflineSyncStore.setState({ isRetrying: true })
+export function resumeOfflineReplay(): void {
+  if (replayControlState.status === 'stopped-for-auth') {
+    setReplayControlState({ status: 'idle', backoffAttempt: 0 })
+  }
+}
 
+function ownsBackoffTimer(timer: ReturnType<typeof setTimeout>): boolean {
+  return replayControlState.status === 'waiting-on-backoff' && replayControlState.timer === timer
+}
+
+function scheduleBackoffFlush(replaceTimer?: ReturnType<typeof setTimeout>): void {
+  if (
+    replayControlState.status === 'waiting-on-backoff' &&
+    replayControlState.timer !== replaceTimer
+  ) return
+
+  const backoffAttempt = getBackoffAttempt()
   const delay = computeBackoffDelay(backoffAttempt)
-  backoffAttempt = Math.min(backoffAttempt + 1, 5)
-  backoffTimer = setTimeout(() => {
-    backoffTimer = null
+  const nextBackoffAttempt = Math.min(backoffAttempt + 1, 5)
+  const timer = setTimeout(() => {
+    if (!ownsBackoffTimer(timer)) return
     void (async () => {
       if (count() === 0) {
         cancelScheduledFlush()
         return
       }
-      if (!(await getCurrentConnectivity())) {
-        scheduleBackoffFlush()
+      const isOnline = await getCurrentConnectivity()
+      if (!ownsBackoffTimer(timer)) return
+      if (!isOnline) {
+        scheduleBackoffFlush(timer)
         return
       }
       await flushQueuedMutations()
     })().catch(captureError)
   }, delay)
+  setReplayControlState({
+    status: 'waiting-on-backoff',
+    backoffAttempt: nextBackoffAttempt,
+    timer,
+  })
 }
 
 function isTransientNetworkError(error: unknown): boolean {
@@ -401,6 +475,10 @@ function isTransientNetworkError(error: unknown): boolean {
     message.includes('load failed') ||
     message.includes('timed out')
   )
+}
+
+function isAuthRefreshNetworkError(error: unknown): boolean {
+  return error instanceof TypeError && error.name === 'AuthRefreshNetworkError'
 }
 
 function shouldDropMutation(error: unknown, nextRetries: number, maxRetries: number): boolean {
@@ -619,12 +697,8 @@ async function handleFlushFailure(
     }
     return { incrementFailed: true, stopReason: 'auth', dropped: null }
   }
-  if (isTransientNetworkError(error)) {
-    update(mutation.id, { status: 'failed', lastError })
-    return { incrementFailed: false, stopReason: 'network', dropped: null }
-  }
-
-  const nextRetries = mutation.retries + 1
+  const transientNetworkFailure = isTransientNetworkError(error)
+  const nextRetries = isAuthRefreshNetworkError(error) ? mutation.retries : mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
   let dropped: DroppedMutation | null = null
 
@@ -655,8 +729,8 @@ async function handleFlushFailure(
   }
 
   return {
-    incrementFailed: true,
-    stopReason: null,
+    incrementFailed: !transientNetworkFailure || dropped !== null,
+    stopReason: transientNetworkFailure ? 'network' : null,
     dropped,
   }
 }
@@ -796,44 +870,55 @@ async function runQueueFlush(): Promise<FlushOutcome> {
   return { succeeded, failed, remaining: count(), stopReason, droppedMutations }
 }
 
-export async function flushQueuedMutations(): Promise<{
-  blocked?: 'in-flight'
-  succeeded: number
-  failed: number
-  remaining: number
-  droppedMutations: DroppedMutation[]
-}> {
-  if (flushInFlight) {
-    return { blocked: 'in-flight', succeeded: 0, failed: 0, remaining: count(), droppedMutations: [] }
+export async function flushQueuedMutations(): Promise<OfflineFlushResult> {
+  if (replayControlState.status === 'flushing') {
+    return {
+      succeeded: 0,
+      failed: 0,
+      remaining: count(),
+      droppedMutations: [],
+      replayState: 'flushing',
+    }
   }
 
-  flushInFlight = true
-  useOfflineSyncStore.setState({ isFlushing: true })
+  if (replayControlState.status === 'waiting-on-backoff') {
+    clearTimeout(replayControlState.timer)
+  }
+  const backoffAttempt = getBackoffAttempt()
+  setReplayControlState({ status: 'flushing', backoffAttempt, cancelled: false })
   let outcome: FlushOutcome
   try {
-    await recoverInstalledQueue()
+    if (!installedQueueRecovered) await recoverInstalledQueue()
     outcome = await runQueueFlush()
-    const drained = outcome.succeeded + outcome.droppedMutations.length
-    if (outcome.stopReason === 'auth') {
-      cancelScheduledFlush()
-      flushStoppedForAuth = true
-    } else if (outcome.remaining > 0 && drained === 0) {
+  } catch (error: unknown) {
+    if (wasFlushCancelled()) {
+      setReplayControlState({ status: 'idle', backoffAttempt: 0 })
+    } else if (count() > 0) {
       scheduleBackoffFlush()
     } else {
-      cancelScheduledFlush()
+      setReplayControlState({ status: 'idle', backoffAttempt: 0 })
     }
-  } catch (error) {
-    if (count() > 0) scheduleBackoffFlush()
     throw error
-  } finally {
-    flushInFlight = false
-    useOfflineSyncStore.setState({ isFlushing: false })
   }
 
-  return {
+  const drained = outcome.succeeded + outcome.droppedMutations.length
+  if (wasFlushCancelled()) {
+    setReplayControlState({ status: 'idle', backoffAttempt: 0 })
+  } else if (outcome.stopReason === 'auth') {
+    setReplayControlState({ status: 'stopped-for-auth' })
+  } else if (outcome.remaining > 0 && (outcome.stopReason === 'network' || drained === 0)) {
+    scheduleBackoffFlush()
+  } else {
+    setReplayControlState({ status: 'idle', backoffAttempt: 0 })
+  }
+
+  const result: OfflineFlushResult = {
     succeeded: outcome.succeeded,
     failed: outcome.failed,
     remaining: outcome.remaining,
     droppedMutations: outcome.droppedMutations,
+    replayState: replayControlState.status,
   }
+  notifyFlushResult(result)
+  return result
 }

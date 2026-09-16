@@ -39,7 +39,7 @@ vi.mock('@/hooks/use-offline', () => ({
 }))
 
 const mockSendSupportMessage = vi.fn()
-vi.mock('@/app/actions/support', () => ({
+vi.mock('@/lib/actions/support', () => ({
   sendSupportMessage: (...args: unknown[]) => mockSendSupportMessage(...args),
 }))
 

@@ -26,10 +26,6 @@ const TestRenderer: TestRendererApi = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true
 
-vi.mock('expo-constants', () => ({ default: { expoGoConfig: null } }))
-vi.mock('@/components/ui/push-prompt', () => ({
-  PushPrompt: () => React.createElement('PushPrompt'),
-}))
 vi.mock('@/components/onboarding/onboarding-flow', () => ({
   OnboardingFlow: 'OnboardingFlow',
 }))
@@ -61,8 +57,6 @@ vi.mock('@/components/ui/trial-expired-modal', () => ({
 vi.mock('@/components/version-update-drawer', () => ({
   VersionUpdateDrawer: 'VersionUpdateDrawer',
 }))
-vi.mock('@/components/tour/tour-provider', () => ({ TourProvider: 'TourProvider' }))
-vi.mock('@/components/tour/tour-overlay', () => ({ TourOverlay: 'TourOverlay' }))
 const onboardingActionsStub: OverlayLayerProps['onboardingActions'] = {
   createHabit: () => Promise.resolve({ id: '', title: '' }),
   createHabitsBulk: () => Promise.resolve(),
@@ -77,7 +71,6 @@ function buildProps(
 ): OverlayLayerProps {
   return {
     hasCompletedOnboarding: false,
-    hasProAccess: false,
     showRetainedOnboarding: false,
     onboardingActions: onboardingActionsStub,
     ...overrides,
@@ -102,8 +95,6 @@ const ALWAYS_MOUNTED = [
   'ExpiryWarning',
   'TrialExpiredModal',
   'VersionUpdateDrawer',
-  'TourProvider',
-  'TourOverlay',
 ]
 
 const GAMIFICATION_OVERLAYS = [
@@ -146,7 +137,6 @@ describe('OverlayLayer mount matrix', () => {
     const preOnboarding = await renderLayer({ hasCompletedOnboarding: false })
     const postOnboarding = await renderLayer({
       hasCompletedOnboarding: true,
-      hasProAccess: true,
     })
 
     for (const overlay of GAMIFICATION_OVERLAYS) {
@@ -154,16 +144,6 @@ describe('OverlayLayer mount matrix', () => {
       expect(isMounted(postOnboarding, overlay)).toBe(true)
     }
   })
-
-  it('gates the lazily-loaded push prompt on onboarding completion', async () => {
-    const preOnboarding = await renderLayer({ hasCompletedOnboarding: false })
-    const postOnboarding = await renderLayer({ hasCompletedOnboarding: true })
-
-    expect(isMounted(preOnboarding, 'PushPrompt')).toBe(false)
-    expect(isMounted(postOnboarding, 'PushPrompt')).toBe(true)
-  })
-
-
 
   it('gates the retained onboarding flow on the retention guard', async () => {
     const withoutRetention = await renderLayer({ showRetainedOnboarding: false })

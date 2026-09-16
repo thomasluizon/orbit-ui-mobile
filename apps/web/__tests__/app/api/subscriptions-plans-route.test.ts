@@ -21,6 +21,7 @@ describe('subscriptions plans route', () => {
       token: 'token',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
+      refreshFailed: false,
     })
     mockFetch.mockResolvedValue(
       new Response('[]', {
@@ -64,5 +65,65 @@ describe('subscriptions plans route', () => {
         },
       }),
     )
+  })
+
+  it('reports a confirmed refresh rejection on the response', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: 'stale-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: false,
+        refreshFailed: false,
+      })
+      .mockResolvedValueOnce({
+        token: null,
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: true,
+      })
+    mockFetch.mockResolvedValue(
+      new Response('{"error":"unauthorized"}', {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/subscriptions/plans'),
+    )
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves a proactive refresh rejection through the unauthorized proxy response', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: null,
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: true,
+      })
+      .mockResolvedValueOnce({
+        token: null,
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: false,
+      })
+    mockFetch.mockResolvedValue(
+      new Response('{"error":"unauthorized"}', {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/subscriptions/plans'),
+    )
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })

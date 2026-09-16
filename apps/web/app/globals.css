@@ -376,13 +376,11 @@
   /* Stacking (DESIGN.md): the semantic z-index scale, mirrored from
      @orbit/shared/theme zLayers. Overlays stack on a named tier via the
      z-<tier> utilities below; a raw literal >= 10 is a lint error
-     (local/no-arbitrary-zindex). Deliberate inversions: celebration below
-     toast, tourSpotlight above modal. */
+     (local/no-arbitrary-zindex). Celebration deliberately sits below toast. */
   --z-index-dropdown: 1000;
   --z-index-sticky: 1100;
   --z-index-modal-backdrop: 1200;
   --z-index-modal: 1300;
-  --z-index-tour-spotlight: 1400;
   --z-index-celebration: 1500;
   --z-index-toast: 1600;
   --z-index-tooltip: 1700;
@@ -401,9 +399,6 @@
 }
 @utility z-modal {
   z-index: var(--z-index-modal);
-}
-@utility z-tour-spotlight {
-  z-index: var(--z-index-tour-spotlight);
 }
 @utility z-celebration {
   z-index: var(--z-index-celebration);
@@ -1304,6 +1299,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    /* WHY: Forced colors mode removes box-shadow focus indicators. */
+    outline: 2px solid CanvasText !important;
+  }
 }
 
 .orbit-notification-row:focus-visible {

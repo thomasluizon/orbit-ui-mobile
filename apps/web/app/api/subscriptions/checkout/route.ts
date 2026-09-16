@@ -4,6 +4,7 @@ import {
   buildForwardedClientHeaders,
   sanitizeClientTimeZone,
 } from '@/app/api/_utils/forwarded-client-context'
+import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
 
 const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
 
@@ -55,29 +56,40 @@ function buildNoStoreJsonResponse(
   body: string,
   status: number,
   contentType = 'application/json',
+  refreshFailed = false,
 ): NextResponse {
   return new NextResponse(body, {
     status,
     headers: {
       'Cache-Control': NO_STORE_CACHE_CONTROL,
       'Content-Type': contentType,
+      ...buildSessionRefreshHeaders(refreshFailed),
     },
   })
 }
 
-async function toNoStoreResponse(source: Response): Promise<NextResponse> {
+async function toNoStoreResponse(
+  source: Response,
+  refreshFailed = false,
+): Promise<NextResponse> {
   const data = await source.text()
   return buildNoStoreJsonResponse(
     data,
     source.status,
     source.headers.get('Content-Type') ?? 'application/json',
+    refreshFailed,
   )
 }
 
 export async function POST(request: NextRequest) {
   const session = await resolveServerSession()
   if (!session.token) {
-    return buildNoStoreJsonResponse(JSON.stringify({ error: 'Unauthorized' }), 401)
+    return buildNoStoreJsonResponse(
+      JSON.stringify({ error: 'Unauthorized' }),
+      401,
+      'application/json',
+      session.refreshFailed,
+    )
   }
 
   const forwardedClientHeaders = resolveForwardedClientHeaders(request)
@@ -91,6 +103,7 @@ export async function POST(request: NextRequest) {
       const retryResponse = await proxyCheckout(body, refreshedSession.token, forwardedClientHeaders)
       return toNoStoreResponse(retryResponse)
     }
+    return toNoStoreResponse(response, refreshedSession.refreshFailed)
   }
 
   return toNoStoreResponse(response)

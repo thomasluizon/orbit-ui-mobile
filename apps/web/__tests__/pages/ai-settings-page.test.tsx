@@ -22,7 +22,7 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profile, patchProfile }),
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateAiSummary: (...args: unknown[]) => updateAiSummary(...args),
   updateProactiveAstra: (...args: unknown[]) => updateProactiveAstra(...args),
 }))
