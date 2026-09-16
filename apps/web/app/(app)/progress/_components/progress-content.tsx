@@ -322,6 +322,7 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
       ref={setNodeRef} {...listeners}
       style={{
         translate: transform ? `${transform.x}px ${transform.y}px` : undefined,
+        transform: transform ? `scaleX(${transform.scaleX}) scaleY(${transform.scaleY})` : undefined,
         transition: 'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)',
       }}
       aria-roledescription={canReorder ? t('goals.dragItem') : undefined}

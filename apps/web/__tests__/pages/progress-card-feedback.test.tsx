@@ -14,7 +14,7 @@ vi.mock('@dnd-kit/sortable', () => ({
     isDragging: true,
     listeners: {},
     setNodeRef: vi.fn(),
-    transform: { x: 100, y: 40, scaleX: 1, scaleY: 1 },
+    transform: { x: 100, y: 40, scaleX: 0.8, scaleY: 1.4 },
   }),
   verticalListSortingStrategy: vi.fn(),
 }))
@@ -94,6 +94,7 @@ describe('goal card interaction feedback', () => {
     const card = screen.getByRole('button', { name: 'Read 12 Books' })
 
     expect(card.style.translate).toBe('100px 40px')
+    expect(card.style.transform).toBe('scaleX(0.8) scaleY(1.4)')
     expect(card.style.transform).not.toContain('translate')
     expect(card.style.transition).toBe(
       'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)',
