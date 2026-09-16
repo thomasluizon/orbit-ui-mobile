@@ -143,10 +143,14 @@ export const cases = () => {
   )
   const redesignPrompt = composed(redesignOut)
   T(
-    `${TOOL}: a redesign UI order requires both raw skills, in-scope fixes, and the PR block`,
+    `${TOOL}: a redesign UI order requires the complete review inventory, in-scope fixes, and the PR block`,
     redesignPrompt.includes("## UI review sweep") &&
-      /raw\.githubusercontent\.com\/jakubkrehel\/skills\/[^\s`]+\/skills\/interface-review\/SKILL\.md/.test(redesignPrompt) &&
-      /raw\.githubusercontent\.com\/jakubkrehel\/skills\/[^\s`]+\/skills\/better-interface\/SKILL\.md/.test(redesignPrompt) &&
+      /\.claude\/playbooks\/redesign-screen\.md/.test(redesignPrompt) &&
+      /gh api "repos\/jakubkrehel\/skills\/git\/trees\/main\?recursive=1" --jq \.truncated/.test(redesignPrompt) &&
+      /\.tree\[\]\|select\(\.type=="blob" and \(\.path\|startswith\("skills\/<name>\/"\)\)\)\|\.path/.test(redesignPrompt) &&
+      ["interface-review", "better-interface", "better-accessibility", "better-layout", "better-writing", "better-typography", "better-colors", "better-ui"]
+        .every((directory) => redesignPrompt.includes(`\`${directory}\``)) &&
+      /Read every printed path from `https:\/\/raw\.githubusercontent\.com\/jakubkrehel\/skills\/main\/<path>`/.test(redesignPrompt) &&
       /Fix every in-scope finding in this pull request/.test(redesignPrompt) &&
       /## Review harness/.test(redesignPrompt) &&
       /- interface-review: <what it found, or "no findings">/.test(redesignPrompt) &&
@@ -187,6 +191,15 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const cloudPrompt = composed(cloudOut)
+  T(
+    `${TOOL}: Cloud leaves the owed redesign sweep to local post-materialization delivery`,
+    /The Cloud container must not run or claim this sweep/.test(cloudPrompt) &&
+      /orchestrator runs it locally after materialization and before opening the pull request/.test(cloudPrompt) &&
+      /## Review harness/.test(cloudPrompt) &&
+      /- interface-review: <what it found, or "no findings">/.test(cloudPrompt) &&
+      /- better-interface \(full mode\): <what it found, or "no findings">/.test(cloudPrompt),
+    cloudPrompt,
+  )
   for (const [mode, order, heading] of [
     ["local", prompt, "## Finishing contract"],
     ["Cloud", cloudPrompt, "## Cloud finishing contract"],

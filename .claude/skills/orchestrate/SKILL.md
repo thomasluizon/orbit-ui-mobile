@@ -602,6 +602,22 @@ only after receipt resolution is durable. Exit 10 with `NEEDS_DECISION` preserve
 and refuses delivery. Route its question through step 7 (under `--sleep`, log it as blocked), and
 do not run readiness or merge until Thomas answers and the resulting work is verified.
 
+For a Cloud `ui` order targeting `redesign/main`, inspect the locally materialized diff for the UI
+scope printed in the order. When it matches, run the owed sweep locally after materialization and
+before opening or updating the pull request. Follow `.claude/playbooks/redesign-screen.md`: verify
+the complete source inventory first, then run `interface-review` and `better-interface` in full mode
+against the diff and fix every in-scope finding. Add the result to the saved pull request body:
+
+```md
+## Review harness
+
+- interface-review: <what it found, or "no findings">
+- better-interface (full mode): <what it found, or "no findings">
+```
+
+Never claim a line for a review that was not run. This step belongs to the local materialization
+lane because the Cloud container cannot fetch the review sources.
+
 On success, read `assumptions` using step 7's adjudication rule, and carry them verbatim into the PR
 body's `## Assumptions`. Carry `manualSteps` into `## Manual steps`, including each exact key,
 location and proof. Carry `materialized.handoff.testResults` verbatim into the eventual PR body's

@@ -123,27 +123,55 @@ const outputInstruction = cloud
 ${ticketReference}. The orchestrator verifies delivery from git and GitHub artifacts with
 tools/verify-delivery.mjs; your own exit code counts for nothing. It owns CI waiting after handoff.`
 
-const uiReviewSweep = !cloud && composedOrderNeedsUiReview(repoKey, baseBranch)
-  ? `## UI review sweep
-
-After implementation, inspect the complete diff. This sweep applies only when at least one changed
-path matches \`${UI_SCOPE}\`. If no changed path matches, skip this sweep and omit the Review harness block.
-
-1. Fetch and follow both skill files by raw URL:
-   - \`https://raw.githubusercontent.com/jakubkrehel/skills/main/skills/interface-review/SKILL.md\`
-   - \`https://raw.githubusercontent.com/jakubkrehel/skills/main/skills/better-interface/SKILL.md\`
-2. Run \`jakubkrehel/interface-review\` and \`jakubkrehel/better-interface\` in full mode against the complete diff.
-3. Fix every in-scope finding in this pull request.
-4. Write this block in the pull request body, with one line per completed review:
+const reviewHarnessBlock = `
 
 \`\`\`md
 ## Review harness
 
 - interface-review: <what it found, or "no findings">
 - better-interface (full mode): <what it found, or "no findings">
+\`\`\``
+
+const uiReviewSweepOwed = composedOrderNeedsUiReview(repoKey, baseBranch)
+const uiReviewSweep = !cloud && uiReviewSweepOwed
+  ? `## UI review sweep
+
+After implementation, inspect the complete diff. This sweep applies only when at least one changed
+path matches \`${UI_SCOPE}\`. If no changed path matches, skip this sweep and omit the Review harness block.
+
+Use \`.claude/playbooks/redesign-screen.md\` as the authority. Before claiming either review line,
+check that the source inventory is complete:
+
+\`\`\`bash
+gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" --jq .truncated
 \`\`\`
 
+If it prints \`true\`, stop because the listing silently under-fetches. For each \`<name>\` in
+\`interface-review\`, \`better-interface\`, \`better-accessibility\`, \`better-layout\`,
+\`better-writing\`, \`better-typography\`, \`better-colors\`, and \`better-ui\`, list the complete directory:
+
+\`\`\`bash
+gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" \\
+  --jq '.tree[]|select(.type=="blob" and (.path|startswith("skills/<name>/")))|.path'
+\`\`\`
+
+Read every printed path from \`https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>\`.
+Then run \`jakubkrehel/interface-review\` and \`jakubkrehel/better-interface\` in full mode against the
+complete diff. Fix every in-scope finding in this pull request. Write this block in the pull request
+body, with one line per completed review:${reviewHarnessBlock}
+
 A line claiming a review you did not run is forbidden.`
+  : ""
+
+const cloudUiReviewHandoff = cloud && uiReviewSweepOwed
+  ? `## UI review sweep ownership
+
+The Cloud container must not run or claim this sweep because it cannot fetch the required sources.
+If the locally materialized diff contains a path matching \`${UI_SCOPE}\`, the sweep is still owed.
+The orchestrator runs it locally after materialization and before opening the pull request, following
+\`.claude/playbooks/redesign-screen.md\`, and writes this block in the pull request body:${reviewHarnessBlock}
+
+A line claiming a review the orchestrator did not run is forbidden.`
   : ""
 
 /**
@@ -280,7 +308,7 @@ took effect. The harness reads both sections mechanically at handover; prose els
 does not reach it.`
 
 const finishingContract = cloud
-  ? CLOUD_FINISHING_CONTRACT
+  ? [cloudUiReviewHandoff, CLOUD_FINISHING_CONTRACT].filter(Boolean).join("\n\n")
   : [uiReviewSweep, finishing].filter(Boolean).join("\n\n")
 
 writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${finishingContract}\n`, "utf8")
