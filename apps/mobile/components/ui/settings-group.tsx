@@ -34,7 +34,7 @@ export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
 }
 
 interface SettingsGroupRowProps {
-  /** Pre-rendered leading icon (e.g. `<Settings size={22} color={tokens.fg1} />`). */
+  /** Pre-rendered leading icon (e.g. `<Settings size={24} color={tokens.fg1} />`). */
   icon?: ReactNode
   label: string
   /** Screen-reader name; defaults to `label` when omitted (e.g. announce plan state on a subscription row). */
@@ -99,7 +99,7 @@ export function SettingsGroupRow({
       <View style={styles.trailingBlock}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
-          <ChevronRight size={22} color={tokens.fg4} strokeWidth={1.8} />
+          <ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} />
         ) : null}
       </View>
     </Pressable>
@@ -113,9 +113,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     minHeight: 48,
   },
   iconSlot: {
@@ -140,12 +140,12 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   proBadgeSpacing: {
-    marginLeft: 6,
+    marginLeft: 4,
   },
   trailingBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flexShrink: 0,
   },
   hint: {

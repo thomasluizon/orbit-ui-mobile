@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
  *  Used for Profile nav, settings sub-screens, and stat strips. */
 interface SettingsRowProps {
   label: string
-  /** Secondary line under the label (Rubik 14 fg-3). */
+  /** Secondary line under the label (Geist Sans 14 fg-3). */
   desc?: string
   value?: ReactNode
   valueColor?: string
@@ -15,7 +15,7 @@ interface SettingsRowProps {
   onClick?: () => void
   mono?: boolean
   leadingDot?: string
-  /** Leading Tabler icon, rendered 22/1.8 centered in a 26px slot. */
+  /** Leading Tabler icon, rendered 24/1.8 centered in a 26px slot. */
   icon?: Icon
   /** Destructive row: the icon uses the graphic role and the title uses the text role. */
   danger?: boolean
@@ -50,8 +50,8 @@ export function SettingsRow({
       aria-label={ariaLabel}
       className={`w-full flex items-center bg-transparent ${interactive ? 'cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-hover)]' : ''}`}
       style={{
-        padding: '16px 20px',
-        gap: 14,
+        padding: '16px',
+        gap: 12,
         textAlign: 'left',
         appearance: 'none',
         border: 0,
@@ -66,7 +66,7 @@ export function SettingsRow({
           className="inline-flex justify-center shrink-0"
           style={{ width: 26 }}
         >
-          <LeadingIcon size={22} strokeWidth={1.8} color={iconColor} />
+          <LeadingIcon size={24} strokeWidth={1.8} color={iconColor} />
         </span>
       )}
       {leadingDot && (
@@ -107,7 +107,7 @@ export function SettingsRow({
       <span
         className="flex items-center shrink-0"
         style={{
-          gap: 10,
+          gap: 8,
           color: 'var(--fg-3)',
           fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: mono ? 13 : 14,
@@ -127,7 +127,7 @@ export function SettingsRow({
         )}
         {children}
         {accessory === 'chevron' && (
-          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-4)" />
+          <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-4)" />
         )}
       </span>
     </RootTag>

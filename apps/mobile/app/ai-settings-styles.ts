@@ -7,6 +7,6 @@ export function createStyles() {
   return StyleSheet.create({
     safeArea: { flex: 1 },
     container: { flex: 1 },
-    scrollContent: { paddingBottom: 40 },
+    scrollContent: { paddingBottom: 32 },
   })
 }

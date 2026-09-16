@@ -55,7 +55,7 @@ export function SubscriptionCard({
   return (
     <SettingsGroup>
       <SettingsGroupRow
-        icon={<CreditCard size={22} strokeWidth={1.8} color="var(--fg-1)" />}
+        icon={<CreditCard size={24} strokeWidth={1.8} color="var(--fg-1)" />}
         label={t('profile.subscription.plan')}
         hint={hint ? `${label} · ${hint}` : label}
         onClick={() => router.push('/upgrade')}

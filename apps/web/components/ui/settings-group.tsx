@@ -10,15 +10,15 @@ const PRO_BADGE_STYLE: React.CSSProperties = {
   fontWeight: 600,
   color: 'var(--fg-on-primary)',
   background: 'var(--primary)',
-  padding: '2px 6px',
+  padding: '4px 8px',
   borderRadius: 4,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
 }
 
 const SETTINGS_ROW_STYLE: React.CSSProperties = {
-  padding: '16px 20px',
-  gap: 14,
+  padding: '16px',
+  gap: 12,
   minHeight: 48,
 }
 
@@ -98,7 +98,7 @@ export function SettingsGroupRow({
         </span>
       ) : null}
       <span className="flex flex-col flex-1 min-w-0" style={{ gap: 4 }}>
-        <span className="flex items-center" style={{ gap: 6 }}>
+        <span className="flex items-center" style={{ gap: 4 }}>
           <span
             className="min-w-0 overflow-hidden line-clamp-2"
             style={{
@@ -132,10 +132,10 @@ export function SettingsGroupRow({
           </span>
         ) : null}
       </span>
-      <span className="flex items-center shrink-0" style={{ gap: 10 }}>
+      <span className="flex items-center shrink-0" style={{ gap: 8 }}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
-          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-4)" />
+          <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-4)" />
         ) : null}
       </span>
     </>

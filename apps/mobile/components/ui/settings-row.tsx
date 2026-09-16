@@ -21,7 +21,7 @@ interface SettingsRowProps {
   mono?: boolean
   /** Small leading dot (status color or scheme swatch). */
   leadingDot?: string
-  /** Leading Tabler icon, rendered 22/1.8 centered in a 26px slot. */
+  /** Leading Tabler icon, rendered 24/1.8 centered in a 26px slot. */
   icon?: IconComponent
   /** Destructive row: the icon uses the graphic role and the title uses the text role. */
   danger?: boolean
@@ -72,7 +72,7 @@ export function SettingsRow({
     >
       {LeadingIcon ? (
         <View style={styles.iconSlot}>
-          <LeadingIcon size={22} color={iconColor} strokeWidth={1.8} />
+          <LeadingIcon size={24} color={iconColor} strokeWidth={1.8} />
         </View>
       ) : null}
       {leadingDot ? (
@@ -103,7 +103,7 @@ export function SettingsRow({
         ) : null}
         {children}
         {accessory === 'chevron' ? (
-          <ChevronRight size={22} color={tokens.fg4} strokeWidth={1.8} />
+          <ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} />
         ) : null}
       </View>
     </Pressable>
@@ -114,8 +114,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 20,
+    gap: 12,
+    paddingHorizontal: 16,
     paddingVertical: 16,
   },
   iconSlot: {
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   trailingBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flexShrink: 0,
   },
   value: {
