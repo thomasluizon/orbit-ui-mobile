@@ -378,20 +378,26 @@ describe('GoalDetailDrawer', () => {
     habitAdherence = [
       { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
     ]
+    const events: string[] = []
+    const onClose = vi.fn(() => { events.push('close') })
+    mockPush.mockImplementationOnce(() => { events.push('push') })
     sheetTestControls.defer(true)
-    const tree = renderDrawer()
+    const tree = renderDrawer(onClose)
 
     press(tree, `Read every night, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
 
     expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
       sheetTestControls.completeDismissal()
     })
 
+    expect(onClose).toHaveBeenCalledOnce()
     expect(mockPush).toHaveBeenCalledOnce()
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-read' } })
+    expect(events).toEqual(['close', 'push'])
   })
 
   it('opens a linked habit directly when the detail is inline', async () => {
