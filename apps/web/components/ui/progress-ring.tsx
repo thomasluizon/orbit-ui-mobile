@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ProgressRingProps } from '@orbit/shared/contracts/display'
 
 /** A circular progress sweep over a neutral track. */
@@ -10,9 +10,18 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
   const strokeWidth = Math.max(2, size / 16)
   const radius = (size - strokeWidth) / 2
   const [circumference, setCircumference] = useState(0)
+  const [canAnimate, setCanAnimate] = useState(false)
   const measure = useCallback((circle: SVGCircleElement | null) => {
-    if (circle) setCircumference(circle.getTotalLength())
+    if (!circle) return
+    setCanAnimate(false)
+    setCircumference(circle.getTotalLength())
   }, [])
+
+  useEffect(() => {
+    if (circumference === 0) return
+    const frame = requestAnimationFrame(() => setCanAnimate(true))
+    return () => cancelAnimationFrame(frame)
+  }, [circumference])
 
   return (
     <svg
@@ -30,6 +39,9 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
       <circle
         ref={measure}
         key={size}
+        className={canAnimate
+          ? 'transition-[stroke-dashoffset] duration-[var(--dur-base)] ease-[var(--ease-standard)] motion-reduce:transition-none'
+          : undefined}
         visibility={circumference > 0 ? undefined : 'hidden'}
         cx={size / 2}
         cy={size / 2}

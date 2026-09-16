@@ -1,5 +1,8 @@
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
+import { updateGoalProgressDetail } from '@orbit/shared/utils'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -82,6 +85,44 @@ describe('GoalDetailDrawer', () => {
       <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
     )
     expect(screen.getByText('Read 12 books')).toBeInTheDocument()
+  })
+
+  it.each([
+    {
+      locale: 'en',
+      messages: en,
+      manual: 'Update progress. Reaching the target completes the goal.',
+      open: 'This goal reached its target but is still open. Complete it when you are ready.',
+    },
+    {
+      locale: 'pt-BR',
+      messages: ptBR,
+      manual: 'Atualize o progresso. Ao alcançar o alvo, a meta é concluída.',
+      open: 'Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.',
+    },
+  ])('keeps manual completion copy truthful in $locale', async ({ locale, messages, manual, open }) => {
+    const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+    const translate = createTranslator({ locale, messages })
+
+    expect(translate('goals.detail.manualProgress')).toBe(manual)
+    expect(translate('goals.detail.completeWhy')).toBe(open)
+  })
+
+  it('retargets the already-mounted detail ring when progress changes', async () => {
+    const { rerender } = render(
+      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
+    )
+    const ring = screen.getByRole('progressbar')
+    const sweep = ring.querySelector('circle:last-child')
+    await waitFor(() => expect(sweep).toHaveClass('transition-[stroke-dashoffset]'))
+
+    detailGoal = { ...detailGoal, currentValue: 6, progressPercentage: 50 }
+    rerender(<GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByRole('progressbar')).toBe(ring)
+    expect(ring).toHaveAttribute('aria-valuenow', '50')
+    expect(ring.querySelector('circle:last-child')).toBe(sweep)
+    expect(sweep).toHaveClass('transition-[stroke-dashoffset]')
   })
 
   it('keeps the linked habits section visible at count zero', () => {
@@ -249,7 +290,7 @@ describe('GoalDetailDrawer', () => {
   it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
     detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: true, progressHistory: [] }
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-    expect(document.body.textContent).toContain('goals.detail.completeWhyDerived')
+    expect(document.body.textContent).toContain('goals.detail.completeWhy')
     const label = 'goals.detail.markCompleted'
     const complete = screen.queryByRole('button', { name: label })
     expect(complete).toBeTruthy()
@@ -269,7 +310,22 @@ describe('GoalDetailDrawer', () => {
 
   it('stage 5 lets the progress write complete a manual goal at its target', async () => {
     detailGoal = { ...listGoal, currentValue: 11, progressPercentage: 92, progressHistory: [] }
-    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+    updateProgressMutateAsync.mockImplementationOnce(({ data }) => {
+      const optimisticDetail = updateGoalProgressDetail({
+        goal: detailGoal,
+        metrics: {
+          progressPercentage: detailGoal.progressPercentage,
+          velocityPerDay: 0,
+          projectedCompletionDate: null,
+          daysToDeadline: null,
+          trackingStatus: 'no_deadline',
+          habitAdherence: [],
+        },
+      }, data.currentValue)
+      detailGoal = optimisticDetail!.goal
+      return Promise.resolve(undefined)
+    })
+    const { rerender } = render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
 
@@ -282,17 +338,43 @@ describe('GoalDetailDrawer', () => {
     })
     expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(refetchDetail).toHaveBeenCalled())
+    rerender(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+    expect(detailGoal.status).toBe('Completed')
     expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).toBeNull()
     expect(updateStatusMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('stage 5 does not offer a second completion action for a manual goal at target', () => {
+  it('stage 5 completes a target-reached manual goal with one neutral action and explanation', () => {
     detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: false, progressHistory: [] }
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 
-    expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).toBeNull()
+    const completions = screen.queryAllByRole('button', { name: 'goals.detail.markCompleted' })
+    expect(completions).toHaveLength(1)
+    const complete = screen.getByRole('button', { name: 'goals.detail.markCompleted' })
+    expect(complete).toHaveAttribute('data-variant', 'secondary')
     expect(document.body.textContent).toContain('goals.detail.manualProgress')
-    expect(updateStatusMutateAsync).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('goals.detail.completeWhy')
+    fireEvent.click(complete)
+    expect(updateStatusMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { status: 'Completed' },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
+    expect(updateStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    { name: 'manual below target', status: 'Active', progressPercentage: 92, isProgressDerived: false },
+    { name: 'derived below target', status: 'Active', progressPercentage: 92, isProgressDerived: true },
+    { name: 'completed', status: 'Completed', progressPercentage: 100, isProgressDerived: false },
+    { name: 'abandoned', status: 'Abandoned', progressPercentage: 100, isProgressDerived: false },
+  ] as const)('stage 5 hides completion for $name goals', ({ status, progressPercentage, isProgressDerived }) => {
+    detailGoal = { ...listGoal, status, progressPercentage, isProgressDerived, progressHistory: [] }
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).not.toBeInTheDocument()
   })
 
   it.each(['Active', 'Completed'] as const)('stage 5 never reopens a %s goal', (status) => {

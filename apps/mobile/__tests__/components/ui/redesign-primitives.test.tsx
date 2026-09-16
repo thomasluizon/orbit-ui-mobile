@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { act, create } from 'react-test-renderer'
-import { describe, expect, it, vi } from 'vitest'
+import { Animated } from 'react-native'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Columns } from '@/components/ui/columns'
 import { Fab } from '@/components/ui/fab'
@@ -11,6 +12,12 @@ import { ProgressRing } from '@/components/ui/progress-ring'
 import { createTokensV2 } from '@/lib/theme'
 
 const tokens = createTokensV2('purple', 'dark')
+const motionState = vi.hoisted(() => ({ reduced: false }))
+
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/motion')>()),
+  usePrefersReducedMotion: () => motionState.reduced,
+}))
 
 interface TestNode {
   readonly type: unknown
@@ -46,6 +53,11 @@ function byType(root: TestNode, type: string): TestNode[] {
 }
 
 describe('redesign primitives on mobile', () => {
+  beforeEach(() => {
+    motionState.reduced = false
+    vi.restoreAllMocks()
+  })
+
   it('renders a measured zero as a 2px column without using the empty words', () => {
     const tree = render(
       <Columns
@@ -86,10 +98,48 @@ describe('redesign primitives on mobile', () => {
     expect(prop<StyleArray>(findFill()!, 'style')[1].height).toBe('50%')
   })
 
-  it('draws unfinished ring progress in accent and completion in neutral', () => {
-    const tree = render(<ProgressRing value={40} label="Progress" />)
+  it('keeps the measured ring static on mount and interrupts later progress changes', () => {
+    const animations: {
+      reset: ReturnType<typeof vi.fn>
+      start: ReturnType<typeof vi.fn>
+      stop: ReturnType<typeof vi.fn>
+    }[] = []
+    const timing = vi.spyOn(Animated, 'timing').mockImplementation(() => {
+      const animation = { reset: vi.fn(), start: vi.fn(), stop: vi.fn() }
+      animations.push(animation)
+      return animation
+    })
+    const tree = render(<ProgressRing value={0} label="Progress" />)
+    const progressCircle = () => byType(tree.root, 'Circle')[1]!
+    const circumference = 2 * Math.PI * 30
+
+    void act(() => {
+      prop<() => void>(byType(tree.root, 'Svg')[0]!, 'onLayout')()
+    })
+
     expect(prop(byType(tree.root, 'Circle')[0]!, 'stroke')).toBe(tokens.trackEmpty)
-    expect(prop(byType(tree.root, 'Circle')[1]!, 'stroke')).toBe(tokens.primary)
+    expect(prop(progressCircle(), 'stroke')).toBe(tokens.primary)
+    expect(timing).not.toHaveBeenCalled()
+
+    void act(() => {
+      tree.update(<ProgressRing value={40} label="Progress" />)
+    })
+    expect(timing).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ toValue: circumference * 0.6 }),
+    )
+
+    void act(() => {
+      tree.update(<ProgressRing value={70} label="Progress" />)
+    })
+    expect(animations[0]?.stop).toHaveBeenCalledOnce()
+
+    motionState.reduced = true
+    void act(() => {
+      tree.update(<ProgressRing value={99.9} label="Progress" />)
+    })
+    expect(timing).toHaveBeenCalledTimes(2)
+    expect(prop<{ value: number }>(progressCircle(), 'strokeDashoffset').value).toBeCloseTo(circumference * 0.001)
 
     void act(() => {
       tree.update(<ProgressRing value={100} label="Progress" />)

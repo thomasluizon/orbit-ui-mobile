@@ -30,7 +30,7 @@ export function createSectionStyles(tokens: AppTokens) {
     headerLeft: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
+      gap: 8,
     },
     headerLabel: {
       fontFamily: "Geist_500Medium",
@@ -48,9 +48,9 @@ export function createSectionStyles(tokens: AppTokens) {
     chip: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 4,
       paddingHorizontal: 12,
-      paddingVertical: 6,
+      paddingVertical: 4,
       borderRadius: radius.full,
       backgroundColor: tintFromPrimary(tokens, 0.12),
     },
@@ -69,7 +69,7 @@ export function createSectionStyles(tokens: AppTokens) {
       alignItems: "center",
       alignSelf: "flex-start",
       gap: 8,
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: radius.full,
       backgroundColor: tokens.bgElev,
@@ -86,11 +86,11 @@ export function createSectionStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgSheet,
-      padding: 6,
+      padding: 4,
       marginTop: 8,
     },
     dropdownItem: {
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
       paddingVertical: 12,
       borderRadius: 10,
     },
@@ -116,7 +116,7 @@ export function createSectionStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgField,
       color: tokens.fg1,
       borderRadius: 12,
-      paddingVertical: 10,
+      paddingVertical: 8,
       paddingHorizontal: 12,
       fontFamily: "Geist_400Regular",
       fontSize: 14,
@@ -128,7 +128,7 @@ export function createSectionStyles(tokens: AppTokens) {
       gap: 4,
     },
     unitButton: {
-      paddingHorizontal: 10,
+      paddingHorizontal: 8,
       paddingVertical: 8,
       borderRadius: radius.full,
       backgroundColor: tokens.bgField,
@@ -170,7 +170,7 @@ export function createSectionStyles(tokens: AppTokens) {
     whenButton: {
       flex: 1,
       paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingVertical: 8,
       borderRadius: radius.full,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
@@ -194,8 +194,8 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     timeControls: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "flex-end" },
     timeAddButton: {
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
       borderRadius: radius.full,
       backgroundColor: tokens.primary,
     },
@@ -214,7 +214,7 @@ export function createSectionStyles(tokens: AppTokens) {
       fontFamily: "Geist_400Regular",
       fontSize: 13,
       color: tokens.fg3,
-      marginLeft: 30,
+      marginLeft: 32,
     },
     disabledSwitch: {
       width: 48,
@@ -255,7 +255,7 @@ export function createStyles(tokens: AppTokens) {
       fontFamily: "Geist_400Regular",
       fontSize: 13,
       color: tokens.statusBadText,
-      marginTop: 2,
+      marginTop: 4,
     },
     hintText: {
       fontFamily: "Geist_400Regular",
@@ -277,7 +277,7 @@ export function createStyles(tokens: AppTokens) {
       minWidth: 0,
     },
     titleInputWithTrailing: {
-      paddingRight: 52,
+      paddingRight: 48,
     },
     titleTrailing: {
       position: "absolute",
@@ -337,7 +337,7 @@ export function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       alignItems: "center",
       alignSelf: "flex-start",
-      gap: 6,
+      gap: 4,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
@@ -361,7 +361,7 @@ export function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: "transparent",
       borderRadius: radius.full,
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
       paddingVertical: 8,
     },
     emojiCategoryTabActive: {
@@ -380,7 +380,7 @@ export function createStyles(tokens: AppTokens) {
       flex: 1,
     },
     emojiCategorySection: {
-      paddingBottom: 18,
+      paddingBottom: 16,
       gap: 8,
     },
     emojiCategoryTitle: {
@@ -421,7 +421,7 @@ export function createStyles(tokens: AppTokens) {
     frequencyCarouselRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 4,
     },
     frequencyScroll: {
       flex: 1,
@@ -434,7 +434,7 @@ export function createStyles(tokens: AppTokens) {
       alignItems: "center",
       gap: 12,
       borderRadius: 18,
-      paddingVertical: 14,
+      paddingVertical: 12,
       paddingHorizontal: 16,
       backgroundColor: tintFromPrimary(tokens, 0.1),
       borderWidth: 1.5,
@@ -457,8 +457,8 @@ export function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
-      gap: 6,
-      paddingTop: 10,
+      gap: 4,
+      paddingTop: 8,
     },
     frequencyDot: {
       width: 6,
@@ -574,7 +574,7 @@ export function createStyles(tokens: AppTokens) {
     tagChipMain: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 4,
       paddingLeft: 12,
       paddingRight: 4,
       paddingVertical: 8,
@@ -591,8 +591,8 @@ export function createStyles(tokens: AppTokens) {
     newTagButton: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      paddingHorizontal: 14,
+      gap: 4,
+      paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: radius.full,
       backgroundColor: tokens.bgElev,
@@ -607,8 +607,8 @@ export function createStyles(tokens: AppTokens) {
     aiChip: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      paddingHorizontal: 14,
+      gap: 4,
+      paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: radius.full,
       backgroundColor: tintFromPrimary(tokens, 0.1),
@@ -626,7 +626,7 @@ export function createStyles(tokens: AppTokens) {
     colorPicker: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: 2,
+      gap: 4,
     },
     colorCell: {
       width: 44,
@@ -649,8 +649,8 @@ export function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     tagFormSave: {
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
       borderRadius: radius.full,
       backgroundColor: tokens.primary,
     },

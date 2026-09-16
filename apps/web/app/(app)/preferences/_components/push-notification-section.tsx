@@ -60,7 +60,7 @@ export function PushNotificationSection({
       <div
         className={getPushStatusTone(push.status)}
         style={{
-          padding: '0 20px 14px',
+          padding: '0 16px 12px',
           fontFamily: 'var(--font-sans)',
           fontSize: 12,
           fontWeight: 500,
