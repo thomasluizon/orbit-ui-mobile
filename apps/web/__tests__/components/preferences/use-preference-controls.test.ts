@@ -28,10 +28,19 @@ vi.mock('@/hooks/use-color-scheme', () => ({
     applyTheme: mockApplyTheme,
   }),
 }))
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) =>
-    selector({ isAuthenticated: authRef.isAuthenticated }),
-}))
+vi.mock('@/stores/auth-store', () => {
+  const getState = () => ({
+    isAuthenticated: authRef.isAuthenticated,
+    confirmSessionRefreshFailure: vi.fn(),
+    recoverSessionRefreshFailure: vi.fn(),
+  })
+  return {
+    useAuthStore: Object.assign(
+      (selector: (state: { isAuthenticated: boolean }) => unknown) => selector(getState()),
+      { getState },
+    ),
+  }
+})
 vi.mock('@/lib/actions/profile', () => ({
   updateWeekStartDay: vi.fn(),
   updateLanguage: vi.fn(),

@@ -27,8 +27,11 @@ describe('API key server actions', () => {
     })
 
     await expect(createApiKey({ name: 'CI key' })).resolves.toEqual({
-      success: false,
-      challengeRequired: true,
+      ok: true,
+      data: {
+        success: false,
+        challengeRequired: true,
+      },
     })
   })
 
@@ -39,6 +42,11 @@ describe('API key server actions', () => {
       json: () => Promise.resolve({ error: 'Internal error' }),
     })
 
-    await expect(createApiKey({ name: 'CI key' })).rejects.toThrow('Internal error')
+    await expect(createApiKey({ name: 'CI key' })).resolves.toEqual({
+      ok: false,
+      error: 'Internal error',
+      status: 500,
+      sessionRefreshFailed: false,
+    })
   })
 })
