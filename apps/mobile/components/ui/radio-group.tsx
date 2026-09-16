@@ -19,15 +19,14 @@ interface RadioItemState {
   selected: boolean
 }
 
-type RadioNavigationProps = Pick<
-  ViewProps,
-  | 'focusable'
-  | 'nextFocusDown'
-  | 'nextFocusForward'
-  | 'nextFocusLeft'
-  | 'nextFocusRight'
-  | 'nextFocusUp'
->
+interface RadioNavigationProps {
+  focusable: boolean
+  nextFocusDown?: number
+  nextFocusForward?: number
+  nextFocusLeft?: number
+  nextFocusRight?: number
+  nextFocusUp?: number
+}
 
 interface RadioGroupContextValue {
   getNavigationProps: (id: string) => RadioNavigationProps
