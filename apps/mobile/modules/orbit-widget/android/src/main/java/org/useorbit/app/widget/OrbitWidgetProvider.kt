@@ -337,14 +337,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     OrbitWidgetFactory.tr(context, lang, WidgetString.STREAK_UNIT)
                 )
                 views.setViewVisibility(R.id.widget_streak_group, streakVisible)
-                val emptyString = if (habitCount == 0) {
-                    WidgetString.NOTHING_SCHEDULED
-                } else {
-                    WidgetString.ALL_CLEAR
-                }
                 views.setTextViewText(
                     R.id.widget_empty_text,
-                    OrbitWidgetFactory.tr(context, lang, emptyString)
+                    OrbitWidgetFactory.tr(context, lang, WidgetString.ALL_CLEAR)
                 )
                 applyRefreshingState(views, refreshing)
             }

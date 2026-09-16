@@ -220,21 +220,6 @@ describe('Android widget header', () => {
     })
   })
 
-  it('chooses the empty line from the scheduled habit count', () => {
-    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
-    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
-
-    expect(service).toContain(
-      'NOTHING_SCHEDULED(R.string.widget_nothing_scheduled)',
-    )
-    expect(provider).toMatch(
-      /val emptyString = if \(habitCount == 0\) \{\s*WidgetString\.NOTHING_SCHEDULED\s*\} else \{\s*WidgetString\.ALL_CLEAR\s*\}/,
-    )
-    expect(provider).toContain(
-      'OrbitWidgetFactory.tr(context, lang, emptyString)',
-    )
-  })
-
   it('hides a zero streak and shows a positive streak without reserving space', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
 

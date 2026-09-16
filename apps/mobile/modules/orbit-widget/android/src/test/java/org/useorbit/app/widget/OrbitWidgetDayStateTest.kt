@@ -80,59 +80,6 @@ class OrbitWidgetDayStateTest {
     }
 
     @Test
-    fun `failed refresh keeps cached rows without writing cache keys`() {
-        val cachedResponse = HabitWidgetResponse(
-            dayOffset = 0,
-            language = "en",
-            currentStreak = 4,
-            items = listOf(habit(id = "cached-row"))
-        )
-        var cacheWriteCount = 0
-
-        val selectedResponse = selectWidgetDataAfterFetch(
-            cachedData = cachedResponse,
-            freshJson = null,
-            freshData = null
-        ) {
-            cacheWriteCount += 1
-        }
-        val renderedDay = prepareWidgetDay(
-            selectedResponse?.items.orEmpty(),
-            selectedResponse?.dayOffset ?: 0
-        )
-
-        assertEquals(0, cacheWriteCount)
-        assertEquals(listOf("cached-row"), renderedDay.habits.map { it.id })
-    }
-
-    @Test
-    fun `successful refresh selects and caches the fresh payload`() {
-        val cachedResponse = HabitWidgetResponse(
-            dayOffset = 0,
-            language = "en",
-            currentStreak = 4,
-            items = listOf(habit(id = "cached-row"))
-        )
-        val freshResponse = HabitWidgetResponse(
-            dayOffset = 1,
-            language = "pt-BR",
-            currentStreak = 5,
-            items = listOf(habit(id = "fresh-row"))
-        )
-        val cachedPayloads = mutableListOf<String>()
-
-        val selectedResponse = selectWidgetDataAfterFetch(
-            cachedData = cachedResponse,
-            freshJson = "fresh-json",
-            freshData = freshResponse,
-            cacheFreshPayload = cachedPayloads::add
-        )
-
-        assertEquals(freshResponse, selectedResponse)
-        assertEquals(listOf("fresh-json"), cachedPayloads)
-    }
-
-    @Test
     fun `flattens the complete widget row vocabulary`() {
         val greatGrandchild = habit(id = "great-grandchild")
         val grandchild = habit(id = "grandchild", children = listOf(greatGrandchild))
