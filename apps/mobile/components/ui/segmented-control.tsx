@@ -24,19 +24,16 @@ function SegmentOption<TValue extends string>({
   const select = () => {
     if (!disabled && !selected) onChange(option.value)
   }
-  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({
+  const { elementRef, ...navigationProps } = useRadioGroupItem({
     disabled,
     index,
     onSelect: select,
     selected,
   })
-  const keyProps = { onKeyDown }
-
   return (
     <Pressable
-      {...keyProps}
+      {...navigationProps}
       ref={elementRef}
-      tabIndex={tabIndex}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}

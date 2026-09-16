@@ -67,19 +67,16 @@ function TimeOption({
   selected: boolean
   tokens: Tokens
 }>) {
-  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({
+  const { elementRef, ...navigationProps } = useRadioGroupItem({
     disabled: false,
     index,
     onSelect,
     selected,
   })
-  const keyProps = { onKeyDown }
-
   return (
     <Pressable
-      {...keyProps}
+      {...navigationProps}
       ref={elementRef}
-      tabIndex={tabIndex}
       accessibilityLabel={formattedValue}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, selected }}

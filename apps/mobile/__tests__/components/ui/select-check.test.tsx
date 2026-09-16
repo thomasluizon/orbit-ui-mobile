@@ -4,7 +4,7 @@ import { act, create } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
-import { __resetTestHostConfig, __setFocusImpl } from '../../../test-mocks/react-native'
+import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 
 function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
   const [value, setValue] = useState('first')
@@ -23,21 +23,13 @@ function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>
   )
 }
 
-function keyDown(node: any, key: string) {
-  const preventDefault = vi.fn()
-  void act(() => node.props.onKeyDown({ nativeEvent: { key }, preventDefault }))
-  expect(preventDefault).toHaveBeenCalledOnce()
-}
-
 describe('select-check RadioRow group', () => {
   beforeEach(() => {
     __resetTestHostConfig()
   })
 
-  it('keeps one tab stop, skips disabled rows, wraps, and follows selection with focus', () => {
+  it('routes native focus around enabled rows, wraps, and selects the focused row', () => {
     const onChange = vi.fn()
-    const focusedLabels: string[] = []
-    __setFocusImpl((props) => focusedLabels.push(String(props.accessibilityLabel)))
     let tree: any
     void act(() => {
       tree = create(<RadioRows onChange={onChange} />)
@@ -46,19 +38,35 @@ describe('select-check RadioRow group', () => {
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
 
-    expect(radios().map((option: any) => option.props.tabIndex)).toEqual([0, -1, -1, -1])
-    keyDown(radios()[0], 'ArrowDown')
-    expect(onChange).toHaveBeenLastCalledWith('third')
-    expect(focusedLabels.at(-1)).toBe('Third')
-    keyDown(radios()[2], 'ArrowDown')
-    expect(onChange).toHaveBeenLastCalledWith('last')
-    expect(focusedLabels.at(-1)).toBe('Last')
-    keyDown(radios()[3], 'ArrowRight')
-    expect(onChange).toHaveBeenLastCalledWith('first')
-    expect(focusedLabels.at(-1)).toBe('First')
-    keyDown(radios()[0], 'ArrowUp')
-    expect(onChange).toHaveBeenLastCalledWith('last')
-    expect(focusedLabels.at(-1)).toBe('Last')
+    const options = radios()
+    const handles = options.map((option: any) => option.props.__nativeTag)
+    const [first, , third, last] = options
+    const forwardTarget = tree.root.find(
+      (node: any) => typeof node.type === 'string'
+        && node.props.testID === 'radio-group-forward-target',
+    )
+
+    expect(options.map((option: any) => option.props.focusable)).toEqual([true, false, true, true])
+    expect(handles.every((handle: unknown) => typeof handle === 'number')).toBe(true)
+    expect(first.props.nextFocusUp).toBe(handles[3])
+    expect(first.props.nextFocusDown).toBe(handles[2])
+    expect(first.props.nextFocusLeft).toBe(handles[3])
+    expect(first.props.nextFocusRight).toBe(handles[2])
+    expect(third.props.nextFocusUp).toBe(handles[0])
+    expect(third.props.nextFocusDown).toBe(handles[3])
+    expect(last.props.nextFocusUp).toBe(handles[2])
+    expect(last.props.nextFocusDown).toBe(handles[0])
+    expect(options.filter((option: any) => !option.props.accessibilityState.disabled)
+      .map((option: any) => option.props.nextFocusForward))
+      .toEqual([
+        forwardTarget.props.__nativeTag,
+        forwardTarget.props.__nativeTag,
+        forwardTarget.props.__nativeTag,
+      ])
+    expect(options.every((option: any) => option.props.onKeyDown === undefined)).toBe(true)
+
+    void act(() => third.props.onFocus())
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
   })
 
   it('keeps touch selection unchanged and blocks disabled rows', () => {

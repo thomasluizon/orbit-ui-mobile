@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreferencePickerSheet } from '@/components/profile/preferences-sections'
 import type { SheetHandle } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
-import { __resetTestHostConfig, __setFocusImpl } from '../../../test-mocks/react-native'
+import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => ({
   ...await importOriginal<typeof import('@orbit/shared/utils')>(),
@@ -67,10 +67,8 @@ describe('PreferencePickerSheet', () => {
     __resetTestHostConfig()
   })
 
-  it('enters once and moves focus and selection with ArrowDown', () => {
+  it('selects the language reached by native focus', () => {
     const props = baseProps()
-    const focusedLabels: string[] = []
-    __setFocusImpl((hostProps) => focusedLabels.push(String(hostProps.accessibilityLabel)))
     let tree: any
     void act(() => {
       tree = create(<PreferencePickerSheet {...props} />)
@@ -78,13 +76,9 @@ describe('PreferencePickerSheet', () => {
     const radios = tree.root.findAll(
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
-    const preventDefault = vi.fn()
-
-    expect(radios.map((option: any) => option.props.tabIndex)).toEqual([0, -1])
-    void act(() => radios[0]!.props.onKeyDown({ nativeEvent: { key: 'ArrowDown' }, preventDefault }))
-    expect(preventDefault).toHaveBeenCalledOnce()
+    expect(radios.map((option: any) => option.props.focusable)).toEqual([true, true])
+    void act(() => radios[1]!.props.onFocus())
     expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
-    expect(focusedLabels.at(-1)).toBe('Português')
   })
 
   it('uses rendered timezone order after filtered options remount', () => {
@@ -116,13 +110,12 @@ describe('PreferencePickerSheet', () => {
     const retainedIndex = restoredRadios.findIndex(
       (option: any) => option.props.accessibilityLabel === retainedLabel,
     )
-    const adjacentLabel = restoredRadios[retainedIndex + 1]!.props.accessibilityLabel
+    const adjacentOption = restoredRadios[retainedIndex + 1]!
+    const adjacentLabel = adjacentOption.props.accessibilityLabel
     const retainedOption = restoredRadios[retainedIndex]!
 
-    void act(() => retainedOption.props.onKeyDown({
-      nativeEvent: { key: 'ArrowDown' },
-      preventDefault: vi.fn(),
-    }))
+    expect(retainedOption.props.nextFocusDown).toBe(adjacentOption.props.__nativeTag)
+    void act(() => adjacentOption.props.onFocus())
 
     expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(adjacentLabel)
   })

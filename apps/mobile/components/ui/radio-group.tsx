@@ -9,105 +9,121 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { type NativeSyntheticEvent, View, type ViewProps } from 'react-native'
-import { getRadioNavigationIndex } from '@orbit/shared/utils'
+import { findNodeHandle, StyleSheet, View, type ViewProps } from 'react-native'
 
 interface RadioItemState {
   disabled: boolean
   id: string
   index: number
+  nativeHandle: number | null
   selected: boolean
 }
 
+type RadioNavigationProps = Pick<
+  ViewProps,
+  | 'focusable'
+  | 'nextFocusDown'
+  | 'nextFocusForward'
+  | 'nextFocusLeft'
+  | 'nextFocusRight'
+  | 'nextFocusUp'
+>
+
 interface RadioGroupContextValue {
-  getTabIndex: (id: string) => 0 | -1
-  moveSelection: (id: string, key: string) => boolean
-  register: (id: string, index: number) => () => void
+  getNavigationProps: (id: string) => RadioNavigationProps
+  register: (id: string) => () => void
   setElement: (id: string, element: View | null) => void
-  setHandler: (id: string, handler: () => void) => void
-  update: (state: RadioItemState) => void
+  update: (state: Omit<RadioItemState, 'nativeHandle'>) => void
 }
 
-type RadioKeyEvent = NativeSyntheticEvent<{ key: string }>
-
 const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
+
+function navigationProps(
+  id: string,
+  enabledItems: readonly RadioItemState[],
+  forwardTargetHandle: number | null,
+): RadioNavigationProps {
+  const itemIndex = enabledItems.findIndex((item) => item.id === id)
+  if (itemIndex < 0) return { focusable: false }
+
+  const previousIndex = (itemIndex - 1 + enabledItems.length) % enabledItems.length
+  const nextIndex = (itemIndex + 1) % enabledItems.length
+  const previousHandle = enabledItems[previousIndex]?.nativeHandle ?? undefined
+  const nextHandle = enabledItems[nextIndex]?.nativeHandle ?? undefined
+
+  return {
+    focusable: true,
+    nextFocusDown: nextHandle,
+    nextFocusForward: forwardTargetHandle ?? undefined,
+    nextFocusLeft: previousHandle,
+    nextFocusRight: nextHandle,
+    nextFocusUp: previousHandle,
+  }
+}
 
 export function RadioGroup({ children, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & { children: ReactNode }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
-  const [tabbableId, setTabbableId] = useState<string | null>(null)
-  const elementsRef = useRef(new Map<string, View>())
-  const handlersRef = useRef(new Map<string, () => void>())
-  const pendingFocusIdRef = useRef<string | null>(null)
-  const register = useCallback((id: string, index: number) => {
+  const [forwardTargetHandle, setForwardTargetHandle] = useState<number | null>(null)
+  const itemHandlesRef = useRef(new Map<string, number | null>())
+  const register = useCallback((id: string) => {
     setItems((current) => [...current.filter((item) => item.id !== id), {
       disabled: false,
       id,
-      index,
+      index: 0,
+      nativeHandle: itemHandlesRef.current.get(id) ?? null,
       selected: false,
     }])
     return () => {
+      itemHandlesRef.current.delete(id)
       setItems((current) => current.filter((item) => item.id !== id))
-      elementsRef.current.delete(id)
-      handlersRef.current.delete(id)
     }
   }, [])
-  const update = useCallback((state: RadioItemState) => {
-    setItems((current) => current.map((item) => item.id === state.id ? state : item))
-    if (state.selected && pendingFocusIdRef.current === null) {
-      setTabbableId(state.id)
-    }
+  const update = useCallback((state: Omit<RadioItemState, 'nativeHandle'>) => {
+    setItems((current) => current.map((item) => item.id === state.id ? { ...item, ...state } : item))
   }, [])
   const setElement = useCallback((id: string, element: View | null) => {
-    if (element) elementsRef.current.set(id, element)
-    else elementsRef.current.delete(id)
-  }, [])
-  const setHandler = useCallback((id: string, handler: () => void) => {
-    handlersRef.current.set(id, handler)
+    if (!element) return
+    const nativeHandle = findNodeHandle(element)
+    itemHandlesRef.current.set(id, nativeHandle)
+    setItems((current) => {
+      const item = current.find((candidate) => candidate.id === id)
+      if (!item || item.nativeHandle === nativeHandle) return current
+      return current.map((candidate) => candidate.id === id
+        ? { ...candidate, nativeHandle }
+        : candidate)
+    })
   }, [])
   const enabledItems = useMemo(() => [...items]
     .sort((first, second) => first.index - second.index)
     .filter((item) => !item.disabled), [items])
-  useLayoutEffect(() => {
-    const pendingFocusId = pendingFocusIdRef.current
-    if (!pendingFocusId || pendingFocusId !== tabbableId) return
-    elementsRef.current.get(pendingFocusId)?.focus()
-    pendingFocusIdRef.current = null
-  }, [items, tabbableId])
-  const getTabIndex = useCallback((id: string): 0 | -1 => {
-    const activeItem = enabledItems.find((item) => item.id === tabbableId)
-    const selectedItem = enabledItems.find((item) => item.selected)
-    return (activeItem ?? selectedItem ?? enabledItems[0])?.id === id ? 0 : -1
-  }, [enabledItems, tabbableId])
-  const moveSelection = useCallback((id: string, key: string) => {
-    const currentIndex = enabledItems.findIndex((item) => item.id === id)
-    if (currentIndex < 0) return false
-    const nextIndex = getRadioNavigationIndex(key, currentIndex, enabledItems.length)
-    if (nextIndex === null) return false
-    const nextItem = enabledItems[nextIndex]
-    if (!nextItem) return false
-    pendingFocusIdRef.current = nextItem.id
-    setTabbableId(nextItem.id)
-    handlersRef.current.get(nextItem.id)?.()
-    if (nextItem.selected) {
-      elementsRef.current.get(nextItem.id)?.focus()
-      pendingFocusIdRef.current = null
-    }
-    return true
-  }, [enabledItems])
+  const getNavigationProps = useCallback(
+    (id: string) => navigationProps(id, enabledItems, forwardTargetHandle),
+    [enabledItems, forwardTargetHandle],
+  )
   const contextValue = useMemo(() => ({
-    getTabIndex,
-    moveSelection,
+    getNavigationProps,
     register,
     setElement,
-    setHandler,
     update,
-  }), [getTabIndex, moveSelection, register, setElement, setHandler, update])
+  }), [getNavigationProps, register, setElement, update])
+  const setForwardTarget = useCallback((element: View | null) => {
+    if (element) setForwardTargetHandle(findNodeHandle(element))
+  }, [])
 
   return (
     <RadioGroupContext.Provider value={contextValue}>
       <View {...props} accessibilityRole="radiogroup">{children}</View>
+      <View
+        ref={setForwardTarget}
+        accessibilityElementsHidden
+        collapsable={false}
+        focusable
+        importantForAccessibility="no"
+        style={styles.forwardTarget}
+        testID="radio-group-forward-target"
+      />
     </RadioGroupContext.Provider>
   )
 }
@@ -125,33 +141,40 @@ export function useRadioGroupItem({
 }>) {
   const group = useContext(RadioGroupContext)
   const registerWithGroup = group?.register
-  const getGroupTabIndex = group?.getTabIndex
-  const moveGroupSelection = group?.moveSelection
   const setGroupElement = group?.setElement
-  const setGroupHandler = group?.setHandler
   const updateGroup = group?.update
   const id = useId()
-  const [registeredIndex] = useState(index)
 
-  useLayoutEffect(
-    () => registerWithGroup?.(id, registeredIndex),
-    [id, registerWithGroup, registeredIndex],
-  )
+  useLayoutEffect(() => registerWithGroup?.(id), [id, registerWithGroup])
   useLayoutEffect(() => {
     updateGroup?.({ disabled, id, index, selected })
   }, [disabled, id, index, selected, updateGroup])
-  useLayoutEffect(() => {
-    setGroupHandler?.(id, onSelect ?? (() => undefined))
-  }, [id, onSelect, setGroupHandler])
 
-  const onKeyDown = useCallback((event: RadioKeyEvent) => {
-      if (!moveGroupSelection?.(id, event.nativeEvent.key)) return
-      event.preventDefault()
-  }, [id, moveGroupSelection])
   const elementRef = useCallback((element: View | null) => {
     setGroupElement?.(id, element)
   }, [id, setGroupElement])
-  const tabIndex = getGroupTabIndex?.(id) ?? 0
+  const onFocus = useCallback(() => {
+    if (!disabled && !selected) onSelect?.()
+  }, [disabled, onSelect, selected])
+  const groupNavigationProps = group?.getNavigationProps(id)
 
-  return { elementRef, onKeyDown, tabIndex }
+  return {
+    elementRef,
+    focusable: groupNavigationProps?.focusable ?? !disabled,
+    nextFocusDown: groupNavigationProps?.nextFocusDown,
+    nextFocusForward: groupNavigationProps?.nextFocusForward,
+    nextFocusLeft: groupNavigationProps?.nextFocusLeft,
+    nextFocusRight: groupNavigationProps?.nextFocusRight,
+    nextFocusUp: groupNavigationProps?.nextFocusUp,
+    onFocus,
+  }
 }
+
+const styles = StyleSheet.create({
+  forwardTarget: {
+    height: 1,
+    opacity: 0,
+    position: 'absolute',
+    width: 1,
+  },
+})

@@ -5,7 +5,7 @@ import type { GoalType } from '@orbit/shared/types/goal'
 import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goal-type-selector'
 import { createStyles } from '@/components/habits/create-goal-from-habit/styles'
 import { createTokensV2 } from '@/lib/theme'
-import { __resetTestHostConfig, __setFocusImpl } from '../../../test-mocks/react-native'
+import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -34,10 +34,8 @@ describe('GoalTypeSelector', () => {
     __resetTestHostConfig()
   })
 
-  it('keeps one tab stop and moves selection and focus with radio keys', () => {
+  it('selects the option reached by native focus', () => {
     const onChange = vi.fn()
-    const focusedLabels: string[] = []
-    __setFocusImpl((props) => focusedLabels.push(String(props.accessibilityLabel)))
     let tree: any
     void act(() => {
       tree = create(<Selector onChange={onChange} />)
@@ -45,16 +43,11 @@ describe('GoalTypeSelector', () => {
     const radios = (): any[] => tree.root.findAll(
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
-    const preventDefault = vi.fn()
-
-    expect(radios().map((option) => option.props.tabIndex)).toEqual([0, -1])
-    void act(() => radios()[0]!.props.onKeyDown({ nativeEvent: { key: 'ArrowRight' }, preventDefault }))
-    expect(preventDefault).toHaveBeenCalledOnce()
+    expect(radios().map((option) => option.props.focusable)).toEqual([true, true])
+    void act(() => radios()[1]!.props.onFocus())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
-    expect(focusedLabels.at(-1)).toBe('goals.form.typeStreak')
-    void act(() => radios()[1]!.props.onKeyDown({ nativeEvent: { key: 'ArrowLeft' }, preventDefault }))
+    void act(() => radios()[0]!.props.onFocus())
     expect(onChange).toHaveBeenLastCalledWith('Standard')
-    expect(focusedLabels.at(-1)).toBe('goals.form.typeStandard')
   })
 
   it('keeps touch selection unchanged', () => {

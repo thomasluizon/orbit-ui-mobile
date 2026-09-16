@@ -3,14 +3,8 @@ import { act } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { press, renderNavigation } from './navigation-render'
-import { __resetTestHostConfig, __setFocusImpl } from '../../../test-mocks/react-native'
+import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 const options = [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'completed', label: 'Completed' }] as const
-
-function keyDown(node: ReturnType<typeof renderNavigation>['hosts'] extends () => (infer THost)[] ? THost : never, key: string) {
-  const preventDefault = vi.fn()
-  void act(() => node.props.onKeyDown?.({ nativeEvent: { key }, preventDefault }))
-  return preventDefault
-}
 
 function StatefulSegmentedControl({
   choices,
@@ -68,21 +62,15 @@ describe('SegmentedControl', () => {
     tree.unmount()
   })
 
-  it('keeps one tab stop and moves across enabled views with every radio key', () => {
+  it('keeps disabled views out of native focus and selects an enabled focused view', () => {
     const onChange = vi.fn()
-    const focusedTestIds: string[] = []
-    __setFocusImpl((props) => focusedTestIds.push(String(props.testID)))
     const choices = [options[0], { ...options[1], disabled: true }, options[2]] as const
     const tree = renderNavigation(<StatefulSegmentedControl choices={choices} onChange={onChange} />)
     const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'radio')
 
-    expect(radios().map((node) => node.props.tabIndex)).toEqual([0, -1, -1])
-    expect(keyDown(radios()[0]!, 'ArrowDown')).toHaveBeenCalledOnce()
-    expect(onChange).toHaveBeenLastCalledWith('completed')
-    expect(focusedTestIds.at(-1)).toBe('segment-completed-selected-enabled')
-    expect(keyDown(radios()[2]!, 'ArrowDown')).toHaveBeenCalledOnce()
-    expect(onChange).toHaveBeenLastCalledWith('all')
-    expect(focusedTestIds.at(-1)).toBe('segment-all-selected-enabled')
+    expect(radios().map((node) => node.props.focusable)).toEqual([true, false, true])
+    void act(() => radios()[2]!.props.onFocus?.())
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('completed')
     tree.unmount()
   })
 })

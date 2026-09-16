@@ -164,7 +164,7 @@ describe('SelectionField', () => {
     expect(sheetCount(tree)).toBe(0)
   })
 
-  it('enters once and skips a disabled option with ArrowDown', () => {
+  it('skips a disabled option in native traversal and selects the focused option', () => {
     const { tree, onChange } = render({
       value: 'daily',
       options: [
@@ -176,13 +176,12 @@ describe('SelectionField', () => {
 
     openSheet(tree)
     const options = findByRole(tree, 'radio')
-    expect(options.map((option: any) => option.props.tabIndex)).toEqual([0, -1, -1])
-    const preventDefault = vi.fn()
+    expect(options.map((option: any) => option.props.focusable)).toEqual([true, false, true])
+    expect(options[0].props.nextFocusDown).toBe(options[2].props.__nativeTag)
     TestRenderer.act(() => {
-      options[0].props.onKeyDown({ nativeEvent: { key: 'ArrowDown' }, preventDefault })
+      options[2].props.onFocus()
     })
 
-    expect(preventDefault).toHaveBeenCalledOnce()
     expect(onChange).toHaveBeenCalledExactlyOnceWith('weekly')
   })
 })

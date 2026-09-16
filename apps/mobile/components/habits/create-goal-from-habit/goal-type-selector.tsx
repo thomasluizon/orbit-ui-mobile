@@ -45,20 +45,18 @@ function GoalTypeOption({
   styles: CreateGoalStyles
   tokens: CreateGoalTokens
 }>) {
-  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({
+  const { elementRef, ...navigationProps } = useRadioGroupItem({
     disabled: false,
     index,
     onSelect,
     selected: active,
   })
-  const keyProps = { onKeyDown }
   const OptionIcon = option.icon
 
   return (
     <Pressable
-      {...keyProps}
+      {...navigationProps}
       ref={elementRef}
-      tabIndex={tabIndex}
       style={({ pressed }) => [
         styles.typeOption,
         active ? styles.typeOptionActive : styles.typeOptionInactive,

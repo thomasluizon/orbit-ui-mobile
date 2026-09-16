@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import {
   __resetTestHostConfig,
-  __setFocusImpl,
   __setScrollToImpl,
 } from '../../../test-mocks/react-native'
 
@@ -235,9 +234,7 @@ await Promise.resolve()
     expect(clearButton).toBeUndefined()
   })
 
-  it('keeps one tab stop per column and moves selection and focus with radio keys', async () => {
-    const focusedLabels: string[] = []
-    __setFocusImpl((props) => focusedLabels.push(String(props.accessibilityLabel)))
+  it('selects a time option when native focus reaches it', async () => {
     let tree: any
 
     await TestRenderer.act(async () => {
@@ -247,30 +244,13 @@ await Promise.resolve()
       )
     })
     await openPicker(tree)
-    const hours = column(tree, 'common.hours').findAll(
-      (node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'radio',
-    )
-    const minutes = column(tree, 'common.minutes').findAll(
-      (node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'radio',
-    )
-    expect(hours.filter((option: any) => option.props.tabIndex === 0)).toHaveLength(1)
-    expect(minutes.filter((option: any) => option.props.tabIndex === 0)).toHaveLength(1)
-
-    const preventDefault = vi.fn()
     TestRenderer.act(() => {
-      radioOption(tree, 'common.hours', '23').props.onKeyDown({ nativeEvent: { key: 'ArrowDown' }, preventDefault })
+      radioOption(tree, 'common.hours', '00').props.onFocus()
     })
     expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(true)
-    expect(focusedLabels.at(-1)).toBe('00')
     TestRenderer.act(() => {
-      radioOption(tree, 'common.minutes', '59').props.onKeyDown({ nativeEvent: { key: 'ArrowRight' }, preventDefault })
+      radioOption(tree, 'common.minutes', '00').props.onFocus()
     })
     expect(radioOption(tree, 'common.minutes', '00').props.accessibilityState.checked).toBe(true)
-    expect(focusedLabels.at(-1)).toBe('00')
-    TestRenderer.act(() => {
-      radioOption(tree, 'common.minutes', '00').props.onKeyDown({ nativeEvent: { key: 'ArrowLeft' }, preventDefault })
-    })
-    expect(radioOption(tree, 'common.minutes', '59').props.accessibilityState.checked).toBe(true)
-    expect(focusedLabels.at(-1)).toBe('59')
   })
 })

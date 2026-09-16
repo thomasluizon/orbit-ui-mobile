@@ -10,8 +10,14 @@ type NavigationHost = {
     accessibilityRole?: string
     accessibilityLabel?: string
     accessibilityState?: { selected?: boolean; checked?: boolean; disabled?: boolean }
-    onKeyDown?: (event: { nativeEvent: { key: string }; preventDefault: () => void }) => void
-    tabIndex?: 0 | -1
+    __nativeTag?: number
+    focusable?: boolean
+    nextFocusDown?: number
+    nextFocusForward?: number
+    nextFocusLeft?: number
+    nextFocusRight?: number
+    nextFocusUp?: number
+    onFocus?: () => void
     testID?: string
     style?: unknown
   }
