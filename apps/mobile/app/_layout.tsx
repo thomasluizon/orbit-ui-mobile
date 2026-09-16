@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import {
@@ -60,7 +60,6 @@ import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
-import { useTourTarget } from '@/hooks/use-tour-target'
 import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
 import { OfflineNotice } from '@/components/offline-notice'
@@ -411,7 +410,6 @@ function GlobalOverlays({
   useEffect(() => {
     if (
       profile?.hasCompletedOnboarding &&
-      profile.hasCompletedTour &&
       profile.hasSeenImportPrompt &&
       profile.marketingEmailConsent === null
     ) {
@@ -419,7 +417,6 @@ function GlobalOverlays({
     }
   }, [
     profile?.hasCompletedOnboarding,
-    profile?.hasCompletedTour,
     profile?.hasSeenImportPrompt,
     profile?.marketingEmailConsent,
     armConsentPrompt,
@@ -534,11 +531,8 @@ function RootLayoutContent() {
 
 function AppCreateFab({ onCreate }: Readonly<{ onCreate: () => void }>) {
   const { t } = useTranslation()
-  const fabRef = useRef<View>(null)
-  useTourTarget('tour-fab-button', fabRef)
-
   return (
-    <View ref={fabRef} collapsable={false}>
+    <View>
       <Fab label={t('nav.create')} onClick={onCreate}>
         <Plus size={24} strokeWidth={2} />
       </Fab>

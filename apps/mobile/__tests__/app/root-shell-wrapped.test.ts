@@ -154,10 +154,6 @@ vi.mock('@/components/upgrade-required-screen', () => ({
   UpgradeRequiredScreen: () => null,
 }))
 
-vi.mock('@/hooks/use-tour-target', () => ({ useTourTarget: vi.fn() }))
-vi.mock('@/hooks/use-chat-composer', () => ({
-  useChatComposer: () => ({ composerProps: {} }),
-}))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({
   PushNotificationsProvider: ({ children }: Readonly<{ children?: ReactNode }>) => children,

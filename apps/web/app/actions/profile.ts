@@ -86,18 +86,6 @@ export async function completeOnboarding(): Promise<void> {
   })
 }
 
-export async function completeTour(): Promise<void> {
-  await serverAuthFetch(API.profile.tour, {
-    method: 'PUT',
-  })
-}
-
-export async function resetTour(): Promise<void> {
-  await serverAuthFetch(API.profile.tour, {
-    method: 'DELETE',
-  })
-}
-
 export async function resetAccount(): Promise<void> {
   await serverAuthFetch(API.profile.reset, {
     method: 'POST',

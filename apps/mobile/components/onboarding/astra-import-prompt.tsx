@@ -40,13 +40,11 @@ export function AstraImportPrompt() {
 
   const calendarPromptWouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
-      profile.hasCompletedTour &&
       !profile.hasImportedCalendar,
   )
 
   const shouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
-      profile.hasCompletedTour &&
       !profile.hasSeenImportPrompt &&
       !calendarPromptWouldShow &&
       !pendingOnboardingAnswers &&

@@ -200,9 +200,6 @@ vi.mock('@/components/profile/profile-nav-icon', () => ({
 }))
 
 
-vi.mock('@/components/tour/tour-replay-modal', () => ({
-  TourReplayModal: () => null,
-}))
 
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: mocks.useOffline,

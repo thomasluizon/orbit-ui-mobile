@@ -129,25 +129,12 @@
       "count": 4
     }
   },
-  "components/onboarding/onboarding-complete-habit.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/onboarding/onboarding-complete.tsx": {
     "local/icon-size-grid": {
       "count": 1
     },
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "components/onboarding/onboarding-create-goal.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "components/onboarding/onboarding-create-habit.tsx": {
@@ -158,24 +145,6 @@
       "count": 3
     }
   },
-  "components/onboarding/onboarding-features.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/onboarding/onboarding-meet-astra.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/onboarding/onboarding-template-packs.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "components/onboarding/onboarding-welcome.tsx": {
     "local/spacing-scale": {
       "count": 3
@@ -184,30 +153,6 @@
   "components/profile/ai-settings-sections.tsx": {
     "local/icon-size-grid": {
       "count": 2
-    }
-  },
-  "components/tour/tour-replay-modal.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/tour/tour-spotlight.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
-  "components/tour/tour-tooltip.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-arbitrary-zindex": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/ui/app-text-input.tsx": {
@@ -231,14 +176,6 @@
   "components/ui/highlight-text.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/ui/push-prompt.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/ui/scroll-to-top-button.tsx": {

@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useTourTarget } from "@/hooks/use-tour-target";
 import { useOverlayBack } from "@/hooks/use-overlay-back";
 import {
   View,
@@ -44,8 +43,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const insets = useSafeAreaInsets();
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
-  useTourTarget("tour-chat-area", chatAreaRef);
-  useTourTarget("tour-chat-input", chatInputRef);
 
   const {
     flatListRef,

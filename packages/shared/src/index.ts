@@ -240,7 +240,6 @@ export type {
 } from './utils/profile-navigation'
 export type {
   NativePushPermissionStatus,
-  NativePushPromptSnapshot,
   NativePushRegistrationStatus,
   NativePushStatusSnapshot,
   PushStatusPresentation,
