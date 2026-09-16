@@ -302,9 +302,10 @@ function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
 }
 
-function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
+function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
   goal: Goal
   index: number
+  total: number
   canReorder: boolean
   onMove: (goalId: string, target: number) => void
   onOpen: () => void
@@ -313,13 +314,24 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
   const { setNodeRef, listeners, transform, isDragging } = useSortable({ id: goal.id, disabled: !canReorder })
   const labelKey = getProgressGoalLabelKey(goal)
   const abandoned = goal.status === 'Abandoned'
+  const state = t(labelKey ?? 'goals.status.active')
+  const position = t('progressScreen.goals.position', { position: index + 1, total })
+  const accessibilityLabel = abandoned
+    ? t('progressScreen.goals.accessibleLabelWithoutProgress', { title: goal.title, state, position })
+    : t('progressScreen.goals.accessibleLabel', {
+        title: goal.title,
+        state,
+        progress: t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit }),
+        position,
+      })
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
     event.preventDefault()
     onMove(goal.id, index + (event.key === 'ArrowUp' ? -1 : 1))
   }
   return (
-    <button type="button" aria-label={goal.title} data-goal-id={goal.id} data-dragging={isDragging}
+    // eslint-disable-next-line local/max-button-words -- ORB-480 requires the control name to expose goal state, progress, and position.
+    <button type="button" aria-label={accessibilityLabel} data-goal-id={goal.id} data-dragging={isDragging}
       ref={setNodeRef} {...listeners}
       style={{ transform: CSS.Transform.toString(transform) }}
       aria-roledescription={canReorder ? t('goals.dragItem') : undefined}
@@ -345,11 +357,27 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
-  const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
+  const [reorderAnnouncement, setReorderAnnouncement] = useState('')
   const filtered = filterProgressGoals(goals, filter)
+  const commitMove = (positions: NonNullable<ReturnType<typeof buildGoalMovePositions>>, goalId: string, target: number) => {
+    const goal = goals.find((item) => item.id === goalId)
+    if (!goal) return
+    reorder.mutate(positions, {
+      onSuccess: () => setReorderAnnouncement(t('progressScreen.goals.reorderMoved', { title: goal.title, position: target + 1, total: goals.length })),
+    })
+  }
+  const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
   const move = (goalId: string, target: number) => {
+    const currentIndex = goals.findIndex((item) => item.id === goalId)
+    const goal = goals[currentIndex]
+    if (!goal) return
+    const boundedTarget = Math.max(0, Math.min(goals.length - 1, target))
     const positions = buildGoalMovePositions(goals, goalId, target)
-    if (positions) reorder.mutate(positions)
+    if (!positions) {
+      setReorderAnnouncement(t('progressScreen.goals.reorderBoundary', { title: goal.title, position: currentIndex + 1, total: goals.length }))
+      return
+    }
+    commitMove(positions, goalId, boundedTarget)
   }
   const options = [
     { value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') },
@@ -366,10 +394,11 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
         <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
           {filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
-            return <GoalCard key={goal.id} goal={goal} index={index} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />
+            return <GoalCard key={goal.id} goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />
           })}
         </div></SortableContext></DndContext>
       ) : null}
+      <p role="status" aria-live="polite" aria-atomic="true" data-testid="goal-reorder-status" className="sr-only">{reorderAnnouncement}</p>
       {reorder.isError ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.reorderError')}</p> : null}
     </section>
   )

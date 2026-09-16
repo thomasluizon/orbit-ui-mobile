@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
   gamificationEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
-  reorder: { mutate: vi.fn() },
+  reorder: { mutate: vi.fn(), isPending: false, isError: false },
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
     profile: { timeZone: 'America/Sao_Paulo', canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
@@ -174,6 +174,18 @@ function captureGoalCardRendering(card: HTMLElement) {
   }
 }
 
+function getGoalCard(title: string): HTMLElement {
+  return screen.getByRole('button', { name: (accessibleName) => accessibleName.includes(title) })
+}
+
+function getGoalCards(): HTMLElement[] {
+  return screen.getAllByRole('button').filter((button) => button.hasAttribute('data-goal-id'))
+}
+
+function getStreakStatus(): HTMLElement {
+  return within(screen.getByRole('region', { name: 'progressScreen.sections.streak' })).getByRole('status')
+}
+
 describe('ProgressContent', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -216,7 +228,7 @@ describe('ProgressContent', () => {
     stylesheet.textContent = textStyles
     document.head.append(stylesheet)
     try {
-      const card = screen.getByRole('button', { name: 'Read 12 Books' })
+      const card = getGoalCard('Read 12 Books')
       const metadata = within(card).getByText((content) => content.startsWith('progressScreen.goals.progress'))
       const renderedColor = getComputedStyle(metadata).color
       const theme = resolveWebThemeVariables('purple', mode)
@@ -239,11 +251,26 @@ describe('ProgressContent', () => {
   it.each(['on_track', 'at_risk', 'behind', 'no_deadline'])('renders one neutral tracking badge for %s and no extra status or deadline', (trackingStatus) => {
     mocks.goals.data.allGoals = [createMockGoal({ trackingStatus, deadline: '2026-08-01' })]
     render(<ProgressPage />)
-    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    const card = getGoalCard('Read 12 Books')
     expect(within(card).queryByText('goals.status.active')).not.toBeInTheDocument()
     expect(card.querySelectorAll('[data-variant="solid"]')).toHaveLength(1)
     expect(within(card).queryByText(/^progressScreen\.goals\.daysOverdue(?::|$)/)).not.toBeInTheDocument()
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
+  })
+
+  it('describes each goal state, progress and reorder position', () => {
+    mocks.goals.data.allGoals = [
+      createMockGoal({ id: 'active', title: 'Active goal', trackingStatus: 'on_track', position: 0 }),
+      createMockGoal({ id: 'completed', title: 'Completed goal', status: 'Completed', currentValue: 8, targetValue: 10, progressPercentage: 80, position: 1 }),
+      createMockGoal({ id: 'abandoned', title: 'Abandoned goal', status: 'Abandoned', position: 2 }),
+      createMockGoal({ id: 'reached', title: 'Reached goal', currentValue: 10, targetValue: 10, progressPercentage: 100, position: 3 }),
+    ]
+    render(<ProgressPage />)
+
+    expect(screen.getByRole('button', { name: /Active goal.*goals\.metrics\.onTrack.*current.*3.*position.*1.*total.*4/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Completed goal.*goals\.status\.completed.*current.*8.*position.*2.*total.*4/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Abandoned goal.*goals\.status\.abandoned.*position.*3.*total.*4/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Reached goal.*progressScreen\.goals\.targetReached.*current.*10.*position.*4.*total.*4/ })).toBeInTheDocument()
   })
 
   it('filters the same goal list through all four views', () => {
@@ -254,28 +281,28 @@ describe('ProgressContent', () => {
     ]
     render(<ProgressPage />)
 
-    expect(screen.getAllByRole('button', { name: / goal$/ })).toHaveLength(3)
+    expect(getGoalCards()).toHaveLength(3)
     for (const [view, visible] of [
       ['active', 'Active goal'],
       ['completed', 'Completed goal'],
       ['abandoned', 'Abandoned goal'],
     ] as const) {
       fireEvent.click(screen.getByRole('radio', { name: `progressScreen.goals.${view}` }))
-      expect(screen.getByRole('button', { name: visible })).toBeInTheDocument()
-      expect(screen.getAllByRole('button', { name: / goal$/ })).toHaveLength(1)
+      expect(getGoalCard(visible)).toBeInTheDocument()
+      expect(getGoalCards()).toHaveLength(1)
     }
     fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.all' }))
-    expect(screen.getAllByRole('button', { name: / goal$/ })).toHaveLength(3)
+    expect(getGoalCards()).toHaveLength(3)
   })
 
   it('ignores goal colour, icon and emoji adornments from an oversized response', () => {
     const goal = createMockGoal()
     mocks.goals.data.allGoals = [goal]
     const { rerender } = render(<ProgressPage />)
-    const unadorned = captureGoalCardRendering(screen.getByRole('button', { name: goal.title }))
+    const unadorned = captureGoalCardRendering(getGoalCard(goal.title))
     mocks.goals.data.allGoals = [{ ...goal, color: 'blue', emoji: '🎯', icon: 'target' }]
     rerender(<ProgressPage />)
-    const oversized = captureGoalCardRendering(screen.getByRole('button', { name: goal.title }))
+    const oversized = captureGoalCardRendering(getGoalCard(goal.title))
 
     expect.soft(oversized.structure).toBe(unadorned.structure)
     expect.soft(oversized.styles).toEqual(unadorned.styles)
@@ -284,7 +311,7 @@ describe('ProgressContent', () => {
   it('keeps reached targets active with a done disc and opens detail from the whole card', () => {
     mocks.goals.data.allGoals = [createMockGoal({ progressPercentage: 100, currentValue: 12, trackingStatus: 'no_deadline' })]
     render(<ProgressPage />)
-    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    const card = getGoalCard('Read 12 Books')
     expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
     expect(card.querySelector('[data-status="done"]')).toBeInTheDocument()
     expect(within(card).getByText('progressScreen.goals.targetReached')).toBeInTheDocument()
@@ -297,7 +324,7 @@ describe('ProgressContent', () => {
   it('shows an abandoned outline badge without progress and clears a distinct empty filter', () => {
     mocks.goals.data.allGoals = [createMockGoal({ status: 'Abandoned', progressPercentage: 100, trackingStatus: 'behind' })]
     render(<ProgressPage />)
-    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    const card = getGoalCard('Read 12 Books')
     expect(card.querySelector('[data-variant="outline"]')).toHaveTextContent('goals.status.abandoned')
     expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
     expect(within(card).queryByText((content) => content.startsWith('progressScreen.goals.progress'))).not.toBeInTheDocument()
@@ -305,15 +332,15 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.goals.filterEmpty')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.empty')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.clearFilter' }))
-    expect(screen.getByRole('button', { name: 'Read 12 Books' })).toBeInTheDocument()
+    expect(getGoalCard('Read 12 Books')).toBeInTheDocument()
   })
 
   it.each(['mouse', 'touch'])('activates %s dragging after the threshold and writes only on release', async (pointerType) => {
     vi.useFakeTimers()
     mocks.goals.data.allGoals = [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Second', position: 1 })]
     render(<ProgressPage />)
-    const card = screen.getByRole('button', { name: 'Read 12 Books' })
-    const second = screen.getByRole('button', { name: 'Second' })
+    const card = getGoalCard('Read 12 Books')
+    const second = getGoalCard('Second')
     vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 200, 80))
     vi.spyOn(second, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 200, 80))
     const touch = (clientX: number, clientY: number) => ({ touches: [{ identifier: 1, clientX, clientY }], changedTouches: [{ identifier: 1, clientX, clientY }] })
@@ -335,7 +362,9 @@ describe('ProgressContent', () => {
     expect(mocks.reorder.mutate).not.toHaveBeenCalled()
     if (pointerType === 'touch') fireEvent.touchEnd(card, touch(0, 100))
     else fireEvent.mouseUp(document)
-    expect(mocks.reorder.mutate).toHaveBeenCalledExactlyOnceWith([{ id: 'goal-2', position: 0 }, { id: 'goal-1', position: 1 }])
+    expect(mocks.reorder.mutate).toHaveBeenCalledExactlyOnceWith(
+      [{ id: 'goal-2', position: 0 }, { id: 'goal-1', position: 1 }],
+    )
     fireEvent.click(card, { detail: 1 })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await act(() => vi.advanceTimersByTime(50))
@@ -345,7 +374,7 @@ describe('ProgressContent', () => {
     vi.useFakeTimers()
     mocks.goals.data.allGoals = [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Second', position: 1 })]
     render(<ProgressPage />)
-    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    const card = getGoalCard('Read 12 Books')
     fireEvent.touchStart(card, { touches: [{ clientX: 0, clientY: 0 }] })
     fireEvent.touchMove(card, { touches: [{ clientX: 6, clientY: 0 }] })
     await act(() => vi.advanceTimersByTime(300))
@@ -365,6 +394,34 @@ describe('ProgressContent', () => {
     fireEvent.mouseUp(document)
     fireEvent.keyDown(card, { altKey: true, key: 'ArrowDown' })
     expect(mocks.reorder.mutate).not.toHaveBeenCalled()
+  })
+
+  it('announces keyboard moves, boundaries and preserves errors and filtered state', () => {
+    mocks.goals.data.allGoals = [createMockGoal({ title: 'Goal one' }), createMockGoal({ id: 'goal-2', title: 'Goal two', position: 1 })]
+    render(<ProgressPage />)
+    const status = screen.getByTestId('goal-reorder-status')
+    const firstGoal = screen.getByRole('button', { name: /Goal one/ })
+    const secondGoal = screen.getByRole('button', { name: /Goal two/ })
+
+    expect(status).toBeEmptyDOMElement()
+    fireEvent.keyDown(firstGoal, { altKey: true, key: 'ArrowUp' })
+    expect(status).toHaveTextContent('progressScreen.goals.reorderBoundary:{"title":"Goal one","position":1,"total":2}')
+    fireEvent.keyDown(secondGoal, { altKey: true, key: 'ArrowDown' })
+    expect(status).toHaveTextContent('progressScreen.goals.reorderBoundary:{"title":"Goal two","position":2,"total":2}')
+    fireEvent.keyDown(secondGoal, { altKey: true, key: 'ArrowUp' })
+    const moveUpOptions = mocks.reorder.mutate.mock.calls.at(-1)?.[1] as { onSuccess: () => void }
+    act(() => moveUpOptions.onSuccess())
+    expect(status).toHaveTextContent('progressScreen.goals.reorderMoved:{"title":"Goal two","position":1,"total":2}')
+    fireEvent.keyDown(firstGoal, { altKey: true, key: 'ArrowDown' })
+    const moveDownOptions = mocks.reorder.mutate.mock.calls.at(-1)?.[1] as { onSuccess: () => void }
+    act(() => moveDownOptions.onSuccess())
+    expect(status).toHaveTextContent('progressScreen.goals.reorderMoved:{"title":"Goal one","position":2,"total":2}')
+    expect(screen.getByTestId('goal-reorder-status')).toBe(status)
+
+    mocks.reorder.isError = true
+    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.goals.reorderError')
+    expect(screen.getByRole('button', { name: /Goal one/ })).not.toHaveAttribute('aria-keyshortcuts')
   })
 
   afterEach(() => { vi.useRealTimers() })
@@ -404,6 +461,8 @@ describe('ProgressContent', () => {
     mocks.freeze.daysUntilNextFreeze = 3
     mocks.repair.isError = false
     mocks.repair.error = null
+    mocks.reorder.isPending = false
+    mocks.reorder.isError = false
     mocks.isDesktop = false
     mocks.streakSnapshotZones = null
     mocks.retrospective.isLoading = false
@@ -909,17 +968,17 @@ describe('ProgressContent', () => {
     mocks.freeze.isFrozenToday = initiallyFrozen
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
     const { rerender } = render(<ProgressPage />)
-    const region = screen.getByRole('status')
+    const region = getStreakStatus()
     expect(region).toBeEmptyDOMElement()
     expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
     mocks.freeze.isFrozenToday = true
     rerender(<ProgressPage />)
     await act(async () => { await Promise.resolve() })
-    expect(screen.getByRole('status')).toBe(region)
+    expect(getStreakStatus()).toBe(region)
     expect(region).toHaveTextContent('progressScreen.streak.frozenToday')
     mocks.freeze.isFrozenToday = false
     rerender(<ProgressPage />)
-    expect(screen.getByRole('status')).toBe(region)
+    expect(getStreakStatus()).toBe(region)
     expect(region).toBeEmptyDOMElement()
   })
 
@@ -949,7 +1008,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
     const { container, rerender } = render(<ProgressPage />)
     await act(async () => { await Promise.resolve() })
-    const banner = screen.getByRole('status')
+    const banner = getStreakStatus()
     expect(banner).toHaveTextContent('progressScreen.streak.frozenToday')
     const strip = container.querySelector('[data-scope="account"]')!
     expect(banner.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -965,13 +1024,13 @@ describe('ProgressContent', () => {
     mocks.goals.data.allGoals = [createMockGoal()]
     render(<ProgressPage />)
     fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Read 12 Books' }))
+    fireEvent.click(getGoalCard('Read 12 Books'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'goal-detail' })).toHaveTextContent('goal-1')
     fireEvent.click(screen.getByRole('button', { name: 'Back to goals' }))
     expect(screen.getByRole('radio', { name: 'progressScreen.goals.active' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('button', { name: 'Read 12 Books' })).toBeInTheDocument()
+    expect(getGoalCard('Read 12 Books')).toBeInTheDocument()
   })
 
   it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {
@@ -982,7 +1041,7 @@ describe('ProgressContent', () => {
     const { container, rerender } = render(<ProgressPage />)
     await act(async () => { await Promise.resolve() })
 
-    expect(screen.getByRole('status')).toHaveTextContent('progressScreen.streak.frozenToday')
+    expect(getStreakStatus()).toHaveTextContent('progressScreen.streak.frozenToday')
     expect(container.querySelector('[data-scope="account"]')?.lastElementChild).toHaveAttribute('data-state', 'frozen')
     expect(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 8')
 
