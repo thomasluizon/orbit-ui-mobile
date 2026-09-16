@@ -55,8 +55,39 @@ session is still a session, and the next one needs the state.
 If Thomas answers a question in a way that removes a whole effort, say so in the progress line and
 let `/handoff` record the removal in that effort's spec. Do not act on it.
 
+## Every step produces VISIBLE output before the next one starts
+
+This is the contract, not a style note. A step whose output Thomas never saw did not run.
+
+**Step 1 ends with the `/progress` answer printed to him, in the chat.** Not gathered, not used
+internally to inform the handoff: printed, in the shape `/progress` defines, before step 2 begins.
+The whole reason `/progress` runs first is that he reads it.
+
+**Step 2 ends with either his answers or an explicit empty result.** If questions survive the filter,
+they go to him through `AskUserQuestion` and step 3 waits for the answers. If none survive, say so in
+one line and say what you filtered and why it closed. "No questions" that he never saw is
+indistinguishable from never having looked.
+
+**Step 3 starts only after both of those are on screen.** If you find yourself writing the spec while
+he has seen neither, stop and go back.
+
+### This skill failed this way on the day it shipped
+
+2026-09-16, its first run: the state was gathered, the questions were resolved internally, and the
+handoff was already half written before Thomas said "you didnt run /progress, im not seeing your
+summary ... you didn ask any questions ... and you are already doing the handoff?"
+
+The cause was the old Reply section below, which said not to narrate the steps. That is correct about
+narration and was read as "produce no output", which is the opposite of the point. Narrating is
+saying "now running /progress". Output is the progress answer itself. Never confuse them.
+
 ## Reply
 
-Do not narrate the three steps as they run. `/progress` produces its own answer, `/questions` asks
-its own questions, and `/handoff` ends with its own one line: the `NEXT.md` path and its branch.
-That last line is the end of the reply. Nothing after it.
+Do not narrate the steps: no "now running /progress", no "step 2 of 3". Their OUTPUT is the reply.
+
+`/progress` prints its answer. `/questions` asks its questions or states the empty result.
+`/handoff` ends with its own one line: the `NEXT.md` path and its branch. That last line is the end
+of the reply. Nothing after it.
+
+Each of the three keeps its own writing contract. Three short outputs in sequence, not one merged
+summary.

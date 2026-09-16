@@ -232,7 +232,7 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "8d856622b19f1e7c",
+      "digest": "ebba3b4b22e7eeff",
       "calibratedAt": "2026-09-16",
       "verdict": "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded: holding the order, and refusing to start the handoff while a question Thomas has not answered is still open. Low would round that gate away, which is the one thing this skill exists to enforce."
     },
