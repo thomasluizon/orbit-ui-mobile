@@ -156,6 +156,43 @@ describe('GoalDetailDrawer', () => {
     expect(stretchRow).toHaveAttribute('href', '/habits/habit-stretch')
   })
 
+  it('passes linked habit link activations to its modal owner', () => {
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    const onLinkedHabitNavigate = vi.fn()
+
+    render(
+      <GoalDetailDrawer
+        open
+        onOpenChange={vi.fn()}
+        onLinkedHabitNavigate={onLinkedHabitNavigate}
+        goalId="1"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('link', { name: 'Read every night' }))
+
+    expect(onLinkedHabitNavigate).toHaveBeenCalledOnce()
+    expect(onLinkedHabitNavigate.mock.calls[0]?.[0]).toBe('habit-read')
+  })
+
+  it('keeps inline linked habit navigation native without closing the detail', () => {
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    const onOpenChange = vi.fn()
+
+    render(<GoalDetailDrawer inline open onOpenChange={onOpenChange} goalId="1" />)
+
+    expect(screen.getByRole('link', { name: 'Read every night' })).toHaveAttribute('href', '/habits/habit-read')
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
   it('composes footer actions from canonical ListRow controls', () => {
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 

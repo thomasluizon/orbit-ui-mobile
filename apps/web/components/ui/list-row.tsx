@@ -1,10 +1,14 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { MouseEventHandler, ReactNode } from 'react'
 import Link from 'next/link'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronRight } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
+
+type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
+  onClick?: MouseEventHandler<HTMLElement>
+}
 
 function RowBody({ title, wrapTitle, description, icon, value, danger, trailing }: Readonly<Pick<ListRowProps, 'title' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'danger' | 'trailing'>>) {
   const iconColor = danger ? 'var(--status-bad)' : 'var(--fg-1)'
@@ -26,7 +30,7 @@ function RowBody({ title, wrapTitle, description, icon, value, danger, trailing 
   )
 }
 
-export function ListRow(props: Readonly<ListRowProps>) {
+export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, action, chevron = true, disabled = false, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const interactive = !readOnly && !disabled && (href || onClick)
@@ -38,7 +42,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {readOnly || (!href && !onClick) ? (
         <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
       ) : href && !disabled ? (
-        <Link href={href} aria-label={accessibilityLabel} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center text-left no-underline" style={bodyStyle}>{content}</Link>
+        <Link href={href} aria-label={accessibilityLabel} onClick={onClick} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center text-left no-underline" style={bodyStyle}>{content}</Link>
       ) : (
         <button type="button" aria-label={accessibilityLabel} onClick={onClick} disabled={disabled} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
       )}

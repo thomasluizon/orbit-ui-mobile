@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
@@ -55,8 +55,18 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     }
 
     setSelectedGoalId(null)
+    close()
     router.push(`/habits/${entityId}`)
-  }, [router])
+  }, [close, router])
+
+  const handleLinkedHabitNavigate = useCallback((habitId: string, event: MouseEvent<HTMLElement>) => {
+    if (event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+
+    event.preventDefault()
+    setSelectedGoalId(null)
+    close()
+    router.push(`/habits/${habitId}`)
+  }, [close, router])
 
   const handleGoalDrawerOpenChange = useCallback((open: boolean) => {
     if (!open) setSelectedGoalId(null)
@@ -149,6 +159,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         <GoalDetailDrawer
           open={!!selectedGoalId}
           onOpenChange={handleGoalDrawerOpenChange}
+          onLinkedHabitNavigate={handleLinkedHabitNavigate}
           goalId={selectedGoalId}
         />
       )}

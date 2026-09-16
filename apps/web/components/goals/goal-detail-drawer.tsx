@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, type MouseEvent } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
@@ -23,10 +23,11 @@ interface GoalDetailDrawerProps {
   inline?: boolean
   goalId: string
   onOpenChange: (open: boolean) => void
+  onLinkedHabitNavigate?: (habitId: string, event: MouseEvent<HTMLElement>) => void
   initialAction?: GoalDrawerInitialAction | null
 }
 
-export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, initialAction }: Readonly<GoalDetailDrawerProps>) {
+export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, onLinkedHabitNavigate, initialAction }: Readonly<GoalDetailDrawerProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const contentRef = useRef<HTMLDivElement>(null)
@@ -78,7 +79,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, i
     <div ref={contentRef} tabIndex={inline ? -1 : undefined} data-goal-detail className="flex flex-col gap-6">
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
-        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} unit={goal.unit} formatDate={formatDate} />
+        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} unit={goal.unit} formatDate={formatDate} onLinkedHabitNavigate={onLinkedHabitNavigate} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} /> : null}

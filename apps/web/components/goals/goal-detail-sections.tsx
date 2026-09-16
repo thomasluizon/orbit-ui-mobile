@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, type ReactNode } from 'react'
+import { useState, useMemo, type MouseEvent, type ReactNode } from 'react'
 import { ListRow } from '@/components/ui/list-row'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
 
@@ -121,6 +121,7 @@ interface GoalLinkedHabitsSectionProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
   habitAdherence: GoalMetrics['habitAdherence']
   formatValue: (currentStreak: number) => string
+  onLinkedHabitNavigate?: (habitId: string, event: MouseEvent<HTMLElement>) => void
   notice?: ReactNode
 }
 
@@ -130,6 +131,7 @@ export function GoalLinkedHabitsSection({
   linkedHabits,
   habitAdherence,
   formatValue,
+  onLinkedHabitNavigate,
   notice,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
   const adherenceByHabitId = useMemo(
@@ -154,6 +156,7 @@ export function GoalLinkedHabitsSection({
                 value={value}
                 accessibilityLabel={value ? `${habit.title}, ${value}` : habit.title}
                 href={`/habits/${habit.id}`}
+                onClick={onLinkedHabitNavigate ? (event) => onLinkedHabitNavigate(habit.id, event) : undefined}
               />
             </li>
           )

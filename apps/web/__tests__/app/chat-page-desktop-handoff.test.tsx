@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
+import type { MouseEvent } from 'react'
+import Link from 'next/link'
 
 type ActionChipHandler = (entityId: string, actionType: string) => void
 type SuggestionHandler = (suggestion: string) => void
+type LinkedHabitNavigateHandler = (habitId: string, event: MouseEvent<HTMLAnchorElement>) => void
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -70,10 +73,24 @@ vi.mock('@/components/chat/chat-empty-state', () => ({
   },
 }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({
-  GoalDetailDrawer: ({ goalId, onOpenChange }: { goalId: string; onOpenChange: (open: boolean) => void }) => (
+  GoalDetailDrawer: ({
+    goalId,
+    onOpenChange,
+    onLinkedHabitNavigate,
+  }: {
+    goalId: string
+    onOpenChange: (open: boolean) => void
+    onLinkedHabitNavigate?: LinkedHabitNavigateHandler
+  }) => (
     <div data-testid="goal-drawer">
       {goalId}
       <button onClick={() => onOpenChange(false)}>close goal sentinel</button>
+      <Link
+        href="/habits/linked-habit"
+        onClick={(event) => onLinkedHabitNavigate?.('linked-habit', event)}
+      >
+        linked habit sentinel
+      </Link>
     </div>
   ),
 }))
@@ -224,12 +241,45 @@ describe('ChatPage', () => {
     expect(screen.queryByTestId('goal-drawer')).not.toBeInTheDocument()
   })
 
-  it('routes a non-goal action chip into the habit flow', () => {
+  it('closes the goal drawer and conversation before linked habit navigation', () => {
+    mocks.composer.messages = [{ id: 'm1' }]
+    render(<ChatPage />)
+
+    act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
+    const browserHandlesNavigation = fireEvent.click(screen.getByRole('link', { name: 'linked habit sentinel' }))
+
+    expect(browserHandlesNavigation).toBe(false)
+    expect(screen.queryByTestId('goal-drawer')).not.toBeInTheDocument()
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
+    expect(mocks.push).toHaveBeenCalledOnce()
+    expect(mocks.push).toHaveBeenCalledWith('/habits/linked-habit')
+    expect(mocks.setOpen.mock.invocationCallOrder[0]!).toBeLessThan(mocks.push.mock.invocationCallOrder[0]!)
+  })
+
+  it('leaves modified linked habit clicks to the browser', () => {
+    mocks.composer.messages = [{ id: 'm1' }]
+    render(<ChatPage />)
+
+    act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
+    const browserHandlesNavigation = fireEvent.click(
+      screen.getByRole('link', { name: 'linked habit sentinel' }),
+      { metaKey: true },
+    )
+
+    expect(browserHandlesNavigation).toBe(true)
+    expect(screen.getByTestId('goal-drawer')).toBeInTheDocument()
+    expect(mocks.setOpen).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('closes the conversation before routing a habit action chip', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     render(<ChatPage />)
 
     act(() => mocks.onActionChipClick?.('habit-3', 'view_habit'))
 
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
     expect(mocks.push).toHaveBeenCalledWith('/habits/habit-3')
+    expect(mocks.setOpen.mock.invocationCallOrder[0]!).toBeLessThan(mocks.push.mock.invocationCallOrder[0]!)
   })
 })
