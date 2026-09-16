@@ -30,6 +30,7 @@ interface GoalTypeSelectorProps {
 
 function GoalTypeOption({
   active,
+  index,
   label,
   onSelect,
   option,
@@ -37,13 +38,19 @@ function GoalTypeOption({
   tokens,
 }: Readonly<{
   active: boolean
+  index: number
   label: string
   onSelect: () => void
   option: (typeof goalTypeOptions)[number]
   styles: CreateGoalStyles
   tokens: CreateGoalTokens
 }>) {
-  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect, selected: active })
+  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({
+    disabled: false,
+    index,
+    onSelect,
+    selected: active,
+  })
   const keyProps = { onKeyDown }
   const OptionIcon = option.icon
 
@@ -100,12 +107,13 @@ export function GoalTypeSelector({
         style={styles.typeRow}
         accessibilityLabel={t('goals.form.type')}
       >
-        {goalTypeOptions.map((option) => {
+        {goalTypeOptions.map((option, index) => {
           const isActive = goalType === option.key
           return (
             <GoalTypeOption
               key={option.key}
               active={isActive}
+              index={index}
               label={t(option.titleKey)}
               onSelect={() => onTypeChange(option.key)}
               option={option}

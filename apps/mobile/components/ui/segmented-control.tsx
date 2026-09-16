@@ -7,12 +7,14 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 function SegmentOption<TValue extends string>({
   controlDisabled,
+  index,
   onChange,
   option,
   selected,
   tokens,
 }: Readonly<{
   controlDisabled: boolean
+  index: number
   onChange: (value: TValue) => void
   option: SegmentedControlOption<TValue>
   selected: boolean
@@ -22,7 +24,12 @@ function SegmentOption<TValue extends string>({
   const select = () => {
     if (!disabled && !selected) onChange(option.value)
   }
-  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect: select, selected })
+  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({
+    disabled,
+    index,
+    onSelect: select,
+    selected,
+  })
   const keyProps = { onKeyDown }
 
   return (
@@ -65,10 +72,11 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
         { backgroundColor: tokens.bgField, borderColor: tokens.borderControl },
       ]}
     >
-      {props.options.map((option) => (
+      {props.options.map((option, index) => (
         <SegmentOption
           key={option.value}
           controlDisabled={Boolean(props.disabled)}
+          index={index}
           onChange={props.onChange}
           option={option}
           selected={option.value === props.value}

@@ -15,13 +15,14 @@ import { getRadioNavigationIndex } from '@orbit/shared/utils'
 interface RadioItemState {
   disabled: boolean
   id: string
+  index: number
   selected: boolean
 }
 
 interface RadioGroupContextValue {
   getTabIndex: (id: string) => 0 | -1
   moveSelection: (id: string, key: string) => boolean
-  register: (id: string) => () => void
+  register: (id: string, index: number) => () => void
   setElement: (id: string, element: View | null) => void
   setHandler: (id: string, handler: () => void) => void
   update: (state: RadioItemState) => void
@@ -39,8 +40,13 @@ export function RadioGroup({ children, ...props }: Readonly<
   const elementsRef = useRef(new Map<string, View>())
   const handlersRef = useRef(new Map<string, () => void>())
   const pendingFocusIdRef = useRef<string | null>(null)
-  const register = useCallback((id: string) => {
-    setItems((current) => [...current.filter((item) => item.id !== id), { disabled: false, id, selected: false }])
+  const register = useCallback((id: string, index: number) => {
+    setItems((current) => [...current.filter((item) => item.id !== id), {
+      disabled: false,
+      id,
+      index,
+      selected: false,
+    }])
     return () => {
       setItems((current) => current.filter((item) => item.id !== id))
       elementsRef.current.delete(id)
@@ -60,7 +66,9 @@ export function RadioGroup({ children, ...props }: Readonly<
   const setHandler = useCallback((id: string, handler: () => void) => {
     handlersRef.current.set(id, handler)
   }, [])
-  const enabledItems = items.filter((item) => !item.disabled)
+  const enabledItems = useMemo(() => [...items]
+    .sort((first, second) => first.index - second.index)
+    .filter((item) => !item.disabled), [items])
   useLayoutEffect(() => {
     const pendingFocusId = pendingFocusIdRef.current
     if (!pendingFocusId || pendingFocusId !== tabbableId) return
@@ -106,10 +114,12 @@ export function RadioGroup({ children, ...props }: Readonly<
 
 export function useRadioGroupItem({
   disabled,
+  index,
   onSelect,
   selected,
 }: Readonly<{
   disabled: boolean
+  index: number
   onSelect?: () => void
   selected: boolean
 }>) {
@@ -121,11 +131,15 @@ export function useRadioGroupItem({
   const setGroupHandler = group?.setHandler
   const updateGroup = group?.update
   const id = useId()
+  const [registeredIndex] = useState(index)
 
-  useLayoutEffect(() => registerWithGroup?.(id), [id, registerWithGroup])
+  useLayoutEffect(
+    () => registerWithGroup?.(id, registeredIndex),
+    [id, registerWithGroup, registeredIndex],
+  )
   useLayoutEffect(() => {
-    updateGroup?.({ disabled, id, selected })
-  }, [disabled, id, selected, updateGroup])
+    updateGroup?.({ disabled, id, index, selected })
+  }, [disabled, id, index, selected, updateGroup])
   useLayoutEffect(() => {
     setGroupHandler?.(id, onSelect ?? (() => undefined))
   }, [id, onSelect, setGroupHandler])

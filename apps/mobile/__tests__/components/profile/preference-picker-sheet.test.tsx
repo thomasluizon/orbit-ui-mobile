@@ -6,6 +6,15 @@ import type { SheetHandle } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setFocusImpl } from '../../../test-mocks/react-native'
 
+vi.mock('@orbit/shared/utils', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@orbit/shared/utils')>(),
+  getTimezoneList: () => [
+    'Alpha/One',
+    'Bravo/Keep',
+    'Charlie/Three',
+    'Delta/Keep',
+  ],
+}))
 vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
   MarketingConsentSection: () => null,
 }))
@@ -76,5 +85,45 @@ describe('PreferencePickerSheet', () => {
     expect(preventDefault).toHaveBeenCalledOnce()
     expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
     expect(focusedLabels.at(-1)).toBe('Português')
+  })
+
+  it('uses rendered timezone order after filtered options remount', () => {
+    const props = {
+      ...baseProps(),
+      activePicker: 'timeZone' as const,
+      timeZone: null,
+    }
+    let tree: any
+    void act(() => {
+      tree = create(<PreferencePickerSheet {...props} />)
+    })
+    const search = tree.root.find(
+      (node: any) => typeof node.type === 'string'
+        && node.props.accessibilityLabel === props.timeZoneSearchLabel
+        && typeof node.props.onChangeText === 'function',
+    )
+
+    void act(() => search.props.onChangeText('Keep'))
+    const filteredRadios = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+    const retainedLabel = filteredRadios[0]!.props.accessibilityLabel
+
+    void act(() => search.props.onChangeText(''))
+    const restoredRadios = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+    const retainedIndex = restoredRadios.findIndex(
+      (option: any) => option.props.accessibilityLabel === retainedLabel,
+    )
+    const adjacentLabel = restoredRadios[retainedIndex + 1]!.props.accessibilityLabel
+    const retainedOption = restoredRadios[retainedIndex]!
+
+    void act(() => retainedOption.props.onKeyDown({
+      nativeEvent: { key: 'ArrowDown' },
+      preventDefault: vi.fn(),
+    }))
+
+    expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(adjacentLabel)
   })
 })

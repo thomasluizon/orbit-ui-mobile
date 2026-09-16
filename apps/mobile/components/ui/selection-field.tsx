@@ -53,6 +53,7 @@ export function SelectionField({ value, onChange, options, label }: Readonly<Sel
             {options.map((option, index) => (
               <RadioRow
                 key={option.value}
+                index={index}
                 label={option.label}
                 selected={option.value === value}
                 disabled={option.disabled}

@@ -15,10 +15,10 @@ function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>
 
   return (
     <RadioGroup accessibilityLabel="Cadence">
-      <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
-      <RadioRow label="Disabled" selected={false} disabled onPress={() => select('disabled')} />
-      <RadioRow label="Third" selected={value === 'third'} onPress={() => select('third')} />
-      <RadioRow label="Last" selected={value === 'last'} onPress={() => select('last')} />
+      <RadioRow index={0} label="First" selected={value === 'first'} onPress={() => select('first')} />
+      <RadioRow index={1} label="Disabled" selected={false} disabled onPress={() => select('disabled')} />
+      <RadioRow index={2} label="Third" selected={value === 'third'} onPress={() => select('third')} />
+      <RadioRow index={3} label="Last" selected={value === 'last'} onPress={() => select('last')} />
     </RadioGroup>
   )
 }

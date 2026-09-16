@@ -74,6 +74,7 @@ function TimeZoneOptions({
         {visible.map((option, index) => (
           <RadioRow
             key={option}
+            index={index}
             label={option}
             selected={selected === option}
             divider={index < visible.length - 1}
@@ -470,6 +471,7 @@ export function PreferencePickerSheet({
             {LANGUAGE_OPTIONS.map((lang, index) => (
             <RadioRow
               key={lang.value}
+              index={index}
               label={lang.label}
               selected={selectedLanguage === lang.value}
               divider={index < LANGUAGE_OPTIONS.length - 1}
@@ -483,6 +485,7 @@ export function PreferencePickerSheet({
             {themeModeOptions.map((mode, index) => (
             <RadioRow
               key={mode.value}
+              index={index}
               label={mode.label}
               selected={currentTheme === mode.value}
               divider={index < themeModeOptions.length - 1}
@@ -506,6 +509,7 @@ export function PreferencePickerSheet({
             {weekStartOptions.map((option, index) => (
             <RadioRow
               key={option.value}
+              index={index}
               label={option.label}
               selected={weekStartDay === option.value}
               divider={index < weekStartOptions.length - 1}

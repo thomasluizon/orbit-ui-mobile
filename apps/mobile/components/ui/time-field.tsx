@@ -56,16 +56,23 @@ const TIME_12_PATTERN = /^(0?[1-9]|1[0-2]):([0-5]\d)\s*([ap]m)$/i
 
 function TimeOption({
   formattedValue,
+  index,
   onSelect,
   selected,
   tokens,
 }: Readonly<{
   formattedValue: string
+  index: number
   onSelect: () => void
   selected: boolean
   tokens: Tokens
 }>) {
-  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect, selected })
+  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({
+    disabled: false,
+    index,
+    onSelect,
+    selected,
+  })
   const keyProps = { onKeyDown }
 
   return (
@@ -137,10 +144,11 @@ function TimeColumn({
         showsVerticalScrollIndicator={false}
         style={styles.columnScroll}
       >
-        {values.map((option) => (
+        {values.map((option, index) => (
           <TimeOption
             key={String(option)}
             formattedValue={formatValue(option)}
+            index={index}
             selected={option === selected}
             tokens={tokens}
             onSelect={() => onSelect(option)}
