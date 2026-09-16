@@ -72,6 +72,12 @@ vi.mock('react-native', async (importOriginal) => {
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 20, left: 0 }),
 }))
+vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) =>
+    selector({ setAstraConversationOpen: mocks.setAstraConversationOpen }),
+}))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: null }) }))
 vi.mock('@/lib/theme', () => ({
