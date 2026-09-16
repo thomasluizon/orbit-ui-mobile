@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -244,6 +244,24 @@ describe('ProgressContent', () => {
     expect(card.querySelectorAll('[data-variant="solid"]')).toHaveLength(1)
     expect(within(card).queryByText(/^progressScreen\.goals\.daysOverdue(?::|$)/)).not.toBeInTheDocument()
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
+  })
+
+  it('retargets an already-mounted goal card ring when progress changes', async () => {
+    const goal = createMockGoal({ progressPercentage: 25 })
+    mocks.goals.data.allGoals = [goal]
+    const { rerender } = render(<ProgressPage />)
+    const ring = within(screen.getByRole('button', { name: goal.title })).getByRole('progressbar')
+    const sweep = ring.querySelector('circle:last-child')
+    await waitFor(() => expect(sweep).toHaveClass('transition-[stroke-dashoffset]'))
+
+    mocks.goals.data.allGoals = [{ ...goal, currentValue: 6, progressPercentage: 50 }]
+    rerender(<ProgressPage />)
+
+    const updatedRing = within(screen.getByRole('button', { name: goal.title })).getByRole('progressbar')
+    expect(updatedRing).toBe(ring)
+    expect(updatedRing).toHaveAttribute('aria-valuenow', '50')
+    expect(updatedRing.querySelector('circle:last-child')).toBe(sweep)
+    expect(sweep).toHaveClass('transition-[stroke-dashoffset]')
   })
 
   it('filters the same goal list through all four views', () => {
