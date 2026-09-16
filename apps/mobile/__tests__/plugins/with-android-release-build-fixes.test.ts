@@ -25,6 +25,8 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.ReactHost
 import com.facebook.react.common.ReleaseLevel
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
+import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags
+import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults
 
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ExpoReactHostFactory
@@ -43,6 +45,10 @@ class MainApplication : Application(), ReactApplication {
   }
 
   override fun onCreate() {
+    ReactNativeFeatureFlags.override(object : ReactNativeFeatureFlagsDefaults() {
+      override fun enableKeyEvents(): Boolean = true
+      override fun enableImperativeFocus(): Boolean = true
+    })
     super.onCreate()
     DefaultNewArchitectureEntryPoint.releaseLevel = try {
       ReleaseLevel.valueOf(BuildConfig.REACT_NATIVE_RELEASE_LEVEL.uppercase())
@@ -214,20 +220,29 @@ describe('withAndroidReleaseBuildFixes system bars', () => {
 })
 
 describe('withAndroidReleaseBuildFixes React Native keyboard support', () => {
-  it('enables key events and imperative focus before React Native initializes', async () => {
+  it('preserves the release-level provider and overrides keyboard flags after React Native initializes', async () => {
     const mainApplication = await resolveMainApplication(MAIN_APPLICATION_TEMPLATE)
-    const overrideIndex = mainApplication.indexOf('ReactNativeFeatureFlags.override')
-    const superOnCreateIndex = mainApplication.indexOf('super.onCreate()')
+    const loadReactNativeIndex = mainApplication.indexOf('loadReactNative(this)')
+    const overrideIndex = mainApplication.indexOf('ReactNativeFeatureFlags.dangerouslyForceOverride')
+    const lifecycleDispatcherIndex = mainApplication.indexOf(
+      'ApplicationLifecycleDispatcher.onApplicationCreate(this)',
+    )
 
     expect(mainApplication).toContain(
       'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags',
     )
-    expect(mainApplication).toContain(
-      'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults',
-    )
+    expect(mainApplication.match(/ReactNativeFeatureFlags\.override\(/g) ?? []).toHaveLength(0)
+    expect(mainApplication).toContain('DefaultNewArchitectureEntryPoint.releaseLevel')
+    expect(mainApplication).toContain('ReleaseLevel.EXPERIMENTAL ->')
+    expect(mainApplication).toContain('ReleaseLevel.CANARY ->')
+    expect(mainApplication).toContain('ReleaseLevel.STABLE ->')
+    expect(mainApplication).toContain('ReactNativeFeatureFlagsOverrides_RNOSS_Experimental_Android')
+    expect(mainApplication).toContain('ReactNativeFeatureFlagsOverrides_RNOSS_Canary_Android')
+    expect(mainApplication).toContain('ReactNativeFeatureFlagsOverrides_RNOSS_Stable_Android')
     expect(mainApplication).toContain('override fun enableKeyEvents(): Boolean = true')
     expect(mainApplication).toContain('override fun enableImperativeFocus(): Boolean = true')
     expect(overrideIndex).toBeGreaterThan(-1)
-    expect(overrideIndex).toBeLessThan(superOnCreateIndex)
+    expect(overrideIndex).toBeGreaterThan(loadReactNativeIndex)
+    expect(overrideIndex).toBeLessThan(lifecycleDispatcherIndex)
   })
 })
