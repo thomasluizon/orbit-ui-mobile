@@ -567,6 +567,7 @@ export {
   buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,
+  parseWrappedRouteSelection,
   RECAP_SHARE_PERIODS,
   SHARE_CARD_FILE_NAME,
   SHARE_CARD_HEIGHT,
@@ -574,7 +575,13 @@ export {
   WRAPPED_WEEKDAY_KEYS,
   recapPeriodLabelKey,
 } from './share-card'
-export type { RecapSharePeriod, ShareCardStat, ShareCardWeekday } from './share-card'
+export type {
+  ClosedRecapMonth,
+  RecapSharePeriod,
+  ShareCardStat,
+  ShareCardWeekday,
+  WrappedRouteSelection,
+} from './share-card'
 export {
   buildWrappedSlides,
   getWeeklyConsistencyReading,
