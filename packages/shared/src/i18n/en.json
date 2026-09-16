@@ -2289,15 +2289,6 @@
       "askAstraEyebrow": "ASK ASTRA",
       "statusLabel": "Status"
     },
-    "filters": {
-      "all": "All",
-      "active": "Active",
-      "completed": "Completed",
-      "abandoned": "Abandoned",
-      "statusFilter": "Filter by status",
-      "clearFilter": "Clear filter",
-      "emptyFiltered": "No goals match this filter"
-    },
     "deadline": {
       "overdue": "Overdue",
       "daysLeft": "{n} day left | {n} days left",

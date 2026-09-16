@@ -59,6 +59,17 @@ keep what still binds.
   carries the rest.
 - **Standing instructions the user has given**, in his words, with the date.
 - **Decisions**, each with its reasoning and a pointer to its ADR if one exists.
+- **The brain notes this effort runs on**, named by their exact vault path, as a block the reader is
+  told to open BEFORE acting, and told to open **through the Obsidian MCP**:
+  `mcp__obsidian__obsidian_list_notes`, `mcp__obsidian__obsidian_get_note`, and
+  `mcp__obsidian__obsidian_search_notes` when the idea is known but the filename is not. Say that in
+  the spec, because `cat` and `ls` miss the frontmatter, tags and backlinks that record which
+  decision superseded which. Orbit engineering ADRs are under
+  `2 Areas/20-29 Orbit Engineering/Decisions/`.
+  A filename is a lead to verify: list the directory through the MCP and copy the names that come
+  back, never the names you remember.
+  If this effort genuinely has no note, write "no brain note yet" and say what would earn one. An
+  absent block reads as "there is nothing to read", and that is the failure this bullet prevents.
 - **Constraints** that are not obvious from the code: what the API cannot do, what a gate enforces,
   what is blocked and on what.
 - **State**: what is built, what is half built and what is missing from it, what is open.
@@ -103,6 +114,11 @@ Everything you carry gets checked in the same run that writes it. Your own recal
 
 Open every ticket, ADR, document and branch the spec cites. Read `git log` and the open pull
 requests rather than remembering them. Correct a stale source, or say it is stale and how.
+
+That includes the brain notes. List the vault's `Decisions/` directory through
+`mcp__obsidian__obsidian_list_notes` and confirm every filename the spec names still exists, because
+a note gets renamed when its decision is superseded, and a pointer to a file that is gone sends the
+next session looking for reasoning it will never find.
 
 The failure this prevents: a 2026-08-22 handoff carried six confident facts and every one was wrong
 by the time it was read. The checks that feel most redundant after a long session are the ones that

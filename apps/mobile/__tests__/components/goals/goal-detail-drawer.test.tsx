@@ -1,4 +1,4 @@
-import { BackHandler } from 'react-native'
+import { Animated, BackHandler } from 'react-native'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import { updateGoalProgressDetail } from '@orbit/shared/utils'
@@ -220,6 +220,24 @@ describe('GoalDetailDrawer', () => {
     expect(sheet.props.title).toBe('progressScreen.sections.goals')
     expect(textContent).toContain('Read 12 books (synced)')
     expect(textContent).toContain('"current":6')
+  })
+
+  it('retargets the already-mounted detail ring when progress changes', () => {
+    const timing = vi.spyOn(Animated, 'timing')
+    const tree = renderDrawer()
+    const ring = tree.root.findAll((node: any) => node.props.accessibilityRole === 'progressbar')[0]
+    const svg = ring.findAll((node: any) => node.type === 'Svg')[0]
+    TestRenderer.act(() => svg.props.onLayout())
+
+    detailGoal = { ...detailGoal, currentValue: 6, progressPercentage: 50 }
+    TestRenderer.act(() => {
+      tree.update(<GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />)
+    })
+
+    const updatedRing = tree.root.findAll((node: any) => node.props.accessibilityRole === 'progressbar')[0]
+    expect(updatedRing).toBe(ring)
+    expect(updatedRing.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 50 })
+    expect(timing).toHaveBeenCalledOnce()
   })
 
   it('renders the progress block with percentage', () => {

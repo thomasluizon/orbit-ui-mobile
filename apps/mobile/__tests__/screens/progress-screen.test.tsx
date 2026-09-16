@@ -273,6 +273,33 @@ describe('mobile ProgressContent', () => {
     expect(card.findAll((node) => typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.daysOverdue'))).toHaveLength(0)
   })
 
+  it('retargets an already-mounted goal card ring when progress changes', async () => {
+    const goal = createMockGoal({ progressPercentage: 25 })
+    mocks.goals.data.allGoals = [goal]
+    const timing = vi.spyOn(ReactNative.Animated, 'timing')
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === goal.title)[0]!
+    const ring = card.findAll((node) => node.props.accessibilityRole === 'progressbar')[0]!
+    const svg = ring.findAll((node) => node.type === 'Svg')[0]!
+    await TestRenderer.act(() => (svg.props.onLayout as () => void)())
+
+    mocks.goals.data.allGoals = [{ ...goal, currentValue: 6, progressPercentage: 50 }]
+    await TestRenderer.act(() => tree.update(<ProgressScreen />))
+
+    const updatedCard = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === goal.title)[0]!
+    const updatedRing = updatedCard.findAll((node) => node.props.accessibilityRole === 'progressbar')[0]!
+    expect(updatedRing).toBe(ring)
+    expect(updatedRing.props.accessibilityValue).toEqual({ min: 0, max: 100, now: 50 })
+    expect(timing).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        toValue: Math.PI * 20.625,
+        duration: 220,
+        useNativeDriver: false,
+      }),
+    )
+  })
+
   it('filters the same goal list through all four views', async () => {
     mocks.goals.data.allGoals = [
       createMockGoal({ id: 'active', title: 'Active goal', status: 'Active', position: 0 }),
@@ -482,6 +509,15 @@ describe('mobile ProgressContent', () => {
     expect(recovered.root.findAll((node) => node.props.children === 'progressScreen.sections.streak').length).toBeGreaterThan(0)
   })
 
+  it.each([[412, 'primary'], [768, 'secondary']] as const)('renders the global retry as a %ipx %s button', async (width, variant) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
+    mocks.account.isError = true
+    const tree = await renderProgress()
+
+    expect(findPill(tree.root, 'progressScreen.retry').props.testID).toBe(`button-${variant}-sm`)
+    dimensions.mockRestore()
+  })
+
   it('shows a retryable error even while another resource is loading', async () => {
     mocks.account.isError = true
     mocks.goals.isLoading = true
@@ -529,6 +565,22 @@ describe('mobile ProgressContent', () => {
     })
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
+  })
+
+  it.each([[412, 'primary'], [768, 'secondary']] as const)('renders the global empty action as a %ipx %s button', async (width, variant) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    const tree = await renderProgress()
+
+    expect(findPill(tree.root, 'progressScreen.emptyAction').props.testID).toBe(`button-${variant}-sm`)
+    dimensions.mockRestore()
+  })
+
+  it('keeps the in-section goals-empty action ghost', async () => {
+    const tree = await renderProgress()
+
+    expect(findPill(tree.root, 'progressScreen.startHabit').props.testID).toBe('button-ghost-md')
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', async (record) => {
@@ -602,6 +654,15 @@ describe('mobile ProgressContent', () => {
     const lockedCards = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-locked-card')
     expect(lockedCards).toHaveLength(3)
     expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).padding)).toEqual([16, 16, 16])
+    expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).borderColor)).toEqual([
+      createTokensV2('purple', 'dark').hairlineGhost,
+      createTokensV2('purple', 'dark').hairlineGhost,
+      createTokensV2('purple', 'dark').hairlineGhost,
+    ])
+    for (const card of lockedCards) {
+      expect(pillButtons(card)).toHaveLength(1)
+      expect(pillButtons(card)[0]?.props.testID).toBe('button-ghost-sm')
+    }
     expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(3)
     const labels = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.label)
     expect(labels).toContain('progressScreen.streak.longest')

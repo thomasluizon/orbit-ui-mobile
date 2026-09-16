@@ -85,6 +85,13 @@ These stay until he changes them. Keep his words.
   developer name becomes TL SOFTWARE ENGINEERING LTDA**.
 - **2026-09-16** **The local worker cap is TWO, not three.** Four were killed at once for low
   memory, every one of them after committing. This supersedes D89's figure of three on this machine.
+- **2026-09-16** **Copy he asks you to apply still gets both passes first.** On the Play listing
+  text: "first make sure all the texts adhere to brand.md and run /humanizer on them." Copy being
+  yours does not mean copy skips review; it means the review is yours to run, not his to sit through.
+- **2026-09-16** **Beta licences the easy path on sequencing, and only on sequencing.** "i dont care,
+  the app is in beta, and basically only i use it, theres no problem in doing the easy approach, no
+  matter if it will break (for now)." This narrows deploy-API-first while the fleet is him alone. It
+  does NOT narrow "always the best implementation": it buys a simpler deploy order, never simpler code.
 - **Standing** Ticket `#74` owns existing copy.
 - **Standing** Never boot the Android emulator. It is his visual testing surface.
 - **Standing** `redesign/main` stays unprotected. Settled; never raise it.
@@ -96,6 +103,39 @@ orchestrates and never edits code. `.claude/rules/core.md` is the operating cont
 rest, D89 and D90 included.
 
 ## Decisions this effort runs on
+
+**The ADRs live in the brain vault. Read them before you act on anything below.** This spec carries
+pointers; the reasoning, the options that were rejected and the cost of each are only in the note.
+
+**Read them through the Obsidian MCP, not the filesystem.** `mcp__obsidian__obsidian_list_notes` to
+see what exists, `mcp__obsidian__obsidian_get_note` to read one, and
+`mcp__obsidian__obsidian_search_notes` when you know the idea but not the filename. The vault is also
+on disk at `C:/Users/thoma/Documents/Programming/Projects/brain`, but `cat` and `ls` miss the
+frontmatter, the tags and the backlinks that say which decision superseded which. Use the MCP.
+
+- `2 Areas/20-29 Orbit Engineering.md` is the area note and the way in.
+- `2 Areas/20-29 Orbit Engineering/Decisions/` holds one note per decision. The ones this effort
+  runs on, by exact filename:
+  - `Stop the canvas pass and move the redesign into real code as tickets.md`
+  - `The unit of redesign delivery is a whole screen with nothing old left on it.md`
+  - `Every redesign screen runs a design-first loop in conversation, never autonomously.md`
+  - `Run the rest of the redesign unattended and review it once as a whole.md`
+  - `Run the redesign cloud-first at max parallelism and carry the operating contract into every session.md`
+  - `Claude orchestrates only in redesign build sessions, Codex workers make every code change.md`
+  - `Redesign PRs target redesign-main only until the redesign ships.md`
+  - `A screen PR never merges on green and approval alone, only Thomas's eyes clear it.md`
+  - `Merge readiness during the redesign is a fresh approval plus a disclosed artifact.md`
+  - `A run must not edit the gate it is judged by.md`
+  - `A gate PR merges only when every check is green with nothing excused.md`
+  - `An unattended run proves an external interface from installed source, never a live call.md`
+  - `Ship a sleep skill so an unattended session always takes the best approach and logs every decision.md`
+- `2 Areas/20-29 Orbit Engineering/Orbit debloat and redesign master plan 2026-08-05.md` is the plan
+  the screen list came from.
+- `2 Areas/20-29 Orbit Engineering/The ui-skills shortlist for the Orbit redesign.md` is why the
+  review sweep uses the skills it uses.
+
+A note that contradicts this spec is the authority, because the note is where Thomas decided it. Say
+so rather than following the stale line here, and fix the line.
 
 Pointers, not restatements. The reasoning lives in the ADR.
 - D70: Pro is Astra without the daily ceiling; goals left the paywall. The daily summary and
@@ -407,113 +447,147 @@ Two rules for this work, both learned the hard way:
   config block. Verify such a refusal, then fix the ORDER.
 ## State
 
-Read live 2026-09-16 at 01:30 UTC. `redesign/main` is `c4071c5a`. `main` is `adc070bc` and FINAL:
-the beta release shipped and no pull request is open against it.
+Read live 2026-09-16, late morning. `redesign/main` is `5d684869` and now CONTAINS `main`. `main` is
+`adc070bc` and FINAL: the beta release shipped, Orbit 1.3.28 (87) is on the Play open track from run
+35044341064, and no pull request is open against `main` except four Dependabot bumps.
 
-**The second effort is DONE.** `.claude/specs/beta-release.md` is now a record, not a queue. Its
-constraints still bite and are worth reading once. Its five merges reach this branch through the
-drift merge, `#556`, which is the one piece of integration work left over from it.
+**The second effort is DONE.** `.claude/specs/beta-release.md` is a record, not a queue. Its
+constraints still bite and are worth reading once.
 
-### Merged to `redesign/main` on 2026-09-15 into 09-16
+### Merged to `redesign/main` on 2026-09-16
 
-    969  c9883aca  About stages 6 to 8, the support request states
-    959  f3ea49ca  Progresso stage 5b, the linked goal limit ordering
-    980  c4071c5a  Cloud submissions off by default (`#551`, closed)
+    979  0472ec34  the drift merge, #556. THE KEYSTONE: redesign/main now contains main, so every
+                   orchestrator tool works from a redesign/main checkout again
+    963  8972d5af  Wrapped stage 7, the ways in
+    981  5e1c2cb2  onboarding stage 1: tour and push prompt deleted on both platforms, the flow cut
+                   to three decisions, the completion recap no longer claiming steps that never ran
+    989  c178ab92  Progresso rings animate on value change, interrupt cleanly, respect reduced motion
+    990  5d684869  Progresso non-default states aligned with the granted canvas
 
-`#551` is worth knowing about: a Cloud submission now exits before any lock, receipt or Codex
-contact, the flag cannot be bypassed from the command line, and the recovery paths for
-already-started work still function. That closes the failure that returned five empty diffs in one
-day. **Do not pass `--cloud`; it will refuse, and that is correct.**
+### Open pull requests against `redesign/main`, all fourteen
 
-### Open pull requests against `redesign/main`
+Every one carries its `## Review harness` block. None is approved yet; the common blocker is
+`pullfrog-approval` at the current head.
 
-| pull request | head | state |
+| PR | ticket | what it is |
 |---|---|---|
-| 979 | `cbe08904` | the drift merge, `#556`. A worker is mid-merge. Approved earlier at `aa1b8105`, and its one finding is already fixed in `e9ecd7fd` |
-| 963 | `8d69cb53` | Wrapped stage 7. Two P1s were opened on 2026-09-15 and are NOT fixed: the `"0000"` year and the Expo cached launch response. Round 2 order is on `#63` |
-| 970 | `e15d5228` | `/progress` generic plus `--full`. DIRTY, two findings, no round run |
+| 970 | `#558` | `/progress` effort-agnostic plus `--full`. Three P1s answered at `52974481` |
+| 983 | `#71` | Perfil stage 10, the last Perfil stage. Suppressions web 142 to 112, mobile 150 to 129 |
+| 984 | `#544` | Codex logs move to `.git/orbit-cloud` so a Cloud run stops dropping `error.log` at the root |
+| 985 | `#472` | complete a manual goal at target from Progresso detail |
+| 986 | `#473` | Progresso goal-detail rows use the canonical `ListRow`; sweep fixed real link navigation |
+| 987 | `#480` | Progresso announces goal state and reorder outcomes to assistive technology |
+| 988 | `#478` | goal-card interaction feedback; sweep fixed drag lag and a compounded press scale |
+| 991 | `#560` | composed UI orders on `redesign/main` now REQUIRE the ui-skills sweep |
+| 992 | `#543` | keyboard behaviour for the remaining radio groups |
+| 993 | `#545` | habit form fields on the design scales. Suppressions down 45 web and 36 mobile |
+| 994 | `#557` | an expired Android session recovers without credentials |
+| 995 | `#53` | 14 dead `goals.filters.*` locale entries removed, with regression coverage |
+| 996 | `#56` | calendar import spacing on the scale. **`#56` is now finished** |
+| 997 | `#373` | the widget empty line split. **Must not merge before `orbit-api` 527 deploys** |
 
-### The drift merge, `#556`, is the first thing to finish
+### `orbit-api`, all on `main`
 
-It exists because `redesign/main` no longer contained `main`, and that broke more than tidiness:
-every orchestrator tool refuses to run from a stale `redesign/main` checkout, including
-`launch-worker.mjs`. The workaround was to move the orchestrating checkout to `main`, which cost the
-`progress`, `questions`, `drift-review` and `sleep` skills, because those exist only on
-`redesign/main`.
+| PR | ticket | what it is |
+|---|---|---|
+| 527 | `#372` | `EmptyReason` returns `all-done`, `nothing-scheduled` or `null`. Deploys BEFORE UI 997 |
+| 521 | `#526` | calendar timezone projection. Recurrence fix at `ee8f3e44`; cross-date events now omit an unsafe source-timezone rule rather than emitting a wrong weekday |
+| 520 | `#229` | gating matrix from `PayGateService`. Four fail-open findings closed at `f708d755` |
 
-Rounds 1 and 2 kept re-conflicting because each `main` merge moved the target. `main` is now final,
-so round 3 merges once and stays merged. **Once 979 lands, put the orchestrating checkout back on
-`redesign/main` and the skills return.**
+Also open and NOT this effort's: 526, 525, 510, all Dependabot.
 
-Four behaviours from `main` must survive its conflicts, each a defect someone hit:
-bulk selection targeting only rendered habits including a valid empty set; one replay state for the
-offline queue; the Astra marker rather than `Sparkles`; and the corrected AA status text colours.
+### What the seven ui-skills sweeps found, and why the gate is not paperwork
 
-### Not started, or half started
+Four real defects that every other gate passed:
 
-- **`#545`**, 196 suppressed violations on surfaces whose screen ticket already closed. Stage 1 IS
-  committed as `49a913bb` in `ticket-545-form-fields`, 14 files with 63 suppressions dropped from
-  `apps/web/eslint-suppressions.json`, seven commits unpushed. It needs a merge-forward and a push,
-  not a rewrite. A delivery-only order is already the newest comment on `#545`.
-- **`#67` onboarding stage 1** is BUILT and STAGED, not committed: 132 files in
-  `ticket-67-onboarding-s1`. Round 2 order is the newest comment on `#67`.
-- **`#557`**, filed 2026-09-15: Android says "You were signed out" and offers Log in while the
-  session is still recoverable. `expiry-warning.tsx:116` renders `auth.login` with `handleLogin()`
-  behind it, and nothing in that component clears auth state, while the API client would have
-  refreshed silently on its next request. 974 fixed the WORDS; this fixes the ACTION.
-- **`#546`**, the Gate Charter that never installs `js-yaml`. **D95 still forbids the run that is
-  judged by `Guards` from fixing it.**
-- **`#76` stage 9**, **`#56` stage 13**, **`#71` stage 10**, **`#73` stage 3**, **`#53`**, **`#74`**,
-  **`#543`**, **`#544`**, and Progresso's six sweeps `#472`, `#473`, `#476`, `#477`, `#478`, `#480`.
+- `983`: `ProBadge` destructured `style: _style` and discarded it, so every caller's spacing was lost.
+- `986`: web linked habits navigated through a button, blocking open-in-new-tab and middle-click.
+- `988`: goal-card drag lagged the cursor, and drag compounded the press scale into a double shrink.
+- `990`: web pill links had no hover or pressed state.
 
-### `orbit-api`, both still open on `main`
+### Closed without merging
 
-Each has exactly ONE live finding and everything else green. Both were re-read at 19:46 UTC.
+**982 (`#76` widget stage 9) was CLOSED, not merged.** Its selector used `habitCount == 0`, which the
+API emits for BOTH empty states, so the all-done copy could never show. Once the false selector, a
+premature extraction and a test that only re-proved existing behaviour came out, the net diff was two
+locale strings nothing referenced. The branch `feature/ticket-76-widget-s9` is kept. The real work
+became `#372` (API, PR 527) and `#373` (UI, PR 997).
 
-- **521** `cc86c612`, `GetCalendarEventsQuery.cs:46`: `TimeOfDay` keeps seconds while the response is
-  truncated to `HH:mm`, so 10:00:10 to 10:00:50 emits equal times the bulk import rejects. Two other
-  threads on this pull request are already resolved.
-- **520** `ce610484`, `tools/gating-matrix.mjs:434`: `planRequirement` becomes `null` for any gate
-  not written in the one ternary shape the parser knows, publishing every caller as ungated while
-  tests stay green. The order refuses the cheap fix of adding a pattern and requires a three-way
-  distinction with a fail-closed unknown.
+### Not started
 
-A fresh order naming the exact live finding is the newest comment on `#526` and `#229`.
+- `#74` and `#34`: Play Console only. See Open questions; the text is written and waiting.
+- `#76` beyond stage 9: blocked until 527 deploys and 997 merges.
+- `#543`'s supported-route search for Android key events. See Open questions.
+- The six Progresso sweeps `#472`, `#473`, `#476`, `#477`, `#478`, `#480` are ALL delivered.
 
-### Worktree and branch debt, read 2026-09-16 at 01:30
+### Worktree and branch debt, read 2026-09-16
 
-Holding real work: `ticket-545-form-fields` 7 unpushed; `ticket-556-drift-merge` 161 dirty with a
-merge in progress, which is the live worker; `ticket-67-onboarding-s1` 132 staged;
-`ticket-335-avisos` 11 unpushed, an artefact of a squash that landed as 843.
+Four stashes in `orbit-ui-mobile`, none in `orbit-api`:
 
-Old debt that blocks nothing: `ticket-351-primitives` 179 dirty, `orb-70-android-widget` 34,
-`ticket-174-measure` 1, `ticket-329-progresso-s5b` 2.
+    stash@{0}  fix/ticket-416-undeclared-tokens   ticket-416-inherited-killed-run
+    stash@{1}  thomasluizon/ticket-352-habit-detail   352 fix-worker residue 2026-08-29
+    stash@{2}  thomasluizon/ticket-352-habit-detail   preserve concurrent i18n edit
+    stash@{3}  feature/ticket-50-hoje-b   temporary stage 7 drill consolidation
 
-Four stashes, all from tickets that shipped. Four detached HEADs: `orb65-red-evidence` at `20d729c6`,
-`ticket-397-accent` at `a27a8e43`, `ticket-468-control` at `f1b2991c`, and `ticket-550-r3-red` at
-`386939e0`. Their commits are reachable.
+Worktrees holding uncommitted or unpushed work, none of it this session's:
 
-Two worktrees were created on 2026-09-16 and can be removed once used:
-`ticket-551-cloud-default`, cut from `main` and holding nothing, and `handoff-0916`.
-**Never `git worktree remove --force` on Windows**: it follows a junction and deletes the target.
-Remove junctions with `rmdir` first.
+    orb-70-android-widget        dirty 34, no upstream
+    ticket-351-primitives        dirty 179, no upstream
+    orb65-red-evidence           dirty 4, detached HEAD
+    ticket-550-r3-red            dirty 4, detached HEAD
+    ticket-335-avisos            clean, 11 commits UNPUSHED
+    ticket-174-measure           dirty 1
+    ticket-329-progresso-s5b     dirty 2
+
+`ticket-335-avisos` is the one to look at first: a clean tree hiding eleven commits that exist only
+on this machine. The two detached HEADs are reachable from no branch and no remote.
+
+A duplicate worktree `ticket-480-a11y-2` exists with no work on it. **Never `git worktree remove
+--force` on Windows**: it follows a junction and deletes the target's contents. `rmdir` the junctions
+first, then remove without `--force`.
 
 ### Tickets
 
-**129 carry `repo:ui`**, down from 133. Reproduce with
+131 open carry `repo:ui`, 65 carry `repo:api`, read 2026-09-16. Re-derive rather than trusting a
+count:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 300
 
-All eleven screen tickets are still open: `#53`, `#56`, `#57`, `#58`, `#63`, `#67`, `#71`, `#73`,
-`#74`, `#76`, `#329`.
+Screen tickets: `#53`, `#56` and `#71` are finished pending their pull requests merging. `#63`, `#67`,
+`#73`, `#74`, `#76`, `#329` remain, plus `#57` and `#58`.
 
 ## Open questions
 
-**None are his.** Two future actions are his alone and neither blocks this spec: raising
-`AppConfig.MinSupportedVersion` for `#529` once the carrying build is live in the Play fleet, and the
-GPT Sol allowance, which he reset by hand on 2026-09-15 at about 10:20 after it ran out at 08:30. If a
-worker or a Pullfrog run fails for quota rather than for code, that is the one external ending this run
-may take, and it is reported as external.
+**None are his.** A `/questions` round on 2026-09-16 put four to him and he answered all four; every
+one is recorded on its ticket and summarised below. The only external ending left is the GPT Sol
+allowance, which he reset by hand on 2026-09-15 at about 10:20 after it ran out at 08:30. Provider
+capacity also refused two worker launches outright on 2026-09-16 with `ERROR: Selected model is at
+capacity`; a relaunch minutes later succeeded. If a worker or a Pullfrog run fails for quota or
+capacity rather than for code, that is external, and it is reported as external.
+
+### Answered 2026-09-16, and what each one now requires
+
+- **The Play Console listing is NOT to be applied by the session that wrote it.** He said: "dont do
+  it now, first make sure all the texts adhere to brand.md and run /humanizer on them. then, DONT DO
+  IT NOW. i will call /handoff, and you put the instructions so the next session does it." Both
+  passes are done and the final EN and pt-BR text is a comment on `#34`. **The next session applies
+  it**, in the browser, and recounts every field against the live console limits first. The BRAND.md
+  pass changed two things and they must not be reverted: the heading "MADE FOR EXECUTIVE DYSFUNCTION"
+  became "WHEN THE SETUP IS THE WALL", because `## Relationship to marketing` forbids the diagnosis
+  as a headline while keeping it as a supporting word, and the opening line now leads with the AI per
+  `## Positioning`.
+- **The one-row onboarding recap stays.** Shipped in 981. The other three rows claimed steps the
+  three-step flow no longer runs.
+- **`#529` is unblocked, and the refusal is withdrawn.** He said: "i dont care, the app is in beta,
+  and basically only i use it, theres no problem in doing the easy approach, no matter if it will
+  break (for now)." Merge the server change on its own, no config flag, no `MinSupportedVersion`
+  raise, and record the break in the PR body. **Scoped to beta only**, because it rests entirely on
+  "basically only i use it"; a populated Play fleet restores deploy-API-first in full and no future
+  ticket may cite this as precedent.
+- **Android key events get a supported route or an honest null result.** He chose "find a supported
+  route instead" over patching React Native. Do NOT patch a dependency, do NOT flip a React Native
+  feature flag application-wide, and do NOT restore the reverted `415320d7`. The three things to
+  check, against installed source, are on `#543`. A null result is a correct result.
 
 **Answered on 2026-09-15, previously marked his on `#73`:** whether the support request attaches the
 app version. It does, with a visible line saying so, because the picker's "something does not work"

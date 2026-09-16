@@ -5,6 +5,14 @@ import org.junit.Test
 
 class OrbitWidgetDayStateTest {
     @Test
+    fun `selects empty copy from the payload reason with the completed case as fallback`() {
+        assertEquals(WidgetString.ALL_CLEAR, emptyWidgetString("all-done"))
+        assertEquals(WidgetString.NOTHING_SCHEDULED, emptyWidgetString("nothing-scheduled"))
+        assertEquals(WidgetString.ALL_CLEAR, emptyWidgetString(null))
+        assertEquals(WidgetString.ALL_CLEAR, emptyWidgetString("unrecognised"))
+    }
+
+    @Test
     fun `derives capacity for all four launcher sizes`() {
         assertEquals(1, calculateWidgetGeometry(96f, 7).visibleRowCount)
         assertEquals(3, calculateWidgetGeometry(192f, 3).visibleRowCount)
