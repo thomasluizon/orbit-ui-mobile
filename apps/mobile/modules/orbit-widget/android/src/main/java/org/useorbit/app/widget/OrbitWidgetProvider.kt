@@ -284,6 +284,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val habitCount = prefs.getInt("habit_count", 0)
             val completedCount = prefs.getInt("completed_count", 0)
             val streak = prefs.getInt("user_streak", 0)
+            val emptyReason = prefs.getString("empty_reason", null)
             val syncedOnce = prefs.getLong("habits_updated_at", 0L) > 0L
             val refreshing = prefs.getBoolean(CACHE_REFRESHING, false)
             val showSkeleton = prefs.getBoolean(CACHE_LOADING_SKELETON, !syncedOnce)
@@ -339,7 +340,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(R.id.widget_streak_group, streakVisible)
                 views.setTextViewText(
                     R.id.widget_empty_text,
-                    OrbitWidgetFactory.tr(context, lang, WidgetString.ALL_CLEAR)
+                    OrbitWidgetFactory.tr(context, lang, emptyWidgetString(emptyReason))
                 )
                 applyRefreshingState(views, refreshing)
             }

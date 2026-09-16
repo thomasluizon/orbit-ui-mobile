@@ -1,4 +1,4 @@
-import type { StyleProp, ViewStyle } from 'react-native'
+import { View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { useProfile } from '@/hooks/use-profile'
@@ -15,7 +15,7 @@ interface ProBadgeProps {
   label?: string
 }
 
-export function ProBadge({ alwaysVisible = false, style: _style, label }: Readonly<ProBadgeProps>) {
+export function ProBadge({ alwaysVisible = false, style, label }: Readonly<ProBadgeProps>) {
   const { t } = useTranslation()
   const { profile } = useProfile()
 
@@ -27,5 +27,7 @@ export function ProBadge({ alwaysVisible = false, style: _style, label }: Readon
 
   const badgeLabel = label ?? (isTrialActive ? t('trial.proBadge') : t('common.proBadge'))
 
-  return <Badge >{badgeLabel}</Badge>
+  const badge = <Badge>{badgeLabel}</Badge>
+
+  return style ? <View style={style}>{badge}</View> : badge
 }

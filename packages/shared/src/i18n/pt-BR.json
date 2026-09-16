@@ -2273,7 +2273,7 @@
       "decrease": "Diminuir progresso",
       "derivedStreak": "O progresso da sequência é calculado automaticamente, então não pode ser editado aqui. | Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui. | Vem da menor sequência atual entre os {count} hábitos ligados a esta meta, então não pode ser editado aqui.",
       "derivedHabits": "O progresso vem dos registros dos hábitos ligados a esta meta, então não é editável aqui.",
-      "completeWhyDerived": "A meta chegou ao alvo e continua ativa até você concluir, porque o número é recalculado a cada leitura.",
+      "completeWhy": "Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.",
       "linkedLimit": "{count} hábitos é o limite por meta.",
       "deleteNamed": "A meta “{title}” sai da sua lista. Os hábitos ligados a ela continuam como estão.",
       "markCompleted": "Concluir meta",
@@ -2289,15 +2289,6 @@
       "askAstraSeedDefault": "Me ajuda a montar um plano de check-in semanal para a meta \"{title}\".",
       "askAstraEyebrow": "PERGUNTE À ASTRA",
       "statusLabel": "Status"
-    },
-    "filters": {
-      "all": "Todas",
-      "active": "Ativas",
-      "completed": "Concluídas",
-      "abandoned": "Abandonadas",
-      "statusFilter": "Filtrar por status",
-      "clearFilter": "Limpar filtro",
-      "emptyFiltered": "Nenhuma meta corresponde a este filtro"
     },
     "deadline": {
       "overdue": "Atrasada",

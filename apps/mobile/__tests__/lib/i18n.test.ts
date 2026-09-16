@@ -1,8 +1,30 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { i18n } from '@/lib/i18n'
 import { plural } from '@/lib/plural'
 
 describe('mobile i18n interpolation', () => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en')
+  })
+
+  it.each([
+    {
+      locale: 'en',
+      manual: 'Update progress. Reaching the target completes the goal.',
+      open: 'This goal reached its target but is still open. Complete it when you are ready.',
+    },
+    {
+      locale: 'pt-BR',
+      manual: 'Atualize o progresso. Ao alcançar o alvo, a meta é concluída.',
+      open: 'Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.',
+    },
+  ])('renders truthful goal completion copy through the app i18n instance in $locale', async ({ locale, manual, open }) => {
+    await i18n.changeLanguage(locale)
+
+    expect(i18n.t('goals.detail.manualProgress')).toBe(manual)
+    expect(i18n.t('goals.detail.completeWhy')).toBe(open)
+  })
+
   it('interpolates single-brace placeholders', () => {
     expect(
       i18n.t('profile.settingsRows.timezoneValue', { timeZone: 'America/Sao_Paulo' }),
