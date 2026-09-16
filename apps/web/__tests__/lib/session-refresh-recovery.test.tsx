@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { sessionAwareFetch } from '@/lib/api-fetch'
+import { runServerAction } from '@/lib/client-action'
 import { useAuthStore } from '@/stores/auth-store'
 
 vi.mock('sonner', () => ({
@@ -87,6 +88,44 @@ describe('session refresh recovery', () => {
       sessionRefreshFailed: false,
     })
     expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/auth/session')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('recovers when a delayed successful Server Action follows a rejected loser', async () => {
+    const expiresAt = Date.now() + 3_600_000
+    let resolveWinner: ((result: { ok: true; data: { habitId: string } }) => void) | undefined
+    const winnerResult = new Promise<{ ok: true; data: { habitId: string } }>((resolve) => {
+      resolveWinner = resolve
+    })
+    const winner = runServerAction(winnerResult)
+    mockFetch
+      .mockResolvedValueOnce(Response.json(
+        { expiresAt: null, refreshFailed: true },
+        { status: 401 },
+      ))
+      .mockResolvedValueOnce(Response.json({ expiresAt, refreshFailed: false }))
+
+    await expect(runServerAction(Promise.resolve({
+      ok: false as const,
+      error: 'Unauthorized',
+      status: 401,
+      sessionRefreshFailed: true,
+    }))).rejects.toThrow('Unauthorized')
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      sessionRefreshFailed: true,
+    })
+
+    resolveWinner?.({ ok: true, data: { habitId: 'habit-1' } })
+    await expect(winner).resolves.toEqual({ habitId: 'habit-1' })
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: expect.objectContaining({ userId: 'user-1' }),
+      expiresAt,
+      sessionRefreshFailed: false,
+    })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

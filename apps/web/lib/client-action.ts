@@ -17,9 +17,8 @@ export async function runServerAction<T>(
   action: Promise<ServerActionResult<T>>,
 ): Promise<T> {
   const result = await action
-  if (result.ok) return result.data
-
   await applyServerActionFailure(result)
+  if (result.ok) return result.data
 
   throw createApiClientError(
     result.status,
