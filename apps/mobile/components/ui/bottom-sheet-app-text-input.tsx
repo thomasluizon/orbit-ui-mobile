@@ -31,13 +31,12 @@ export const BottomSheetAppTextInput = forwardRef<
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const isFocusedRef = useRef(false)
   const [focused, setFocused] = useState(false)
   const lastSyncedValueRef = useRef(value)
   const [draftValue, setDraftValue] = useState(value)
 
   useEffect(() => {
-    if (!isFocusedRef.current && value !== lastSyncedValueRef.current) {
+    if (value !== lastSyncedValueRef.current) {
       setDraftValue(value)
       lastSyncedValueRef.current = value
     }
@@ -63,7 +62,6 @@ export const BottomSheetAppTextInput = forwardRef<
     NonNullable<BottomSheetAppTextInputProps['onFocus']>
   >(
     (event) => {
-      isFocusedRef.current = true
       setFocused(true)
       keyboardAware?.revealInput(localRef.current)
       onFocus?.(event)
@@ -75,7 +73,6 @@ export const BottomSheetAppTextInput = forwardRef<
     NonNullable<BottomSheetAppTextInputProps['onBlur']>
   >(
     (event) => {
-      isFocusedRef.current = false
       setFocused(false)
       if (value !== draftValue) {
         setDraftValue(value)
