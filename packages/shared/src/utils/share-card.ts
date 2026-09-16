@@ -68,7 +68,14 @@ export function parseWrappedRouteSelection(
 
   const year = Number(yearValue)
   const month = Number(monthValue)
-  if (!/^\d{4}$/.test(yearValue) || !/^\d{1,2}$/.test(monthValue) || month < 1 || month > 12) {
+  if (
+    !/^\d{4}$/.test(yearValue) ||
+    !/^\d{1,2}$/.test(monthValue) ||
+    year < 1 ||
+    year > 9999 ||
+    month < 1 ||
+    month > 12
+  ) {
     return { period }
   }
   return { period, closedMonth: { year, month } }

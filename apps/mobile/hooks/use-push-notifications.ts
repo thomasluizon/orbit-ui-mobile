@@ -63,6 +63,7 @@ interface ExpoNotificationsModule {
   getExpoPushTokenAsync: (options: { projectId: string }) => Promise<{ data: string }>
   getDevicePushTokenAsync: () => Promise<{ type?: string; data: string }>
   getLastNotificationResponse: () => ExpoNotificationResponse | null
+  clearLastNotificationResponse: () => void
   addNotificationResponseReceivedListener: (
     listener: (response: ExpoNotificationResponse) => void,
   ) => { remove: () => void }
@@ -108,6 +109,7 @@ function isExpoNotificationsModule(value: unknown): value is ExpoNotificationsMo
     hasFunctionProperty(value, 'getExpoPushTokenAsync') &&
     hasFunctionProperty(value, 'getDevicePushTokenAsync') &&
     hasFunctionProperty(value, 'getLastNotificationResponse') &&
+    hasFunctionProperty(value, 'clearLastNotificationResponse') &&
     hasFunctionProperty(value, 'addNotificationResponseReceivedListener')
   )
 }
@@ -547,6 +549,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
       const responseIdentifier = response.notification.request.identifier
       if (handledNotificationResponseIdentifiers.current.has(responseIdentifier)) return
       handledNotificationResponseIdentifiers.current.add(responseIdentifier)
+      activeNotificationsModule.clearLastNotificationResponse()
       router.push(destination.url)
       if (destination.opensAstra) setAstraConversationOpen(true)
     }

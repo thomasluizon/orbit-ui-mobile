@@ -1,4 +1,5 @@
 import React from 'react'
+import type { ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 
@@ -166,14 +167,16 @@ describe('usePushNotifications', () => {
   }
 
   async function renderHarness() {
+    let renderer: ReactTestRenderer | undefined
     await TestRenderer.act(async () => {
-      TestRenderer.create(
+      renderer = TestRenderer.create(
         <PushNotificationsProvider>
           <Harness />
         </PushNotificationsProvider>,
       )
       await Promise.resolve()
     })
+    return renderer!
   }
 
   async function flush() {
@@ -218,6 +221,7 @@ describe('usePushNotifications', () => {
     })
     vi.mocked(notificationsModule.getLastNotificationResponse).mockReset()
     vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
+    vi.mocked(notificationsModule.clearLastNotificationResponse).mockReset()
     vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockReset()
     vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockImplementation(() => ({
       remove: vi.fn(),
@@ -547,6 +551,27 @@ describe('usePushNotifications', () => {
     await TestRenderer.act(() => listener(response))
 
     expect(notificationsModule.getLastNotificationResponse).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('does not replay a handled startup response after the provider remounts', async () => {
+    const response = createNotificationResponse(
+      'wrapped-retry',
+      '/progress?wrapped=month&year=2026&month=8',
+    )
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(response)
+    vi.mocked(notificationsModule.clearLastNotificationResponse).mockImplementation(() => {
+      vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
+    })
+
+    const firstRenderer = await renderHarness()
+    await flush()
+    await TestRenderer.act(() => firstRenderer.unmount())
+    await renderHarness()
+    await flush()
+
+    expect(notificationsModule.clearLastNotificationResponse).toHaveBeenCalledTimes(1)
     expect(mocks.router.push).toHaveBeenCalledTimes(1)
     expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
   })
