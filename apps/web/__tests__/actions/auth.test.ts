@@ -1,14 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+const resolveServerSession = vi.hoisted(() => vi.fn())
+
 vi.mock('@/lib/auth-api', () => ({
   getAuthHeaders: vi.fn().mockResolvedValue({
     Authorization: 'Bearer test-token',
   }),
-  resolveServerSession: vi.fn().mockResolvedValue({
-    token: 'test-token',
-    expiresAt: null,
-    refreshed: false,
-  }),
+  resolveServerSession,
 }))
 
 const mockFetch = vi.fn()
@@ -17,10 +15,20 @@ vi.stubGlobal('fetch', mockFetch)
 const { requestDeletion, confirmDeletion } = await import(
   '@/lib/actions/auth'
 )
+const { confirmDeletion: confirmDeletionAction } = await import(
+  '@/app/actions/auth'
+)
 
 describe('auth server actions', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    resolveServerSession.mockReset()
+    resolveServerSession.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
   })
 
   function mockApiResponse(body: unknown, status = 200) {
@@ -134,6 +142,22 @@ describe('auth server actions', () => {
         success: false,
         errorCode: null,
         remaining: null,
+      })
+    })
+
+    it('preserves a definitive refresh rejection for the client boundary', async () => {
+      resolveServerSession.mockResolvedValue({
+        token: null,
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: true,
+      })
+
+      await expect(confirmDeletionAction('123456')).resolves.toEqual({
+        ok: false,
+        error: 'Unauthorized',
+        status: 401,
+        sessionRefreshFailed: true,
       })
     })
   })

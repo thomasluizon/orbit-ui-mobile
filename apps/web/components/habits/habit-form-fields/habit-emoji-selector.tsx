@@ -93,6 +93,7 @@ export function HabitEmojiSelector({
   }, [])
 
   function handleSelectEmoji(emoji: string) {
+    if (isDisabled) return
     closeSheet(() => {
       hidePicker()
       onSelect(emoji)
@@ -109,14 +110,17 @@ export function HabitEmojiSelector({
         {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
         <button
           type="button"
-          className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+          className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] disabled:cursor-not-allowed disabled:opacity-45"
           style={{
             width: wellSize,
             height: wellSize,
             borderRadius: '999px',
             fontSize: wellSize === 76 ? 34 : 26,
           }}
-          onClick={() => setPickerOpen(true)}
+          disabled={isDisabled}
+          onClick={() => {
+            if (!isDisabled) setPickerOpen(true)
+          }}
           aria-haspopup="dialog"
           aria-expanded={pickerOpen}
           aria-label={t('habits.form.emojiOpenPicker')}
@@ -136,7 +140,7 @@ export function HabitEmojiSelector({
       {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (
         <div className="flex items-center gap-2">
           <span className="grid size-11 place-items-center rounded-full bg-[var(--bg-well)] text-xl">{selectedEmoji}</span>
-          <button type="button" className="habit-control-motion grid size-11 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--status-bad)] active:scale-[0.96]" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
+          <button type="button" disabled={isDisabled} className="habit-control-motion grid size-11 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--status-bad)] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
             <Trash2 size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
@@ -208,6 +212,7 @@ export function HabitEmojiSelector({
                             : 'hover:bg-[var(--bg-elev)]'
                         }`}
                         style={{ width: 44, height: 44 }}
+                        disabled={isDisabled}
                         onClick={() => handleSelectEmoji(emoji)}
                       >
                         {emoji}

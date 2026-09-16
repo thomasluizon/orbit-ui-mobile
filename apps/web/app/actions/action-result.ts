@@ -8,7 +8,7 @@ export type ServerActionResult<T> =
       sessionRefreshFailed: boolean
     }
 
-function reportsSessionRefreshFailure(error: unknown): boolean {
+export function reportsSessionRefreshFailure(error: unknown): boolean {
   return typeof error === 'object'
     && error !== null
     && 'sessionRefreshFailed' in error

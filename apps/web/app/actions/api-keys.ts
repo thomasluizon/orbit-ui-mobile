@@ -11,7 +11,11 @@ import {
   validateApiResponse,
 } from '@orbit/shared/utils'
 import { serverAuthFetch } from '@/lib/server-fetch'
-import { wrapServerAction, type ServerActionResult } from './action-result'
+import {
+  reportsSessionRefreshFailure,
+  wrapServerAction,
+  type ServerActionResult,
+} from './action-result'
 
 type ConfirmApiKeyChallengeResult =
   | { success: true }
@@ -77,6 +81,7 @@ export async function confirmApiKeyCreationChallenge(
       )
       return { success: true }
     } catch (caught: unknown) {
+      if (reportsSessionRefreshFailure(caught)) throw caught
       return {
         success: false,
         errorCode: extractBackendErrorCode(caught) ?? null,

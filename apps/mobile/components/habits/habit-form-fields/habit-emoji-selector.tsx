@@ -102,6 +102,7 @@ export function HabitEmojiSelector({
   }, []);
 
   function handleSelectEmoji(emoji: string) {
+    if (isDisabled) return;
     closeSheet(() => {
       hidePicker();
       onSelect(emoji);
@@ -126,10 +127,13 @@ export function HabitEmojiSelector({
                   transform: [{ scale: 0.96 }],
                 }
               : null,
+            isDisabled ? { opacity: 0.45 } : null,
           ]}
+          disabled={isDisabled}
           onPress={() => setPickerOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={t("habits.form.emojiOpenPicker")}
+          accessibilityState={{ disabled: isDisabled }}
         >
           {selectedEmoji ? (
             <Text style={[styles.emojiWellText, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
@@ -157,7 +161,7 @@ export function HabitEmojiSelector({
         headerAccessory={selectedEmoji ? (
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
             <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }, pressed ? { transform: [{ scale: 0.96 }] } : null]} onPress={() => onSelect("")}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }, pressed ? { transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
               <Trash2 size={20} color={tokens.fg2} strokeWidth={1.8} />
             </Pressable>
           </View>
@@ -232,9 +236,13 @@ export function HabitEmojiSelector({
                             selected ? styles.emojiOptionSelected : null,
                             pressed ? { transform: [{ scale: 0.96 }] } : null,
                           ]}
+                          disabled={isDisabled}
                           onPress={() => handleSelectEmoji(emoji)}
                           accessibilityRole="button"
-                          accessibilityState={{ selected }}
+                          accessibilityState={{
+                            selected,
+                            ...(isDisabled ? { disabled: true } : {}),
+                          }}
                           accessibilityLabel={`${t("habits.form.emoji")}: ${emoji}`}
                         >
                           <Text style={[styles.emojiOptionText, { color: tokens.fg1 }]}>{emoji}</Text>
