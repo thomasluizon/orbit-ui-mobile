@@ -130,11 +130,23 @@ async function withCredentialMutationLock<T>(mutation: () => Promise<T>): Promis
   }
 }
 
-async function clearSessionCredentials(generation: number): Promise<boolean> {
+type SessionTeardownResult = {
+  generation: number
+  refreshToken: string | null
+}
+
+async function clearSessionCredentials(
+  expectedGeneration: number | null,
+  captureRefreshToken: boolean,
+): Promise<SessionTeardownResult | null> {
   return withCredentialMutationLock(async () => {
-    if (!isCurrentSessionGeneration(generation)) return false
+    const generation = expectedGeneration ?? sessionGeneration
+    if (!isCurrentSessionGeneration(generation)) return null
+    const refreshToken = captureRefreshToken ? await getRefreshToken() : null
+    clearStepUpState()
+    sessionGeneration += 1
     await clearAllTokens()
-    return isCurrentSessionGeneration(generation)
+    return { generation: sessionGeneration, refreshToken }
   })
 }
 
@@ -147,24 +159,49 @@ async function runSessionTeardownStep(
   return isCurrentSessionGeneration(generation)
 }
 
-export async function clearSessionAndResetAuth(generation: number): Promise<void> {
-  if (!isCurrentSessionGeneration(generation)) return
-  clearStepUpState()
+async function runSessionTeardown(
+  expectedGeneration: number | null,
+  captureRefreshToken: boolean,
+  publishSignedOutImmediately: boolean,
+): Promise<SessionTeardownResult | null> {
+  const teardown = await clearSessionCredentials(expectedGeneration, captureRefreshToken)
+  if (!teardown) return null
+  const { generation } = teardown
+  if (publishSignedOutImmediately) {
+    useAuthStore.setState({
+      isAuthenticated: false,
+      user: null,
+      isLoading: false,
+      expiresAt: null,
+    })
+  }
 
-  if (!(await clearSessionCredentials(generation))) return
-  if (!(await runSessionTeardownStep(generation, () => clearWidgetToken().catch(() => {})))) return
+  if (!(await runSessionTeardownStep(generation, () => clearWidgetToken().catch(() => {})))) return null
+  if (!(await runSessionTeardownStep(generation, () => cancelPersistentReminder().catch(() => {})))) return null
 
   queryClient.clear()
-  if (!(await runSessionTeardownStep(generation, clearPersistedQueryCache))) return
-  if (!(await runSessionTeardownStep(generation, () => setQueryCacheScope(null)))) return
+  if (!(await runSessionTeardownStep(generation, clearPersistedQueryCache))) return null
+  if (!(await runSessionTeardownStep(generation, () => setQueryCacheScope(null)))) return null
 
   cancelScheduledFlush()
-  if (!(await runSessionTeardownStep(generation, clearOfflineState))) return
+  if (!(await runSessionTeardownStep(generation, clearOfflineState))) return null
 
   useChatStore.getState().clearMessages()
   useReviewReminderStore.getState().setAccountScope(null)
   resetOnboardingDraftForSignOut()
-  useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
+  if (!publishSignedOutImmediately) {
+    useAuthStore.setState({
+      isAuthenticated: false,
+      user: null,
+      isLoading: false,
+      expiresAt: null,
+    })
+  }
+  return teardown
+}
+
+export async function clearSessionAndResetAuth(generation: number): Promise<void> {
+  await runSessionTeardown(generation, false, false)
 }
 
 /**
@@ -213,7 +250,7 @@ function resetOnboardingDraftForSignOut(): void {
  * outcome. A transient network failure preserves the session and a real auth
  * rejection is reported to the coordinated caller.
  */
-async function rotateSessionToken(): Promise<RefreshSessionOutcome> {
+async function rotateSessionToken(generation: number): Promise<RefreshSessionOutcome> {
   const refreshToken = await getRefreshToken()
   if (!refreshToken) {
     return { status: 'unauthorized' }
@@ -243,7 +280,8 @@ async function rotateSessionToken(): Promise<RefreshSessionOutcome> {
   const data = (await response.json()) as RefreshResponse
   const currentUser = useAuthStore.getState().user
   const tokenUser = getUserFromToken(data.token, currentUser?.name)
-  await withCredentialMutationLock(async () => {
+  const published = await withCredentialMutationLock(async () => {
+    if (!isCurrentSessionGeneration(generation)) return false
     await setToken(data.token)
     await setRefreshToken(data.refreshToken)
     if (tokenUser) bindStepUpStateToAccount(tokenUser.userId)
@@ -253,7 +291,9 @@ async function rotateSessionToken(): Promise<RefreshSessionOutcome> {
       user: currentUser ?? tokenUser,
       expiresAt: getExpiresAt(data.token),
     })
+    return true
   })
+  if (!published) return { status: 'unauthorized' }
   await saveWidgetToken(data.token).catch(() => {})
   resumeOfflineReplay()
 
@@ -265,7 +305,7 @@ async function runRefreshSession(): Promise<RefreshSessionAttempt> {
   try {
     return {
       generation,
-      outcome: await rotateSessionToken(),
+      outcome: await rotateSessionToken(generation),
     }
   } finally {
     refreshSessionInFlight = null
@@ -338,21 +378,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (token, refreshToken, user) => {
     authTransitionInFlight = true
-    bindStepUpStateToAccount(user.userId)
     try {
-      await setToken(token)
-      if (refreshToken) {
-        await setRefreshToken(refreshToken)
-      } else {
-        await clearRefreshToken()
-      }
+      const generation = await withCredentialMutationLock(async () => {
+        await setToken(token)
+        if (refreshToken) {
+          await setRefreshToken(refreshToken)
+        } else {
+          await clearRefreshToken()
+        }
+        bindStepUpStateToAccount(user.userId)
+        sessionGeneration += 1
+        set({
+          isAuthenticated: true,
+          user,
+          isLoading: false,
+          expiresAt: getExpiresAt(token),
+        })
+        return sessionGeneration
+      })
       await saveWidgetToken(token).catch(() => {})
+      if (!isCurrentSessionGeneration(generation)) return
       queryClient.clear()
       await clearPersistedQueryCache()
+      if (!isCurrentSessionGeneration(generation)) return
       await setQueryCacheScope(user.userId)
+      if (!isCurrentSessionGeneration(generation)) return
       cancelScheduledFlush()
       offlineQueue.retainAccount(user.userId)
       await clearOfflineState()
+      if (!isCurrentSessionGeneration(generation)) return
       useChatStore.getState().clearMessages()
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
@@ -380,6 +434,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       } catch {}
 
+      if (!isCurrentSessionGeneration(generation)) return
       bindStepUpStateToAccount(user.userId)
       set({
         isAuthenticated: true,
@@ -393,13 +448,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    clearStepUpState()
-    const refreshToken = await getRefreshToken()
-
     await import('@/hooks/use-push-notifications')
       .then((module) => module.unsubscribePushToken())
       .catch(() => {})
 
+    const teardown = await runSessionTeardown(null, true, true)
+    const refreshToken = teardown?.refreshToken ?? null
     if (refreshToken) {
       await apiClient(API.auth.logout, {
         method: 'POST',
@@ -407,20 +461,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }).catch(() => {})
     }
 
-    set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
     await clearStoredAuthReturnUrl()
-    await clearAllTokens()
-    await clearWidgetToken().catch(() => {})
-    await cancelPersistentReminder().catch(() => {})
-    queryClient.clear()
-    await clearPersistedQueryCache()
-    await setQueryCacheScope(null)
-    cancelScheduledFlush()
     offlineQueue.clear()
-    await clearOfflineState()
-    useChatStore.getState().clearMessages()
-    useReviewReminderStore.getState().setAccountScope(null)
-    resetOnboardingDraftForSignOut()
   },
 
   checkAuth: async () => {

@@ -261,8 +261,9 @@ describe('mobile auth store security paths', () => {
   })
 
   it('keeps the session authenticated when a concurrent clear fires mid-login', async () => {
+    const previousGeneration = getSessionGeneration()
     apiClientMock.mockImplementation(async () => {
-      await clearSessionAndResetAuth(getSessionGeneration())
+      await clearSessionAndResetAuth(previousGeneration)
       return undefined
     })
 
@@ -527,6 +528,135 @@ describe('mobile auth store security paths', () => {
     await useAuthStore.getState().logout()
 
     expect(cancelPersistentReminderMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not let an in-flight refresh restore credentials after logout completes', async () => {
+    const rotatedToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'rotated-user',
+      'rotated@example.com',
+    )
+    let storedToken: string | null = 'expired-token'
+    let storedRefreshToken: string | null = 'refresh-token'
+    let resolveRefresh!: (response: Response) => void
+
+    getRefreshTokenMock.mockImplementation(() => Promise.resolve(storedRefreshToken))
+    setTokenMock.mockImplementation((token: string) => {
+      storedToken = token
+      return Promise.resolve()
+    })
+    setRefreshTokenMock.mockImplementation((token: string) => {
+      storedRefreshToken = token
+      return Promise.resolve()
+    })
+    clearAllTokensMock.mockImplementation(() => {
+      storedToken = null
+      storedRefreshToken = null
+      return Promise.resolve()
+    })
+    fetchMock.mockImplementationOnce(
+      () => new Promise<Response>((resolve) => { resolveRefresh = resolve }),
+    )
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() - 1000,
+    })
+
+    const refresh = refreshSession()
+    await vi.waitFor(() => expect(resolveRefresh).toBeTypeOf('function'))
+    await useAuthStore.getState().logout()
+
+    resolveRefresh(Response.json({ token: rotatedToken, refreshToken: 'next-refresh' }))
+    await refresh
+
+    expect(storedToken).toBeNull()
+    expect(storedRefreshToken).toBeNull()
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+    })
+  })
+
+  it('owns logout before an in-flight refresh resolves during the revoke request', async () => {
+    const rotatedToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'rotated-user',
+      'rotated@example.com',
+    )
+    let storedToken: string | null = 'expired-token'
+    let storedRefreshToken: string | null = 'refresh-token'
+    let resolveRefresh!: (response: Response) => void
+    let resolveRevoke!: () => void
+
+    getRefreshTokenMock.mockImplementation(() => Promise.resolve(storedRefreshToken))
+    setTokenMock.mockImplementation((token: string) => {
+      storedToken = token
+      return Promise.resolve()
+    })
+    setRefreshTokenMock.mockImplementation((token: string) => {
+      storedRefreshToken = token
+      return Promise.resolve()
+    })
+    clearAllTokensMock.mockImplementation(() => {
+      storedToken = null
+      storedRefreshToken = null
+      return Promise.resolve()
+    })
+    fetchMock.mockImplementationOnce(
+      () => new Promise<Response>((resolve) => { resolveRefresh = resolve }),
+    )
+    apiClientMock.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { resolveRevoke = resolve }),
+    )
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() - 1000,
+    })
+
+    const refresh = refreshSession()
+    await vi.waitFor(() => expect(resolveRefresh).toBeTypeOf('function'))
+    const logout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(resolveRevoke).toBeTypeOf('function'))
+
+    resolveRefresh(Response.json({ token: rotatedToken, refreshToken: 'next-refresh' }))
+    await refresh
+
+    try {
+      expect(storedToken).toBeNull()
+      expect(storedRefreshToken).toBeNull()
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    } finally {
+      resolveRevoke()
+      await logout
+    }
+  })
+
+  it('advances the session generation and signs out when revocation rejects', async () => {
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    apiClientMock.mockRejectedValueOnce(new Error('network down'))
+    const generationBeforeLogout = getSessionGeneration()
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() + 3600_000,
+    })
+
+    await expect(useAuthStore.getState().logout()).resolves.toBeUndefined()
+
+    expect(getSessionGeneration()).toBeGreaterThan(generationBeforeLogout)
+    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      isLoading: false,
+      expiresAt: null,
+    })
   })
 
   it('dismisses the persistent reminder when checkAuth finds no token', async () => {
