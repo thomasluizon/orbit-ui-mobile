@@ -509,6 +509,15 @@ describe('mobile ProgressContent', () => {
     expect(recovered.root.findAll((node) => node.props.children === 'progressScreen.sections.streak').length).toBeGreaterThan(0)
   })
 
+  it.each([[412, 'primary'], [768, 'secondary']] as const)('renders the global retry as a %ipx %s button', async (width, variant) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
+    mocks.account.isError = true
+    const tree = await renderProgress()
+
+    expect(findPill(tree.root, 'progressScreen.retry').props.testID).toBe(`button-${variant}-sm`)
+    dimensions.mockRestore()
+  })
+
   it('shows a retryable error even while another resource is loading', async () => {
     mocks.account.isError = true
     mocks.goals.isLoading = true
@@ -556,6 +565,22 @@ describe('mobile ProgressContent', () => {
     })
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
+  })
+
+  it.each([[412, 'primary'], [768, 'secondary']] as const)('renders the global empty action as a %ipx %s button', async (width, variant) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    const tree = await renderProgress()
+
+    expect(findPill(tree.root, 'progressScreen.emptyAction').props.testID).toBe(`button-${variant}-sm`)
+    dimensions.mockRestore()
+  })
+
+  it('keeps the in-section goals-empty action ghost', async () => {
+    const tree = await renderProgress()
+
+    expect(findPill(tree.root, 'progressScreen.startHabit').props.testID).toBe('button-ghost-md')
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', async (record) => {
@@ -629,6 +654,15 @@ describe('mobile ProgressContent', () => {
     const lockedCards = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-locked-card')
     expect(lockedCards).toHaveLength(3)
     expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).padding)).toEqual([16, 16, 16])
+    expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).borderColor)).toEqual([
+      createTokensV2('purple', 'dark').hairlineGhost,
+      createTokensV2('purple', 'dark').hairlineGhost,
+      createTokensV2('purple', 'dark').hairlineGhost,
+    ])
+    for (const card of lockedCards) {
+      expect(pillButtons(card)).toHaveLength(1)
+      expect(pillButtons(card)[0]?.props.testID).toBe('button-ghost-sm')
+    }
     expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(3)
     const labels = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.label)
     expect(labels).toContain('progressScreen.streak.longest')
