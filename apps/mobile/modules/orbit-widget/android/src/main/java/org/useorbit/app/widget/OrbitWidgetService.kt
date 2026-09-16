@@ -90,7 +90,8 @@ data class HabitWidgetResponse(
     val dayOffset: Int,
     val language: String?,
     val currentStreak: Int?,
-    val items: List<ApiHabit>?
+    val items: List<ApiHabit>?,
+    val emptyReason: String? = null
 )
 
 internal enum class WidgetString(val resourceId: Int) {
@@ -99,6 +100,7 @@ internal enum class WidgetString(val resourceId: Int) {
     OF(R.string.widget_of),
     COMPLETED(R.string.widget_completed),
     ALL_CLEAR(R.string.widget_all_clear),
+    NOTHING_SCHEDULED(R.string.widget_nothing_scheduled),
     SIGN_IN(R.string.widget_sign_in),
     STREAK_UNIT(R.string.widget_streak_unit),
     REFRESH(R.string.widget_refresh),
@@ -112,6 +114,12 @@ internal enum class WidgetString(val resourceId: Int) {
     MORE(R.string.widget_more),
     MORE_DESCRIPTION(R.string.widget_more_description)
 }
+
+internal fun emptyWidgetString(emptyReason: String?): WidgetString =
+    when (emptyReason) {
+        "nothing-scheduled" -> WidgetString.NOTHING_SCHEDULED
+        else -> WidgetString.ALL_CLEAR
+    }
 
 internal data class WidgetDayState(
     val habits: List<HabitItem>,
@@ -538,6 +546,7 @@ class OrbitWidgetFactory(
             .putInt("completed_count", dayState.completedCount)
             .putInt("user_streak", streak)
             .putString("lang", lang)
+            .putString("empty_reason", widgetData.emptyReason)
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
             .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
             .apply()
