@@ -42,7 +42,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/app/actions/goals', () => ({
+vi.mock('@/lib/actions/goals', () => ({
   createGoal: vi.fn(),
   updateGoal: vi.fn(),
   deleteGoal: vi.fn(),
@@ -191,7 +191,7 @@ describe('useCreateGoal', () => {
   })
 
   it('calls createGoal action', async () => {
-    const { createGoal } = await import('@/app/actions/goals')
+    const { createGoal } = await import('@/lib/actions/goals')
     const mockedCreateGoal = vi.mocked(createGoal)
     mockedCreateGoal.mockResolvedValue({ id: 'new-goal' } as any)
 
@@ -220,7 +220,7 @@ describe('useUpdateGoal', () => {
   })
 
   it('calls updateGoal action with goalId and data', async () => {
-    const { updateGoal } = await import('@/app/actions/goals')
+    const { updateGoal } = await import('@/lib/actions/goals')
     const mockedUpdateGoal = vi.mocked(updateGoal)
     mockedUpdateGoal.mockResolvedValue(undefined as any)
 
@@ -248,7 +248,7 @@ describe('useDeleteGoal', () => {
   })
 
   it('calls deleteGoal action', async () => {
-    const { deleteGoal } = await import('@/app/actions/goals')
+    const { deleteGoal } = await import('@/lib/actions/goals')
     const mockedDeleteGoal = vi.mocked(deleteGoal)
     mockedDeleteGoal.mockResolvedValue(undefined as any)
 
@@ -264,7 +264,7 @@ describe('useDeleteGoal', () => {
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
     mockShowQueued.mockReset()
-    const { deleteGoal, restoreGoal } = await import('@/app/actions/goals')
+    const { deleteGoal, restoreGoal } = await import('@/lib/actions/goals')
     vi.mocked(deleteGoal).mockResolvedValue(undefined as never)
     vi.mocked(restoreGoal).mockResolvedValue(undefined as never)
 
@@ -298,7 +298,7 @@ describe('useRestoreGoal', () => {
   })
 
   it('calls restoreGoal action, invalidates goal lists, and confirms', async () => {
-    const { restoreGoal } = await import('@/app/actions/goals')
+    const { restoreGoal } = await import('@/lib/actions/goals')
     vi.mocked(restoreGoal).mockResolvedValue(undefined as never)
 
     const queryClient = new QueryClient({
@@ -320,7 +320,7 @@ describe('useRestoreGoal', () => {
   })
 
   it('surfaces an error toast when restore fails', async () => {
-    const { restoreGoal } = await import('@/app/actions/goals')
+    const { restoreGoal } = await import('@/lib/actions/goals')
     vi.mocked(restoreGoal).mockRejectedValue(new Error('nope'))
 
     const { result } = renderHook(() => useRestoreGoal(), { wrapper: createWrapper() })
@@ -343,7 +343,7 @@ describe('useUpdateGoalProgress', () => {
   })
 
   it('calls the progress action and enqueues one target completion', async () => {
-    const { updateGoalProgress } = await import('@/app/actions/goals')
+    const { updateGoalProgress } = await import('@/lib/actions/goals')
     const mockedUpdateProgress = vi.mocked(updateGoalProgress)
     mockedUpdateProgress.mockResolvedValue(undefined as any)
 
@@ -380,7 +380,7 @@ describe('useUpdateGoalStatus', () => {
   })
 
   it('calls updateGoalStatus action', async () => {
-    const { updateGoalStatus } = await import('@/app/actions/goals')
+    const { updateGoalStatus } = await import('@/lib/actions/goals')
     const mockedUpdateStatus = vi.mocked(updateGoalStatus)
     mockedUpdateStatus.mockResolvedValue(undefined as any)
 
@@ -476,7 +476,7 @@ describe('useReorderGoals', () => {
   })
 
   it('calls reorderGoals action', async () => {
-    const { reorderGoals } = await import('@/app/actions/goals')
+    const { reorderGoals } = await import('@/lib/actions/goals')
     const mockedReorder = vi.mocked(reorderGoals)
     mockedReorder.mockResolvedValue(undefined as any)
 
@@ -496,7 +496,7 @@ describe('useReorderGoals', () => {
   })
 
   it('rolls back on error', async () => {
-    const { reorderGoals } = await import('@/app/actions/goals')
+    const { reorderGoals } = await import('@/lib/actions/goals')
     const mockedReorder = vi.mocked(reorderGoals)
     mockedReorder.mockRejectedValue(new Error('Server error'))
 
@@ -522,7 +522,7 @@ describe('useLinkHabitsToGoal', () => {
   })
 
   it('calls linkHabitsToGoal action', async () => {
-    const { linkHabitsToGoal } = await import('@/app/actions/goals')
+    const { linkHabitsToGoal } = await import('@/lib/actions/goals')
     const mockedLink = vi.mocked(linkHabitsToGoal)
     mockedLink.mockResolvedValue(undefined as any)
 

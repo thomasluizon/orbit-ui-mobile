@@ -1,6 +1,6 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, useCallback } from "react";
-import { View, Text, } from "react-native";
+import { ActivityIndicator, View, Text, } from "react-native";
 import { Plus, Trash2, X } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,6 +9,7 @@ import {
 } from "@orbit/shared/utils";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { type AppTokens, createStyles } from "./styles";
 
 interface HabitEmojiSelectorProps {
@@ -16,7 +17,58 @@ interface HabitEmojiSelectorProps {
   tokens: AppTokens;
   styles: ReturnType<typeof createStyles>;
   onSelect: (emoji: string) => void;
+  onSuggest?: () => void;
+  canSuggest?: boolean;
+  isSuggesting?: boolean;
+  isDisabled?: boolean;
   wellSize?: number;
+}
+
+interface EmojiSuggestButtonProps {
+  canSuggest: boolean;
+  isSuggesting: boolean;
+  isDisabled: boolean;
+  label: string;
+  hint?: string;
+  onSuggest?: () => void;
+  styles: ReturnType<typeof createStyles>;
+  tokens: AppTokens;
+}
+
+function EmojiSuggestButton({
+  canSuggest,
+  isSuggesting,
+  isDisabled,
+  label,
+  hint,
+  onSuggest,
+  styles,
+  tokens,
+}: Readonly<EmojiSuggestButtonProps>) {
+  if (!onSuggest) return null;
+  const disabled = isSuggesting || isDisabled || !canSuggest;
+  return (
+    <Pressable
+      testID="habit-suggest-emoji"
+      style={({ pressed }) => [
+        styles.emojiSuggestButton,
+        disabled ? styles.emojiSuggestButtonDisabled : null,
+        pressed ? { transform: [{ scale: 0.96 }] } : null,
+      ]}
+      onPress={onSuggest}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      accessibilityState={{ disabled, busy: isSuggesting }}
+    >
+      {isSuggesting ? (
+        <ActivityIndicator size="small" color={tokens.primary} />
+      ) : (
+        <AstraGlyph size={20} color={tokens.primary} />
+      )}
+    </Pressable>
+  );
 }
 
 export function HabitEmojiSelector({
@@ -24,6 +76,10 @@ export function HabitEmojiSelector({
   tokens,
   styles,
   onSelect,
+  onSuggest,
+  canSuggest = false,
+  isSuggesting = false,
+  isDisabled = false,
   wellSize = 46,
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
@@ -46,6 +102,7 @@ export function HabitEmojiSelector({
   }, []);
 
   function handleSelectEmoji(emoji: string) {
+    if (isDisabled) return;
     closeSheet(() => {
       hidePicker();
       onSelect(emoji);
@@ -58,28 +115,43 @@ export function HabitEmojiSelector({
 
   return (
     <>
-      {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.emojiWell,
-          { width: wellSize, height: wellSize, borderRadius: 999 },
-          pressed
-            ? {
-                backgroundColor: tokens.bgHover,
-                transform: [{ scale: 0.96 }],
-              }
-            : null,
-        ]}
-        onPress={() => setPickerOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={t("habits.form.emojiOpenPicker")}
-      >
-        {selectedEmoji ? (
-          <Text style={[styles.emojiWellText, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
-        ) : (
-          <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
-        )}
-      </Pressable>
+      <View style={styles.emojiField}>
+        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.emojiWell,
+            { width: wellSize, height: wellSize, borderRadius: 999 },
+            pressed
+              ? {
+                  backgroundColor: tokens.bgHover,
+                  transform: [{ scale: 0.96 }],
+                }
+              : null,
+            isDisabled ? { opacity: 0.45 } : null,
+          ]}
+          disabled={isDisabled}
+          onPress={() => setPickerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("habits.form.emojiOpenPicker")}
+          accessibilityState={{ disabled: isDisabled }}
+        >
+          {selectedEmoji ? (
+            <Text style={[styles.emojiWellText, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
+          ) : (
+            <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
+          )}
+        </Pressable>
+        <EmojiSuggestButton
+          canSuggest={canSuggest}
+          isSuggesting={isSuggesting}
+          isDisabled={isDisabled}
+          label={t(isSuggesting ? "habits.form.emojiSuggesting" : "habits.form.emojiSuggest")}
+          hint={!canSuggest ? t("habits.form.titleRequired") : undefined}
+          onSuggest={onSuggest}
+          styles={styles}
+          tokens={tokens}
+        />
+      </View>
 
       {pickerOpen ? (<Sheet
         ref={sheetRef}
@@ -89,7 +161,7 @@ export function HabitEmojiSelector({
         headerAccessory={selectedEmoji ? (
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
             <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }, pressed ? { transform: [{ scale: 0.96 }] } : null]} onPress={() => onSelect("")}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }, pressed ? { transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
               <Trash2 size={20} color={tokens.fg2} strokeWidth={1.8} />
             </Pressable>
           </View>
@@ -164,9 +236,13 @@ export function HabitEmojiSelector({
                             selected ? styles.emojiOptionSelected : null,
                             pressed ? { transform: [{ scale: 0.96 }] } : null,
                           ]}
+                          disabled={isDisabled}
                           onPress={() => handleSelectEmoji(emoji)}
                           accessibilityRole="button"
-                          accessibilityState={{ selected }}
+                          accessibilityState={{
+                            selected,
+                            ...(isDisabled ? { disabled: true } : {}),
+                          }}
                           accessibilityLabel={`${t("habits.form.emoji")}: ${emoji}`}
                         >
                           <Text style={[styles.emojiOptionText, { color: tokens.fg1 }]}>{emoji}</Text>

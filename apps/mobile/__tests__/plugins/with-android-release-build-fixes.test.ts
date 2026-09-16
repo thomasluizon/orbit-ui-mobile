@@ -1,9 +1,14 @@
-import type { AndroidConfig, ExportedConfig, ExportedConfigWithProps } from '@expo/config-plugins'
+import {
+  AndroidConfig,
+  type ExportedConfig,
+  type ExportedConfigWithProps,
+} from '@expo/config-plugins'
 import { describe, expect, it } from 'vitest'
 
 import withAndroidReleaseBuildFixes from '../../plugins/with-android-release-build-fixes'
 
 type PropertiesItem = AndroidConfig.Properties.PropertiesItem
+type ResourceXML = AndroidConfig.Resources.ResourceXML
 
 const TEMPLATE_DEFAULT = '-Xmx2048m -XX:MaxMetaspaceSize=512m'
 const CLOBBERED_VALUE = '-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
@@ -83,5 +88,50 @@ describe('withAndroidReleaseBuildFixes gradle.properties memory', () => {
     expect(twice.match(/-Xmx/g)).toHaveLength(1)
     expect(twice.match(/-XX:MaxMetaspaceSize=/g)).toHaveLength(1)
     expect(twice.match(/-Dfile\.encoding=/g)).toHaveLength(1)
+  })
+})
+
+describe('withAndroidReleaseBuildFixes system bars', () => {
+  it('removes the deprecated transparent system bar colors after the Expo system-bars plugin adds them', async () => {
+    const config = AndroidConfig.SystemBars.withSystemBars(
+      withAndroidReleaseBuildFixes({ name: 'Orbit', slug: 'orbit' }),
+    ) as ExportedConfig
+    const stylesMod = config.mods?.android?.styles
+
+    if (!stylesMod) {
+      throw new Error('plugin registered no Android styles mod')
+    }
+
+    const modResults: ResourceXML = {
+      resources: {
+        style: [
+          {
+            $: { name: 'AppTheme', parent: 'Theme.AppCompat.DayNight.NoActionBar' },
+            item: [],
+          },
+        ],
+      },
+    }
+    const modConfig: ExportedConfigWithProps<ResourceXML> = {
+      ...config,
+      modResults,
+      modRequest: {
+        projectRoot: '.',
+        platformProjectRoot: '.',
+        modName: 'styles',
+        platform: 'android',
+        introspect: false,
+      },
+      modRawConfig: config,
+    }
+
+    const result = await stylesMod(modConfig)
+    const appTheme = AndroidConfig.Styles.getStylesGroupAsObject(
+      result.modResults,
+      AndroidConfig.Styles.getAppThemeGroup(),
+    )
+
+    expect(appTheme).not.toHaveProperty('android:statusBarColor')
+    expect(appTheme).not.toHaveProperty('android:navigationBarColor')
   })
 })

@@ -5,7 +5,7 @@ import { API } from '@orbit/shared/api'
 import { ApiClientError } from '@orbit/shared/utils'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import { apiKeyKeys } from '@orbit/shared/query'
-import { createApiKey, revokeApiKey } from '@/app/actions/api-keys'
+import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
 import {
   clearApiKeyCreationGrant,
   consumeApiKeyCreationGrant,

@@ -9,7 +9,7 @@ import {
 import {
   subscribePush as subscribePushAction,
   unsubscribePush as unsubscribePushAction,
-} from '@/app/actions/notifications'
+} from '@/lib/actions/notifications'
 
 export type PushPreferenceStatus = WebPushPreferenceStatus
 

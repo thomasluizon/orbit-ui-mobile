@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   resetTour: () => mockResetTour(),
 }))
 

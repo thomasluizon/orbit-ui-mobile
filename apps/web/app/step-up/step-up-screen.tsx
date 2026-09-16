@@ -19,8 +19,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import {
   confirmApiKeyCreationChallenge,
   requestApiKeyCreationChallenge,
-} from '@/app/actions/api-keys'
-import { confirmDeletion, requestDeletion } from '@/app/actions/auth'
+} from '@/lib/actions/api-keys'
+import { confirmDeletion, requestDeletion } from '@/lib/actions/auth'
 import {
   beginStepUpChallenge,
   clearStepUpTiming,

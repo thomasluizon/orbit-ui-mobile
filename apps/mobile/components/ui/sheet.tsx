@@ -10,6 +10,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const MAX_HEIGHT_RATIO = 0.85
+const MAX_CONTENT_WIDTH = 640
 const SCROLL_EDGE_PEEK = 24
 // WHY: TrueSheet 3.11.3 exposes only `dimmed` and hardcodes Android dim opacity to 0.50. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/android/src/main/java/com/lodev09/truesheet/core/TrueSheetDimView.kt#L38
 const TRUE_SHEET_DIMMED = true
@@ -151,6 +152,8 @@ export function Sheet({
       }}
       header={header}
       maxContentHeight={height * MAX_HEIGHT_RATIO - SCROLL_EDGE_PEEK}
+      maxContentWidth={MAX_CONTENT_WIDTH}
+      insetAdjustment="automatic"
       onBackPress={onClose ? undefined : handleBlockedBackPress}
       onDidDismiss={handleDidDismiss}
       scrollable

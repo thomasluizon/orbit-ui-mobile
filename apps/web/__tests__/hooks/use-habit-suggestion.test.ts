@@ -8,7 +8,7 @@ import { extractBackendErrorCode } from '@orbit/shared/utils'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 
 const mockSuggestHabitSetup = vi.fn()
-vi.mock('@/app/actions/habits', () => ({
+vi.mock('@/lib/actions/habits', () => ({
   suggestHabitSetup: (data: unknown) => mockSuggestHabitSetup(data),
 }))
 

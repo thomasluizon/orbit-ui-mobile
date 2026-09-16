@@ -35,8 +35,8 @@ import {
   getMilestoneShareStreakKey,
   MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
-import { dismissCalendarImport } from '@/app/actions/calendar'
-import { dismissImportPrompt } from '@/app/actions/onboarding'
+import { dismissCalendarImport } from '@/lib/actions/calendar'
+import { dismissImportPrompt } from '@/lib/actions/onboarding'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import {

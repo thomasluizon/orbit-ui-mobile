@@ -20,6 +20,13 @@ interface ApiErrorPayload {
   requestId?: string
 }
 
+class AuthRefreshNetworkError extends TypeError {
+  constructor() {
+    super('Network request failed')
+    this.name = 'AuthRefreshNetworkError'
+  }
+}
+
 type RequestExecution = {
   response: Response
   requestId: string | null
@@ -203,7 +210,7 @@ async function handleUnauthorized<T>(
   const refreshOutcome = await refreshSession({ clearOnFailure: false })
 
   if (refreshOutcome.status === 'network-error') {
-    throw new TypeError('Network request failed')
+    throw new AuthRefreshNetworkError()
   }
 
   if (refreshOutcome.status === 'refreshed') {

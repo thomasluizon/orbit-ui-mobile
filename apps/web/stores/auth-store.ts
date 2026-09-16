@@ -4,24 +4,68 @@ import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storag
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
+let sessionRevalidationQueue: Promise<void> = Promise.resolve()
+let sessionRecoveryUser: User | null = null
+
+function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
+  const next = sessionRevalidationQueue.then(task, task)
+  sessionRevalidationQueue = next.catch(() => {})
+  return next
+}
 
 interface AuthState {
   isAuthenticated: boolean
   user: User | null
   expiresAt: number | null
+  sessionRefreshFailed: boolean
 
   setAuth: (loginResponse: LoginResponse) => void
+  confirmSessionRefreshFailure: () => Promise<void>
+  recoverSessionRefreshFailure: () => Promise<void>
   checkSession: () => Promise<void>
   startExpiryMonitor: () => () => void
   logout: () => Promise<void>
+}
+
+type SessionSnapshot =
+  | { kind: 'active'; expiresAt: number }
+  | { kind: 'inactive' }
+  | { kind: 'rejected' }
+  | { kind: 'retryable' }
+
+async function readCurrentSession(): Promise<SessionSnapshot> {
+  let response: Response
+  try {
+    response = await fetch('/api/auth/session')
+  } catch {
+    return { kind: 'retryable' }
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    const session = (await response.json().catch(() => null)) as {
+      refreshFailed?: boolean
+    } | null
+    return session?.refreshFailed === true
+      ? { kind: 'rejected' }
+      : { kind: 'retryable' }
+  }
+
+  if (!response.ok) return { kind: 'retryable' }
+
+  const session = (await response.json()) as { expiresAt: number | null }
+  return typeof session.expiresAt === 'number'
+    ? { kind: 'active', expiresAt: session.expiresAt }
+    : { kind: 'inactive' }
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   user: null,
   expiresAt: null,
+  sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
+    sessionRecoveryUser = null
     bindStepUpStateToAccount(loginResponse.userId)
     set({
       isAuthenticated: true,
@@ -30,33 +74,95 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         name: loginResponse.name,
         email: loginResponse.email,
       },
+      sessionRefreshFailed: false,
     })
   },
 
+  confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+    const session = await readCurrentSession()
+    if (session.kind === 'active') {
+      const user = get().user ?? sessionRecoveryUser
+      sessionRecoveryUser = null
+      set({
+        isAuthenticated: true,
+        user,
+        expiresAt: session.expiresAt,
+        sessionRefreshFailed: false,
+      })
+      return
+    }
+    if (session.kind === 'inactive') {
+      sessionRecoveryUser = null
+      clearStepUpState()
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: false,
+      })
+      return
+    }
+    if (session.kind === 'rejected') {
+      sessionRecoveryUser ??= get().user
+      clearStepUpState()
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: true,
+      })
+    }
+  }),
+
+  recoverSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+    if (!get().sessionRefreshFailed) return
+
+    const session = await readCurrentSession()
+    if (session.kind === 'active') {
+      const user = get().user ?? sessionRecoveryUser
+      sessionRecoveryUser = null
+      set({
+        isAuthenticated: true,
+        user,
+        expiresAt: session.expiresAt,
+        sessionRefreshFailed: false,
+      })
+    } else if (session.kind === 'inactive') {
+      sessionRecoveryUser = null
+      clearStepUpState()
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: false,
+      })
+    }
+  }),
+
   checkSession: async () => {
-    let response: Response
-    try {
-      response = await fetch('/api/auth/session')
-    } catch {
+    const session = await readCurrentSession()
+    if (session.kind === 'rejected') {
+      await get().confirmSessionRefreshFailure()
       return
     }
-
-    if (response.status === 401 || response.status === 403) {
+    if (session.kind === 'active') {
+      const user = get().user ?? sessionRecoveryUser
+      sessionRecoveryUser = null
+      set({
+        isAuthenticated: true,
+        user,
+        expiresAt: session.expiresAt,
+        sessionRefreshFailed: false,
+      })
+    } else if (session.kind === 'inactive') {
+      sessionRecoveryUser = null
       clearStepUpState()
-      set({ isAuthenticated: false, user: null, expiresAt: null })
-      return
-    }
-
-    if (!response.ok) {
-      return
-    }
-
-    const data = (await response.json()) as { expiresAt: number | null }
-    if (data.expiresAt) {
-      set({ isAuthenticated: true, expiresAt: data.expiresAt })
-    } else {
-      clearStepUpState()
-      set({ isAuthenticated: false, user: null, expiresAt: null })
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: false,
+      })
     }
   },
 
@@ -64,8 +170,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     void get().checkSession()
 
     const intervalId = setInterval(() => {
-      const { isAuthenticated } = get()
-      if (!isAuthenticated) {
+      const { isAuthenticated, sessionRefreshFailed } = get()
+      if (!isAuthenticated && !sessionRefreshFailed) {
         return
       }
 
@@ -82,7 +188,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
     }
 
-    set({ isAuthenticated: false, user: null, expiresAt: null })
+    sessionRecoveryUser = null
+    set({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+      sessionRefreshFailed: false,
+    })
     useOnboardingDraftStore.getState().reset()
 
     if ('location' in globalThis) {

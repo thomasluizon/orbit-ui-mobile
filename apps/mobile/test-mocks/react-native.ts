@@ -24,6 +24,8 @@ const DEFAULT_MEASURE_IN_WINDOW: MeasureInWindowImpl = (callback) =>
 let measureInWindowImpl: MeasureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
 let scrollToImpl: ScrollToImpl = () => {}
 let hostRefsNull = false
+const DEFAULT_WINDOW_DIMENSIONS = { width: 412, height: 892, scale: 1, fontScale: 1 }
+let windowDimensions = DEFAULT_WINDOW_DIMENSIONS
 
 export function __setMeasureInWindowImpl(impl: MeasureInWindowImpl) {
   measureInWindowImpl = impl
@@ -37,12 +39,19 @@ export function __setScrollToImpl(impl: ScrollToImpl) {
   scrollToImpl = impl
 }
 
+export function __setWindowDimensions(
+  nextDimensions: Readonly<typeof DEFAULT_WINDOW_DIMENSIONS>,
+) {
+  windowDimensions = nextDimensions
+}
+
 const keyboardListeners = new Map<string, Set<(payload: unknown) => void>>()
 
 export function __resetTestHostConfig() {
   measureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
   scrollToImpl = () => {}
   hostRefsNull = false
+  windowDimensions = DEFAULT_WINDOW_DIMENSIONS
   keyboardListeners.clear()
 }
 
@@ -133,7 +142,7 @@ export const PanResponder = {
 }
 
 export const Dimensions = {
-  get: (_dimension: 'window' | 'screen') => ({ width: 412, height: 892 }),
+  get: (_dimension: 'window' | 'screen') => windowDimensions,
   addEventListener: (
     _event: string,
     _listener: (...args: unknown[]) => void,
@@ -148,7 +157,7 @@ export function useColorScheme(): 'light' | 'dark' {
 }
 
 export function useWindowDimensions() {
-  return { width: 412, height: 892, scale: 1, fontScale: 1 }
+  return windowDimensions
 }
 
 export const Easing = {

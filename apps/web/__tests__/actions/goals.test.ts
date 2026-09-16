@@ -22,7 +22,7 @@ const {
   updateGoalStatus,
   reorderGoals,
   linkHabitsToGoal,
-} = await import('@/app/actions/goals')
+} = await import('@/lib/actions/goals')
 
 describe('goal server actions', () => {
   beforeEach(() => {
