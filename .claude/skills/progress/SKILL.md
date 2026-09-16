@@ -54,16 +54,25 @@ For the session scope:
 
 1. Get the live session id from `currentRunIdentifier()` in
    `tools/lib/identifier-ledger.mjs`. Use `readRunState()` only when its `sessionId` exactly matches.
-   With no matching record, limit the session report to the current checkout and say that boundary.
+   With no matching record, there is no session baseline. State "No session baseline is available."
+   Then report the effort scope instead by following the full-scope procedure once. Do not silently
+   turn an absent baseline into an empty session or call all visible work session-owned.
 2. Enumerate the matching record's append-only `readinessLedger`. Each row's `repositoryKey` maps to
    a repository path in `.claude/orchestrator.json`; `prNumber` identifies the session-owned pull
    request; `receiptPath` is provenance, not merge status. Ignore any undeclared top-level key.
-3. In each mapped repository, run `gh pr view <number> --json state` at answer time. Only `MERGED`
-   means merged; `OPEN` is mid flight and `CLOSED` did not merge. Read the pull request and its ticket
-   for the behaviour it carries. The ledger establishes ownership across repositories; live GitHub
-   state establishes what landed.
+3. In each mapped repository, run `gh pr view <number> --json state,mergeCommit` at answer time.
+   `OPEN` is mid flight and `CLOSED` did not merge. For `MERGED` with a non-null `mergeCommit.oid`,
+   run `git merge-base --is-ancestor <merge-commit-oid> origin/<integration-branch>` in that
+   repository. Only exit 0 proves the merge commit reached the integration branch. A stacked child
+   merged into its parent's head cannot pass until that commit arrives on the integration branch.
+   If the field is absent or the check errors, say arrival could not be verified. Read the pull
+   request and its ticket for the behaviour it carries. The ledger establishes session ownership;
+   commit ancestry establishes what landed.
 4. Run `git status --short` in the current checkout so work before its first commit or pull request is
-   visible. Use `remaining` for queued work and the session's decision log for unresolved decisions.
+   visible there. This does not create a session baseline. It also cannot see uncommitted work in
+   linked worktrees from the orchestrating checkout. When no ledger row names that work yet, say the
+   session report can omit pre-pull-request changes in linked worktrees. Use `remaining` for queued
+   work and the session's decision log for unresolved decisions.
 
 For the full scope, add:
 
@@ -73,8 +82,9 @@ For the full scope, add:
 5. The ticket list for the effort, and for any screen you are unsure about, its ticket body's stage
    list compared against the merged commits.
 
-A stage that merged is shipped to the integration branch. If nothing on that branch reaches a real
-person yet, say "built" rather than "live", and say so once rather than in every line.
+A stage whose merge commit is an ancestor of the integration branch is shipped there. If nothing on
+that branch reaches a real person yet, say "built" rather than "live", and say so once rather than
+in every line.
 
 ## Name the behaviour, not the stage
 

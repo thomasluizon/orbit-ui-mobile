@@ -1156,13 +1156,19 @@ T("progress: integration discovery starts from the current PR head and removes s
   excludesStackedHeads: progressSkill.includes("not the integration branch"),
   refreshesIntegrationRef: progressSkill.includes("git fetch origin <integration-branch>"),
 }, { readsHeads: true, readsBases: true, excludesStackedHeads: true, refreshesIntegrationRef: true })
-T("progress: session discovery uses the current run ledger and live merge state", {
+T("progress: session discovery uses the current run ledger and proves integration ancestry", {
   checksSessionIdentity: progressSkill.includes("currentRunIdentifier"),
   readsLedger: progressSkill.includes("readinessLedger"),
-  readsLiveState: progressSkill.includes("gh pr view <number> --json state"),
+  readsLiveIdentity: progressSkill.includes("gh pr view <number> --json state,mergeCommit"),
+  checksIntegrationAncestry: progressSkill.includes("git merge-base --is-ancestor <merge-commit-oid> origin/<integration-branch>"),
   claimsMergedField: /readRunState[^\n]*\bmerged\b/.test(progressSkill),
   readsWorkingTree: progressSkill.includes("git status --short"),
-}, { checksSessionIdentity: true, readsLedger: true, readsLiveState: true, claimsMergedField: false, readsWorkingTree: true })
+}, { checksSessionIdentity: true, readsLedger: true, readsLiveIdentity: true, checksIntegrationAncestry: true, claimsMergedField: false, readsWorkingTree: true })
+T("progress: a missing session baseline degrades explicitly to effort scope", {
+  namesMissingBaseline: progressSkill.includes("no session baseline"),
+  fallsBackToEffortScope: progressSkill.includes("report the effort scope instead"),
+  admitsLinkedWorktreeBlindSpot: progressSkill.includes("linked worktrees"),
+}, { namesMissingBaseline: true, fallsBackToEffortScope: true, admitsLinkedWorktreeBlindSpot: true })
 
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
