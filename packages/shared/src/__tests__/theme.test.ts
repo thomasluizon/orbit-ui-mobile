@@ -78,9 +78,9 @@ const BAD_TEXT_SOURCE_SITES = [
     pattern: /habit-phrase-error[\s\S]*?text-\[var\(--status-bad-text\)\]/,
   },
   {
-    name: 'web goal action label',
-    path: 'apps/web/components/goals/goal-detail-sections.tsx',
-    pattern: /fontSize: 15,[\s\S]*?color: destructive \? 'var\(--status-bad-text\)'/,
+    name: 'web goal delete row',
+    path: 'apps/web/components/goals/goal-detail-drawer/goal-action-footer.tsx',
+    pattern: /title=\{t\('goals\.detail\.delete'\)\}[\s\S]*?\bdanger\b/,
   },
   {
     name: 'web clarification error',
@@ -113,9 +113,9 @@ const BAD_TEXT_SOURCE_SITES = [
     pattern: /checkoutError[\s\S]*?color: tokens\.statusBadText/,
   },
   {
-    name: 'mobile goal action label',
-    path: 'apps/mobile/components/goals/goal-detail-drawer/styles.ts',
-    pattern: /actionRowTextDestructive[\s\S]*?color: tokens\.statusBadText/,
+    name: 'mobile goal delete row',
+    path: 'apps/mobile/components/goals/goal-detail-drawer/goal-action-footer.tsx',
+    pattern: /title=\{t\('goals\.detail\.delete'\)\}[\s\S]*?\bdanger\b/,
   },
   {
     name: 'mobile milestone share error',

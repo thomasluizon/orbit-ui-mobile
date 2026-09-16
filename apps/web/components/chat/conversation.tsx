@@ -55,8 +55,15 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     }
 
     setSelectedGoalId(null)
+    close()
     router.push(`/habits/${entityId}`)
-  }, [router])
+  }, [close, router])
+
+  const handleLinkedHabitNavigate = useCallback((habitId: string) => {
+    setSelectedGoalId(null)
+    close()
+    router.push(`/habits/${habitId}`)
+  }, [close, router])
 
   const handleGoalDrawerOpenChange = useCallback((open: boolean) => {
     if (!open) setSelectedGoalId(null)
@@ -149,6 +156,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         <GoalDetailDrawer
           open={!!selectedGoalId}
           onOpenChange={handleGoalDrawerOpenChange}
+          onLinkedHabitNavigate={handleLinkedHabitNavigate}
           goalId={selectedGoalId}
         />
       )}

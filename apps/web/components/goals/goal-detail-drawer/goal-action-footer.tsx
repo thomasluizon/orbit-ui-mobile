@@ -7,7 +7,7 @@ import {
   Trash2,
 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { GoalActionRow } from '../goal-detail-sections'
+import { ListRow } from '@/components/ui/list-row'
 
 interface GoalActionFooterProps {
   isActive: boolean
@@ -34,31 +34,35 @@ export function GoalActionFooter({
 
   return (
     <div style={{ paddingBottom: 4 }}>
-      <GoalActionRow
-        label={t('goals.detail.edit')}
-        icon={PencilLine}
+      <ListRow
+        title={t('goals.detail.edit')}
+        icon={<PencilLine size={24} strokeWidth={1.5} aria-hidden="true" />}
+        chevron={false}
         onClick={onEdit}
       />
       {isAbandoned ? (
-        <GoalActionRow
-          label={t('goals.detail.reactivate')}
-          icon={RotateCw}
+        <ListRow
+          title={t('goals.detail.reactivate')}
+          icon={<RotateCw size={24} strokeWidth={1.5} aria-hidden="true" />}
+          chevron={false}
           onClick={onReactivate}
           disabled={isUpdatingStatus}
         />
       ) : null}
       {isActive ? (
-          <GoalActionRow
-            label={t('goals.detail.markAbandoned')}
-            icon={ArchiveX}
+          <ListRow
+            title={t('goals.detail.markAbandoned')}
+            icon={<ArchiveX size={24} strokeWidth={1.5} aria-hidden="true" />}
+            chevron={false}
             onClick={onMarkAbandoned}
             disabled={isUpdatingStatus}
           />
       ) : null}
-      <GoalActionRow
-        label={t('goals.detail.delete')}
-        icon={Trash2}
-        destructive
+      <ListRow
+        title={t('goals.detail.delete')}
+        icon={<Trash2 size={24} strokeWidth={1.5} aria-hidden="true" />}
+        danger
+        chevron={false}
         onClick={onDelete}
       />
     </div>
