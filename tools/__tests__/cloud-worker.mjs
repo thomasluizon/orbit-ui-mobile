@@ -109,7 +109,7 @@ else if (args[0] === "cloud" && args[1] === "apply") {
 export const cloudConfig = (command, overrides = {}) => {
   const real = structuredClone(overrides.real)
   real.workers.codex.command = command
-  real.cloud = { environmentId: "env-measured", repositoryKey: "ui" }
+  real.cloud = { enabled: true, environmentId: "env-measured", repositoryKey: "ui" }
   real.caps.cloudParallelTasks = overrides.cloudParallelTasks ?? 4
   real.timeouts.cloudCeilingMinutes = overrides.cloudCeilingMinutes ?? 45
   real.timeouts.cloudCommandMinutes = overrides.cloudCommandMinutes ?? 10

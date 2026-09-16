@@ -30,6 +30,7 @@ export function GoalDetailCollections({
   const linkedHabitsSection = (
     <View style={styles.section}>
       <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg1 }]}>{t('goals.linkedHabits')}</Text>
+      {linkedHabits.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}
       <GoalLinkedHabitsSection
         title={t('goals.linkedHabits')}
         emptyLabel={t('goals.noLinkedHabits')}
@@ -60,10 +61,7 @@ export function GoalDetailCollections({
 
   return (
     <>
-      <View style={styles.section}>
-        {linkedHabits.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}
-        {linkedHabitsSection}
-      </View>
+      {linkedHabitsSection}
       {progressHistorySection}
     </>
   )

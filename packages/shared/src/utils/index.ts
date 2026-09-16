@@ -636,13 +636,20 @@ export {
 } from './fresh-start'
 export {
   buildSupportRequestBody,
+  normalizeSupportSubjectId,
   SUPPORT_API_MESSAGE_MAX_LENGTH,
-  SUPPORT_API_SUBJECT_MAX_LENGTH,
+  attachSupportVersion,
+  buildSupportVersionSuffix,
+  getSupportMessageMaxLength,
+  getSupportMessageFit,
+  getSupportSendReasonKey,
+  SUPPORT_SUBJECT_OPTIONS,
 } from './support'
 export type {
   SupportFormFields,
   SupportProfileFields,
   SupportRequestBody,
+  SupportSubjectId,
 } from './support'
 export {
   achievementGlyphKey,

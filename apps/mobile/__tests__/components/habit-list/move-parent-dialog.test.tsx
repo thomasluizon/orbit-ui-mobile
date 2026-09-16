@@ -1,5 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { Pressable } from 'react-native'
 import {
   MoveParentDialog,
   type MoveParentOption,
@@ -248,6 +249,41 @@ describe('MoveParentDialog', () => {
     expect(rendered).toContain('Alpha')
     expect(rendered).toContain('Bravo')
     expect(rendered).not.toContain('Zeta')
+  })
+
+  it('keeps native focus traversal in rendered order after filtered rows return', () => {
+    const options: MoveParentOption[] = [
+      makeOption({ id: null, label: 'Top level' }),
+      ...Array.from({ length: 9 }, (_, index) =>
+        makeOption({ id: `zeta${index}`, label: `Zeta ${index}` }),
+      ),
+    ]
+    const { tree, props } = renderDialog({ options })
+    const searchInput = findSearchInputs(tree)[0]
+    if (!searchInput) throw new Error('Expected the search field')
+
+    void TestRenderer.act(() => {
+      ;(searchInput.props.onChangeText as (value: string) => void)('Zeta 5')
+    })
+    void TestRenderer.act(() => {
+      ;(findSearchInputs(tree)[0]!.props.onChangeText as (value: string) => void)('')
+    })
+    const rows = findOptionRows(tree).filter(
+      (row) => row.type === Pressable && flattenInstanceText(row).includes('Zeta'),
+    )
+    expect(rows.map(flattenInstanceText)).toEqual(
+      Array.from({ length: 9 }, (_, index) => `⭐️Zeta ${index}`),
+    )
+    expect(rows.every((row) => row.props.focusable === true)).toBe(true)
+    expect(rows.every((row) => row.props.onKeyDown === undefined)).toBe(true)
+    const zetaFive = rows[5]
+    if (!zetaFive) throw new Error('Expected Zeta 5')
+
+    void TestRenderer.act(() => {
+      ;(zetaFive.props.onPress as () => void)()
+    })
+
+    expect(props.onSelectOption).toHaveBeenLastCalledWith('zeta5')
   })
 
   it('locks the sheet and swaps to the moving label while pending', () => {
