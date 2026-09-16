@@ -7,7 +7,7 @@ import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import { buildRetrospectiveRequestUrl } from '@orbit/shared/utils/retrospective'
 import { fetchJson } from '@/lib/api-fetch'
 
-export function useProgressRetrospective(enabled: boolean) {
+export function useProgressRetrospective() {
   const locale = useLocale()
   return useQuery({
     queryKey: habitKeys.retrospective('month'),
@@ -15,8 +15,8 @@ export function useProgressRetrospective(enabled: boolean) {
       fetchJson(
         buildRetrospectiveRequestUrl('month', locale),
         retrospectiveResponseSchema,
+        { handlesPayGate: true },
       ),
     staleTime: QUERY_STALE_TIMES.gamification,
-    enabled,
   })
 }

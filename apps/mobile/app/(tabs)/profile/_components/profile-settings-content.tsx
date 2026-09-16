@@ -228,7 +228,7 @@ function buildMoreRows({ profile, router, t, tokens }: RowContext) {
 
   return [
     ...navigationRows,
-    <ShareCardEntryButton key="share" displayName={profile?.name} />,
+    <ShareCardEntryButton key="share" />,
   ]
 }
 

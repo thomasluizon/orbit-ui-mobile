@@ -174,6 +174,10 @@ export function extractBackendStatus(err: unknown): number | undefined {
   return undefined
 }
 
+export function isPayGateError(err: unknown): boolean {
+  return extractBackendStatus(err) === 403 && extractBackendErrorCode(err) === 'PAY_GATE'
+}
+
 export function extractBackendRequestId(err: unknown): string | undefined {
   const data = extractNestedData(err)
   const requestId = data?.data?.requestId ?? data?.requestId

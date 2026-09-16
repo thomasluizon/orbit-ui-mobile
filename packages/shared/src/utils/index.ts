@@ -86,6 +86,7 @@ export {
   extractBackendFieldErrors,
   extractBackendRequestId,
   extractBackendStatus,
+  isPayGateError,
   getErrorMessage,
   getFriendlyErrorKey,
   getFriendlyErrorMessage,
@@ -548,12 +549,17 @@ export type {
 export {
   buildRecapRequestUrl,
   buildShareCardStats,
+  buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
+  SHARE_CARD_FILE_NAME,
+  SHARE_CARD_HEIGHT,
+  SHARE_CARD_WIDTH,
+  WRAPPED_WEEKDAY_KEYS,
   recapPeriodLabelKey,
 } from './share-card'
-export type { RecapSharePeriod, ShareCardStat } from './share-card'
+export type { RecapSharePeriod, ShareCardStat, ShareCardWeekday } from './share-card'
 export {
   buildWrappedSlides,
   getWeeklyConsistencyReading,
@@ -608,13 +614,20 @@ export {
 } from './fresh-start'
 export {
   buildSupportRequestBody,
+  normalizeSupportSubjectId,
   SUPPORT_API_MESSAGE_MAX_LENGTH,
-  SUPPORT_API_SUBJECT_MAX_LENGTH,
+  attachSupportVersion,
+  buildSupportVersionSuffix,
+  getSupportMessageMaxLength,
+  getSupportMessageFit,
+  getSupportSendReasonKey,
+  SUPPORT_SUBJECT_OPTIONS,
 } from './support'
 export type {
   SupportFormFields,
   SupportProfileFields,
   SupportRequestBody,
+  SupportSubjectId,
 } from './support'
 export {
   achievementGlyphKey,

@@ -9,24 +9,40 @@ import type { Achievement, GamificationProfile, StreakInfo } from '../types/gami
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
 import type { Profile } from '../types/profile'
 import { formatAPIDateInTimeZone, nowDate } from './dates'
+import { isPayGateError } from './error-utils'
 import { getGoalMetricsStatusPresentation } from './goal-metrics'
 
 type ProgressQueryState = { isLoading: boolean; isError: boolean }
 
-export function deriveProgressViewState({ goalCount, account, goals, gamification, canView }: {
+export function deriveProgressViewState({ goalCount, account, goals, gamification, canViewGamification }: {
   goalCount: number
+  canViewGamification: boolean
   account: ProgressQueryState & {
     profile: Pick<Profile, 'currentStreak' | 'longestStreak' | 'totalXp'> | undefined
   }
   goals: ProgressQueryState
   gamification: ProgressQueryState & {
+    error?: unknown
     profile: Pick<GamificationProfile, 'currentStreak' | 'longestStreak' | 'totalXp' | 'achievementsEarned'> | null
   }
-  canView: boolean
 }): { loading: boolean; error: boolean; empty: boolean } {
-  const error = account.isError || goals.isError || (canView && gamification.isError)
-  const loading = !error && (account.isLoading || goals.isLoading || (canView && gamification.isLoading))
-  const empty = !loading && !error && isProgressEmpty(goalCount, account.profile, canView ? gamification.profile : null)
+  const gamificationLocked = canViewGamification
+    && gamification.isError
+    && isPayGateError(gamification.error)
+  const gamificationFailed = canViewGamification
+    && gamification.isError
+    && !gamificationLocked
+  const error = account.isError || goals.isError || gamificationFailed
+  const loading = !error && (
+    account.isLoading
+    || goals.isLoading
+    || (canViewGamification && gamification.isLoading)
+  )
+  const empty = !loading && !error && isProgressEmpty(
+    goalCount,
+    account.profile,
+    canViewGamification && !gamificationLocked ? gamification.profile : null,
+  )
   return { loading, error, empty }
 }
 

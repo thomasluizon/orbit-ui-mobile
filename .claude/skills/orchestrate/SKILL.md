@@ -31,16 +31,16 @@ Flags, all combinable:
 |---|---|
 | `--sleep` | do not stop after each pull request; work the whole queue and report at the end |
 | `--parallel` | run up to `caps.parallelTickets` local tickets at once, one worktree each; with `--cloud`, use `caps.cloudParallelTasks` |
-| `--cloud` | run UI implementations in Codex Cloud, then materialize and deliver them locally |
+| `--cloud` | request Codex Cloud for UI when `cloud.enabled` is true; otherwise submission refuses with no CLI override |
 | `--auto` | take the scope from the board rather than from an argument |
 
 **Without `--sleep` the run stops after every pull request** and waits for Thomas to type
 `continue`. Nothing polls, nothing watches, and zero tokens burn while it waits.
 
-**One ticket with no flags behaves exactly as it did before: it runs locally.** `--cloud` and
-`--parallel` remain opt-in. D89 governs how a redesign queue is invoked: use
-`/orchestrate --cloud --parallel` for UI, reserving the small local pool for `orbit-api` and
-`orbit-landing-page`. It does not redirect a bare invocation. Pool sizing is detailed below.
+**One ticket with no flags behaves exactly as it did before: it runs locally.** `--parallel` remains
+opt-in. Cloud submission is unavailable while `.claude/orchestrator.json` has
+`cloud.enabled: false`; use the local lane. Turning it back on requires editing that flag, because
+no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detailed below.
 
 ## §5.6 The algorithm
 
@@ -524,8 +524,10 @@ The order also requires `.claude/cloud-handoff.json` in the committed diff, with
 
 ### Cloud execution
 
-`--cloud` is available only for the repository bound to the environment by `cloud.repositoryKey` in
-`.claude/orchestrator.json`. Submission and materialization both verify that local Git identity.
+`--cloud` is available only when `.claude/orchestrator.json` sets `cloud.enabled` to `true`, and only
+for the repository bound by `cloud.repositoryKey`. The submitter refuses disabled submissions before
+reservation, Codex contact, or receipt creation. No command-line option overrides the flag.
+Submission and materialization both verify the configured local Git identity.
 Publish the contract branch, then submit each implementation with `submit-cloud-worker.mjs`:
 
 ```bash
@@ -1235,10 +1237,10 @@ What the gate can prove is that a registered pid is still alive, which is real e
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
 THIS session. That part is still yours, which is why the invariant says to name it.
 
-**D89: a redesign queue uses `/orchestrate --cloud --parallel` for UI**, up to
-`caps.cloudParallelTasks`, currently **8**. A no-flag single ticket still runs locally; neither flag's
-behavior changes. `--cloud` is bound to one repository through `cloud.repositoryKey`, currently `ui`,
-so `orbit-api` and `orbit-landing-page` tickets use the small local pool:
+**D89's Cloud lane is currently disabled by `cloud.enabled`.** When that flag is restored to `true`,
+`/orchestrate --cloud --parallel` can run UI work up to `caps.cloudParallelTasks`, currently **8**.
+A no-flag single ticket still runs locally. Cloud remains bound to `ui` through
+`cloud.repositoryKey`, so `orbit-api` and `orbit-landing-page` tickets use the small local pool:
 **`--parallel` runs up to `caps.parallelTickets`
 local tickets at once**, currently **3**, one worktree each.
 

@@ -119,6 +119,13 @@ export const cases = async () => {
     "a worker key naming no engine was accepted",
   )
   T(
+    `${NAME}: cloud.enabled must be a boolean`,
+    /cloud\.enabled must be a boolean/.test(
+      readAndFail("bad-cloud-enabled", { ...real, cloud: { ...real.cloud, enabled: "false" } }) ?? "",
+    ),
+    "a string cloud.enabled value was accepted",
+  )
+  T(
     `${NAME}: a config with no tickets object is refused`,
     /must declare a tickets object/.test(readAndFail("no-tickets", { ...real, tickets: undefined }) ?? ""),
     "a config with no tickets object was accepted",
@@ -286,14 +293,14 @@ export const cases = async () => {
     `${NAME}: a working copy behind origin/main is refused with the fetch command to repair it`,
     stale !== null &&
       /disagrees with origin\/main and this checkout does not contain origin\/main[\s\S]*git fetch origin main/.test(
-        thrown(() => readOrchestratorConfig(pathToFileURL(stale.configPath))) ?? "",
+        thrown(() => readOrchestratorConfig(pathToFileURL(stale.configPath), "main")) ?? "",
       ),
-    stale === null ? "could not stage the git fixture" : String(thrown(() => readOrchestratorConfig(pathToFileURL(stale.configPath)))),
+    stale === null ? "could not stage the git fixture" : String(thrown(() => readOrchestratorConfig(pathToFileURL(stale.configPath), "main"))),
   )
   const ahead = stageConfigRepo("ahead", { head: "newer", origin: "base", working: `${JSON.stringify(real)}\n` })
   T(
     `${NAME}: a checkout that already contains origin/main is deliberately newer and is read`,
-    ahead !== null && readOrchestratorConfig(pathToFileURL(ahead.configPath)).worker === real.worker,
-    ahead === null ? "could not stage the git fixture" : `the staleness guard fired on a checkout containing origin/main: ${thrown(() => readOrchestratorConfig(pathToFileURL(ahead.configPath)))}`,
+    ahead !== null && readOrchestratorConfig(pathToFileURL(ahead.configPath), "main").worker === real.worker,
+    ahead === null ? "could not stage the git fixture" : `the staleness guard fired on a checkout containing origin/main: ${thrown(() => readOrchestratorConfig(pathToFileURL(ahead.configPath), "main"))}`,
   )
 }
