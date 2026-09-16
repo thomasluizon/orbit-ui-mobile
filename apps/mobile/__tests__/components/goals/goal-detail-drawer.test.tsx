@@ -138,6 +138,14 @@ function collectText(node: any): string {
   return collectText(node.children ?? [])
 }
 
+function countRenderedActions(node: unknown, label: string): number {
+  if (Array.isArray(node)) return node.reduce((count, child) => count + countRenderedActions(child, label), 0)
+  if (!node || typeof node !== 'object') return 0
+  const renderedNode = node as { props?: Record<string, unknown>; children?: unknown[] }
+  const isAction = renderedNode.props?.accessibilityRole === 'button' && renderedNode.props.accessibilityLabel === label
+  return Number(isAction) + countRenderedActions(renderedNode.children ?? [], label)
+}
+
 const historyEntries = [
   {
     createdAtUtc: '2025-01-02T00:00:00Z',
@@ -445,7 +453,7 @@ describe('GoalDetailDrawer', () => {
   it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
     detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: true, progressHistory: [] }
     const tree = renderDrawer()
-    expect(collectText(tree.toJSON())).toContain('goals.detail.completeWhyDerived')
+    expect(collectText(tree.toJSON())).toContain('goals.detail.completeWhy')
     const label = 'goals.detail.markCompleted'
     const complete = tree.root.findAll((node: any) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').at(0)
     expect(complete).toBeTruthy()
@@ -485,13 +493,37 @@ describe('GoalDetailDrawer', () => {
     expect(mockStatusMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('stage 5 does not offer a second completion action for a manual goal at target', () => {
+  it('stage 5 completes a target-reached manual goal with one neutral action and explanation', () => {
     detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: false, progressHistory: [] }
     const tree = renderDrawer()
 
-    expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === 'goals.detail.markCompleted')).toHaveLength(0)
+    const completionLabel = 'goals.detail.markCompleted'
+    expect(countRenderedActions(tree.toJSON(), completionLabel)).toBe(1)
+    const complete = tree.root.findAll((node: any) => node.props.accessibilityLabel === completionLabel && typeof node.props.onPress === 'function').at(0)
+    expect(complete.props.testID).toBe('button-secondary-sm')
     expect(collectText(tree.toJSON())).toContain('goals.detail.manualProgress')
-    expect(mockStatusMutateAsync).not.toHaveBeenCalled()
+    expect(collectText(tree.toJSON())).toContain('goals.detail.completeWhy')
+    press(tree, 'goals.detail.markCompleted')
+    expect(mockStatusMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { status: 'Completed' },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
+    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    { name: 'manual below target', status: 'Active', progressPercentage: 92, isProgressDerived: false },
+    { name: 'derived below target', status: 'Active', progressPercentage: 92, isProgressDerived: true },
+    { name: 'completed', status: 'Completed', progressPercentage: 100, isProgressDerived: false },
+    { name: 'abandoned', status: 'Abandoned', progressPercentage: 100, isProgressDerived: false },
+  ] as const)('stage 5 hides completion for $name goals', ({ status, progressPercentage, isProgressDerived }) => {
+    detailGoal = { ...listGoal, status, progressPercentage, isProgressDerived, progressHistory: [] }
+    const tree = renderDrawer()
+
+    expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === 'goals.detail.markCompleted')).toHaveLength(0)
   })
 
   it.each(['Active', 'Completed'] as const)('stage 5 never reopens a %s goal', (status) => {

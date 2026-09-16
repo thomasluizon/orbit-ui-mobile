@@ -223,7 +223,7 @@ describe('GoalDetailDrawer', () => {
   it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
     detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: true, progressHistory: [] }
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-    expect(document.body.textContent).toContain('goals.detail.completeWhyDerived')
+    expect(document.body.textContent).toContain('goals.detail.completeWhy')
     const label = 'goals.detail.markCompleted'
     const complete = screen.queryByRole('button', { name: label })
     expect(complete).toBeTruthy()
@@ -260,13 +260,37 @@ describe('GoalDetailDrawer', () => {
     expect(updateStatusMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('stage 5 does not offer a second completion action for a manual goal at target', () => {
+  it('stage 5 completes a target-reached manual goal with one neutral action and explanation', () => {
     detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: false, progressHistory: [] }
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 
-    expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).toBeNull()
+    const completions = screen.queryAllByRole('button', { name: 'goals.detail.markCompleted' })
+    expect(completions).toHaveLength(1)
+    const complete = screen.getByRole('button', { name: 'goals.detail.markCompleted' })
+    expect(complete).toHaveAttribute('data-variant', 'secondary')
     expect(document.body.textContent).toContain('goals.detail.manualProgress')
-    expect(updateStatusMutateAsync).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('goals.detail.completeWhy')
+    fireEvent.click(complete)
+    expect(updateStatusMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { status: 'Completed' },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
+    expect(updateStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    { name: 'manual below target', status: 'Active', progressPercentage: 92, isProgressDerived: false },
+    { name: 'derived below target', status: 'Active', progressPercentage: 92, isProgressDerived: true },
+    { name: 'completed', status: 'Completed', progressPercentage: 100, isProgressDerived: false },
+    { name: 'abandoned', status: 'Abandoned', progressPercentage: 100, isProgressDerived: false },
+  ] as const)('stage 5 hides completion for $name goals', ({ status, progressPercentage, isProgressDerived }) => {
+    detailGoal = { ...listGoal, status, progressPercentage, isProgressDerived, progressHistory: [] }
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).not.toBeInTheDocument()
   })
 
   it.each(['Active', 'Completed'] as const)('stage 5 never reopens a %s goal', (status) => {
