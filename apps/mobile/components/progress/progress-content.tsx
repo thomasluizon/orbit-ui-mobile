@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react'
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -237,15 +237,26 @@ function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
 }
 
-function GoalCard({ goal, index, canReorder, isDragging, onDrag, onMove, onOpen, tokens }: Readonly<{
-  goal: Goal; index: number; canReorder: boolean; isDragging: boolean; onDrag?: () => void; onMove: (goalId: string, target: number) => void; onOpen: () => void; tokens: AppTokensV2
+function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, onOpen, tokens }: Readonly<{
+  goal: Goal; index: number; total: number; canReorder: boolean; isDragging: boolean; onDrag?: () => void; onMove: (goalId: string, target: number) => void; onOpen: () => void; tokens: AppTokensV2
 }>) {
   const { t } = useTranslation()
   const { suppressPress, ...gesture } = useGoalDrag(canReorder ? onDrag : undefined)
   const labelKey = getProgressGoalLabelKey(goal)
   const abandoned = goal.status === 'Abandoned'
+  const state = t(labelKey ?? 'goals.status.active')
+  const position = t('progressScreen.goals.position', { position: index + 1, total })
+  const accessibilityLabel = abandoned
+    ? t('progressScreen.goals.accessibleLabelWithoutProgress', { title: goal.title, state, position })
+    : t('progressScreen.goals.accessibleLabel', {
+        title: goal.title,
+        state,
+        progress: t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit }),
+        position,
+      })
   return (
-    <MotionPressable active={isDragging} accessible accessibilityRole="button" accessibilityLabel={goal.title}
+    // eslint-disable-next-line local/max-button-words -- ORB-480 requires the control name to expose goal state, progress, and position.
+    <MotionPressable active={isDragging} accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
       accessibilityHint={canReorder ? t('progressScreen.goals.reorderHint') : undefined}
       accessibilityActions={canReorder ? [{ name: 'decrement', label: t('progressScreen.goals.moveUp') }, { name: 'increment', label: t('progressScreen.goals.moveDown') }] : undefined}
       onAccessibilityAction={canReorder ? (event) => {
@@ -275,20 +286,38 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
   const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
+  const announceReorderResult = (message: string) => {
+    AccessibilityInfo.announceForAccessibility(message)
+  }
   const filtered = filterProgressGoals(goals, filter)
   const options = [{ value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') }, { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') }] as const
+  const commitMove = (positions: GoalPositionItem[], goalId: string, target: number) => {
+    const goal = goals.find((item) => item.id === goalId)
+    if (!goal) return
+    reorder.mutate(positions, {
+      onSuccess: () => announceReorderResult(t('progressScreen.goals.reorderMoved', { title: goal.title, position: target + 1, total: goals.length })),
+    })
+  }
   const handleDragEnd = ({ data, from, to }: DragEndParams<Goal>) => {
     if (filter !== 'all' || reorder.isPending || from === to) return
     const positions: GoalPositionItem[] = data.map((goal, position) => ({ id: goal.id, position }))
     reorder.mutate(positions)
   }
   const move = (goalId: string, target: number) => {
+    const currentIndex = goals.findIndex((item) => item.id === goalId)
+    const goal = goals[currentIndex]
+    if (!goal) return
+    const boundedTarget = Math.max(0, Math.min(goals.length - 1, target))
     const positions = buildGoalMovePositions(goals, goalId, target)
-    if (positions) reorder.mutate(positions)
+    if (!positions) {
+      announceReorderResult(t('progressScreen.goals.reorderBoundary', { title: goal.title, position: currentIndex + 1, total: goals.length }))
+      return
+    }
+    commitMove(positions, goalId, boundedTarget)
   }
   const renderGoal = ({ item, getIndex, drag, isActive }: RenderItemParams<Goal>) => {
     const index = getIndex() ?? goals.findIndex((goal) => goal.id === item.id)
-    return <GoalCard goal={item} index={index} canReorder={filter === 'all' && !reorder.isPending} isDragging={isActive} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} tokens={tokens} />
+    return <GoalCard goal={item} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} isDragging={isActive} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} tokens={tokens} />
   }
   return (
     <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
@@ -298,7 +327,7 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
-      {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={0} canReorder={false} isDragging={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} tokens={tokens} />) : null}
+      {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} tokens={tokens} />) : null}
       {reorder.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.reorderError')}</Text> : null}
     </View>
   )
