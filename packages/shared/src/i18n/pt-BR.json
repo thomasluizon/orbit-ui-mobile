@@ -2289,15 +2289,6 @@
       "askAstraEyebrow": "PERGUNTE À ASTRA",
       "statusLabel": "Status"
     },
-    "filters": {
-      "all": "Todas",
-      "active": "Ativas",
-      "completed": "Concluídas",
-      "abandoned": "Abandonadas",
-      "statusFilter": "Filtrar por status",
-      "clearFilter": "Limpar filtro",
-      "emptyFiltered": "Nenhuma meta corresponde a este filtro"
-    },
     "deadline": {
       "overdue": "Atrasada",
       "daysLeft": "{n} dia restante | {n} dias restantes",
