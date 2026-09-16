@@ -569,8 +569,7 @@ describe('ProgressContent', () => {
     expect(route[0]).toHaveAttribute('data-variant', 'ghost')
     expect(screen.getAllByTestId('progress-locked-card')).toHaveLength(3)
     for (const card of screen.getAllByTestId('progress-locked-card')) {
-      expect(card).toHaveAttribute('data-padding', '16px')
-      expect(card).toHaveAttribute('data-border', 'hairline-ghost')
+      expect(card).toHaveClass('p-4', 'shadow-[inset_0_0_0_1px_var(--hairline-ghost)]')
       expect(within(card).getAllByRole('link')).toHaveLength(1)
     }
   })

@@ -7,22 +7,36 @@ import { Loader2 } from '@/components/ui/icons'
 import { BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:active:scale-[0.96]',
-  secondary:
-    'bg-[var(--fg-1)] text-[var(--bg)] enabled:hover:opacity-90 enabled:active:scale-[0.96] enabled:active:opacity-85',
-  ghost:
-    'bg-transparent text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.96]',
-  destructive:
-    'bg-[var(--status-bad)] text-[var(--fg-on-bad)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:active:scale-[0.96]',
-  caution:
-    'bg-[var(--status-overdue)] text-[var(--fg-on-overdue)] enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:active:scale-[0.96]',
+  primary: 'bg-[var(--primary)] text-[var(--fg-on-primary)]',
+  secondary: 'bg-[var(--fg-1)] text-[var(--bg)]',
+  ghost: 'bg-transparent text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)]',
+  destructive: 'bg-[var(--status-bad)] text-[var(--fg-on-bad)]',
+  caution: 'bg-[var(--status-overdue)] text-[var(--fg-on-overdue)]',
+}
+
+const buttonInteractionClasses: Record<ButtonVariant, string> = {
+  primary: 'enabled:active:scale-[0.96]',
+  secondary: 'enabled:hover:opacity-90 enabled:active:scale-[0.96] enabled:active:opacity-85',
+  ghost: 'enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.96]',
+  destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:active:scale-[0.96]',
+  caution: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:active:scale-[0.96]',
+}
+
+const linkInteractionClasses: Record<ButtonVariant, string> = {
+  primary: 'hover:bg-[var(--primary-hover)] active:scale-[0.96]',
+  secondary: 'hover:opacity-90 active:scale-[0.96] active:opacity-85',
+  ghost: 'hover:bg-[var(--bg-card)] active:scale-[0.96]',
+  destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] active:scale-[0.96]',
+  caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] active:scale-[0.96]',
 }
 
 const baseClasses = 'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40'
 
-function actionClasses(variant: ButtonVariant, size: ButtonSize) {
-  return [baseClasses, variantClasses[variant], size === 'sm' ? 'touch-target' : undefined]
+function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link') {
+  const interactionClasses = element === 'button'
+    ? buttonInteractionClasses[variant]
+    : linkInteractionClasses[variant]
+  return [baseClasses, variantClasses[variant], interactionClasses, size === 'sm' ? 'touch-target' : undefined]
     .filter(Boolean)
     .join(' ')
 }
@@ -67,7 +81,7 @@ export function Button({
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}
-      className={actionClasses(variant, size)}
+      className={actionClasses(variant, size, 'button')}
       style={actionStyle(size, iconOnly)}
     >
       {loading ? (
@@ -98,7 +112,7 @@ export function PillLink({
       aria-label={accessibleName}
       data-variant={variant}
       data-size={size}
-      className={actionClasses(variant, size)}
+      className={actionClasses(variant, size, 'link')}
       style={actionStyle(size)}
     >
       <span>{children}</span>
