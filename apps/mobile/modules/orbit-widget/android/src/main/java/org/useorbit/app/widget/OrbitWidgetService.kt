@@ -99,6 +99,7 @@ internal enum class WidgetString(val resourceId: Int) {
     OF(R.string.widget_of),
     COMPLETED(R.string.widget_completed),
     ALL_CLEAR(R.string.widget_all_clear),
+    NOTHING_SCHEDULED(R.string.widget_nothing_scheduled),
     SIGN_IN(R.string.widget_sign_in),
     STREAK_UNIT(R.string.widget_streak_unit),
     REFRESH(R.string.widget_refresh),
@@ -119,6 +120,19 @@ internal data class WidgetDayState(
     val totalCount: Int,
     val isTomorrow: Boolean
 )
+
+internal fun selectWidgetDataAfterFetch(
+    cachedData: HabitWidgetResponse?,
+    freshJson: String?,
+    freshData: HabitWidgetResponse?,
+    cacheFreshPayload: (String) -> Unit
+): HabitWidgetResponse? {
+    if (freshData != null && freshJson != null) {
+        cacheFreshPayload(freshJson)
+        return freshData
+    }
+    return cachedData
+}
 
 internal fun prepareWidgetDay(apiHabits: List<ApiHabit>, dayOffset: Int): WidgetDayState {
     val isTomorrow = dayOffset == 1
@@ -595,16 +609,13 @@ class OrbitWidgetFactory(
 
         val freshJson = fetchWidget(token)
         val freshData = parseWidgetResponse(freshJson)
-        if (freshData != null && freshJson != null) {
+        return selectWidgetDataAfterFetch(cachedData, freshJson, freshData) { payload ->
             prefs.edit()
-                .putString("habits_json", freshJson)
+                .putString("habits_json", payload)
                 .putString("habits_session", session)
                 .putLong("habits_updated_at", System.currentTimeMillis())
                 .apply()
-            return freshData
         }
-
-        return cachedData
     }
 
     private fun parseWidgetResponse(json: String?): HabitWidgetResponse? {
