@@ -4,7 +4,9 @@ import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { buildTempGoal } from '@/lib/goal-mutation-helpers'
+import { i18n } from '@/lib/i18n'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -37,11 +39,16 @@ const updateProgressMutateAsync = vi.fn()
 const mockDeleteMutateAsync = vi.fn()
 const mockStatusMutateAsync = vi.fn()
 const mockPush = vi.fn()
+const translation = vi.hoisted(() => ({
+  current: (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key,
+}))
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
+      translation.current(key, params),
     i18n: { language: 'en-US' },
   }),
 }))
@@ -161,6 +168,9 @@ describe('GoalDetailDrawer', () => {
     mockStatusMutateAsync.mockReset()
     mockStatusMutateAsync.mockResolvedValue(undefined)
     mockPush.mockClear()
+    sheetTestControls.defer(false)
+    translation.current = (key: string, params?: Record<string, unknown>) =>
+      params ? `${key}:${JSON.stringify(params)}` : key
     updateProgressMutateAsync.mockReset()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
@@ -328,6 +338,59 @@ describe('GoalDetailDrawer', () => {
 
     expect(mockPush).toHaveBeenNthCalledWith(1, { pathname: '/habits/[id]', params: { id: 'habit-read' } })
     expect(mockPush).toHaveBeenNthCalledWith(2, { pathname: '/habits/[id]', params: { id: 'habit-stretch' } })
+  })
+
+  it('dismisses the sheet before opening a linked habit', async () => {
+    await i18n.changeLanguage('en')
+    translation.current = i18n.t.bind(i18n)
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+    sheetTestControls.defer(true)
+    const tree = renderDrawer()
+
+    press(tree, `Read every night, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mockPush).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(mockPush).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-read' } })
+  })
+
+  it('opens a linked habit directly when the detail is inline', async () => {
+    await i18n.changeLanguage('en')
+    translation.current = i18n.t.bind(i18n)
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+    sheetTestControls.defer(true)
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} inline onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    press(tree, `Read every night, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
+
+    expect(sheetTestControls.isDismissPending).toBe(false)
+    expect(mockPush).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-read' } })
   })
 
   it('composes footer actions from canonical ListRow controls', () => {

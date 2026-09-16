@@ -46,8 +46,10 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     else closeSheet(onClose)
   }, [inline, closeSheet, onClose])
   const openHabit = useCallback((habitId: string) => {
-    router.push({ pathname: '/habits/[id]', params: { id: habitId } })
-  }, [router])
+    const navigate = () => router.push({ pathname: '/habits/[id]', params: { id: habitId } })
+    if (inline) navigate()
+    else closeSheet(navigate)
+  }, [inline, closeSheet, router])
   const actions = useGoalStatusActions({
     goalId,
     goalName: goal?.title,
