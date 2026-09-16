@@ -1,119 +1,100 @@
 # Continue the Orbit redesign
 
-One effort is live now. The beta release finished and shipped; its spec is a record, not a queue.
+Read `.claude/specs/orbit-redesign.md` first. It is the living spec and it holds everything durable:
+the standing instructions, the decisions, the constraints, the full state and the four answers Thomas
+gave on 2026-09-16. This prompt only says what to do next.
 
-Read these before anything else, in this order:
+`.claude/specs/beta-release.md` is DONE and is a record, not a queue. Read its constraints section
+once; what it learned about `strict: true`, `pullfrog-approval`, killed workers and red checks that
+name no defect still bites here.
 
-1. `.claude/specs/orbit-redesign.md`, the screen-by-screen rebuild on `redesign/main`. This is the
-   work.
-2. `.claude/specs/beta-release.md`, which is DONE. Read it once for its constraints section: the
-   things it learned about `strict: true`, `pullfrog-approval`, killed workers and red checks that
-   name no defect all still bite on this branch.
-
-Each spec carries its own standing instructions, decisions, constraints and state. This prompt only
-says what to do next.
-
-**Every identifier below came from a previous session. Treat each as a lead to verify, not a fact.**
+**Read the brain notes the spec names, through the Obsidian MCP, before you act.** They are listed in
+the spec under `## Decisions this effort runs on`.
 
 ## Your entry point
 
-Read and execute `.claude/skills/sleep/SKILL.md`. It runs the work through `/orchestrate` itself, so
-do not invoke `/orchestrate` separately. Before your first turn ends, write run state with YOUR
-session id and `sleep: true`, read it back, and confirm. End every turn with a live wake source,
-named on the turn's last line. Only `launch-worker.mjs` registers one.
-
-`.claude/rules/core.md` carries the operating contract, D89 and D90 included, with one correction
-below.
+`/orchestrate`. Do not restate what it does; work through it.
 
 ## The goal
 
-**Finish `orbit-redesign.md`.** The run ends when every screen ticket is closed and
+**Finish `.claude/specs/orbit-redesign.md`.** The run ends when every screen ticket is closed and
 `node tools/redesign-coverage.mjs` reports a valid mapping with nothing missing. That command is
 necessary and NOT sufficient: it validates the MAPPING, never whether a surface satisfies its
 ticket, and it reads a manifest no CI job regenerates. Judge every ticket against its own acceptance
 criteria, in the tree, before closing it.
 
-Re-derive what is left rather than trusting this prompt:
+A blocker is the next piece of work, not an ending. Re-derive what is left:
 
-    gh pr list --repo thomasluizon/orbit-ui-mobile --state open
     gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 300
+    gh pr list --repo thomasluizon/orbit-ui-mobile --state open
+    gh pr list --repo thomasluizon/orbit-api --state open
 
-129 carried `repo:ui` at 01:30 UTC on 2026-09-16. All eleven screen tickets are open: `#53`, `#56`,
-`#57`, `#58`, `#63`, `#67`, `#71`, `#73`, `#74`, `#76`, `#329`.
+131 carried `repo:ui` and 65 carried `repo:api` on 2026-09-16.
 
-## Do this first, before any screen work
+## In flight, with a disposition on every row
 
-**1. Land 979, the drift merge, ticket `#556`.** A worker was mid-merge when this handoff was
-written, in `C:/Users/thoma/orca/workspaces/orbit-ui-mobile/ticket-556-drift-merge` on branch
-`chore/ticket-556-drift-merge`. **Outcome unknown. Read that worktree first**: 161 files were dirty
-with a merge in progress and one commit unpushed.
+**Seventeen pull requests are open and none is approved.** The common blocker is
+`pullfrog-approval` at the current head. Every UI one already carries its `## Review harness` block,
+so that gate is satisfied; do not re-run those sweeps.
 
-It matters more than its size. `redesign/main` does not contain `main`, and that makes every
-orchestrator tool refuse from a `redesign/main` checkout, `launch-worker.mjs` included, with:
+| PR | repo | disposition |
+|---|---|---|
+| 970, 983, 984, 985, 986, 987, 988, 991, 992, 993, 994, 995, 996 | ui | DRIVE to approval, then merge under D90. Request a review at the exact head, fix what it finds, merge |
+| 997 | ui | HOLD. Must not merge before `orbit-api` 527 is merged AND deployed |
+| 527 | api | MERGE and DEPLOY FIRST. It unblocks 997 |
+| 521, 520 | api | DRIVE to approval, then merge and deploy. Both are code-complete |
+| 881, 801, 799, 798 (ui), 526, 525, 510 (api) | both | Dependabot, not this effort. Leave |
 
-    .claude/orchestrator.json disagrees with origin/main and this checkout does not contain
-    origin/main, so the working copy may be the stale one.
+**One worker was still running when this was written.** `#557`, worktree
+`ticket-557-android-login`, branch `fix/ticket-557-android-login`, log under
+`C:/Users/thoma/AppData/Local/Temp/orbit-workers/`. It was sent to run the ui-skills sweep on PR 994
+and it reported committing `755e9061` before this handoff was written, but the outcome after that is
+unknown. **Read that worktree before assuming anything.**
 
-**2. Then put the orchestrating checkout back on `redesign/main`.** It is currently on `main`. That
-was the only way to launch workers at all while the release was running, and it costs you the
-`progress`, `questions`, `drift-review` and `sleep` skills, which exist only on `redesign/main`. It
-also means the on-disk `CLAUDE.md` and `.claude/rules/core.md` are `main`'s stale copies right now.
+**Worktree and branch debt, none of it this session's.** Four stashes, seven worktrees holding
+uncommitted or unpushed work, two of them on a detached HEAD. The full list is in the spec's State
+section. The one to look at first is `ticket-335-avisos`: a CLEAN tree hiding **eleven commits that
+exist only on this machine**.
 
-    git checkout redesign/main
+A scratchpad decision log for the 2026-09-16 run lives outside the repo and dies with that session.
+Everything durable from it is already in the spec.
 
-Verify afterwards that `node tools/launch-worker.mjs --help` runs without the staleness refusal, and
-that `/progress` appears in your skill list.
+## Do this, in this order
 
-**3. Check the release landed.** It was dispatched at 01:20 UTC and was still building:
+1. **Merge and deploy `orbit-api` 527.** Everything about the widget waits on it. Then 997 can merge.
+2. **Drive `orbit-api` 521 and 520 to approval, then merge and deploy.** Both are code-complete:
+   521's recurrence fix is `ee8f3e44`, 520's fail-open fixes are `f708d755`. Yours to merge under his
+   standing instruction.
+3. **Drive the thirteen ready UI pull requests to approval and merge them.** Ask for a forced
+   `--re-review` on any head that matters. That found a real defect four separate times on
+   2026-09-15 and twice more on 2026-09-16, including behind an otherwise green PR.
+4. **Apply the Play Console listing.** The final EN and pt-BR text is a comment on `#34`, already
+   through a BRAND.md pass and a `/humanizer` pass. Thomas asked specifically that the NEXT session
+   apply it. Set the public developer name to `TL SOFTWARE ENGINEERING LTDA`, paste the short
+   description and the keywords in both locales, and **recount every field against the live console
+   limits before pasting**. Do it in the browser yourself. Closes `#34`, PARTIAL since 2026-08-25.
+5. **`#543`: find a supported route for Android key events, or report an honest null.** The three
+   things to check are on the ticket. Never patch a dependency, never flip a React Native feature
+   flag, never restore `415320d7`.
+6. **`#529` is unblocked.** Build it the direct way: server change alone, no config flag, no
+   `MinSupportedVersion` raise, and record the break in the PR body. Scoped to beta only.
+7. Then the remaining screen tickets: `#63`, `#67`, `#73`, `#74`, `#76`, `#329`, plus `#57` and `#58`.
 
-    gh run view 35044341064 --repo thomasluizon/orbit-ui-mobile
+## Four things that cost real work
 
-If it failed, that is the next work, ahead of the redesign. If it succeeded, Orbit **1.3.28 (87)** is
-on the Play open track from `main` at `adc070bc`.
+- **The local worker cap is TWO**, and even two plus a review poll was killed for memory repeatedly
+  on 2026-09-16. Every killed worker had COMMITTED first, so read the worktree before assuming loss.
+- **Read only the LATEST check run per name.** GitHub's rollup lists every historical run, and
+  reading them all reports failures that were superseded hours ago. Use
+  `group_by(.name) | map(sort_by(.startedAt) | last)`.
+- **`--match-head-commit` needs the FULL sha.** A short one fails to coerce to `GitObjectID`.
+- **Never `git worktree remove --force` on Windows.** It follows a junction and deletes the target's
+  contents. `rmdir` the junctions first, then remove without `--force`.
+- **`mobile-eslint` exiting 2 with no lint output means STALE SUPPRESSIONS**, not violations. Run
+  `npx eslint . --prune-suppressions` in `apps/mobile`. It strictly lowers the baseline.
+- **A pre-commit hook lints the INDEX; a manual `eslint .` lints the WORKTREE.** When they disagree,
+  you forgot to stage something.
 
-## Then the redesign, in this order
+## One more thing
 
-1. **963**, Wrapped stage 7, head `8d69cb53`. Two live P1s, both verified against the tree, neither
-   fixed: `packages/shared/src/utils/share-card.ts:71` accepts `"0000"` as a year while
-   `orbit-api`'s `ClosedMonthPeriodRange.cs:13` rejects anything below 1, so that deep link always
-   400s; and `apps/mobile/hooks/use-push-notifications.ts:557` routes Expo's cached launch response
-   without clearing it, so an error-boundary retry replays it. A round 2 order is the newest comment
-   on `#63`.
-2. **`#545`**, the largest suppression drop available. Stage 1 is COMMITTED as `49a913bb` in
-   `ticket-545-form-fields`, 14 files, 63 suppressions dropped from `apps/web/eslint-suppressions.json`,
-   seven commits unpushed. It needs a merge-forward and a push, NOT a rewrite. A delivery-only order
-   is the newest comment on `#545`.
-3. **`#67` stage 1**, 132 files staged and uncommitted in `ticket-67-onboarding-s1`. Round 2 order is
-   the newest comment on `#67`. Drive it; do not reset it.
-4. **970**, `/progress` generic plus `--full`. DIRTY, two findings, no round run.
-5. **`orbit-api` 521 and 520.** One live finding each, everything else green, a fresh order naming the
-   exact finding on `#526` and `#229`. Yours to merge and deploy under his standing instruction.
-6. **`#557`**, filed this session: Android offers Log in while the session is still recoverable.
-7. Then `#76` stage 9, `#56` stage 13, `#71` stage 10, `#73` stage 3, `#53`, `#74`, `#543`, `#544`,
-   and the six Progresso sweeps `#472`, `#473`, `#476`, `#477`, `#478`, `#480`.
-
-**`#546` stays untouched.** D95 forbids the run judged by `Guards` from fixing the Gate Charter.
-
-## Four things that cost real work, and one that is new
-
-- **The local worker cap is TWO.** Four were killed at once for low memory. D89 says three; two is
-  what this machine holds. Every killed worker had COMMITTED first, so read the worktree before
-  assuming loss, and prefer a delivery-only relaunch on `--tier mechanical`.
-- **Do not pass `--cloud`.** `#551` landed as 980 and Cloud now refuses by default, correctly.
-- **`caps.workerLaunchesPerBranch` is 2 and it WILL refuse a legitimate review-fix round.** Pass
-  `--relaunch-reason` naming the new head and the new findings. A refused launch registers NO wake
-  source, which is how a turn ends with none.
-- **Ask for a forced `--re-review` on any head that matters.** Four times in one night it found a new
-  P1 behind a green approval, including a bulk delete that could reach habits the screen was hiding.
-- **NEW: never `git worktree remove --force` on Windows.** It follows a junction and deletes the
-  target's contents. `rmdir` the junctions first, then remove without `--force`.
-
-## --sleep
-
-This run continues unattended. Take every decision yourself, always the best approach and never the
-easiest, write each one to a decision log in your own scratchpad as it is made, and keep shipping
-until he says stop.
-
-**Do not ask him to confirm work he has already asked for in writing.** He said so on 2026-09-16
-after a release was held for a second yes: "you shouldnt have asked me to say 'go', you could've just
-shipped it." A written instruction IS the authorisation.
+Every identifier above came from a previous session. Treat each as a lead to verify, not a fact.
