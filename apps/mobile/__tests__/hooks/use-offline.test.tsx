@@ -261,7 +261,7 @@ describe('useOffline', () => {
     )
   })
 
-  it('resumes retained authenticated work when connectivity returns', async () => {
+  it('keeps auth-stopped work closed when connectivity returns', async () => {
     mocks.state.queueCount = 1
     mocks.state.allowFlush = false
     mocks.state.replayState = 'stopped-for-auth'
@@ -277,11 +277,11 @@ describe('useOffline', () => {
       await Promise.resolve()
     })
 
-    expect(mocks.resumeOfflineReplay).toHaveBeenCalledTimes(1)
-    expect(mocks.flushQueuedMutations).toHaveBeenCalledTimes(1)
+    expect(mocks.resumeOfflineReplay).not.toHaveBeenCalled()
+    expect(mocks.flushQueuedMutations).not.toHaveBeenCalled()
   })
 
-  it('resumes retained authenticated work when the app returns to foreground', async () => {
+  it('keeps auth-stopped work closed when the app returns to foreground', async () => {
     mocks.state.queueCount = 1
     mocks.state.allowFlush = false
     mocks.state.replayState = 'stopped-for-auth'
@@ -304,8 +304,8 @@ describe('useOffline', () => {
       await Promise.resolve()
     })
 
-    expect(mocks.resumeOfflineReplay).toHaveBeenCalledTimes(1)
-    expect(mocks.flushQueuedMutations).toHaveBeenCalledTimes(1)
+    expect(mocks.resumeOfflineReplay).not.toHaveBeenCalled()
+    expect(mocks.flushQueuedMutations).not.toHaveBeenCalled()
   })
 
   it('keeps connectivity-only consumers from starting a queue flush', async () => {
