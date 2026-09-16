@@ -99,9 +99,9 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         </View>
       </View> : null}
       <Text accessibilityLiveRegion="polite" style={error ? [styles.body, { color: tokens.fg2 }] : styles.screenReader}>{error}</Text>
-      {active && derived && done ? <View style={styles.completion}>
+      {active && done ? <View style={styles.completion}>
         <PillButton variant="secondary" size="sm" accessibleName={t('goals.detail.markCompleted')} disabled={busy || isUpdatingStatus} onClick={onComplete}>{t('goals.detail.markCompleted')}</PillButton>
-        <Text style={[styles.body, { color: tokens.fg2 }]}>{t('goals.detail.completeWhyDerived')}</Text>
+        <Text style={[styles.body, { color: tokens.fg2 }]}>{t('goals.detail.completeWhy')}</Text>
       </View> : null}
     </View>
   )

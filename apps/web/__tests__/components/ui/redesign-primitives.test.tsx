@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Columns } from '@/components/ui/columns'
@@ -40,14 +40,28 @@ describe('redesign primitives on web', () => {
     expect(fill()).toHaveStyle({ height: '50%' })
   })
 
-  it('draws unfinished ring progress in accent and completion in neutral', () => {
-    const { container, rerender } = render(<ProgressRing value={40} label="Progress" />)
+  it('keeps the measured ring static on mount and retargets later progress changes', async () => {
+    const { container, rerender } = render(<ProgressRing value={0} label="Progress" />)
+    const progressCircle = () => container.querySelector('circle:last-child')
+    const circumference = 2 * Math.PI * 30
+
     expect(container.querySelector('circle:first-child')).toHaveAttribute('stroke', 'var(--track-empty)')
-    expect(container.querySelector('circle:last-child')).toHaveAttribute('stroke', 'var(--primary)')
+    expect(progressCircle()).toHaveAttribute('stroke', 'var(--primary)')
+    expect(Number(progressCircle()?.getAttribute('stroke-dashoffset'))).toBeCloseTo(circumference)
+    await waitFor(() => expect(progressCircle()).toHaveClass('transition-[stroke-dashoffset]'))
+
+    rerender(<ProgressRing value={40} label="Progress" />)
+    expect(Number(progressCircle()?.getAttribute('stroke-dashoffset'))).toBeCloseTo(circumference * 0.6)
+    expect(progressCircle()).toHaveClass('transition-[stroke-dashoffset]')
+    expect(progressCircle()).toHaveClass('motion-reduce:transition-none')
+
+    rerender(<ProgressRing value={70} label="Progress" />)
+    rerender(<ProgressRing value={99.9} label="Progress" />)
+    expect(Number(progressCircle()?.getAttribute('stroke-dashoffset'))).toBeCloseTo(circumference * 0.001)
 
     rerender(<ProgressRing value={100} label="Progress" />)
     expect(container.querySelector('svg')).toHaveAttribute('data-complete')
-    expect(container.querySelector('circle:last-child')).toHaveAttribute('stroke', 'var(--fg-3)')
+    expect(progressCircle()).toHaveAttribute('stroke', 'var(--fg-3)')
   })
 
   it('keeps the FAB labelled, accent filled, and actionable', () => {
