@@ -1089,27 +1089,26 @@ describe('mobile ProgressContent', () => {
     const goalTwo = createMockGoal({ id: 'goal-2', title: 'Goal two', position: 1 })
     mocks.goals.data.allGoals = [goalOne, goalTwo]
     const tree = await renderProgress()
-    const status = tree.root.findAll((node) => node.props.testID === 'goal-reorder-status')[0]!
     const firstGoal = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).includes('Goal one'))[0]!
     const secondGoal = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).includes('Goal two'))[0]!
 
-    expect(status.props.accessibilityLabel).toBe('')
-    await TestRenderer.act(() => (firstGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'decrement' } }))
-    expect(status.props.accessibilityLabel).toBe('progressScreen.goals.reorderBoundary:{"title":"Goal one","position":1,"total":2}')
+    expect(tree.root.findAll((node) => node.props.testID === 'goal-reorder-status')).toHaveLength(0)
+    expect(announceForAccessibility).not.toHaveBeenCalled()
     await TestRenderer.act(() => (firstGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'decrement' } }))
     expect(announceForAccessibility).toHaveBeenNthCalledWith(1, 'progressScreen.goals.reorderBoundary:{"title":"Goal one","position":1,"total":2}')
+    await TestRenderer.act(() => (firstGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'decrement' } }))
     expect(announceForAccessibility).toHaveBeenNthCalledWith(2, 'progressScreen.goals.reorderBoundary:{"title":"Goal one","position":1,"total":2}')
     await TestRenderer.act(() => (secondGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'increment' } }))
-    expect(status.props.accessibilityLabel).toBe('progressScreen.goals.reorderBoundary:{"title":"Goal two","position":2,"total":2}')
+    expect(announceForAccessibility).toHaveBeenNthCalledWith(3, 'progressScreen.goals.reorderBoundary:{"title":"Goal two","position":2,"total":2}')
     await TestRenderer.act(() => (secondGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'decrement' } }))
     const moveUpOptions = mocks.reorder.mutate.mock.calls.at(-1)?.[1] as { onSuccess: () => void }
     await TestRenderer.act(() => moveUpOptions.onSuccess())
-    expect(status.props.accessibilityLabel).toBe('progressScreen.goals.reorderMoved:{"title":"Goal two","position":1,"total":2}')
+    expect(announceForAccessibility).toHaveBeenNthCalledWith(4, 'progressScreen.goals.reorderMoved:{"title":"Goal two","position":1,"total":2}')
     await TestRenderer.act(() => (firstGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'increment' } }))
     const moveDownOptions = mocks.reorder.mutate.mock.calls.at(-1)?.[1] as { onSuccess: () => void }
     await TestRenderer.act(() => moveDownOptions.onSuccess())
-    expect(status.props.accessibilityLabel).toBe('progressScreen.goals.reorderMoved:{"title":"Goal one","position":2,"total":2}')
-    expect(tree.root.findAll((node) => node.props.testID === 'goal-reorder-status')[0]).toBe(status)
+    expect(announceForAccessibility).toHaveBeenNthCalledWith(5, 'progressScreen.goals.reorderMoved:{"title":"Goal one","position":2,"total":2}')
+    expect(announceForAccessibility).toHaveBeenCalledTimes(5)
 
     mocks.reorder.isError = true
     await TestRenderer.act(async () => { tree.update(<ProgressScreen />); await Promise.resolve() })

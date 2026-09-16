@@ -4,6 +4,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type ComponentType,
   type KeyboardEvent,
@@ -356,9 +357,18 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
   const [reorderAnnouncement, setReorderAnnouncement] = useState('')
+  const reorderAnnouncementTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  useEffect(() => () => {
+    for (const timer of reorderAnnouncementTimers.current) clearTimeout(timer)
+    reorderAnnouncementTimers.current.clear()
+  }, [])
   const announceReorderResult = (message: string) => {
     setReorderAnnouncement('')
-    setTimeout(() => setReorderAnnouncement(message), 0)
+    const timer = setTimeout(() => {
+      reorderAnnouncementTimers.current.delete(timer)
+      setReorderAnnouncement(message)
+    }, 0)
+    reorderAnnouncementTimers.current.add(timer)
   }
   const filtered = filterProgressGoals(goals, filter)
   const commitMove = (positions: NonNullable<ReturnType<typeof buildGoalMovePositions>>, goalId: string, target: number) => {

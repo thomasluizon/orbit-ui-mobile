@@ -281,9 +281,7 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
   const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
-  const [reorderAnnouncement, setReorderAnnouncement] = useState('')
   const announceReorderResult = (message: string) => {
-    setReorderAnnouncement(message)
     AccessibilityInfo.announceForAccessibility(message)
   }
   const filtered = filterProgressGoals(goals, filter)
@@ -325,7 +323,6 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
       {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} tokens={tokens} />) : null}
-      <View testID="goal-reorder-status" accessible accessibilityLiveRegion="polite" accessibilityLabel={reorderAnnouncement} style={styles.screenReaderTitle} />
       {reorder.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.reorderError')}</Text> : null}
     </View>
   )

@@ -400,7 +400,7 @@ describe('ProgressContent', () => {
   it('announces keyboard moves, boundaries and preserves errors and filtered state', async () => {
     vi.useFakeTimers()
     mocks.goals.data.allGoals = [createMockGoal({ title: 'Goal one' }), createMockGoal({ id: 'goal-2', title: 'Goal two', position: 1 })]
-    render(<ProgressPage />)
+    const { unmount } = render(<ProgressPage />)
     const status = screen.getByTestId('goal-reorder-status')
     const firstGoal = screen.getByRole('button', { name: /Goal one/ })
     const secondGoal = screen.getByRole('button', { name: /Goal two/ })
@@ -432,6 +432,11 @@ describe('ProgressContent', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
     expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.goals.reorderError')
     expect(screen.getByRole('button', { name: /Goal one/ })).not.toHaveAttribute('aria-keyshortcuts')
+    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.all' }))
+    fireEvent.keyDown(screen.getByRole('button', { name: /Goal one/ }), { altKey: true, key: 'ArrowUp' })
+    expect(vi.getTimerCount()).toBe(1)
+    unmount()
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   afterEach(() => { vi.useRealTimers() })
