@@ -567,8 +567,11 @@ describe('usePushNotifications', () => {
 
     const firstRenderer = await renderHarness()
     await flush()
-    await TestRenderer.act(() => firstRenderer.unmount())
-    await renderHarness()
+    await TestRenderer.act(() => firstRenderer.update(
+      <PushNotificationsProvider key="retry">
+        <Harness />
+      </PushNotificationsProvider>,
+    ))
     await flush()
 
     expect(notificationsModule.clearLastNotificationResponse).toHaveBeenCalledTimes(1)
