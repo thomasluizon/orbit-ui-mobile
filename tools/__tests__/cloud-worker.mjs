@@ -1,4 +1,5 @@
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { Worker } from "node:worker_threads"
@@ -204,6 +205,60 @@ export const cases = async () => {
     "cloud-worker.mjs: cloud list requests a CLI-supported positive page size",
     limitIndex !== -1 && Number.isInteger(limit) && limit > 0 && limit <= 20,
     JSON.stringify(listArguments),
+  )
+
+  const defaultCwdRepository = join(root, "cloud-worker", "default-cwd-repository")
+  mkdirSync(defaultCwdRepository, { recursive: true })
+  const initialized = spawnSync("git", ["init", "--quiet", defaultCwdRepository], {
+    encoding: "utf8",
+    windowsHide: true,
+  })
+  if (initialized.status !== 0) throw new Error(initialized.stderr)
+  const defaultCwdLog = stage("cloud-worker/default-cwd.txt", "")
+  const originalCwd = process.cwd()
+  process.chdir(defaultCwdRepository)
+  try {
+    await cloud.runCodex(codex.command, ["cloud", "list"], {
+      timeoutMs: 5000,
+      env: {
+        ...process.env,
+        ORBIT_FAKE_CODEX_CWD_LOG: defaultCwdLog,
+        ORBIT_FAKE_CODEX_WRITES_ERROR_LOG: "1",
+        ORBIT_FAKE_LIST: taskPage([]),
+      },
+    })
+  } finally {
+    process.chdir(originalCwd)
+  }
+  const expectedDefaultCwd = cloud.cloudStateRoot(defaultCwdRepository)
+  T(
+    "cloud-worker.mjs: a Codex diagnostic cannot leak into the caller's repository root",
+    !existsSync(join(defaultCwdRepository, "error.log")) && existsSync(join(expectedDefaultCwd, "error.log")),
+    readFileSync(defaultCwdLog, "utf8").trim(),
+  )
+  T(
+    "cloud-worker.mjs: runCodex defaults its child to the repository cloud state root",
+    readFileSync(defaultCwdLog, "utf8").trim() === expectedDefaultCwd,
+    readFileSync(defaultCwdLog, "utf8").trim(),
+  )
+
+  const explicitCwd = join(root, "cloud-worker", "explicit-cwd")
+  mkdirSync(explicitCwd, { recursive: true })
+  const explicitCwdLog = stage("cloud-worker/explicit-cwd.txt", "")
+  await cloud.runCodex(codex.command, ["cloud", "list"], {
+    cwd: explicitCwd,
+    timeoutMs: 5000,
+    env: {
+      ...process.env,
+      ORBIT_FAKE_CODEX_CWD_LOG: explicitCwdLog,
+      ORBIT_FAKE_CODEX_WRITES_ERROR_LOG: "1",
+      ORBIT_FAKE_LIST: taskPage([]),
+    },
+  })
+  T(
+    "cloud-worker.mjs: an explicit runCodex cwd overrides the cloud state default",
+    readFileSync(explicitCwdLog, "utf8").trim() === explicitCwd && existsSync(join(explicitCwd, "error.log")),
+    readFileSync(explicitCwdLog, "utf8").trim(),
   )
 
   const receipt = {
