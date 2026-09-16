@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
   reorder: { mutate: vi.fn() },
   drag: vi.fn(),
+  dragActive: false,
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
     profile: { timeZone: 'America/Sao_Paulo', canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
@@ -144,7 +145,7 @@ vi.mock('react-native-draggable-flatlist', () => ({
   NestableDraggableFlatList: ({ data, renderItem, ...props }: {
     data: ReturnType<typeof createMockGoal>[]
     renderItem: (params: { item: ReturnType<typeof createMockGoal>; getIndex: () => number; drag: () => void; isActive: boolean }) => React.ReactNode
-  }) => React.createElement('DraggableFlatList', props, data.map((item, index) => <React.Fragment key={item.id}>{renderItem({ item, getIndex: () => index, drag: mocks.drag, isActive: false })}</React.Fragment>)),
+  }) => React.createElement('DraggableFlatList', props, data.map((item, index) => <React.Fragment key={item.id}>{renderItem({ item, getIndex: () => index, drag: mocks.drag, isActive: mocks.dragActive })}</React.Fragment>)),
 }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
 vi.mock('@/hooks/use-goals', () => ({
@@ -251,17 +252,48 @@ describe('mobile ProgressContent', () => {
     theme.mode = mode
     mocks.goals.data.allGoals = [createMockGoal()]
     const tree = await renderProgress()
-    const card = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Read 12 Books')[0]!
+    const findCard = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Read 12 Books')[0]!
+    let card = findCard()
     const metadata = card.findAll((node) => node.type === 'Text' && typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.progress'))[0]!
     const foreground = StyleSheet.flatten(metadata.props.style as TextStyle).color as string
     const tokens = createTokensV2('purple', mode)
-    const cardStyle = card.props.style as (state: { pressed: boolean }) => ViewStyle
+    const restingSurface = StyleSheet.flatten(card.props.style as ViewStyle).backgroundColor as string
+    expect(contrastOnSurface(foreground, [tokens.bg, restingSurface]), 'resting').toBeGreaterThanOrEqual(4.5)
+    await TestRenderer.act(() => (card.props.onPressIn as (event: unknown) => void)({}))
+    card = findCard()
+    const pressedSurface = StyleSheet.flatten(card.props.style as ViewStyle).backgroundColor as string
+    expect(contrastOnSurface(foreground, [tokens.bg, pressedSurface]), 'pressed').toBeGreaterThanOrEqual(4.5)
+  })
 
-    for (const pressed of [false, true]) {
-      const surface = StyleSheet.flatten(cardStyle({ pressed })).backgroundColor as string
-      expect(contrastOnSurface(foreground, [tokens.bg, surface]), pressed ? 'pressed' : 'resting')
-        .toBeGreaterThanOrEqual(4.5)
-    }
+  it('shows canonical press feedback and the granted lifted drag state', async () => {
+    const goal = createMockGoal()
+    mocks.goals.data.allGoals = [goal]
+    const tree = await renderProgress()
+    const findCard = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === goal.title)[0]!
+    const tokens = createTokensV2('purple', theme.mode)
+
+    let card = findCard()
+    const resting = StyleSheet.flatten(card.props.style as ViewStyle) as ViewStyle & { transition?: string }
+    expect(resting).toMatchObject({ backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, transform: [{ scale: 1 }] })
+    expect(resting.transition).toContain('transform 150ms cubic-bezier(0.16, 1, 0.3, 1)')
+    await TestRenderer.act(() => (card.props.onPressIn as (event: unknown) => void)({}))
+    card = findCard()
+    expect(StyleSheet.flatten(card.props.style as ViewStyle)).toMatchObject({ backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] })
+
+    mocks.dragActive = true
+    await TestRenderer.act(async () => { tree.update(<ProgressScreen />); await Promise.resolve() })
+    card = findCard()
+    expect(StyleSheet.flatten(card.props.style as ViewStyle)).toMatchObject({
+      borderColor: tokens.hairlineStrong,
+      elevation: 4,
+      opacity: 0.5,
+      transform: [{ scale: 0.96 }],
+      zIndex: 2,
+    })
+
+    mocks.dragActive = false
+    await TestRenderer.act(async () => { tree.update(<ProgressScreen />); await Promise.resolve() })
+    expect(StyleSheet.flatten(findCard().props.style as ViewStyle)).not.toMatchObject({ opacity: 0.5, zIndex: 2 })
   })
 
   it.each(['on_track', 'at_risk', 'behind', 'no_deadline'])('renders one neutral tracking badge for %s without status or deadline', async (trackingStatus) => {
@@ -424,6 +456,7 @@ describe('mobile ProgressContent', () => {
   afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
     theme.mode = 'dark'
+    mocks.dragActive = false
     mocks.account.profile.timeZone = 'America/Sao_Paulo'
     vi.clearAllMocks()
     for (const query of [mocks.account, mocks.goals, mocks.gamification]) {

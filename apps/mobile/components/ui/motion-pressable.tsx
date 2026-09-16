@@ -4,7 +4,11 @@ import Animated from 'react-native-reanimated'
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
-export function MotionPressable({ style, children, onPressIn, onPressOut, ...props }: Readonly<PressableProps>) {
+interface MotionPressableProps extends PressableProps {
+  active?: boolean
+}
+
+export function MotionPressable({ active = false, style, children, onPressIn, onPressOut, ...props }: Readonly<MotionPressableProps>) {
   const [pressed, setPressed] = useState(false)
 
   return (
@@ -15,7 +19,7 @@ export function MotionPressable({ style, children, onPressIn, onPressOut, ...pro
       style={[
         typeof style === 'function' ? style({ pressed }) : style,
         {
-          transform: [{ scale: pressed ? 0.96 : 1 }],
+          transform: [{ scale: pressed || active ? 0.96 : 1 }],
           transition: 'transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 240ms cubic-bezier(0.2, 0, 0, 1)',
         },
       ]}
