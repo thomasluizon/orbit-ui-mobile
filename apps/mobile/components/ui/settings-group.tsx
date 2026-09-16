@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronRight } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { ProBadge } from '@/components/ui/pro-badge'
 
 interface SettingsGroupProps {
   children: ReactNode
@@ -46,8 +45,6 @@ interface SettingsGroupRowProps {
   /** Trailing accessory. Defaults to `'chevron'` when `onPress` is set, else `'none'`. */
   accessory?: 'chevron' | 'none'
   onPress?: () => void
-  proBadge?: boolean
-  proBadgeLabel?: string
 }
 
 /** Flat row inside a SettingsGroup. Carries no divider; the group draws them. */
@@ -59,8 +56,6 @@ export function SettingsGroupRow({
   trailing,
   accessory,
   onPress,
-  proBadge = false,
-  proBadgeLabel,
 }: Readonly<SettingsGroupRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -86,9 +81,6 @@ export function SettingsGroupRow({
           >
             {label}
           </Text>
-          {proBadge ? (
-            <ProBadge alwaysVisible label={proBadgeLabel} style={styles.proBadgeSpacing} />
-          ) : null}
         </View>
         {hint ? (
           <Text style={[styles.hint, { color: tokens.fg3 }]} numberOfLines={1}>
@@ -138,9 +130,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22.5,
     flexShrink: 1,
-  },
-  proBadgeSpacing: {
-    marginLeft: 4,
   },
   trailingBlock: {
     flexDirection: 'row',

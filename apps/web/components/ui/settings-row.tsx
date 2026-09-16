@@ -15,7 +15,7 @@ interface SettingsRowProps {
   onClick?: () => void
   mono?: boolean
   leadingDot?: string
-  /** Leading Tabler icon, rendered 24/1.8 centered in a 26px slot. */
+  /** Leading Tabler icon, rendered 24/1.5 centered in a 28px slot. */
   icon?: Icon
   /** Destructive row: the icon uses the graphic role and the title uses the text role. */
   danger?: boolean
@@ -64,9 +64,9 @@ export function SettingsRow({
         <span
           aria-hidden="true"
           className="inline-flex justify-center shrink-0"
-          style={{ width: 26 }}
+          style={{ width: 28 }}
         >
-          <LeadingIcon size={24} strokeWidth={1.8} color={iconColor} />
+          <LeadingIcon size={24} strokeWidth={1.5} color={iconColor} />
         </span>
       )}
       {leadingDot && (

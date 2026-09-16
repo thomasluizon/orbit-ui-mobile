@@ -21,7 +21,7 @@ interface SettingsRowProps {
   mono?: boolean
   /** Small leading dot (status color or scheme swatch). */
   leadingDot?: string
-  /** Leading Tabler icon, rendered 24/1.8 centered in a 26px slot. */
+  /** Leading Tabler icon, rendered 24/1.5 centered in a 28px slot. */
   icon?: IconComponent
   /** Destructive row: the icon uses the graphic role and the title uses the text role. */
   danger?: boolean
@@ -72,7 +72,7 @@ export function SettingsRow({
     >
       {LeadingIcon ? (
         <View style={styles.iconSlot}>
-          <LeadingIcon size={24} color={iconColor} strokeWidth={1.8} />
+          <LeadingIcon size={24} color={iconColor} strokeWidth={1.5} />
         </View>
       ) : null}
       {leadingDot ? (
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   iconSlot: {
-    width: 26,
+    width: 28,
     alignItems: 'center',
     flexShrink: 0,
   },

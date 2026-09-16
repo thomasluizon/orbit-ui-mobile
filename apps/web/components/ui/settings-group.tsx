@@ -4,18 +4,6 @@ import type { ReactNode, MouseEvent } from 'react'
 import React from 'react'
 import { ChevronRight } from '@/components/ui/icons'
 
-const PRO_BADGE_STYLE: React.CSSProperties = {
-  fontFamily: 'var(--font-sans)',
-  fontSize: 10,
-  fontWeight: 600,
-  color: 'var(--fg-on-primary)',
-  background: 'var(--primary)',
-  padding: '4px 8px',
-  borderRadius: 4,
-  letterSpacing: '0.04em',
-  textTransform: 'uppercase',
-}
-
 const SETTINGS_ROW_STYLE: React.CSSProperties = {
   padding: '16px',
   gap: 12,
@@ -63,8 +51,6 @@ interface SettingsGroupRowProps {
   /** Trailing accessory. Defaults to `'chevron'` when `onClick` is set, else `'none'`. */
   accessory?: 'chevron' | 'none'
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void
-  proBadge?: boolean
-  proBadgeLabel?: string
   ariaLabel?: string
   dataTestId?: string
 }
@@ -77,8 +63,6 @@ export function SettingsGroupRow({
   trailing,
   accessory,
   onClick,
-  proBadge = false,
-  proBadgeLabel,
   ariaLabel,
   dataTestId,
 }: Readonly<SettingsGroupRowProps>) {
@@ -96,7 +80,7 @@ export function SettingsGroupRow({
         </span>
       ) : null}
       <span className="flex flex-col flex-1 min-w-0" style={{ gap: 4 }}>
-        <span className="flex items-center" style={{ gap: 4 }}>
+        <span className="flex items-center">
           <span
             className="min-w-0 overflow-hidden line-clamp-2"
             style={{
@@ -110,11 +94,6 @@ export function SettingsGroupRow({
           >
             {label}
           </span>
-          {proBadge ? (
-            <span style={PRO_BADGE_STYLE}>
-              {proBadgeLabel ?? 'Pro'}
-            </span>
-          ) : null}
         </span>
         {hint ? (
           <span
