@@ -35,17 +35,17 @@ export default function DeleteAccountPage() {
         {sections.map(({ label, body }) => (
           <div key={label}>
             <SectionLabel>{label}</SectionLabel>
-            <div className="t-secondary px-5 pb-[18px]" style={{ textWrap: 'pretty' }}>
+            <div className="t-secondary px-4 pb-4" style={{ textWrap: 'pretty' }}>
               {body}
             </div>
           </div>
         ))}
 
         <SectionLabel>{t('deleteAccount.webFallback.title')}</SectionLabel>
-        <div className="t-secondary px-5 pb-[18px]" style={{ textWrap: 'pretty' }}>
+        <div className="t-secondary px-4 pb-4" style={{ textWrap: 'pretty' }}>
           {t('deleteAccount.webFallback.body')}
         </div>
-        <div className="px-5 pb-8">
+        <div className="px-4 pb-8">
           <a
             href="mailto:contact@useorbit.org?subject=Account%20deletion%20request"
             className="inline-flex items-center underline underline-offset-[3px]"

@@ -18,6 +18,31 @@ Two outputs, both committed files in this repo:
 | `.claude/specs/<slug>.md` | the effort's living spec. One per effort. Survives every session. |
 | `.claude/handoffs/NEXT.md` | the prompt for the next session. **Exactly one, always at this path.** |
 
+## `/handoff` ENDS the session. Nothing more gets done in it.
+
+Thomas, 2026-09-16: "after i run /handoff, the session is FINISHED, you cant continue working,
+anything i ask, you put on the handoff prompt, not now."
+
+The moment he runs `/handoff`, this session's working life is over. It writes the two files, commits
+them, replies with the one line, and stops.
+
+**Everything he asks for from that point goes into `NEXT.md`, not into the tree.** A new request
+after `/handoff` is not a reason to reopen the session; it is more scope for the next one. Add it to
+the prompt and say that is where it went.
+
+That covers every shape of request: a one-line fix, a question about a ticket, a review round, a
+merge, a "quick" anything. There is no size below which it is fine to just do it. The whole point of
+the rule is that a handed-off session has already written down what it knows, and work done after
+that is work the next session cannot see.
+
+**The ONE exception**, and it has to be explicit: he says to do something now AND then hand off, in
+so many words. "Do this now, then /handoff." Anything less direct is not the exception. If you are
+weighing whether a message qualifies, it does not.
+
+Under `--sleep` this reads differently: the run continues in this session by design, and the section
+at the end of this file says how. The rule above is about an ATTENDED handoff, where a person is
+going to open `NEXT.md` later.
+
 **The prompt path never changes.** Thomas, 2026-09-15: "i want one handoff, always, just combine
 both in one ... you need to put always in the same place, in a way that i can just ctrl + click and
 open the file." Overwrite `NEXT.md` every time. Git history keeps every earlier version, so nothing
@@ -252,3 +277,6 @@ turn ends. The files are the durable record; the sleep skill is what keeps the w
 
 The work. No code, no tickets, no board writes, and nothing `$ARGUMENTS` describes. If the session
 left something half done, the spec records it and the prompt assigns it.
+
+And after it runs, neither does the session. See the second section of this file: an attended
+`/handoff` is the end. Whatever he asks next goes into `NEXT.md`.

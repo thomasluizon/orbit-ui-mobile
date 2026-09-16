@@ -93,9 +93,9 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         </div>
       </div> : null}
       <p role="alert" className={error ? 'text-[14px] text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
-      {active && derived && done ? <div className="flex flex-col items-start gap-2">
+      {active && done ? <div className="flex flex-col items-start gap-2">
         <PillButton variant="secondary" size="sm" accessibleName={t('goals.detail.markCompleted')} disabled={busy || isUpdatingStatus} onClick={onComplete}>{t('goals.detail.markCompleted')}</PillButton>
-        <p className="text-[14px] text-[var(--fg-2)]">{t('goals.detail.completeWhyDerived')}</p>
+        <p className="text-[14px] text-[var(--fg-2)]">{t('goals.detail.completeWhy')}</p>
       </div> : null}
     </div>
   )

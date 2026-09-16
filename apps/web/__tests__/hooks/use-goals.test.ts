@@ -16,7 +16,7 @@ import {
   useLinkHabitsToGoal,
 } from '@/hooks/use-goals'
 import { goalKeys } from '@orbit/shared/query'
-import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
+import type { Goal, GoalDetailWithMetrics, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
@@ -370,6 +370,49 @@ describe('useUpdateGoalProgress', () => {
       unit: 'releases',
     })
     expect(mockSetGoalCompleted).toHaveBeenCalledTimes(1)
+  })
+
+  it('optimistically completes a manual goal when progress reaches its target', async () => {
+    const { updateGoalProgress } = await import('@/lib/actions/goals')
+    vi.mocked(updateGoalProgress).mockResolvedValue(undefined as never)
+    const goal = createMockGoal({
+      id: 'g-1',
+      currentValue: 11,
+      targetValue: 12,
+      progressPercentage: 92,
+      status: 'Active',
+      isProgressDerived: false,
+    })
+    const detail: GoalDetailWithMetrics = {
+      goal: { ...goal, progressHistory: [] },
+      metrics: {
+        progressPercentage: 92,
+        velocityPerDay: 0,
+        projectedCompletionDate: null,
+        daysToDeadline: null,
+        trackingStatus: 'on_track',
+        habitAdherence: [],
+      },
+    }
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    queryClient.setQueryData(goalKeys.lists(), [goal])
+    queryClient.setQueryData(goalKeys.detail('g-1'), detail)
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    const { result } = renderHook(() => useUpdateGoalProgress(), { wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        goalId: 'g-1',
+        data: { currentValue: 12 },
+      })
+    })
+
+    expect(queryClient.getQueryData<Goal[]>(goalKeys.lists())?.[0]?.status).toBe('Completed')
+    expect(queryClient.getQueryData<GoalDetailWithMetrics>(goalKeys.detail('g-1'))?.goal.status).toBe('Completed')
+    expect(mockSetGoalCompleted).not.toHaveBeenCalled()
   })
 })
 

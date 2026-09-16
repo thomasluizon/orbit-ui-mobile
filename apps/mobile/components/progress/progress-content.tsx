@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react'
-import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -32,6 +32,7 @@ import {
 } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -67,7 +68,7 @@ import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hook
 import { useGoals, useReorderGoals } from '@/hooks/use-goals'
 import { useProfile } from '@/hooks/use-profile'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -236,8 +237,8 @@ function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
 }
 
-function GoalCard({ goal, index, total, canReorder, onDrag, onMove, onOpen, tokens }: Readonly<{
-  goal: Goal; index: number; total: number; canReorder: boolean; onDrag?: () => void; onMove: (goalId: string, target: number) => void; onOpen: () => void; tokens: AppTokensV2
+function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, onOpen, tokens }: Readonly<{
+  goal: Goal; index: number; total: number; canReorder: boolean; isDragging: boolean; onDrag?: () => void; onMove: (goalId: string, target: number) => void; onOpen: () => void; tokens: AppTokensV2
 }>) {
   const { t } = useTranslation()
   const { suppressPress, ...gesture } = useGoalDrag(canReorder ? onDrag : undefined)
@@ -255,7 +256,7 @@ function GoalCard({ goal, index, total, canReorder, onDrag, onMove, onOpen, toke
       })
   return (
     // eslint-disable-next-line local/max-button-words -- ORB-480 requires the control name to expose goal state, progress, and position.
-    <Pressable accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
+    <MotionPressable active={isDragging} accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
       accessibilityHint={canReorder ? t('progressScreen.goals.reorderHint') : undefined}
       accessibilityActions={canReorder ? [{ name: 'decrement', label: t('progressScreen.goals.moveUp') }, { name: 'increment', label: t('progressScreen.goals.moveDown') }] : undefined}
       onAccessibilityAction={canReorder ? (event) => {
@@ -263,7 +264,11 @@ function GoalCard({ goal, index, total, canReorder, onDrag, onMove, onOpen, toke
         if (action === 'decrement' || action === 'increment') onMove(goal.id, index + (action === 'decrement' ? -1 : 1))
       } : undefined}
       {...gesture} onPress={() => { if (!suppressPress()) onOpen() }}
-      style={({ pressed }) => [styles.goalCard, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
+      style={({ pressed }) => [
+        styles.goalCard,
+        { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost },
+        isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5, zIndex: 2 } : null,
+      ]}>
       <View style={styles.goalCopy}>
         <Text style={[styles.goalTitle, { color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
         <View style={styles.goalMeta}>
@@ -272,7 +277,7 @@ function GoalCard({ goal, index, total, canReorder, onDrag, onMove, onOpen, toke
         </View>
       </View>
       <GoalIndicator goal={goal} />
-    </Pressable>
+    </MotionPressable>
   )
 }
 
@@ -310,9 +315,9 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
     }
     commitMove(positions, goalId, boundedTarget)
   }
-  const renderGoal = ({ item, getIndex, drag }: RenderItemParams<Goal>) => {
+  const renderGoal = ({ item, getIndex, drag, isActive }: RenderItemParams<Goal>) => {
     const index = getIndex() ?? goals.findIndex((goal) => goal.id === item.id)
-    return <GoalCard goal={item} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} tokens={tokens} />
+    return <GoalCard goal={item} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} isDragging={isActive} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} tokens={tokens} />
   }
   return (
     <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
@@ -322,7 +327,7 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
-      {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} tokens={tokens} />) : null}
+      {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} tokens={tokens} />) : null}
       {reorder.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.reorderError')}</Text> : null}
     </View>
   )

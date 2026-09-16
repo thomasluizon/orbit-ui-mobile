@@ -7,7 +7,7 @@ interface SettingsDescriptionProps {
   children: ReactNode
 }
 
-/** Helper text under a settings row: Geist Sans 14 fg-3, row-aligned 20px horizontal padding. */
+/** Helper text under a settings row: Geist Sans 14 fg-3, row-aligned 16px horizontal padding. */
 export function SettingsDescription({ children }: Readonly<SettingsDescriptionProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -24,7 +24,7 @@ export function SettingsDescription({ children }: Readonly<SettingsDescriptionPr
 const styles = StyleSheet.create({
   container: {
     paddingTop: 4,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 16,
   },
   text: {

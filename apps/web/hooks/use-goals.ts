@@ -8,12 +8,14 @@ import { useTranslations } from 'next-intl'
 import { goalKeys, habitKeys } from '@orbit/shared/query'
 import type {
   Goal,
+  GoalDetailWithMetrics,
   CreateGoalRequest,
   UpdateGoalRequest,
   UpdateGoalProgressRequest,
   UpdateGoalStatusRequest,
   GoalPositionItem,
 } from '@orbit/shared/types/goal'
+import { updateGoalProgressDetail, updateGoalProgressItem } from '@orbit/shared/utils'
 import {
   createGoal as createGoalAction,
   updateGoal as updateGoalAction,
@@ -148,6 +150,34 @@ export function useUpdateGoalProgress() {
       ) {
         setGoalCompletedCelebration({ name: goalName, count: goalCount, unit: goalUnit })
       }
+    },
+
+    onMutate: async ({ goalId, data }) => {
+      await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
+      await queryClient.cancelQueries({ queryKey: goalKeys.detail(goalId) })
+
+      const previousLists = queryClient.getQueriesData<Goal[]>({ queryKey: goalKeys.lists() })
+      const previousDetail = queryClient.getQueryData<GoalDetailWithMetrics>(goalKeys.detail(goalId))
+
+      queryClient.setQueriesData<Goal[]>(
+        { queryKey: goalKeys.lists() },
+        (old) => old?.map((goal) => (
+          goal.id === goalId ? updateGoalProgressItem(goal, data.currentValue) : goal
+        )),
+      )
+      queryClient.setQueryData<GoalDetailWithMetrics | undefined>(
+        goalKeys.detail(goalId),
+        (old) => updateGoalProgressDetail(old, data.currentValue),
+      )
+
+      return { previousLists, previousDetail }
+    },
+
+    onError: (_error, { goalId }, context) => {
+      for (const [key, value] of context?.previousLists ?? []) {
+        queryClient.setQueryData(key, value)
+      }
+      queryClient.setQueryData(goalKeys.detail(goalId), context?.previousDetail)
     },
 
     onSettled: (_data, _err, { goalId }) => {
