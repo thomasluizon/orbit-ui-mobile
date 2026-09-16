@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -10,12 +10,6 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createTranslator } from 'next-intl'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import {
-  closeChrome,
-  registerChromeLaunchHook,
-  type Browser,
-  type BrowserLaunch,
-} from '@/__tests__/support/chromium'
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
@@ -175,15 +169,7 @@ function captureGoalCardRendering(card: HTMLElement) {
 }
 
 describe('ProgressContent', () => {
-  let browserLaunch: BrowserLaunch | undefined
-  let browser: Browser
-  let compiledStyles: string
   let textStyles: string
-
-  registerChromeLaunchHook(beforeAll, async (launch) => {
-    browserLaunch = launch
-    browser = await browserLaunch
-  })
 
   it('keeps the Wrapped fallback as the first Progresso entry', () => {
     render(<ProgressPage />)
@@ -197,7 +183,6 @@ describe('ProgressContent', () => {
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
-    compiledStyles = compiled.css
     const rules: string[] = []
     compiled.root.walkRules((rule) => {
       if (rule.selector.startsWith('.text-')) {
@@ -206,8 +191,6 @@ describe('ProgressContent', () => {
     })
     textStyles = rules.join('\n')
   })
-
-  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in every card state in %s', (mode) => {
     mocks.goals.data.allGoals = [createMockGoal()]
@@ -450,6 +433,15 @@ describe('ProgressContent', () => {
     expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
   })
 
+  it.each([[false, 'primary'], [true, 'secondary']] as const)('renders the global retry for desktop=%s as a %s button', (isDesktop, variant) => {
+    mocks.isDesktop = isDesktop
+    mocks.account.isError = true
+    render(<ProgressPage />)
+
+    const retry = screen.getByRole('button', { name: 'progressScreen.retry' })
+    expect(retry).toHaveAttribute('data-variant', variant)
+  })
+
   it('shows a retryable error even while another resource is loading', () => {
     mocks.account.isError = true
     mocks.goals.isLoading = true
@@ -488,10 +480,26 @@ describe('ProgressContent', () => {
     const { container } = render(<ProgressPage />)
     expect(screen.getByText('progressScreen.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
-    expect(screen.getAllByRole('button')).toHaveLength(2)
-    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.emptyAction' }))
-    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByRole('link', { name: 'progressScreen.emptyAction' })).toHaveAttribute('href', '/')
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+  })
+
+  it.each([[false, 'primary'], [true, 'secondary']] as const)('renders the global empty action for desktop=%s as a %s link', (isDesktop, variant) => {
+    mocks.isDesktop = isDesktop
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    render(<ProgressPage />)
+
+    expect(screen.getByRole('link', { name: 'progressScreen.emptyAction' })).toHaveAttribute('data-variant', variant)
+  })
+
+  it('keeps the in-section goals-empty action as a ghost navigation link', () => {
+    render(<ProgressContent />)
+
+    const action = screen.getByRole('link', { name: 'progressScreen.startHabit' })
+    expect(action).toHaveAttribute('href', '/')
+    expect(action).toHaveAttribute('data-variant', 'ghost')
   })
 
   it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', (record) => {
@@ -544,7 +552,7 @@ describe('ProgressContent', () => {
     }
     mocks.retrospective.isError = true
     mocks.retrospective.error = { status: 403, data: { errorCode: 'PAY_GATE' } }
-    const { container, unmount } = render(<ProgressContent />)
+    render(<ProgressContent />)
 
     expect(screen.queryByTestId('error-state')).not.toBeInTheDocument()
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
@@ -555,32 +563,15 @@ describe('ProgressContent', () => {
     expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.bankFull:{"count":3}')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.gapTitle')).not.toBeInTheDocument()
-    const route = screen.getAllByRole('button', { name: 'progressScreen.window.lockedAction' })
+    const route = screen.getAllByRole('link', { name: 'progressScreen.window.lockedAction' })
     expect(route).toHaveLength(1)
-    expect(route[0]).not.toBeDisabled()
-    expect(route[0]).not.toHaveAttribute('aria-disabled')
-    expect(route[0]!.closest('[inert]')).toBeNull()
-    fireEvent.click(route[0]!)
-    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/upgrade')
-
-    const markup = container.innerHTML
-    unmount()
-    const page = await browser.newPage()
-    try {
-      await page.setContent(`<style>${compiledStyles}</style>${markup}`)
-      const insets = await page.locator('[data-testid="progress-locked-card"]').evaluateAll((cards) =>
-        cards.map((card) => {
-          const style = getComputedStyle(card)
-          return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]
-        }),
-      )
-      expect(insets).toEqual([
-        ['16px', '16px', '16px', '16px'],
-        ['16px', '16px', '16px', '16px'],
-        ['16px', '16px', '16px', '16px'],
-      ])
-    } finally {
-      await page.close()
+    expect(route[0]).toHaveAttribute('href', '/upgrade')
+    expect(route[0]).toHaveAttribute('data-variant', 'ghost')
+    expect(screen.getAllByTestId('progress-locked-card')).toHaveLength(3)
+    for (const card of screen.getAllByTestId('progress-locked-card')) {
+      expect(card).toHaveAttribute('data-padding', '16px')
+      expect(card).toHaveAttribute('data-border', 'hairline-ghost')
+      expect(within(card).getAllByRole('link')).toHaveLength(1)
     }
   })
 

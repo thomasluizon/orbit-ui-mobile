@@ -1,8 +1,10 @@
 'use client'
 
+import Link, { type LinkProps } from 'next/link'
+import type { CSSProperties } from 'react'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
-import { BUTTON_SIZES, type ButtonVariant } from '@orbit/shared/theme'
+import { BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
@@ -15,6 +17,26 @@ const variantClasses: Record<ButtonVariant, string> = {
     'bg-[var(--status-bad)] text-[var(--fg-on-bad)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:active:scale-[0.96]',
   caution:
     'bg-[var(--status-overdue)] text-[var(--fg-on-overdue)] enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:active:scale-[0.96]',
+}
+
+const baseClasses = 'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40'
+
+function actionClasses(variant: ButtonVariant, size: ButtonSize) {
+  return [baseClasses, variantClasses[variant], size === 'sm' ? 'touch-target' : undefined]
+    .filter(Boolean)
+    .join(' ')
+}
+
+function actionStyle(size: ButtonSize, iconOnly = false): CSSProperties {
+  const sizeSpec = BUTTON_SIZES[size]
+  return {
+    fontFamily: 'var(--font-sans)',
+    height: sizeSpec.height,
+    width: iconOnly ? sizeSpec.height : undefined,
+    paddingInline: iconOnly ? 0 : sizeSpec.paddingX,
+    fontSize: sizeSpec.fontSize,
+    gap: iconOnly ? 0 : sizeSpec.gap,
+  }
 }
 
 /** The canonical five-variant pill action in the shared two-size geometry. */
@@ -45,27 +67,42 @@ export function Button({
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}
-      className={[
-        'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
-        variantClasses[variant],
-        size === 'sm' ? 'touch-target' : undefined,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      style={{
-        fontFamily: 'var(--font-sans)',
-        height: sizeSpec.height,
-        width: iconOnly ? sizeSpec.height : undefined,
-        paddingInline: iconOnly ? 0 : sizeSpec.paddingX,
-        fontSize: sizeSpec.fontSize,
-        gap: iconOnly ? 0 : sizeSpec.gap,
-      }}
+      className={actionClasses(variant, size)}
+      style={actionStyle(size, iconOnly)}
     >
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin" aria-hidden="true" />
       ) : iconOnly ? children : null}
       {iconOnly ? null : <span className={loading ? 'opacity-60' : undefined}>{children}</span>}
     </button>
+  )
+}
+
+/** Native navigation with the same visual contract as PillButton. */
+export function PillLink({
+  href,
+  variant = 'primary',
+  size = 'md',
+  children,
+  accessibleName,
+}: Readonly<{
+  href: LinkProps['href']
+  variant?: ButtonVariant
+  size?: ButtonSize
+  children: string
+  accessibleName?: string
+}>) {
+  return (
+    <Link
+      href={href}
+      aria-label={accessibleName}
+      data-variant={variant}
+      data-size={size}
+      className={actionClasses(variant, size)}
+      style={actionStyle(size)}
+    >
+      <span>{children}</span>
+    </Link>
   )
 }
 
