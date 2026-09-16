@@ -299,6 +299,93 @@ describe('mobile auth store security paths', () => {
     })
   })
 
+  it('does not let checkAuth complete a login transition it did not start', async () => {
+    const storedToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'user-1',
+      'user@example.com',
+    )
+    getTokenMock.mockResolvedValue(storedToken)
+
+    let releasePersistedCacheClear!: () => void
+    const persistedCacheClearReleased = new Promise<void>((resolve) => {
+      releasePersistedCacheClear = resolve
+    })
+    clearPersistedQueryCacheMock.mockReturnValue(persistedCacheClearReleased)
+
+    let signedInPublications = 0
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (state.sessionPhase === 'signed-in') signedInPublications += 1
+    })
+
+    const login = useAuthStore.getState().login('access-token', 'refresh-token', {
+      userId: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+    })
+
+    await vi.waitFor(() => expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1))
+    const restored = await useAuthStore.getState().checkAuth()
+
+    try {
+      expect(restored).toBe(true)
+      expect(useAuthStore.getState()).toMatchObject({
+        sessionPhase: 'establishing',
+        isAuthenticated: false,
+      })
+      expect(signedInPublications).toBe(0)
+    } finally {
+      releasePersistedCacheClear()
+      await login
+      unsubscribe()
+    }
+
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+    })
+    expect(signedInPublications).toBe(1)
+  })
+
+  it('keeps a restored session unauthenticated until cache scoping completes', async () => {
+    const rotatedToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'restored-user',
+      'restored@example.com',
+    )
+    getTokenMock.mockResolvedValue(makeJwt(Math.floor(Date.now() / 1000) - 10))
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockResolvedValue(Response.json({
+      token: rotatedToken,
+      refreshToken: 'next-refresh',
+    }))
+
+    let releaseCacheScope!: () => void
+    const cacheScopeReleased = new Promise<void>((resolve) => {
+      releaseCacheScope = resolve
+    })
+    setQueryCacheScopeMock.mockReturnValue(cacheScopeReleased)
+
+    const checkAuth = useAuthStore.getState().checkAuth()
+    await vi.waitFor(() => expect(setQueryCacheScopeMock).toHaveBeenCalledWith('restored-user'))
+
+    try {
+      expect(useAuthStore.getState()).toMatchObject({
+        sessionPhase: 'establishing',
+        isAuthenticated: false,
+      })
+    } finally {
+      releaseCacheScope()
+      await checkAuth
+    }
+
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'restored-user' },
+    })
+  })
+
   it('flags an auth transition between persisting the token and committing the session', async () => {
     expect(isAuthTransitionInFlight()).toBe(false)
 
@@ -758,6 +845,10 @@ describe('mobile auth store security paths', () => {
       ok: true,
       json: () => Promise.resolve({ token: rotatedToken, refreshToken: 'next-refresh' }),
     })
+    useAuthStore.setState({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+    })
 
     const outcome = await refreshSession()
 
@@ -856,6 +947,7 @@ describe('mobile auth store security paths', () => {
         refreshToken: 'next-refresh',
       }))
     useAuthStore.setState({
+      sessionPhase: 'signed-in',
       isAuthenticated: true,
       user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
       isLoading: false,
@@ -918,6 +1010,7 @@ describe('mobile auth store security paths', () => {
         refreshToken: 'next-refresh',
       }))
     useAuthStore.setState({
+      sessionPhase: 'signed-in',
       isAuthenticated: true,
       user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
       isLoading: false,

@@ -41,10 +41,9 @@ let profileHydrationInFlight: Promise<void> | null = null
 let refreshSessionInFlight: Promise<RefreshSessionAttempt> | null = null
 
 /**
- * True while login() is swapping the session — between persisting the new token
- * and reaching the signed-in phase. apiClient consults this to avoid tearing
- * down the session on a transient 401 fired in that window (the freshly written
- * SecureStore token isn't yet readable by an in-flight authed GET).
+ * True while a session owner is preparing account state before the protected
+ * tree can mount. apiClient consults this to avoid tearing down the session on
+ * a transient 401 fired while new SecureStore credentials are settling.
  */
 export function isAuthTransitionInFlight(): boolean {
   return useAuthStore.getState().sessionPhase === 'establishing'
@@ -285,8 +284,9 @@ async function rotateSessionToken(generation: number): Promise<RefreshSessionOut
     await saveWidgetToken(data.token).catch(() => {})
     if (tokenUser) bindStepUpStateToAccount(tokenUser.userId)
     sessionGeneration += 1
+    const sessionPhase = useAuthStore.getState().sessionPhase
     useAuthStore.setState({
-      ...deriveSessionPhase('signed-in'),
+      ...(sessionPhase === 'establishing' ? {} : deriveSessionPhase('signed-in')),
       user: currentUser ?? tokenUser,
       expiresAt: getExpiresAt(data.token),
     })
@@ -466,6 +466,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   checkAuth: async () => {
+    const startingPhase = get().sessionPhase
+    if (startingPhase === 'establishing') return true
+    const ownsSessionEstablishment = startingPhase === 'signed-out'
+    if (ownsSessionEstablishment) set(deriveSessionPhase('establishing'))
+
     let generation = sessionGeneration
     let token = await getToken()
     if (!isCurrentSessionGeneration(generation)) return false
@@ -487,8 +492,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const accountId = getAccountIdFromPayload(payload)
     const restored = await withCredentialMutationLock(async () => {
       if (!isCurrentSessionGeneration(generation)) return false
+      if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
       await saveWidgetToken(token).catch(() => {})
       if (accountId) bindStepUpStateToAccount(accountId)
+      await setQueryCacheScope(accountId)
+      if (!isCurrentSessionGeneration(generation)) return false
+      if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
       set((state) => ({
         ...deriveSessionPhase('signed-in'),
         user: state.user ?? getUserFromPayload(payload),
@@ -497,7 +506,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return true
     })
     if (!restored) return false
-    await setQueryCacheScope(get().user?.userId ?? null)
 
     return isCurrentSessionGeneration(generation)
   },
