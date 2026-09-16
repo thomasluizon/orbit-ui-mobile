@@ -148,9 +148,9 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "b4277aa57f47c354",
-      "calibratedAt": "2026-09-15",
-      "verdict": "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four."
+      "digest": "7d5208953f5b58ed",
+      "calibratedAt": "2026-09-16",
+      "verdict": "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four. Reseeded 2026-09-16 when it gained the rule that an attended handoff ENDS the session, which needs the same judgement to apply: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong."
     },
     ".claude/skills/investigate/SKILL.md": {
       "model": null,
@@ -228,6 +228,13 @@
       "digest": "e1ef5a36050d37f1",
       "calibratedAt": "2026-09-14",
       "verdict": "current: runs lint, type-check and tests across both repos, so low effort is right."
+    },
+    ".claude/skills/wrap-up/SKILL.md": {
+      "model": null,
+      "effort": "medium",
+      "digest": "8d856622b19f1e7c",
+      "calibratedAt": "2026-09-16",
+      "verdict": "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded: holding the order, and refusing to start the handoff while a question Thomas has not answered is still open. Low would round that gate away, which is the one thing this skill exists to enforce."
     },
     ".agents/skills/merge-prs/SKILL.md": {
       "model": null,
