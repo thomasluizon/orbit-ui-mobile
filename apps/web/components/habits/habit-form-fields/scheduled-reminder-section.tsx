@@ -65,9 +65,9 @@ export function ScheduledReminderSection({
   }
 
   return (
-    <div className="space-y-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className="flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <Bell size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
           <span
             className="text-[var(--fg-1)]"
@@ -85,19 +85,19 @@ export function ScheduledReminderSection({
         )}
       </div>
       {reminderEnabled && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {(scheduledReminders?.length ?? 0) > 0 && (
             <div className="flex flex-wrap gap-2">
               {(scheduledReminders ?? []).map((sr, idx) => (
                 <span
                   key={`${sr.when}-${sr.time}`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(var(--primary-rgb),0.12)] px-3 py-1.5 text-[var(--fg-1)]"
+                  className="inline-flex items-center gap-1 rounded-full bg-[rgba(var(--primary-rgb),0.12)] px-3 py-1 text-[var(--fg-1)]"
                   style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
                 >
                   {scheduledReminderLabel(sr)}
                   {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
-                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid place-items-center min-h-[44px] min-w-[44px] -my-2.5 -mr-2.5 -ml-1 hover:text-[var(--fg-2)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
-                    <X size={13} strokeWidth={2.2} aria-hidden="true" />
+                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid place-items-center min-h-[44px] min-w-[44px] -my-2 -mr-2 -ml-1 hover:text-[var(--fg-2)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
+                    <X size={16} strokeWidth={2.2} aria-hidden="true" />
                   </button>
                 </span>
               ))}
@@ -111,7 +111,7 @@ export function ScheduledReminderSection({
                 className="chip"
                 onClick={() => setShowForm(true)}
               >
-                <Plus size={14} strokeWidth={2} aria-hidden="true" />
+                <Plus size={16} strokeWidth={2} aria-hidden="true" />
                 {t('habits.form.scheduledReminderAdd')}
               </button>
             )}
@@ -121,7 +121,7 @@ export function ScheduledReminderSection({
             )}
 
             {showForm && (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -150,7 +150,7 @@ export function ScheduledReminderSection({
                     onClear={() => setTime('')}
                   />
                   <div className="flex justify-end gap-2">
-                    <button type="button" className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] px-4 py-2.5 text-[13px] font-medium text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:scale-[0.96] disabled:opacity-40" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</button>
+                    <button type="button" className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] px-4 py-2 text-[13px] font-medium text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:scale-[0.96] disabled:opacity-40" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</button>
                     <button type="button" aria-label={t('common.cancel')} className="habit-control-motion touch-target grid size-10 shrink-0 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]" onClick={() => { setShowForm(false); setTime('') }}>
                       <X size={16} strokeWidth={1.8} aria-hidden="true" />
                     </button>
