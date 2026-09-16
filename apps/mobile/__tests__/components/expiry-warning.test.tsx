@@ -181,7 +181,7 @@ describe('ExpiryWarning', () => {
     expect(hostNodes(instance, 'View')).toHaveLength(0)
   })
 
-  it('keeps recovery available after a network failure', async () => {
+  it('keeps recovery available when a server failure is retryable', async () => {
     mocks.refreshSession.mockResolvedValue({ status: 'network-error' })
     const instance = await renderExpiredWarning()
 

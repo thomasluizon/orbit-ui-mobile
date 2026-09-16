@@ -36,6 +36,7 @@ const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbi
 
 let authTransitionInFlight = false
 let sessionGeneration = 0
+let credentialMutationTail = Promise.resolve()
 
 let profileHydrationInFlight: Promise<void> | null = null
 let refreshSessionInFlight: Promise<RefreshSessionAttempt> | null = null
@@ -114,6 +115,29 @@ function isCurrentSessionGeneration(generation: number): boolean {
   return sessionGeneration === generation
 }
 
+async function withCredentialMutationLock<T>(mutation: () => Promise<T>): Promise<T> {
+  const previousMutation = credentialMutationTail
+  let releaseMutation!: () => void
+  credentialMutationTail = new Promise<void>((resolve) => {
+    releaseMutation = resolve
+  })
+
+  await previousMutation
+  try {
+    return await mutation()
+  } finally {
+    releaseMutation()
+  }
+}
+
+async function clearSessionCredentials(generation: number): Promise<boolean> {
+  return withCredentialMutationLock(async () => {
+    if (!isCurrentSessionGeneration(generation)) return false
+    await clearAllTokens()
+    return isCurrentSessionGeneration(generation)
+  })
+}
+
 async function runSessionTeardownStep(
   generation: number,
   step: () => void | Promise<void>,
@@ -127,7 +151,7 @@ export async function clearSessionAndResetAuth(generation: number): Promise<void
   if (!isCurrentSessionGeneration(generation)) return
   clearStepUpState()
 
-  if (!(await runSessionTeardownStep(generation, clearAllTokens))) return
+  if (!(await clearSessionCredentials(generation))) return
   if (!(await runSessionTeardownStep(generation, () => clearWidgetToken().catch(() => {})))) return
 
   queryClient.clear()
@@ -213,21 +237,22 @@ async function rotateSessionToken(): Promise<RefreshSessionOutcome> {
     if (response.status === 429) {
       useThrottleStore.getState().show(response.status, await response.json().catch(() => null))
     }
-    return { status: 'unauthorized' }
+    return { status: response.status === 401 ? 'unauthorized' : 'network-error' }
   }
 
   const data = (await response.json()) as RefreshResponse
-  await setToken(data.token)
-  await setRefreshToken(data.refreshToken)
-
   const currentUser = useAuthStore.getState().user
   const tokenUser = getUserFromToken(data.token, currentUser?.name)
-  if (tokenUser) bindStepUpStateToAccount(tokenUser.userId)
-  sessionGeneration += 1
-  useAuthStore.setState({
-    isAuthenticated: true,
-    user: currentUser ?? tokenUser,
-    expiresAt: getExpiresAt(data.token),
+  await withCredentialMutationLock(async () => {
+    await setToken(data.token)
+    await setRefreshToken(data.refreshToken)
+    if (tokenUser) bindStepUpStateToAccount(tokenUser.userId)
+    sessionGeneration += 1
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: currentUser ?? tokenUser,
+      expiresAt: getExpiresAt(data.token),
+    })
   })
   await saveWidgetToken(data.token).catch(() => {})
   resumeOfflineReplay()
