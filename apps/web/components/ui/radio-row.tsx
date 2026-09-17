@@ -122,7 +122,7 @@ export function RadioGroup({ children, ...props }: Readonly<
     const nextItem = enabledItems[nextIndex]
     if (!nextItem) return false
     elementsRef.current.get(nextItem.id)?.focus()
-    handlersRef.current.get(nextItem.id)?.()
+    if (!nextItem.selected) handlersRef.current.get(nextItem.id)?.()
     return true
   }, [getEnabledItems])
   const contextValue = useMemo(() => ({

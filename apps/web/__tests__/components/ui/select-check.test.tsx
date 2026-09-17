@@ -45,6 +45,11 @@ describe('select-check RadioRow group', () => {
     fireEvent.keyDown(first, { key: 'ArrowUp' })
     expect(onChange).toHaveBeenLastCalledWith('last')
     expect(last).toHaveFocus()
+
+    onChange.mockClear()
+    fireEvent.keyDown(last, { key: 'End' })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(last).toHaveFocus()
   })
 
   it('keeps pointer selection unchanged and blocks disabled rows', () => {
