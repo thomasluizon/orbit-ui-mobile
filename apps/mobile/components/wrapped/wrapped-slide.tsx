@@ -48,9 +48,10 @@ interface WrappedSlideProps {
   tokens: Tokens
   shareRef: Ref<View>
   shareError: boolean
+  savedFileName: string | null
 }
 
-export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareError }: Readonly<WrappedSlideProps>) {
+export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareError, savedFileName }: Readonly<WrappedSlideProps>) {
   const { t } = useTranslation()
   const reducedMotion = useReducedMotion()
 
@@ -172,7 +173,7 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
         </View>
       )
     case 'share':
-      return <WrappedShareSlide recap={recap} tokens={tokens} shareRef={shareRef} hasError={shareError} reducedMotion={reducedMotion} />
+      return <WrappedShareSlide recap={recap} tokens={tokens} shareRef={shareRef} hasError={shareError} savedFileName={savedFileName} reducedMotion={reducedMotion} />
   }
 }
 
@@ -352,10 +353,11 @@ interface WrappedShareSlideProps {
   tokens: Tokens
   shareRef: Ref<View>
   hasError: boolean
+  savedFileName: string | null
   reducedMotion: boolean
 }
 
-function WrappedShareSlide({ recap, tokens, shareRef, hasError, reducedMotion }: Readonly<WrappedShareSlideProps>) {
+function WrappedShareSlide({ recap, tokens, shareRef, hasError, savedFileName, reducedMotion }: Readonly<WrappedShareSlideProps>) {
   const { t } = useTranslation()
 
   return (
@@ -379,6 +381,15 @@ function WrappedShareSlide({ recap, tokens, shareRef, hasError, reducedMotion }:
           {t('shareCard.shareError')}
         </Animated.Text>
       ) : null}
+
+      <Animated.Text
+        nativeID="wrapped-motion-part-2"
+        entering={enter(2, reducedMotion)}
+        accessibilityLiveRegion="polite"
+        style={[styles.shareStatus, motionFinalStyle, { color: tokens.fg2 }]}
+      >
+        {!hasError && savedFileName ? t('shareCard.saved', { file: savedFileName }) : ''}
+      </Animated.Text>
 
     </View>
   )

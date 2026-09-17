@@ -1,11 +1,15 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { isDeepStrictEqual } from "node:util"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
+import { UI_REVIEW_SWEEP_CONTRACT, renderUiReviewSweepContract } from "../lib/review-harness.mjs"
 
-import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, root, stage, stageWithConfig, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "compose-prompt.mjs"
 const REPO_PATH = join(root, "compose-prompt", "repo-ui")
+const API_REPO_PATH = join(root, "compose-prompt", "repo-api")
+const LANDING_REPO_PATH = join(root, "compose-prompt", "repo-landing")
 const projectItems = JSON.stringify({ items: [], totalCount: 0 })
 const ticket = (overrides = {}) => ({
   blockedBy: { nodes: [], totalCount: 0 },
@@ -30,11 +34,99 @@ const ticketPlan = (value = ticket(), comments = []) => [
 ]
 const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
+const reviewSweepContract = renderUiReviewSweepContract()
+const expectedReviewSweepContract = {
+  sourceFamilies: [
+    {
+      instruction: "Run `npx --yes ui-skills get <owner>/<name>` for each skill and verify a successful, non-empty fetch",
+      skills: [
+        "anthropics/frontend-design",
+        "jakubkrehel/make-interfaces-feel-better",
+        "emilkowalski/animation-vocabulary",
+        "raphaelsalaja/mastering-animate-presence",
+        "iart-ai/accessible-animation",
+        "ibelick/fixing-accessibility",
+        "wshobson/wcag-audit-patterns",
+      ],
+    },
+    {
+      instruction: "Use the GitHub Trees commands below and read every blob under each `skills/<name>/` directory",
+      skills: [
+        "better-ui",
+        "better-accessibility",
+        "better-layout",
+        "better-writing",
+        "better-typography",
+        "better-colors",
+        "interface-review",
+        "better-interface",
+      ],
+    },
+    {
+      instruction: "Fetch the Vercel guideline text from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`",
+      skills: [],
+    },
+  ],
+  lanes: [
+    {
+      name: "execution",
+      applicability: "mandatory",
+      skills: ["anthropics/frontend-design", "jakubkrehel/better-ui", "jakubkrehel/make-interfaces-feel-better"],
+    },
+    {
+      name: "motion",
+      applicability: "when the change animates",
+      skills: ["emilkowalski/animation-vocabulary", "raphaelsalaja/mastering-animate-presence", "iart-ai/accessible-animation"],
+    },
+    {
+      name: "gates",
+      applicability: "mandatory",
+      skills: ["the Vercel guideline text", "ibelick/fixing-accessibility", "wshobson/wcag-audit-patterns", "jakubkrehel/better-accessibility"],
+    },
+    {
+      name: "the change",
+      applicability: "mandatory",
+      skills: [
+        "jakubkrehel/interface-review",
+        "jakubkrehel/better-interface in full mode",
+        "jakubkrehel/better-accessibility",
+        "jakubkrehel/better-layout",
+        "jakubkrehel/better-writing",
+        "jakubkrehel/better-typography",
+        "jakubkrehel/better-colors",
+        "jakubkrehel/better-ui",
+      ],
+    },
+  ],
+  closeGate: ["design-reviewer on the diff", "completeness-critic against the surface inventory"],
+}
+const requiredSourceEvidence = [
+  "npx --yes ui-skills get <owner>/<name>",
+  "repos/jakubkrehel/skills/git/trees/main?recursive=1",
+  "https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md",
+]
+const requiredLaneEvidence = ["execution", "motion", "gates", "the change"]
+const carriesCompleteReviewSweep = (text) =>
+  text.includes(reviewSweepContract) &&
+  UI_REVIEW_SWEEP_CONTRACT.sourceFamilies.length === 3 &&
+  UI_REVIEW_SWEEP_CONTRACT.lanes.length === 4 &&
+  UI_REVIEW_SWEEP_CONTRACT.closeGate.length === 2 &&
+  requiredSourceEvidence.every((evidence) => reviewSweepContract.includes(evidence)) &&
+  requiredLaneEvidence.every((lane) => UI_REVIEW_SWEEP_CONTRACT.lanes.some(({ name }) => name === lane)) &&
+  ["design-reviewer", "completeness-critic"].every((agent) => reviewSweepContract.includes(agent))
 
 export const cases = () => {
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
+  T(
+    `${TOOL}: the review sweep contract exactly matches the playbook inventory`,
+    isDeepStrictEqual(UI_REVIEW_SWEEP_CONTRACT, expectedReviewSweepContract),
+    JSON.stringify({ expected: expectedReviewSweepContract, actual: UI_REVIEW_SWEEP_CONTRACT }, null, 2),
+  )
   const real = realOrchestratorConfig()
-  const staged = stageWithConfig("compose-prompt", TOOL, { ...real, repos: { ui: REPO_PATH } })
+  const staged = stageWithConfig("compose-prompt", TOOL, {
+    ...real,
+    repos: { ui: REPO_PATH, api: API_REPO_PATH, landing: LANDING_REPO_PATH },
+  })
   stage("staged/compose-prompt/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-215": { number: 221 } } }))
   const options = (plan) => ({ path: staged.path, env: plan ? orcaEnv(plan) : undefined })
   const out = join(root, "compose-prompt", "orb-215.md")
@@ -122,6 +214,66 @@ export const cases = () => {
       !/gh pr checks|must be GREEN before you report|## Cloud finishing contract/.test(prompt),
     prompt,
   )
+  T(
+    `${TOOL}: a main-based UI order carries no redesign review sweep`,
+    !prompt.includes("## UI review sweep"),
+    prompt,
+  )
+
+  const redesignOut = join(root, "compose-prompt", "ui-redesign.md")
+  check(
+    TOOL,
+    "composes the redesign UI review sweep",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", redesignOut, "--base", "redesign/main"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const redesignPrompt = composed(redesignOut)
+  T(
+    `${TOOL}: a redesign UI order requires the complete review inventory, in-scope fixes, and the PR block`,
+    redesignPrompt.includes("## UI review sweep") &&
+      /\.claude\/playbooks\/redesign-screen\.md/.test(redesignPrompt) &&
+      /gh api "repos\/jakubkrehel\/skills\/git\/trees\/main\?recursive=1" --jq \.truncated/.test(redesignPrompt) &&
+      /\.tree\[\]\|select\(\.type=="blob" and \(\.path\|startswith\("skills\/<name>\/"\)\)\)\|\.path/.test(redesignPrompt) &&
+      ["interface-review", "better-interface", "better-accessibility", "better-layout", "better-writing", "better-typography", "better-colors", "better-ui"]
+        .every((directory) => redesignPrompt.includes(`\`${directory}\``)) &&
+      /Read every printed path from `https:\/\/raw\.githubusercontent\.com\/jakubkrehel\/skills\/main\/<path>`/.test(redesignPrompt) &&
+      /Fix every in-scope finding in this pull request/.test(redesignPrompt) &&
+      /## Review harness/.test(redesignPrompt) &&
+      /- interface-review: <what it found, or "no findings">/.test(redesignPrompt) &&
+      /- better-interface \(full mode\): <what it found, or "no findings">/.test(redesignPrompt) &&
+      /A line claiming a review you did not run is forbidden/.test(redesignPrompt),
+    redesignPrompt,
+  )
+  T(
+    `${TOOL}: a redesign UI order carries every source family, lane, and close-gate agent`,
+    carriesCompleteReviewSweep(redesignPrompt),
+    redesignPrompt,
+  )
+  T(
+    `${TOOL}: the redesign UI order exempts a diff with no path in the gate's exact scope`,
+    /\^apps\\\/\(\?:web\|mobile\)\\\/\(\?:app\|components\|hooks\|stores\|lib\)\\\//.test(redesignPrompt) &&
+      /If no changed path matches, skip this sweep and omit the Review harness block/.test(redesignPrompt),
+    redesignPrompt,
+  )
+
+  for (const [repository, repositoryPath] of [["api", API_REPO_PATH], ["landing", LANDING_REPO_PATH]]) {
+    const repositoryOut = join(root, "compose-prompt", `${repository}-redesign.md`)
+    check(
+      TOOL,
+      `composes a redesign order for ${repository}`,
+      ["--issue", "ORB-215", "--repo", repository, "--out", repositoryOut, "--base", "redesign/main"],
+      { status: 0 },
+      options(ticketPlan(ticket({ labels: [{ name: `repo:${repository}` }] }))),
+    )
+    const repositoryPrompt = composed(repositoryOut)
+    T(
+      `${TOOL}: a redesign ${repository} order carries no UI review sweep`,
+      !repositoryPrompt.includes("## UI review sweep") && repositoryPrompt.includes(`Repository \`${repository}\` at \`${repositoryPath}\``),
+      repositoryPrompt,
+    )
+  }
+
   const cloudOut = join(root, "compose-prompt", "cloud.md")
   check(
     TOOL,
@@ -131,6 +283,26 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const cloudPrompt = composed(cloudOut)
+  T(
+    `${TOOL}: Cloud leaves the owed redesign sweep to local post-materialization delivery`,
+    /The Cloud container must not run or claim this sweep/.test(cloudPrompt) &&
+      /orchestrator runs it locally after materialization and before opening the pull request/.test(cloudPrompt) &&
+      /## Review harness/.test(cloudPrompt) &&
+      /- interface-review: <what it found, or "no findings">/.test(cloudPrompt) &&
+      /- better-interface \(full mode\): <what it found, or "no findings">/.test(cloudPrompt),
+    cloudPrompt,
+  )
+  T(
+    `${TOOL}: Cloud delivery carries the same complete review sweep as local delivery`,
+    carriesCompleteReviewSweep(cloudPrompt),
+    cloudPrompt,
+  )
+  const orchestrateSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
+  T(
+    `${TOOL}: the Cloud materialization skill mirrors the canonical review sweep contract`,
+    orchestrateSkill.includes(reviewSweepContract),
+    orchestrateSkill,
+  )
   for (const [mode, order, heading] of [
     ["local", prompt, "## Finishing contract"],
     ["Cloud", cloudPrompt, "## Cloud finishing contract"],

@@ -40,6 +40,15 @@ export const cases = () => {
       !/A failed ticket is recorded and skipped/.test(orchestrateContract),
     "the queue contract can still abandon final-head readiness debt",
   )
+  T(
+    `${TOOL}: Cloud UI delivery runs the owed sweep locally before opening the pull request`,
+    /after materialization and\s+before opening or updating the pull request/.test(orchestrateContract) &&
+      /\.claude\/playbooks\/redesign-screen\.md/.test(orchestrateContract) &&
+      /## Review harness/.test(orchestrateContract) &&
+      /- interface-review: <what it found, or "no findings">/.test(orchestrateContract) &&
+      /- better-interface \(full mode\): <what it found, or "no findings">/.test(orchestrateContract),
+    "the Cloud handoff can still reach pull request delivery without the locally produced review evidence",
+  )
   T(`${TOOL}: an ordinary ticket defers on nothing and warns about nothing`, reasons("## Scope\n\n- Fix the store\n\n## Acceptance\n\n- It works").length === 0 && warnings("## Scope\n\n- Fix the store").length === 0)
 
   T(`${TOOL}: a body that says NOT REPRODUCED defers`, reasons("## Problem\n\nNOT REPRODUCED on any device yet.")[0] === "NOT_REPRODUCED")

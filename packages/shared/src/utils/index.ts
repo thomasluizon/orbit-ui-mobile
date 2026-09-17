@@ -640,6 +640,8 @@ export {
   buildProtectedDayLabels,
   deriveProgressViewState,
   filterProgressGoals,
+  formatStreakDate,
+  formatStreakRepairDates,
   getProgressGoalLabelKey,
   deriveStreakRepairState,
   getStreakRepairErrorMessageKey,
