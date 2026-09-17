@@ -1,10 +1,13 @@
 import React, { useState } from 'react'
 import { Pressable } from 'react-native'
 import { act, create } from 'react-test-renderer'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-group'
 import { RadioRow } from '@/components/ui/select-check'
-import { __resetTestHostConfig } from '../../../test-mocks/react-native'
+import {
+  __resetTestHostConfig,
+  __setFocusImpl,
+} from '../../../test-mocks/react-native'
 
 function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
   const [value, setValue] = useState('first')
@@ -23,9 +26,94 @@ function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>
   )
 }
 
+function FocusEntryRows({
+  initialValue = 'second',
+  onChange,
+}: Readonly<{
+  initialValue?: string | null
+  onChange: (value: string) => void
+}>) {
+  const [value, setValue] = useState<string | null>(initialValue)
+  const select = (nextValue: string) => {
+    setValue(nextValue)
+    onChange(nextValue)
+  }
+
+  return (
+    <RadioGroup accessibilityLabel="Entry">
+      <RadioRow index={0} label="First" selected={value === 'first'} onPress={() => select('first')} />
+      <RadioRow index={1} label="Second" selected={value === 'second'} onPress={() => select('second')} />
+      <RadioRow index={2} label="Third" selected={value === 'third'} onPress={() => select('third')} />
+    </RadioGroup>
+  )
+}
+
+function renderEntryRows(onChange: (value: string) => void, initialValue?: string | null) {
+  let tree: any
+  void act(() => {
+    tree = create(<FocusEntryRows initialValue={initialValue} onChange={onChange} />)
+  })
+  return tree.root.findAll(
+    (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+  )
+}
+
 describe('select-check RadioRow group', () => {
   beforeEach(() => {
     __resetTestHostConfig()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('redirects initial entry to the checked row without changing selection', () => {
+    const onChange = vi.fn()
+    const focusedLabels: unknown[] = []
+    __setFocusImpl((props) => focusedLabels.push(props.accessibilityLabel))
+    const [first] = renderEntryRows(onChange)
+
+    void act(() => first.props.onFocus())
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(focusedLabels).toEqual(['Second'])
+  })
+
+  it('selects a new row when focus moves inside the group', () => {
+    const onChange = vi.fn()
+    const [first, second] = renderEntryRows(onChange)
+
+    void act(() => second.props.onFocus())
+    void act(() => first.props.onFocus())
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('first')
+  })
+
+  it('treats focus as entry again after focus leaves the group', () => {
+    vi.useFakeTimers()
+    const onChange = vi.fn()
+    const [first, second] = renderEntryRows(onChange)
+
+    void act(() => second.props.onFocus())
+    void act(() => second.props.onBlur())
+    void act(() => {
+      vi.runAllTimers()
+    })
+    void act(() => first.props.onFocus())
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('leaves initial focus in place when no row is checked', () => {
+    const onChange = vi.fn()
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const [first] = renderEntryRows(onChange, null)
+
+    void act(() => first.props.onFocus())
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(focus).not.toHaveBeenCalled()
   })
 
   it('routes native focus around enabled rows, wraps, and selects the focused row', () => {
@@ -54,6 +142,7 @@ describe('select-check RadioRow group', () => {
     expect(options.every((option: any) => option.props.nextFocusForward === undefined)).toBe(true)
     expect(options.every((option: any) => option.props.onKeyDown === undefined)).toBe(true)
 
+    void act(() => first.props.onFocus())
     void act(() => third.props.onFocus())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
   })

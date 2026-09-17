@@ -1,9 +1,10 @@
 import React from 'react'
 import { Pressable, TextInput } from 'react-native'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import {
   __resetTestHostConfig,
+  __setFocusImpl,
   __setScrollToImpl,
 } from '../../../test-mocks/react-native'
 
@@ -83,6 +84,10 @@ describe('TimeField', () => {
   beforeEach(() => {
     mockUses24HourClock = true
     __resetTestHostConfig()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders the display value in the locale 24-hour format when uses24HourClock is true', async () => {
@@ -234,7 +239,29 @@ await Promise.resolve()
     expect(clearButton).toBeUndefined()
   })
 
-  it('selects a time option when native focus reaches it', async () => {
+  it('redirects initial column entry to its checked time without changing selection', async () => {
+    const focusedLabels: unknown[] = []
+    __setFocusImpl((props) => focusedLabels.push(props.accessibilityLabel))
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />,
+      )
+    })
+    await openPicker(tree)
+
+    TestRenderer.act(() => {
+      radioOption(tree, 'common.hours', '00').props.onFocus()
+    })
+
+    expect(radioOption(tree, 'common.hours', '23').props.accessibilityState.checked).toBe(true)
+    expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(false)
+    expect(focusedLabels).toEqual(['23'])
+  })
+
+  it('selects a time option when native focus moves inside its column', async () => {
     let tree: any
 
     await TestRenderer.act(async () => {
@@ -245,12 +272,37 @@ await Promise.resolve()
     })
     await openPicker(tree)
     TestRenderer.act(() => {
+      radioOption(tree, 'common.hours', '23').props.onFocus()
       radioOption(tree, 'common.hours', '00').props.onFocus()
     })
     expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(true)
     TestRenderer.act(() => {
+      radioOption(tree, 'common.minutes', '59').props.onFocus()
       radioOption(tree, 'common.minutes', '00').props.onFocus()
     })
     expect(radioOption(tree, 'common.minutes', '00').props.accessibilityState.checked).toBe(true)
+  })
+
+  it('treats a time column re-entry as entry instead of movement', async () => {
+    vi.useFakeTimers()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />,
+      )
+    })
+    await openPicker(tree)
+    const selectedHour = radioOption(tree, 'common.hours', '23')
+    TestRenderer.act(() => {
+      selectedHour.props.onFocus()
+      selectedHour.props.onBlur()
+      vi.runAllTimers()
+      radioOption(tree, 'common.hours', '00').props.onFocus()
+    })
+
+    expect(radioOption(tree, 'common.hours', '23').props.accessibilityState.checked).toBe(true)
+    expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(false)
   })
 })
