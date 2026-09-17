@@ -54,7 +54,8 @@ function IntervalCadence({
   const count = days ? schedule.intervalWeeks : (schedule.frequencyQuantity ?? 1)
   const countPrefix = count > 1 ? <><strong className="font-medium text-[var(--fg-1)]">{count}</strong>{' '}</> : null
   const daysSuffix = days ? t('cadence.onDays', { days }) : null
-  return <p className="text-[17px] leading-[1.4] text-[var(--fg-2)]">{t('cadence.every')}{countPrefix}{t(`cadence.unit.${unit}`, { count })}{daysSuffix}<CadenceTime time={schedule.dueTime} at={t('cadence.at')} /></p>
+  const unitCount = count === 1 ? 'one' : 'other'
+  return <p className="text-[17px] leading-[1.4] text-[var(--fg-2)]">{t('cadence.every')}{countPrefix}{t(`cadence.unit.${unit}.${unitCount}`)}{daysSuffix}<CadenceTime time={schedule.dueTime} at={t('cadence.at')} /></p>
 }
 
 function CadenceSentence({ schedule }: Readonly<{ schedule: OnboardingSchedule }>) {
@@ -119,7 +120,7 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
           <div className="flex flex-wrap gap-2">{DAYS.map((day) => <Chip key={day} active={schedule.days.includes(day)} ariaLabel={t(`when.daysLong.${day.toLowerCase()}`)} onClick={() => props.onToggleDay(day)}>{t(`when.days.${day.toLowerCase()}`)}</Chip>)}</div>
         </div>
       ) : null}
-      {mode === 'interval' ? <><SegmentedControl label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={`${t('when.cadence.every')}${(schedule.frequencyQuantity ?? 1) > 1 ? `${schedule.frequencyQuantity} ` : ''}${t(`when.cadence.unit.${(schedule.frequencyUnit ?? 'Week').toLowerCase()}`, { count: schedule.frequencyQuantity ?? 1 })}`} onChange={props.onQuantityChange} /></> : null}
+      {mode === 'interval' ? <><SegmentedControl label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={`${t('when.cadence.every')}${(schedule.frequencyQuantity ?? 1) > 1 ? `${schedule.frequencyQuantity} ` : ''}${t(`when.cadence.unit.${(schedule.frequencyUnit ?? 'Week').toLowerCase()}.${(schedule.frequencyQuantity ?? 1) === 1 ? 'one' : 'other'}`)}`} onChange={props.onQuantityChange} /></> : null}
       {mode === 'fixed' || mode === 'flexible' ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('when.intervalLess')} moreLabel={t('when.intervalMore')} description={t('when.interval', { count: schedule.intervalWeeks })} onChange={props.onIntervalWeeksChange} /> : null}
       <TimeField label={t('when.timeLabel')} value={schedule.dueTime as Time24 | ''} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('when.timeHint')} />
     </div>

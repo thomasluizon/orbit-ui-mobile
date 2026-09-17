@@ -1836,10 +1836,10 @@
           "every": "a cada ",
           "onDays": ", toda {days}",
           "unit": {
-            "day": "{count, plural, one {dia} other {dias}}",
-            "week": "{count, plural, one {semana} other {semanas}}",
-            "month": "{count, plural, one {mês} other {meses}}",
-            "year": "{count, plural, one {ano} other {anos}}"
+            "day": { "one": "dia", "other": "dias" },
+            "week": { "one": "semana", "other": "semanas" },
+            "month": { "one": "mês", "other": "meses" },
+            "year": { "one": "ano", "other": "anos" }
           },
           "at": " às ",
           "flexAt": ", às ",
