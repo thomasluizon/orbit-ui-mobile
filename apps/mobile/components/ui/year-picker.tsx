@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   yearCell: {
     width: `${100 / COLUMNS}%`,
     height: ROW_HEIGHT - 6,
-    marginBottom: 6,
+    marginBottom: 4,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',

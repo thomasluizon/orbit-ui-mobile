@@ -29,7 +29,7 @@ export function HighlightText({ text, query, style }: Readonly<HighlightTextProp
               backgroundColor: tintFromPrimary(tokens, 0.18),
               color: tokens.fg1,
               borderRadius: 2,
-              paddingHorizontal: 1,
+              paddingHorizontal: 0,
             }}
           >
             {seg.text}

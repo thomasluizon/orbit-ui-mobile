@@ -63,9 +63,9 @@ export function DescriptionViewer({
             ]}
           >
             {copied ? (
-              <Check size={18} color={tokens.statusDone} strokeWidth={1.8} />
+              <Check size={20} color={tokens.statusDone} strokeWidth={1.8} />
             ) : (
-              <Copy size={18} color={tokens.fg2} strokeWidth={1.8} />
+              <Copy size={20} color={tokens.fg2} strokeWidth={1.8} />
             )}
           </Pressable>
         </View>
@@ -87,13 +87,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+      paddingHorizontal: 16,
     paddingBottom: 32,
   },
   copyRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    paddingBottom: 10,
+      paddingBottom: 8,
   },
   copyButton: {
     width: 40,
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     borderRadius: 18,
     borderWidth: 1,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
   },
 });

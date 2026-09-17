@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { zLayers } from '@orbit/shared/theme'
 import { useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
@@ -129,9 +130,9 @@ function createStyles(tokens: AppTokensV2) {
       top: 0,
       left: 0,
       right: 0,
-      zIndex: 9998,
-      paddingTop: 50,
-      paddingHorizontal: 10,
+      zIndex: zLayers.toast,
+      paddingTop: 48,
+      paddingHorizontal: 8,
     },
     banner: {
       flexDirection: 'row',
@@ -142,8 +143,8 @@ function createStyles(tokens: AppTokensV2) {
       borderWidth: 1,
       borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
       backgroundColor: mixHexOver(tokens.bg, tokens.statusOverdue, 0.1),
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
       ...shadowsV2.shadow2,
     },
     text: {

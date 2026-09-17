@@ -90,7 +90,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   function renderFooter() {
     if (!hasProAccess) {
       return (
-        <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
+        <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 8 }}>
           <PillButton
             onClick={() =>
               closeSheet(() => {
@@ -109,7 +109,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     }
     if (error) {
       return (
-        <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
+        <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 8 }}>
           {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <PillButton  onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
@@ -121,7 +121,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       )
     }
     return (
-      <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
+      <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 8 }}>
         {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton
 
@@ -152,7 +152,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     }
     if (isLoading) {
       return (
-        <div className="flex flex-col" style={{ gap: 14 }}>
+        <div className="flex flex-col" style={{ gap: 12 }}>
           <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
             {t('habits.reschedule.loading')}
           </p>

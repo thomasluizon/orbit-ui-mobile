@@ -27,7 +27,7 @@ export function YearPicker({
     <div className="thin-scrollbar overflow-y-auto" style={{ maxHeight: 240 }}>
       <div
         className="grid"
-        style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, padding: 4 }}
+        style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, padding: 4 }}
       >
         {years.map((year) => {
           const isSelected = year === selectedYear
@@ -43,7 +43,7 @@ export function YearPicker({
                 (isSelected ? '' : 'hover:bg-[var(--bg-elev)]')
               }
               style={{
-                padding: '10px 0',
+                padding: '8px 0',
                 fontFamily: 'var(--font-mono)',
                 fontSize: 14,
                 fontWeight: isSelected ? 700 : 500,

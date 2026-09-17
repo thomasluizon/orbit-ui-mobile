@@ -208,10 +208,10 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: 22,
+      paddingHorizontal: 24,
       paddingTop: 4,
-      paddingBottom: 14,
-      gap: 14,
+      paddingBottom: 12,
+      gap: 12,
     },
     headerRow: {
       flexDirection: 'row',
@@ -234,7 +234,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderColor: tokens.hairline,
       borderRadius: 999,
       paddingHorizontal: 8,
-      paddingVertical: 1,
+      paddingVertical: 0,
       overflow: 'hidden',
     },
     bodyText: {
@@ -244,7 +244,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg2,
     },
     suggestionBlock: {
-      gap: 14,
+      gap: 12,
     },
     loadingCard: {
       borderRadius: 18,
@@ -257,7 +257,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: 'center',
       gap: 12,
       borderRadius: 18,
-      paddingVertical: 14,
+      paddingVertical: 12,
       paddingHorizontal: 16,
       backgroundColor: tintFromPrimary(tokens, 0.1),
       borderWidth: 1,
@@ -277,13 +277,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'GeistMono_500Medium',
       fontSize: 16,
       color: tokens.fg1,
-      marginTop: 2,
+      marginTop: 4,
     },
     scheduleSub: {
       fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
-      marginTop: 2,
+      marginTop: 4,
     },
     rationale: {
       fontFamily: 'Geist_400Regular',
@@ -298,12 +298,12 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg3,
     },
     actions: {
-      gap: 10,
+      gap: 8,
     },
     actionsFooter: {
-      paddingHorizontal: 22,
-      paddingTop: 6,
-      paddingBottom: 30,
+      paddingHorizontal: 24,
+      paddingTop: 4,
+      paddingBottom: 32,
     },
   })
 }
