@@ -170,7 +170,6 @@ export function PlanSelection({
           <ErrorState
             message={t('upgrade.plans.error')}
             action={
-              /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
               <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>
             }
           />

@@ -8,11 +8,12 @@ import {
   getCalendarEntryMutationKey,
   useCalendarEntryMutationLock,
 } from '@orbit/shared/hooks'
+import en from '@orbit/shared/i18n/en.json'
 
 const translations: Record<string, string> = {
   'calendar.dayDetail.nothingDue': 'nothing due',
   'calendar.noHabitsScheduled': 'No habit was scheduled on this day.',
-  'calendar.goToDay': 'Open this day on Today',
+  'calendar.goToDay': en.calendar.goToDay,
   'calendar.showRecurring': 'Show recurring habits',
   'calendar.status.completed': 'done',
   'calendar.status.missed': 'not logged',
@@ -668,7 +669,7 @@ describe('CalendarDayDetail', () => {
 
   it('leaves for Today through the panel row with the selected date', () => {
     renderDetail()
-    expect(screen.getByRole('link', { name: 'Open this day on Today' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Open day' })).toHaveAttribute(
       'href',
       '/?date=2025-06-15',
     )
@@ -677,7 +678,7 @@ describe('CalendarDayDetail', () => {
   it('keeps the route row outside the desktop scroll region', () => {
     const { container } = renderDetail({ entries: [makeEntry()], fitViewport: true })
     const scroller = container.querySelector('[data-calendar-day-scroll]') as HTMLElement
-    const routeRow = screen.getByRole('link', { name: 'Open this day on Today' })
+    const routeRow = screen.getByRole('link', { name: 'Open day' })
     expect(scroller).not.toBeNull()
     expect(scroller).not.toContainElement(routeRow)
   })

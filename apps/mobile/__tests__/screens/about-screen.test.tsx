@@ -93,10 +93,10 @@ describe('AboutScreen', () => {
         typeof node.props.accessibilityLabel === 'string',
     )
     expect(destinations.map((node) => node.props.accessibilityLabel)).toEqual([
-      'onboarding.featureGuide.openButton',
+      'about.featureGuide',
       'profile.support.title',
-      'terms.title',
-      'privacy.title',
+      'about.terms',
+      'about.privacy',
     ])
 
     TestRenderer.act(() => {

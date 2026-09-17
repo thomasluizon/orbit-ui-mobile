@@ -116,7 +116,6 @@ export function HabitEmojiSelector({
   return (
     <>
       <View style={styles.emojiField}>
-        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
         <Pressable
           style={({ pressed }) => [
             styles.emojiWell,
@@ -179,7 +178,6 @@ export function HabitEmojiSelector({
                 style={{ flex: 1 }}
               />
               {query ? (
-                /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.form.emojiClearSearch")}

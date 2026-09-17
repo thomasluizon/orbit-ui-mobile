@@ -35,20 +35,20 @@
       "showGeneralDesc": "Display your general habits below today's scheduled habits"
     },
     "weekStartDay": {
-      "title": "Week Starts On",
+      "title": "First day",
       "description": "Choose which day your week begins. This affects all calendars and day pickers.",
       "monday": "Monday",
       "sunday": "Sunday"
     },
     "theme": {
-      "switchToLight": "Switch to light mode",
-      "switchToDark": "Switch to dark mode"
+      "switchToLight": "Light mode",
+      "switchToDark": "Dark mode"
     }
   },
   "notFoundPage": {
     "title": "This page does not exist",
     "description": "The address may have changed, or the item was deleted. Your day is still where it was.",
-    "action": "Go to Today"
+    "action": "Open Today"
   },
   "updatePrompt": {
     "eyebrow": "Update available",
@@ -64,8 +64,8 @@
     "bellWithCount": "Alerts, {count} unread",
     "empty": "Nothing to see here",
     "loadError": "Couldn't load notifications",
-    "markAllRead": "Mark all read",
-    "markAsRead": "Mark as read",
+    "markAllRead": "Mark all",
+    "markAsRead": "Mark read",
     "deleteAll": "Clear all",
     "deleteAllConfirmTitle": "Delete all alerts?",
     "deleteAllConfirmDescription": "All alerts leave the list. There is no way to undo this.",
@@ -84,7 +84,7 @@
     "read": "read",
     "unread": "unread",
     "habit": "Habit",
-    "openIn": "Open in {target}"
+    "openIn": "Open {target}"
   },
   "persistentReminder": {
     "label": "Persistent reminder",
@@ -105,7 +105,7 @@
     "add": "Add",
     "back": "Go back",
     "backToProfile": "Back to profile",
-    "backToTop": "Back to top",
+    "backToTop": "To top",
     "skipToContent": "Skip to main content",
     "goHome": "Go home",
     "cancel": "Cancel",
@@ -154,7 +154,7 @@
     "locked": "Locked",
     "required": "is required",
     "selectDate": "Select date",
-    "selectedDate": "Selected date: {date}",
+    "selectedDate": "Date {date}",
     "selectTime": "Select time",
     "selectedTime": "Selected time: {time}",
     "hours": "Hours",
@@ -341,9 +341,9 @@
     "codeSentTo": "We sent 6 digits to {email}.",
     "verificationCode": "6 digit code",
     "verify": "Sign in",
-    "resendCode": "Send another code",
+    "resendCode": "Resend code",
     "resendIn": "You can ask for another code in {time}",
-    "changeEmail": "Use another email",
+    "changeEmail": "Change email",
     "minutesShort": "{minutes} min left",
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or",
@@ -395,7 +395,7 @@
     "accountBack": {
       "title": "Your account is back",
       "body": "The deletion request was cancelled when you signed in.",
-      "action": "See my day"
+      "action": "My day"
     }
   },
   "habits": {
@@ -422,7 +422,7 @@
       "searching": "Searching",
       "emptyTitle": "Nothing found for <queryText>“{query}”</queryText>",
       "emptyBody": "No habit with that name, that description or that tag.",
-      "create": "Create with that name",
+      "create": "Create habit",
       "count": "{count, plural, one {# habit} other {# habits}}",
       "count_one": "{count} habit",
       "count_other": "{count} habits",
@@ -490,13 +490,13 @@
       "loading": "Finding a realistic new plan…",
       "error": "Couldn't suggest a new plan.",
       "retry": "Try again",
-      "accept": "Use this plan",
+      "accept": "Use plan",
       "dismiss": "Not now",
       "proposedScheduleLabel": "Suggested schedule",
       "freePrompt": "Pro turns a missed habit into a realistic plan to get back on track.",
       "upgrade": "Upgrade"
     },
-    "backToHabits": "Back to all habits",
+    "backToHabits": "All habits",
     "completed": "completed",
     "drillProgress": "{done} of {total} done",
     "skipConfirmTitle": "Skip Habit",
@@ -621,10 +621,10 @@
       "emojiSuggest": "Suggest an emoji",
       "emojiSuggesting": "Finding an emoji…",
       "emojiDescription": "Choose a visual cue for this habit",
-      "emojiOpenPicker": "Choose habit emoji",
+      "emojiOpenPicker": "Choose emoji",
       "emojiPickerTitle": "Choose an emoji",
       "emojiSearchPlaceholder": "Search emojis...",
-      "emojiClearSearch": "Clear emoji search",
+      "emojiClearSearch": "Clear search",
       "emojiCategories": "Emoji categories",
       "emojiPickerEmpty": "No emojis found",
       "emojiRemove": "Remove emoji",
@@ -723,10 +723,10 @@
       "templates": "Templates",
       "noTemplates": "No saved templates",
       "noTemplatesDescription": "Save a list to reuse it on another habit.",
-      "saveCurrentList": "Save current list",
+      "saveCurrentList": "Save list",
       "saveCurrentListDisabled": "Add a checklist item first.",
       "templateItemCount": "{count, plural, one {# item} other {# items}}",
-      "saveAsTemplate": "Save as template",
+      "saveAsTemplate": "Save template",
       "templateNamePlaceholder": "e.g. Weekly groceries",
       "saveTemplateError": "Couldn't save template. Please try again.",
       "deleteTemplateError": "Couldn't delete template. Please try again.",
@@ -734,15 +734,15 @@
       "clearChecklist": "Clear all",
       "duplicateChecklistItem": "Duplicate item",
       "removeChecklistItem": "Remove item",
-      "moveChecklistItemUp": "Move item up",
-      "moveChecklistItemDown": "Move item down",
+      "moveChecklistItemUp": "Move up",
+      "moveChecklistItemDown": "Move down",
       "checklistItemLabel": "Item {n}",
       "checklistItemLimit": "You can add up to 50 checklist items",
       "checklistItemTooLong": "Checklist items must be 500 characters or fewer",
       "removeEndDate": "Remove end date",
       "removeReminder": "Remove reminder",
       "reminderLastRequired": "The last reminder stays. For none, turn reminders off.",
-      "removeScheduledReminder": "Remove scheduled reminder",
+      "removeScheduledReminder": "Remove reminder",
       "removeSubHabit": "Remove sub-habit",
       "editTag": "Edit tag",
       "deleteTag": "Delete tag",
@@ -818,7 +818,7 @@
       "proGate": "Pro",
       "slipAlert": "Slip alert",
       "slipAlertDescription": "A heads-up when this habit starts to slip.",
-      "rescheduleAccept": "Use this plan",
+      "rescheduleAccept": "Use plan",
       "rescheduleLoading": "Finding a realistic plan...",
       "rescheduleError": "Astra could not suggest a plan.",
       "updateError": "We could not save this change. Try again.",
@@ -925,7 +925,7 @@
       "action": "See Pro"
     },
     "noHabitsScheduled": "No habit was scheduled on this day.",
-    "goToDay": "Open this day on Today",
+    "goToDay": "Open day",
     "goToCurrentMonth": "Go to current month",
     "goToCurrentWeek": "Go to current week",
     "view": {
@@ -972,7 +972,7 @@
     "importDone": "Import complete",
     "importedCount": "{count} event imported as a habit | {count} events imported as habits",
     "importPartialFailure": "{count} event could not be imported | {count} events could not be imported",
-    "goToHabits": "Go to Habits",
+    "goToHabits": "Open habits",
     "errorTitle": "Something went wrong",
     "fetchError": "Could not fetch calendar events. Please try again.",
     "importError": "Could not import events. Please try again.",
@@ -1281,9 +1281,9 @@
     "settingsRows": {
       "editName": "Edit name: {name}, {email}",
       "timezone": "Timezone",
-      "timezoneValue": "Timezone: {timeZone}",
+      "timezoneValue": "Timezone {timeZone}",
       "dailyAllowance": "Daily Astra allowance",
-      "apiKeysMcp": "API keys and MCP",
+      "apiKeysMcp": "API keys",
       "reminders": "Habit reminders",
       "remindersNote": "Habit reminders and slip alerts are set on each habit.",
       "currentDevice": "This device",
@@ -1350,11 +1350,11 @@
       "description": "Select your preferred language"
     },
     "aiSummary": {
-      "title": "Daily summary from Astra",
+      "title": "Daily summary",
       "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
     },
     "proactiveAstra": {
-      "title": "Astra tells you when something slips",
+      "title": "Astra alerts",
       "description": "Let Astra reach out with a personalized nudge when you fall behind, even if you forget to open the app."
     },
     "marketingEmails": {
@@ -1362,7 +1362,7 @@
       "description": "Get occasional emails about new Orbit features and improvements. No spam, unsubscribe anytime.",
       "question": "May we email you about the product?",
       "questionDescription": "What is new and what changed, once a month at most.",
-      "accept": "Yes, email me",
+      "accept": "Email me",
       "decline": "No email"
     },
     "support": {
@@ -1783,7 +1783,7 @@
         "habitSummary": "{count} habits ready to go",
         "habitSummaryOne": "1 habit ready to go",
         "cta": "Create account & save",
-        "haveAccount": "I already have an account"
+        "haveAccount": "Sign in"
       },
       "createHabit": {
         "title": "Create your first habit",
@@ -1793,7 +1793,7 @@
         "create": "Create habit",
         "creating": "Creating...",
         "success": "Habit created",
-        "useForm": "Use a form",
+        "useForm": "Use form",
         "starters": "Or try one",
         "frequency": {
           "daily": "Daily",
@@ -1810,7 +1810,7 @@
       "complete": {
         "title": "You're all set",
         "subtitle": "Everything is real. Your habit and progress are already saved.",
-        "start": "Start using Orbit",
+        "start": "Open Orbit",
         "recap": {
           "habit": "Habit created"
         },
@@ -1979,7 +1979,7 @@
         "bellTitle": "Notification Bell",
         "bellDesc": "Access your notifications from the bell icon on the habits page. A badge shows your unread count so you never miss a reminder.",
         "managingTitle": "Managing Notifications",
-        "managingDesc": "Mark notifications as read, or delete them individually. Use 'Mark all read' or 'Delete all' for bulk actions. Notifications are created when habit reminders fire.",
+        "managingDesc": "Mark notifications as read, or delete them individually. Use 'Mark all' or 'Clear all' for bulk actions. Notifications are created when habit reminders fire.",
         "configuringRemindersTitle": "Configuring Reminders",
         "configuringRemindersDesc": "Set reminders in the habit edit form. Choose a time before the habit's due time -- at the due time, or minutes, hours, or up to 1 day before. You can add multiple reminders per habit."
       }
@@ -2316,8 +2316,8 @@
     "error": "We could not load your progress. Check the connection and try again.",
     "retry": "Try again",
     "empty": "Nothing to measure yet",
-    "emptyAction": "Start a habit",
-    "startHabit": "Go to habits",
+    "emptyAction": "Add habit",
+    "startHabit": "View habits",
     "sections": {
       "streak": "Streak",
       "goals": "Goals",
@@ -2366,7 +2366,7 @@
       "abandoned": "Abandoned",
       "empty": "No goals yet. A habit is the next useful step.",
       "filterEmpty": "No goals match this view.",
-      "clearFilter": "Show all goals",
+      "clearFilter": "All goals",
       "progress": "{current} / {target} {unit}",
       "position": "Position {position} of {total}",
       "accessibleLabel": "{title}. {state}. {progress}. {position}",
@@ -2623,7 +2623,7 @@
     "codeHint": "The code lasts 10 minutes.",
     "confirm": "Confirm",
     "checking": "Checking",
-    "resend": "Send another code",
+    "resend": "Resend code",
     "cooldown": "You can ask for another in {time}",
     "wrong": "That code does not match.",
     "attemptsOne": "You have 1 attempt remaining in the next 15 minutes.",
@@ -2652,7 +2652,7 @@
     "description": "Connect AI tools like Claude to your Orbit account via MCP",
     "apiKeys": "API Keys",
     "apiKeysDescription": "API keys let external tools access your Orbit data on your behalf",
-    "createKey": "Create API Key",
+    "createKey": "Create key",
     "createKeyShort": "New key",
     "createHeading": "Create API Key",
     "revealHeading": "API Key Created",
@@ -2708,6 +2708,9 @@
   },
   "about": {
     "title": "About & Help",
+    "featureGuide": "Features",
+    "terms": "Terms",
+    "privacy": "Privacy",
     "version": "Version {version}",
     "tagline": "An AI that tracks habits, for people who cannot keep a routine.",
     "versionLabel": "Version",
@@ -2739,7 +2742,7 @@
   "forceUpdate": {
     "title": "This version of Orbit has stopped working",
     "description": "Update in the store to carry on.",
-    "cta": "Update in the store",
+    "cta": "Open store",
     "banner": "A new version of Orbit is ready",
     "refresh": "Reload",
     "versions": "The installed version is {currentVersion} and the server now asks for {minVersion}. Update in the store to carry on.",
@@ -2850,7 +2853,7 @@
     }
   },
   "dataExport": {
-    "button": "Export my data",
+    "button": "Export data",
     "preparing": "Preparing",
     "done": "Your data has been downloaded.",
     "error": "We couldn't prepare your export. Please try again.",
