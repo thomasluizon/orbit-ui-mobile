@@ -52,7 +52,7 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
       style={{ boxShadow: `inset 0 0 0 1px ${severity.ring}` }}
     >
       <p className="font-semibold mb-1 flex items-center gap-1">
-        <AlertTriangle className={`size-3.5 ${severity.graphicClassName}`} />
+        <AlertTriangle className={`size-4 ${severity.graphicClassName}`} />
         {t('chat.conflict.title')}
       </p>
       {warning.conflictingHabits.length > 0 && (
