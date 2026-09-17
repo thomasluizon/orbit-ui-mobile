@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { isDeepStrictEqual } from "node:util"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
 import { UI_REVIEW_SWEEP_CONTRACT, renderUiReviewSweepContract } from "../lib/review-harness.mjs"
 
@@ -34,6 +35,71 @@ const ticketPlan = (value = ticket(), comments = []) => [
 const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
 const reviewSweepContract = renderUiReviewSweepContract()
+const expectedReviewSweepContract = {
+  sourceFamilies: [
+    {
+      instruction: "Run `npx --yes ui-skills get <owner>/<name>` for each skill and verify a successful, non-empty fetch",
+      skills: [
+        "anthropics/frontend-design",
+        "jakubkrehel/make-interfaces-feel-better",
+        "emilkowalski/animation-vocabulary",
+        "raphaelsalaja/mastering-animate-presence",
+        "iart-ai/accessible-animation",
+        "ibelick/fixing-accessibility",
+        "wshobson/wcag-audit-patterns",
+      ],
+    },
+    {
+      instruction: "Use the GitHub Trees commands below and read every blob under each `skills/<name>/` directory",
+      skills: [
+        "better-ui",
+        "better-accessibility",
+        "better-layout",
+        "better-writing",
+        "better-typography",
+        "better-colors",
+        "interface-review",
+        "better-interface",
+      ],
+    },
+    {
+      instruction: "Fetch the Vercel guideline text from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`",
+      skills: [],
+    },
+  ],
+  lanes: [
+    {
+      name: "execution",
+      applicability: "mandatory",
+      skills: ["anthropics/frontend-design", "jakubkrehel/better-ui", "jakubkrehel/make-interfaces-feel-better"],
+    },
+    {
+      name: "motion",
+      applicability: "when the change animates",
+      skills: ["emilkowalski/animation-vocabulary", "raphaelsalaja/mastering-animate-presence", "iart-ai/accessible-animation"],
+    },
+    {
+      name: "gates",
+      applicability: "mandatory",
+      skills: ["the Vercel guideline text", "ibelick/fixing-accessibility", "wshobson/wcag-audit-patterns", "jakubkrehel/better-accessibility"],
+    },
+    {
+      name: "the change",
+      applicability: "mandatory",
+      skills: [
+        "jakubkrehel/interface-review",
+        "jakubkrehel/better-interface in full mode",
+        "jakubkrehel/better-accessibility",
+        "jakubkrehel/better-layout",
+        "jakubkrehel/better-writing",
+        "jakubkrehel/better-typography",
+        "jakubkrehel/better-colors",
+        "jakubkrehel/better-ui",
+      ],
+    },
+  ],
+  closeGate: ["design-reviewer on the diff", "completeness-critic against the surface inventory"],
+}
 const requiredSourceEvidence = [
   "npx --yes ui-skills get <owner>/<name>",
   "repos/jakubkrehel/skills/git/trees/main?recursive=1",
@@ -51,6 +117,11 @@ const carriesCompleteReviewSweep = (text) =>
 
 export const cases = () => {
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
+  T(
+    `${TOOL}: the review sweep contract exactly matches the playbook inventory`,
+    isDeepStrictEqual(UI_REVIEW_SWEEP_CONTRACT, expectedReviewSweepContract),
+    JSON.stringify({ expected: expectedReviewSweepContract, actual: UI_REVIEW_SWEEP_CONTRACT }, null, 2),
+  )
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("compose-prompt", TOOL, {
     ...real,
