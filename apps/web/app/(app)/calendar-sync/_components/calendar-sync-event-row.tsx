@@ -41,7 +41,7 @@ export function CalendarSyncEventRow({
 
   return (
     <div
-      className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+      className={`flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]${importIssue === null ? ' hover:bg-[var(--bg-elev)]' : ''}`}
       style={{
         gap: 12,
         padding: '0 16px',

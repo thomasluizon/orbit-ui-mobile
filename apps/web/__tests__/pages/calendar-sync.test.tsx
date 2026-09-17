@@ -424,6 +424,38 @@ describe('CalendarSyncPage', () => {
     expect(issue).toBeVisible()
     expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
     expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+
+    const row = screen.getByText('Second Monday review').closest('button')?.parentElement
+    expect(row?.className).not.toContain('hover:bg-[var(--bg-elev)]')
+  })
+
+  it('keeps the actionable hover treatment on a row that can still be imported', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [
+        {
+          id: 'suggestion-weekly',
+          event: {
+            id: 'event-weekly',
+            title: 'Weekly review',
+            description: null,
+            startDate: '2026-09-14',
+            startTime: null,
+            endTime: null,
+            isRecurring: true,
+            recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=MO',
+            reminders: [],
+          },
+        },
+      ],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    const button = await screen.findByText('Weekly review')
+    expect(button.closest('button')).not.toBeDisabled()
+    expect(button.closest('button')?.parentElement?.className).toContain('hover:bg-[var(--bg-elev)]')
   })
 
   it('shows select all / deselect all toggle', async () => {
