@@ -33,7 +33,7 @@ function flattenText(node: unknown): string {
 }
 
 const schedule = { frequencyUnit: 'Week' as const, frequencyQuantity: 3, intervalWeeks: 2, days: [], isGeneral: false, isFlexible: true, dueTime: '' }
-const base = { emoji: '🚶', days: [], dueTime: '', schedule, proposed: true, correcting: false, atLimit: false, allowance: 5, onCorrect: vi.fn(), onEmojiChange: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
+const base = { title: 'Walk outside', emoji: '🚶', days: [], dueTime: '', schedule, proposed: true, correcting: false, atLimit: false, allowance: 5, onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
 
 describe('OnboardingCreateHabit data', () => {
   beforeAll(async () => {
@@ -57,8 +57,11 @@ describe('OnboardingCreateHabit data', () => {
 
     const renderedText = tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')
     expect(renderedText).toContain('3 times a week, any day')
-    const proposal = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').at(0)
+    expect(renderedText).toContain('Walk outside')
+    expect(renderedText).toContain('Leave empty for any time of day')
+    const proposal = tree.root.findAll((node) => node.props.accessibilityLabel === 'Correct schedule' && typeof node.props.onPress === 'function').at(0)
     expect(proposal).toBeDefined()
+    expect(prop<string>(proposal!, 'accessibilityHint')).toContain('Walk outside. 3 times a week, any day. Time: Any time')
     await TestRenderer.act(() => prop<() => void>(proposal!, 'onPress')())
     await TestRenderer.act(() => tree.update(<OnboardingCreateHabit {...base} correcting onModeChange={onModeChange} />))
     const fixed = tree.root.findAll((node) => node.props.testID === 'segment-fixed-unselected-enabled').at(0)
@@ -66,7 +69,7 @@ describe('OnboardingCreateHabit data', () => {
     await TestRenderer.act(() => prop<() => void>(fixed!, 'onPress')())
 
     expect(onModeChange).toHaveBeenCalledWith('fixed')
-    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Repeat more often' && typeof node.props.onPress === 'function').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'More times' && typeof node.props.onPress === 'function').length).toBeGreaterThan(0)
   })
 
   it.each([

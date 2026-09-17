@@ -1794,6 +1794,9 @@
         "astraRead": "Entendi assim. Toque para corrigir.",
         "direct": "Escolha os dias e a hora.",
         "proposedBy": "Proposto pelo Astra",
+        "correctSchedule": "Corrigir agenda",
+        "scheduleDetails": "{title}. {cadence}. Hora: {time}",
+        "anyTime": "Qualquer hora",
         "emojiLabel": "Emoji proposto pelo Astra",
         "scheduleMode": "Agenda",
         "fixedMode": "Dias fixos",
@@ -1824,25 +1827,37 @@
         },
         "cadence": {
           "fixed": "toda {days}",
+          "fixedAt": "toda {days} às {time}",
           "daily": "todo dia",
-          "flex": " vezes por semana, qualquer dia",
-          "flexUnit": {
-            "day": "{count, plural, one { vez por dia, qualquer dia} other { vezes por dia, qualquer dia}}",
-            "week": "{count, plural, one { vez por semana, qualquer dia} other { vezes por semana, qualquer dia}}",
-            "month": "{count, plural, one { vez por mês, qualquer dia} other { vezes por mês, qualquer dia}}",
-            "year": "{count, plural, one { vez por ano, qualquer dia} other { vezes por ano, qualquer dia}}"
+          "dailyAt": "todo dia às {time}",
+          "flexible": {
+            "day": "{count, plural, one {# vez por dia, qualquer dia} other {# vezes por dia, qualquer dia}}",
+            "week": "{count, plural, one {# vez por semana, qualquer dia} other {# vezes por semana, qualquer dia}}",
+            "month": "{count, plural, one {# vez por mês, qualquer dia} other {# vezes por mês, qualquer dia}}",
+            "year": "{count, plural, one {# vez por ano, qualquer dia} other {# vezes por ano, qualquer dia}}"
+          },
+          "flexibleAt": {
+            "day": "{count, plural, one {# vez por dia, qualquer dia, às {time}} other {# vezes por dia, qualquer dia, às {time}}}",
+            "week": "{count, plural, one {# vez por semana, qualquer dia, às {time}} other {# vezes por semana, qualquer dia, às {time}}}",
+            "month": "{count, plural, one {# vez por mês, qualquer dia, às {time}} other {# vezes por mês, qualquer dia, às {time}}}",
+            "year": "{count, plural, one {# vez por ano, qualquer dia, às {time}} other {# vezes por ano, qualquer dia, às {time}}}"
           },
           "once": "uma vez",
-          "every": "a cada ",
-          "onDays": ", toda {days}",
-          "unit": {
-            "day": { "one": "dia", "other": "dias" },
-            "week": { "one": "semana", "other": "semanas" },
-            "month": { "one": "mês", "other": "meses" },
-            "year": { "one": "ano", "other": "anos" }
+          "onceAt": "uma vez às {time}",
+          "intervalUnit": {
+            "day": "{count, plural, one {todo dia} other {a cada # dias}}",
+            "week": "{count, plural, one {toda semana} other {a cada # semanas}}",
+            "month": "{count, plural, one {todo mês} other {a cada # meses}}",
+            "year": "{count, plural, one {todo ano} other {a cada # anos}}"
           },
-          "at": " às ",
-          "flexAt": ", às ",
+          "intervalUnitAt": {
+            "day": "{count, plural, one {todo dia às {time}} other {a cada # dias, às {time}}}",
+            "week": "{count, plural, one {toda semana às {time}} other {a cada # semanas, às {time}}}",
+            "month": "{count, plural, one {todo mês às {time}} other {a cada # meses, às {time}}}",
+            "year": "{count, plural, one {todo ano às {time}} other {a cada # anos, às {time}}}"
+          },
+          "intervalDays": "{count, plural, one {toda semana, toda {days}} other {a cada # semanas, toda {days}}}",
+          "intervalDaysAt": "{count, plural, one {toda semana, toda {days}, às {time}} other {a cada # semanas, toda {days}, às {time}}}",
           "and": "e"
         }
       },

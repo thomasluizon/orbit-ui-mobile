@@ -11,7 +11,7 @@ vi.mock('next-intl', () => ({ useTranslations: (namespace: string) => (key: stri
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => <div data-testid="time-field" /> }))
 
 const schedule = { frequencyUnit: 'Week' as const, frequencyQuantity: 3, intervalWeeks: 2, days: [], isGeneral: false, isFlexible: true, dueTime: '' }
-const base = { emoji: '🚶', days: [], dueTime: '', schedule, proposed: false, correcting: true, atLimit: false, allowance: 5, onCorrect: vi.fn(), onEmojiChange: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
+const base = { title: 'Walk outside', emoji: '🚶', days: [], dueTime: '', schedule, proposed: false, correcting: true, atLimit: false, allowance: 5, onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
 
 describe('OnboardingCreateHabit', () => {
   beforeAll(async () => {
@@ -31,7 +31,11 @@ describe('OnboardingCreateHabit', () => {
   it('requires a tap before editing a proposed schedule', () => {
     const onCorrect = vi.fn()
     render(<OnboardingCreateHabit {...base} proposed correcting={false} onCorrect={onCorrect} />)
-    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText('Walk outside')).toBeInTheDocument()
+    expect(screen.getByText('Leave empty for any time of day')).toBeInTheDocument()
+    const proposal = screen.getByRole('button', { name: 'Correct schedule' })
+    expect(proposal).toHaveAccessibleDescription(/Walk outside.*3 times a week, any day.*Any time/)
+    fireEvent.click(proposal)
     expect(onCorrect).toHaveBeenCalledOnce()
   })
 
@@ -45,12 +49,12 @@ describe('OnboardingCreateHabit', () => {
     const { rerender } = render(<OnboardingCreateHabit {...base} proposed correcting={false} onModeChange={onModeChange} />)
 
     expect(screen.getByText((_content, element) => element?.tagName === 'P' && element.textContent === '3 times a week, any day')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Correct schedule' }))
     rerender(<OnboardingCreateHabit {...base} proposed correcting onModeChange={onModeChange} />)
     fireEvent.click(screen.getByRole('radio', { name: 'Set days' }))
 
     expect(onModeChange).toHaveBeenCalledWith('fixed')
-    expect(screen.getByRole('button', { name: 'Repeat more often' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'More times' })).toBeInTheDocument()
   })
 
   it.each([

@@ -17,7 +17,7 @@ function Marks({ props, tokens }: Readonly<{ props: InputProps; tokens: Tokens }
   const marks = props.multiline && 'marks' in props ? props.marks : undefined
   const label = props.multiline && 'marksLabel' in props ? props.marksLabel : undefined
   if (!marks?.length) return null
-  return <View accessible accessibilityLabel={label} style={[styles.marks, { borderTopColor: tokens.hairline }]}>{marks.map((mark) => <Text key={`${mark.start}-${mark.end}`} style={[styles.mark, { backgroundColor: tokens.bgWell, color: tokens.primarySoft }]}>{props.value.slice(mark.start, mark.end)}</Text>)}</View>
+  return <View accessible accessibilityLabel={label} style={[styles.marks, { borderTopColor: tokens.hairline }]}>{marks.map((mark) => <Text key={`${mark.start}-${mark.end}`} style={[styles.mark, { backgroundColor: tokens.bgWell, color: tokens.fg2 }]}>{props.value.slice(mark.start, mark.end)}</Text>)}</View>
 }
 
 function Control({ props, tokens }: Readonly<{ props: InputProps; tokens: Tokens }>) {

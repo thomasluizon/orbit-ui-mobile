@@ -13,7 +13,7 @@ function getDescriptionId(error: string | undefined, hint: string | undefined, e
 
 function Marks({ value, marks, label }: Readonly<{ value: string; marks: readonly { start: number; end: number }[] | undefined; label: string | undefined }>) {
   if (!marks?.length) return null
-  return <div aria-label={label} role="list" className="flex flex-wrap gap-1 border-t border-[var(--hairline)] px-4 py-2 text-xs text-[var(--fg-3)]">{marks.map((mark) => <mark role="listitem" key={`${mark.start}-${mark.end}`} className="rounded-[8px] bg-[var(--bg-well)] px-2 py-1 text-[var(--primary-soft)]">{value.slice(mark.start, mark.end)}</mark>)}</div>
+  return <div aria-label={label} role="list" className="flex flex-wrap gap-1 border-t border-[var(--hairline)] px-4 py-2 text-xs text-[var(--fg-3)]">{marks.map((mark) => <mark role="listitem" key={`${mark.start}-${mark.end}`} className="rounded-[8px] bg-[var(--bg-well)] px-2 py-1 text-[var(--fg-2)]">{value.slice(mark.start, mark.end)}</mark>)}</div>
 }
 
 function Captions({ error, errorId, hint, hintId }: Readonly<{ error?: string; errorId: string; hint?: string; hintId: string }>) {

@@ -57,7 +57,7 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
   const pinnedAction = action ? (
     <div
       data-flow-action=""
-      className="mx-auto w-full max-w-[408px] px-4 [&_button]:w-full md:px-0"
+      className="mx-auto flex w-full max-w-[408px] justify-end px-4 [&_button]:w-full md:px-0 md:[&_button]:w-auto md:[&>div]:items-end"
     >
       {action}
     </div>
