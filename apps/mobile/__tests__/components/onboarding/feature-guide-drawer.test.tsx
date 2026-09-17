@@ -1,5 +1,7 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 
 vi.mock('react-i18next', () => ({
@@ -99,6 +101,24 @@ describe('FeatureGuideDrawer (mobile)', () => {
     pressTab(tree!, 'onboarding.featureGuide.widget')
     expect(JSON.stringify(tree!.toJSON())).toContain(
       'onboarding.featureGuide.widgetSection.opensTitle',
+    )
+  })
+
+  it('states that the Android widget opens Orbit and never logs', () => {
+    expect(en.onboarding.featureGuide.widgetSection.opensDesc).toBe(
+      'The widget never logs a habit. A tap anywhere on it opens Orbit, and refresh only updates the widget.',
+    )
+    expect(ptBR.onboarding.featureGuide.widgetSection.opensDesc).toBe(
+      'O widget nunca registra um hábito. Um toque em qualquer lugar abre o Orbit, e atualizar apenas renova o widget.',
+    )
+  })
+
+  it('describes the bell as the inbox for everything Orbit sends', () => {
+    expect(en.onboarding.featureGuide.remindersSection.bellDesc).toBe(
+      'The bell opens everything Orbit sends you: reminders that fired, streak and level updates, friend activity, calendar results, and goal deadlines. Its badge counts the unread ones.',
+    )
+    expect(ptBR.onboarding.featureGuide.remindersSection.bellDesc).toBe(
+      'O sino abre tudo o que o Orbit envia: lembretes que dispararam, atualizações de sequência e de nível, atividade de amigos, resultados do calendário e prazos de metas. O badge conta os não lidos.',
     )
   })
 

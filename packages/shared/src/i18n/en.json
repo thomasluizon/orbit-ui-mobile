@@ -1974,8 +1974,8 @@
         "showGeneralTodayDesc": "Toggle to show general habits (habits without a schedule) on your Today view. When enabled, they appear in a separate section below your scheduled habits."
       },
       "remindersSection": {
-        "bellTitle": "Reminder inbox",
-        "bellDesc": "The bell opens reminders that have fired. Its badge shows how many are unread.",
+        "bellTitle": "Your inbox",
+        "bellDesc": "The bell opens everything Orbit sends you: reminders that fired, streak and level updates, friend activity, calendar results, and goal deadlines. Its badge counts the unread ones.",
         "managingTitle": "Reading reminders",
         "managingDesc": "Mark reminders as read or delete them one at a time. You can also mark all as read or delete all.",
         "configuringRemindersTitle": "Set on the habit",
@@ -1985,7 +1985,7 @@
         "todayTitle": "Today or tomorrow",
         "todayDesc": "The Android widget shows today's habits. When nothing is scheduled today, it shows tomorrow's habits instead.",
         "opensTitle": "Opens Orbit",
-        "opensDesc": "The widget never logs a habit. Every habit row opens Orbit on that day, while refresh only updates the widget."
+        "opensDesc": "The widget never logs a habit. A tap anywhere on it opens Orbit, and refresh only updates the widget."
       }
     }
   },

@@ -1974,8 +1974,8 @@
         "showGeneralTodayDesc": "Ative para mostrar os hábitos gerais (os que não têm agendamento) no Hoje. Quando ativado, eles aparecem numa seção separada, abaixo dos hábitos agendados."
       },
       "remindersSection": {
-        "bellTitle": "Caixa de lembretes",
-        "bellDesc": "O sino abre os lembretes que já dispararam. O badge mostra quantos ainda não foram lidos.",
+        "bellTitle": "Sua caixa de entrada",
+        "bellDesc": "O sino abre tudo o que o Orbit envia: lembretes que dispararam, atualizações de sequência e de nível, atividade de amigos, resultados do calendário e prazos de metas. O badge conta os não lidos.",
         "managingTitle": "Ler lembretes",
         "managingDesc": "Marque lembretes como lidos ou exclua um por vez. Você também pode marcar todos como lidos ou excluir todos.",
         "configuringRemindersTitle": "Definir no hábito",
@@ -1985,7 +1985,7 @@
         "todayTitle": "Hoje ou amanhã",
         "todayDesc": "O widget do Android mostra os hábitos de hoje. Quando não há nada agendado para hoje, ele mostra os hábitos de amanhã.",
         "opensTitle": "Abre o Orbit",
-        "opensDesc": "O widget nunca registra um hábito. Cada linha abre o Orbit naquele dia, e atualizar apenas renova o widget."
+        "opensDesc": "O widget nunca registra um hábito. Um toque em qualquer lugar abre o Orbit, e atualizar apenas renova o widget."
       }
     }
   },
