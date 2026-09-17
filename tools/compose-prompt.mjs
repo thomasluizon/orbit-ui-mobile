@@ -21,7 +21,7 @@ import { isAbsolute, resolve } from "node:path"
 import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
-import { UI_SCOPE, composedOrderNeedsUiReview } from "./lib/review-harness.mjs"
+import { UI_SCOPE, composedOrderNeedsUiReview, renderUiReviewSweepContract } from "./lib/review-harness.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
 
@@ -123,44 +123,15 @@ const outputInstruction = cloud
 ${ticketReference}. The orchestrator verifies delivery from git and GitHub artifacts with
 tools/verify-delivery.mjs; your own exit code counts for nothing. It owns CI waiting after handoff.`
 
-const reviewHarnessBlock = `
-
-\`\`\`md
-## Review harness
-
-- interface-review: <what it found, or "no findings">
-- better-interface (full mode): <what it found, or "no findings">
-\`\`\``
-
 const uiReviewSweepOwed = composedOrderNeedsUiReview(repoKey, baseBranch)
+const reviewSweepContract = renderUiReviewSweepContract()
 const uiReviewSweep = !cloud && uiReviewSweepOwed
   ? `## UI review sweep
 
 After implementation, inspect the complete diff. This sweep applies only when at least one changed
 path matches \`${UI_SCOPE}\`. If no changed path matches, skip this sweep and omit the Review harness block.
 
-Use \`.claude/playbooks/redesign-screen.md\` as the authority. Before claiming either review line,
-check that the source inventory is complete:
-
-\`\`\`bash
-gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" --jq .truncated
-\`\`\`
-
-If it prints \`true\`, stop because the listing silently under-fetches. For each \`<name>\` in
-\`interface-review\`, \`better-interface\`, \`better-accessibility\`, \`better-layout\`,
-\`better-writing\`, \`better-typography\`, \`better-colors\`, and \`better-ui\`, list the complete directory:
-
-\`\`\`bash
-gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" \\
-  --jq '.tree[]|select(.type=="blob" and (.path|startswith("skills/<name>/")))|.path'
-\`\`\`
-
-Read every printed path from \`https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>\`.
-Then run \`jakubkrehel/interface-review\` and \`jakubkrehel/better-interface\` in full mode against the
-complete diff. Fix every in-scope finding in this pull request. Write this block in the pull request
-body, with one line per completed review:${reviewHarnessBlock}
-
-A line claiming a review you did not run is forbidden.`
+${reviewSweepContract}`
   : ""
 
 const cloudUiReviewHandoff = cloud && uiReviewSweepOwed
@@ -168,10 +139,10 @@ const cloudUiReviewHandoff = cloud && uiReviewSweepOwed
 
 The Cloud container must not run or claim this sweep because it cannot fetch the required sources.
 If the locally materialized diff contains a path matching \`${UI_SCOPE}\`, the sweep is still owed.
-The orchestrator runs it locally after materialization and before opening the pull request, following
-\`.claude/playbooks/redesign-screen.md\`, and writes this block in the pull request body:${reviewHarnessBlock}
+The orchestrator runs it locally after materialization and before opening the pull request. The exact
+local obligation is:
 
-A line claiming a review the orchestrator did not run is forbidden.`
+${reviewSweepContract}`
   : ""
 
 /**

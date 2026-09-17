@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
+import { UI_REVIEW_SWEEP_CONTRACT, renderUiReviewSweepContract } from "../lib/review-harness.mjs"
 
-import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, root, stage, stageWithConfig, T } from "./_harness.mjs"
+import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, REPO_ROOT, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
 const TOOL = "compose-prompt.mjs"
 const REPO_PATH = join(root, "compose-prompt", "repo-ui")
@@ -32,6 +33,21 @@ const ticketPlan = (value = ticket(), comments = []) => [
 ]
 const comment = (body, createdAt = "2026-08-13T18:58:17Z", isMinimized = false) => ({ author: { login: "thomasluizon" }, body, createdAt, isMinimized })
 const composed = (path) => (existsSync(path) ? readFileSync(path, "utf8") : "")
+const reviewSweepContract = renderUiReviewSweepContract()
+const requiredSourceEvidence = [
+  "npx --yes ui-skills get <owner>/<name>",
+  "repos/jakubkrehel/skills/git/trees/main?recursive=1",
+  "https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md",
+]
+const requiredLaneEvidence = ["execution", "motion", "gates", "the change"]
+const carriesCompleteReviewSweep = (text) =>
+  text.includes(reviewSweepContract) &&
+  UI_REVIEW_SWEEP_CONTRACT.sourceFamilies.length === 3 &&
+  UI_REVIEW_SWEEP_CONTRACT.lanes.length === 4 &&
+  UI_REVIEW_SWEEP_CONTRACT.closeGate.length === 2 &&
+  requiredSourceEvidence.every((evidence) => reviewSweepContract.includes(evidence)) &&
+  requiredLaneEvidence.every((lane) => UI_REVIEW_SWEEP_CONTRACT.lanes.some(({ name }) => name === lane)) &&
+  ["design-reviewer", "completeness-critic"].every((agent) => reviewSweepContract.includes(agent))
 
 export const cases = () => {
   mkdirSync(join(root, "compose-prompt"), { recursive: true })
@@ -159,6 +175,11 @@ export const cases = () => {
     redesignPrompt,
   )
   T(
+    `${TOOL}: a redesign UI order carries every source family, lane, and close-gate agent`,
+    carriesCompleteReviewSweep(redesignPrompt),
+    redesignPrompt,
+  )
+  T(
     `${TOOL}: the redesign UI order exempts a diff with no path in the gate's exact scope`,
     /\^apps\\\/\(\?:web\|mobile\)\\\/\(\?:app\|components\|hooks\|stores\|lib\)\\\//.test(redesignPrompt) &&
       /If no changed path matches, skip this sweep and omit the Review harness block/.test(redesignPrompt),
@@ -199,6 +220,17 @@ export const cases = () => {
       /- interface-review: <what it found, or "no findings">/.test(cloudPrompt) &&
       /- better-interface \(full mode\): <what it found, or "no findings">/.test(cloudPrompt),
     cloudPrompt,
+  )
+  T(
+    `${TOOL}: Cloud delivery carries the same complete review sweep as local delivery`,
+    carriesCompleteReviewSweep(cloudPrompt),
+    cloudPrompt,
+  )
+  const orchestrateSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
+  T(
+    `${TOOL}: the Cloud materialization skill mirrors the canonical review sweep contract`,
+    orchestrateSkill.includes(reviewSweepContract),
+    orchestrateSkill,
   )
   for (const [mode, order, heading] of [
     ["local", prompt, "## Finishing contract"],

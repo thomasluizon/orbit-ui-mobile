@@ -1,7 +1,9 @@
 import {
   REDESIGN_BASE,
+  UI_REVIEW_SWEEP_CONTRACT,
   composedOrderNeedsUiReview,
   isUiReviewPath,
+  renderUiReviewSweepContract,
 } from "../lib/review-harness.mjs"
 
 import { T } from "./_harness.mjs"
@@ -24,5 +26,20 @@ export const cases = () => {
   T(
     "lib/review-harness.mjs: a tooling-only diff does not require the review sweep",
     !isUiReviewPath("tools/compose-prompt.mjs") && !isUiReviewPath("apps/web/e2e/smoke.ts"),
+  )
+  const rendered = renderUiReviewSweepContract()
+  T(
+    "lib/review-harness.mjs: the canonical sweep has three source families and four lanes",
+    UI_REVIEW_SWEEP_CONTRACT.sourceFamilies.length === 3 &&
+      UI_REVIEW_SWEEP_CONTRACT.lanes.length === 4 &&
+      ["execution", "motion", "gates", "the change"].every((name) =>
+        UI_REVIEW_SWEEP_CONTRACT.lanes.some((lane) => lane.name === name),
+      ),
+    rendered,
+  )
+  T(
+    "lib/review-harness.mjs: the canonical sweep closes with both repository agents",
+    ["design-reviewer", "completeness-critic"].every((agent) => rendered.includes(agent)),
+    rendered,
   )
 }

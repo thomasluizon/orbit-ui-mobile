@@ -604,18 +604,49 @@ do not run readiness or merge until Thomas answers and the resulting work is ver
 
 For a Cloud `ui` order targeting `redesign/main`, inspect the locally materialized diff for the UI
 scope printed in the order. When it matches, run the owed sweep locally after materialization and
-before opening or updating the pull request. Follow `.claude/playbooks/redesign-screen.md`: verify
-the complete source inventory first, then run `interface-review` and `better-interface` in full mode
-against the diff and fix every in-scope finding. Add the result to the saved pull request body:
+before opening or updating the pull request. This contract is rendered from
+`UI_REVIEW_SWEEP_CONTRACT` in `tools/lib/review-harness.mjs`; composer coverage refuses drift.
+
+Use `.claude/playbooks/redesign-screen.md` as the authority. Complete all three source families before starting a lane:
+
+1. Run `npx --yes ui-skills get <owner>/<name>` for each skill and verify a successful, non-empty fetch: `anthropics/frontend-design`, `jakubkrehel/make-interfaces-feel-better`, `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`.
+2. Use the GitHub Trees commands below and read every blob under each `skills/<name>/` directory: `better-ui`, `better-accessibility`, `better-layout`, `better-writing`, `better-typography`, `better-colors`, `interface-review`, `better-interface`.
+
+```bash
+gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" --jq .truncated
+gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" \
+  --jq '.tree[]|select(.type=="blob" and (.path|startswith("skills/<name>/")))|.path'
+```
+
+Stop if `truncated` is `true`. Read every printed path from `https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>`.
+3. Fetch the Vercel guideline text from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`.
+
+Run the four read-only lanes in this order:
+
+- execution (mandatory): `anthropics/frontend-design`, `jakubkrehel/better-ui`, `jakubkrehel/make-interfaces-feel-better`
+- motion (when the change animates): `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`
+- gates (mandatory): `the Vercel guideline text`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`, `jakubkrehel/better-accessibility`
+- the change (mandatory): `jakubkrehel/interface-review`, `jakubkrehel/better-interface in full mode`, `jakubkrehel/better-accessibility`, `jakubkrehel/better-layout`, `jakubkrehel/better-writing`, `jakubkrehel/better-typography`, `jakubkrehel/better-colors`, `jakubkrehel/better-ui`
+
+Within the change lane, run `interface-review` before `better-interface`. Then close with `design-reviewer on the diff`, `completeness-critic against the surface inventory`.
+Verify each lane's PASS, not only its findings. A routed domain marked skipped is not covered.
+Fix every in-scope finding in this pull request. Only then write:
 
 ```md
 ## Review harness
 
+- execution lane: <what it found, or "no findings">
+- motion lane: <what it found, "no findings", or "not applicable: no changed animation">
+- gates lane: <what it found, or "no findings">
 - interface-review: <what it found, or "no findings">
 - better-interface (full mode): <what it found, or "no findings">
+- design-reviewer: <what it found, or "no findings">
+- completeness-critic: <what it found, or "no findings">
 ```
 
-Never claim a line for a review that was not run. This step belongs to the local materialization
+A line claiming a review you did not run is forbidden.
+
+This step belongs to the local materialization
 lane because the Cloud container cannot fetch the review sources.
 
 On success, read `assumptions` using step 7's adjudication rule, and carry them verbatim into the PR
