@@ -186,6 +186,7 @@ export {
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  resolveCalendarSyncEndDate,
   normalizeVerificationCodeInput,
   isValidVerificationCode,
   isVerificationCodeComplete,

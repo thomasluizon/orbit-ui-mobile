@@ -169,6 +169,65 @@ export function parseCalendarSyncRecurrence(
   return result
 }
 
+const ISO_DATE_LENGTH = 10
+const DAYS_IN_WEEK = 7
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6,
+}
+
+/**
+ * The last date a finite RRULE still fires, as an ISO date, or null when the rule never ends.
+ *
+ * UNTIL is already that date. COUNT is not: it is an occurrence tally, so the date has to be walked
+ * from the start. Orbit stores a bound as `endDate`, so an unmapped COUNT or UNTIL becomes a habit
+ * that outlives the calendar series it came from.
+ */
+export function resolveCalendarSyncEndDate(
+  rule: string | null,
+  startDate: string | null,
+): string | null {
+  if (!rule) return null
+
+  const parts = parseRuleParts(rule)
+
+  if (parts.UNTIL) {
+    const digits = parts.UNTIL.replace(/[^0-9]/g, '').slice(0, 8)
+    if (digits.length !== 8) return null
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`
+  }
+
+  if (!parts.COUNT || !startDate) return null
+  const count = Number.parseInt(parts.COUNT, 10)
+  if (!Number.isFinite(count) || count < 1) return null
+
+  const weekdays = (parts.BYDAY?.split(',') ?? [])
+    .map((token) => WEEKDAY_INDEX[token.trim()])
+    .filter((index): index is number => index !== undefined)
+    .sort((left, right) => left - right)
+
+  const start = new Date(`${startDate.slice(0, ISO_DATE_LENGTH)}T00:00:00Z`)
+  if (Number.isNaN(start.getTime())) return null
+
+  if (weekdays.length === 0) {
+    const cursor = new Date(start)
+    cursor.setUTCDate(cursor.getUTCDate() + (count - 1))
+    return cursor.toISOString().slice(0, ISO_DATE_LENGTH)
+  }
+
+  const cursor = new Date(start)
+  let seen = 0
+  for (let step = 0; step < count * DAYS_IN_WEEK + DAYS_IN_WEEK; step += 1) {
+    if (weekdays.includes(cursor.getUTCDay())) {
+      seen += 1
+      if (seen === count) return cursor.toISOString().slice(0, ISO_DATE_LENGTH)
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  }
+
+  return null
+}
+
 export function getCalendarSyncImportIssue(
   rule: string | null,
 ): CalendarSyncImportIssue | null {
@@ -275,6 +334,7 @@ export function buildCalendarSyncImportRequest(
         frequencyUnit: hasWeekdays ? 'Day' : (recurrence.frequencyUnit ?? null),
         frequencyQuantity: quantity,
         days,
+        endDate: resolveCalendarSyncEndDate(event.recurrenceRule, event.startDate),
         reminderEnabled: event.reminders.length > 0,
         reminderTimes,
         googleEventId: event.id,

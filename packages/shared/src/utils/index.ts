@@ -123,6 +123,7 @@ export {
   isCalendarSyncEventImportable,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  resolveCalendarSyncEndDate,
   reconcileCalendarAutoSyncGrantRevocation,
 } from './calendar-sync'
 export type {

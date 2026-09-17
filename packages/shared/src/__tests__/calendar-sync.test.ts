@@ -13,6 +13,7 @@ import {
   isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  resolveCalendarSyncEndDate,
   reconcileCalendarAutoSyncGrantRevocation,
   resolveCalendarEventsGrantRevocation,
 } from '../utils/calendar-sync'
@@ -61,6 +62,7 @@ describe('calendar-sync utils', () => {
           frequencyUnit: 'Day',
           frequencyQuantity: 1,
           days: null,
+          endDate: null,
           reminderEnabled: true,
           reminderTimes: [15],
           googleEventId: 'event-1',
@@ -96,6 +98,7 @@ describe('calendar-sync utils', () => {
           frequencyUnit: 'Day',
           frequencyQuantity: 1,
           days: ['Wednesday'],
+          endDate: null,
           reminderEnabled: false,
           reminderTimes: null,
           googleEventId: 'event-wednesday',
@@ -131,6 +134,7 @@ describe('calendar-sync utils', () => {
           frequencyUnit: 'Day',
           frequencyQuantity: 1,
           days: ['Monday', 'Wednesday', 'Friday'],
+          endDate: null,
           reminderEnabled: true,
           reminderTimes: [30],
           googleEventId: 'event-multiple-days',
@@ -270,6 +274,40 @@ describe('calendar-sync utils', () => {
     expect(habit).toBeDefined()
     expect(habit?.frequencyUnit).toBe('Week')
     expect(habit?.frequencyQuantity).toBe(1)
+  })
+
+
+  it('bounds a COUNT weekday series at its last occurrence', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=3', '2026-09-14')).toBe('2026-09-28')
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=3', '2026-09-14')).toBe('2026-09-21')
+  })
+
+  it('bounds an UNTIL series at the date the rule names', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261019T235959Z', '2026-09-14')).toBe('2026-10-19')
+  })
+
+  it('leaves an unbounded rule unbounded', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO', '2026-09-14')).toBeNull()
+    expect(resolveCalendarSyncEndDate(null, '2026-09-14')).toBeNull()
+  })
+
+  it('sends the finite bound with the import so a habit cannot outlive its series', () => {
+    const request = buildCalendarSyncImportRequest([{
+      id: 'event-three-mondays',
+      title: 'Three Mondays',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=3',
+      reminders: [],
+    }])
+
+    const [habit] = request.habits
+    expect(habit).toBeDefined()
+    expect(habit?.endDate).toBe('2026-09-28')
+    expect(habit?.days).toEqual(['Monday'])
   })
 
   it('builds bulk create requests from suggestions', () => {
