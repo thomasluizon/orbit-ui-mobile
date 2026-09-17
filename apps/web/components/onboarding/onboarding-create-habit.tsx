@@ -185,7 +185,6 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       />
 
       <div className="flex justify-center">
-        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <Chip
           active={showFrequencyPicker}
           leading={

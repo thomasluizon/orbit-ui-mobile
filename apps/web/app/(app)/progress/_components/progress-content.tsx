@@ -392,7 +392,6 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
     <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id)} label={t('progressScreen.goals.views')} /> : null}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillLink href="/" variant="ghost">{t('progressScreen.startHabit')}</PillLink>} /> : null}
-      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
         <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">

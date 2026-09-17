@@ -485,7 +485,7 @@ export default function CalendarSyncScreen() {
             <Text style={[styles.stateText, { color: tokens.fg3 }]}>
               {t('calendar.notConnectedDesc')}
             </Text>
-            {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
+            {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
             <PillButton
               onClick={() => {
                 void handleConnect()
@@ -646,7 +646,6 @@ export default function CalendarSyncScreen() {
               <SettingsRow key={habit.id} label={habit.title} accessory="none" />
             ))}
             <View style={styles.actionPad}>
-              {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
               <PillButton  onClick={() => router.replace('/')}>
                 {t('calendar.goToHabits')}
               </PillButton>
@@ -675,7 +674,6 @@ export default function CalendarSyncScreen() {
               {displayedErrorMessage}
             </Text>
             <View style={styles.errorActions}>
-              {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
               <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
               <PillButton variant="ghost" onClick={handleBack}>
                 {t('common.goBack')}

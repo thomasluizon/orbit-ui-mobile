@@ -95,11 +95,10 @@ export default function AboutScreen() {
 
           <View testID="about-destinations" style={styles.destinations}>
             <RowList style={styles.rowList}>
-              {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
               <ListRow
-                accessibilityLabel={t('onboarding.featureGuide.openButton')}
+                accessibilityLabel={t('about.featureGuide')}
                 onClick={() => setShowGuide(true)}
-                title={t('onboarding.featureGuide.openButton')}
+                title={t('about.featureGuide')}
                 wrapTitle
               />
               <ListRow
@@ -108,18 +107,16 @@ export default function AboutScreen() {
                 title={t('profile.support.title')}
                 wrapTitle
               />
-              {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
               <ListRow
-                accessibilityLabel={t('terms.title')}
+                accessibilityLabel={t('about.terms')}
                 onClick={() => router.push('/terms')}
-                title={t('terms.title')}
+                title={t('about.terms')}
                 wrapTitle
               />
-              {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
               <ListRow
-                accessibilityLabel={t('privacy.title')}
+                accessibilityLabel={t('about.privacy')}
                 onClick={() => router.push('/privacy')}
-                title={t('privacy.title')}
+                title={t('about.privacy')}
                 wrapTitle
               />
             </RowList>

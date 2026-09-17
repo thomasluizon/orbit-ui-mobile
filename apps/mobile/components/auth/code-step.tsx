@@ -58,7 +58,6 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isRese
       <Text style={styles.stepSubtitle}>{t('auth.codeSentTo', { email })}</Text>
       <LoginSuccessMessage message={successMessage} styles={styles} />
       <View style={styles.quietAction}>
-        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
         <PillButton variant="ghost" size="sm" disabled={isSubmitting}
           onClick={onBackToEmail}>{t('auth.changeEmail')}</PillButton>
       </View>
@@ -73,7 +72,6 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isRese
       loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
     {!waiting && <View style={styles.titleBlock}>
       {canResend || expired ? <View style={styles.quietAction}>
-        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
         <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting} loading={isResending}>{t('auth.resendCode')}</PillButton>
       </View> : <Text style={styles.mono}>{t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}</Text>}
     </View>}
