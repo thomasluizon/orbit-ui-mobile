@@ -588,108 +588,135 @@ Two rules for this work, both learned the hard way:
   workers are running.** The suite is not failing, it is being starved. Re-run it unbounded rather
   than reading the truncation as a result.
 
+## What the night of 2026-09-17 added
+
+- **A ticket that reads blocked is a lead, not a fact, and three were wrong in one night.** `#58` was
+  already delivered by the `#329` stack; `#373` shipped in PR 997 the day before and nobody closed
+  it; `#329` itself needed only one stale suppression removed. `#76` was recorded as blocked on api
+  `#372`, and `orbit-api` PR **527 was already MERGED**, so the blocker had been gone for a day.
+  **Check the tree against the acceptance criteria before you build or before you report a block.**
+- **An already-done ticket gets a comment and a closure, never an empty pull request.** Two workers
+  asked which; both times the answer is the closure. An empty pull request proves nothing, costs a
+  Pullfrog review, and records a delivery that did not happen. Write the per-criterion evidence into
+  the closing comment so the judgement is auditable.
+- **A fresh worktree has NO `node_modules`, and a worker launched into one produces nothing.** `#63`
+  burned a whole launch discovering it: every `rg` and every test failed and it exited clean with
+  zero commits. `create-worktree.mjs` does not install. **Run `npm install` and confirm 961 entries
+  before composing the prompt.** Two of the worktrees made that night did get dependencies and five
+  did not, so check rather than assume.
+- **A pull request body can lose every newline, and then a heading is not a heading.** 992's
+  `Redesign Review Harness` failed three times reporting no `## Review harness` block while the block
+  was plainly in the body: it sat mid-paragraph because the whole body was one line. Reflowing it
+  without changing a word made the gate pass. **Read the body as the gate reads it before you
+  re-run a sweep.**
+- **`--match-head-commit` refuses a reconstructed sha, and that is the guard working.** A merge was
+  rejected with `Head branch was modified` because the sha had been typed from memory rather than
+  copied from the run's own output. Copy it from `gh pr view --json headRefOid` every time.
+- **A label alone never fixes a red parity run.** 1006 needed `parity:exempt` AND a body edit to fire
+  a fresh `pull_request` event, because the failed run carries a payload without the label. The body
+  edit was already required for its sweep block, so one action cleared both.
+- **`rmdir` is the safe tool for install debris, and a junction can point at the main checkout.**
+  `tools/test-tools.mjs` died on `ERR_MODULE_NOT_FOUND` for `sharp`, then `fast-check`. Neither was
+  missing: a worktree's `tools/node_modules` is a JUNCTION to `orbit-ui-mobile/node_modules`, and
+  that directory held **956 empty package directories** left by an install the machine killed.
+  `rmdir` cannot remove a populated directory, which is why it was the right tool. **Check for a
+  junction before operating on any path inside a worktree.**
+- **Docker's VM is what kills workers here, and it is not ours to stop.** `vmmemWSL` held 7.8 GB with
+  `free -m` inside reporting 5,719 MB genuinely used against 719 MB of cache, while `leap-full`,
+  `leap-pg-db` and `leap-redis` were running indinero work. `dotnet build-server shutdown` returns
+  about 1.3 GB that api rounds leak into `VBCSCompiler`; beyond that, drop to one worker at a time.
+- **A ticket body can carry an instruction that is actively wrong, and executing it destroys live
+  work.** `#67` says to delete the feature guide. `#73` says in its own Problem section that this
+  instruction is wrong and a worker must not execute it, and PR 1005 had rewritten that exact drawer
+  hours earlier. The correction went onto `#67` as a comment BEFORE the prompt was composed, and the
+  branch left the guide untouched. **Post the correction to the ticket, because the worker reads
+  comments and not your reasoning.**
+
 ## State
 
-Read live 2026-09-16 at 21:20, at the end of the night's work. **Thomas said "stop all the work and
-/handoff --sleep", so every worker was stopped deliberately.** That is an external ending, not a
-finished spec.
+Read live 2026-09-17 at 10:00 UTC, at the end of the night's work.
 
-`redesign/main` is `43bc28ad` and is **299 commits ahead of `main`**. `main` is `a9558f7a`, carrying
-Orbit 1.3.29 (88) on the Play open track.
+`redesign/main` is **`7152b0ff`**. `main` is `a9558f7a` with Orbit 1.3.29 (88) on the Play open
+track. `orbit-api` `main` is **`fd219126`**.
 
 ### Merged to `redesign/main` tonight
 
-    984  3d2f01a5  Codex cloud command working directory.              #544  CLOSED
-    986  43bc28ad  Goal detail linked habit rows: the web goal sheet
-                   now finishes its exit before any habit route is
-                   pushed, which is D77.                               #473
+    1000  fd2a6dd3  Every Android sheet defers its navigation.              #561  CLOSED
+    1006  20acdc55  Progresso's last stale mobile suppression.              #329  CLOSED
+    1009  7152b0ff  The Android widget's zero-streak and refresh fallback.  #76   CLOSED
 
-`986` is the product-visible one. Opening a goal from an Astra conversation and tapping a linked
-habit used to change the route with the sheet and the conversation both still mounted, so the habit
-page loaded behind two surfaces.
+`1000` is the product-visible one: a sheet that navigated while still presented could wedge every
+later modal until the process restarted, and all eight sites are now proven to dismiss first.
 
-### Open pull requests against `redesign/main`, all four, none ready
+### Merged to `orbit-api` `main` tonight
 
-Every row read at 21:20 with the readiness condition under Constraints. **All four carry an
-unresolved finding and a red `pullfrog-approval`.** None is blocked; each is one round of work.
+    520   fd219126  The gating matrix fails closed on every unprovable source shape.  #229  CLOSED
 
-| PR | ticket | head | the finding to fix |
+**It is merged, NOT deployed.** The deploy is Thomas's.
+
+### Closed with no pull request, on verified evidence
+
+`#58` and `#373`. Each closing comment carries a per-criterion table checked against the tree, not
+the worker's report. `#373`'s closure is what unblocked `#76`.
+
+### Open pull requests, all reviewed, none ready
+
+Every row read at 10:00 with the readiness condition under Constraints. **Every one has its review
+back.** None is blocked; each is one round of work.
+
+| PR | ticket | head | what is left |
 |---|---|---|---|
-| 994 | `#557` | `1b502877` | round 11. `auth-store.ts:289`: the token refresh advances `sessionGeneration` while `login()` awaits account cleanup, so the login owner fails its next generation check and returns before its only `signed-in` publication. Same model, one more writer outside it |
-| 992 | `#543` | `0cbcd183` | `radio-group.tsx:52`: with every enabled radio focusable, forward focus has no route to the CHECKED item, so it lands on an unchecked one and `onFocus` then selects it, changing the value by traversal alone. Decide the entry route |
-| 991 | `#560` | `9b806654` | `compose-prompt.mjs:146`: the generated order makes `.truncated` and `.tree[].type` load-bearing GitHub API fields, and the body does not record the real invocation and typed response shape. Same class the `gh --json` proof closed on 970 |
-| 970 | `#558` | `81586aa3` | TWO. `SKILL.md:50`: the walk treats "not an open PR head" as "integration branch", but a stacked parent can be CLOSED and still be the child's recorded base, and PR 575 over closed parent 560 is a live example. `SKILL.md:68`: the body proves `baseRefName` is an ACCEPTED field but not the response SHAPE, so add real three-field output with its types |
+| 1007 | `#67` | `a128ca12` | round 2 pushed, awaiting the review of that head. Five P1s answered, including the parser that rewrote `Read a book` to `Read book` in both locales |
+| 1002 | `#545` | `1f4022d0` | round 2 pushed, awaiting review. Three P1s where clearing a suppression changed behaviour: the year picker's 46px rows against a 48px scroll step, a `focus-visible:` rule added while `focus:outline-none` stayed, and `highlight-text.tsx` with no production importer |
+| 994 | `#557` | `cdbbbedd` | zero reds, zero threads, `pullfrog-approval` ABSENT. Needs a requested review of this head |
+| 1008 | `#74` | `56d48167` | 3 reds, 3 threads. Removed 116 suppressions, the largest single clearance |
+| 1005 | `#73` | `1c4e90fd` | 1 red, 2 threads |
+| 1001 | `#562` | `744173b3` | 2 reds, 2 threads |
+| 1003 | `#63` | `b52e3d79` | 1 red, 1 thread |
+| 1004 | `#57` | `e002e817` | 1 red, 1 thread |
+| 992 | `#543` | `fb520fb1` | 1 red, 1 thread. The duplicate `radio-group.tsx` is deleted and every caller migrated |
+| 991 | `#560` | `3cda0bd9` | 1 red, 1 thread |
+| 970 | `#558` | `b56d1b5e` | CHANGES_REQUESTED, 1 thread |
 
-Dependabot holds 798, 799, 801 and 881 against `main`. Not this effort.
+`orbit-api`:
 
-### `orbit-api`, both on `main`, both advanced tonight
-
-| PR | ticket | head | state |
+| PR | ticket | head | what is left |
 |---|---|---|---|
-| 521 | `#526` | `82134581` | **All four threads RESOLVED.** Round 4 removed the recurrence projection entirely. Needs a fresh review of this head, then merge and deploy |
-| 520 | `#229` | `3d5d6929` | **Zero unresolved threads.** Round 4 landed `planRequirement` and `quotaLiftedByPlan`. CI was still running at handoff. Needs a review of this head, then merge and deploy |
+| 528 | `#529` | `dfb885b3` | 1 thread, no reds. **Its manual step is the whole ticket**: set `RequireApiKeyCreationStepUp` to `true` in `AppConfigs` AFTER the deploy, then read the row back |
+| 521 | `#526` | `44611e5f` | 2 reds, 1 thread. Round 5 moved the recurrence refusal server side |
 
-Dependabot holds 510, 525 and 526 there. Not this effort.
+Dependabot holds ui 798, 799, 801, 881 and api 510, 525, 526. Not this effort.
 
-### `#561` was STOPPED mid-flight, and its work is uncommitted
+### The suppressed lint violations
 
-**This is the single most losable thing in the tree.** Thomas stopped the run while the `#561` worker
-was writing, so there is no commit and no branch record. The worktree
-`C:\Users\thoma\orca\workspaces\orbit-ui-mobile\ticket-561-sheet-nav`, branch
-`fix/ticket-561-sheet-nav`, sits at `0600332b` with **15 modified files, covering all eight sites the
-ticket names plus seven test files**:
+`redesign/main` still reads **66 web and 85 mobile**, because every clearance is in an unmerged pull
+request. The branches hold: 1002 at web 23 and mobile 20, 1008 removing 116 more, 1007 at web 52 and
+mobile 72, 1005 removing 10. **Merging 1002 and 1008 is what collapses this number.**
 
-    apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx
-    apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx
-    apps/mobile/components/habits/create-habit-modal.tsx
-    apps/mobile/components/habits/edit-habit-modal.tsx
-    apps/mobile/components/habits/reschedule-sheet.tsx
-    apps/mobile/components/navigation/notification-detail-modal.tsx
-    apps/mobile/components/onboarding/calendar-import-prompt.tsx
-    apps/mobile/components/ui/trial-expired-modal.tsx
-    plus the seven matching __tests__ files
+### Worktrees and branches
 
-Read that diff before doing anything else with `#561`. Do not reset, stash or discard it. It is a
-stopped worker's work, not residue, and no test result was ever captured for it.
+**Cleaned on 2026-09-16 into 09-17.** ui went from 183 worktrees to 17 and 383 local branches to 7
+before the night's new ones; api went from 20 worktrees to 4 and 41 branches to 4. Ten stale remote
+branches and all four stashes are gone. Every remaining worktree is clean with nothing unpushed.
 
-### Not started
-
-- `#529`: gate BOTH listing and revoking API keys behind the emailed code, then flip
-  `AppConfigKeys.RequireApiKeyCreationStepUp` to true in `AppConfigs` AFTER the deploy or it ships
-  inert. His answer and the brief are comments on the ticket.
-- `#562`: a weekday-scoped calendar event has NEVER imported on any shipped build. Its interval and
-  ordinal cases are decided as visible refusals, recorded as a comment on the ticket.
-- `#545` stages 2 to 5, 77 suppressions. Its reconciliation comment proves nothing is ownerless.
-- `#63`, `#67`, `#73`, `#76`, `#329`, `#57`, `#58`: the seven screen tickets.
-- `#74`: ordinary copy work.
-
-### Worktree and branch debt
-
-**183 worktrees in ui and 20 in api. Four stashes in ui, none in api.** Seven dirty trees in ui:
-
-    ticket-351-primitives      179 files
-    orb-70-android-widget       34
-    ticket-561-sheet-nav        15   <- STOPPED WORKER, see above, do not touch
-    orb65-red-evidence           4
-    ticket-550-r3-red            4
-    ticket-329-progresso-s5b     2
-    ticket-174-measure           1
-
-Reproduce with `git worktree list` per repo. **Never `git worktree remove --force` on Windows**: it
-follows a junction and deletes the target's contents. `rmdir` the junctions first.
+`C:\Users\thoma\orca\.purge` still holds roughly 150 staged worktrees whose bytes were never
+reclaimed, because `robocopy /MIR /MT:64` over them is what exhausted memory and killed five tasks at
+once. Reclaim it single-threaded when no worker is running. Nothing reads it.
 
 ### Tickets
 
-131 open carried `repo:ui` and 67 carried `repo:api` at the start of the night. Re-derive:
+129 open carry `repo:ui` and 68 carry `repo:api`. Re-derive:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 300
 
-### The completion gate reads valid, and that is not the same as done
+### Filed tonight
 
-`node tools/redesign-coverage.mjs` reports **valid: 184 manifest surfaces accounted for, 14 deleted,
-3 excluded**, run 2026-09-16. It validates the MAPPING and nothing else, and no CI job regenerates
-the manifest it reads. Seven screen tickets are still open. Judge each against its own acceptance
-criteria in the tree before closing it.
+- **`#569`**: a projected calendar occurrence can disagree with its own pass-through `BYDAY`.
+  Rescoped mid-run: `#526` now does the refusing server side, so this ticket is the better outcome,
+  shifting the provable subset instead of omitting it.
+- **`#570`**: the review harness gate requires two skills where the playbook requires four lanes plus
+  two repository agents, so a pull request can pass it with two honest lines and no sweep. D95
+  forbade fixing that inside 991, which that gate judges.
 
 ## Open questions
 
