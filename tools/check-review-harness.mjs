@@ -174,7 +174,7 @@ if (missing.length > 0 || empty.length > 0 || invalidConditional.length > 0) {
     .join("; ")
   fail(
     1,
-    `::error::The "Review harness" block in this pull request body is incomplete: ${detail}. Each required skill needs one line saying what it found, or "no findings" where it found nothing. This gate only withholds; it never grants completion.`,
+    `::error::The "Review harness" block in this pull request body is incomplete: ${detail}. Each required review entry needs one line saying what it found, or "no findings" where it found nothing. This gate only withholds; it never grants completion.`,
   )
 }
 

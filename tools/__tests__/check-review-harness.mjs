@@ -47,7 +47,7 @@ export const cases = () => {
   const pullRequestTemplate = readFileSync(join(REPO_ROOT, ".github", "pull_request_template.md"), "utf8")
   T(
     "check-review-harness.mjs: the pull request template carries the generated review evidence block verbatim",
-    pullRequestTemplate.includes(TEMPLATE_BLOCK),
+    pullRequestTemplate.replaceAll("\r\n", "\n").includes(TEMPLATE_BLOCK),
     `expected .github/pull_request_template.md to contain:\n${TEMPLATE_BLOCK}`,
   )
 
@@ -64,7 +64,7 @@ export const cases = () => {
     args("change-lane-only", CHANGE_LANE_ONLY_BLOCK, UI_CHANGE),
     {
       status: 1,
-      stderr: /no line for: execution lane, motion lane, gates lane, design-reviewer, completeness-critic/,
+      stderr: /no line for: execution lane, motion lane, gates lane, design-reviewer, completeness-critic.*Each required review entry needs one line/,
     },
   )
 
