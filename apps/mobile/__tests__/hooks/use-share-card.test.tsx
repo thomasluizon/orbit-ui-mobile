@@ -170,4 +170,59 @@ describe('mobile useShareCard', () => {
     expect(hook.current.hasError).toBe(true)
     expect(hook.current.savedFileName).toBeNull()
   })
+
+  it('clears a previous save when the next directory pick is cancelled', async () => {
+    const hook = await renderHookValue(() => useShareCard())
+
+    await TestRenderer.act(async () => {
+      await hook.current.download()
+    })
+    expect(hook.current.savedFileName).toBe('orbit-recap.png')
+
+    expoFileSystemMock.cancelNextDirectoryPick()
+    await TestRenderer.act(async () => {
+      await hook.current.download()
+    })
+
+    expect(hook.current.savedFileName).toBeNull()
+    expect(hook.current.hasError).toBe(false)
+  })
+
+  it('clears a previous save when the next download fails', async () => {
+    const hook = await renderHookValue(() => useShareCard())
+
+    await TestRenderer.act(async () => {
+      await hook.current.download()
+    })
+    expect(hook.current.savedFileName).toBe('orbit-recap.png')
+
+    expoFileSystemMock.failNextCopy(new Error('storage unavailable'))
+    await TestRenderer.act(async () => {
+      await hook.current.download()
+    })
+
+    expect(hook.current.savedFileName).toBeNull()
+    expect(hook.current.hasError).toBe(true)
+  })
+
+  it('clears a previous save when the next share hands the file to the system', async () => {
+    const hook = await renderHookValue(() => useShareCard())
+
+    await TestRenderer.act(async () => {
+      await hook.current.download()
+    })
+    expect(hook.current.savedFileName).toBe('orbit-recap.png')
+
+    await TestRenderer.act(async () => {
+      await hook.current.share({
+        shareTitle: 'Share progress',
+        shareText: 'I am building better habits',
+        url: 'https://app.useorbit.org/r/ABC123?recap=week',
+      })
+    })
+
+    expect(mocks.open).toHaveBeenCalledTimes(1)
+    expect(hook.current.savedFileName).toBeNull()
+    expect(hook.current.hasError).toBe(false)
+  })
 })
