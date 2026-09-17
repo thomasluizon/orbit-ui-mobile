@@ -4,7 +4,7 @@ import { getErrorSurface } from '@orbit/shared/utils'
 
 import {
   clearSessionAndResetAuth,
-  getSessionEpoch,
+  getSessionGeneration,
   isAuthTransitionInFlight,
   refreshSession,
   refreshSessionToken,
@@ -406,7 +406,8 @@ describe('mobile auth store security paths', () => {
     })
     await vi.waitFor(() => expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1))
 
-    await clearSessionAndResetAuth(getSessionEpoch())
+    const generation = getSessionGeneration()
+    await clearSessionAndResetAuth(generation.epoch, generation.credentialVersion)
     releasePersistedCacheClear()
     await login
 
@@ -478,7 +479,7 @@ describe('mobile auth store security paths', () => {
   })
 
   it('keeps the session authenticated when a concurrent clear fires mid-login', async () => {
-    const previousEpoch = getSessionEpoch()
+    const previousEpoch = getSessionGeneration().epoch
     apiClientMock.mockImplementation(async () => {
       await clearSessionAndResetAuth(previousEpoch)
       return undefined
@@ -856,7 +857,7 @@ describe('mobile auth store security paths', () => {
   it('advances the session epoch and signs out when revocation rejects', async () => {
     getRefreshTokenMock.mockResolvedValue('refresh-token')
     apiClientMock.mockRejectedValueOnce(new Error('network down'))
-    const epochBeforeLogout = getSessionEpoch()
+    const epochBeforeLogout = getSessionGeneration().epoch
     useAuthStore.setState({
       isAuthenticated: true,
       user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
@@ -866,7 +867,7 @@ describe('mobile auth store security paths', () => {
 
     await expect(useAuthStore.getState().logout()).resolves.toBeUndefined()
 
-    expect(getSessionEpoch()).toBeGreaterThan(epochBeforeLogout)
+    expect(getSessionGeneration().epoch).toBeGreaterThan(epochBeforeLogout)
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
@@ -933,6 +934,36 @@ describe('mobile auth store security paths', () => {
       email: 'rotated@example.com',
     })
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('refuses teardown authorized by an older credential version', async () => {
+    const generationBeforeRefresh = getSessionGeneration()
+    const rotatedToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'rotated-user',
+      'rotated@example.com',
+    )
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockResolvedValue(Response.json({
+      token: rotatedToken,
+      refreshToken: 'next-refresh',
+    }))
+    useAuthStore.setState({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+    })
+
+    await expect(refreshSession()).resolves.toEqual({
+      status: 'refreshed',
+      token: rotatedToken,
+    })
+
+    await expect(clearSessionAndResetAuth(
+      generationBeforeRefresh.epoch,
+      generationBeforeRefresh.credentialVersion,
+    )).resolves.toBe(false)
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().sessionPhase).toBe('signed-in')
   })
 
   it('shares one token rotation across concurrent refresh callers', async () => {

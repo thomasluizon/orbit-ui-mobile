@@ -18,7 +18,7 @@ const {
   fetchMock,
   refreshSessionMock,
   clearSessionAndResetAuthMock,
-  getSessionEpochMock,
+  getSessionGenerationMock,
   isAuthTransitionInFlightMock,
   buildAppVersionHeadersMock,
   markUpgradeRequiredMock,
@@ -29,7 +29,7 @@ const {
   fetchMock: vi.fn(),
   refreshSessionMock: vi.fn(),
   clearSessionAndResetAuthMock: vi.fn(),
-  getSessionEpochMock: vi.fn(() => 7),
+  getSessionGenerationMock: vi.fn(() => ({ epoch: 7, credentialVersion: 0 })),
   isAuthTransitionInFlightMock: vi.fn(() => false),
   buildAppVersionHeadersMock: vi.fn(() => ({ 'X-App-Version': '1.1.4' })),
   markUpgradeRequiredMock: vi.fn(),
@@ -52,7 +52,7 @@ vi.mock('@/stores/version-gate-store', () => ({
 vi.mock('@/stores/auth-store', () => ({
   refreshSession: refreshSessionMock,
   clearSessionAndResetAuth: clearSessionAndResetAuthMock,
-  getSessionEpoch: getSessionEpochMock,
+  getSessionGeneration: getSessionGenerationMock,
   isAuthTransitionInFlight: isAuthTransitionInFlightMock,
 }))
 
@@ -79,8 +79,9 @@ describe('mobile apiClient', () => {
     fetchMock.mockReset()
     refreshSessionMock.mockReset()
     clearSessionAndResetAuthMock.mockReset()
-    getSessionEpochMock.mockReset()
-    getSessionEpochMock.mockReturnValue(7)
+    clearSessionAndResetAuthMock.mockResolvedValue(true)
+    getSessionGenerationMock.mockReset()
+    getSessionGenerationMock.mockReturnValue({ epoch: 7, credentialVersion: 0 })
     isAuthTransitionInFlightMock.mockReset()
     isAuthTransitionInFlightMock.mockReturnValue(false)
     markUpgradeRequiredMock.mockReset()
@@ -286,6 +287,67 @@ describe('mobile apiClient', () => {
     expect(routerReplaceMock).toHaveBeenCalledWith('/login')
   })
 
+  it('keeps credentials published after a retried request started', async () => {
+    const session = {
+      accessToken: 'token-123',
+      refreshToken: 'refresh-123',
+      phase: 'signed-in',
+      epoch: 7,
+      credentialVersion: 0,
+    }
+    let releaseRetry!: (response: Response) => void
+    let refreshCount = 0
+
+    getTokenMock.mockImplementation(() => Promise.resolve(session.accessToken))
+    getSessionGenerationMock.mockImplementation(() => ({
+      epoch: session.epoch,
+      credentialVersion: session.credentialVersion,
+    }))
+    refreshSessionMock.mockImplementation(() => {
+      refreshCount += 1
+      session.accessToken = `token-${refreshCount}`
+      session.refreshToken = `refresh-${refreshCount}`
+      session.credentialVersion += 1
+      return Promise.resolve({ status: 'refreshed', token: session.accessToken })
+    })
+    clearSessionAndResetAuthMock.mockImplementation(
+      (expectedEpoch: number, expectedCredentialVersion?: number | null) => {
+        if (
+          expectedEpoch !== session.epoch
+          || (expectedCredentialVersion != null
+            && expectedCredentialVersion !== session.credentialVersion)
+        ) {
+          return Promise.resolve(false)
+        }
+        session.accessToken = ''
+        session.refreshToken = ''
+        session.phase = 'signed-out'
+        return Promise.resolve(true)
+      },
+    )
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockImplementationOnce(
+        () => new Promise<Response>((resolve) => { releaseRetry = resolve }),
+      )
+
+    const request = apiClient('/secure')
+    await vi.waitFor(() => expect(releaseRetry).toBeTypeOf('function'))
+
+    await refreshSessionMock()
+    releaseRetry(new Response(null, { status: 401 }))
+    await expect(request).rejects.toThrow('Unauthorized')
+
+    expect(session).toMatchObject({
+      accessToken: 'token-2',
+      refreshToken: 'refresh-2',
+      phase: 'signed-in',
+      epoch: 7,
+      credentialVersion: 2,
+    })
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
   it('does not clear the session on a 401 caused by a transient refresh network blip', async () => {
     getTokenMock.mockResolvedValue('token-123')
     refreshSessionMock.mockResolvedValue({ status: 'network-error' })
@@ -458,7 +520,7 @@ describe('mobile apiClient', () => {
 
     await expect(apiClient(API.auth.refresh)).rejects.toThrow('Unauthorized')
 
-    expect(clearSessionAndResetAuthMock).toHaveBeenCalledWith(7)
+    expect(clearSessionAndResetAuthMock).toHaveBeenCalledWith(7, 0)
     expect(refreshSessionMock).not.toHaveBeenCalled()
   })
 })

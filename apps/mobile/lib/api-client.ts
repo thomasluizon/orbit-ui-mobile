@@ -182,6 +182,18 @@ async function redirectToLogin(): Promise<void> {
   router.replace('/login')
 }
 
+async function clearObservedSessionAndRedirect(generation: {
+  epoch: number
+  credentialVersion: number
+}): Promise<void> {
+  const { clearSessionAndResetAuth } = await import('@/stores/auth-store')
+  const cleared = await clearSessionAndResetAuth(
+    generation.epoch,
+    generation.credentialVersion,
+  )
+  if (cleared) await redirectToLogin()
+}
+
 async function handleUnauthorized<T>(
   path: string,
   effectiveOptions: ApiRequestOptions,
@@ -206,13 +218,12 @@ async function handleUnauthorized<T>(
   }
 
   const {
-    clearSessionAndResetAuth,
-    getSessionEpoch,
+    getSessionGeneration,
     refreshSession,
     isAuthTransitionInFlight,
   } =
     await import('@/stores/auth-store')
-  const sessionEpoch = getSessionEpoch()
+  const observedGeneration = getSessionGeneration()
   const refreshOutcome = await refreshSession({ clearOnFailure: false })
 
   if (refreshOutcome.status === 'network-error') {
@@ -220,6 +231,7 @@ async function handleUnauthorized<T>(
   }
 
   if (refreshOutcome.status === 'refreshed') {
+    const refreshedGeneration = getSessionGeneration()
     const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
     if (retry.response.status !== 401) {
       return {
@@ -229,15 +241,13 @@ async function handleUnauthorized<T>(
     }
 
     if (!isAuthTransitionInFlight()) {
-      await clearSessionAndResetAuth(sessionEpoch)
-      await redirectToLogin()
+      await clearObservedSessionAndRedirect(refreshedGeneration)
     }
     throw toUnauthorizedError(retry.requestId)
   }
 
   if (!isAuthTransitionInFlight()) {
-    await clearSessionAndResetAuth(sessionEpoch)
-    await redirectToLogin()
+    await clearObservedSessionAndRedirect(observedGeneration)
   }
   throw toUnauthorizedError(requestId)
 }
@@ -272,6 +282,8 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   const effectiveOptions: ApiRequestOptions =
     idempotencyKey === undefined ? options : { ...options, idempotencyKey }
 
+  const { getSessionGeneration } = await import('@/stores/auth-store')
+  const observedGeneration = getSessionGeneration()
   const { response, requestId, tokenUsed } = await executeRequest(path, effectiveOptions)
 
   if (response.status === 426) {
@@ -283,9 +295,11 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   }
 
   if (response.status === 401) {
-    const { clearSessionAndResetAuth, getSessionEpoch } =
-      await import('@/stores/auth-store')
-    await clearSessionAndResetAuth(getSessionEpoch())
+    const { clearSessionAndResetAuth } = await import('@/stores/auth-store')
+    await clearSessionAndResetAuth(
+      observedGeneration.epoch,
+      observedGeneration.credentialVersion,
+    )
     throw toUnauthorizedError(requestId)
   }
 

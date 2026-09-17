@@ -25,7 +25,7 @@ vi.mock('@/stores/version-gate-store', () => ({
 vi.mock('@/stores/auth-store', () => ({
   refreshSession: vi.fn(),
   clearSessionAndResetAuth: vi.fn(),
-  getSessionEpoch: vi.fn(() => 0),
+  getSessionGeneration: vi.fn(() => ({ epoch: 0, credentialVersion: 0 })),
   isAuthTransitionInFlight: vi.fn(() => false),
 }))
 

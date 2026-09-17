@@ -50,8 +50,11 @@ export function isAuthTransitionInFlight(): boolean {
   return useAuthStore.getState().sessionPhase === 'establishing'
 }
 
-export function getSessionEpoch(): number {
-  return sessionEpoch
+export function getSessionGeneration(): {
+  epoch: number
+  credentialVersion: number
+} {
+  return { epoch: sessionEpoch, credentialVersion }
 }
 
 /**
@@ -150,11 +153,13 @@ type SessionTeardownResult = {
 
 async function clearSessionCredentials(
   expectedEpoch: number | null,
+  expectedCredentialVersion: number | null,
   captureRefreshToken: boolean,
 ): Promise<SessionTeardownResult | null> {
   return withCredentialMutationLock(async () => {
     const epoch = expectedEpoch ?? sessionEpoch
-    if (!isCurrentSessionEpoch(epoch)) return null
+    const expectedCredentials = expectedCredentialVersion ?? credentialVersion
+    if (!isCurrentSessionEpoch(epoch) || credentialVersion !== expectedCredentials) return null
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
     clearStepUpState()
     sessionEpoch += 1
@@ -181,9 +186,14 @@ async function runSessionTeardownStep(
 
 async function runSessionTeardown(
   expectedEpoch: number | null,
+  expectedCredentialVersion: number | null,
   captureRefreshToken: boolean,
 ): Promise<SessionTeardownResult | null> {
-  const teardown = await clearSessionCredentials(expectedEpoch, captureRefreshToken)
+  const teardown = await clearSessionCredentials(
+    expectedEpoch,
+    expectedCredentialVersion,
+    captureRefreshToken,
+  )
   if (!teardown) return null
   const { epoch } = teardown
   if (!(await runSessionTeardownStep(epoch, () => cancelPersistentReminder().catch(() => {})))) return null
@@ -203,8 +213,11 @@ async function runSessionTeardown(
   return teardown
 }
 
-export async function clearSessionAndResetAuth(epoch: number): Promise<void> {
-  await runSessionTeardown(epoch, false)
+export async function clearSessionAndResetAuth(
+  epoch: number,
+  expectedCredentialVersion: number | null = null,
+): Promise<boolean> {
+  return (await runSessionTeardown(epoch, expectedCredentialVersion, false)) !== null
 }
 
 /**
@@ -219,6 +232,7 @@ export type RefreshSessionOutcome =
 
 type RefreshSessionAttempt = {
   epoch: number
+  credentialVersion: number
   outcome: RefreshSessionOutcome
 }
 
@@ -308,11 +322,11 @@ async function rotateSessionToken(
 }
 
 async function runRefreshSession(): Promise<RefreshSessionAttempt> {
-  const epoch = sessionEpoch
-  const expectedCredentialVersion = credentialVersion
+  const { epoch, credentialVersion: expectedCredentialVersion } = getSessionGeneration()
   try {
     return {
       epoch,
+      credentialVersion: expectedCredentialVersion,
       outcome: await rotateSessionToken(epoch, expectedCredentialVersion),
     }
   } finally {
@@ -327,7 +341,7 @@ export async function refreshSession(options?: {
   const attempt = await (refreshSessionInFlight ??= runRefreshSession())
 
   if (attempt.outcome.status === 'unauthorized' && clearOnFailure) {
-    await clearSessionAndResetAuth(attempt.epoch)
+    await clearSessionAndResetAuth(attempt.epoch, attempt.credentialVersion)
   }
 
   return attempt.outcome
@@ -359,7 +373,7 @@ function applyProfilePresentation(profile: Profile): void {
 }
 
 async function hydrateSessionProfile(): Promise<void> {
-  const epoch = sessionEpoch
+  const { epoch, credentialVersion: expectedCredentialVersion } = getSessionGeneration()
   try {
     const profile = await apiClient<Profile>(API.profile.get)
     queryClient.setQueryData(profileKeys.detail(), profile)
@@ -373,7 +387,7 @@ async function hydrateSessionProfile(): Promise<void> {
     }
   } catch (err: unknown) {
     if (err instanceof Error && err.message === 'Unauthorized') {
-      await clearSessionAndResetAuth(epoch)
+      await clearSessionAndResetAuth(epoch, expectedCredentialVersion)
     }
   }
 }
@@ -457,7 +471,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           credentialVersion === loginCredentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
     } catch (error: unknown) {
-      await runSessionTeardown(epoch, false).catch(() => {})
+      await runSessionTeardown(epoch, null, false).catch(() => {})
       throw error
     }
   },
@@ -467,7 +481,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .then((module) => module.unsubscribePushToken())
       .catch(() => {})
 
-    const teardown = await runSessionTeardown(null, true)
+    const teardown = await runSessionTeardown(null, null, true)
     const refreshToken = teardown?.refreshToken ?? null
     if (refreshToken) {
       await apiClient(API.auth.logout, {
@@ -486,11 +500,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const ownsSessionEstablishment = startingPhase === 'signed-out'
     if (ownsSessionEstablishment) set(deriveSessionPhase('establishing'))
 
-    const epoch = sessionEpoch
+    const { epoch, credentialVersion: expectedCredentialVersion } = getSessionGeneration()
     let token = await getToken()
     if (!isCurrentSessionEpoch(epoch)) return false
     if (!token) {
-      await clearSessionAndResetAuth(epoch)
+      await clearSessionAndResetAuth(epoch, expectedCredentialVersion)
       return false
     }
 
@@ -525,7 +539,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   initialize: async () => {
-    const epoch = sessionEpoch
+    const { epoch, credentialVersion: expectedCredentialVersion } = getSessionGeneration()
     set({ isLoading: true })
     try {
       const isValid = await get().checkAuth()
@@ -548,7 +562,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })()
       void profileHydrationInFlight
     } catch {
-      await clearSessionAndResetAuth(epoch)
+      await clearSessionAndResetAuth(epoch, expectedCredentialVersion)
     }
   },
 }))
