@@ -183,13 +183,29 @@ describe('alerts', () => {
   it('uses canonical ghost list and read actions and a destructive detail delete', () => {
     seed(1)
     showInbox()
-    for (const name of ['Mark read', 'Clear all']) {
+    for (const name of [en.notifications.markAllRead, en.notifications.deleteAll]) {
       expect(screen.getByRole('button', { name })).toHaveAttribute('data-variant', 'ghost')
       expect(screen.getByRole('button', { name })).toHaveAttribute('data-size', 'sm')
     }
     fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
-    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark read' })).toHaveAttribute('data-variant', 'ghost')
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: en.notifications.markAsRead })).toHaveAttribute('data-variant', 'ghost')
     expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-variant', 'destructive')
+  })
+
+  it.each([
+    ['en', 'Mark all', 'Mark read'],
+    ['pt-BR', 'Marcar todas', 'Marcar lida'],
+  ] as const)('keeps bulk and single read actions distinct in %s', (locale, bulkLabel, singleLabel) => {
+    state.locale = locale
+    seed(1)
+    showInbox()
+
+    expect(screen.getByRole('button', { name: bulkLabel })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Alert 0\./ }))
+    expect(
+      within(screen.getByRole('dialog')).getByRole('button', { name: singleLabel }),
+    ).toBeInTheDocument()
+    expect(bulkLabel).not.toBe(singleLabel)
   })
 
   it('identifies the queued delete with a neutral trash glyph beside undo', () => {
@@ -259,7 +275,7 @@ describe('alerts', () => {
     showInbox()
     expect(screen.getByText('Nothing to see here')).toBeInTheDocument()
     expect(screen.queryByText('Clear all')).toBeNull()
-    expect(screen.queryByText('Mark read')).toBeNull()
+    expect(screen.queryByText(en.notifications.markAllRead)).toBeNull()
     expect(screen.getByRole('list').querySelector('button')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: en.common.back }))
     expect(state.back).toHaveBeenCalledWith('/')
@@ -321,9 +337,9 @@ describe('alerts', () => {
   it('marks all read and removes the header action at zero', () => {
     seed(2)
     const view = showInbox()
-    fireEvent.click(screen.getByRole('button', { name: 'Mark read' }))
+    fireEvent.click(screen.getByRole('button', { name: en.notifications.markAllRead }))
     view.rerender(<NotificationInbox />)
-    expect(screen.queryByRole('button', { name: 'Mark read' })).toBeNull()
+    expect(screen.queryByRole('button', { name: en.notifications.markAllRead })).toBeNull()
     expect(screen.getAllByRole('button', { name: /Alert \d. read/ })).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Clear all' })).toBeInTheDocument()
   })
