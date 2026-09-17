@@ -14,9 +14,12 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
         return (
           <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label}
             accessibilityState={{ selected: active }} testID={`tab-${item.id}-${active ? 'current' : 'inactive'}`}
-            onPress={() => onSelect(item.id)} style={({ pressed }) => [styles.tab, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
-            {item.icon?.({ active })}
-            <Text style={[styles.label, { color: active ? tokens.primarySoft : tokens.fg3 }]} numberOfLines={1}>{item.label}</Text>
+            onPress={() => onSelect(item.id)} style={styles.tab}>
+            {({ pressed }) => <>
+              {pressed ? <View pointerEvents="none" style={[styles.pressedBackground, { backgroundColor: tokens.bgHover }]} /> : null}
+              {item.icon?.({ active })}
+              <Text style={[styles.label, { color: active && pressed ? tokens.primaryText : active ? tokens.primarySoft : tokens.fg3 }]} numberOfLines={1}>{item.label}</Text>
+            </>}
           </Pressable>
         )
       })}
@@ -27,5 +30,6 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
 const styles = StyleSheet.create({
   container: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', height: 56, borderTopWidth: 1, maxWidth: 740, width: '100%' },
   tab: { alignItems: 'center', flex: 1, gap: 4, height: 44, justifyContent: 'center', minWidth: 0 },
+  pressedBackground: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 12 },
 })

@@ -45,6 +45,62 @@ describe('BottomTabBar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Calendário' }))
     expect(onTab).toHaveBeenCalledWith('calendario')
   })
+
+  it.each(['dark', 'light'])('uses resting and hover label roles in %s mode', (mode) => {
+    document.documentElement.dataset.theme = mode
+    render(
+      <BottomTabBar
+        activeId="calendario"
+        items={Object.entries(labels).map(([id, label]) => ({ id, label }))}
+        label="Navegação principal"
+        onSelect={() => {}}
+      />,
+    )
+
+    const activeLabel = screen.getByText('Calendário')
+    const inactiveLabel = screen.getByText('Hoje')
+    expect(activeLabel).toHaveClass('text-[var(--primary-soft)]')
+    expect(activeLabel).toHaveClass('group-hover:text-[var(--primary-text)]')
+    expect(activeLabel).toHaveClass('duration-[var(--dur-hover-control)]')
+    expect(inactiveLabel).toHaveClass('text-[var(--fg-3)]')
+    expect(inactiveLabel).not.toHaveClass('group-hover:text-[var(--primary-text)]')
+    delete document.documentElement.dataset.theme
+  })
+
+  it('keeps icons above the animated hover surface', () => {
+    render(
+      <BottomTabBar
+        activeId="hoje"
+        items={[{ id: 'hoje', label: 'Hoje', icon: () => <svg data-testid="today-icon" /> }]}
+        label="Navegação principal"
+        onSelect={() => {}}
+      />,
+    )
+
+    const iconLayer = screen.getByTestId('today-icon').parentElement
+    const hoverSurface = iconLayer?.previousElementSibling
+    expect(iconLayer).toHaveClass('relative')
+    expect(hoverSurface).toHaveClass('duration-[var(--dur-hover)]')
+    expect(hoverSurface).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('leaves every label inactive for an unknown destination', () => {
+    render(
+      <BottomTabBar
+        activeId="unknown"
+        items={Object.entries(labels).map(([id, label]) => ({ id, label }))}
+        label="Navegação principal"
+        onSelect={() => {}}
+      />,
+    )
+
+    expect(screen.getAllByRole('button').every(
+      (button) => !button.hasAttribute('aria-current'),
+    )).toBe(true)
+    expect(screen.getAllByText(/Hoje|Calendário|Progresso|Perfil/).every(
+      (label) => label.classList.contains('text-[var(--fg-3)]'),
+    )).toBe(true)
+  })
 })
 
 it('keeps one current position when another or the current item is pressed', () => {
