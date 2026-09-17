@@ -1,7 +1,10 @@
 import { check, stage } from "./_harness.mjs"
+import { renderReviewEvidenceBlock } from "../lib/review-harness.mjs"
 
 const UI_CHANGE = ["apps/web/components/today/habit-row.tsx", "apps/mobile/components/today/habit-row.tsx"].join("\n")
 const TOOLING_CHANGE = ["tools/arch-map.mjs", ".claude/rules/core.md"].join("\n")
+const TEMPLATE_BLOCK = renderReviewEvidenceBlock()
+const templateLine = (label) => TEMPLATE_BLOCK.split("\n").find((line) => line.startsWith(`- ${label}:`))
 
 const FULL_BLOCK = `## What changed
 
@@ -106,14 +109,39 @@ export const cases = () => {
   check(
     "check-review-harness.mjs",
     "rejects the unfilled template, so a pasted empty block is not evidence",
+    args("empty", TEMPLATE_BLOCK, UI_CHANGE),
+    {
+      status: 1,
+      stderr: /empty or placeholder evidence for: execution lane, motion lane, gates lane, interface-review, better-interface, design-reviewer, completeness-critic/,
+    },
+  )
+
+  check(
+    "check-review-harness.mjs",
+    "rejects one unchanged plain template answer and names only that requirement",
     args(
-      "empty",
-      FULL_BLOCK
-        .replace("- interface-review: one Introduced finding on the row's press target, fixed in this diff", "- interface-review:")
-        .replace("- better-interface (full mode): better-typography flagged the label leading; the rest clean", "- better-interface (full mode):"),
+      "one-template-answer",
+      FULL_BLOCK.replace(
+        "- execution lane: spacing and target checks passed",
+        templateLine("execution lane"),
+      ),
       UI_CHANGE,
     ),
-    { status: 1, stderr: /empty or placeholder evidence for: interface-review, better-interface/ },
+    { status: 1, stderr: /empty or placeholder evidence for: execution lane\.(?![\s\S]*motion lane)/ },
+  )
+
+  check(
+    "check-review-harness.mjs",
+    "rejects the unchanged conditional template answer",
+    args(
+      "conditional-template-answer",
+      FULL_BLOCK.replace(
+        "- motion lane: reduced-motion behavior and transition purpose passed",
+        templateLine("motion lane"),
+      ),
+      UI_CHANGE,
+    ),
+    { status: 1, stderr: /empty or placeholder evidence for: motion lane/ },
   )
 
   check(

@@ -87,11 +87,13 @@ export const reviewEvidenceRequirements = (contract = UI_REVIEW_SWEEP_CONTRACT) 
 
 export const REQUIRED_REVIEW_EVIDENCE = reviewEvidenceRequirements()
 
+export const reviewEvidenceTemplateAnswer = ({ notApplicable }) => notApplicable
+  ? `<what it found, "no findings", or "not applicable: ${notApplicable}">`
+  : `<what it found, or "no findings">`
+
 const reviewEvidenceLine = ({ name, notApplicable }) => {
   const label = name === "better-interface" ? "better-interface (full mode)" : name
-  const answer = notApplicable
-    ? `<what it found, "no findings", or "not applicable: ${notApplicable}">`
-    : `<what it found, or "no findings">`
+  const answer = reviewEvidenceTemplateAnswer({ notApplicable })
   return `- ${label}: ${answer}`
 }
 

@@ -28,6 +28,7 @@ import {
   REDESIGN_BASE,
   REQUIRED_REVIEW_EVIDENCE,
   isUiReviewPath,
+  reviewEvidenceTemplateAnswer,
   renderReviewEvidenceBlock,
 } from "./lib/review-harness.mjs"
 
@@ -132,6 +133,12 @@ const evidenceOf = (skill) => {
   return null
 }
 
+const normalizeEvidence = (value) => value
+  .toLowerCase()
+  .replaceAll(/[`*_~[\]()<>./\\|,;:!?"'-]/g, " ")
+  .replaceAll(/\s+/g, " ")
+  .trim()
+
 const missing = []
 const empty = []
 const invalidConditional = []
@@ -141,12 +148,9 @@ for (const requirement of REQUIRED_REVIEW_EVIDENCE) {
     missing.push(requirement.name)
     continue
   }
-  const normalized = raw
-    .toLowerCase()
-    .replaceAll(/[`*_~[\]()<>./\\|,;:!?"'-]/g, " ")
-    .replaceAll(/\s+/g, " ")
-    .trim()
-  if (PLACEHOLDERS.has(normalized) || normalized.length < 8) {
+  const normalized = normalizeEvidence(raw)
+  const templateAnswer = normalizeEvidence(reviewEvidenceTemplateAnswer(requirement))
+  if (PLACEHOLDERS.has(normalized) || normalized.length < 8 || normalized === templateAnswer) {
     empty.push(requirement.name)
     continue
   }
