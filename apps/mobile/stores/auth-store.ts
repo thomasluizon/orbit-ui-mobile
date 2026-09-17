@@ -221,14 +221,15 @@ export async function clearSessionAndResetAuth(
 }
 
 /**
- * Outcome of a token rotation attempt. `network-error` is a transient blip that
- * leaves the session intact (callers must not log the user out); `unauthorized`
- * is a real auth failure where the session is cleared when `clearOnFailure`.
+ * Outcome of a token rotation attempt. `network-error` is a transient blip,
+ * `superseded` belongs to a newer session, and `unauthorized` is a real auth
+ * failure where the session is cleared when `clearOnFailure`.
  */
 export type RefreshSessionOutcome =
   | { status: 'refreshed'; token: string }
   | { status: 'unauthorized' }
   | { status: 'network-error' }
+  | { status: 'superseded' }
 
 type RefreshSessionAttempt = {
   epoch: number
@@ -315,7 +316,7 @@ async function rotateSessionToken(
     })
     return true
   })
-  if (!published) return { status: 'unauthorized' }
+  if (!published) return { status: 'superseded' }
   resumeOfflineReplay()
 
   return { status: 'refreshed', token: data.token }
@@ -355,7 +356,14 @@ export async function refreshSessionToken(options?: {
   clearOnFailure?: boolean
 }): Promise<string | null> {
   const outcome = await refreshSession(options)
-  return outcome.status === 'refreshed' ? outcome.token : null
+  switch (outcome.status) {
+    case 'refreshed':
+      return outcome.token
+    case 'unauthorized':
+    case 'network-error':
+    case 'superseded':
+      return null
+  }
 }
 
 function applyProfilePresentation(profile: Profile): void {
@@ -483,14 +491,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const teardown = await runSessionTeardown(null, null, true)
     const refreshToken = teardown?.refreshToken ?? null
-    if (refreshToken) {
+    if (teardown && refreshToken && isCurrentSessionTeardown(teardown.epoch)) {
       await apiClient(API.auth.logout, {
         method: 'POST',
         body: JSON.stringify({ refreshToken }),
+        skipAuthRecovery: true,
       }).catch(() => {})
     }
 
+    if (!teardown || !isCurrentSessionTeardown(teardown.epoch)) return
     await clearStoredAuthReturnUrl()
+    if (!isCurrentSessionTeardown(teardown.epoch)) return
     offlineQueue.clear()
   },
 
@@ -510,9 +521,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (isTokenExpired(token)) {
       const outcome = await refreshSession()
-      if (outcome.status === 'unauthorized') return false
-      if (outcome.status === 'refreshed') {
-        token = outcome.token
+      switch (outcome.status) {
+        case 'unauthorized':
+        case 'superseded':
+          return false
+        case 'refreshed':
+          token = outcome.token
+          break
+        case 'network-error':
+          break
       }
     }
 

@@ -877,6 +877,79 @@ describe('mobile auth store security paths', () => {
     })
   })
 
+  it('does not let deferred logout work clear replacement session state', async () => {
+    const replacementToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'replacement-user',
+      'replacement@example.com',
+    )
+    let storedToken: string | null = 'old-access-token'
+    let storedRefreshToken: string | null = 'old-refresh-token'
+    let storedAuthReturnUrl: string | null = '/replacement-destination'
+    const offlineEntries = ['replacement-mutation']
+    let releaseRevoke!: () => void
+
+    getRefreshTokenMock.mockImplementation(() => Promise.resolve(storedRefreshToken))
+    setTokenMock.mockImplementation((token: string) => {
+      storedToken = token
+      return Promise.resolve()
+    })
+    setRefreshTokenMock.mockImplementation((token: string) => {
+      storedRefreshToken = token
+      return Promise.resolve()
+    })
+    clearAllTokensMock.mockImplementation(() => {
+      storedToken = null
+      storedRefreshToken = null
+      return Promise.resolve()
+    })
+    clearStoredAuthReturnUrlMock.mockImplementation(() => {
+      storedAuthReturnUrl = null
+      return Promise.resolve()
+    })
+    offlineQueueClearMock.mockImplementation(() => {
+      offlineEntries.length = 0
+    })
+    apiClientMock.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { releaseRevoke = resolve }),
+    )
+    useAuthStore.setState({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'old-user', email: 'old@example.com', name: 'Old user' },
+      isLoading: false,
+      expiresAt: Date.now() + 3600_000,
+    })
+
+    const logout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(releaseRevoke).toBeTypeOf('function'))
+
+    await useAuthStore.getState().login(
+      replacementToken,
+      'replacement-refresh-token',
+      {
+        userId: 'replacement-user',
+        email: 'replacement@example.com',
+        name: 'Replacement user',
+      },
+    )
+    storedAuthReturnUrl = '/replacement-destination'
+    offlineEntries.splice(0, offlineEntries.length, 'replacement-mutation')
+
+    releaseRevoke()
+    await logout
+
+    expect(storedToken).toBe(replacementToken)
+    expect(storedRefreshToken).toBe('replacement-refresh-token')
+    expect(storedAuthReturnUrl).toBe('/replacement-destination')
+    expect(offlineEntries).toEqual(['replacement-mutation'])
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'replacement-user' },
+    })
+  })
+
   it('dismisses the persistent reminder when checkAuth finds no token', async () => {
     getTokenMock.mockResolvedValue(null)
 

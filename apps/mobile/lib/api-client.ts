@@ -12,6 +12,7 @@ type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   body?: string | FormData | null
   headers?: Record<string, string>
   idempotencyKey?: string
+  skipAuthRecovery?: boolean
 }
 
 interface ApiErrorPayload {
@@ -108,8 +109,10 @@ async function executeRequest(
   tokenOverride?: string | null,
 ): Promise<RequestExecution> {
   const token = tokenOverride ?? await getToken()
+  const requestOptions = { ...options }
+  delete requestOptions.skipAuthRecovery
   const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
+    ...requestOptions,
     headers: buildRequestHeaders(token, options),
   })
 
@@ -226,30 +229,32 @@ async function handleUnauthorized<T>(
   const observedGeneration = getSessionGeneration()
   const refreshOutcome = await refreshSession({ clearOnFailure: false })
 
-  if (refreshOutcome.status === 'network-error') {
-    throw new AuthRefreshNetworkError()
-  }
-
-  if (refreshOutcome.status === 'refreshed') {
-    const refreshedGeneration = getSessionGeneration()
-    const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
-    if (retry.response.status !== 401) {
-      return {
-        data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema),
-        authorizingToken: retry.tokenUsed,
+  switch (refreshOutcome.status) {
+    case 'network-error':
+      throw new AuthRefreshNetworkError()
+    case 'refreshed': {
+      const refreshedGeneration = getSessionGeneration()
+      const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
+      if (retry.response.status !== 401) {
+        return {
+          data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema),
+          authorizingToken: retry.tokenUsed,
+        }
       }
-    }
 
-    if (!isAuthTransitionInFlight()) {
-      await clearObservedSessionAndRedirect(refreshedGeneration)
+      if (!isAuthTransitionInFlight()) {
+        await clearObservedSessionAndRedirect(refreshedGeneration)
+      }
+      throw toUnauthorizedError(retry.requestId)
     }
-    throw toUnauthorizedError(retry.requestId)
+    case 'superseded':
+      throw toUnauthorizedError(requestId)
+    case 'unauthorized':
+      if (!isAuthTransitionInFlight()) {
+        await clearObservedSessionAndRedirect(observedGeneration)
+      }
+      throw toUnauthorizedError(requestId)
   }
-
-  if (!isAuthTransitionInFlight()) {
-    await clearObservedSessionAndRedirect(observedGeneration)
-  }
-  throw toUnauthorizedError(requestId)
 }
 
 /**
@@ -288,6 +293,10 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
 
   if (response.status === 426) {
     return handleUpgradeRequired<AuthorizedApiResponse<T>>(response, requestId)
+  }
+
+  if (response.status === 401 && effectiveOptions.skipAuthRecovery) {
+    throw toUnauthorizedError(requestId)
   }
 
   if (response.status === 401 && path !== API.auth.refresh) {

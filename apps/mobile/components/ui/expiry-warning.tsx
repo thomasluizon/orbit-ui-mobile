@@ -110,18 +110,19 @@ export function ExpiryWarning() {
     setRefreshState('refreshing')
     const outcome = await refreshSession({ clearOnFailure: false })
 
-    if (outcome.status === 'refreshed') {
-      setRefreshState('ready')
-      return
+    switch (outcome.status) {
+      case 'refreshed':
+        setRefreshState('ready')
+        return
+      case 'network-error':
+        setRefreshState('network-error')
+        return
+      case 'superseded':
+        return
+      case 'unauthorized':
+        setRefreshState('rejected')
+        await handleLogout()
     }
-
-    if (outcome.status === 'network-error') {
-      setRefreshState('network-error')
-      return
-    }
-
-    setRefreshState('rejected')
-    await handleLogout()
   }, [handleLogout, isExpired, isTerminal, refreshState])
 
   if (minutesLeft === null && !isExpired && !isTerminal) return null

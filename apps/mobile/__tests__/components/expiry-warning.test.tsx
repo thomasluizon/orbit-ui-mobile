@@ -30,9 +30,16 @@ const TestRenderer: TestRendererApi = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => {
-  const authState: { expiresAt: number | null; isAuthenticated: boolean } = {
+  const authState: {
+    expiresAt: number | null
+    isAuthenticated: boolean
+    accessToken: string | null
+    refreshToken: string | null
+  } = {
     expiresAt: 0,
     isAuthenticated: true,
+    accessToken: 'expired-access-token',
+    refreshToken: 'refresh-token',
   }
   const authListeners = new Set<() => void>()
   return {
@@ -115,11 +122,21 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-09-16T12:00:00Z'))
   mocks.currentRoute = null
-  mocks.setAuthState({ isAuthenticated: true, expiresAt: null })
+  mocks.setAuthState({
+    isAuthenticated: true,
+    expiresAt: null,
+    accessToken: 'expired-access-token',
+    refreshToken: 'refresh-token',
+  })
   mocks.logout.mockReset()
   mocks.logout.mockImplementation(() => {
     mocks.currentRoute = '/login'
-    mocks.setAuthState({ isAuthenticated: false, expiresAt: null })
+    mocks.setAuthState({
+      isAuthenticated: false,
+      expiresAt: null,
+      accessToken: null,
+      refreshToken: null,
+    })
     return Promise.resolve()
   })
   mocks.refreshSession.mockReset()
@@ -194,6 +211,46 @@ describe('ExpiryWarning', () => {
     expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
     expect(mocks.clearSessionAndResetAuth).not.toHaveBeenCalled()
     expect(mocks.authState.isAuthenticated).toBe(true)
+  })
+
+  it('does not log out a replacement session after refresh is superseded', async () => {
+    type SupersededOutcome = { status: 'superseded' }
+    let resolveRefresh!: (outcome: SupersededOutcome) => void
+    mocks.refreshSession.mockImplementation(
+      () => new Promise<SupersededOutcome>((resolve) => { resolveRefresh = resolve }),
+    )
+    const instance = await renderExpiredWarning()
+    let refreshPromise!: Promise<void>
+
+    await TestRenderer.act(async () => {
+      refreshPromise = (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+      await Promise.resolve()
+    })
+
+    await TestRenderer.act(async () => {
+      mocks.setAuthState({
+        isAuthenticated: false,
+        expiresAt: null,
+        accessToken: null,
+        refreshToken: null,
+      })
+      mocks.setAuthState({
+        isAuthenticated: true,
+        expiresAt: Date.now() + 60 * 60_000,
+        accessToken: 'replacement-access-token',
+        refreshToken: 'replacement-refresh-token',
+      })
+      resolveRefresh({ status: 'superseded' })
+      await refreshPromise
+    })
+
+    expect(mocks.logout).not.toHaveBeenCalled()
+    expect(mocks.currentRoute).toBeNull()
+    expect(mocks.authState).toMatchObject({
+      isAuthenticated: true,
+      accessToken: 'replacement-access-token',
+      refreshToken: 'replacement-refresh-token',
+    })
   })
 
   it('shows progress while session recovery is running', async () => {

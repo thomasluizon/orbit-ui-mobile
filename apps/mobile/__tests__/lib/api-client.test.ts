@@ -359,6 +359,32 @@ describe('mobile apiClient', () => {
     expect(routerReplaceMock).not.toHaveBeenCalled()
   })
 
+  it('does not clear or redirect when refresh is superseded', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    refreshSessionMock.mockResolvedValue({ status: 'superseded' })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+
+    await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
+
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
+  it('skips auth recovery for an anonymous logout revocation', async () => {
+    getTokenMock.mockResolvedValue('replacement-token')
+    refreshSessionMock.mockResolvedValue({ status: 'unauthorized' })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+
+    await expect(apiClient(API.auth.logout, {
+      method: 'POST',
+      skipAuthRecovery: true,
+    })).rejects.toThrow('Unauthorized')
+
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
   it('does not clear the session on a 401 while an auth transition is in flight', async () => {
     isAuthTransitionInFlightMock.mockReturnValue(true)
     getTokenMock.mockResolvedValue('token-123')
