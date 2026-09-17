@@ -293,7 +293,6 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         position,
       })
   return (
-    // eslint-disable-next-line local/max-button-words -- ORB-480 requires the control name to expose goal state, progress, and position.
     <MotionPressable active={isDragging} accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
       accessibilityHint={canReorder ? t('progressScreen.goals.reorderHint') : undefined}
       accessibilityActions={canReorder ? [{ name: 'decrement', label: t('progressScreen.goals.moveUp') }, { name: 'increment', label: t('progressScreen.goals.moveDown') }] : undefined}
