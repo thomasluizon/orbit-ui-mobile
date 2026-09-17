@@ -85,12 +85,16 @@ describe('form primitives on mobile', () => {
     const tokens = createTokensV2('purple', 'dark')
     const tree = render(<Input label="Email" value="invalid" onChange={vi.fn()} error={error} />)
     const input = tree.root.findAllByType('TextInput')[0]!
-    const style = () => StyleSheet.flatten(prop(input, 'style'))
+    const style = () => StyleSheet.flatten(prop(tree.root.findByProps({ testID: 'input-control' }), 'style'))
     const resting = style()
     void act(() => prop<(() => void) | undefined>(input, 'onFocus')?.())
     expect(style()).not.toEqual(resting)
-    expect(style()).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary })
-    if (error) expect(style()).toMatchObject({ borderColor: tokens.statusBad })
+    expect(style()).toMatchObject({
+      borderColor: error ? tokens.statusBad : tokens.primary,
+      borderWidth: 2,
+      outlineColor: tokens.primary,
+      outlineWidth: 2,
+    })
     void act(() => prop<() => void>(input, 'onBlur')())
     expect(style()).toEqual(resting)
   })
