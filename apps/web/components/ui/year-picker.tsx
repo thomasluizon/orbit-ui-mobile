@@ -39,7 +39,7 @@ export function YearPicker({
               aria-pressed={isSelected}
               onClick={() => onSelectYear(year)}
               className={
-                'appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ' +
+                'touch-target appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ' +
                 (isSelected ? '' : 'hover:bg-[var(--bg-elev)]')
               }
               style={{

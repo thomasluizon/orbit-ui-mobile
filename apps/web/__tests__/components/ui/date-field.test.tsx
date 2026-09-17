@@ -119,6 +119,15 @@ describe('DateField', () => {
     expect(screen.getByRole('button', { name: '2030' })).toBeInTheDocument()
   })
 
+  it('keeps a 44px effective target on every year button', () => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByLabelText('common.selectYear'))
+
+    const year = screen.getByRole('button', { name: '2030' })
+    expect(year.className).toContain('touch-target')
+  })
+
   it('jumps to a chosen year from the year picker', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
