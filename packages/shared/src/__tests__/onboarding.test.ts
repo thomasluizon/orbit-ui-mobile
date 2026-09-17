@@ -73,11 +73,26 @@ describe('onboarding helpers', () => {
       emoji: '🚶',
       days: ['Monday', 'Thursday'],
       dueTime: '18:00',
+      reminderEnabled: false,
     })).toMatchObject({
       title: 'Walk', emoji: '🚶', frequencyUnit: 'Day', frequencyQuantity: 1,
       days: ['Monday', 'Thursday'], dueTime: '18:00', reminderEnabled: false,
-      reminderTimes: [15],
+      reminderTimes: [],
     })
+  })
+
+  it.each([
+    { reminderEnabled: true, reminderTimes: [15] },
+    { reminderEnabled: false, reminderTimes: [] },
+  ])('keeps the reminder choice coherent when enabled is $reminderEnabled', ({ reminderEnabled, reminderTimes }) => {
+    expect(buildOnboardingHabitInput({
+      sentence: 'Walk every Monday at 18:00',
+      locale: 'en',
+      emoji: '🚶',
+      days: ['Monday'],
+      dueTime: '18:00',
+      reminderEnabled,
+    })).toMatchObject({ reminderEnabled, reminderTimes })
   })
 
   it.each([
@@ -103,6 +118,7 @@ describe('onboarding helpers', () => {
       emoji: '',
       days: [],
       dueTime: '',
+      reminderEnabled: false,
     })).toMatchObject(expected)
   })
 

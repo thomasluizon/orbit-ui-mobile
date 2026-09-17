@@ -193,7 +193,7 @@ export function OnboardingFlow() {
     if (creating) return
     setCreating(true)
     setCreateFailed(false)
-    const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime, schedule })
+    const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime, reminderEnabled: false, schedule })
     try {
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else {
@@ -212,9 +212,9 @@ export function OnboardingFlow() {
 
   async function persistReminderDecision(enabled: boolean): Promise<boolean> {
     if (!createdId || resolvingDeferredPush) return true
-    const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime, schedule })
+    const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime, reminderEnabled: enabled, schedule })
     try {
-      await actions.updateHabit(createdId, { ...input, reminderEnabled: enabled })
+      await actions.updateHabit(createdId, input)
       return true
     } catch {
       setReminderState('failed')

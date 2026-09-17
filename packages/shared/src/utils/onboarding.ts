@@ -189,9 +189,11 @@ export function buildOnboardingHabitInput(input: {
   emoji: string
   days: string[]
   dueTime: string
+  reminderEnabled: boolean
   schedule?: OnboardingSchedule
 }): CreateHabitRequest {
   const schedule = input.schedule ?? buildOnboardingScheduleFromPhrase(input.sentence, input.locale)
+  const reminderEnabled = input.reminderEnabled && Boolean(schedule.dueTime)
   return {
     title: getOnboardingHabitTitle(input.sentence, input.locale),
     emoji: input.emoji || null,
@@ -202,8 +204,8 @@ export function buildOnboardingHabitInput(input: {
     ...(schedule.isGeneral ? { isGeneral: true } : {}),
     ...(schedule.isFlexible ? { isFlexible: true } : {}),
     ...(schedule.dueTime ? { dueTime: schedule.dueTime } : {}),
-    reminderEnabled: false,
-    reminderTimes: schedule.dueTime ? [ONBOARDING_REMINDER_MINUTES] : [],
+    reminderEnabled,
+    reminderTimes: reminderEnabled ? [ONBOARDING_REMINDER_MINUTES] : [],
   }
 }
 
