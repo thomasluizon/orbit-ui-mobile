@@ -183,12 +183,12 @@ describe('alerts', () => {
   it('uses canonical ghost list and read actions and a destructive detail delete', () => {
     seed(1)
     showInbox()
-    for (const name of ['Mark all', 'Clear all']) {
+    for (const name of ['Mark read', 'Clear all']) {
       expect(screen.getByRole('button', { name })).toHaveAttribute('data-variant', 'ghost')
       expect(screen.getByRole('button', { name })).toHaveAttribute('data-size', 'sm')
     }
     fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
-    expect(screen.getByRole('button', { name: 'Mark read' })).toHaveAttribute('data-variant', 'ghost')
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark read' })).toHaveAttribute('data-variant', 'ghost')
     expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-variant', 'destructive')
   })
 
@@ -259,7 +259,7 @@ describe('alerts', () => {
     showInbox()
     expect(screen.getByText('Nothing to see here')).toBeInTheDocument()
     expect(screen.queryByText('Clear all')).toBeNull()
-    expect(screen.queryByText('Mark all')).toBeNull()
+    expect(screen.queryByText('Mark read')).toBeNull()
     expect(screen.getByRole('list').querySelector('button')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: en.common.back }))
     expect(state.back).toHaveBeenCalledWith('/')
@@ -295,9 +295,10 @@ describe('alerts', () => {
     expect(row.querySelector('[data-unread-dot]')).not.toBeNull()
     expect(row.querySelector('[data-notification-title]')).toHaveStyle({ fontWeight: 500 })
     fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
-    expect(screen.getByRole('button', { name: 'Mark read' })).toBeInTheDocument()
+    const detailAction = within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark read' })
+    expect(detailAction).toBeInTheDocument()
     expect(state.mark).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Mark read' }))
+    fireEvent.click(detailAction)
     view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)
     expect(screen.queryByRole('button', { name: 'Mark read' })).toBeNull()
     expect(row.querySelector('[data-unread-dot]')).toBeNull()
@@ -320,9 +321,9 @@ describe('alerts', () => {
   it('marks all read and removes the header action at zero', () => {
     seed(2)
     const view = showInbox()
-    fireEvent.click(screen.getByRole('button', { name: 'Mark all' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mark read' }))
     view.rerender(<NotificationInbox />)
-    expect(screen.queryByRole('button', { name: 'Mark all' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Mark read' })).toBeNull()
     expect(screen.getAllByRole('button', { name: /Alert \d. read/ })).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Clear all' })).toBeInTheDocument()
   })

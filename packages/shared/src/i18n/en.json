@@ -1979,7 +1979,7 @@
         "bellTitle": "Notification Bell",
         "bellDesc": "Access your notifications from the bell icon on the habits page. A badge shows your unread count so you never miss a reminder.",
         "managingTitle": "Managing Notifications",
-        "managingDesc": "Mark notifications as read, or delete them individually. Use 'Mark all read' or 'Delete all' for bulk actions. Notifications are created when habit reminders fire.",
+        "managingDesc": "Mark notifications as read, or delete them individually. Use 'Mark read' or 'Clear all' for bulk actions. Notifications are created when habit reminders fire.",
         "configuringRemindersTitle": "Configuring Reminders",
         "configuringRemindersDesc": "Set reminders in the habit edit form. Choose a time before the habit's due time -- at the due time, or minutes, hours, or up to 1 day before. You can add multiple reminders per habit."
       }

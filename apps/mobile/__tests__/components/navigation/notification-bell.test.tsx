@@ -219,7 +219,7 @@ describe('mobile alerts', () => {
     const action = (label: string) => hosts(tree, 'Pressable').find(
       (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
     )!
-    for (const label of ['Mark all', 'Clear all']) {
+    for (const label of ['Mark read', 'Clear all']) {
       expect(action(label).props.testID).toBe('button-ghost-sm')
     }
     press(tree, 'Alert 0. unread. Progress')
@@ -296,7 +296,7 @@ describe('mobile alerts', () => {
     const tree = render()
     expect(text(tree, 'Nothing to see here')).toHaveLength(1)
     expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(0)
-    expect(hosts(tree, 'Pressable', 'Mark all')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', 'Mark read')).toHaveLength(0)
     press(tree, en.common.back)
     expect(state.back).toHaveBeenCalledWith('/')
   })
@@ -348,9 +348,9 @@ describe('mobile alerts', () => {
   it('marks all read and removes only the mark action', () => {
     seed(2)
     const tree = render()
-    press(tree, 'Mark all')
+    press(tree, 'Mark read')
     refresh(tree)
-    expect(hosts(tree, 'Pressable', 'Mark all')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', 'Mark read')).toHaveLength(0)
     expect(testId(tree, 'notification-read')).toHaveLength(2)
     expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(1)
   })

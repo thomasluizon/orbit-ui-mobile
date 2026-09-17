@@ -1979,7 +1979,7 @@
         "bellTitle": "Sino de notificações",
         "bellDesc": "Acesse suas notificações pelo ícone de sino na página de hábitos. Um badge mostra quantas estão por ler, para você não perder nenhum lembrete.",
         "managingTitle": "Gerenciando notificações",
-        "managingDesc": "Marque notificações como lidas ou exclua uma a uma. Use 'Marcar todas como lidas' ou 'Excluir todas' para ações em massa. As notificações surgem quando os lembretes de hábitos disparam.",
+        "managingDesc": "Marque notificações como lidas ou exclua uma a uma. Use 'Marcar lidas' ou 'Limpar tudo' para ações em massa. As notificações surgem quando os lembretes de hábitos disparam.",
         "configuringRemindersTitle": "Configurando lembretes",
         "configuringRemindersDesc": "Configure os lembretes no formulário de edição do hábito. Escolha um momento antes da hora: na hora, ou minutos, horas ou até 1 dia antes. Você pode adicionar vários lembretes por hábito."
       }
