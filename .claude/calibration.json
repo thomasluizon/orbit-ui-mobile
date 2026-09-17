@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-09-16",
+  "calibratedAt": "2026-09-17",
   "workerEngine": "codex",
   "workerCommand": "codex",
   "workerTiers": {
@@ -176,9 +176,9 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "f608550f7697cb39",
-      "calibratedAt": "2026-09-16",
-      "verdict": "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, verifies delivery from artifacts and clears the review."
+      "digest": "508bf03192e87690",
+      "calibratedAt": "2026-09-17",
+      "verdict": "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
@@ -190,9 +190,9 @@
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "976dcf419b3253d8",
-      "calibratedAt": "2026-09-14",
-      "verdict": "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up."
+      "digest": "87a2b30be21cfa4b",
+      "calibratedAt": "2026-09-17",
+      "verdict": "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up. The effort-agnostic rewrite now resolves integration per repository and distinguishes direct ancestry from an unprovable stacked squash boundary, so the answer requires evidence-led judgement rather than table lookup. The base-chain walk now also resolves each candidate in every pull request state and reports a closed unmerged parent as an unresolved chain rather than naming its head as integration, which adds one more judgement the answer cannot look up."
     },
     ".claude/skills/questions/SKILL.md": {
       "model": null,
@@ -232,9 +232,9 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "ebba3b4b22e7eeff",
-      "calibratedAt": "2026-09-16",
-      "verdict": "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded: holding the order, and refusing to start the handoff while a question Thomas has not answered is still open. Low would round that gate away, which is the one thing this skill exists to enforce."
+      "digest": "7bbdfe9493568860",
+      "calibratedAt": "2026-09-17",
+      "verdict": "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded, and 2026-09-17 made it stricter: each step now ENDS THE TURN on a literal handover line and waits for Thomas to say proceed, so the skill has to hold the order across three turns rather than one, and it must not let --sleep collapse the first two. Low would round that gate away, which is the one thing this skill exists to enforce."
     },
     ".agents/skills/merge-prs/SKILL.md": {
       "model": null,

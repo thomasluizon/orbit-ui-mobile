@@ -94,11 +94,6 @@
       "count": 1
     }
   },
-  "components/onboarding/feature-guide-drawer.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "components/ui/app-select.tsx": {
     "local/require-focus-replacement": {
       "count": 1

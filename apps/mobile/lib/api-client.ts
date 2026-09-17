@@ -1,5 +1,5 @@
 import { useThrottleStore } from '@/stores/throttle-store'
-import { getToken, clearAllTokens } from './secure-store'
+import { getToken } from './secure-store'
 import { buildClientTimeZoneHeaders, createApiClientError, validateApiResponse } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { buildAppVersionHeaders } from './app-version'
@@ -12,6 +12,7 @@ type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   body?: string | FormData | null
   headers?: Record<string, string>
   idempotencyKey?: string
+  skipAuthRecovery?: boolean
 }
 
 interface ApiErrorPayload {
@@ -108,8 +109,10 @@ async function executeRequest(
   tokenOverride?: string | null,
 ): Promise<RequestExecution> {
   const token = tokenOverride ?? await getToken()
+  const requestOptions = { ...options }
+  delete requestOptions.skipAuthRecovery
   const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
+    ...requestOptions,
     headers: buildRequestHeaders(token, options),
   })
 
@@ -182,6 +185,18 @@ async function redirectToLogin(): Promise<void> {
   router.replace('/login')
 }
 
+async function clearObservedSessionAndRedirect(generation: {
+  epoch: number
+  credentialVersion: number
+}): Promise<void> {
+  const { clearSessionAndResetAuth } = await import('@/stores/auth-store')
+  const cleared = await clearSessionAndResetAuth({
+    authority: 'observed-credential',
+    ...generation,
+  })
+  if (cleared) await redirectToLogin()
+}
+
 async function handleUnauthorized<T>(
   path: string,
   effectiveOptions: ApiRequestOptions,
@@ -205,35 +220,41 @@ async function handleUnauthorized<T>(
     }
   }
 
-  const { clearSessionAndResetAuth, refreshSession, isAuthTransitionInFlight } =
+  const {
+    getSessionGeneration,
+    refreshSession,
+    isAuthTransitionInFlight,
+  } =
     await import('@/stores/auth-store')
+  const observedGeneration = getSessionGeneration()
   const refreshOutcome = await refreshSession({ clearOnFailure: false })
 
-  if (refreshOutcome.status === 'network-error') {
-    throw new AuthRefreshNetworkError()
-  }
-
-  if (refreshOutcome.status === 'refreshed') {
-    const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
-    if (retry.response.status !== 401) {
-      return {
-        data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema),
-        authorizingToken: retry.tokenUsed,
+  switch (refreshOutcome.status) {
+    case 'network-error':
+      throw new AuthRefreshNetworkError()
+    case 'refreshed': {
+      const refreshedGeneration = getSessionGeneration()
+      const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
+      if (retry.response.status !== 401) {
+        return {
+          data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema),
+          authorizingToken: retry.tokenUsed,
+        }
       }
-    }
 
-    if (!isAuthTransitionInFlight()) {
-      await clearSessionAndResetAuth()
-      await redirectToLogin()
+      if (!isAuthTransitionInFlight()) {
+        await clearObservedSessionAndRedirect(refreshedGeneration)
+      }
+      throw toUnauthorizedError(retry.requestId)
     }
-    throw toUnauthorizedError(retry.requestId)
+    case 'superseded':
+      throw toUnauthorizedError(requestId)
+    case 'unauthorized':
+      if (!isAuthTransitionInFlight()) {
+        await clearObservedSessionAndRedirect(observedGeneration)
+      }
+      throw toUnauthorizedError(requestId)
   }
-
-  if (!isAuthTransitionInFlight()) {
-    await clearSessionAndResetAuth()
-    await redirectToLogin()
-  }
-  throw toUnauthorizedError(requestId)
 }
 
 /**
@@ -266,10 +287,16 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   const effectiveOptions: ApiRequestOptions =
     idempotencyKey === undefined ? options : { ...options, idempotencyKey }
 
+  const { getSessionGeneration } = await import('@/stores/auth-store')
+  const observedGeneration = getSessionGeneration()
   const { response, requestId, tokenUsed } = await executeRequest(path, effectiveOptions)
 
   if (response.status === 426) {
     return handleUpgradeRequired<AuthorizedApiResponse<T>>(response, requestId)
+  }
+
+  if (response.status === 401 && effectiveOptions.skipAuthRecovery) {
+    throw toUnauthorizedError(requestId)
   }
 
   if (response.status === 401 && path !== API.auth.refresh) {
@@ -277,7 +304,11 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   }
 
   if (response.status === 401) {
-    await clearAllTokens()
+    const { clearSessionAndResetAuth } = await import('@/stores/auth-store')
+    await clearSessionAndResetAuth({
+      authority: 'observed-credential',
+      ...observedGeneration,
+    })
     throw toUnauthorizedError(requestId)
   }
 

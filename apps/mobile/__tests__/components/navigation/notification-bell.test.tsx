@@ -219,12 +219,32 @@ describe('mobile alerts', () => {
     const action = (label: string) => hosts(tree, 'Pressable').find(
       (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
     )!
-    for (const label of ['Mark all read', 'Clear all']) {
+    for (const label of [en.notifications.markAllRead, en.notifications.deleteAll]) {
       expect(action(label).props.testID).toBe('button-ghost-sm')
     }
     press(tree, 'Alert 0. unread. Progress')
-    expect(action('Mark as read').props.testID).toBe('button-ghost-sm')
+    expect(action(en.notifications.markAsRead).props.testID).toBe('button-ghost-sm')
     expect(action('Delete').props.testID).toBe('button-destructive-sm')
+  })
+
+  it.each([
+    ['en', 'Mark all', 'Mark read'],
+    ['pt-BR', 'Marcar todas', 'Marcar lida'],
+  ] as const)('keeps bulk and single read actions distinct in %s', (locale, bulkLabel, singleLabel) => {
+    state.locale = locale
+    seed(1)
+    const tree = render()
+    const messages = locale === 'en' ? en : pt
+
+    expect(hosts(tree, 'Pressable', bulkLabel)).toHaveLength(1)
+    press(tree, `Alert 0. ${messages.notifications.unread}. ${messages.nav.progress}`)
+    const singleActions = hosts(tree, 'Pressable').filter((node) =>
+      node.findAll(
+        (child) => child.type === 'Text' && child.props.children === singleLabel,
+      ).length > 0,
+    )
+    expect(singleActions).toHaveLength(1)
+    expect(bulkLabel).not.toBe(singleLabel)
   })
 
   it('identifies the queued delete with a neutral trash glyph beside undo', () => {
@@ -296,7 +316,7 @@ describe('mobile alerts', () => {
     const tree = render()
     expect(text(tree, 'Nothing to see here')).toHaveLength(1)
     expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(0)
-    expect(hosts(tree, 'Pressable', 'Mark all read')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', en.notifications.markAllRead)).toHaveLength(0)
     press(tree, en.common.back)
     expect(state.back).toHaveBeenCalledWith('/')
   })
@@ -326,12 +346,12 @@ describe('mobile alerts', () => {
     expect(StyleSheet.flatten(testId(tree, 'notification-title')[0]!.props.style)).toMatchObject({ fontFamily: 'Geist_500Medium' })
     press(tree, 'Alert 0. unread. Progress')
     expect(state.mark).not.toHaveBeenCalled()
-    press(tree, 'Mark as read')
+    press(tree, en.notifications.markAsRead)
     refresh(tree)
     expect(testId(tree, 'notification-unread-dot')).toHaveLength(0)
     expect(testId(tree, 'notification-dot-column')).toHaveLength(1)
     expect(StyleSheet.flatten(testId(tree, 'notification-title')[0]!.props.style)).toMatchObject({ fontFamily: 'Geist_400Regular' })
-    expect(hosts(tree, 'Pressable', 'Mark as read')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', en.notifications.markAsRead)).toHaveLength(0)
   })
   it.each(['en', 'pt-BR'])('announces the title, read state and habit destination in %s', (locale) => {
     state.locale = locale
@@ -348,9 +368,9 @@ describe('mobile alerts', () => {
   it('marks all read and removes only the mark action', () => {
     seed(2)
     const tree = render()
-    press(tree, 'Mark all read')
+    press(tree, en.notifications.markAllRead)
     refresh(tree)
-    expect(hosts(tree, 'Pressable', 'Mark all read')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', en.notifications.markAllRead)).toHaveLength(0)
     expect(testId(tree, 'notification-read')).toHaveLength(2)
     expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(1)
   })

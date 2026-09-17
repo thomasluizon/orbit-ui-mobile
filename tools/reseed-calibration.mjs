@@ -103,11 +103,11 @@ const VERDICTS = {
   ".claude/skills/merge-prs/SKILL.md":
     "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth.",
   ".claude/skills/orchestrate/SKILL.md":
-    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, verifies delivery from artifacts and clears the review.",
+    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review.",
   ".claude/skills/prod-readiness/SKILL.md":
     "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
   ".claude/skills/progress/SKILL.md":
-    "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up.",
+    "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up. The effort-agnostic rewrite now resolves integration per repository and distinguishes direct ancestry from an unprovable stacked squash boundary, so the answer requires evidence-led judgement rather than table lookup. The base-chain walk now also resolves each candidate in every pull request state and reports a closed unmerged parent as an unresolved chain rather than naming its head as integration, which adds one more judgement the answer cannot look up.",
   ".claude/skills/questions/SKILL.md":
     "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes his attention or ships a guess as a decision.",
   ".claude/skills/second-opinion/SKILL.md":
@@ -119,7 +119,7 @@ const VERDICTS = {
   ".claude/skills/validate/SKILL.md":
     "current: runs lint, type-check and tests across both repos, so low effort is right.",
   ".claude/skills/wrap-up/SKILL.md":
-    "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded: holding the order, and refusing to start the handoff while a question Thomas has not answered is still open. Low would round that gate away, which is the one thing this skill exists to enforce.",
+    "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded, and 2026-09-17 made it stricter: each step now ENDS THE TURN on a literal handover line and waits for Thomas to say proceed, so the skill has to hold the order across three turns rather than one, and it must not let --sleep collapse the first two. Low would round that gate away, which is the one thing this skill exists to enforce.",
   ".agents/skills/merge-prs/SKILL.md":
     "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict: the frontmatter name and description decide whether Codex finds this skill at all, and the body names the one canonical definition both hosts read.",
   ".agents/skills/orchestrate/SKILL.md":
