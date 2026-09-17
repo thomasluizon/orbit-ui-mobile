@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -30,40 +32,27 @@ describe('FeatureGuideDrawer', () => {
     expect(screen.getByText('onboarding.featureGuide.title')).toBeInTheDocument()
   })
 
-  it('renders Progresso instead of a standalone goals destination', () => {
+  it('renders the eight guide subjects in their product order', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByText('onboarding.featureGuide.astra')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.connect')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.habits')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.progress')).toBeInTheDocument()
-    expect(screen.queryByText('onboarding.featureGuide.goals')).not.toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.calendar')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.rewards')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.settings')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.notifications')).toBeInTheDocument()
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'onboarding.featureGuide.habits',
+      'onboarding.featureGuide.astra',
+      'onboarding.featureGuide.connect',
+      'onboarding.featureGuide.progress',
+      'onboarding.featureGuide.calendar',
+      'onboarding.featureGuide.rewards',
+      'onboarding.featureGuide.reminders',
+      'onboarding.featureGuide.widget',
+    ])
   })
 
-  it('shows astra section by default', () => {
+  it('shows habits by default', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
-    expect(document.body.textContent).toContain('onboarding.featureGuide.astraSection.canDoTitle')
-  })
-
-  it('omits both retired settings entries', () => {
-    render(<FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />)
-    fireEvent.click(screen.getByText('onboarding.featureGuide.settings'))
-    const removedSuffixes = [
-      ['ai', 'MemoryTitle'].join(''),
-      ['user', 'FactsTitle'].join(''),
-    ]
-    for (const suffix of removedSuffixes) {
-      expect(document.body.textContent).not.toContain(
-        `onboarding.featureGuide.settingsSection.${suffix}`,
-      )
-    }
+    expect(document.body.textContent).toContain('onboarding.featureGuide.habitsSection.creatingTitle')
   })
 
   it.each([
@@ -72,7 +61,8 @@ describe('FeatureGuideDrawer', () => {
     { tab: 'progress', title: 'onboarding.featureGuide.progressSection.goalsTitle' },
     { tab: 'calendar', title: 'onboarding.featureGuide.calendarSection.dayDetailsTitle' },
     { tab: 'rewards', title: 'onboarding.featureGuide.rewardsSection.xpLevelsTitle' },
-    { tab: 'notifications', title: 'onboarding.featureGuide.notificationsSection.bellTitle' },
+    { tab: 'reminders', title: 'onboarding.featureGuide.remindersSection.bellTitle' },
+    { tab: 'widget', title: 'onboarding.featureGuide.widgetSection.todayTitle' },
   ])('switches to the $tab section when its tab is clicked', ({ tab, title }) => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
@@ -81,23 +71,33 @@ describe('FeatureGuideDrawer', () => {
     expect(document.body.textContent).toContain(title)
   })
 
-  it('keeps milestone sharing and referrals in the rewards section', () => {
+  it('moves the widget guidance out of rewards', () => {
     render(<FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />)
 
     fireEvent.click(screen.getByText('onboarding.featureGuide.rewards'))
 
-    expect(document.body.textContent).toContain(
-      'onboarding.featureGuide.rewardsSection.milestoneShareTitle',
-    )
-    expect(document.body.textContent).toContain(
-      'onboarding.featureGuide.rewardsSection.referralsTitle',
-    )
     expect(document.body.textContent).not.toContain(
-      'onboarding.featureGuide.rewardsSection.insightsTitle',
+      `onboarding.featureGuide.rewardsSection.${['widget', 'Title'].join('')}`,
     )
-    expect(document.body.textContent).not.toContain(
-      'onboarding.featureGuide.rewardsSection.retrospectiveTitle',
+
+    fireEvent.click(screen.getByText('onboarding.featureGuide.widget'))
+    expect(document.body.textContent).toContain(
+      'onboarding.featureGuide.widgetSection.opensTitle',
     )
+  })
+
+  it('describes a streak freeze as a repair the person performs', () => {
+    expect(en.onboarding.featureGuide.rewardsSection.streakFreezeDesc).toBe(
+      'Orbit banks a freeze as your streak grows. You choose to spend one to repair yesterday.',
+    )
+    expect(ptBR.onboarding.featureGuide.rewardsSection.streakFreezeDesc).toBe(
+      'O Orbit guarda uma proteção conforme a sua sequência cresce. Você escolhe usar uma para reparar o dia de ontem.',
+    )
+  })
+
+  it('states that the Android widget opens Orbit and never logs', () => {
+    expect(en.onboarding.featureGuide.widgetSection.opensDesc).toContain('never logs')
+    expect(ptBR.onboarding.featureGuide.widgetSection.opensDesc).toContain('nunca registra')
   })
 
   it('omits entries for retired surfaces', () => {
@@ -121,7 +121,9 @@ describe('FeatureGuideDrawer', () => {
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
     const astraTab = screen.getByText('onboarding.featureGuide.astra')
-    expect(astraTab).toHaveAttribute('aria-selected', 'true')
+    expect(astraTab).toHaveAttribute('aria-selected', 'false')
+    const habitsTab = screen.getByText('onboarding.featureGuide.habits')
+    expect(habitsTab).toHaveAttribute('aria-selected', 'true')
     const progressTab = screen.getByText('onboarding.featureGuide.progress')
     expect(progressTab).toHaveAttribute('aria-selected', 'false')
   })
