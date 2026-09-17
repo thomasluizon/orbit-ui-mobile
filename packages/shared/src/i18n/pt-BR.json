@@ -972,6 +972,10 @@
     "importDone": "Importação concluída",
     "importedCount": "{count} evento importado como hábito | {count} eventos importados como hábitos",
     "importPartialFailure": "{count} evento não pôde ser importado | {count} eventos não puderam ser importados",
+    "importIssue": {
+      "weekdayInterval": "O Orbit não consegue preservar o intervalo entre os dias da semana deste evento.",
+      "ordinalWeekday": "O Orbit não consegue importar agendas como a segunda segunda-feira de cada mês."
+    },
     "goToHabits": "Ir para Hábitos",
     "errorTitle": "Algo deu errado",
     "fetchError": "Não foi possível buscar os eventos. Tente de novo.",

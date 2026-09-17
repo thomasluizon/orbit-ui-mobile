@@ -5,7 +5,11 @@ import { useTranslations } from 'next-intl'
 import { RadioGlyph } from '@/components/ui/select-check'
 import { Badge } from '@/components/ui/badge'
 import { plural } from '@/lib/plural'
-import { formatCalendarSyncRecurrenceLabel } from '@orbit/shared/utils'
+import {
+  formatCalendarSyncRecurrenceLabel,
+  getCalendarSyncImportIssue,
+  getCalendarSyncImportIssueMessageKey,
+} from '@orbit/shared/utils'
 import type { CalendarSyncEvent } from '@orbit/shared'
 
 interface CalendarSyncEventRowProps {
@@ -29,6 +33,12 @@ export function CalendarSyncEventRow({
   onDismiss,
   t,
 }: Readonly<CalendarSyncEventRowProps>) {
+  const importIssue = getCalendarSyncImportIssue(event.recurrenceRule)
+  const importIssueLabel = importIssue
+    ? t(getCalendarSyncImportIssueMessageKey(importIssue))
+    : null
+  const importIssueId = importIssue ? `calendar-import-issue-${event.id}` : undefined
+
   return (
     <div
       className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
@@ -44,8 +54,10 @@ export function CalendarSyncEventRow({
       <button
         type="button"
         onClick={() => onToggle(event.id)}
+        disabled={importIssue !== null}
         aria-pressed={selected}
-        className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer"
+        aria-describedby={importIssueId}
+        className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer disabled:cursor-not-allowed"
         style={{ gap: 12, padding: '12px 0' }}
       >
         <span className="shrink-0" style={{ marginTop: 0 }}>
@@ -141,6 +153,20 @@ export function CalendarSyncEventRow({
               {event.description}
             </span>
           )}
+          {importIssueLabel ? (
+            <span
+              id={importIssueId}
+              className="block"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'var(--status-bad-text)',
+                marginTop: 4,
+              }}
+            >
+              {importIssueLabel}
+            </span>
+          ) : null}
         </span>
       </button>
 

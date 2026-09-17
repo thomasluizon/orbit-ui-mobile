@@ -5,6 +5,7 @@ import {
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   getCalendarSyncClockValue,
+  getCalendarSyncImportIssue,
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
@@ -63,6 +64,114 @@ describe('calendar-sync utils', () => {
       ],
       fromSyncReview: true,
     })
+  })
+
+  it('encodes a weekly weekday event as a daily quantity-one habit', () => {
+    expect(
+      buildCalendarSyncImportRequest([
+        {
+          id: 'event-wednesday',
+          title: 'Wednesday class',
+          description: null,
+          startDate: '2026-09-23',
+          startTime: '18:00',
+          endTime: '19:00',
+          isRecurring: true,
+          recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=WE',
+          reminders: [],
+        },
+      ]),
+    ).toEqual({
+      habits: [
+        {
+          title: 'Wednesday class',
+          description: null,
+          dueDate: '2026-09-23',
+          dueTime: '18:00',
+          dueEndTime: '19:00',
+          frequencyUnit: 'Day',
+          frequencyQuantity: 1,
+          days: ['Wednesday'],
+          reminderEnabled: false,
+          reminderTimes: null,
+          googleEventId: 'event-wednesday',
+        },
+      ],
+      fromSyncReview: true,
+    })
+  })
+
+  it('preserves every weekday in a multi-day weekly event', () => {
+    expect(
+      buildCalendarSyncImportRequest([
+        {
+          id: 'event-multiple-days',
+          title: 'Training days',
+          description: 'Strength work',
+          startDate: '2026-09-21',
+          startTime: '07:00',
+          endTime: '08:00',
+          isRecurring: true,
+          recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR',
+          reminders: [30],
+        },
+      ]),
+    ).toEqual({
+      habits: [
+        {
+          title: 'Training days',
+          description: 'Strength work',
+          dueDate: '2026-09-21',
+          dueTime: '07:00',
+          dueEndTime: '08:00',
+          frequencyUnit: 'Day',
+          frequencyQuantity: 1,
+          days: ['Monday', 'Wednesday', 'Friday'],
+          reminderEnabled: true,
+          reminderTimes: [30],
+          googleEventId: 'event-multiple-days',
+        },
+      ],
+      fromSyncReview: true,
+    })
+  })
+
+  it('refuses weekday intervals instead of dropping their days', () => {
+    const event = {
+      id: 'event-alternate-weeks',
+      title: 'Alternate week training',
+      description: null,
+      startDate: '2026-09-21',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBe('weekday-interval')
+    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
+      'Unsupported calendar recurrence: weekday-interval',
+    )
+  })
+
+  it('refuses ordinal weekdays instead of importing a different monthly schedule', () => {
+    const event = {
+      id: 'event-second-monday',
+      title: 'Second Monday review',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBe('ordinal-weekday')
+    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
+      'Unsupported calendar recurrence: ordinal-weekday',
+    )
   })
 
   it('builds bulk create requests from suggestions', () => {

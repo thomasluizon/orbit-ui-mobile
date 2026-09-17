@@ -37,6 +37,12 @@ export interface CalendarSyncParsedRecurrence {
   days?: string[]
 }
 
+export type CalendarSyncImportIssue = 'weekday-interval' | 'ordinal-weekday'
+
+export type CalendarSyncImportIssueMessageKey =
+  | 'calendar.importIssue.weekdayInterval'
+  | 'calendar.importIssue.ordinalWeekday'
+
 export interface CalendarSyncTranslationAdapter {
   translate: (key: string, values?: Record<string, unknown>) => string
   pluralize: (text: string, count: number) => string
@@ -58,6 +64,8 @@ const WEEKDAY_MAP: Record<string, string> = {
   SA: 'Saturday',
   SU: 'Sunday',
 }
+
+const ORDINAL_WEEKDAY_PATTERN = /^[+-]?\d+(?:MO|TU|WE|TH|FR|SA|SU)$/
 
 function parseRuleParts(rule: string): Record<string, string> {
   return Object.fromEntries(
@@ -161,6 +169,37 @@ export function parseCalendarSyncRecurrence(
   return result
 }
 
+export function getCalendarSyncImportIssue(
+  rule: string | null,
+): CalendarSyncImportIssue | null {
+  if (!rule) return null
+
+  const parts = parseRuleParts(rule)
+  const weekdayTokens = parts.BYDAY?.split(',').map((day) => day.trim()) ?? []
+  if (weekdayTokens.some((day) => ORDINAL_WEEKDAY_PATTERN.test(day))) {
+    return 'ordinal-weekday'
+  }
+
+  const interval = parts.INTERVAL ? Number.parseInt(parts.INTERVAL, 10) : 1
+  if (weekdayTokens.length > 0 && Number.isFinite(interval) && interval > 1) {
+    return 'weekday-interval'
+  }
+
+  return null
+}
+
+export function isCalendarSyncEventImportable(event: CalendarSyncEvent): boolean {
+  return getCalendarSyncImportIssue(event.recurrenceRule) === null
+}
+
+export function getCalendarSyncImportIssueMessageKey(
+  issue: CalendarSyncImportIssue,
+): CalendarSyncImportIssueMessageKey {
+  return issue === 'weekday-interval'
+    ? 'calendar.importIssue.weekdayInterval'
+    : 'calendar.importIssue.ordinalWeekday'
+}
+
 export function formatCalendarSyncRecurrenceLabel(
   rule: string | null,
   translations: CalendarSyncTranslationAdapter,
@@ -214,9 +253,15 @@ export function buildCalendarSyncImportRequest(
 ): BulkCreateRequest {
   return {
     habits: events.map((event) => {
+      const importIssue = getCalendarSyncImportIssue(event.recurrenceRule)
+      if (importIssue) {
+        throw new Error(`Unsupported calendar recurrence: ${importIssue}`)
+      }
+
       const recurrence = parseCalendarSyncRecurrence(event.recurrenceRule)
-      const quantity = resolveRecurrenceQuantity(recurrence)
-      const days = quantity === 1 ? (recurrence.days ?? null) : null
+      const days = recurrence.days ?? null
+      const hasWeekdays = days !== null && days.length > 0
+      const quantity = hasWeekdays ? 1 : resolveRecurrenceQuantity(recurrence)
       const reminderTimes = event.reminders.length > 0 ? event.reminders : null
 
       return {
@@ -225,7 +270,7 @@ export function buildCalendarSyncImportRequest(
         dueDate: event.startDate,
         dueTime: event.startTime,
         dueEndTime: event.endTime,
-        frequencyUnit: recurrence.frequencyUnit ?? null,
+        frequencyUnit: hasWeekdays ? 'Day' : (recurrence.frequencyUnit ?? null),
         frequencyQuantity: quantity,
         days,
         reminderEnabled: event.reminders.length > 0,

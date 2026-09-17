@@ -20,6 +20,7 @@ import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
+  isCalendarSyncEventImportable,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils/error-utils'
@@ -147,14 +148,19 @@ export default function CalendarSyncScreen() {
     setSelectedIds(
       resolveSyncedSelection(
         selectedIds,
-        incomingEvents,
+        incomingEvents.filter(isCalendarSyncEventImportable),
         isReviewMode,
         previousEventsKey,
       ),
     )
   }
 
-  const allSelected = events.length > 0 && selectedIds.size === events.length
+  const importableEvents = useMemo(
+    () => events.filter(isCalendarSyncEventImportable),
+    [events],
+  )
+  const allSelected =
+    importableEvents.length > 0 && selectedIds.size === importableEvents.length
 
   const selectedEvents = useMemo(
     () => events.filter((event) => selectedIds.has(event.id)),
@@ -217,9 +223,9 @@ export default function CalendarSyncScreen() {
   const toggleAll = useCallback(() => {
     setSelectedIds(() => {
       if (allSelected) return new Set()
-      return new Set(events.map((event) => event.id))
+      return new Set(importableEvents.map((event) => event.id))
     })
-  }, [allSelected, events])
+  }, [allSelected, importableEvents])
 
   const toggleEvent = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -540,6 +546,7 @@ export default function CalendarSyncScreen() {
                       onToggle={toggleAll}
                       selectAllLabel={t('calendar.selectAll')}
                       deselectAllLabel={t('calendar.deselectAll')}
+                      disabled={importableEvents.length === 0}
                       tokens={tokens}
                       tintStyle={chipTint}
                     />

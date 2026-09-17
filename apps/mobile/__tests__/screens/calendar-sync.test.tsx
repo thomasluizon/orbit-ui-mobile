@@ -431,6 +431,48 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: "sug-0" });
   });
 
+  it("explains and disables a weekday interval suggestion before import", async () => {
+    const event = {
+      ...buildEvents(1)[0]!,
+      title: "Alternate week training",
+      isRecurring: true,
+      recurrenceRule: "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE",
+    };
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "sug-interval", event }];
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      tree.root.findAll(
+        (node: TestNode) =>
+          node.props.children === "calendar.importIssue.weekdayInterval",
+      ).length,
+    ).toBeGreaterThan(0);
+    const eventRow = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityRole === "checkbox" &&
+        node.props.accessibilityHint === "calendar.importIssue.weekdayInterval",
+    );
+    expect(eventRow.props.disabled).toBe(true);
+    expect(eventRow.props.accessibilityState).toEqual({
+      checked: false,
+      disabled: true,
+    });
+    const importPill = tree.root.find(
+      (node: TestNode & { type?: unknown }) =>
+        node.type === "PillButton" &&
+        typeof node.props.children === "string" &&
+        node.props.children.includes("calendar.importButton"),
+    );
+    expect(importPill.props.disabled).toBe(true);
+  });
+
   it("lists imported habits on the done step and toasts partial failures", async () => {
     mocks.eventsQuery.data = { status: "connected", events: buildEvents(2) };
     mocks.bulkMutateAsync.mockResolvedValue({

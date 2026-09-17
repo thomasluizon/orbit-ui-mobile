@@ -395,6 +395,37 @@ describe('CalendarSyncPage', () => {
     expect(screen.getAllByRole('button').some((button) => button.getAttribute('aria-pressed') === 'true')).toBe(true)
   })
 
+  it('explains and disables an ordinal weekday suggestion before import', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [
+        {
+          id: 'suggestion-second-monday',
+          event: {
+            id: 'event-second-monday',
+            title: 'Second Monday review',
+            description: null,
+            startDate: '2026-09-14',
+            startTime: null,
+            endTime: null,
+            isRecurring: true,
+            recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO',
+            reminders: [],
+          },
+        },
+      ],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    const issue = await screen.findByText('calendar.importIssue.ordinalWeekday')
+    expect(screen.getByText('Second Monday review').closest('button')).toBeDisabled()
+    expect(issue).toBeVisible()
+    expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
+    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+  })
+
   it('shows select all / deselect all toggle', async () => {
     const events = [
       { id: 'e1', title: 'Event 1', description: null, startDate: null, startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] },

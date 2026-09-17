@@ -972,6 +972,10 @@
     "importDone": "Import complete",
     "importedCount": "{count} event imported as a habit | {count} events imported as habits",
     "importPartialFailure": "{count} event could not be imported | {count} events could not be imported",
+    "importIssue": {
+      "weekdayInterval": "Orbit cannot preserve this event's weekday interval.",
+      "ordinalWeekday": "Orbit cannot import schedules like the second Monday of each month."
+    },
     "goToHabits": "Go to Habits",
     "errorTitle": "Something went wrong",
     "fetchError": "Could not fetch calendar events. Please try again.",

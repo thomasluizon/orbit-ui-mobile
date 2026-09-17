@@ -4,6 +4,8 @@ import { Bell, X } from '@/components/ui/icons'
 import type { TFunction } from 'i18next'
 import {
   formatCalendarSyncRecurrenceLabel,
+  getCalendarSyncImportIssue,
+  getCalendarSyncImportIssueMessageKey,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
@@ -45,6 +47,10 @@ export function CalendarSyncEventRow({
   onToggle,
   onDismiss,
 }: Readonly<CalendarSyncEventRowProps>) {
+  const importIssue = getCalendarSyncImportIssue(event.recurrenceRule)
+  const importIssueLabel = importIssue
+    ? t(getCalendarSyncImportIssueMessageKey(importIssue))
+    : null
   const recurrenceLabel = formatCalendarSyncRecurrenceLabel(
     event.recurrenceRule,
     {
@@ -60,8 +66,10 @@ export function CalendarSyncEventRow({
     <Animated.View entering={rowEntrance(index)}>
       <Pressable
         onPress={() => onToggle(event.id)}
+        disabled={importIssue !== null}
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: selected }}
+        accessibilityState={{ checked: selected, disabled: importIssue !== null }}
+        accessibilityHint={importIssueLabel ?? undefined}
         style={({ pressed }) => [
           styles.eventRow,
           {
@@ -113,6 +121,11 @@ export function CalendarSyncEventRow({
               numberOfLines={1}
             >
               {event.description}
+            </Text>
+          ) : null}
+          {importIssueLabel ? (
+            <Text style={[styles.importIssue, { color: tokens.statusBadText }]}>
+              {importIssueLabel}
             </Text>
           ) : null}
         </View>
