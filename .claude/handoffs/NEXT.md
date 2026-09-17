@@ -1,180 +1,156 @@
-# Work the batches to a production release
+# Fix the three-dot menu, then finish the prod release spec
 
-Read `.claude/specs/orbit-prod-release.md` first, and read `## The order` in it before anything
-else. That spec is the living record: the standing instructions, the decisions, the constraints, the
-full state and every answer Thomas has given. **It was renamed from `orbit-redesign.md` on
-2026-09-17**, when he widened the goal from finishing the redesign to clearing the whole board.
+Read `.claude/specs/orbit-prod-release.md` first, all of it. It is the living record: the standing
+instructions in his words, the decisions, the constraints, the full state and every answer he has
+given. Read `## The order` before anything else, and `## State` for where the work stands.
 
 `.claude/specs/beta-release.md` is the record for work that ships off `main`. Read its constraints
-once; they bite on any `main` work.
+once; they bite on any `main` work, and step 1 below is `main` work.
 
-**Read the brain notes the spec names before you act**, through the Obsidian MCP:
-`mcp__obsidian__obsidian_list_notes`, then `mcp__obsidian__obsidian_get_note`. List the
-`Decisions/` directory and copy the filenames that come back rather than the ones you remember. On
-2026-09-16 the MCP was unreachable and the check fell back to frontmatter on disk; backlinks were
-never read. Re-confirm through the MCP when it is up.
+Read the brain notes the spec names, through the Obsidian MCP: `mcp__obsidian__obsidian_list_notes`,
+then `mcp__obsidian__obsidian_get_note`. List `2 Areas/20-29 Orbit Engineering/Decisions/` and copy
+the filenames that come back rather than the ones you remember. The MCP was UP on 2026-09-18 and
+`obsidian_search_notes` needs `mode: "text"`.
 
-## Your entry point
+## Entry point
 
-`/sleep`. It enters `/orchestrate --sleep` itself, so do not treat them as two choices. Do not
-restate what either one does; work through them.
+`/sleep`. It enters `/orchestrate --sleep` itself. Do not treat them as two choices and do not
+restate what either does.
+
+## STEP 1, before anything else: the three-dot menu and the search input
+
+**This is Thomas's own instruction, 2026-09-18, and it comes first.** His words:
+
+> i want you to put as the first step on the handoff prompt, to research and understand this fucking
+> bug of the three dot menu not opening, and the search input to behave correctly, forever.
+> i literalaly just tested on the new mobile version, clicking the 3 dots on a habit, it doesnt open
+> and sometimes it open, sometimes not
+
+**Read this before you form a theory, because the last session got it wrong.** `#573`'s body quotes
+him as saying the menu failed "after a search". **He never said that.** His correction, verbatim:
+
+> 1. in some habits, for example, in the all habits tab, the 3 dots in the habit is simply not
+> working, nothing happens, and it has nothing to do with the search
+>
+> 2. when clicking to search a habit, switching tabs (like from all to today) doenst close (and
+> clear) the search, and clicking on the X doenst close the search input, i want both of these fixed
+>
+> why are you saying the dead three-dot tap is related to the search? i literally never said that
+
+So there are **two separate defects**, and pull request 1011 fixed neither of them as he described.
+1011 shipped a keyboard-tap theory, `keyboardShouldPersistTaps`, plus a `useTodaySearch` refactor.
+That theory came from the ticket's misquote.
+
+What is true on `main` right now, verified 2026-09-18:
+
+- **The three-dot menu is still broken and it is INTERMITTENT.** "sometimes it open, sometimes not",
+  on All habits, with no search involved. Intermittent is the most important word in this prompt: a
+  fix that works once is not a fix, and a test that passes once has proven nothing.
+- **Switching tabs DOES now close search.** `closeSearch()` fires on tab change in
+  `apps/mobile/app/(tabs)/use-today-search.ts`. That half landed.
+- **The X still does not close the search input.** Not fixed.
+
+**One ticket for both**, by his instruction: "i want both, fixed in one ticket". He also said not to
+file it during that session because it was bloated, so **filing it is step 1 of this one**.
+
+How to run it:
+
+1. **Research first, and do not guess.** Reproduce the intermittency or explain precisely why it
+   cannot be reproduced in Vitest. Read `habit-row-trailing.tsx`, the row's press targets, the
+   `Pressable` hit areas, anything that re-renders the row mid-press, and whether the menu's own
+   open state is racing a list re-render. "Sometimes" usually means a race or a remount, not a
+   missing prop.
+2. **Never boot the emulator.** It is his visual testing surface. If the only honest answer is that
+   a device is needed to confirm, build the correct fix, say so plainly in the pull request body,
+   and move on. Device verification is not a gate on building something.
+3. File ONE ticket covering both defects, with `/ticket`, then run it. It targets `main` under D99,
+   because a person hits it in the shipped build today.
+4. After it merges, `/android-release` to the open track on his standing permission.
 
 ## The goal
 
-**Finish `.claude/specs/orbit-prod-release.md`**, which means an empty board and a production
-release. The order is fixed and it is in that spec. Re-derive what is left:
+Finish `.claude/specs/orbit-prod-release.md`: an empty board and a production release. The order is
+in that spec and it is not negotiable. Re-derive what is left rather than trusting any list:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
     gh pr list --repo thomasluizon/orbit-ui-mobile --state open
     gh pr list --repo thomasluizon/orbit-api --state open
     gh pr list --repo thomasluizon/orbit-landing-page --state open
 
-A blocker is the next piece of work, not an ending.
+**A blocker is the next piece of work, not an ending.** The only honest early ending is external:
+the allowance runs out, the machine stops, or he says stop. Say which.
 
-## The order, and it is not negotiable
+## THE REDESIGN GATE, and never ask about it again
 
-Thomas set this on 2026-09-17. Work it in this sequence, and read the spec's `## The order` for the
-reasoning behind each batch and its full ticket list.
+Batch 1 closes when every `539 Redesign` screen ticket closes against its own acceptance criteria
+AND `node tools/redesign-coverage.mjs` reports a valid mapping. Then: ship `redesign/main` to a
+CLOSED Play INTERNAL track, tell him, and **STOP**. Do not merge. Waiting on him there is a
+legitimate ending under `/sleep`, reported as blocked on his approval.
 
-1. **Batch 0a: `#585`.** The tools harness is 1,707 serial assertions, about ten minutes, with no way
-   to run less of it, and `CLAUDE.md` requires it after any change under `tools/**` or `.claude/**`.
-   It gates every harness change in every batch below and it has already been starved twice on this
-   machine. Add `--only <name>`, keep the full run as the default and the gate, print elapsed time
-   and assertion count, decide parallelism on a measurement.
-2. **Batch 0b: the harness, 25 tickets.** He moved this to the front: "i want this batch before the
-   redesign." Re-read each against the tree first; several describe a state the last two weeks
-   already changed.
-3. **Batch 0c: the live Android defect.** 1011 is READY: merge it to `main`, then `/android-release`
-   to the open track on his standing permission. Then `#574`, `#563`, `#134`.
-4. **Batch 1: close the redesign.** The eleven remaining redesign pull requests, then the open
-   `539 Redesign` screen tickets. Done when every screen ticket closes against its own acceptance
-   criteria AND `node tools/redesign-coverage.mjs` reports a valid mapping with nothing missing.
+**2026-09-18, asked and answered for the last time:** "never ask me again about this. the gate is
+setted, when the whole redesign is done, you build the internal build, i dont care how much screens
+are missing". The number of remaining screens is never a reason to revisit the sequence.
 
-## THE REDESIGN GATE. Stop here.
+Coverage is already GREEN at `c0556a1a`: `184 manifest surfaces accounted for, 14 deleted, 3
+excluded`. The distance is the 16 open milestone tickets.
 
-His words, 2026-09-17:
+## The Astra rendering brainstorm, which he deferred to this session
 
-> work the batches until the redesign finishes, when it finishes, i will test everything in the
-> redesign/main branch, when i approve everything, THEN we merge to main, and only then the redesign
-> is finished and we can continue to the other batches
+`#318`. He answered its scope question and asked for the brainstorm here rather than in that session:
 
-So when batch 1 closes:
+> astra rendering needs to be COMPLETELY refactored, using the beautiful ui.dev components, almost
+> EVERYTHING that she renders need to be something VISUAL and beautiful, the only exception are
+> simple sentences, idk, but everything else should be blockes, graphics, images, i dont know, we
+> need to brainstorm this. NOT ON THIS SESSION THOUGH, ON THE HANDOFF.
 
-1. **Ship `redesign/main` to a CLOSED Play INTERNAL track** with `/android-release`. Answered
-   2026-09-17: he tests it as a real update, not a sideloaded file. Not the open track. Not `main`.
-2. **Tell him it is ready to test, and STOP.** Do not merge. Do not start batch 2a. Do not start
-   anything else in the spec. Waiting on him here is a legitimate ending under `/sleep`, reported as
-   blocked on his approval, never as finished.
-3. On his explicit approval: merge `redesign/main` into `main`, then `/android-release` to the OPEN
-   track. The redesign is finished at that merge and not before it.
-4. Batch 2a starts after that release. The order after the gate, reworked with him on 2026-09-17 so
-   the store and the landing page stop showing a product that no longer exists:
-   **2a** the twelve API contracts the UI waits on, **2b** every remaining ticket that changes what a
-   person sees (the UI those contracts unblock, the design-system corrections, the packaging copy),
-   **3** the landing page and the Play listing TOGETHER, **4** the component-library migration, which
-   changes zero visuals, **5** Astra, **6** security, correctness and the deletions, **7**
-   `/prod-readiness` and every finding it raises. The spec carries the ticket list and the reasoning
-   per batch.
+The inventory is already on `#318`: about **60 chat capabilities, 3 of which render as a block**. The
+component source is **`beautifului.dev`**; the `beautifui.dev` spelling in that body does not
+resolve. `#318`'s `blockedBy` edge on `#36` is dead, because `#36` is closed. This is a conversation
+with him, so under `--sleep` it waits; do the research that makes it cheap and put the options to
+him when he is there.
 
 ## In flight, with a disposition on every row
 
-**Two pull requests are READY right now.** Nothing is blocked; each other row is one round of work.
+Two Codex workers were ALIVE at handoff. **Read every worktree before assuming anything**: a finished
+worker leaves commits, a dirty tree, or nothing, and each means something different.
 
-| PR | base | head | disposition |
-|---|---|---|---|
-| 1011 | `main` | `719a771a` | **READY.** APPROVED at head, `pullfrog-approval` SUCCESS, zero reds, zero pending, zero threads. Merge first, then release. |
-| 1008 | `redesign/main` | `c7d60ad0` | **READY.** Same condition met. 116 suppressions. Merge second. |
-| 1010 | `chore/ticket-560-sweep-order` | `d5f7178f` | `#570`, stacked on 991. **Retarget onto `redesign/main` BEFORE 991 merges**, or merging the parent auto-closes it. |
-| 1007 | `redesign/main` | `a128ca12` | `#67`. Three P1s, order posted on the ticket. |
-| 1005 | `redesign/main` | `1c4e90fd` | `#73`. Worker reaped mid-round, worktree DIRTY with two unfinished test files. **Relaunch**, do not push. |
-| 1004 | `redesign/main` | `e002e817` | `#57`. Order posted. |
-| 1003 | `redesign/main` | `b52e3d79` | `#63`. Order posted. |
-| 1002 | `redesign/main` | `baeec3dc` | `#545`. No review at head; request one. |
-| 1001 | `redesign/main` | `744173b3` | `#562`. Order posted. |
-| 994 | `redesign/main` | `1b0fdb44` | `#557`. Commit `b4338304` is in the worktree, CLEAN, **unpushed**. Verify and push it. |
-| 992 | `redesign/main` | `fb520fb1` | `#543`. Order posted. |
-| 991 | `redesign/main` | `3cda0bd9` | `#560`. Worktree DIRTY on purpose, mid red experiment. Finish it. |
-| 970 | `redesign/main` | `b56d1b5e` | `#558`. CHANGES_REQUESTED. Order posted. |
-| api 528 | `main` | `dfb885b3` | `#529`. Order posted; its open question is answered from the source. |
-| api 521 | `main` | `44611e5f` | `#526`. Order posted. |
-| Dependabot | both | ui 798/799/801/881, api 510/525/526 | Leave. Not this effort. |
+| what | where | disposition |
+|---|---|---|
+| worker `#570` | `ticket-570-harness-gate`, log `orbit-workers\#570-1789677889900.log` | ALIVE. 16 unpushed commits, latest `1685c35c fix: reject untouched review evidence templates`. Outcome unknown. |
+| worker `#67` | `ticket-67-onboarding`, log `orbit-workers\ORB-61-1789678195730.log` | ALIVE. 15 unpushed, 9 dirty. Round 4, five P1s. Outcome unknown. |
+| **1001 uncommitted** | `ticket-562-weekday-import`, 4 files, ~100 insertions | **FINISH THIS FIRST among the pull requests.** `resolveCalendarSyncEndDate` maps `UNTIL` and `COUNT` to `endDate`, so a finite Google series stops instead of running forever. Green at 24 of 24, red-proven at 7. Interrupted before coverage and type-check. Commit, reply to `PRRT_kwDOR5Siws6jiJD6`, resolve, push. |
+| 1014 | `#461` | APPROVED, zero reds, CI finishing. Merge when green. |
+| 1012 | `#585` | Thread resolved. The parallelism measurement it lacked is now in the spec's State; put it in the body and request a review that can APPROVE. |
+| 1010 | `#570` | Worker's. Base is already `redesign/main`; do not retarget it back. |
+| 1007 | `#67` | Worker's. |
+| 1002 | `#545` | Both threads resolved, pushed `60cd943d`. Awaiting review. |
+| 992 | `#543` | Threads resolved. Its `Unit Tests` red is the 96 percent coverage floor; **merging 1001 fixes it**, so order those two. |
+| api 528, 521 | `orbit-api` | Orders written this session but lost with the scratchpad. Re-derive from the threads. 521's `Dash Ban` is already cleared. |
+| Dependabot | both repos | Leave. Not this effort. |
+| `orbit-landing-page` | 5 open | Leave. Batch 3 owns that repository. |
 
-`orbit-landing-page` has 5 open pull requests, untouched by this effort; batch 3 owns that repo.
+No stashes, no detached HEADs, in any repository. `orbit-api` and `orbit-landing-page` checkouts are
+clean.
 
-**Four codex processes were alive at handoff.** Read every worktree before assuming anything: a
-finished worker leaves commits, a dirty tree, or nothing, and each means something different.
-Stashes: none, in any repository. `orbit-api` and `orbit-landing-page` checkouts: clean.
+## Five tickets verified UNBUILT, with the evidence already on each
 
-## How to decide a merge
-
-**An APPROVED Pullfrog review is not the verdict.** A later review of the SAME head supersedes it.
-1008 proved it live on 2026-09-17: `APPROVED@12:47:26` then `COMMENTED@12:53:10` on one commit,
-carrying two new P1s, one of which was a name collision that would have shipped.
-
-Decide every merge on **the LAST Pullfrog review of the exact head being APPROVED AND the newest
-`pullfrog-approval` check run at that head concluding `success`**, ignoring SonarCloud only when the
-base is `redesign/main`. When `pullfrog-approval` is ABSENT rather than failing, an APPROVED review
-at the exact head stands in for it.
-
-**Rebuild the tool that does exactly that read.** It lives in a scratchpad that dies with its
-session, and it is about five minutes: last bot review at head, newest check run per NAME, unresolved
-bot threads, and reds excluding SonarCloud.
-
-Three cheap things that save real time:
-
-- `node tools/list-bot-threads.mjs --pr <n> --repo <key> --no-request --wait-seconds 0` is the read.
-  Without those flags it posts `@pullfrog review` and waits up to fifteen minutes.
-- That tool RECORDS every thread id it prints, which is what clears
-  `forbid-invented-identifier.mjs`. An id read through raw GraphQL is refused even when correct.
-- **`--match-head-commit` takes the FULL sha, COPIED from `gh pr view --json headRefOid` in this
-  run.** A reconstructed one is refused with `Head branch was modified`, which is the guard working.
-
-## What cost real work on 2026-09-17
-
-- **A ticket that reads blocked is a lead, not a fact.** Three were wrong in one night.
-- **An already-done ticket gets a comment and a closure, never an empty pull request.** `#329` closed
-  that way, with a per-criterion table checked against the tree.
-- **A fresh worktree has NO `node_modules`.** Run `npm install` and confirm ~960 entries before
-  composing the prompt.
-- **A pull request body can lose every newline**, and then a heading is not a heading. Read it as the
-  gate reads it before re-running a sweep.
-- **A ticket body can carry an instruction that is actively wrong.** Post the correction to the
-  TICKET before composing, because the worker reads comments and not your reasoning.
-- **Check the sibling before you change a string.** `Mark read` was chosen for the bulk notification
-  control without reading the single-item control, which already said `Mark read`. The review caught
-  two identical names on one surface.
-- **Claude Code's background-shell reaper is not a worker kill.** It stopped five tasks on
-  2026-09-17 for low memory and says not to restart them unasked. Measure free memory, fix the cause
-  if it is yours, then decide.
-
-## The machine
-
-`vmmemWSL` runs Docker Desktop. On 2026-09-17 an indinero `leap` stack held 3.6 GB and free memory
-sat near 2.5 GB; Thomas confirmed that work is finished, so those containers may be stopped, and
-`wsl --shutdown` with no container running returns about 3 GB more. Verify `wsl --list --running`
-shows only `docker-desktop` before doing it. `dotnet build-server shutdown` returns about 1.3 GB
-that api rounds leak into `VBCSCompiler`. Below roughly 7 GB free, run ONE worker at a time and do
-not run a root `turbo type-check` or a vitest suite beside it.
-
-**A worktree's `tools/node_modules` is a JUNCTION to the main checkout's `node_modules`.** Check for
-a reparse point before operating on any path inside a worktree, and use `rmdir` rather than `rm -rf`
-for install debris.
-
-**Reclaim `C:\\Users\\thoma\\orca\\.purge`** single-threaded, when no worker is running. Roughly 150
-staged worktrees. `robocopy /MIR /MT:64` over it is what killed five tasks at once.
+Do not re-derive these; the measurements are on the tickets. `#460`, `#475`, `#479`, `#481`, `#520`.
+`#520`'s finish line is machine-checkable: `node tools/check-surface-scope.mjs` stops naming the
+navigation sites. `#475` carries a granted-canvas violation, the completed goal-detail ring drawn at
+44 and built at 60.
 
 ## `--sleep`
 
-Thomas ran `/wrap-up --sleep`. Nobody is going to open this file, so do not stop after reading it.
-Read and execute `.claude/skills/sleep/SKILL.md`, write run state under this session's own id, and
-leave a live wake source before the turn ends. **A worker launched by a previous session does not
-wake you**: its wake source belongs to that session. Own your own. Take every decision yourself,
-always the best approach and never the easiest, and log each one.
+Nobody is going to open this file, so do not stop after reading it. Read and execute
+`.claude/skills/sleep/SKILL.md`, write run state under this session's own id, and leave a live wake
+source before the turn ends. A worker launched by a previous session does not wake you: its wake
+source belongs to that session. Own your own.
 
-The one place this run stops and waits is THE REDESIGN GATE above. Everything before it is yours.
+Take every decision yourself, always the best approach and never the easiest, and log each one.
 
 ## One more thing
 
-Every identifier here came from a previous session. Treat each as a lead to verify, not a fact.
-Three tickets that read blocked on 2026-09-17 were not, and one merge was refused because a sha was
-typed from memory instead of copied.
+Every identifier here came from a previous session. Treat each as a lead to verify, not a fact. The
+last two sessions each had at least one confident claim that was wrong: a ticket that quoted Thomas
+saying something he never said, and a merge refused because a sha was typed from memory instead of
+copied from `gh pr view --json headRefOid`.

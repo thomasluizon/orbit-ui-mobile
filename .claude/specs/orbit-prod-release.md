@@ -118,6 +118,24 @@ These stay until he changes them. Keep his words.
   phone, from an APK he generates himself at the end.
 - **Standing** Never boot the Android emulator. It is his visual testing surface.
 - **Standing** `redesign/main` stays unprotected. Settled; never raise it.
+- **2026-09-18** **THE GATE IS SET. NEVER ASK ABOUT IT AGAIN.** Asked whether nine merged screens
+  earned an early internal build, given 16 tickets still open: "never ask me again about this. the
+  gate is setted, when the whole redesign is done, you build the internal build, i dont care how much
+  screens are missing". So the count of remaining screens is never a reason to revisit the sequence,
+  and neither is how much has landed.
+- **2026-09-18** **Astra's rendering is a COMPLETE refactor, not a scope decision.** "astra rendering
+  needs to be COMPLETELY refactored, using the beautiful ui.dev components, almost EVERYTHING that
+  she renders need to be something VISUAL and beautiful, the only exception are simple sentences,
+  idk, but everything else should be blockes, graphics, images, i dont know, we need to brainstorm
+  this. NOT ON THIS SESSION THOUGH, ON THE HANDOFF." He also noted it was already decided: the
+  2026-08-13 direction in the brain says Astra "must not return a wall of markdown text". The
+  component source is **`beautifului.dev`**; the `beautifui.dev` spelling in `#318`'s body and in the
+  vault does NOT resolve. The brainstorm is the next session's work, recorded on `#318`.
+- **2026-09-18** **A ticket body can put words in his mouth, and quoting it back is on you.**
+  `#573`'s body quoted him as saying the three-dot menu failed "after a search". He never said that:
+  "why are you saying the dead three-dot tap is related to the search? i literally never said that".
+  What he actually reported is two separate things, and only one of them is about search. **Read his
+  own message, not the ticket's paraphrase of it, before repeating a cause back to him.**
 - **2026-09-16 evening** **A new report from him outranks the queue, immediately.** He reported
   three checklist defects mid-run and said "put it as a priority now", "target main (not
   redesign/main)", and "run /android-release to the beta track after you merge to main, you have
@@ -931,58 +949,87 @@ Two rules for this work, both learned the hard way:
 
 ## State
 
-Read live 2026-09-18 at 00:00 UTC.
+Read live 2026-09-18 at 05:30 UTC.
 
-`redesign/main` is **`75b1e99b`**. `main` is **`7771c79a`**, and **Orbit 1.3.30 (89) shipped to the
-Play OPEN track** off that commit, run `35259661979`, carrying `#573`. `orbit-api` `main` is
-unchanged at `fd219126`.
+`redesign/main` is **`c0556a1a`**. `main` is **`7771c79a`**, and **Orbit 1.3.30 (89) is on the Play
+OPEN track** off it, run `35259661979`. `orbit-api` `main` is unchanged at `fd219126`.
 
-### Merged this session, seven
+**227 tickets open** across the three repositories. **16 open in the `539 Redesign` milestone**:
+`#67`, `#75`, `#78`, `#175`, `#217`, `#318`, `#320`, `#367`, `#460`, `#461`, `#475`, `#479`, `#481`,
+`#520`, `#543`, `#545`.
 
-`1011` to `main` (`7771c79a`, the live Android defect), then to `redesign/main`: `1008` (`04ad126c`),
-`991` (`f470f4ce`), `994` (`ce5ad59a`), `1005` (`107ffa5f`), `1004` (`fbb8c52e`), `1003`
-(`75b1e99b`).
+### Merged this session, nine
 
-### Closed this session, three, each with a per-criterion table
+`1011` to `main` (`7771c79a`). To `redesign/main`: `1008` (`04ad126c`), `991` (`f470f4ce`), `994`
+(`ce5ad59a`), `1005` (`107ffa5f`), `1004` (`fbb8c52e`), `1003` (`75b1e99b`), `970` (`f8f05210`),
+`1013` (`c0556a1a`). Every one proven to have arrived with
+`git merge-base --is-ancestor <oid> origin/<base>`.
 
-`#57`, `#63` and `#73`. Every divergence from the ticket body is written on the ticket rather than
-ticked: two retired screenshot criteria, a stale `#574` reference, `#73`'s offline promise corrected
-because no queued send exists, the Metas versus progress naming, the Astra insights entry that is not
-the deleted route, and `#63`'s eighteen canvas states, which no grep can prove.
+### Closed this session, eight, each with a per-criterion table
+
+`#57`, `#63`, `#73`, `#74`, `#336`, `#472`, `#473`, `#476`, `#477`. Each closing comment carries the
+evidence and names every divergence from the ticket body rather than ticking it.
 
 ### Filed this session, four
 
-`#586` the widget deep link, `#587` the orphaned `settingsSection` keys and the D70 guard that has to
+`#586` the widget deep link, `#587` the orphaned `settingsSection` keys and the D70 guard that must
 move first, `#588` the `orbit-api` bulk item dropping `IntervalWeeks`, `#589` its blocked UI consumer.
 
 ### Open pull requests, every one
 
-| PR | base | head | disposition |
-|---|---|---|---|
-| 1013 | `redesign/main` | `c0464fb7` | `#74`'s last criterion: the dead `ASK ASTRA` key and an empty copy baseline. Awaiting CI. |
-| 1012 | `redesign/main` | `bb8ca9f0` | `#585`. The tally fix is committed with its red proof; push after the full harness confirms, then reply and resolve `PRRT_kwDOR5Siws6jhMwq`. |
-| 1010 | `redesign/main` | `d5f7178f` | `#570`. Auto-retargeted when 991 merged. CHANGES_REQUESTED, one thread, and CONFLICTING after seven merges. |
-| 1007 | `redesign/main` | pushed | `#67`. Three P1s fixed, zero unresolved, zero reds, zero pending. A re-review was requested and is the only thing left. |
-| 1002 | `redesign/main` | `e8cc44b4` | `#545`. Suppressions 63 to 20 web and 81 to 16 mobile. Awaiting review. |
-| 1001 | `redesign/main` | `de07207c` | `#562`. BYSETPOS fixed, sweep recorded, hover fixed, coverage floor fixed. |
-| 992 | `redesign/main` | working | `#543`. Worker running: stop redirecting entry focus, `View.focus()` is inert in RN 0.86.3. |
-| 970 | `redesign/main` | `cc5f405d` | `#558`. The walk is executable in `tools/lib/integration-branch.mjs`, eight cases, fork case proven red. APPROVED, CI finishing. |
-| api 528 | `main` | `dfb885b3` | `#529`. Order written at `scratchpad/api-528-order.md`; needs a worker. |
-| api 521 | `main` | `44611e5f` | `#526`. Order written at `scratchpad/api-521-order.md`; needs a worker. Its `Dash Ban` red is an en dash in the BODY, inside quoted `dotnet test` output. |
+| PR | base | disposition |
+|---|---|---|
+| 1014 | `redesign/main` | `#461`. APPROVED at head, zero reds, waiting on CI. `parity:exempt` applied with its reason: web already pins those actions, so this removes a divergence. |
+| 1012 | `redesign/main` | `#585`. Its one thread is resolved. **The parallelism measurement it was missing now exists, below.** Needs a fresh review that can approve. |
+| 1010 | `redesign/main` | `#570`. A worker is on it now; 16 commits unpushed in its worktree. |
+| 1007 | `redesign/main` | `#67`. A worker is on it now, round 4, five P1s. |
+| 1002 | `redesign/main` | `#545`. Both threads resolved, pushed `60cd943d`. Suppressions 63 to 20 web, 81 to 16 mobile. |
+| 1001 | `redesign/main` | `#562`. **Has uncommitted work, see below.** |
+| 992 | `redesign/main` | `#543`. Threads resolved, pushed `e818a478`. Its `Unit Tests` red is the 96 percent coverage floor, which 1001's merge fixes for it. |
+| api 528 | `main` | `#529`. Order written, needs a worker. |
+| api 521 | `main` | `#526`. Order written, needs a worker. Its `Dash Ban` red is cleared. |
 
-`#461` is in a worker now, in the `ticket-58-achievements` worktree on
-`fix/ticket-461-notification-actions`.
+`orbit-landing-page` has 5 open, untouched by this effort; batch 3 owns that repository.
+
+### The parallelism decision, measured
+
+`#585` asks for a decision on a measurement. It exists now, taken on this machine under the same
+two-worker load as the serial baseline:
+
+| variant | elapsed | result |
+|---|---|---|
+| serial, what ships | **970.3s** | 1,765 assertions, 0 FAIL |
+| parallel, 4-process pool from `7bbbb796` | **373s** | 0 FAIL |
+| parallel, same code, next run | **454s** | **5 FAIL** |
+
+**Materially faster and NOT deterministic**, which is exactly the case the ticket says to refuse. The
+flaky cases are in `create-worktree.mjs`, which stages temporary directories. Serial ships.
+
+Two earlier runs, 325s and 390s, both exited 1 for a different and invalid reason: staging
+`7bbbb796`'s harness into today's tree leaves `lib/integration-branch.mjs` and `lib/review-harness.mjs`
+unregistered. That is contamination, not flakiness, and it is recorded so nobody cites it.
+
+### Uncommitted work that must not be lost
+
+- **`ticket-562-weekday-import` (1001) is DIRTY with 4 files and about 100 insertions.** It is the
+  answer to 1001's newest P1: `COUNT` and `UNTIL` fall through as importable and the builder emits an
+  UNBOUNDED habit, so a finite Google series keeps firing in Orbit forever. The work adds
+  `resolveCalendarSyncEndDate`, exports it, emits `endDate` from the import builder, and adds four
+  cases. **Verified green, 24 of 24, and proven red first at 7 failures.** It was interrupted before
+  its coverage and type-check pass. Finish that, commit, reply to `PRRT_kwDOR5Siws6jiJD6`, resolve,
+  push.
+- `ticket-570-harness-gate` holds **16 unpushed commits**, `ticket-58-achievements` holds 1. Both are
+  live workers' work; read the worktree before assuming.
 
 ### The redesign gate, measured
 
 `node tools/redesign-coverage.mjs` reports **`redesign coverage valid: 184 manifest surfaces
-accounted for, 14 deleted, 3 excluded`** at `75b1e99b`. That half of batch 1's exit condition is MET
-and has been re-run on the current tree.
+accounted for, 14 deleted, 3 excluded`** at `c0556a1a`. That half of batch 1's exit condition is MET
+and was re-run on the current tree.
 
-The other half is not. **22 tickets remain open in the `539 Redesign` milestone**, of which these are
-not started at all: `#520`, `#481`, `#479`, `#477`, `#476`, `#475`, `#473`, `#472`, `#460`, `#336`,
-`#175`, `#217`, `#320`, `#318`, plus `#78` (landing), `#75` and `#367` (api). That list is the real
-distance to the gate.
+The other half is the 16 milestone tickets. **Five were verified this session as genuinely unbuilt,
+with the evidence on each ticket**: `#460`, `#475`, `#479`, `#481`, `#520`. Two are blocked on other
+work: `#175` on the suppressions reaching zero, `#217` on `#67`. One needs Thomas: `#318`.
 
 ### Tickets
 
