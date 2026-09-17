@@ -41,6 +41,11 @@ let credentialMutationTail = Promise.resolve()
 let profileHydrationInFlight: Promise<void> | null = null
 let refreshSessionInFlight: Promise<RefreshSessionAttempt> | null = null
 
+type SessionOwnership = {
+  epoch: number
+  credentialVersion: number
+}
+
 /**
  * True while a session owner is preparing account state before the protected
  * tree can mount. apiClient consults this to avoid tearing down the session on
@@ -50,10 +55,7 @@ export function isAuthTransitionInFlight(): boolean {
   return useAuthStore.getState().sessionPhase === 'establishing'
 }
 
-export function getSessionGeneration(): {
-  epoch: number
-  credentialVersion: number
-} {
+export function getSessionGeneration(): SessionOwnership {
   return { epoch: sessionEpoch, credentialVersion }
 }
 
@@ -120,6 +122,11 @@ function isCurrentSessionEpoch(epoch: number): boolean {
   return sessionEpoch === epoch
 }
 
+function isCurrentSessionOwnership(ownership: SessionOwnership): boolean {
+  return isCurrentSessionEpoch(ownership.epoch)
+    && credentialVersion === ownership.credentialVersion
+}
+
 function isCurrentSessionTeardown(epoch: number): boolean {
   return isCurrentSessionEpoch(epoch) && useAuthStore.getState().sessionPhase === 'signed-out'
 }
@@ -152,14 +159,11 @@ type SessionTeardownResult = {
 }
 
 async function clearSessionCredentials(
-  expectedEpoch: number | null,
-  expectedCredentialVersion: number | null,
+  ownership: SessionOwnership,
   captureRefreshToken: boolean,
 ): Promise<SessionTeardownResult | null> {
   return withCredentialMutationLock(async () => {
-    const epoch = expectedEpoch ?? sessionEpoch
-    const expectedCredentials = expectedCredentialVersion ?? credentialVersion
-    if (!isCurrentSessionEpoch(epoch) || credentialVersion !== expectedCredentials) return null
+    if (!isCurrentSessionOwnership(ownership)) return null
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
     clearStepUpState()
     sessionEpoch += 1
@@ -185,15 +189,10 @@ async function runSessionTeardownStep(
 }
 
 async function runSessionTeardown(
-  expectedEpoch: number | null,
-  expectedCredentialVersion: number | null,
+  ownership: SessionOwnership,
   captureRefreshToken: boolean,
 ): Promise<SessionTeardownResult | null> {
-  const teardown = await clearSessionCredentials(
-    expectedEpoch,
-    expectedCredentialVersion,
-    captureRefreshToken,
-  )
+  const teardown = await clearSessionCredentials(ownership, captureRefreshToken)
   if (!teardown) return null
   const { epoch } = teardown
   if (!(await runSessionTeardownStep(epoch, () => cancelPersistentReminder().catch(() => {})))) return null
@@ -215,9 +214,12 @@ async function runSessionTeardown(
 
 export async function clearSessionAndResetAuth(
   epoch: number,
-  expectedCredentialVersion: number | null = null,
+  expectedCredentialVersion: number,
 ): Promise<boolean> {
-  return (await runSessionTeardown(epoch, expectedCredentialVersion, false)) !== null
+  return (await runSessionTeardown(
+    { epoch, credentialVersion: expectedCredentialVersion },
+    false,
+  )) !== null
 }
 
 /**
@@ -260,6 +262,20 @@ function resetOnboardingDraftForSignOut(): void {
   }
 }
 
+async function classifyRejectedRefresh(
+  response: Response,
+  ownership: SessionOwnership,
+): Promise<RefreshSessionOutcome> {
+  if (response.status === 429) {
+    const throttlePayload = await response.json()
+      .then((value: unknown) => value)
+      .catch(() => null)
+    if (!isCurrentSessionOwnership(ownership)) return { status: 'superseded' }
+    useThrottleStore.getState().show(response.status, throttlePayload)
+  }
+  return { status: response.status === 401 ? 'unauthorized' : 'network-error' }
+}
+
 /**
  * Rotates the access token using the stored refresh token. Uses raw fetch, not
  * apiClient: apiClient's own 401 handler calls this function, so routing it back
@@ -272,7 +288,9 @@ async function rotateSessionToken(
   epoch: number,
   expectedCredentialVersion: number,
 ): Promise<RefreshSessionOutcome> {
+  const ownership = { epoch, credentialVersion: expectedCredentialVersion }
   const refreshToken = await getRefreshToken()
+  if (!isCurrentSessionOwnership(ownership)) return { status: 'superseded' }
   if (!refreshToken) {
     return { status: 'unauthorized' }
   }
@@ -286,23 +304,22 @@ async function rotateSessionToken(
       body: JSON.stringify({ refreshToken }),
     })
   } catch (error: unknown) {
+    if (!isCurrentSessionOwnership(ownership)) return { status: 'superseded' }
     if (!isTransientNetworkError(error)) {
       return { status: 'unauthorized' }
     }
     return { status: 'network-error' }
   }
 
+  if (!isCurrentSessionOwnership(ownership)) return { status: 'superseded' }
   if (!response.ok) {
-    if (response.status === 429) {
-      useThrottleStore.getState().show(response.status, await response.json().catch(() => null))
-    }
-    return { status: response.status === 401 ? 'unauthorized' : 'network-error' }
+    return classifyRejectedRefresh(response, ownership)
   }
 
   const data = (await response.json()) as RefreshResponse
   const tokenUser = getUserFromToken(data.token, currentUser?.name)
   const published = await withCredentialMutationLock(async () => {
-    if (!isCurrentSessionEpoch(epoch) || credentialVersion !== expectedCredentialVersion) return false
+    if (!isCurrentSessionOwnership(ownership)) return false
     await setToken(data.token)
     await setRefreshToken(data.refreshToken)
     await saveWidgetToken(data.token).catch(() => {})
@@ -381,9 +398,10 @@ function applyProfilePresentation(profile: Profile): void {
 }
 
 async function hydrateSessionProfile(): Promise<void> {
-  const { epoch, credentialVersion: expectedCredentialVersion } = getSessionGeneration()
+  const ownership = getSessionGeneration()
   try {
     const profile = await apiClient<Profile>(API.profile.get)
+    if (!isCurrentSessionEpoch(ownership.epoch)) return
     queryClient.setQueryData(profileKeys.detail(), profile)
     applyProfilePresentation(profile)
 
@@ -395,7 +413,7 @@ async function hydrateSessionProfile(): Promise<void> {
     }
   } catch (err: unknown) {
     if (err instanceof Error && err.message === 'Unauthorized') {
-      await clearSessionAndResetAuth(epoch, expectedCredentialVersion)
+      await clearSessionAndResetAuth(ownership.epoch, ownership.credentialVersion)
     }
   }
 }
@@ -407,8 +425,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   expiresAt: null,
 
   login: async (token, refreshToken, user) => {
-    let epoch = sessionEpoch
-    let loginCredentialVersion = credentialVersion
+    let ownership = getSessionGeneration()
     set(deriveSessionPhase('establishing'))
     try {
       const loginSession = await withCredentialMutationLock(async () => {
@@ -428,20 +445,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
           expiresAt: getExpiresAt(token),
         })
-        return { epoch: sessionEpoch, credentialVersion }
+        return getSessionGeneration()
       })
-      epoch = loginSession.epoch
-      loginCredentialVersion = loginSession.credentialVersion
-      if (!isCurrentSessionEpoch(epoch)) return
+      ownership = loginSession
+      if (!isCurrentSessionEpoch(ownership.epoch)) return
       queryClient.clear()
       await clearPersistedQueryCache()
-      if (!isCurrentSessionEpoch(epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return
       await setQueryCacheScope(user.userId)
-      if (!isCurrentSessionEpoch(epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return
       cancelScheduledFlush()
       offlineQueue.retainAccount(user.userId)
       await clearOfflineState()
-      if (!isCurrentSessionEpoch(epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return
       useChatStore.getState().clearMessages()
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
@@ -469,27 +485,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       } catch {}
 
-      if (!isCurrentSessionEpoch(epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return
       bindStepUpStateToAccount(user.userId)
       set({
         ...deriveSessionPhase('signed-in'),
         user: hydratedUser,
         isLoading: false,
         expiresAt:
-          credentialVersion === loginCredentialVersion ? getExpiresAt(token) : get().expiresAt,
+          credentialVersion === ownership.credentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
     } catch (error: unknown) {
-      await runSessionTeardown(epoch, null, false).catch(() => {})
+      await runSessionTeardown(ownership, false).catch(() => {})
       throw error
     }
   },
 
   logout: async () => {
+    const ownership = getSessionGeneration()
     await import('@/hooks/use-push-notifications')
       .then((module) => module.unsubscribePushToken())
       .catch(() => {})
 
-    const teardown = await runSessionTeardown(null, null, true)
+    const teardown = await runSessionTeardown(ownership, true)
     const refreshToken = teardown?.refreshToken ?? null
     if (teardown && refreshToken && isCurrentSessionTeardown(teardown.epoch)) {
       await apiClient(API.auth.logout, {
@@ -506,16 +523,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   checkAuth: async () => {
+    const ownership = getSessionGeneration()
     const startingPhase = get().sessionPhase
     if (startingPhase === 'establishing') return true
     const ownsSessionEstablishment = startingPhase === 'signed-out'
     if (ownsSessionEstablishment) set(deriveSessionPhase('establishing'))
 
-    const { epoch, credentialVersion: expectedCredentialVersion } = getSessionGeneration()
     let token = await getToken()
-    if (!isCurrentSessionEpoch(epoch)) return false
+    if (!isCurrentSessionEpoch(ownership.epoch)) return false
     if (!token) {
-      await clearSessionAndResetAuth(epoch, expectedCredentialVersion)
+      await clearSessionAndResetAuth(ownership.epoch, ownership.credentialVersion)
       return false
     }
 
@@ -536,12 +553,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const payload = decodeJwtPayload(token)
     const accountId = getAccountIdFromPayload(payload)
     const restored = await withCredentialMutationLock(async () => {
-      if (!isCurrentSessionEpoch(epoch)) return false
+      if (!isCurrentSessionEpoch(ownership.epoch)) return false
       if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
       await saveWidgetToken(token).catch(() => {})
       if (accountId) bindStepUpStateToAccount(accountId)
       await setQueryCacheScope(accountId)
-      if (!isCurrentSessionEpoch(epoch)) return false
+      if (!isCurrentSessionEpoch(ownership.epoch)) return false
       if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
       set((state) => ({
         ...deriveSessionPhase('signed-in'),
@@ -552,34 +569,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
     if (!restored) return false
 
-    return isCurrentSessionEpoch(epoch)
+    return isCurrentSessionEpoch(ownership.epoch)
   },
 
   initialize: async () => {
-    const { epoch, credentialVersion: expectedCredentialVersion } = getSessionGeneration()
+    const ownership = getSessionGeneration()
     set({ isLoading: true })
     try {
       const isValid = await get().checkAuth()
       if (!isValid) {
-        set({
-          ...deriveSessionPhase('signed-out'),
-          user: null,
-          isLoading: false,
-          expiresAt: null,
-        })
+        if (isCurrentSessionOwnership(ownership)) {
+          set({
+            ...deriveSessionPhase('signed-out'),
+            user: null,
+            isLoading: false,
+            expiresAt: null,
+          })
+        }
         return
       }
+      if (!isCurrentSessionEpoch(ownership.epoch)) return
 
       set({ isLoading: false })
       useReviewReminderStore.getState().setAccountScope(get().user?.userId ?? null)
 
       profileHydrationInFlight = (async () => {
         await hydrateSessionProfile()
-        useReviewReminderStore.getState().setAccountScope(get().user?.userId ?? null)
+        if (isCurrentSessionEpoch(ownership.epoch)) {
+          useReviewReminderStore.getState().setAccountScope(get().user?.userId ?? null)
+        }
       })()
       void profileHydrationInFlight
     } catch {
-      await clearSessionAndResetAuth(epoch, expectedCredentialVersion)
+      await clearSessionAndResetAuth(ownership.epoch, ownership.credentialVersion)
     }
   },
 }))

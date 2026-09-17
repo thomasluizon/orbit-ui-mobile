@@ -431,6 +431,68 @@ describe('mobile auth store security paths', () => {
     await expect(refresh).resolves.toEqual({ status: 'superseded' })
   })
 
+  it('reports a stale refresh 401 as superseded after a replacement login', async () => {
+    const replacementToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'replacement-user',
+      'replacement@example.com',
+    )
+    let storedToken: string | null = 'old-access-token'
+    let storedRefreshToken: string | null = 'old-refresh-token'
+    let releaseServerRefresh!: (response: Response) => void
+
+    getRefreshTokenMock.mockImplementation(() => Promise.resolve(storedRefreshToken))
+    setTokenMock.mockImplementation((token: string) => {
+      storedToken = token
+      return Promise.resolve()
+    })
+    setRefreshTokenMock.mockImplementation((token: string) => {
+      storedRefreshToken = token
+      return Promise.resolve()
+    })
+    clearAllTokensMock.mockImplementation(() => {
+      storedToken = null
+      storedRefreshToken = null
+      return Promise.resolve()
+    })
+    fetchMock.mockReturnValue(new Promise<Response>((resolve) => {
+      releaseServerRefresh = resolve
+    }))
+    useAuthStore.setState({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'old-user', email: 'old@example.com', name: 'Old user' },
+      isLoading: false,
+      expiresAt: Date.now() + 60_000,
+    })
+
+    const refresh = refreshSession({ clearOnFailure: false })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    await useAuthStore.getState().logout()
+    await useAuthStore.getState().login(
+      replacementToken,
+      'replacement-refresh-token',
+      {
+        userId: 'replacement-user',
+        email: 'replacement@example.com',
+        name: 'Replacement user',
+      },
+    )
+
+    releaseServerRefresh(new Response(null, { status: 401 }))
+
+    await expect(refresh).resolves.toEqual({ status: 'superseded' })
+    expect(storedToken).toBe(replacementToken)
+    expect(storedRefreshToken).toBe('replacement-refresh-token')
+    expect(replaceMock).not.toHaveBeenCalled()
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'replacement-user' },
+    })
+  })
+
   it('aborts a blocked login when teardown changes the session', async () => {
     let releasePersistedCacheClear!: () => void
     const persistedCacheClearReleased = new Promise<void>((resolve) => {
@@ -520,9 +582,12 @@ describe('mobile auth store security paths', () => {
   })
 
   it('keeps the session authenticated when a concurrent clear fires mid-login', async () => {
-    const previousEpoch = getSessionGeneration().epoch
+    const previousGeneration = getSessionGeneration()
     apiClientMock.mockImplementation(async () => {
-      await clearSessionAndResetAuth(previousEpoch)
+      await clearSessionAndResetAuth(
+        previousGeneration.epoch,
+        previousGeneration.credentialVersion,
+      )
       return undefined
     })
 
@@ -979,6 +1044,87 @@ describe('mobile auth store security paths', () => {
 
     releaseRevoke()
     await logout
+
+    expect(storedToken).toBe(replacementToken)
+    expect(storedRefreshToken).toBe('replacement-refresh-token')
+    expect(storedAuthReturnUrl).toBe('/replacement-destination')
+    expect(offlineEntries).toEqual(['replacement-mutation'])
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'replacement-user' },
+    })
+  })
+
+  it('does not let a second logout waiting on push unsubscribe adopt a replacement session', async () => {
+    const replacementToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'replacement-user',
+      'replacement@example.com',
+    )
+    let storedToken: string | null = 'old-access-token'
+    let storedRefreshToken: string | null = 'old-refresh-token'
+    let storedAuthReturnUrl: string | null = '/old-destination'
+    const offlineEntries = ['old-mutation']
+    let releaseSecondUnsubscribe!: () => void
+    let secondLogout!: Promise<void>
+    const secondUnsubscribeReleased = new Promise<void>((resolve) => {
+      releaseSecondUnsubscribe = resolve
+    })
+
+    getRefreshTokenMock.mockImplementation(() => Promise.resolve(storedRefreshToken))
+    setTokenMock.mockImplementation((token: string) => {
+      storedToken = token
+      return Promise.resolve()
+    })
+    setRefreshTokenMock.mockImplementation((token: string) => {
+      storedRefreshToken = token
+      return Promise.resolve()
+    })
+    clearAllTokensMock.mockImplementation(() => {
+      storedToken = null
+      storedRefreshToken = null
+      return Promise.resolve()
+    })
+    clearStoredAuthReturnUrlMock.mockImplementation(() => {
+      storedAuthReturnUrl = null
+      return Promise.resolve()
+    })
+    offlineQueueClearMock.mockImplementation(() => {
+      offlineEntries.length = 0
+    })
+    unsubscribePushTokenMock
+      .mockImplementationOnce(() => {
+        secondLogout = useAuthStore.getState().logout()
+        return Promise.resolve()
+      })
+      .mockReturnValueOnce(secondUnsubscribeReleased)
+    useAuthStore.setState({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'old-user', email: 'old@example.com', name: 'Old user' },
+      isLoading: false,
+      expiresAt: Date.now() + 3600_000,
+    })
+
+    const firstLogout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(unsubscribePushTokenMock).toHaveBeenCalledTimes(2))
+    await firstLogout
+
+    await useAuthStore.getState().login(
+      replacementToken,
+      'replacement-refresh-token',
+      {
+        userId: 'replacement-user',
+        email: 'replacement@example.com',
+        name: 'Replacement user',
+      },
+    )
+    storedAuthReturnUrl = '/replacement-destination'
+    offlineEntries.splice(0, offlineEntries.length, 'replacement-mutation')
+
+    releaseSecondUnsubscribe()
+    await secondLogout
 
     expect(storedToken).toBe(replacementToken)
     expect(storedRefreshToken).toBe('replacement-refresh-token')
