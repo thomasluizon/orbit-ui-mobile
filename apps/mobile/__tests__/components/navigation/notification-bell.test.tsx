@@ -13,6 +13,7 @@ import { NotificationDetailModal } from '@/components/navigation/notification-de
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { createTokensV2 } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 const state = vi.hoisted(() => ({
@@ -109,6 +110,7 @@ beforeEach(() => {
   state.clear.mockImplementation(() => { state.notifications = []; state.unreadCount = 0 })
 })
 afterEach(() => {
+  sheetTestControls.defer(false)
   TestRenderer.act(() => trees.forEach((tree) => tree.unmount()))
   trees = []
   resetPendingNotificationDeletesForTests()
@@ -397,12 +399,24 @@ describe('mobile alerts', () => {
     ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', en.notifications.habit, 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/', en.nav.today],
     ['/calendar-sync?mode=review', '/calendar', en.nav.calendar],
   ])('navigates from detail %s to the target after closing', (url, destination, labelTarget, habitId: string | null = null) => {
+    sheetTestControls.defer(true)
+    const onClose = vi.fn()
     const tree = render(<NotificationDetailModal open notification={createMockNotification({ url, habitId })}
-      onClose={vi.fn()} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
+      onClose={onClose} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
     const label = en.notifications.openIn.replace('{target}', labelTarget)
     const target = hosts(tree, 'Pressable').find((node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0)!
     TestRenderer.act(() => target.props.onPress?.())
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(state.push).not.toHaveBeenCalled()
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+
+    expect(onClose).toHaveBeenCalledTimes(1)
     expect(state.push).toHaveBeenCalledWith(destination)
+    expect(state.push).toHaveBeenCalledTimes(1)
     expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')
   })
 
