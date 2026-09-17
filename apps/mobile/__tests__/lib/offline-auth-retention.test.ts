@@ -153,7 +153,11 @@ describe('offline queue across the real API and auth boundary', () => {
 
   it('explicit logout deletes retained work even after the session expired', async () => {
     enqueue()
-    await auth.clearSessionAndResetAuth()
+    const generation = auth.getSessionGeneration()
+    await auth.clearSessionAndResetAuth({
+      authority: 'observed-credential',
+      ...generation,
+    })
     expect(stored()).toHaveLength(1)
     mocks.fetch.mockResolvedValue(new Response(null, { status: 204 }))
     await auth.useAuthStore.getState().logout()
@@ -162,7 +166,11 @@ describe('offline queue across the real API and auth boundary', () => {
 
   it('retains a forbidden write after reauthentication without spending a retry', async () => {
     enqueue()
-    await auth.clearSessionAndResetAuth()
+    const generation = auth.getSessionGeneration()
+    await auth.clearSessionAndResetAuth({
+      authority: 'observed-credential',
+      ...generation,
+    })
     await login()
     expect(queue.count()).toBe(1)
     mocks.clearTokens.mockClear()

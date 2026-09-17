@@ -355,6 +355,7 @@
     "sessionExpiring": "Your session expires in {minutes} minutes. Save your work.",
     "sessionExpired": "Your session timed out.",
     "sessionSignedOut": "You were signed out. Sign in to pick up where you left off.",
+    "sessionRefreshFailed": "Orbit couldn't refresh your session. Try again.",
     "refresh": "Refresh",
     "todayBoundary": {
       "lastLoggable": "This is the oldest day you can log.",
