@@ -39,16 +39,34 @@ within a day.
 repository whose work you report, using one base-chain rule:
 
 1. In that repository, read its open pull requests with
-   `gh pr list --state open --limit 100 --json number,headRefName,baseRefName`.
+   `gh pr list --state open --limit 100 --json number,headRefName,baseRefName`. That listing finds
+   the anchor in step 2; step 3 resolves each candidate in every state, not only this one.
 2. Choose the anchor that identifies the work in that repository. For the current checkout, read
    `git rev-parse --abbrev-ref HEAD`; if one open row's `headRefName` exactly matches it, start with
    that row's `baseRefName`, otherwise start with the checkout branch itself. For a session ledger
    row, use the row's `prNumber` to find that repository's session pull request and start with its
    `baseRefName`; do not assume the orchestrating checkout's branch exists in a sibling repository.
-3. While the candidate is itself one open row's `headRefName`, it is a stacked pull request head,
-   not the integration branch; replace it with that row's `baseRefName`. The first candidate that is
-   not an open head is the integration branch. A duplicate matching head or a cycle is ambiguity:
-   say so and do not guess. This walk begins from one exact anchor, so unrelated bases cannot tie it.
+3. While the candidate is itself some pull request's `headRefName`, it is a stacked pull request
+   head, not the integration branch. Resolve that head in every state, because a stacked parent can
+   be closed while it is still the child's recorded base:
+
+   ```bash
+   gh pr list --head <candidate> --state all --limit 10 --json number,state,baseRefName
+   ```
+
+   Take the highest `number`, because a branch name can be reused. Then:
+   - `OPEN` or `MERGED`: replace the candidate with that row's `baseRefName` and continue the walk.
+   - `CLOSED` with nothing merged: the chain is unresolved. Name that pull request number and its
+     head, say the stack's parent never merged, and never report that head as the integration
+     branch.
+
+   The first candidate that is no pull request's head, in any state, is the integration branch. A
+   duplicate matching head or a cycle is ambiguity: say so and do not guess. This walk begins from
+   one exact anchor, so unrelated bases cannot tie it.
+
+   Reading only open heads is what this replaces. It accepted every absent head as integration, so a
+   closed parent resolved to its own feature branch: PR 575's base is `feature/539-b5-apply-design`,
+   that branch is PR 560's head, and 560 is `CLOSED` with `mergeCommit` null.
 4. State the current checkout's resolved branch in the answer. Before comparing commits, run
    `git fetch origin <integration-branch>` in that mapped repository and read
    `origin/<integration-branch>` there. A failed fetch makes arrival unverifiable for that repository

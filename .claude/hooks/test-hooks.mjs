@@ -1183,6 +1183,19 @@ T("progress: stacked squash merges do not make an impossible ancestry promise", 
 }, { limitsAncestryToDirectIntegrationMerges: true, reportsImmediateBase: true, admitsSquashBoundary: true, namesRetargetPractice: true })
 
 /**
+ * A walk that searches only OPEN heads reads "not an open head" as "integration branch", and a
+ * stacked parent can be CLOSED while it is still the child's recorded base. PR 575's base is
+ * `feature/539-b5-apply-design`, which is PR 560's head, and 560 is CLOSED with nothing merged, so
+ * the old rule named a feature branch as integration for that whole chain.
+ */
+T("progress: a closed stacked parent is never reported as the integration branch", {
+  resolvesEveryState: progressSkill.includes("gh pr list --head <candidate> --state all"),
+  followsOpenAndMergedParents: progressSkill.includes("`OPEN` or `MERGED`"),
+  refusesClosedParent: /never report that head as the integration\s+branch/.test(progressSkill),
+  requiresNoHeadInAnyState: progressSkill.includes("no pull request's head, in any state"),
+}, { resolvesEveryState: true, followsOpenAndMergedParents: true, refusesClosedParent: true, requiresNoHeadInAnyState: true })
+
+/**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
  * looking rather than by any gate. A pre-commit hook does not check for them and neither did
  * anything else, so a merge resolved by a substitution that silently matched nothing shipped.
