@@ -107,7 +107,7 @@ const VERDICTS = {
   ".claude/skills/prod-readiness/SKILL.md":
     "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
   ".claude/skills/progress/SKILL.md":
-    "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up.",
+    "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up. The effort-agnostic rewrite now resolves integration per repository and distinguishes direct ancestry from an unprovable stacked squash boundary, so the answer requires evidence-led judgement rather than table lookup. The base-chain walk now also resolves each candidate in every pull request state and reports a closed unmerged parent as an unresolved chain rather than naming its head as integration, which adds one more judgement the answer cannot look up.",
   ".claude/skills/questions/SKILL.md":
     "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes his attention or ships a guess as a decision.",
   ".claude/skills/second-opinion/SKILL.md":
