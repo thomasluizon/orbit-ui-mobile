@@ -266,8 +266,10 @@ describe('calendar-sync utils', () => {
       reminders: [],
     }])
 
-    expect(request.habits[0].frequencyUnit).toBe('Week')
-    expect(request.habits[0].frequencyQuantity).toBe(1)
+    const [habit] = request.habits
+    expect(habit).toBeDefined()
+    expect(habit?.frequencyUnit).toBe('Week')
+    expect(habit?.frequencyQuantity).toBe(1)
   })
 
   it('builds bulk create requests from suggestions', () => {
