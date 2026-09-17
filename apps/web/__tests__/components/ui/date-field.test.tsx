@@ -119,13 +119,17 @@ describe('DateField', () => {
     expect(screen.getByRole('button', { name: '2030' })).toBeInTheDocument()
   })
 
-  it('keeps a 44px effective target on every year button', () => {
+  it('gives every year button a 44px box that cannot overlap its neighbour', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.click(screen.getByLabelText('common.selectYear'))
 
     const year = screen.getByRole('button', { name: '2030' })
-    expect(year.className).toContain('touch-target')
+    expect(year.style.height).toBe('44px')
+    expect(year.className).not.toContain('touch-target')
+
+    const grid = year.parentElement
+    expect(grid?.style.gap).toBe('4px')
   })
 
   it('jumps to a chosen year from the year picker', () => {
