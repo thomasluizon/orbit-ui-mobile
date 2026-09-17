@@ -91,7 +91,7 @@ describe('goal card interaction feedback', () => {
       render(<ProgressContent />)
       await Promise.resolve()
     })
-    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    const card = screen.getByRole('button', { name: (accessibleName) => accessibleName.includes('Read 12 Books') })
 
     expect(card.style.translate).toBe('100px 40px')
     expect(card.style.transform).toBe('scaleX(0.8) scaleY(1.4)')

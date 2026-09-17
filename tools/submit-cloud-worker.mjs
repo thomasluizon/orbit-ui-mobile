@@ -591,7 +591,7 @@ if (breaker) {
 
 if (existingReceipts.length > 0) {
   try {
-    const tasks = await listCloudTasks(codexCommand, environmentId, { timeoutMs: codexTimeoutMs })
+    const tasks = await listCloudTasks(codexCommand, environmentId, { cwd: stateRoot, timeoutMs: codexTimeoutMs })
     const refreshed = refreshReceipts(existingReceipts, tasks)
     const reconciledReceipts = refreshed.receipts.map((receipt) => {
       const stablePath = receipt.kind === "submission-reservation"
@@ -683,6 +683,7 @@ try {
   fail(1, `cloud submission reservation could not be persisted: ${error.message}`)
 }
 const result = await runCodex(codexCommand, ["cloud", "exec", "--env", environmentId, "--branch", baseSha], {
+  cwd: stateRoot,
   input: submittedOrder,
   timeoutMs: codexTimeoutMs,
 })
