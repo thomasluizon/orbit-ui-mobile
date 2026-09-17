@@ -36,6 +36,7 @@ describe('YearPicker (mobile)', () => {
       height: number
       marginBottom: number
     }[]
+    if (!cellStyle) throw new Error('Selected year cell style was not rendered')
     const renderedRowHeight = cellStyle.height + cellStyle.marginBottom
 
     expect(scrollTo).toHaveBeenCalledWith({ y: 3 * renderedRowHeight, animated: false })
