@@ -31,6 +31,7 @@ import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
 import { requestWebPushPermission, subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
 import { OnboardingRemind, type ReminderState } from './onboarding-remind'
@@ -78,6 +79,7 @@ interface DecisionProps {
   marks: ReturnType<typeof readHabitPhrase>['consumed']
   isLive: boolean
   emoji: string
+  schedule: OnboardingSchedule
   days: string[]
   dueTime: string
   proposed: boolean
@@ -96,6 +98,9 @@ interface DecisionProps {
   onEmoji: (value: string) => void
   onToggleDay: (day: string) => void
   onTime: (value: string) => void
+  onMode: (mode: 'fixed' | 'flexible') => void
+  onQuantity: (quantity: number) => void
+  onIntervalWeeks: (intervalWeeks: number) => void
   onSave: () => void
   onAllow: () => void
   onContinueWithout: () => void
@@ -104,7 +109,7 @@ interface DecisionProps {
 
 function DecisionContent(props: Readonly<DecisionProps>) {
   if (props.step === ONBOARDING_WHAT_STEP) return <OnboardingWelcome sentence={props.sentence} marks={props.marks} onChange={props.onSentence} onHaveAccount={!props.isLive ? props.onAccount : undefined} />
-  if (props.step === ONBOARDING_WHEN_STEP) return <OnboardingCreateHabit emoji={props.emoji} days={props.days} dueTime={props.dueTime} proposed={props.proposed} correcting={props.correcting} atLimit={props.atLimit} allowance={props.allowance} onCorrect={props.onCorrect} onEmojiChange={props.onEmoji} onToggleDay={props.onToggleDay} onTimeChange={props.onTime} />
+  if (props.step === ONBOARDING_WHEN_STEP) return <OnboardingCreateHabit emoji={props.emoji} schedule={props.schedule} proposed={props.proposed} correcting={props.correcting} atLimit={props.atLimit} allowance={props.allowance} onCorrect={props.onCorrect} onEmojiChange={props.onEmoji} onToggleDay={props.onToggleDay} onTimeChange={props.onTime} onModeChange={props.onMode} onQuantityChange={props.onQuantity} onIntervalWeeksChange={props.onIntervalWeeks} />
   return <OnboardingRemind state={props.reminderState} title={props.createdTitle} dueTime={props.dueTime} />
 }
 
@@ -118,10 +123,10 @@ function DecisionAction(props: Readonly<DecisionProps>) {
   return <PillButton onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>
 }
 
-function OnboardingHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack: () => void; onSkip?: () => void }>) {
+function OnboardingHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack?: () => void; onSkip?: () => void }>) {
   const t = useTranslations('onboarding.flow')
   const displayStep = getOnboardingDisplayStep(step)
-  return <div className="flex min-h-14 items-center justify-between px-4"><div className="flex items-center gap-4">{step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP ? <QuietLink onClick={onBack}>{t('back')}</QuietLink> : null}<span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums">Orbit <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>{onSkip ? <QuietLink onClick={onSkip}>{t('skip')}</QuietLink> : null}</div>
+  return <div className="flex min-h-14 items-center justify-between px-4"><div className="flex items-center gap-4">{onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <QuietLink onClick={onBack}>{t('back')}</QuietLink> : null}<span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums">Orbit <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>{onSkip ? <QuietLink onClick={onSkip}>{t('skip')}</QuietLink> : null}</div>
 }
 
 export function OnboardingFlow() {
@@ -130,20 +135,23 @@ export function OnboardingFlow() {
   const locale = useLocale() === 'pt-BR' ? 'pt-BR' : 'en'
   const actions = useOnboardingActions()
   const isLive = useOnboardingIsLive()
+  const deferredPushFailure = useOnboardingDraftStore((state) => isLive && state.pushRegistrationFailed)
+  const deferredHabit = useOnboardingDraftStore((state) => deferredPushFailure ? state.habits[0] : undefined)
+  const [resolvingDeferredPush] = useState(deferredPushFailure)
   const { profile } = useProfile({ enabled: isLive })
   const suggestion = useHabitSuggestion()
   const push = usePushNotificationPreferences()
-  const [step, setStep] = useState(ONBOARDING_WHAT_STEP)
+  const [step, setStep] = useState(resolvingDeferredPush ? ONBOARDING_REMIND_STEP : ONBOARDING_WHAT_STEP)
   const [sentence, setSentence] = useState('')
   const [emoji, setEmoji] = useState('◎')
-  const [schedule, setSchedule] = useState<OnboardingSchedule>(() => buildOnboardingScheduleFromPhrase('', locale))
+  const [schedule, setSchedule] = useState<OnboardingSchedule>(() => deferredHabit ? { frequencyUnit: deferredHabit.frequencyUnit ?? null, frequencyQuantity: deferredHabit.frequencyQuantity ?? null, intervalWeeks: 1, days: deferredHabit.days ?? [], isGeneral: deferredHabit.isGeneral ?? false, isFlexible: deferredHabit.isFlexible ?? false, dueTime: deferredHabit.dueTime ?? '' } : buildOnboardingScheduleFromPhrase('', locale))
   const [proposed, setProposed] = useState(false)
   const [correcting, setCorrecting] = useState(false)
-  const [createdId, setCreatedId] = useState<string | null>(null)
-  const [createdTitle, setCreatedTitle] = useState('')
+  const [createdId, setCreatedId] = useState<string | null>(resolvingDeferredPush ? 'deferred' : null)
+  const [createdTitle, setCreatedTitle] = useState(deferredHabit?.title ?? '')
   const [creating, setCreating] = useState(false)
   const [createFailed, setCreateFailed] = useState(false)
-  const [reminderState, setReminderState] = useState<ReminderState>('ask')
+  const [reminderState, setReminderState] = useState<ReminderState>(resolvingDeferredPush ? 'failed' : 'ask')
   const [remindersOff, setRemindersOff] = useState(false)
   const [skipped, setSkipped] = useState(false)
   const [suggestionPending, setSuggestionPending] = useState(false)
@@ -193,7 +201,7 @@ export function OnboardingFlow() {
     setCreateFailed(false)
     const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime, schedule })
     try {
-      if (createdId) await actions.updateHabit(createdId, input)
+      if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else {
         const result = await actions.createHabit(input)
         setCreatedId(result.id)
@@ -212,12 +220,22 @@ export function OnboardingFlow() {
     try {
       if (!isLive) {
         const outcome = await requestWebPushPermission()
-        if (outcome === 'granted') setStep(ONBOARDING_DONE_STEP)
+        if (outcome === 'granted') {
+          actions.deferPushRegistration()
+          setStep(ONBOARDING_DONE_STEP)
+        }
         else setReminderState(outcome)
         return
       }
       const result = await subscribeToPushNotifications()
-      if (result.status === 'registered') setStep(ONBOARDING_DONE_STEP)
+      if (result.status === 'registered') {
+        if (resolvingDeferredPush) {
+          useOnboardingDraftStore.getState().reset()
+          await actions.finishOnboarding()
+          return
+        }
+        setStep(ONBOARDING_DONE_STEP)
+      }
       else if (!result.supported) setReminderState('unsupported')
       else if (result.status === 'denied') setReminderState('denied')
       else setReminderState('failed')
@@ -227,6 +245,11 @@ export function OnboardingFlow() {
   }
 
   function continueWithoutReminders() {
+    if (resolvingDeferredPush) {
+      useOnboardingDraftStore.getState().reset()
+      void actions.finishOnboarding()
+      return
+    }
     setRemindersOff(true)
     setStep(ONBOARDING_DONE_STEP)
   }
@@ -271,13 +294,13 @@ export function OnboardingFlow() {
     overlayRef.current?.querySelector<HTMLElement>('button, [href], input, select, textarea')?.focus()
   }, [step])
 
-  const decisionProps: DecisionProps = { step, sentence, marks: read.consumed, isLive, emoji, days, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onEmoji: setEmoji, onToggleDay: (day) => setSchedule((current) => { const nextDays = current.days.includes(day) ? current.days.filter((value) => value !== day) : [...current.days, day]; return { ...current, days: nextDays, frequencyUnit: nextDays.length ? 'Day' : null, frequencyQuantity: nextDays.length ? 1 : null, intervalWeeks: 1, isGeneral: nextDays.length === 0, isFlexible: false } }), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: continueWithoutReminders, onSetTime: () => setStep(ONBOARDING_WHEN_STEP) }
+  const decisionProps: DecisionProps = { step, sentence, marks: read.consumed, isLive, emoji, schedule, days, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onEmoji: setEmoji, onToggleDay: (day) => setSchedule((current) => { const nextDays = current.days.includes(day) ? current.days.filter((value) => value !== day) : [...current.days, day]; return { ...current, days: nextDays, frequencyUnit: nextDays.length ? 'Day' : null, frequencyQuantity: nextDays.length ? 1 : null, isGeneral: nextDays.length === 0, isFlexible: false } }), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => mode === 'flexible' ? { ...current, frequencyUnit: 'Week', frequencyQuantity: current.frequencyQuantity ?? 3, days: [], isGeneral: false, isFlexible: true } : { ...current, frequencyUnit: current.days.length ? 'Day' : null, frequencyQuantity: current.days.length ? 1 : null, isGeneral: current.days.length === 0, isFlexible: false }), onQuantity: (quantity) => setSchedule((current) => ({ ...current, frequencyUnit: 'Week', frequencyQuantity: quantity, days: [], isGeneral: false, isFlexible: true })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: continueWithoutReminders, onSetTime: () => setStep(ONBOARDING_WHEN_STEP) }
 
   if (!portalRoot) return null
   const overlay = step === ONBOARDING_DONE_STEP ? (
     <DoneShell><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} onFinish={() => void actions.finishOnboarding()} /></DoneShell>
   ) : (
-    <FlowShell nav={false} header={<OnboardingHeader step={step} onBack={() => setStep(step - 1)} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
+    <FlowShell nav={false} header={<OnboardingHeader step={step} onBack={resolvingDeferredPush ? undefined : () => setStep(step - 1)} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
   )
   return createPortal(<div ref={overlayRef} role="dialog" aria-modal="true" aria-labelledby="onboarding-title" className="z-modal fixed inset-0">{overlay}</div>, portalRoot)
 }

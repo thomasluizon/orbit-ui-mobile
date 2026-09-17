@@ -1793,12 +1793,32 @@
         "direct": "Pick the days and the time.",
         "proposedBy": "Proposed by Astra",
         "emojiLabel": "Emoji proposed by Astra",
+        "scheduleMode": "Schedule",
+        "fixedMode": "Set days",
+        "flexibleMode": "Any day",
+        "quantityLess": "Fewer times",
+        "quantityMore": "More times",
+        "quantityUnit": "{count, plural, one {time a week} other {times a week}}",
+        "intervalLess": "Repeat less often",
+        "intervalMore": "Repeat more often",
+        "interval": "{count, plural, one {Every week} other {Every # weeks}}",
         "daysLabel": "Days of the week",
         "timeLabel": "Time",
         "timeHint": "Leave empty for any time of day",
         "limit": "Today''s {allowance} messages have been used. Reading the phrase draws on the same allowance.",
         "days": {
           "sunday": "Sun", "monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu", "friday": "Fri", "saturday": "Sat"
+        },
+        "daysLong": {
+          "sunday": "Sunday", "monday": "Monday", "tuesday": "Tuesday", "wednesday": "Wednesday", "thursday": "Thursday", "friday": "Friday", "saturday": "Saturday"
+        },
+        "cadence": {
+          "fixed": "every {days}",
+          "daily": "every day",
+          "flex": " times a week, any day",
+          "at": " at ",
+          "flexAt": ", at ",
+          "and": "and"
         }
       },
       "remind": {

@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, goalKeys, profileKeys, gamificationKeys } from '@orbit/shared/query'
 import { applyOnboarding } from '@/lib/actions/onboarding'
 import { useProfile } from '@/hooks/use-profile'
+import { subscribeToPushNotifications } from '@/hooks/use-push-notification-preferences'
 import {
   useOnboardingDraftStore,
   useOnboardingDraftHydrated,
@@ -24,10 +25,12 @@ export function useOnboardingFlush(): void {
   const { profile, patchProfile } = useProfile()
   const hydrated = useOnboardingDraftHydrated()
   const hasPendingAnswers = useOnboardingHasPendingAnswers()
+  const pushPermissionGranted = useOnboardingDraftStore((state) => state.pushPermissionGranted)
+  const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
   const runningRef = useRef(false)
 
   const shouldFlush =
-    hydrated && hasPendingAnswers && !!profile && !profile.hasCompletedOnboarding
+    hydrated && hasPendingAnswers && !pushRegistrationFailed && !!profile && !profile.hasCompletedOnboarding
 
   useEffect(() => {
     if (!shouldFlush || runningRef.current) return
@@ -35,8 +38,14 @@ export function useOnboardingFlush(): void {
     runningRef.current = true
     const store = useOnboardingDraftStore.getState()
 
+    let onboardingApplied = false
     void applyOnboarding(store.buildApplyPayload())
-      .then(() => {
+      .then(async () => {
+        onboardingApplied = true
+        if (pushPermissionGranted) {
+          const push = await subscribeToPushNotifications()
+          if (push.status !== 'registered') throw new Error('Failed to register deferred push subscription')
+        }
         store.reset()
         patchProfile({ hasCompletedOnboarding: true })
         void queryClient.invalidateQueries({ queryKey: habitKeys.all })
@@ -45,10 +54,11 @@ export function useOnboardingFlush(): void {
         void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       })
       .catch((error: unknown) => {
+        if (onboardingApplied && pushPermissionGranted) store.markPushRegistrationFailed()
         Sentry.captureException(error)
       })
       .finally(() => {
         runningRef.current = false
       })
-  }, [patchProfile, queryClient, shouldFlush])
+  }, [patchProfile, pushPermissionGranted, queryClient, shouldFlush])
 }

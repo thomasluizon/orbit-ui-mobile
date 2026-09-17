@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => {
   const draftState = {
     _hasHydrated: true,
     pending: true,
+    pushPermissionGranted: false,
+    pushRegistrationFailed: false,
     reset: vi.fn(),
+    markPushRegistrationFailed: vi.fn(),
     hasPendingAnswers() {
       return this.pending
     },
@@ -27,6 +30,7 @@ const mocks = vi.hoisted(() => {
     queryClient,
     profile: { hasCompletedOnboarding: false },
     captureError: vi.fn(),
+    requestPermissionOutcome: vi.fn(() => Promise.resolve('granted')),
     applyOnboarding: vi.fn(() => Promise.resolve({
       applied: true,
       createdHabitCount: 1,
@@ -67,6 +71,10 @@ vi.mock('@/hooks/use-apply-onboarding', () => ({
   useApplyOnboarding: () => mocks.applyOnboarding,
 }))
 
+vi.mock('@/hooks/use-push-notifications', () => ({
+  usePushNotifications: () => ({ requestPermissionOutcome: mocks.requestPermissionOutcome }),
+}))
+
 async function renderFlush() {
   function Harness() {
     useOnboardingFlush()
@@ -85,9 +93,14 @@ describe('useOnboardingFlush', () => {
     mocks.authState.isAuthenticated = true
     mocks.draftState._hasHydrated = true
     mocks.draftState.pending = true
+    mocks.draftState.pushPermissionGranted = false
+    mocks.draftState.pushRegistrationFailed = false
     mocks.profile.hasCompletedOnboarding = false
     mocks.captureError.mockClear()
     mocks.draftState.reset.mockClear()
+    mocks.draftState.markPushRegistrationFailed.mockClear()
+    mocks.requestPermissionOutcome.mockClear()
+    mocks.requestPermissionOutcome.mockResolvedValue('granted')
     mocks.queryClient.setQueryData.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.applyOnboarding.mockClear()
@@ -117,6 +130,25 @@ describe('useOnboardingFlush', () => {
     const updater = call[1] as (old: Profile | undefined) => Profile | undefined
     const patched = updater({ hasCompletedOnboarding: false } as Profile)
     expect(patched?.hasCompletedOnboarding).toBe(true)
+  })
+
+  it('registers a deferred signed-out permission before clearing the draft', async () => {
+    mocks.draftState.pushPermissionGranted = true
+
+    await renderFlush()
+
+    expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true)
+    expect(mocks.draftState.reset).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains the draft and marks a deferred registration failure', async () => {
+    mocks.draftState.pushPermissionGranted = true
+    mocks.requestPermissionOutcome.mockResolvedValue('failed')
+
+    await renderFlush()
+
+    expect(mocks.draftState.markPushRegistrationFailed).toHaveBeenCalledTimes(1)
+    expect(mocks.draftState.reset).not.toHaveBeenCalled()
   })
 
   it('retains the draft and reports the error when the apply fails', async () => {

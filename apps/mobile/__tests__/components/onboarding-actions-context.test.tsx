@@ -224,6 +224,7 @@ const stubActions: OnboardingActions = {
   logHabit: vi.fn(() => Promise.resolve()),
   createGoal: vi.fn(() => Promise.resolve()),
   setWeekStartDay: vi.fn(() => Promise.resolve()),
+  deferPushRegistration: vi.fn(),
   finishOnboarding: vi.fn(() => Promise.resolve()),
 }
 

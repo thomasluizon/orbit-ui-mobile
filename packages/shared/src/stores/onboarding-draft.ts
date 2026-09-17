@@ -29,6 +29,8 @@ export interface PersistedOnboardingDraft {
   weekStartDay: OnboardingWeekStartDay | null
   colorScheme: string | null
   onboardingLocallyDone: boolean
+  pushPermissionGranted: boolean
+  pushRegistrationFailed: boolean
 }
 
 export interface OnboardingDraftState extends PersistedOnboardingDraft {
@@ -40,6 +42,8 @@ export interface OnboardingDraftState extends PersistedOnboardingDraft {
   bufferWeekStartDay: (day: OnboardingWeekStartDay) => void
   bufferColorScheme: (scheme: string) => void
   markOnboardingLocallyDone: () => void
+  markPushPermissionGranted: () => void
+  markPushRegistrationFailed: () => void
   hasPendingAnswers: () => boolean
   buildApplyPayload: () => ApplyOnboardingRequest
   reset: () => void
@@ -54,6 +58,8 @@ function createInitialDraft(): PersistedOnboardingDraft {
     weekStartDay: null,
     colorScheme: null,
     onboardingLocallyDone: false,
+    pushPermissionGranted: false,
+    pushRegistrationFailed: false,
   }
 }
 
@@ -68,6 +74,8 @@ export function getPersistedOnboardingDraft(
     weekStartDay: state.weekStartDay,
     colorScheme: state.colorScheme,
     onboardingLocallyDone: state.onboardingLocallyDone,
+    pushPermissionGranted: state.pushPermissionGranted,
+    pushRegistrationFailed: state.pushRegistrationFailed,
   }
 }
 
@@ -100,6 +108,8 @@ export function migrateOnboardingDraft(
         ? persistedState.colorScheme
         : null,
     onboardingLocallyDone: persistedState.onboardingLocallyDone === true,
+    pushPermissionGranted: persistedState.pushPermissionGranted === true,
+    pushRegistrationFailed: persistedState.pushRegistrationFailed === true,
   }
 }
 
@@ -147,6 +157,10 @@ export function createOnboardingDraftState(
 
     markOnboardingLocallyDone: () => set({ onboardingLocallyDone: true }),
 
+    markPushPermissionGranted: () => set({ pushPermissionGranted: true, pushRegistrationFailed: false }),
+
+    markPushRegistrationFailed: () => set({ pushRegistrationFailed: true }),
+
     hasPendingAnswers: () => {
       const state = get()
       return (
@@ -156,6 +170,7 @@ export function createOnboardingDraftState(
         state.firstLog !== null ||
         state.weekStartDay !== null ||
         state.colorScheme !== null
+        || state.pushPermissionGranted
       )
     },
 

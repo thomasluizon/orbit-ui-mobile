@@ -428,6 +428,7 @@ function GlobalOverlays({
   const showRetainedOnboarding = useRetainedOnboardingGuard(
     profile,
     pendingOnboardingAnswers,
+    useOnboardingDraftStore((state) => state.pushRegistrationFailed),
   )
 
   useEffect(() => {

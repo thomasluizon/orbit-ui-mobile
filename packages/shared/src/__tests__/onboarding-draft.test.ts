@@ -98,6 +98,8 @@ describe('onboarding draft store', () => {
       weekStartDay: null,
       colorScheme: null,
       onboardingLocallyDone: false,
+      pushPermissionGranted: false,
+      pushRegistrationFailed: false,
     })
 
     const partial = migrateOnboardingDraft({ step: 3, onboardingLocallyDone: true })
@@ -115,6 +117,8 @@ describe('onboarding draft store', () => {
       weekStartDay: 1,
       colorScheme: null,
       onboardingLocallyDone: true,
+      pushPermissionGranted: false,
+      pushRegistrationFailed: false,
     })
 
     expect(payload).toEqual({ habits: [{ title: 'Stretch' }], weekStartDay: 1 })

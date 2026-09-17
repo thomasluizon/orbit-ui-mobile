@@ -1793,12 +1793,32 @@
         "direct": "Escolha os dias e a hora.",
         "proposedBy": "Proposto pelo Astra",
         "emojiLabel": "Emoji proposto pelo Astra",
+        "scheduleMode": "Agenda",
+        "fixedMode": "Dias fixos",
+        "flexibleMode": "Qualquer dia",
+        "quantityLess": "Menos vezes",
+        "quantityMore": "Mais vezes",
+        "quantityUnit": "{count, plural, one {vez por semana} other {vezes por semana}}",
+        "intervalLess": "Repetir com menos frequência",
+        "intervalMore": "Repetir com mais frequência",
+        "interval": "{count, plural, one {Toda semana} other {A cada # semanas}}",
         "daysLabel": "Dias da semana",
         "timeLabel": "Hora",
         "timeHint": "Deixe vazio para qualquer hora do dia",
         "limit": "As {allowance} mensagens de hoje foram usadas. A leitura da frase usa a mesma conta.",
         "days": {
           "sunday": "D", "monday": "S", "tuesday": "T", "wednesday": "Q", "thursday": "Q", "friday": "S", "saturday": "S"
+        },
+        "daysLong": {
+          "sunday": "domingo", "monday": "segunda", "tuesday": "terça", "wednesday": "quarta", "thursday": "quinta", "friday": "sexta", "saturday": "sábado"
+        },
+        "cadence": {
+          "fixed": "toda {days}",
+          "daily": "todo dia",
+          "flex": " vezes por semana, qualquer dia",
+          "at": " às ",
+          "flexAt": ", às ",
+          "and": "e"
         }
       },
       "remind": {

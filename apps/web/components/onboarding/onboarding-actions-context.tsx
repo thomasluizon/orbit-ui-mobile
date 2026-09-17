@@ -27,6 +27,7 @@ export interface OnboardingActions {
   logHabit: (habitId: string) => Promise<void>
   createGoal: (input: CreateGoalRequest) => Promise<void>
   setWeekStartDay: (day: OnboardingWeekStartDay) => Promise<void>
+  deferPushRegistration: () => void
   finishOnboarding: () => Promise<void>
   onImport?: () => void
 }
@@ -108,6 +109,7 @@ export function useBufferOnboardingActions(): OnboardingActions {
       },
       createGoal: (input) => { useOnboardingDraftStore.getState().bufferGoal(input); return Promise.resolve() },
       setWeekStartDay: (day) => { useOnboardingDraftStore.getState().bufferWeekStartDay(day); return Promise.resolve() },
+      deferPushRegistration: () => useOnboardingDraftStore.getState().markPushPermissionGranted(),
       finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
         router.push('/login?from=onboarding')
@@ -138,7 +140,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
       updateHabit: async (habitId, input) => {
         await updateHabit.mutateAsync({
           habitId,
-          data: { ...input, isBadHabit: false, dueTime: input.dueTime ?? null },
+          data: { ...input, isBadHabit: false, isGeneral: input.isGeneral ?? false, isFlexible: input.isFlexible ?? false, dueTime: input.dueTime ?? null },
         })
       },
       createHabitsBulk: async (items) => { await bulkCreateHabits.mutateAsync({ habits: items }) },
@@ -149,6 +151,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
         await updateWeekStartDayAction({ weekStartDay: day })
         void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       },
+      deferPushRegistration: () => undefined,
       finishOnboarding: async () => {
         try {
           await completeOnboarding()

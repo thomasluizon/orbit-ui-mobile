@@ -12,6 +12,7 @@ import {
 } from '@orbit/shared/utils'
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 const mocks = vi.hoisted(() => ({
   createHabit: vi.fn(),
@@ -67,6 +68,7 @@ function actions(): OnboardingActions {
     logHabit: vi.fn(),
     createGoal: vi.fn(),
     setWeekStartDay: vi.fn(),
+    deferPushRegistration: vi.fn(),
     finishOnboarding: mocks.finishOnboarding,
   }
 }
@@ -94,6 +96,7 @@ describe('OnboardingFlow state model', () => {
     mocks.createHabit.mockResolvedValue({ id: 'habit-1', title: 'Walk' })
     mocks.subscribe.mockResolvedValue({ supported: true, subscribed: true, permission: 'granted', status: 'registered' })
     mocks.requestPermissionOnly.mockResolvedValue('granted')
+    useOnboardingDraftStore.getState().reset()
   })
 
   it('keeps one counter across three decisions and the done state', () => {
@@ -117,6 +120,26 @@ describe('OnboardingFlow state model', () => {
     await waitFor(() => expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({
       frequencyUnit: 'Week', frequencyQuantity: 3, intervalWeeks: 1, isFlexible: true,
     })))
+  })
+
+  it.each([
+    ['general', 'Journal'],
+    ['flexible', 'Walk 3 times a week at 18:00'],
+  ])('sends explicit fixed mode when correcting a %s habit after Back', async (_mode, sentence) => {
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: sentence } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    await screen.findByTestId('reminder-state')
+
+    fireEvent.click(screen.getByRole('button', { name: 'back' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+
+    await waitFor(() => expect(mocks.updateHabit).toHaveBeenCalledWith(
+      'habit-1',
+      expect.objectContaining({ isGeneral: false, isFlexible: false }),
+    ))
   })
 
   it.each([true, false])('removes Skip after a habit exists when isLive=%s', async (isLive) => {
@@ -160,5 +183,21 @@ describe('OnboardingFlow state model', () => {
     await reachReminder(true)
     fireEvent.click(screen.getByRole('button', { name: 'remind.allow' }))
     expect(await screen.findByTestId('reminder-state')).toHaveTextContent('failed')
+  })
+
+  it('surfaces deferred registration failure after sign-in and retries it', async () => {
+    useOnboardingDraftStore.setState({
+      habits: [{ title: 'Walk', dueTime: '18:00' }],
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+    mount(true)
+
+    expect(screen.getByTestId('reminder-state')).toHaveTextContent('failed')
+    expect(screen.queryByRole('button', { name: 'back' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+
+    await waitFor(() => expect(mocks.subscribe).toHaveBeenCalledOnce())
+    await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
   })
 })

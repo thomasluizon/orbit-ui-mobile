@@ -41,6 +41,7 @@ import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guar
 import {
   useOnboardingDraftHydrated,
   useOnboardingHasPendingAnswers,
+  useOnboardingDraftStore,
 } from '@/stores/onboarding-draft-store'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
@@ -344,6 +345,7 @@ function GlobalOverlays({
   const showRetainedOnboarding = useRetainedOnboardingGuard(
     profile,
     suppressOnboardingOverlay,
+    useOnboardingDraftStore((state) => state.pushRegistrationFailed),
   )
 
   useEffect(() => {

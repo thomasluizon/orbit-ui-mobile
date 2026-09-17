@@ -64,6 +64,7 @@ const onboardingActionsStub: OverlayLayerProps['onboardingActions'] = {
   logHabit: () => Promise.resolve(),
   createGoal: () => Promise.resolve(),
   setWeekStartDay: () => Promise.resolve(),
+  deferPushRegistration: () => undefined,
   finishOnboarding: () => Promise.resolve(),
 }
 

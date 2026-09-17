@@ -11,6 +11,7 @@ import {
   shouldHideOnboardingFooter,
 } from '@orbit/shared/utils'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -68,6 +69,7 @@ vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
   useOnboardingActions: () => ({
     createHabit: mocks.createHabit,
     updateHabit: mocks.updateHabit,
+    deferPushRegistration: vi.fn(),
     finishOnboarding: mocks.finishOnboarding,
   }),
   useOnboardingIsLive: () => mocks.isLive,
@@ -143,6 +145,7 @@ describe('OnboardingFlow state model', () => {
     mocks.createHabit.mockResolvedValue({ id: 'habit-1', title: 'Walk' })
     mocks.requestPermission.mockResolvedValue(true)
     mocks.requestPermissionOutcome.mockResolvedValue('granted')
+    useOnboardingDraftStore.getState().reset()
   })
 
   it('shows three decisions and a separate done state', () => {
@@ -167,6 +170,25 @@ describe('OnboardingFlow state model', () => {
     expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({
       frequencyUnit: 'Week', frequencyQuantity: 3, intervalWeeks: 1, isFlexible: true,
     }))
+  })
+
+  it.each([
+    ['general', 'Journal'],
+    ['flexible', 'Walk 3 times a week at 18:00'],
+  ])('sends explicit fixed mode when correcting a %s habit after Back', async (_mode, sentence) => {
+    const tree = await mount(false)
+    await enterSentence(tree, sentence)
+    await click(tree, 'onboarding.flow.continue')
+    await click(tree, 'onboarding.flow.create')
+
+    await pressTextAction(tree, 'onboarding.flow.back')
+    await TestRenderer.act(() => prop<(day: string) => void>(oneByType(tree.root, 'Schedule'), 'onToggleDay')('Monday'))
+    await click(tree, 'onboarding.flow.create')
+
+    expect(mocks.updateHabit).toHaveBeenCalledWith(
+      'habit-1',
+      expect.objectContaining({ isGeneral: false, isFlexible: false }),
+    )
   })
 
   it.each([true, false])('removes Skip after a habit exists when isLive=%s', async (isLive) => {
@@ -211,5 +233,21 @@ describe('OnboardingFlow state model', () => {
     const tree = await reachReminder(true)
     await click(tree, 'onboarding.flow.remind.allow')
     expect(oneByType(tree.root, 'ReminderState').props.state).toBe('failed')
+  })
+
+  it('surfaces deferred registration failure after sign-in and retries it', async () => {
+    useOnboardingDraftStore.setState({
+      habits: [{ title: 'Walk', dueTime: '18:00' }],
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+    const tree = await mount(true)
+
+    expect(oneByType(tree.root, 'ReminderState').props.state).toBe('failed')
+    expect(renderedText(tree)).not.toContain('onboarding.flow.back')
+    await click(tree, 'onboarding.flow.retry')
+
+    expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true)
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
   })
 })
