@@ -1,4 +1,4 @@
-import { Animated, BackHandler } from 'react-native'
+import { Animated, BackHandler, StyleSheet } from 'react-native'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import { updateGoalProgressDetail } from '@orbit/shared/utils'
@@ -585,7 +585,8 @@ describe('GoalDetailDrawer', () => {
     const complete = tree.root.findAll((node: any) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').at(0)
     expect(complete).toBeTruthy()
     expect(tree.root.findAll((node: any) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
-    expect(tree.root.findAllByProps({ testID: 'status-ring' }).length).toBeGreaterThan(0)
+    const completedIndicator = tree.root.findByProps({ testID: 'status-ring' })
+    expect(StyleSheet.flatten(completedIndicator.props.style)).toMatchObject({ width: 44, height: 44 })
     expect(complete.props.testID).toBe("button-secondary-sm")
     press(tree, label)
     expect(mockStatusMutateAsync).toHaveBeenCalledWith({
@@ -596,6 +597,14 @@ describe('GoalDetailDrawer', () => {
       goalUnit: listGoal.unit,
     })
     expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('stage 5 keeps unfinished goal progress at 60px', () => {
+    const tree = renderDrawer()
+
+    const unfinishedIndicator = tree.root.findByProps({ testID: 'progress-ring-unfinished' })
+    expect(unfinishedIndicator.props.width).toBe(60)
+    expect(unfinishedIndicator.props.height).toBe(60)
   })
 
   it('stage 5 lets the progress write complete a manual goal at its target', async () => {
@@ -703,6 +712,29 @@ describe('GoalDetailDrawer', () => {
     label = 'goals.detail.showLessHistory'
     press(tree, label)
     expect(collectText(tree.toJSON())).not.toContain('entry-1')
+  })
+
+  it('stage 5 renders localized history dates, signed deltas, and current over target in three columns', () => {
+    detailGoal = {
+      ...listGoal,
+      progressHistory: [
+        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0, value: 2, note: 'positive' },
+        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 3, value: 2, note: 'negative' },
+        { createdAtUtc: '2026-09-02T12:34:00Z', previousValue: 2, value: 2, note: 'zero' },
+      ],
+    }
+
+    const tree = renderDrawer()
+
+    const historyText = (testID: string) => tree.root.findAll((node: any) => node.type === 'Text' && node.props.testID === testID).map(flattenText)
+    expect(historyText('history-delta-positive')).toEqual(['+2'])
+    expect(historyText('history-delta-negative')).toEqual(['-1'])
+    expect(historyText('history-delta-zero')).toEqual(['0'])
+    expect(historyText('history-progress')).toEqual(['2 / 12', '2 / 12', '2 / 12'])
+    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.role === 'listitem')).toHaveLength(3)
+    for (const date of tree.root.findAll((node: any) => node.type === 'Text' && node.props.testID === 'history-date')) {
+      expect(flattenText(date)).not.toMatch(/\d:\d/)
+    }
   })
 
   it('stage 5 names the goal in deletion confirmation before any write', () => {

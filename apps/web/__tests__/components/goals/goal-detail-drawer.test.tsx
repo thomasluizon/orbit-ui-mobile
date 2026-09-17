@@ -333,6 +333,7 @@ describe('GoalDetailDrawer', () => {
     expect(complete).toBeTruthy()
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'goals.progressPercentage:{"pct":100}' })).toHaveAttribute('data-status', 'done')
+    expect(screen.getByRole('img', { name: 'goals.progressPercentage:{"pct":100}' })).toHaveStyle({ width: '44px', height: '44px' })
     expect(complete).toHaveAttribute("data-variant", "secondary")
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(updateStatusMutateAsync).toHaveBeenCalledWith({
@@ -343,6 +344,13 @@ describe('GoalDetailDrawer', () => {
       goalUnit: listGoal.unit,
     })
     expect(updateStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('stage 5 keeps unfinished goal progress at 60px', () => {
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByRole('progressbar')).toHaveAttribute('width', '60')
+    expect(screen.getByRole('progressbar')).toHaveAttribute('height', '60')
   })
 
   it('stage 5 lets the progress write complete a manual goal at its target', async () => {
@@ -440,11 +448,38 @@ describe('GoalDetailDrawer', () => {
     expect(document.body.textContent).toContain('entry-4')
     expect(document.body.textContent).not.toContain('entry-1')
     let label = 'goals.detail.showAllHistory:{"count":4}'
-    fireEvent.click(screen.getByRole('button', { name: label }))
+    const showAllButton = screen.getByRole('button', { name: label })
+    const historyId = showAllButton.getAttribute('aria-controls')
+    expect(historyId).toBeTruthy()
+    expect(document.getElementById(historyId!)?.tagName).toBe('UL')
+    fireEvent.click(showAllButton)
     expect(document.body.textContent).toContain('entry-1')
     label = 'goals.detail.showLessHistory'
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(document.body.textContent).not.toContain('entry-1')
+  })
+
+  it('stage 5 renders localized history dates, signed deltas, and current over target in three columns', () => {
+    detailGoal = {
+      ...listGoal,
+      progressHistory: [
+        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0, value: 2, note: 'positive' },
+        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 3, value: 2, note: 'negative' },
+        { createdAtUtc: '2026-09-02T12:34:00Z', previousValue: 2, value: 2, note: 'zero' },
+      ],
+    }
+
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByText('+2')).toBeInTheDocument()
+    expect(screen.getByText('-1')).toBeInTheDocument()
+    expect(screen.getByText('0')).toBeInTheDocument()
+    expect(screen.getAllByText('2 / 12')).toHaveLength(3)
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(document.querySelectorAll('[data-history-date]')).toHaveLength(3)
+    for (const date of document.querySelectorAll('[data-history-date]')) {
+      expect(date.textContent).not.toMatch(/\d:\d/)
+    }
   })
 
   it('stage 5 names the goal in deletion confirmation before any write', () => {

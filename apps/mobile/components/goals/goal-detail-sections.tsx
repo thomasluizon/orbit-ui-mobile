@@ -4,6 +4,7 @@ import { ListRow } from '@/components/ui/list-row'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useTranslation } from 'react-i18next'
 
 const HISTORY_PREVIEW_COUNT = 3
 
@@ -16,23 +17,38 @@ interface GoalProgressHistoryEntry {
 
 interface GoalProgressHistorySectionProps {
   entries: GoalProgressHistoryEntry[]
+  target: number
+  unit: string
   formatDate: (dateStr: string) => string
-  renderEntryLabel: (entry: GoalProgressHistoryEntry) => string
   showAllLabel: string
   showLessLabel: string
 }
 
+function getDeltaPresentation(entry: GoalProgressHistoryEntry) {
+  const delta = entry.value - entry.previousValue
+  if (delta > 0) return { testID: 'history-delta-positive', value: delta }
+  if (delta < 0) return { testID: 'history-delta-negative', value: delta }
+  return { testID: 'history-delta-zero', value: delta }
+}
+
 export function GoalProgressHistorySection({
   entries,
+  target,
+  unit,
   formatDate,
-  renderEntryLabel,
   showAllLabel,
   showLessLabel,
 }: Readonly<GoalProgressHistorySectionProps>) {
+  const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [showAllHistory, setShowAllHistory] = useState(false)
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language])
+  const signedNumberFormatter = useMemo(
+    () => new Intl.NumberFormat(i18n.language, { signDisplay: 'exceptZero' }),
+    [i18n.language],
+  )
 
   const visibleEntries = useMemo(
     () => (showAllHistory ? entries : entries.slice(0, HISTORY_PREVIEW_COUNT)),
@@ -42,23 +58,32 @@ export function GoalProgressHistorySection({
   if (entries.length === 0) return null
 
   return (
-    <View>
-      {visibleEntries.map((entry) => (
-        <View
-          key={`${entry.createdAtUtc}-${entry.value}`}
-          style={styles.historyEntry}
-        >
-          <View style={styles.historyEntryHeader}>
-            <Text style={styles.historyDate}>
-              {formatDate(entry.createdAtUtc)}
-            </Text>
-            <Text style={styles.historyValue}>{renderEntryLabel(entry)}</Text>
+    <View accessibilityRole="list">
+      {visibleEntries.map((entry) => {
+        const delta = getDeltaPresentation(entry)
+        const date = formatDate(entry.createdAtUtc)
+        const formattedDelta = signedNumberFormatter.format(delta.value)
+        const current = numberFormatter.format(entry.value)
+        const formattedTarget = numberFormatter.format(target)
+        return (
+          <View
+            key={`${entry.createdAtUtc}-${entry.value}`}
+            role="listitem"
+            style={styles.historyEntry}
+          >
+            <View style={styles.historyEntryHeader}>
+              <Text testID="history-date" accessibilityLabel={t('goals.detail.historyDate', { date })} style={styles.historyDate}>
+                {date}
+              </Text>
+              <Text testID={delta.testID} accessibilityLabel={t('goals.detail.historyDelta', { delta: formattedDelta, unit })} style={styles.historyDelta}>{formattedDelta}</Text>
+              <Text testID="history-progress" accessibilityLabel={t('goals.detail.historyProgress', { current, target: formattedTarget, unit })} style={styles.historyProgress}>{current} / {formattedTarget}</Text>
+            </View>
+            {entry.note ? (
+              <Text style={styles.historyNote}>{entry.note}</Text>
+            ) : null}
           </View>
-          {entry.note ? (
-            <Text style={styles.historyNote}>{entry.note}</Text>
-          ) : null}
-        </View>
-      ))}
+        )
+      })}
       {entries.length > HISTORY_PREVIEW_COUNT ? (
         <Pressable
           onPress={() => setShowAllHistory((prev) => !prev)}
@@ -140,7 +165,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     historyEntryHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       gap: 12,
     },
     historyDate: {
@@ -148,17 +172,30 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontSize: 12,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
+      flex: 1,
+      minWidth: 0,
     },
-    historyValue: {
+    historyDelta: {
       fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
-      color: tokens.fg1,
+      color: tokens.fg2,
       fontVariant: ['tabular-nums'],
+      minWidth: 32,
+      textAlign: 'right',
+    },
+    historyProgress: {
+      fontFamily: 'GeistMono_400Regular',
+      fontSize: 12,
+      color: tokens.fg3,
+      fontVariant: ['tabular-nums'],
+      minWidth: 56,
+      textAlign: 'right',
     },
     historyNote: {
       fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg2,
+      flexShrink: 1,
     },
     toggleAll: {
       paddingHorizontal: 0,

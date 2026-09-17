@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, type MouseEvent, type ReactNode } from 'react'
+import { useId, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { ListRow } from '@/components/ui/list-row'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
 
@@ -14,25 +15,33 @@ interface GoalProgressHistoryEntry {
 interface GoalProgressHistorySectionProps {
   title: string
   entries: GoalProgressHistoryEntry[]
+  target: number
+  unit: string
   formatDate: (dateStr: string) => string
-  renderEntryLabel: (entry: GoalProgressHistoryEntry) => string
   showAllLabel: string
   showLessLabel: string
 }
 
 const HISTORY_PREVIEW_COUNT = 3
 
-/** Flush list of progress history entries: mono date right-aligned, change label
- *  in mono, optional note. */
 export function GoalProgressHistorySection({
   title,
   entries,
+  target,
+  unit,
   formatDate,
-  renderEntryLabel,
   showAllLabel,
   showLessLabel,
 }: Readonly<GoalProgressHistorySectionProps>) {
+  const locale = useLocale()
+  const t = useTranslations()
+  const historyId = useId()
   const [showAllHistory, setShowAllHistory] = useState(false)
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
+  const signedNumberFormatter = useMemo(
+    () => new Intl.NumberFormat(locale, { signDisplay: 'exceptZero' }),
+    [locale],
+  )
 
   const visibleEntries = useMemo(
     () =>
@@ -47,51 +56,42 @@ export function GoalProgressHistorySection({
   return (
     <div>
       <h3 className="text-[14px] font-medium text-[var(--fg-2)]">{title}</h3>
-      {visibleEntries.map((entry) => (
-        <div
-          key={`${entry.createdAtUtc}-${entry.value}`}
-          className="flex flex-col"
-          style={{
-            padding: '8px 0',
-                        gap: 4,
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                color: 'var(--fg-3)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
+      <ul id={historyId} className="list-none" style={{ margin: 0, padding: 0 }}>
+        {visibleEntries.map((entry) => {
+          const date = formatDate(entry.createdAtUtc)
+          const delta = signedNumberFormatter.format(entry.value - entry.previousValue)
+          const current = numberFormatter.format(entry.value)
+          const formattedTarget = numberFormatter.format(target)
+
+          return (
+            <li
+              key={`${entry.createdAtUtc}-${entry.value}`}
+              className="flex flex-col"
+              style={{ padding: '8px 0', gap: 4 }}
             >
-              {formatDate(entry.createdAtUtc)}
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {renderEntryLabel(entry)}
-            </span>
-          </div>
-          {entry.note && (
-            <div
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                color: 'var(--fg-2)',
-              }}
-            >
-              {entry.note}
-            </div>
-          )}
-        </div>
-      ))}
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(32px,auto)_minmax(56px,auto)] items-center gap-3">
+                <span data-history-date style={{ minWidth: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums' }}>
+                  <span className="sr-only">{t('goals.detail.historyDate', { date })}</span>
+                  <span aria-hidden="true">{date}</span>
+                </span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 500, color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums', textAlign: 'end' }}>
+                  <span className="sr-only">{t('goals.detail.historyDelta', { delta, unit })}</span>
+                  <span aria-hidden="true">{delta}</span>
+                </span>
+                <span style={{ minWidth: 56, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums', textAlign: 'end' }}>
+                  <span className="sr-only">{t('goals.detail.historyProgress', { current, target: formattedTarget, unit })}</span>
+                  <span aria-hidden="true">{current} / {formattedTarget}</span>
+                </span>
+              </div>
+              {entry.note && (
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-2)', overflowWrap: 'anywhere' }}>
+                  {entry.note}
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
       {entries.length > HISTORY_PREVIEW_COUNT && (
         <div style={{ padding: '4px 0' }}>
           <button
@@ -105,6 +105,7 @@ export function GoalProgressHistorySection({
               padding: 0,
             }}
             aria-expanded={showAllHistory}
+            aria-controls={historyId}
             onClick={() => setShowAllHistory((prev) => !prev)}
           >
             {showAllHistory ? showLessLabel : showAllLabel}
