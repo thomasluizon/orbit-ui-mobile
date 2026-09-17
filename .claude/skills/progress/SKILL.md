@@ -54,15 +54,26 @@ repository whose work you report, using one base-chain rule:
    gh pr list --head <candidate> --state all --limit 10 --json number,state,baseRefName
    ```
 
-   Take the highest `number`, because a branch name can be reused. Then:
+   An empty array means the candidate is no pull request's head, and that candidate is the
+   integration branch.
+
+   **One row decides it, and which row is deterministic.** A branch name can be reused, so this
+   listing returning several rows is normal rather than ambiguous:
+   - Exactly one row has `state` `OPEN`: that row decides, whatever the numbers are. A branch can
+     have only one live pull request, and the live one is the current one.
+   - No row is `OPEN`: the highest `number` decides. Numbers increase, so that is the most recent
+     use of the name.
+   - Two or more rows are `OPEN`: that is the ambiguity, and it should not happen. Say so, name
+     every open number, and do not guess.
+
+   Then read the deciding row:
    - `OPEN` or `MERGED`: replace the candidate with that row's `baseRefName` and continue the walk.
    - `CLOSED` with nothing merged: the chain is unresolved. Name that pull request number and its
      head, say the stack's parent never merged, and never report that head as the integration
      branch.
 
-   The first candidate that is no pull request's head, in any state, is the integration branch. A
-   duplicate matching head or a cycle is ambiguity: say so and do not guess. This walk begins from
-   one exact anchor, so unrelated bases cannot tie it.
+   A cycle is the other ambiguity: say so and do not guess. This walk begins from one exact anchor,
+   so unrelated bases cannot tie it.
 
    Reading only open heads is what this replaces. It accepted every absent head as integration, so a
    closed parent resolved to its own feature branch: PR 575's base is `feature/539-b5-apply-design`,

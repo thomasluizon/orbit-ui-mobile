@@ -1192,8 +1192,20 @@ T("progress: a closed stacked parent is never reported as the integration branch
   resolvesEveryState: progressSkill.includes("gh pr list --head <candidate> --state all"),
   followsOpenAndMergedParents: progressSkill.includes("`OPEN` or `MERGED`"),
   refusesClosedParent: /never report that head as the integration\s+branch/.test(progressSkill),
-  requiresNoHeadInAnyState: progressSkill.includes("no pull request's head, in any state"),
-}, { resolvesEveryState: true, followsOpenAndMergedParents: true, refusesClosedParent: true, requiresNoHeadInAnyState: true })
+  terminatesOnAnEmptyArray: /An empty array means the candidate is no pull request's\s+head/.test(progressSkill),
+}, { resolvesEveryState: true, followsOpenAndMergedParents: true, refusesClosedParent: true, terminatesOnAnEmptyArray: true })
+
+/**
+ * A reused branch name makes that listing return several rows, which is normal rather than
+ * ambiguous. The rule said BOTH "take the highest number" and "a duplicate matching head is
+ * ambiguity", so the same response could either continue the walk or refuse it.
+ */
+T("progress: a reused head has exactly one deterministic rule", {
+  oneOpenRowDecides: /Exactly one row has `state` `OPEN`: that row decides/.test(progressSkill),
+  highestNumberWhenNoneOpen: /No row is `OPEN`: the highest `number` decides/.test(progressSkill),
+  twoOpenRowsAreTheAmbiguity: /Two or more rows are `OPEN`: that is the ambiguity/.test(progressSkill),
+  noContradictoryDuplicateRule: !progressSkill.includes("A duplicate matching head or a cycle is ambiguity"),
+}, { oneOpenRowDecides: true, highestNumberWhenNoneOpen: true, twoOpenRowsAreTheAmbiguity: true, noContradictoryDuplicateRule: true })
 
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
