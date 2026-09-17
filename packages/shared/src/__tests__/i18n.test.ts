@@ -66,6 +66,12 @@ describe('i18n locale parity', () => {
     expect(ptBR.auth.sessionSignedOut).toBe(
       'Você saiu da conta. Entre para continuar de onde parou.',
     )
+    expect(en.auth.sessionRefreshFailed).toBe(
+      "Orbit couldn't refresh your session. Try again.",
+    )
+    expect(ptBR.auth.sessionRefreshFailed).toBe(
+      'O Orbit não conseguiu atualizar sua sessão. Tente novamente.',
+    )
   })
 
   it('has identical key-path sets across en and pt-BR', () => {

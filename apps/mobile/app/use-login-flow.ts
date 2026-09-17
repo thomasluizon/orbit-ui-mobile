@@ -55,7 +55,9 @@ export function useLoginFlow() {
     (s) => s.onboardingLocallyDone,
   )
   const plannedHabitCount = useOnboardingDraftStore((s) => s.habits.length)
-  const fromOnboarding = params.from === 'onboarding' || onboardingLocallyDone
+  const fromOnboarding = plannedHabitCount > 0 && (
+    params.from === 'onboarding' || onboardingLocallyDone
+  )
 
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')

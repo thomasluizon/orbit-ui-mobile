@@ -17,6 +17,7 @@ const {
   fetchMock,
   refreshSessionMock,
   clearSessionAndResetAuthMock,
+  getSessionGenerationMock,
   isAuthTransitionInFlightMock,
   buildAppVersionHeadersMock,
   markUpgradeRequiredMock,
@@ -27,6 +28,7 @@ const {
   fetchMock: vi.fn(),
   refreshSessionMock: vi.fn(),
   clearSessionAndResetAuthMock: vi.fn(),
+  getSessionGenerationMock: vi.fn(() => ({ epoch: 7, credentialVersion: 0 })),
   isAuthTransitionInFlightMock: vi.fn(() => false),
   buildAppVersionHeadersMock: vi.fn(() => ({ 'X-App-Version': '1.1.4' })),
   markUpgradeRequiredMock: vi.fn(),
@@ -49,6 +51,7 @@ vi.mock('@/stores/version-gate-store', () => ({
 vi.mock('@/stores/auth-store', () => ({
   refreshSession: refreshSessionMock,
   clearSessionAndResetAuth: clearSessionAndResetAuthMock,
+  getSessionGeneration: getSessionGenerationMock,
   isAuthTransitionInFlight: isAuthTransitionInFlightMock,
 }))
 
@@ -65,6 +68,9 @@ describe('mobile apiClient', () => {
     fetchMock.mockReset()
     refreshSessionMock.mockReset()
     clearSessionAndResetAuthMock.mockReset()
+    clearSessionAndResetAuthMock.mockResolvedValue(true)
+    getSessionGenerationMock.mockReset()
+    getSessionGenerationMock.mockReturnValue({ epoch: 7, credentialVersion: 0 })
     isAuthTransitionInFlightMock.mockReset()
     isAuthTransitionInFlightMock.mockReturnValue(false)
     markUpgradeRequiredMock.mockReset()
@@ -217,13 +223,100 @@ describe('mobile apiClient', () => {
     expect(routerReplaceMock).toHaveBeenCalledWith('/login')
   })
 
+  it('keeps credentials published after a retried request started', async () => {
+    const session = {
+      accessToken: 'token-123',
+      refreshToken: 'refresh-123',
+      phase: 'signed-in',
+      epoch: 7,
+      credentialVersion: 0,
+    }
+    let releaseRetry!: (response: Response) => void
+    let refreshCount = 0
+
+    getTokenMock.mockImplementation(() => Promise.resolve(session.accessToken))
+    getSessionGenerationMock.mockImplementation(() => ({
+      epoch: session.epoch,
+      credentialVersion: session.credentialVersion,
+    }))
+    refreshSessionMock.mockImplementation(() => {
+      refreshCount += 1
+      session.accessToken = `token-${refreshCount}`
+      session.refreshToken = `refresh-${refreshCount}`
+      session.credentialVersion += 1
+      return Promise.resolve({ status: 'refreshed', token: session.accessToken })
+    })
+    clearSessionAndResetAuthMock.mockImplementation(
+      (expectedEpoch: number, expectedCredentialVersion?: number | null) => {
+        if (
+          expectedEpoch !== session.epoch
+          || (expectedCredentialVersion != null
+            && expectedCredentialVersion !== session.credentialVersion)
+        ) {
+          return Promise.resolve(false)
+        }
+        session.accessToken = ''
+        session.refreshToken = ''
+        session.phase = 'signed-out'
+        return Promise.resolve(true)
+      },
+    )
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockImplementationOnce(
+        () => new Promise<Response>((resolve) => { releaseRetry = resolve }),
+      )
+
+    const request = apiClient('/secure')
+    await vi.waitFor(() => expect(releaseRetry).toBeTypeOf('function'))
+
+    await refreshSessionMock()
+    releaseRetry(new Response(null, { status: 401 }))
+    await expect(request).rejects.toThrow('Unauthorized')
+
+    expect(session).toMatchObject({
+      accessToken: 'token-2',
+      refreshToken: 'refresh-2',
+      phase: 'signed-in',
+      epoch: 7,
+      credentialVersion: 2,
+    })
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
   it('does not clear the session on a 401 caused by a transient refresh network blip', async () => {
     getTokenMock.mockResolvedValue('token-123')
     refreshSessionMock.mockResolvedValue({ status: 'network-error' })
     fetchMock.mockResolvedValue({ ok: false, status: 401 })
 
+    await expect(apiClient('/secure')).rejects.toThrow('Network request failed')
+
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
+  it('does not clear or redirect when refresh is superseded', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    refreshSessionMock.mockResolvedValue({ status: 'superseded' })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+
     await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
 
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
+  })
+
+  it('skips auth recovery for an anonymous logout revocation', async () => {
+    getTokenMock.mockResolvedValue('replacement-token')
+    refreshSessionMock.mockResolvedValue({ status: 'unauthorized' })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+
+    await expect(apiClient(API.auth.logout, {
+      method: 'POST',
+      skipAuthRecovery: true,
+    })).rejects.toThrow('Unauthorized')
+
+    expect(refreshSessionMock).not.toHaveBeenCalled()
     expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
     expect(routerReplaceMock).not.toHaveBeenCalled()
   })
@@ -383,13 +476,17 @@ describe('mobile apiClient', () => {
     await expect(apiClient('/api/ping')).resolves.toBeUndefined()
   })
 
-  it('clears tokens without retrying when the refresh endpoint itself returns 401', async () => {
+  it('clears the session without retrying when the refresh endpoint itself returns 401', async () => {
     getTokenMock.mockResolvedValue('token-123')
     fetchMock.mockResolvedValue({ ok: false, status: 401 })
 
     await expect(apiClient(API.auth.refresh)).rejects.toThrow('Unauthorized')
 
-    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+    expect(clearSessionAndResetAuthMock).toHaveBeenCalledWith({
+      authority: 'observed-credential',
+      epoch: 7,
+      credentialVersion: 0,
+    })
     expect(refreshSessionMock).not.toHaveBeenCalled()
   })
 })

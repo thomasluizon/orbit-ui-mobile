@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   markReferralApplied: vi.fn(),
   clearStoredReferralCode: vi.fn(),
   startMobileGoogleAuth: vi.fn(),
+  onboardingState: { onboardingLocallyDone: false, habits: [] as { title: string }[] },
 }))
 
 vi.mock('react-native', async () => {
@@ -86,7 +87,7 @@ vi.mock('@/lib/google-auth', () => ({ startMobileGoogleAuth: mocks.startMobileGo
 vi.mock('@/stores/onboarding-draft-store', () => ({
   useOnboardingDraftStore: (
     selector: (state: { onboardingLocallyDone: boolean; habits: unknown[] }) => unknown,
-  ) => selector({ onboardingLocallyDone: false, habits: [] }),
+  ) => selector(mocks.onboardingState),
 }))
 
 interface Harness {
@@ -134,6 +135,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.isOnline = true
   mocks.params = {}
+  mocks.onboardingState = { onboardingLocallyDone: false, habits: [] }
   mocks.codeDigits = ['', '', '', '', '', '']
   mocks.apiClient.mockResolvedValue({})
   mocks.login.mockResolvedValue(undefined)
@@ -144,6 +146,30 @@ beforeEach(() => {
 })
 
 describe('useLoginFlow (mobile)', () => {
+  it('uses normal sign in for a returning device without a draft', async () => {
+    mocks.onboardingState.onboardingLocallyDone = true
+    const harness = await renderLoginFlow()
+
+    expect(harness.current.fromOnboarding).toBe(false)
+    expect(harness.current.plannedHabitCount).toBe(0)
+  })
+
+  it('offers plan saving when a finished onboarding draft has a habit', async () => {
+    mocks.onboardingState = { onboardingLocallyDone: true, habits: [{ title: 'Walk' }] }
+    const harness = await renderLoginFlow()
+
+    expect(harness.current.fromOnboarding).toBe(true)
+    expect(harness.current.plannedHabitCount).toBe(1)
+  })
+
+  it('uses normal sign in for an empty draft even with an onboarding route param', async () => {
+    mocks.params = { from: 'onboarding' }
+    const harness = await renderLoginFlow()
+
+    expect(harness.current.fromOnboarding).toBe(false)
+    expect(harness.current.plannedHabitCount).toBe(0)
+  })
+
   it('blocks sending a code while offline and surfaces the offline error', async () => {
     mocks.isOnline = false
     const harness = await renderLoginFlow()

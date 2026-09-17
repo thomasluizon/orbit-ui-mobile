@@ -310,6 +310,7 @@
     "sessionExpiring": "Sua sessão expira em {minutes} minutos. Salve o que estiver fazendo.",
     "sessionExpired": "Sua sessão expirou.",
     "sessionSignedOut": "Você saiu da conta. Entre para continuar de onde parou.",
+    "sessionRefreshFailed": "O Orbit não conseguiu atualizar sua sessão. Tente novamente.",
     "refresh": "Atualizar",
     "login": "Entrar",
     "codeDigit": "Dígito {n} de 6",
