@@ -69,6 +69,7 @@ describe('SegmentedControl', () => {
     const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'radio')
 
     expect(radios().map((node) => node.props.focusable)).toEqual([true, false, true])
+    void act(() => radios()[0]!.props.onFocus?.())
     void act(() => radios()[2]!.props.onFocus?.())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('completed')
     tree.unmount()

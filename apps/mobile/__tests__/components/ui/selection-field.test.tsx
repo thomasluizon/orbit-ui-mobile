@@ -179,6 +179,9 @@ describe('SelectionField', () => {
     expect(options.map((option: any) => option.props.focusable)).toEqual([true, false, true])
     expect(options[0].props.nextFocusDown).toBe(options[2].props.__nativeTag)
     TestRenderer.act(() => {
+      options[0].props.onFocus()
+    })
+    TestRenderer.act(() => {
       options[2].props.onFocus()
     })
 

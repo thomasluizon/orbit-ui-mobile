@@ -44,6 +44,7 @@ describe('GoalTypeSelector', () => {
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
     expect(radios().map((option) => option.props.focusable)).toEqual([true, true])
+    void act(() => radios()[0]!.props.onFocus())
     void act(() => radios()[1]!.props.onFocus())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
     void act(() => radios()[0]!.props.onFocus())

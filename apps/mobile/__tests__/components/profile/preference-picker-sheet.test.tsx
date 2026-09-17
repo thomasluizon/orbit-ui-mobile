@@ -77,6 +77,7 @@ describe('PreferencePickerSheet', () => {
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
     expect(radios.map((option: any) => option.props.focusable)).toEqual([true, true])
+    void act(() => radios[0]!.props.onFocus())
     void act(() => radios[1]!.props.onFocus())
     expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
   })
@@ -115,6 +116,7 @@ describe('PreferencePickerSheet', () => {
     const retainedOption = restoredRadios[retainedIndex]!
 
     expect(retainedOption.props.nextFocusDown).toBe(adjacentOption.props.__nativeTag)
+    void act(() => retainedOption.props.onFocus())
     void act(() => adjacentOption.props.onFocus())
 
     expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(adjacentLabel)
