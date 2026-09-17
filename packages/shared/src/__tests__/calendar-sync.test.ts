@@ -5,12 +5,15 @@ import {
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   getCalendarSyncClockValue,
+  filterCalendarSyncEventsByDate,
   getCalendarSyncImportIssue,
+  getCalendarSyncImportIssueMessageKey,
   isCalendarSyncEventImportable,
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  reconcileCalendarAutoSyncGrantRevocation,
   resolveCalendarEventsGrantRevocation,
 } from '../utils/calendar-sync'
 
@@ -210,6 +213,61 @@ describe('calendar-sync utils', () => {
 
     expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBe('ordinal-weekday')
     expect(isCalendarSyncEventImportable(event)).toBe(false)
+  })
+
+
+  it('filters events to one calendar day, and to nothing when no day is selected', () => {
+    const onThatDay = { id: 'a', title: 'A', description: null, startDate: '2026-09-14', startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }
+    const anotherDay = { ...onThatDay, id: 'b', startDate: '2026-09-15' }
+
+    expect(filterCalendarSyncEventsByDate([onThatDay, anotherDay], '2026-09-14')).toEqual([onThatDay])
+    expect(filterCalendarSyncEventsByDate([onThatDay, anotherDay], null)).toEqual([])
+  })
+
+  it('names a message key per import issue', () => {
+    expect(getCalendarSyncImportIssueMessageKey('ordinal-weekday')).toBe('calendar.importIssue.ordinalWeekday')
+    expect(getCalendarSyncImportIssueMessageKey('weekday-interval')).toBe('calendar.importIssue.weekdayInterval')
+  })
+
+  it('turns a revoked Google grant into a reconnect state and keeps the last sync time', () => {
+    expect(reconcileCalendarAutoSyncGrantRevocation({
+      enabled: true,
+      status: 'Idle',
+      lastSyncedAt: '2026-09-14T10:00:00Z',
+      hasGoogleConnection: true,
+    })).toEqual({
+      enabled: false,
+      status: 'ReconnectRequired',
+      lastSyncedAt: '2026-09-14T10:00:00Z',
+      hasGoogleConnection: false,
+    })
+
+    expect(reconcileCalendarAutoSyncGrantRevocation(undefined)).toEqual({
+      enabled: false,
+      status: 'ReconnectRequired',
+      lastSyncedAt: null,
+      hasGoogleConnection: false,
+    })
+  })
+
+  it('falls back to a quantity of one when a frequency carries none', () => {
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=MONTHLY')).toEqual({ frequencyUnit: 'Month', frequencyQuantity: 1 })
+    expect(parseCalendarSyncRecurrence('RRULE:FREQ=WEEKLY;INTERVAL=0')).toEqual({ frequencyUnit: 'Week' })
+
+    const request = buildCalendarSyncImportRequest([{
+      id: 'event-zero-interval',
+      title: 'Zero interval',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;INTERVAL=0',
+      reminders: [],
+    }])
+
+    expect(request.habits[0].frequencyUnit).toBe('Week')
+    expect(request.habits[0].frequencyQuantity).toBe(1)
   })
 
   it('builds bulk create requests from suggestions', () => {
