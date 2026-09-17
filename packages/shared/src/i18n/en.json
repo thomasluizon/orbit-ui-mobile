@@ -64,7 +64,7 @@
     "bellWithCount": "Alerts, {count} unread",
     "empty": "Nothing to see here",
     "loadError": "Couldn't load notifications",
-    "markAllRead": "Mark all",
+    "markAllRead": "Mark read",
     "markAsRead": "Mark read",
     "deleteAll": "Clear all",
     "deleteAllConfirmTitle": "Delete all alerts?",
@@ -1279,7 +1279,7 @@
       "ending": "Ending things"
     },
     "settingsRows": {
-      "editName": "Edit {name}",
+      "editName": "Edit name: {name}, {email}",
       "timezone": "Timezone",
       "timezoneValue": "Timezone {timeZone}",
       "dailyAllowance": "Daily Astra allowance",
@@ -2106,7 +2106,7 @@
         "reasonCycle": "Renewal",
         "reasonUpdate": "Plan change",
         "reasonManual": "Manual",
-        "downloadDated": "Invoice {date}"
+        "downloadDated": "Download the invoice from {date}"
       },
       "actions": {
         "manage": "Open the Stripe portal",

@@ -64,7 +64,7 @@
     "bellWithCount": "Avisos, {count} sem ler",
     "empty": "Nada para ver aqui",
     "loadError": "Não foi possível carregar as notificações",
-    "markAllRead": "Marcar todas",
+    "markAllRead": "Marcar lidas",
     "markAsRead": "Marcar lida",
     "deleteAll": "Limpar tudo",
     "deleteAllConfirmTitle": "Apagar todos os avisos?",
@@ -1279,7 +1279,7 @@
       "ending": "Encerrar"
     },
     "settingsRows": {
-      "editName": "Editar {name}",
+      "editName": "Editar nome: {name}, {email}",
       "timezone": "Fuso horário",
       "timezoneValue": "Fuso {timeZone}",
       "dailyAllowance": "Cota diária da Astra",
@@ -2106,7 +2106,7 @@
         "reasonCycle": "Renovação",
         "reasonUpdate": "Mudança de plano",
         "reasonManual": "Manual",
-        "downloadDated": "Fatura {date}"
+        "downloadDated": "Baixar a fatura de {date}"
       },
       "actions": {
         "manage": "Abrir o portal do Stripe",

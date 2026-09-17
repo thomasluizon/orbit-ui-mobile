@@ -116,6 +116,7 @@ function InvoiceRow({ invoice, locale, state, t }: Readonly<{
   return (
     <div>
       {url && state !== 'offline' ? (
+        /* eslint-disable-next-line local/max-button-words -- thomasluizon/orbit-tickets#531: this is an accessible name that replaces the row's visible content, not a visible control label. */
         <ListRow title={title} description={description} chevron={false} action={{
           icon: 'download',
           label: t('upgrade.billing.invoices.downloadDated', { date: formatBillingDate(invoice.date, locale) }),
