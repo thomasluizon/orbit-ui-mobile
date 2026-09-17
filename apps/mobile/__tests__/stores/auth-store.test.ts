@@ -390,6 +390,47 @@ describe('mobile auth store security paths', () => {
     })
   })
 
+  /**
+   * The consumers of `superseded` are covered where they live, but nothing proved the STORE ever
+   * produces it. Collapsing this one return back to `unauthorized` left every one of those consumer
+   * tests green, which is the whole reason this test exists.
+   */
+  it('reports a refresh that lost the session race as superseded, never unauthorized', async () => {
+    const refreshedExpirySeconds = Math.floor(Date.now() / 1000) + 3600
+    const refreshedToken = makeJwtWithClaims(
+      refreshedExpirySeconds,
+      'user-1',
+      'user@example.com',
+    )
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+
+    let releaseServerRefresh!: (response: Response) => void
+    fetchMock.mockReturnValue(new Promise<Response>((resolve) => {
+      releaseServerRefresh = resolve
+    }))
+
+    useAuthStore.setState({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() + 60_000,
+    })
+
+    const refresh = refreshSession({ clearOnFailure: false })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    /** A sign out lands while the server call is still in flight, so the epoch moves under it. */
+    await useAuthStore.getState().logout()
+
+    releaseServerRefresh(Response.json({
+      token: refreshedToken,
+      refreshToken: 'next-refresh',
+    }))
+
+    await expect(refresh).resolves.toEqual({ status: 'superseded' })
+  })
+
   it('aborts a blocked login when teardown changes the session', async () => {
     let releasePersistedCacheClear!: () => void
     const persistedCacheClearReleased = new Promise<void>((resolve) => {
