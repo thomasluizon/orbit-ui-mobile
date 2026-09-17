@@ -45,6 +45,7 @@ describe('useShareCard', () => {
     })
     expect(fetch).not.toHaveBeenCalled()
     expect(result.current.hasError).toBe(false)
+    expect(result.current.savedFileName).toBe('orbit-recap.png')
   })
 
   it('reports an error when the card cannot be captured as an image', async () => {
@@ -57,6 +58,7 @@ describe('useShareCard', () => {
     })
 
     expect(result.current.hasError).toBe(true)
+    expect(result.current.savedFileName).toBeNull()
     expect(clickSpy).not.toHaveBeenCalled()
     expect(reportEventMock).not.toHaveBeenCalled()
   })

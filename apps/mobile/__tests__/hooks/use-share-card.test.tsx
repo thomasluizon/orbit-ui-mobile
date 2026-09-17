@@ -107,6 +107,7 @@ describe('mobile useShareCard', () => {
       .toEqual([['orbit-recap.png', 'content://mock-document/1']])
     expect(mocks.reportEvent).toHaveBeenCalledWith('card_shared')
     expect(hook.current.hasError).toBe(false)
+    expect(hook.current.savedFileName).toBe('orbit-recap.png')
   })
 
   it('leaves picker cancellation neutral without reporting a share', async () => {
@@ -167,5 +168,6 @@ describe('mobile useShareCard', () => {
 
     expect(mocks.reportEvent).not.toHaveBeenCalled()
     expect(hook.current.hasError).toBe(true)
+    expect(hook.current.savedFileName).toBeNull()
   })
 })

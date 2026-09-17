@@ -34,7 +34,7 @@ export function WrappedPlayer({
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
-  const { shareRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
+  const { shareRef, isSharing, hasError, savedFileName, canShareFiles, share, download } = useShareCard()
   const current = slides[index]
 
   function page(direction: PageDirection) {
@@ -95,6 +95,7 @@ export function WrappedPlayer({
               tokens={tokens}
               shareRef={shareRef}
               shareError={hasError}
+              savedFileName={savedFileName}
             />
 
             {!isLast ? <TapZones isFirst={isFirst} onPage={page} /> : null}

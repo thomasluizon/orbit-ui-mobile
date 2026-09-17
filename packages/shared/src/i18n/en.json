@@ -1544,6 +1544,7 @@
     "empty": "Log a few habits first to build a card worth sharing.",
     "error": "Couldn't load your recap. Please try again.",
     "shareError": "Couldn't share your card. Please try again.",
+    "saved": "Saved as {file}",
     "weeklyBarLabel": "Completion on {day}: {percent}%",
     "periods": {
       "week": "Week",

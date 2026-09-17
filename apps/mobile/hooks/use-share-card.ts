@@ -27,6 +27,7 @@ export function useShareCard() {
   const shareRef = useRef<View>(null)
   const [isSharing, setIsSharing] = useState(false)
   const [hasError, setHasError] = useState(false)
+  const [savedFileName, setSavedFileName] = useState<string | null>(null)
   const canShareFiles = typeof Share.open === 'function'
   const { mutate: reportEvent } = useReportEvent()
 
@@ -40,6 +41,7 @@ export function useShareCard() {
     }
     setIsSharing(true)
     setHasError(false)
+    setSavedFileName(null)
     try {
       const uri = await captureCard()
       await Share.open({
@@ -63,6 +65,7 @@ export function useShareCard() {
     }
     setIsSharing(true)
     setHasError(false)
+    setSavedFileName(null)
     try {
       const uri = await captureCard()
       let directory: Directory
@@ -76,6 +79,7 @@ export function useShareCard() {
       const namedSource = new File(Paths.cache, SHARE_CARD_FILE_NAME)
       await capture.copy(namedSource, { overwrite: true })
       await namedSource.copy(directory, { overwrite: true })
+      setSavedFileName(SHARE_CARD_FILE_NAME)
       reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch {
       setHasError(true)
@@ -84,5 +88,5 @@ export function useShareCard() {
     }
   }
 
-  return { shareRef, isSharing, hasError, canShareFiles, share, download }
+  return { shareRef, isSharing, hasError, savedFileName, canShareFiles, share, download }
 }
