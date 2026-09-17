@@ -3,15 +3,52 @@
 **At a glance:** the living spec for the fixes that ship to the Play open track off `main`, separate
 from the redesign. One effort, one spec, updated by every `/handoff`.
 
-## STATUS: SHIPPED. This effort is DONE.
+## STATUS: SHIPPED TWICE. This spec is the record for every release off `main`.
 
-All seven pull requests merged to `main`, and `/android-release` dispatched **1.3.28 (87) to the open
-track** on 2026-09-16 at 01:20 UTC, run `35044341064`, from `main` at `adc070bc`.
+**1.3.28 (87)**, 2026-09-16 at 01:20 UTC, run `35044341064`, from `main` at `adc070bc`. Seven pull
+requests, listed below.
+
+**1.3.29 (88)**, 2026-09-16 at 18:36 UTC, run `35134831975`, from `main` at `a9558f7a`. One pull
+request, 999, closing ticket `#563`.
+
+### 1.3.29, the checklist release
+
+Thomas reported three defects from a device mid-session and asked for them in one pull request
+against `main`, with the release to follow: "put it as a priority now", "target main (not
+redesign/main)", "run /android-release to the beta track after you merge to main, you have my
+permission, no need to ask". What a person gets:
+
+- Adding a checklist item clears the field, instead of leaving the text there to backspace out.
+- The text in a checklist item's field is not flush against its leading edge.
+- Moving an item while its field is focused moves THAT item, instead of its text swapping with the
+  neighbour's while the focused one refuses to change.
+
+**Two of the three were one cause**, and it reached sixteen other inputs.
+`apps/mobile/components/ui/bottom-sheet-app-text-input.tsx:39-44` refused any new `value` while the
+input had focus. That guard existed to stop a controlled round-trip fighting the keyboard and it
+overshot, because it also dropped a value the PARENT set, which is never keystroke echo.
+`handleChangeText` already recorded every keystroke in `lastSyncedValueRef`, so that ref alone tells
+the two cases apart, and the fix is the focus term coming out of the condition.
+
+The third was narrow: `habit-checklist.tsx` set `paddingHorizontal: 0`, and a caller's `style` is
+applied last inside the primitive, so it beat the primitive's own `paddingHorizontal: 16`.
+
+The reorder half also needed stable row keys. `ChecklistItem` carries no id and it is a persisted
+contract type, so the keys are held in `HabitChecklist` beside `items` and reordered, inserted and
+removed in step with them.
+
+**Web was not touched, and that was proven rather than assumed.**
+`apps/web/components/habits/habit-checklist.tsx:315-320` and `:442-447` are plain controlled inputs,
+which React updates whether or not they hold focus, and both already carried horizontal padding. The
+pull request carries `parity:exempt` under the React Native platform adapter.
+
+### 1.3.28, the seven-pull-request release
 
 Keep this file. The constraints below are still true and the next effort trips over them. Do not
 reopen the work; check the release outcome instead:
 
-    gh run view 35044341064 --repo thomasluizon/orbit-ui-mobile
+    gh run view 35134831975 --repo thomasluizon/orbit-ui-mobile   # 1.3.29
+    gh run view 35044341064 --repo thomasluizon/orbit-ui-mobile   # 1.3.28
 
 ## What this was
 
@@ -81,6 +118,14 @@ the control. A comment on the ticket says exactly that.
   verification and push an existing commit itself, which is delivery rather than editing.
 - **`ERROR: Selected model is at capacity` is transient**, not the allowance running out. A worker
   relaunched at the same moment ran normally.
+- **A `parity:exempt` label does not retro-fix a `Cross-Platform Parity` run already created.** On
+  999 the failing run was created at 18:14:05 and the label was applied at 18:14:12, so its payload
+  predated the label, while the run the label itself triggered skipped correctly. Fire a fresh
+  `pull_request` event after labelling rather than reading the red as a finding.
+- **A Pullfrog APPROVED review can be superseded by a later review of the SAME head.** It happened
+  four times on 2026-09-16 and every superseding review carried a real defect. Decide a merge on the
+  LAST review of the exact head plus the newest `pullfrog-approval` check run at it. Recorded on
+  `#541`.
 
 ## Open questions
 

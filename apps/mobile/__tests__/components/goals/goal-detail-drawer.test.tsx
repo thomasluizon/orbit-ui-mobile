@@ -5,7 +5,9 @@ import { updateGoalProgressDetail } from '@orbit/shared/utils'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { buildTempGoal } from '@/lib/goal-mutation-helpers'
+import { i18n } from '@/lib/i18n'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -31,17 +33,23 @@ const colorProxy: Record<string, string> = new Proxy(
 const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue: 3, targetValue: 12, unit: 'books', progressPercentage: 25 })
 
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
+let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
 let detailLoadError = false
 const refetchDetail = vi.fn()
 const updateProgressMutateAsync = vi.fn()
 const mockDeleteMutateAsync = vi.fn()
 const mockStatusMutateAsync = vi.fn()
 const mockPush = vi.fn()
+const translation = vi.hoisted(() => ({
+  current: (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key,
+}))
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
+      translation.current(key, params),
     i18n: { language: 'en-US' },
   }),
 }))
@@ -122,7 +130,7 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence: [] } } : null,
+    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
     isLoading: false,
     isError: detailLoadError,
     refetch: refetchDetail,
@@ -161,6 +169,7 @@ const linkedHabits = [{ id: 'h1', title: 'Read every night' }]
 describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     detailGoal = { ...listGoal, progressHistory: [] }
+    habitAdherence = []
     detailLoadError = false
     refetchDetail.mockClear()
     mockDeleteMutateAsync.mockReset()
@@ -168,6 +177,9 @@ describe('GoalDetailDrawer', () => {
     mockStatusMutateAsync.mockReset()
     mockStatusMutateAsync.mockResolvedValue(undefined)
     mockPush.mockClear()
+    sheetTestControls.defer(false)
+    translation.current = (key: string, params?: Record<string, unknown>) =>
+      params ? `${key}:${JSON.stringify(params)}` : key
     updateProgressMutateAsync.mockReset()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
@@ -326,6 +338,102 @@ describe('GoalDetailDrawer', () => {
     })
 
     expect(collectText(tree.toJSON())).toContain('goals.noLinkedHabits')
+  })
+
+  it('opens each linked habit with its own adherence value', () => {
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [
+        { id: 'habit-read', title: 'Read every night' },
+        { id: 'habit-stretch', title: 'Stretch' },
+      ],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-stretch', habitTitle: 'Stretch', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 4 },
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+    const tree = renderDrawer()
+    const readLabel = 'Read every night, goals.detail.linkedHabitStreak:{"count":12}'
+    const stretchLabel = 'Stretch, goals.detail.linkedHabitStreak:{"count":4}'
+
+    expect(collectText(tree.toJSON())).toContain('goals.detail.linkedHabitStreak:{"count":12}')
+    expect(collectText(tree.toJSON())).toContain('goals.detail.linkedHabitStreak:{"count":4}')
+
+    press(tree, readLabel)
+    press(tree, stretchLabel)
+
+    expect(mockPush).toHaveBeenNthCalledWith(1, { pathname: '/habits/[id]', params: { id: 'habit-read' } })
+    expect(mockPush).toHaveBeenNthCalledWith(2, { pathname: '/habits/[id]', params: { id: 'habit-stretch' } })
+  })
+
+  it('dismisses the sheet before opening a linked habit', async () => {
+    await i18n.changeLanguage('en')
+    translation.current = i18n.t.bind(i18n)
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+    const events: string[] = []
+    const onClose = vi.fn(() => { events.push('close') })
+    mockPush.mockImplementationOnce(() => { events.push('push') })
+    sheetTestControls.defer(true)
+    const tree = renderDrawer(onClose)
+
+    press(tree, `Read every night, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-read' } })
+    expect(events).toEqual(['close', 'push'])
+  })
+
+  it('opens a linked habit directly when the detail is inline', async () => {
+    await i18n.changeLanguage('en')
+    translation.current = i18n.t.bind(i18n)
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+    sheetTestControls.defer(true)
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} inline onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    press(tree, `Read every night, ${i18n.t('goals.detail.linkedHabitStreak', { count: 12 })}`)
+
+    expect(sheetTestControls.isDismissPending).toBe(false)
+    expect(mockPush).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: 'habit-read' } })
+  })
+
+  it('composes footer actions from canonical ListRow controls', () => {
+    const tree = renderDrawer()
+
+    for (const label of ['goals.detail.edit', 'goals.detail.markAbandoned', 'goals.detail.delete']) {
+      const row = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]
+      expect(row?.props.onPressIn).toBeTypeOf('function')
+      expect(row?.props.onPressOut).toBeTypeOf('function')
+    }
   })
 
   it('orders linked habits before history for standard goals', () => {

@@ -108,6 +108,14 @@ These stay until he changes them. Keep his words.
   phone, from an APK he generates himself at the end.
 - **Standing** Never boot the Android emulator. It is his visual testing surface.
 - **Standing** `redesign/main` stays unprotected. Settled; never raise it.
+- **2026-09-16 evening** **A new report from him outranks the queue, immediately.** He reported
+  three checklist defects mid-run and said "put it as a priority now", "target main (not
+  redesign/main)", and "run /android-release to the beta track after you merge to main, you have
+  my permission, no need to ask". A worker slot was freed by stopping the youngest running worker,
+  not by waiting. Both halves of that instruction were executed without a second confirmation,
+  which is D100.
+- **2026-09-16 evening** **Gate BOTH listing and revoking API keys behind the emailed code.** Asked
+  as one of three paths, he took the strictest. See `#529`, and note the switch it depends on.
 
 ## How the work runs
 
@@ -142,6 +150,18 @@ frontmatter, the tags and the backlinks that say which decision superseded which
   - `A gate PR merges only when every check is green with nothing excused.md`
   - `An unattended run proves an external interface from installed source, never a live call.md`
   - `Ship a sleep skill so an unattended session always takes the best approach and logs every decision.md`
+  - `Codex Cloud is disabled by default after repeated empty-diff failures.md`
+  - `Habit row actions that are not day-scoped stay available on every day.md`
+  - `handoff writes one fixed NEXT.md path never a timestamped file.md`
+  - `The shipping branch outranks the redesign when the machine cannot run both.md`
+  - `A written instruction is the authorization ship on it without asking again.md`
+  - `A contract change needs its caller sweep in the same run.md`
+
+  **All eighteen were confirmed present on 2026-09-16 at 23:38.** The Obsidian MCP was still
+  unreachable (`fetch failed`, Obsidian not running), so the listing came from the `vault-fs` MCP,
+  which reads the same vault from disk AND returns frontmatter, so `status` and `superseded_by`
+  were checked rather than guessed. None carries a `superseded_by`. What that path still misses is
+  backlinks. **Re-confirm through the Obsidian MCP when it is up.**
 - `2 Areas/20-29 Orbit Engineering/Orbit debloat and redesign master plan 2026-08-05.md` is the plan
   the screen list came from.
 - `2 Areas/20-29 Orbit Engineering/The ui-skills shortlist for the Orbit redesign.md` is why the
@@ -327,6 +347,17 @@ Pointers, not restatements. The reasoning lives in the ADR.
   read the linked workflow run, and `gh run rerun <id> --failed` rather than posting a fresh request.
 - **Read only the LATEST check run per name.** A push while a workflow is in flight leaves the
   superseded run's `failure` on the same commit.
+- **An APPROVED Pullfrog review is not the verdict, and this is the single most expensive thing
+  tonight taught.** A later review of the SAME head can supersede it, and
+  `list-bot-threads.mjs --re-review` returns on the first one. It happened four times in one
+  evening, on 992, 986, 994 and `orbit-api` 521, and every superseding review carried a real
+  defect. **Decide a merge on the LAST review of the exact head being APPROVED AND the newest
+  `pullfrog-approval` check run at that head concluding `success`.** The measurements are on
+  `#541`.
+- **A `parity:exempt` label does not retro-fix a run already created.** A `Cross-Platform Parity`
+  run created BEFORE the label is applied carries a payload without it and fails, while the run the
+  label itself triggers skips correctly. Both 998 and 999 hit it. Fire a fresh `pull_request` event
+  after labelling, for instance by editing the body, rather than reading the red as a finding.
 - **`tools/resolve-bot-thread.mjs` replies and resolves in one step.** Use it only when the finding
   is actually fixed. Its reply body comes from stdin.
 - **`list-bot-threads.mjs` posts "@pullfrog review" only when `--wait-seconds` is above 0.**
@@ -499,193 +530,191 @@ Two rules for this work, both learned the hard way:
 - **A sweep that finds more than its ticket owns files a ticket AND says so on the pull request.**
   `#473`'s sweep found eight more sheets that navigate while presented; `#561` carries them.
 
+## What the night of 2026-09-16 added, on top of everything above
+
+- **Recovering a killed worker's commit is now the normal path, and it ran FOUR more times.** Every
+  worker the harness killed for low memory had already committed, and two of the four also left a
+  clean tree. The shape that worked, in order: read the worktree, decide whether the tree is CLEAN
+  or DIRTY, and let that decide who finishes it.
+  - **CLEAN plus a complete commit: the orchestrator verifies and pushes it.** That is delivery, not
+    editing, and it saves a launch. Done on `#473`, `#558` and `#560`.
+  - **DIRTY with an unfinished edit: relaunch the worker.** No orchestrator verification can finish
+    a half-written file, and committing one pushes a change nobody completed. Done on `#560`'s first
+    kill, whose log ended mid-sentence on a test regex.
+  The same session took both answers within an hour, and the input, not the preference, decided it.
+- **Proving red AFTER the fact works on a commit somebody else wrote, and it is the only honest
+  evidence for a dead session's work.** `git checkout <sha>~1 -- <only the source files>`, run the
+  new test, capture, restore, confirm the tree is clean. It produced exactly the expected failures
+  three times: one assertion on `#473`, two on `#560`, two on `#558`. **Never quote a killed
+  worker's own numbers**; say in the pull request body that it was killed and that none of its
+  figures are quoted.
+- **`gh`'s own declared field set is installed-source proof, and it closed a finding with no code
+  change.** `gh pr view <n> --repo <r> --json` with NO value makes the installed binary print every
+  field it accepts. That settled whether `baseRefName` is real on `#558` without a live call and
+  without `--help`. **The follow-up review then asked for the same proof to be IN THE PULL REQUEST
+  BODY, not only in a thread reply, and it was right**: a reply is not the record.
+- **An order can be wrong, and the worker that refuses it can be more right than the orchestrator.**
+  On `#543` a worker stopped without editing and said the order contradicted the Android API. It was
+  half right: `View.js:82-84` reads `processedProps.focusable = !tabIndex`, so `tabIndex` is only a
+  spelling of `focusable` and one bit serves both arrow and Tab traversal. The order was corrected
+  with `ReactViewManager.kt:204-211`, which wires `nextFocusForward` to `view.nextFocusForwardId`
+  separately from that bit. **But the correction was ALSO wrong**, and the next review found three
+  P1s proving it: a reusable `RadioGroup` cannot know what follows it, so "point `nextFocusForward`
+  past the group" is unimplementable, and the worker built a transparent focusable sentinel view
+  instead, which is an invisible keyboard stop. Neither `opacity: 0` nor
+  `importantForAccessibility="no"` makes a view non-focusable.
+  **The lesson is narrower than "listen to the worker": the roving single-tab-stop pattern is a WEB
+  ARIA convention, and a native Android radio group is a set of individually focusable buttons.**
+  An order that imports a web pattern into a platform adapter is the defect. The worker's first
+  escalated option, accepting a focus stop per option, was the platform-correct answer all along.
+- **A review that keeps finding the same class of defect after a model change means the model has a
+  writer outside it, not that the model was wrong.** `#557` reached round 10. Round 9 collapsed
+  `authTransitionInFlight` and `isAuthenticated` into one session phase and was correct; round 10
+  then found `checkAuth` at `auth-store.ts:493` publishing `signed-in` directly, and round 11 found
+  the token refresh at `:289` advancing `sessionGeneration` under an establishing login. Each is the
+  same model with one more writer left outside it. Finish the model; do not guard it from outside.
+- **Removal closes a review argument that four rounds of patching could not.** `orbit-api` 521 drew
+  five reviews on one recurrence projection, and each was right. Round 4 DELETED it: 136 deletions
+  against 3 insertions, and `dayShift` no longer appears under `src/`. All four open threads resolved
+  on that evidence in one pass. When a computation cannot be made correct inside a pull request's
+  scope, taking it out is the answer, and the defect it was circling gets its own ticket.
+- **`list-bot-threads.mjs` with `--wait-seconds 0 --no-request` is the cheap read.** Without those
+  flags it posts `@pullfrog review` and waits up to fifteen minutes, which cost one five-minute stall
+  before the flags were used. It also RECORDS every thread id it prints, which is what clears
+  `forbid-invented-identifier.mjs`: an id read through raw GraphQL is refused even when it is
+  correct, and that refusal is right, because the rule is that the id must be mechanically traceable
+  rather than merely true.
+- **A background `timeout 590 node tools/test-tools.mjs` can exit 124 with zero failures when two
+  workers are running.** The suite is not failing, it is being starved. Re-run it unbounded rather
+  than reading the truncation as a result.
+
 ## State
 
-Read live 2026-09-16, late afternoon. `redesign/main` is `d6715cfb`. `main` is `adc070bc` and FINAL:
-the beta release shipped, Orbit 1.3.28 (87) is on the Play open track, and nothing is open against
-`main` except Dependabot.
+Read live 2026-09-16 at 21:20, at the end of the night's work. **Thomas said "stop all the work and
+/handoff --sleep", so every worker was stopped deliberately.** That is an external ending, not a
+finished spec.
 
-**The second effort is DONE.** `.claude/specs/beta-release.md` is a record, not a queue. Its
-constraints still bite and are worth reading once.
+`redesign/main` is `43bc28ad` and is **299 commits ahead of `main`**. `main` is `a9558f7a`, carrying
+Orbit 1.3.29 (88) on the Play open track.
 
-### Merged to `redesign/main` on 2026-09-16
+### Merged to `redesign/main` tonight
 
-Nine commits, seven of them pull requests.
+    984  3d2f01a5  Codex cloud command working directory.              #544  CLOSED
+    986  43bc28ad  Goal detail linked habit rows: the web goal sheet
+                   now finishes its exit before any habit route is
+                   pushed, which is D77.                               #473
 
-    996  b9ae3524  calendar import prompt spacing. #56 CLOSED
-    995  8e53be8c  14 dead goals.filters.* locale entries removed. #53 CLOSED
-    997  f5a8e1b7  the widget empty line split: Nothing scheduled vs All clear
-    983  a5dcc198  Perfil stage 10: ListRow geometry on SettingsRow, and 248 lines of dead
-                   ProfileSubscriptionSection and SubscriptionCard deleted
-    993  feee4c20  habit form fields on the design scales, plus a forced-colors focus outline
-    985  2230daf5  manual goal completion at target, and the offline optimistic update aligned
-                   with what the server actually does
-    0641fe7a  spec: a device check never gates building something
-    d6715cfb  /wrap-up, and /handoff now ends the session
+`986` is the product-visible one. Opening a goal from an Astra conversation and tapping a linked
+habit used to change the route with the sheet and the conversation both still mounted, so the habit
+page loaded behind two surfaces.
 
-`orbit-api` 527 merged to `main` as `7b593e4b`, adding `EmptyReason` to `HabitWidgetResponse`.
-Render auto-deploys `main`; the running build's SHA is not provable from outside, and 997 did not
-depend on it (the field is optional and a `null` falls back to the old string).
+### Open pull requests against `redesign/main`, all four, none ready
 
-### Open pull requests against `redesign/main`, all nine
+Every row read at 21:20 with the readiness condition under Constraints. **All four carry an
+unresolved finding and a red `pullfrog-approval`.** None is blocked; each is one round of work.
 
-Every one carries its `## Review harness` block. Heads and states read 2026-09-16 late afternoon.
-Re-derive rather than trusting this table.
+| PR | ticket | head | the finding to fix |
+|---|---|---|---|
+| 994 | `#557` | `1b502877` | round 11. `auth-store.ts:289`: the token refresh advances `sessionGeneration` while `login()` awaits account cleanup, so the login owner fails its next generation check and returns before its only `signed-in` publication. Same model, one more writer outside it |
+| 992 | `#543` | `0cbcd183` | `radio-group.tsx:52`: with every enabled radio focusable, forward focus has no route to the CHECKED item, so it lands on an unchecked one and `onFocus` then selects it, changing the value by traversal alone. Decide the entry route |
+| 991 | `#560` | `9b806654` | `compose-prompt.mjs:146`: the generated order makes `.truncated` and `.tree[].type` load-bearing GitHub API fields, and the body does not record the real invocation and typed response shape. Same class the `gh --json` proof closed on 970 |
+| 970 | `#558` | `81586aa3` | TWO. `SKILL.md:50`: the walk treats "not an open PR head" as "integration branch", but a stacked parent can be CLOSED and still be the child's recorded base, and PR 575 over closed parent 560 is a live example. `SKILL.md:68`: the body proves `baseRefName` is an ACCEPTED field but not the response SHAPE, so add real three-field output with its types |
+
+Dependabot holds 798, 799, 801 and 881 against `main`. Not this effort.
+
+### `orbit-api`, both on `main`, both advanced tonight
 
 | PR | ticket | head | state |
 |---|---|---|---|
-| 998 | `#71` | `2212d9e1` | Perfil stage 11, the LAST five suppressions. `Cross-Platform Parity` RED: it is a mobile-only change and needs the `parity:exempt` justification |
-| 994 | `#557` | `921ed55c` | rounds 4 and 5 pushed and verified. Single-flight refresh, and Login no longer says "0 habits waiting" to a returning person |
-| 992 | `#543` | `8cdef1b4` | Android key events ON via the config plugin. SonarCloud red, which does not gate this branch |
-| 991 | `#560` | `b604fb54` | composed UI orders require the ui-skills sweep. NOT looked at this session |
-| 988 | `#478` | `4558b2c2` | ALL GREEN. drag offset and dnd scale both correct now |
-| 987 | `#480` | `3ffc788d` | two alternating live regions, no timers. SonarCloud red only |
-| 986 | `#473` | `4e890c67` | goal sheet dismisses before navigating |
-| 984 | `#544` | `fcfde93c` | Codex logs move out of the repository root. NOT looked at this session |
-| 970 | `#558` | `52974481` | `/progress` effort-agnostic plus `--full`. NOT looked at this session |
+| 521 | `#526` | `82134581` | **All four threads RESOLVED.** Round 4 removed the recurrence projection entirely. Needs a fresh review of this head, then merge and deploy |
+| 520 | `#229` | `3d5d6929` | **Zero unresolved threads.** Round 4 landed `planRequirement` and `quotaLiftedByPlan`. CI was still running at handoff. Needs a review of this head, then merge and deploy |
 
-**970, 984 and 991 were never opened this session.** Their findings are unread and they are the
-three most likely to sit.
+Dependabot holds 510, 525 and 526 there. Not this effort.
 
-### `orbit-api`, both on `main`
+### `#561` was STOPPED mid-flight, and its work is uncommitted
 
-| PR | ticket | state |
-|---|---|---|
-| 520 | `#229` | gating matrix. Round 3 pushed; Pullfrog then found a NEW finding, unread |
-| 521 | `#526` | calendar timezone. Round 2 pushed; Pullfrog found a NEW finding, unread. Branch is BEHIND `main` and needs a merge-forward |
+**This is the single most losable thing in the tree.** Thomas stopped the run while the `#561` worker
+was writing, so there is no commit and no branch record. The worktree
+`C:\Users\thoma\orca\workspaces\orbit-ui-mobile\ticket-561-sheet-nav`, branch
+`fix/ticket-561-sheet-nav`, sits at `0600332b` with **15 modified files, covering all eight sites the
+ticket names plus seven test files**:
 
-Both reviews are described under Open questions. Neither has been acted on.
+    apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx
+    apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx
+    apps/mobile/components/habits/create-habit-modal.tsx
+    apps/mobile/components/habits/edit-habit-modal.tsx
+    apps/mobile/components/habits/reschedule-sheet.tsx
+    apps/mobile/components/navigation/notification-detail-modal.tsx
+    apps/mobile/components/onboarding/calendar-import-prompt.tsx
+    apps/mobile/components/ui/trial-expired-modal.tsx
+    plus the seven matching __tests__ files
 
-### What the forced re-reviews found, and why they keep earning their cost
-
-Seven times now a forced `--re-review` at the exact merge head has returned a real finding on a pull
-request that was already green. The seventh was 983, where the caller sweep was about to migrate the
-geometry of `ProfileSubscriptionSection`, 248 lines that nothing imports. **Ask for one on any head
-that matters.**
-
-Three of this session's findings were second-order, caused by the previous round's own fix:
-
-- 988: stopping the scale from eating the translation stopped the translation carrying the scale.
-- 994: preserving `onboardingLocallyDone` for the route guard broke the Login copy, because
-  `use-login-flow.ts:26` reads the same flag as its from-onboarding signal.
-- 987: three rounds of clear-then-set timers each leaked a different case, until the shape changed to
-  two alternating regions.
-
-**A round that fixes a finding and opens the next one means the state model is wrong.** Order the
-model change rather than a third guard.
+Read that diff before doing anything else with `#561`. Do not reset, stash or discard it. It is a
+stopped worker's work, not residue, and no test result was ever captured for it.
 
 ### Not started
 
-- `#34`: applied and submitted. Waiting on Google's review only, up to 7 days. See Open questions.
-- `#529`: unblocked, approach decided, NOT built. Server change alone, no config flag, no
-  `MinSupportedVersion` raise, the break recorded in the pull request body, scoped to beta only.
-- `#561`: filed this session. Eight Android sheets navigate while presented, which wedges every later
-  modal until restart, including the paywall push inside the habit form. Not picked up yet.
-- `#63`, `#67`, `#73`, `#76`, `#329`, `#57`, `#58`: screen tickets with stages remaining.
-- `#74`: nothing waits on Thomas; its remaining rows are ordinary copy work.
+- `#529`: gate BOTH listing and revoking API keys behind the emailed code, then flip
+  `AppConfigKeys.RequireApiKeyCreationStepUp` to true in `AppConfigs` AFTER the deploy or it ships
+  inert. His answer and the brief are comments on the ticket.
+- `#562`: a weekday-scoped calendar event has NEVER imported on any shipped build. Its interval and
+  ordinal cases are decided as visible refusals, recorded as a comment on the ticket.
+- `#545` stages 2 to 5, 77 suppressions. Its reconciliation comment proves nothing is ownerless.
+- `#63`, `#67`, `#73`, `#76`, `#329`, `#57`, `#58`: the seven screen tickets.
+- `#74`: ordinary copy work.
 
-### Worktree and branch debt, re-derived 2026-09-16 and MUCH less dangerous than it looked
+### Worktree and branch debt
 
-The previous spec called `ticket-335-avisos` "a clean tree hiding eleven commits that exist only on
-this machine". **That was wrong, and the same correction applies to the api one.** Both worktrees
-have `origin/redesign/main` or `origin/main` as their upstream, so the squash-merged branch's own
-commits read as unpushed forever. Checked live:
+**183 worktrees in ui and 20 in api. Four stashes in ui, none in api.** Seven dirty trees in ui:
 
-- `ticket-335-avisos`, 11 "unpushed": pull request 843 is MERGED and `#335` is CLOSED.
-- `orbit-api ticket-337-api-copy`, 12 "unpushed": pull request 504 is MERGED and `#411` is CLOSED.
+    ticket-351-primitives      179 files
+    orb-70-android-widget       34
+    ticket-561-sheet-nav        15   <- STOPPED WORKER, see above, do not touch
+    orb65-red-evidence           4
+    ticket-550-r3-red            4
+    ticket-329-progresso-s5b     2
+    ticket-174-measure           1
 
-Nothing is at risk in either. Both are safe to tear down.
-
-**All four detached HEADs are reachable from a branch**, so none can be garbage collected:
-`ticket-397-accent` (`a27a8e43`) and `ticket-468-control` (`f1b2991c`) are already IN
-`redesign/main`; `orb65-red-evidence` (`20d729c6`) sits on `feature/ticket-71-perfil-s6` and
-`ticket-550-r3-red` (`386939e0`) on `fix/ticket-550-web-session-refresh`, which has a remote.
-
-Genuinely dirty trees, none of it this session's: `orb-70-android-widget` 34,
-`ticket-351-primitives` 179, `orb65-red-evidence` 4, `ticket-550-r3-red` 4,
-`ticket-329-progresso-s5b` 2, `ticket-174-measure` 1. Four stashes in ui, none in api.
-
-**180 worktrees in ui and 20 in api.** That is the real debt: the count itself. Reproduce with
-
-    node <scratch>/inventory2.mjs <repo paths>
-
-or `git worktree list` per repo. **Never `git worktree remove --force` on Windows**: it follows a
-junction and deletes the target's contents. `rmdir` the junctions first, then remove without
-`--force`.
+Reproduce with `git worktree list` per repo. **Never `git worktree remove --force` on Windows**: it
+follows a junction and deletes the target's contents. `rmdir` the junctions first.
 
 ### Tickets
 
-130 open carry `repo:ui`, 65 carry `repo:api`, read 2026-09-16 late afternoon. Re-derive:
+131 open carried `repo:ui` and 67 carried `repo:api` at the start of the night. Re-derive:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 300
 
-Screen tickets still open: `#57`, `#58`, `#63`, `#67`, `#71`, `#73`, `#74`, `#76`, `#329`. `#53` and
-`#56` closed this session. `#71` closes when 998 merges.
+### The completion gate reads valid, and that is not the same as done
+
+`node tools/redesign-coverage.mjs` reports **valid: 184 manifest surfaces accounted for, 14 deleted,
+3 excluded**, run 2026-09-16. It validates the MAPPING and nothing else, and no CI job regenerates
+the manifest it reads. Seven screen tickets are still open. Judge each against its own acceptance
+criteria in the tree before closing it.
 
 ## Open questions
 
-**None are his.** A `/questions` round on 2026-09-16 put four to him and he answered all four, and a
-second pass at the wrap-up that evening found nothing left to ask. Every open item is either work to
-do or external waiting.
+**None are his.** A `/questions` round tonight enumerated twelve candidates and exactly one survived
+the filter; he answered it and it is recorded on `#529`. Everything else closed against the code, a
+ticket comment, a brain note or a primary source, and each disposition is on the ticket that needed
+it.
 
-The only external endings are the GPT Sol allowance, which he resets by hand, and provider capacity,
-which refused two worker launches on 2026-09-16 with `ERROR: Selected model is at capacity` before a
-relaunch minutes later succeeded. If a worker or a Pullfrog run fails for quota or capacity rather
-than for code, that is external, and it is reported as external.
+The only external endings remain the GPT Sol allowance, which he resets by hand, and provider
+capacity. If a worker or a Pullfrog run fails for quota or capacity rather than for code, that is
+external and it is reported as external.
 
-### Two review findings are UNREAD, and they are questions only in the sense that nobody has looked
+### Answered 2026-09-16 evening
 
-Both are on `orbit-api` and both arrived after this session's round was pushed. Read the review body
-before ordering anything.
-
-- **520 (`#229`)**: "The new combined-guard classifier can publish a free-tier quota as a hard Pro
-  requirement." Round 2's finding was the opposite, that a combined guard published an enforced plan
-  gate as ungated, so the classifier has now been wrong in both directions. That is the signal that
-  the MODEL is wrong, not the precedence. The shape the next session should consider:
-  `planRequirement` means "the plan required for ANY access", so a plan-scoped quota is `null` there
-  and needs a second field naming the plan that lifts the limit. Two fields, one meaning each. That
-  is a schema change to `gating-matrix.json`, and it is justified because the current schema cannot
-  express Orbit's actual model, where free gets a daily ceiling and Pro does not (D70).
-- **521 (`#526`)**: "The recurrence stability work remains unsafe to merge: it retains rules whose
-  projected local time changes by season, can miss transition-week date shifts, and now depends on an
-  unverified Google response field." The field IS verified:
-  `google.apis.calendar.v3/1.75.0.4206/lib/net6.0/Google.Apis.Calendar.v3.xml:3726-3732` declares
-  `EventDateTime.TimeZone` as an IANA name and says it is REQUIRED for recurring events. Say so
-  rather than changing anything for that part. The seasonal half is real, and the four-probe sample
-  is the third attempt at this question. **Consider `TimeZoneInfo.HasSameRules`**, declared at
-  `Microsoft.NETCore.App.Ref/10.0.10/ref/net10.0/System.Runtime.xml:76382-76388` as true only when
-  two zones have identical adjustment rules AND an identical base offset. If it holds, the projection
-  is the identity in local terms forever and the rule is provably safe; if it does not, drop the rule.
-  One exact predicate instead of a sample. 521 is also BEHIND `main` and needs a merge-forward.
-
-### Answered 2026-09-16, and what each one now requires
-
-- **The Play Console listing is APPLIED.** It was submitted on 2026-09-16 with exactly six changes:
-  the app name, short description and full description, once per locale. Every field was recounted
-  against the console's own live counters, not the documented limits: 23/30, 79/80, 1895/4000 for
-  en-US and 21/30, 71/80, 2034/4000 for pt-BR. The developer name is now
-  `TL SOFTWARE ENGINEERING LTDA`, pending Google's approval of the name change. **The live public
-  listing already showed the LTDA name, `contact@useorbit.org` and the LTDA address**, with zero hits
-  for the home address or the personal Gmail, so that residual is gone rather than re-accepted.
-  `#34` stays OPEN on one line only: Google's review, up to 7 days. Re-read the live listing to close
-  it; there is no further console work.
-- **The one-row onboarding recap stays.** Shipped in 981.
-- **`#529` is unblocked, and the refusal is withdrawn.** Merge the server change on its own, no config
-  flag, no `MinSupportedVersion` raise, and record the break in the PR body. **Scoped to beta only**,
-  because it rests entirely on "basically only i use it"; a populated Play fleet restores
-  deploy-API-first in full and no future ticket may cite this as precedent. NOT BUILT YET.
-- **Android key events: BUILT, not nulled.** The earlier "find a supported route or report an honest
-  null" was answered twice. First the route was found:
-  `ReactNativeFeatureFlags.override(provider)` at
-  `node_modules/react-native/ReactAndroid/src/main/java/com/facebook/react/internal/featureflags/ReactNativeFeatureFlags.kt:599-600`,
-  `@JvmStatic public fun`, with its usage shape in the KDoc at `:594-596`. Then he removed the reason
-  to hold it back: "just build it, we dont test now." It shipped in 992 as a `withMainApplication`
-  config plugin rather than a direct edit, because `.gitignore:86` ignores `apps/mobile/android/` and
-  a direct edit dies at the next prebuild. **Home and End stay web only**: `KeyEvent.kt:132-153` is
-  the complete non-printable key map and neither appears in it.
-
-**Answered on 2026-09-15, previously marked his on `#73`:** whether the support request attaches the
-app version. It does, with a visible line saying so. The how is under Decisions.
+- **API keys: gate BOTH listing and revoking.** Offered three paths, he took the strictest. The
+  consequence that matters is on `#529`: the enforcement reads
+  `AppConfigKeys.RequireApiKeyCreationStepUp`, which defaults to **false**, so the switch has to be
+  flipped in `AppConfigs` AFTER the server deploy or the ticket ships inert.
+- **The interval and ordinal calendar rules on `#562` are DECIDED, not his.** Both refuse, visibly,
+  on the review surface before the person taps import. Importing a schedule the person did not pick
+  is the worse failure, and `WEEKDAY_MAP` at `calendar-sync.ts:52` plus
+  `HabitScheduleService.cs:691-694` mean neither shape can be encoded honestly.
+- **991's "open question for the human" about the Cloud sweep is DECIDED**, not his: the sweep runs
+  in the local materialization lane, because a Cloud container has no origin remote and cannot fetch,
+  and the sweep is nothing but fetches.
 
 ## Copy, which is yours
 

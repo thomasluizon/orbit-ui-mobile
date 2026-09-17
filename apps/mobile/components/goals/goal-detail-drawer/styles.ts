@@ -23,25 +23,5 @@ export function createStyles(tokens: AppTokens) {
     actions: {
       paddingBottom: 4,
     },
-    actionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 0,
-      paddingVertical: 12,
-    },
-    actionRowPressed: {
-      backgroundColor: tokens.bgHover,
-    },
-    actionRowText: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 15,
-      color: tokens.fg1,
-    },
-    actionRowTextDestructive: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 15,
-      color: tokens.statusBadText,
-    },
   })
 }
