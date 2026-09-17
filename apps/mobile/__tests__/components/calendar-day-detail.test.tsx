@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
+import en from '@orbit/shared/i18n/en.json'
 import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import {
   getCalendarEntryMutationKey,
@@ -73,7 +74,7 @@ type Tree = {
 const translations: Record<string, string> = {
   'calendar.dayDetail.nothingDue': 'nothing due',
   'calendar.noHabitsScheduled': 'No habit was scheduled on this day.',
-  'calendar.goToDay': 'Open this day on Today',
+  'calendar.goToDay': en.calendar.goToDay,
   'calendar.status.completed': 'done',
   'calendar.status.missed': 'not logged',
   'calendar.status.indulged': 'indulged',
@@ -686,7 +687,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail({ onGoToDay })
     const routeRow = nodes(tree, 'ListRowMock').at(-1)
     expect(routeRow?.props).toMatchObject({
-      title: 'Open this day on Today',
+      title: 'Open day',
       icon: 'external-link',
       chevron: false,
       onClick: onGoToDay,

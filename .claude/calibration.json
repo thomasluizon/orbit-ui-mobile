@@ -232,9 +232,9 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "ebba3b4b22e7eeff",
-      "calibratedAt": "2026-09-16",
-      "verdict": "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded: holding the order, and refusing to start the handoff while a question Thomas has not answered is still open. Low would round that gate away, which is the one thing this skill exists to enforce."
+      "digest": "7bbdfe9493568860",
+      "calibratedAt": "2026-09-17",
+      "verdict": "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded, and 2026-09-17 made it stricter: each step now ENDS THE TURN on a literal handover line and waits for Thomas to say proceed, so the skill has to hold the order across three turns rather than one, and it must not let --sleep collapse the first two. Low would round that gate away, which is the one thing this skill exists to enforce."
     },
     ".agents/skills/merge-prs/SKILL.md": {
       "model": null,

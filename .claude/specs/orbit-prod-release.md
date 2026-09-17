@@ -1,16 +1,26 @@
-# Orbit redesign
+# Orbit prod release
 
-**At a glance:** the living spec for the redesign. One effort, one spec, updated by every `/handoff`.
-Everything durable lives here; a handoff prompt carries only what to do next.
+**At a glance:** the living spec for getting Orbit to a production release. One effort, one spec,
+updated by every `/handoff`. Everything durable lives here; a handoff prompt carries only what to do
+next. **Renamed from `orbit-redesign.md` on 2026-09-17**, when Thomas widened the goal from finishing
+the redesign to clearing the whole board: "considering everything from the board needs to be done,
+redesign continues to be the focus, also the google play page updated with the new designs, texts,
+everything, and in the end, a complete /prod-readiness run, and every finding that comes from this
+run gets also fixed".
 
 ## What this is
 
+**The goal is a production release with an empty board.** The redesign stays the focus and is the
+next thing to finish, but it is no longer the whole effort. The order is in
+`## The order: the batches to a production release, redesign-gated` below, and that order is what a session works
+from.
+
 Orbit is being rebuilt screen by screen against a granted design canvas. Every screen lands on both
 web and Android together. Nothing reaches a real person until the whole redesign ships, so
-`redesign/main` is the branch and `main` stays untouched.
+`redesign/main` is the branch and `main` stays untouched, except for a live defect under D99.
 
-Thirteen screens. The calendar, Privacy and Terms, the Android widget and most of About are finished.
-The rest are listed under State.
+Thirteen screens. The calendar, Privacy and Terms, the Android widget, Perfil, Progresso and most of
+About are finished. The rest are listed under State.
 
 ## Standing instructions from Thomas
 
@@ -116,6 +126,247 @@ These stay until he changes them. Keep his words.
   which is D100.
 - **2026-09-16 evening** **Gate BOTH listing and revoking API keys behind the emailed code.** Asked
   as one of three paths, he took the strictest. See `#529`, and note the switch it depends on.
+- **2026-09-17** **The whole board ships, not just the redesign.** "considering everything from the
+  board needs to be done, redesign continues to be the focus, also the google play page updated with
+  the new designs, texts, everything, and in the end, a complete /prod-readiness run, and every
+  finding that comes from this run gets also fixed". This spec was renamed for it, and
+  `## The order` is the plan.
+- **2026-09-17** **The redesign does not merge to `main` until he has tested it and approved it.**
+  "when it finishes, i will test everything in the redesign/main branch, when i approve everything,
+  THEN we merge to main, and only then the redesign is finished and we can continue to the other
+  batches". See `### THE REDESIGN GATE`. This is the one place a session stops and waits for him.
+- **2026-09-17** **The harness batch runs BEFORE the redesign**, not last. "i want this batch before
+  the redesign." It is batch 0b.
+- **2026-09-17** **The component-library migration happens AFTER the redesign**, decided with him
+  from cited research: rn-primitives on mobile, Radix on web, one component shape, our tokens on top.
+  Rejected on evidence, not taste: gluestack, react-native-reusables and HeroUI Native all require
+  NativeWind or Uniwind, which this repository removed and gate-enforces out; Tamagui's compiler
+  still emits wrong styles in production builds (`tamagui#4194`, 2026-08-30) and its native overlays
+  depend on `react-native-teleport`, whose Fabric reparenting crashes recurred through 2026-09-10;
+  React Native Paper carries Material into every component API. `#576` to `#581` carry it.
+- **2026-09-17** **beautifului.dev is wanted for Astra, "wherever is possible to use, on both
+  platforms if possible".** `#581` settles first whether it runs on React Native at all; if it is web
+  only, mobile ports the patterns onto our own primitives rather than importing them.
+
+## The order: the batches to a production release
+
+Read live on 2026-09-17: **231 open tickets** across the three repositories, pulled in one
+`gh issue list --limit 400` call and read in full. By repository: 137 `repo:ui`, 71 `repo:api`, 23
+`repo:landing`. By milestone: 146 carry none, 25 are `539 Redesign`, 23 `562 Astra`, 16 `Launch`,
+10 `Packaging: caps, quotas and tiers`, 7 `Harness Context and Calibration`, 4 `PostHog`.
+
+The batches below are the whole board, plus `#585`, filed on 2026-09-17 after the count was taken.
+A batch ships before the next one starts, because each one removes a reason the next would have to be
+redone. Inside a batch, order is free.
+
+### Batch 0a, first: make the gate affordable
+
+`#585`: `node tools/test-tools.mjs` is 1,707 assertions, fully serial, about ten minutes, with no way
+to run less of it. `CLAUDE.md` requires it after any change under `tools/**` or `.claude/**`, so a
+one-string edit costs the same as a rewrite. Add `--only <name>`, keep the full run as the default
+and the gate, print the elapsed time and the assertion count, and decide parallelism on a
+measurement rather than a preference.
+
+**Why before everything else:** this gate sits in front of every harness and orchestration change in
+every batch below, including all of batch 10. It has already been starved twice on this machine, once
+truncated at a 590-second timeout with zero failures and once stopped by the low-memory reaper, and a
+ten-minute gate is the kind people find reasons to skip. Thomas stopped a run over it on 2026-09-17.
+Paying this down first makes every later batch cheaper; leaving it makes them all slower.
+
+### Batch 0b: the harness, before the redesign
+
+**Moved here from last on 2026-09-17, on Thomas's instruction: "i want this batch before the
+redesign."**
+
+`#575`, `#560`, `#558`, `#559`, `#556`, `#546`, `#544`, `#542`, `#541`, `#530`, `#528`, `#525`,
+`#521`, `#455`, `#234`, `#233`, `#230`, `#190`, `#187`, `#180`, `#303`, `#304`, `#306`, `#307`,
+`#286`.
+
+**Why it earns the front:** these are the gates and the orchestration that every batch below runs
+THROUGH, and several are currently lying. `#546`: the Gate Charter never installs its dependency, so
+the gate that closes every gate has never run. `#541`: the review reader accepts a Pullfrog progress
+marker as a finished review, which is the defect that forced every approval on 2026-09-17 to be
+re-read by hand. `#530`: a test that reads the real clock, green in CI and red locally. `#542`: a
+review-fix worker pushes before its threads can resolve. `#544`: a Cloud command drops a file that
+blocks the next commit. `#521`: a guardrail that refuses a legitimate redirect, which blocked three
+commands in one session. A batch that runs on gates which do not gate produces work nobody can trust.
+
+Two rules for this batch, both from Thomas:
+- **Re-read each ticket against the tree before building it.** Several describe a state the last two
+  weeks already changed. A ticket that reads blocked, or fixed, is a lead and not a fact.
+- **2026-09-12 stands: a harness ticket is never filed as a substitute for fixing something.** This
+  batch closes the existing ones; it does not license new ones.
+
+### Batch 0c, shipping now: the live Android defect
+
+`#573` (menu tap and search close, pull request 1011 against `main`), then `#574` (measure the habit
+list's render counts, then cut them), then `#563` (three Android checklist defects), `#134` (the
+three-dot menu ticket only Thomas can close, on-device).
+
+**Why first:** these are defects a person hits in the shipped build today. `#573` and `#563` target
+`main` under D99, and a release follows each with `/android-release` to the open track. Everything
+else in this spec is work nobody outside this machine can see yet.
+
+### Batch 1: close the redesign
+
+The thirteen open pull requests, in the readiness order this spec's State section carries, then the
+remaining `539 Redesign` screen tickets: `#67`, `#73`, `#63`, `#57`, `#74`, `#545`, `#543`, `#520`,
+`#481`, `#479`, `#477`, `#476`, `#475`, `#473`, `#472`, `#461`, `#460`, `#336`, `#175`, `#217`,
+`#320`, `#318`.
+
+**Why second:** the redesign is the focus and it is nearly done. Every other UI batch below touches
+screens these tickets are still rewriting, so doing anything else first means doing it twice. This
+batch ends when `node tools/redesign-coverage.mjs` reports a valid mapping AND every screen ticket
+closes against its own acceptance criteria.
+
+### THE REDESIGN GATE, between batch 1 and batch 2a
+
+**Thomas's instruction, 2026-09-17, and it is absolute:**
+
+> work the batches until the redesign finishes, when it finishes, i will test everything in the
+> redesign/main branch, when i approve everything, THEN we merge to main, and only then the redesign
+> is finished and we can continue to the other batches
+
+So the sequence at the end of batch 1 is:
+
+1. Every screen ticket closes against its own acceptance criteria, and
+   `node tools/redesign-coverage.mjs` reports a valid mapping with nothing missing.
+2. **Stop. Tell him the redesign is ready to test on `redesign/main`.** Do not merge. Do not start
+   batch 2a. Do not start anything else in this spec.
+3. **Ship it to a CLOSED Play INTERNAL track**, answered 2026-09-17: he tests it as a real update
+   rather than a sideloaded file. `/android-release` to the internal track, off `redesign/main`, not
+   the open track and not `main`. This is the one release that leaves `redesign/main`.
+4. He tests everything on his phone from that build.
+5. **Only on his explicit approval** does `redesign/main` merge into `main`.
+6. The redesign is finished at that merge, not before it. Then `/android-release` to the OPEN
+   track off `main`, and batch 2a starts.
+
+A session that reaches step 2 and keeps going has broken the one rule this gate exists for. If the
+queue looks empty at step 2, that is correct: the run is waiting on him, and waiting on him is a
+legitimate ending under `/sleep` as long as it is reported as blocked on his approval rather than as
+finished.
+
+### Why the order after the gate changed, 2026-09-17
+
+Thomas read the first draft and found a real defect in it: the Play listing and the landing page sat
+in batch 7 and 9, so **anyone downloading the open beta after the redesign shipped would see a store
+page and a marketing site showing a product that no longer exists**, and that desync would last five
+batches.
+
+> what i propose: after the redesign, do every ticket that changes something on the UI, and after
+> that, do the landing page and the play store update, then the rest, so we spend the least amount of
+> time with those desynced
+
+That is the order below. One mechanical correction was applied with his agreement: "every UI ticket"
+is not one block, because batch 2b's screens read fields that do not exist until batch 2a deploys, so
+the API contracts keep their place in front. And one refinement: **the component-library migration
+changes ZERO visuals**, so it is invisible to the store and to the landing page and buys nothing by
+coming first. It moved after them.
+
+### Batch 2a: the API contracts the UI is already waiting on
+
+`#391`, `#394`, `#387`, `#385`, `#389`, `#505`, `#483`, `#257`, `#571`, `#372`, `#369`, `#367`.
+
+**Why it still leads:** each one is a field or an endpoint a batch 2b ticket is blocked on, and the
+repository contract is deploy-API-first. Merging is not deploying: every one needs Thomas to deploy
+before its consumer can merge. Twelve api-only tickets, nothing visible, so it is the shortest thing
+standing between the redesign and the visible work.
+
+### Batch 2b: every remaining ticket that changes what a person sees
+
+The UI those contracts unblock: `#392`, `#395`, `#386`, `#390`, `#361`, `#572`, `#516`, `#297`,
+`#181`, `#179`, `#178`, `#471`, `#454`, `#441`, `#222`, `#62`, `#28`, `#64`, `#216`, `#533`, `#532`,
+`#214`.
+
+The design system's own corrections: `#377`, `#370`, `#431`, `#424`, `#421`, `#519`, `#518`, `#497`,
+`#509`, `#559`, `#535`, `#426`, `#434`, `#531`, `#465`, `#463`, `#466`, `#458`, `#499`.
+
+The packaging and pricing changes that alter visible copy and gating: `#195`, `#196`, `#197`, `#199`,
+`#200`, `#237`, `#238`, `#327`, `#328`.
+
+**Why these run together and before the store:** every one changes a screen, a string or what a plan
+includes. Shipping the store listing before them means writing it twice. `#531` also retires the four
+`eslint-disable` comments pull request 1008 ships, and the packaging tickets settle what the pricing
+copy says before anyone writes a store description against it.
+
+### Batch 3: the landing page and the Play listing, together
+
+Landing: `#78` (redesign against the new canon), `#209` (pricing and FAQ copy realigned), `#204`,
+`#212`, `#206`, `#251`, `#250`, and the Turnstile and consent set `#269` to `#282`, `#285`, `#286`,
+`#291`, `#292`, `#279`, `#280`, `#313`, `#107`, `#108`, `#114`.
+
+Play: the new screenshots and feature graphic from the finished app, the updated store description
+and ASO copy against `BRAND.md`, and `#33` (7 demo clips and 2 landing videos). **`#34` is CLOSED**:
+the LTDA address, the contact address and the ADHD ASO keywords already landed, so this batch does
+not reopen it.
+
+**Why here and not last:** this is the whole point of the reorder. The moment batch 2b ships, the app
+a person downloads and the pages selling it are the same product, and the window where they disagree
+is one batch wide instead of five.
+
+**Who does what, answered 2026-09-17: THOMAS captures the screenshots on his phone.** He is already
+testing on device at the gate, so the screens are in front of him. **The run never boots the emulator
+for this**, which keeps his standing rule intact. What the run owes him is the exact shot list,
+naming each screen, its state and its locale, ready before he tests, plus every caption, the store
+description and the ASO copy written from `BRAND.md` and passed through `/humanizer`, per his
+2026-09-16 instruction that copy he asks for still gets both passes.
+
+### Batch 4: the component-library migration
+
+`#576` first, alone, because it installs the layer and proves it loads on Expo SDK 57 / RN 0.86.3.
+Then `#577`, `#578`, `#579`, `#580` in any order, then `#581` (Astra on beautifului.dev).
+
+**Why it is here and not before the redesign:** doing it first would rewrite every primitive under
+thirteen screens that had thirteen open pull requests against them, and every one would conflict.
+**Why it is not before the store either:** it changes no visuals at all. It swaps the behaviour layer
+under primitives whose look is unchanged, so a store listing written before it stays true after it.
+
+### Batch 5: Astra
+
+`#16`, `#582`, `#583`, `#584` (cost and analytics) first, then `#17`, `#18`, `#21`, `#19`, `#23`,
+`#24`, `#25`, `#26`, `#49`, `#48`, `#201`, `#202`, `#236`, `#244`, `#245`, `#246`, `#247`, `#248`,
+`#259`, `#264`, `#265`, `#319`, `#396`, `#418`, `#513`, `#514`.
+
+**Why after the migration:** `#581` builds the Astra chat surface, and `#24` is the
+preview-confirm-edit pattern that surface renders. Astra has its own milestone, its own security work
+(`#17`, `#18`) and its own eval gate (`#26`). `#319`, the crisis response to a self-harm disclosure,
+ships inside this batch and never after it.
+
+**Note on the store:** Astra IS user-visible, so if this batch materially changes what Orbit offers,
+the listing gets a second, smaller pass at the end of it. That is one revisit, not five.
+
+### Batch 6: security, correctness and the deletions
+
+`#101`, `#102`, `#115`, `#208`, `#325`, `#324`, `#323`, `#330`, `#500`, `#501`, `#493`, `#495`,
+`#527`, `#526`, `#529`, `#569`, `#562`, `#549`, `#556`, `#568`, `#564`, `#565`, `#566`, `#567`,
+`#227`, `#225`, `#205`, `#218`, `#235`, `#239`, `#299`, `#300`, `#301`, `#302`, `#249`, `#253`,
+`#254`, `#255`, `#260`, `#262`, `#263`, `#311`, `#89`, plus the analytics set `#83`, `#84`, `#82`,
+`#213`, and the Sentry triage `#32`, `#31`.
+
+**Why before the readiness run:** every one of these is a thing `/prod-readiness` would find anyway.
+Fixing them first makes that run a verification rather than a second backlog.
+
+### Release cadence, answered 2026-09-17
+
+**One release per batch, to the OPEN track.** Every batch from 2a onward ends with
+`/android-release` to the open beta, so a defect surfaces against a known, small change set, which is
+how the two releases before this worked. The harness, API-contract and readiness batches release too:
+a batch that changes nothing a person sees still ships, because a version with no visible change is
+cheaper to diagnose than several batches arriving at once.
+
+Two exceptions, both already stated above: the gate build goes to the CLOSED internal track off
+`redesign/main`, and the `main` merge that ends the redesign gets its own open-track release before
+batch 2a starts.
+
+### Batch 7: the production readiness run, and its findings
+
+`#315`: run `/prod-readiness` with the board clear. It fans out security, tests, performance,
+code-quality, an ops audit, a static WCAG 2.2 AA sweep, a dependency sweep across both repositories
+and an architecture-drift sweep, then consolidates into one ticket set behind one approval gate.
+
+**Every finding it raises is fixed before release.** The run is not the finish line; the empty board
+after it is. Then the release: `/android-release` to the open track, Thomas's device pass, and
+promotion.
 
 ## How the work runs
 
@@ -588,108 +839,114 @@ Two rules for this work, both learned the hard way:
   workers are running.** The suite is not failing, it is being starved. Re-run it unbounded rather
   than reading the truncation as a result.
 
+## What the night of 2026-09-17 added
+
+- **A ticket that reads blocked is a lead, not a fact, and three were wrong in one night.** `#58` was
+  already delivered by the `#329` stack; `#373` shipped in PR 997 the day before and nobody closed
+  it; `#329` itself needed only one stale suppression removed. `#76` was recorded as blocked on api
+  `#372`, and `orbit-api` PR **527 was already MERGED**, so the blocker had been gone for a day.
+  **Check the tree against the acceptance criteria before you build or before you report a block.**
+- **An already-done ticket gets a comment and a closure, never an empty pull request.** Two workers
+  asked which; both times the answer is the closure. An empty pull request proves nothing, costs a
+  Pullfrog review, and records a delivery that did not happen. Write the per-criterion evidence into
+  the closing comment so the judgement is auditable.
+- **A fresh worktree has NO `node_modules`, and a worker launched into one produces nothing.** `#63`
+  burned a whole launch discovering it: every `rg` and every test failed and it exited clean with
+  zero commits. `create-worktree.mjs` does not install. **Run `npm install` and confirm 961 entries
+  before composing the prompt.** Two of the worktrees made that night did get dependencies and five
+  did not, so check rather than assume.
+- **A pull request body can lose every newline, and then a heading is not a heading.** 992's
+  `Redesign Review Harness` failed three times reporting no `## Review harness` block while the block
+  was plainly in the body: it sat mid-paragraph because the whole body was one line. Reflowing it
+  without changing a word made the gate pass. **Read the body as the gate reads it before you
+  re-run a sweep.**
+- **`--match-head-commit` refuses a reconstructed sha, and that is the guard working.** A merge was
+  rejected with `Head branch was modified` because the sha had been typed from memory rather than
+  copied from the run's own output. Copy it from `gh pr view --json headRefOid` every time.
+- **A label alone never fixes a red parity run.** 1006 needed `parity:exempt` AND a body edit to fire
+  a fresh `pull_request` event, because the failed run carries a payload without the label. The body
+  edit was already required for its sweep block, so one action cleared both.
+- **`rmdir` is the safe tool for install debris, and a junction can point at the main checkout.**
+  `tools/test-tools.mjs` died on `ERR_MODULE_NOT_FOUND` for `sharp`, then `fast-check`. Neither was
+  missing: a worktree's `tools/node_modules` is a JUNCTION to `orbit-ui-mobile/node_modules`, and
+  that directory held **956 empty package directories** left by an install the machine killed.
+  `rmdir` cannot remove a populated directory, which is why it was the right tool. **Check for a
+  junction before operating on any path inside a worktree.**
+- **Docker's VM is what kills workers here, and it is not ours to stop.** `vmmemWSL` held 7.8 GB with
+  `free -m` inside reporting 5,719 MB genuinely used against 719 MB of cache, while `leap-full`,
+  `leap-pg-db` and `leap-redis` were running indinero work. `dotnet build-server shutdown` returns
+  about 1.3 GB that api rounds leak into `VBCSCompiler`; beyond that, drop to one worker at a time.
+- **A ticket body can carry an instruction that is actively wrong, and executing it destroys live
+  work.** `#67` says to delete the feature guide. `#73` says in its own Problem section that this
+  instruction is wrong and a worker must not execute it, and PR 1005 had rewritten that exact drawer
+  hours earlier. The correction went onto `#67` as a comment BEFORE the prompt was composed, and the
+  branch left the guide untouched. **Post the correction to the ticket, because the worker reads
+  comments and not your reasoning.**
+
 ## State
 
-Read live 2026-09-16 at 21:20, at the end of the night's work. **Thomas said "stop all the work and
-/handoff --sleep", so every worker was stopped deliberately.** That is an external ending, not a
-finished spec.
+Read live 2026-09-17 at 20:00 UTC.
 
-`redesign/main` is `43bc28ad` and is **299 commits ahead of `main`**. `main` is `a9558f7a`, carrying
-Orbit 1.3.29 (88) on the Play open track.
+`redesign/main` is **`58cd7896`**. `main` is **`a9558f7a`** with Orbit 1.3.29 (88) on the Play open
+track. `orbit-api` `main` is **`fd219126`** (pull request 520 merged, NOT deployed).
 
-### Merged to `redesign/main` tonight
+**Nothing merged this session.** Both branches are where they started.
 
-    984  3d2f01a5  Codex cloud command working directory.              #544  CLOSED
-    986  43bc28ad  Goal detail linked habit rows: the web goal sheet
-                   now finishes its exit before any habit route is
-                   pushed, which is D77.                               #473
+### Ready to merge the moment the run resumes
 
-`986` is the product-visible one. Opening a goal from an Astra conversation and tapping a linked
-habit used to change the route with the sheet and the conversation both still mounted, so the habit
-page loaded behind two surfaces.
-
-### Open pull requests against `redesign/main`, all four, none ready
-
-Every row read at 21:20 with the readiness condition under Constraints. **All four carry an
-unresolved finding and a red `pullfrog-approval`.** None is blocked; each is one round of work.
-
-| PR | ticket | head | the finding to fix |
+| PR | base | head | why it is ready |
 |---|---|---|---|
-| 994 | `#557` | `1b502877` | round 11. `auth-store.ts:289`: the token refresh advances `sessionGeneration` while `login()` awaits account cleanup, so the login owner fails its next generation check and returns before its only `signed-in` publication. Same model, one more writer outside it |
-| 992 | `#543` | `0cbcd183` | `radio-group.tsx:52`: with every enabled radio focusable, forward focus has no route to the CHECKED item, so it lands on an unchecked one and `onFocus` then selects it, changing the value by traversal alone. Decide the entry route |
-| 991 | `#560` | `9b806654` | `compose-prompt.mjs:146`: the generated order makes `.truncated` and `.tree[].type` load-bearing GitHub API fields, and the body does not record the real invocation and typed response shape. Same class the `gh --json` proof closed on 970 |
-| 970 | `#558` | `81586aa3` | TWO. `SKILL.md:50`: the walk treats "not an open PR head" as "integration branch", but a stacked parent can be CLOSED and still be the child's recorded base, and PR 575 over closed parent 560 is a live example. `SKILL.md:68`: the body proves `baseRefName` is an ACCEPTED field but not the response SHAPE, so add real three-field output with its types |
+| 1011 | `main` | `719a771a` | `#573`, the live Android defect. APPROVED at head, `pullfrog-approval` SUCCESS, zero reds, zero pending, zero threads. **Merge, then `/android-release` to the open track** on his 2026-09-16 standing permission. |
+| 1008 | `redesign/main` | `c7d60ad0` | `#74`. Same condition met. Removes 116 suppressions, the largest single clearance. |
 
-Dependabot holds 798, 799, 801 and 881 against `main`. Not this effort.
+### Open pull requests, every one, with its disposition
 
-### `orbit-api`, both on `main`, both advanced tonight
+`gh pr list --repo thomasluizon/orbit-ui-mobile --state open` returns 17. Four are Dependabot
+(798, 799, 801, 881) and are not this effort.
 
-| PR | ticket | head | state |
+| PR | base | head | disposition |
 |---|---|---|---|
-| 521 | `#526` | `82134581` | **All four threads RESOLVED.** Round 4 removed the recurrence projection entirely. Needs a fresh review of this head, then merge and deploy |
-| 520 | `#229` | `3d5d6929` | **Zero unresolved threads.** Round 4 landed `planRequirement` and `quotaLiftedByPlan`. CI was still running at handoff. Needs a review of this head, then merge and deploy |
+| 1011 | `main` | `719a771a` | READY. Merge first, release. |
+| 1008 | `redesign/main` | `c7d60ad0` | READY. Merge second. |
+| 1010 | `chore/ticket-560-sweep-order` | `d5f7178f` | `#570`, stacked on 991. **Retarget onto `redesign/main` BEFORE 991 merges.** |
+| 1007 | `redesign/main` | `a128ca12` | `#67`. Three P1s: the create-vs-update payload, deferred web push registration, the hidden Astra cadence. Order posted on the ticket. |
+| 1005 | `redesign/main` | `1c4e90fd` | `#73`. Two copy corrections; worker was reaped mid-round, tree DIRTY, relaunch rather than push. |
+| 1004 | `redesign/main` | `e002e817` | `#57`. Source-neutral freeze wording; `#571`/`#572` carry the API provenance. |
+| 1003 | `redesign/main` | `b52e3d79` | `#63`. One test-quality finding. |
+| 1002 | `redesign/main` | `baeec3dc` | `#545`. No review at head; request one. |
+| 1001 | `redesign/main` | `744173b3` | `#562`. Two findings, one widening the refusal and one narrowing it. |
+| 994 | `redesign/main` | `1b0fdb44` | `#557`. Commit `b4338304` exists in the worktree, CLEAN, **unpushed**. Verify and push it. |
+| 992 | `redesign/main` | `fb520fb1` | `#543`. The RN 0.86 focus gate; fix the test mock in the same round. |
+| 991 | `redesign/main` | `3cda0bd9` | `#560`. The literal playbook expectation is written in the tree, mid red experiment. |
+| 970 | `redesign/main` | `b56d1b5e` | `#558`. CHANGES_REQUESTED, one thread. |
 
-Dependabot holds 510, 525 and 526 there. Not this effort.
+`orbit-api`: 528 (`#529`) and 521 (`#526`), both with orders posted. Three Dependabot.
+`orbit-landing-page`: 5 open, none touched by this effort yet.
 
-### `#561` was STOPPED mid-flight, and its work is uncommitted
+### Worktrees needing attention
 
-**This is the single most losable thing in the tree.** Thomas stopped the run while the `#561` worker
-was writing, so there is no commit and no branch record. The worktree
-`C:\Users\thoma\orca\workspaces\orbit-ui-mobile\ticket-561-sheet-nav`, branch
-`fix/ticket-561-sheet-nav`, sits at `0600332b` with **15 modified files, covering all eight sites the
-ticket names plus seven test files**:
-
-    apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx
-    apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx
-    apps/mobile/components/habits/create-habit-modal.tsx
-    apps/mobile/components/habits/edit-habit-modal.tsx
-    apps/mobile/components/habits/reschedule-sheet.tsx
-    apps/mobile/components/navigation/notification-detail-modal.tsx
-    apps/mobile/components/onboarding/calendar-import-prompt.tsx
-    apps/mobile/components/ui/trial-expired-modal.tsx
-    plus the seven matching __tests__ files
-
-Read that diff before doing anything else with `#561`. Do not reset, stash or discard it. It is a
-stopped worker's work, not residue, and no test result was ever captured for it.
-
-### Not started
-
-- `#529`: gate BOTH listing and revoking API keys behind the emailed code, then flip
-  `AppConfigKeys.RequireApiKeyCreationStepUp` to true in `AppConfigs` AFTER the deploy or it ships
-  inert. His answer and the brief are comments on the ticket.
-- `#562`: a weekday-scoped calendar event has NEVER imported on any shipped build. Its interval and
-  ordinal cases are decided as visible refusals, recorded as a comment on the ticket.
-- `#545` stages 2 to 5, 77 suppressions. Its reconciliation comment proves nothing is ownerless.
-- `#63`, `#67`, `#73`, `#76`, `#329`, `#57`, `#58`: the seven screen tickets.
-- `#74`: ordinary copy work.
-
-### Worktree and branch debt
-
-**183 worktrees in ui and 20 in api. Four stashes in ui, none in api.** Seven dirty trees in ui:
-
-    ticket-351-primitives      179 files
-    orb-70-android-widget       34
-    ticket-561-sheet-nav        15   <- STOPPED WORKER, see above, do not touch
-    orb65-red-evidence           4
-    ticket-550-r3-red            4
-    ticket-329-progresso-s5b     2
-    ticket-174-measure           1
-
-Reproduce with `git worktree list` per repo. **Never `git worktree remove --force` on Windows**: it
-follows a junction and deletes the target's contents. `rmdir` the junctions first.
+- `ticket-557-android-login`: 1 unpushed commit, `b4338304`, clean tree. Verify and push.
+- `ticket-560-sweep-order`: DIRTY on purpose, mid red experiment, `wshobson/wcag-audit-patterns`
+  removed from the gates lane and the static orchestrate copy. Finish the experiment, restore, commit.
+- `ticket-73-static`: DIRTY with two unfinished feature-guide test files. Relaunch the worker.
+- The main checkout on `redesign/main`: `.claude/calibration.json` modified, reseeded this session.
+- **Four codex processes were alive at handoff.** Read every worktree before assuming anything.
 
 ### Tickets
 
-131 open carried `repo:ui` and 67 carried `repo:api` at the start of the night. Re-derive:
+**231 open** at 2026-09-17, plus `#585` filed after the count. Re-derive:
 
-    gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 300
+    gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
 
-### The completion gate reads valid, and that is not the same as done
+### Filed this session
 
-`node tools/redesign-coverage.mjs` reports **valid: 184 manifest surfaces accounted for, 14 deleted,
-3 excluded**, run 2026-09-16. It validates the MAPPING and nothing else, and no CI job regenerates
-the manifest it reads. Seven screen tickets are still open. Judge each against its own acceptance
-criteria in the tree before closing it.
+`#571` api freeze provenance, `#572` its UI consumer, `#573` the live Android defect, `#574` habit
+list render counts, `#576` to `#581` the component-library migration and Astra's surface, `#585` the
+harness speed fix. `#329` was closed on verified evidence.
+
+### The suppressed lint violations
+
+`redesign/main` still reads 66 web and 85 mobile. 1008 and 1002 are what collapse it.
 
 ## Open questions
 

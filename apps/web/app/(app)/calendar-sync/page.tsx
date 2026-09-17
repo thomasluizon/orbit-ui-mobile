@@ -328,7 +328,7 @@ function CalendarSyncPageContent() {
               {t('calendar.notConnectedDesc')}
             </p>
           </div>
-          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
+          {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
           <PillButton
             onClick={() => {
               void handleConnect()
@@ -516,7 +516,6 @@ function CalendarSyncPageContent() {
               ))}
             </div>
           )}
-          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <PillButton onClick={() => router.push('/')}>
             {t('calendar.goToHabits')}
           </PillButton>
@@ -559,7 +558,6 @@ function CalendarSyncPageContent() {
             </p>
           </div>
           <div className="flex gap-3">
-            {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
             <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
             <PillButton variant="ghost" onClick={() => goBackOrFallback('/profile')}>
               {t('common.goBack')}

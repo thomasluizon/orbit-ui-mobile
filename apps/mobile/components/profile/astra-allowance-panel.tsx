@@ -70,7 +70,6 @@ export function AstraAllowancePanel({
       </View>
       {!profile.isLifetimePro ? (
         <View style={styles.actionRow}>
-          {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
           <PillButton
             variant="ghost"
             size="sm"
