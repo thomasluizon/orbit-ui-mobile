@@ -851,6 +851,10 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
   ],
 })
 
+/*
+ * These cases resolve production copy, so shortening the catalogs can silently disarm them.
+ * thomasluizon/orbit-tickets#531 owns fixture decoupling from production catalogs.
+ */
 ruleTester.run('max-button-words', rule('max-button-words'), {
   valid: [
     { code: '<PillButton>Log all</PillButton>', options: maxButtonWordsOptions },
@@ -950,9 +954,12 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       ],
     },
     {
-      code: "const { t } = useTranslation(); const button = <PillButton>{t('common.retry')}</PillButton>",
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('auth.signInWithGoogle')}</PillButton>",
       options: maxButtonWordsOptions,
-      errors: [maxWordsError('PillButton', 'Tentar de novo', 'pt-BR', 3)],
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
     },
     {
       code: "const t = useTranslations(); const suggestions = useMemo(() => [t('chat.suggestion.exercise')], [t]); const view = suggestions.map((suggestion) => <button>{suggestion}</button>)",
@@ -971,14 +978,20 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       ],
     },
     {
-      code: "const { t } = useTranslation(); const control = <SegmentedControl options={[{ value: 'retry', label: t('common.retry') }]} />",
+      code: "const { t } = useTranslation(); const control = <SegmentedControl options={[{ value: 'google', label: t('auth.signInWithGoogle') }]} />",
       options: maxButtonWordsOptions,
-      errors: [maxWordsError('SegmentedControl', 'Tentar de novo', 'pt-BR', 3)],
+      errors: [
+        maxWordsError('SegmentedControl', 'Continue with Google', 'en', 3),
+        maxWordsError('SegmentedControl', 'Continuar com o Google', 'pt-BR', 4),
+      ],
     },
     {
-      code: "const { t } = useTranslation(); const row = <ListRow title={t('common.retry')} />",
+      code: "const { t } = useTranslation(); const row = <ListRow title={t('auth.signInWithGoogle')} />",
       options: maxButtonWordsOptions,
-      errors: [maxWordsError('ListRow', 'Tentar de novo', 'pt-BR', 3)],
+      errors: [
+        maxWordsError('ListRow', 'Continue with Google', 'en', 3),
+        maxWordsError('ListRow', 'Continuar com o Google', 'pt-BR', 4),
+      ],
     },
     {
       code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />',
@@ -1009,29 +1022,44 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       ],
     },
     {
-      code: "const t = useTranslations('stepUp'); const sharedView = { t }; function StepUpSuccess({ t }) { return <PillButton>{t('signOut')}</PillButton> } const view = <StepUpSuccess {...sharedView} />",
+      code: "const t = useTranslations('auth'); const sharedView = { t }; function GoogleSignIn({ t }) { return <PillButton>{t('signInWithGoogle')}</PillButton> } const view = <GoogleSignIn {...sharedView} />",
       options: webMaxButtonWordsOptions,
-      errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
     },
     {
-      code: "const t = useTranslations('stepUp'); const StepUpSuccess = ({ t }) => <PillButton>{t('signOut')}</PillButton>; const view = <StepUpSuccess t={t} />",
+      code: "const t = useTranslations('auth'); const GoogleSignIn = ({ t }) => <PillButton>{t('signInWithGoogle')}</PillButton>; const view = <GoogleSignIn t={t} />",
       options: webMaxButtonWordsOptions,
-      errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
     },
     {
-      code: "const t = useTranslations('stepUp'); const StepUpSuccess = function ({ t }) { return <PillButton>{t('signOut')}</PillButton> }; const view = <StepUpSuccess t={t} />",
+      code: "const t = useTranslations('auth'); const GoogleSignIn = function ({ t }) { return <PillButton>{t('signInWithGoogle')}</PillButton> }; const view = <GoogleSignIn t={t} />",
       options: webMaxButtonWordsOptions,
-      errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
     },
     {
-      code: "const t = useTranslations('stepUp'); const StepUpSuccess = function StepUpSuccessImpl({ t }) { return <PillButton>{t('signOut')}</PillButton> }; const view = <StepUpSuccess t={t} />",
+      code: "const t = useTranslations('auth'); const GoogleSignIn = function GoogleSignInImpl({ t }) { return <PillButton>{t('signInWithGoogle')}</PillButton> }; const view = <GoogleSignIn t={t} />",
       options: webMaxButtonWordsOptions,
-      errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
     },
     {
-      code: "const rootT = useTranslations('nav'); const t = useTranslations('stepUp'); const sharedView = { t }; function StepUpSuccess({ t }) { return <PillButton>{t('signOut')}</PillButton> } const view = <StepUpSuccess t={rootT} {...sharedView} />",
+      code: "const rootT = useTranslations('nav'); const t = useTranslations('auth'); const sharedView = { t }; function GoogleSignIn({ t }) { return <PillButton>{t('signInWithGoogle')}</PillButton> } const view = <GoogleSignIn t={rootT} {...sharedView} />",
       options: webMaxButtonWordsOptions,
-      errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
+      errors: [
+        maxWordsError('PillButton', 'Continue with Google', 'en', 3),
+        maxWordsError('PillButton', 'Continuar com o Google', 'pt-BR', 4),
+      ],
     },
   ],
 })

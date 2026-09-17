@@ -56,18 +56,18 @@ describe('AboutPage', () => {
       .getAllByRole('button')
       .map((row) => row.getAttribute('aria-label'))
     expect(destinationLabels).toEqual([
-      'onboarding.featureGuide.openButton',
+      'about.featureGuide',
       'profile.support.title',
-      'terms.title',
-      'privacy.title',
+      'about.terms',
+      'about.privacy',
     ])
 
-    fireEvent.click(destinations.getByRole('button', { name: 'onboarding.featureGuide.openButton' }))
+    fireEvent.click(destinations.getByRole('button', { name: 'about.featureGuide' }))
     expect(mocks.guideOpen).toHaveBeenLastCalledWith(true)
 
     fireEvent.click(destinations.getByRole('button', { name: 'profile.support.title' }))
-    fireEvent.click(destinations.getByRole('button', { name: 'terms.title' }))
-    fireEvent.click(destinations.getByRole('button', { name: 'privacy.title' }))
+    fireEvent.click(destinations.getByRole('button', { name: 'about.terms' }))
+    fireEvent.click(destinations.getByRole('button', { name: 'about.privacy' }))
     expect(mocks.push.mock.calls).toEqual([['/support'], ['/terms'], ['/privacy']])
   })
 

@@ -35,20 +35,20 @@
       "showGeneralDesc": "Mostra seus hábitos gerais abaixo dos agendados para hoje"
     },
     "weekStartDay": {
-      "title": "Semana começa em",
+      "title": "Primeiro dia",
       "description": "Escolha em que dia sua semana começa. Vale para os calendários e seletores.",
       "monday": "Segunda-feira",
       "sunday": "Domingo"
     },
     "theme": {
-      "switchToLight": "Mudar para o modo claro",
-      "switchToDark": "Mudar para o modo escuro"
+      "switchToLight": "Modo claro",
+      "switchToDark": "Modo escuro"
     }
   },
   "notFoundPage": {
     "title": "Esta página não existe",
     "description": "O endereço pode ter mudado, ou o item foi apagado. O seu dia continua onde estava.",
-    "action": "Ir para Hoje"
+    "action": "Abrir Hoje"
   },
   "updatePrompt": {
     "eyebrow": "Atualização disponível",
@@ -64,8 +64,8 @@
     "bellWithCount": "Avisos, {count} sem ler",
     "empty": "Nada para ver aqui",
     "loadError": "Não foi possível carregar as notificações",
-    "markAllRead": "Marcar todas como lidas",
-    "markAsRead": "Marcar como lida",
+    "markAllRead": "Marcar todas",
+    "markAsRead": "Marcar lida",
     "deleteAll": "Limpar tudo",
     "deleteAllConfirmTitle": "Apagar todos os avisos?",
     "deleteAllConfirmDescription": "Todos os avisos saem da lista. Não há como desfazer.",
@@ -84,7 +84,7 @@
     "read": "lido",
     "unread": "sem ler",
     "habit": "Hábito",
-    "openIn": "Abrir em {target}"
+    "openIn": "Abrir {target}"
   },
   "persistentReminder": {
     "label": "Lembrete fixo",
@@ -105,7 +105,7 @@
     "add": "Adicionar",
     "back": "Voltar",
     "backToProfile": "Voltar ao perfil",
-    "backToTop": "Voltar ao topo",
+    "backToTop": "Ao topo",
     "skipToContent": "Pular para o conteúdo principal",
     "goHome": "Ir ao início",
     "cancel": "Cancelar",
@@ -132,7 +132,7 @@
     "search": "Buscar...",
     "error": "Ocorreu um erro",
     "somethingWentWrong": "Algo deu errado",
-    "retry": "Tentar de novo",
+    "retry": "Tentar novamente",
     "selected": "{n} selecionado | {n} selecionados",
     "selectedSuffix": "selecionado | selecionados",
     "selectAll": "Selecionar tudo",
@@ -154,7 +154,7 @@
     "locked": "Bloqueado",
     "required": "é obrigatório",
     "selectDate": "Selecionar data",
-    "selectedDate": "Data selecionada: {date}",
+    "selectedDate": "Data {date}",
     "selectTime": "Selecionar horário",
     "selectedTime": "Horário selecionado: {time}",
     "hours": "Horas",
@@ -341,9 +341,9 @@
     "codeSentTo": "Enviamos 6 dígitos para {email}.",
     "verificationCode": "Código de 6 dígitos",
     "verify": "Entrar",
-    "resendCode": "Enviar outro código",
+    "resendCode": "Reenviar código",
     "resendIn": "Você pode pedir outro código em {time}",
-    "changeEmail": "Trocar de email",
+    "changeEmail": "Trocar email",
     "minutesShort": "faltam {minutes} min",
     "genericError": "Ocorreu um erro. Tente de novo.",
     "orContinueWith": "ou",
@@ -395,7 +395,7 @@
     "accountBack": {
       "title": "A sua conta está de volta",
       "body": "O pedido de exclusão foi cancelado quando você entrou.",
-      "action": "Ver o meu dia"
+      "action": "Meu dia"
     }
   },
   "habits": {
@@ -422,7 +422,7 @@
       "searching": "Buscando",
       "emptyTitle": "Nada encontrado para <queryText>“{query}”</queryText>",
       "emptyBody": "Nenhum hábito com esse nome, essa descrição ou essa etiqueta.",
-      "create": "Criar com esse nome",
+      "create": "Criar hábito",
       "count": "{count, plural, one {# hábito} other {# hábitos}}",
       "count_one": "{count} hábito",
       "count_other": "{count} hábitos",
@@ -489,14 +489,14 @@
       "title": "Reagendar com IA",
       "loading": "Buscando um novo plano realista…",
       "error": "Não foi possível sugerir um novo plano.",
-      "retry": "Tentar de novo",
-      "accept": "Usar este plano",
+      "retry": "Tentar novamente",
+      "accept": "Usar plano",
       "dismiss": "Agora não",
       "proposedScheduleLabel": "Agenda sugerida",
       "freePrompt": "O Pro transforma um hábito perdido em um plano realista para voltar aos trilhos.",
       "upgrade": "Fazer upgrade"
     },
-    "backToHabits": "Voltar para todos os hábitos",
+    "backToHabits": "Hábitos",
     "completed": "concluídos",
     "drillProgress": "{done} de {total} feitos",
     "skipConfirmTitle": "Pular hábito",
@@ -621,10 +621,10 @@
       "emojiSuggest": "Sugerir um emoji",
       "emojiSuggesting": "Buscando um emoji…",
       "emojiDescription": "Escolha um emoji para esse hábito",
-      "emojiOpenPicker": "Escolher emoji do hábito",
+      "emojiOpenPicker": "Escolher emoji",
       "emojiPickerTitle": "Escolha um emoji",
       "emojiSearchPlaceholder": "Buscar emojis...",
-      "emojiClearSearch": "Limpar busca de emoji",
+      "emojiClearSearch": "Limpar busca",
       "emojiCategories": "Categorias de emoji",
       "emojiPickerEmpty": "Nenhum emoji encontrado",
       "emojiRemove": "Remover emoji",
@@ -676,7 +676,7 @@
       "reminderUnitDays": "dias",
       "scheduledReminder": "Me lembrar",
       "scheduledReminderDayBefore": "Dia anterior",
-      "scheduledReminderSameDay": "No mesmo dia",
+      "scheduledReminderSameDay": "Mesmo dia",
       "scheduledReminderDayBeforeAt": "Dia anterior às {time}",
       "scheduledReminderSameDayAt": "No mesmo dia às {time}",
       "scheduledReminderAdd": "Adicionar lembrete",
@@ -723,10 +723,10 @@
       "templates": "Modelos",
       "noTemplates": "Nenhum modelo salvo",
       "noTemplatesDescription": "Salve uma lista para reusar em outro hábito.",
-      "saveCurrentList": "Salvar lista atual",
+      "saveCurrentList": "Salvar lista",
       "saveCurrentListDisabled": "Adicione um item à lista primeiro.",
       "templateItemCount": "{count, plural, one {# item} other {# itens}}",
-      "saveAsTemplate": "Salvar como modelo",
+      "saveAsTemplate": "Salvar modelo",
       "templateNamePlaceholder": "ex: Compras da semana",
       "saveTemplateError": "Não foi possível salvar o modelo. Tente de novo.",
       "deleteTemplateError": "Não foi possível excluir o modelo. Tente de novo.",
@@ -734,15 +734,15 @@
       "clearChecklist": "Limpar tudo",
       "duplicateChecklistItem": "Duplicar item",
       "removeChecklistItem": "Remover item",
-      "moveChecklistItemUp": "Mover item para cima",
-      "moveChecklistItemDown": "Mover item para baixo",
+      "moveChecklistItemUp": "Subir item",
+      "moveChecklistItemDown": "Descer item",
       "checklistItemLabel": "Item {n}",
       "checklistItemLimit": "Você pode adicionar até 50 itens no checklist",
       "checklistItemTooLong": "Cada item do checklist pode ter no máximo 500 caracteres",
       "removeEndDate": "Remover data de término",
       "removeReminder": "Remover lembrete",
       "reminderLastRequired": "O último lembrete fica. Para nenhum, desligue os lembretes.",
-      "removeScheduledReminder": "Remover lembrete agendado",
+      "removeScheduledReminder": "Remover lembrete",
       "removeSubHabit": "Remover sub-hábito",
       "editTag": "Editar tag",
       "deleteTag": "Excluir tag",
@@ -816,9 +816,9 @@
       "noValue": "Não definido",
       "delete": "Excluir hábito",
       "proGate": "Pro",
-      "slipAlert": "Alerta de deslize",
+      "slipAlert": "Avisar deslize",
       "slipAlertDescription": "Um aviso quando este hábito começa a escapar.",
-      "rescheduleAccept": "Usar este plano",
+      "rescheduleAccept": "Usar plano",
       "rescheduleLoading": "Buscando um plano realista...",
       "rescheduleError": "A Astra não conseguiu sugerir um plano.",
       "updateError": "Não foi possível salvar esta alteração. Tente novamente.",
@@ -925,7 +925,7 @@
       "action": "Ver o Pro"
     },
     "noHabitsScheduled": "Nenhum hábito estava programado neste dia.",
-    "goToDay": "Abrir este dia no Hoje",
+    "goToDay": "Abrir dia",
     "goToCurrentMonth": "Ir para o mês atual",
     "goToCurrentWeek": "Ir para a semana atual",
     "view": {
@@ -972,11 +972,11 @@
     "importDone": "Importação concluída",
     "importedCount": "{count} evento importado como hábito | {count} eventos importados como hábitos",
     "importPartialFailure": "{count} evento não pôde ser importado | {count} eventos não puderam ser importados",
-    "goToHabits": "Ir para Hábitos",
+    "goToHabits": "Abrir hábitos",
     "errorTitle": "Algo deu errado",
     "fetchError": "Não foi possível buscar os eventos. Tente de novo.",
     "importError": "Não foi possível importar os eventos. Tente de novo.",
-    "retry": "Tentar de novo",
+    "retry": "Tentar novamente",
     "recurring": "Recorrente",
     "recurrenceDaily": "Diário",
     "recurrenceWeekly": "Semanal",
@@ -1281,9 +1281,9 @@
     "settingsRows": {
       "editName": "Editar nome: {name}, {email}",
       "timezone": "Fuso horário",
-      "timezoneValue": "Fuso horário: {timeZone}",
+      "timezoneValue": "Fuso {timeZone}",
       "dailyAllowance": "Cota diária da Astra",
-      "apiKeysMcp": "Chaves de API e MCP",
+      "apiKeysMcp": "Chaves API",
       "reminders": "Lembretes dos hábitos",
       "remindersNote": "Lembretes e alertas de deslize são configurados em cada hábito.",
       "currentDevice": "Este aparelho",
@@ -1296,7 +1296,7 @@
       "plan": "Plano",
       "free": "Grátis",
       "pro": "Pro",
-      "seePro": "Ver o Pro",
+      "seePro": "Ver Pro",
       "manageSubscription": "Gerir assinatura"
     },
     "apiKeys": {
@@ -1350,11 +1350,11 @@
       "description": "Escolha seu idioma"
     },
     "aiSummary": {
-      "title": "Resumo do dia pelo Astra",
+      "title": "Resumo diário",
       "description": "Com isso ativado, o Orbit cria um resumo personalizado do seu dia na tela de hábitos."
     },
     "proactiveAstra": {
-      "title": "Astra avisa quando algo escapa",
+      "title": "Alertas Astra",
       "description": "Deixe a Astra te procurar com um empurrãozinho personalizado quando você ficar para trás, mesmo que você esqueça de abrir o app."
     },
     "marketingEmails": {
@@ -1783,7 +1783,7 @@
         "habitSummary": "{count} hábitos prontos",
         "habitSummaryOne": "1 hábito pronto",
         "cta": "Criar conta e salvar",
-        "haveAccount": "Já tenho uma conta"
+        "haveAccount": "Entrar"
       },
       "createHabit": {
         "title": "Crie seu primeiro hábito",
@@ -1793,7 +1793,7 @@
         "create": "Criar hábito",
         "creating": "Criando...",
         "success": "Hábito criado",
-        "useForm": "Usar o formulário",
+        "useForm": "Usar formulário",
         "starters": "Ou experimente",
         "frequency": {
           "daily": "Diário",
@@ -1810,7 +1810,7 @@
       "complete": {
         "title": "Tudo pronto",
         "subtitle": "É tudo de verdade. Seu hábito e seu progresso já estão salvos.",
-        "start": "Começar a usar o Orbit",
+        "start": "Abrir Orbit",
         "recap": {
           "habit": "Hábito criado"
         },
@@ -2064,7 +2064,7 @@
       "renewalNote": "A assinatura renova automaticamente no fim de cada período.",
       "loading": "Buscando os valores",
       "error": "Não foi possível carregar os preços",
-      "retry": "Tentar de novo"
+      "retry": "Tentar novamente"
     },
     "billing": {
       "plan": {
@@ -2121,7 +2121,7 @@
         "opening": "Abrindo configurações de cobrança"
       },
       "error": "Não foi possível carregar os detalhes de cobrança",
-      "retry": "Tentar de novo",
+      "retry": "Tentar novamente",
       "portalFailed": "O portal não abriu.",
       "portalReturned": "Detalhes da assinatura atualizados",
       "offline": "Você está sem conexão. Reconecte para gerenciar a cobrança.",
@@ -2135,7 +2135,7 @@
         "lostCalendar": "A agenda do Google não sincroniza mais.",
         "lostRetrospective": "A retrospectiva do período parou.",
         "paymentFix": "Atualize a forma de pagamento no provedor.",
-        "action": "Assinar de novo",
+        "action": "Assinar novamente",
         "ended": "A sua assinatura terminou em {date}.",
         "body": "A conta voltou para o plano grátis. Os seus hábitos, registros e metas continuam aqui, sem mudança."
       },
@@ -2320,8 +2320,8 @@
     "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
     "retry": "Tentar novamente",
     "empty": "Nada para medir ainda",
-    "emptyAction": "Começar um hábito",
-    "startHabit": "Ir para hábitos",
+    "emptyAction": "Criar hábito",
+    "startHabit": "Ver hábitos",
     "sections": {
       "streak": "Sequência",
       "goals": "Metas",
@@ -2370,7 +2370,7 @@
       "abandoned": "Abandonadas",
       "empty": "Ainda não há metas. Um hábito é o próximo passo útil.",
       "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
-      "clearFilter": "Mostrar todas as metas",
+      "clearFilter": "Todas",
       "progress": "{current} / {target} {unit}",
       "position": "Posição {position} de {total}",
       "accessibleLabel": "{title}. {state}. {progress}. {position}",
@@ -2627,7 +2627,7 @@
     "codeHint": "O código vale 10 minutos.",
     "confirm": "Confirmar",
     "checking": "Conferindo",
-    "resend": "Enviar outro código",
+    "resend": "Reenviar código",
     "cooldown": "Você pode pedir outro em {time}",
     "wrong": "O código não confere.",
     "attemptsOne": "Você tem 1 tentativa restante nos próximos 15 minutos.",
@@ -2642,7 +2642,7 @@
     "successTitle": "A conta encerra em {date}",
     "successBody": "Até lá, entrar de novo cancela o encerramento e a conta volta inteira.",
     "successPro": "A exclusão desta conta Pro está agendada para {date}.",
-    "signOut": "Sair da conta",
+    "signOut": "Sair",
     "neverShare": "O Orbit nunca pede este código em uma conversa, nem por email ou mensagem. Ele só é pedido aqui.",
     "cancel": "Cancelar esta ação",
     "genericError": "Não foi possível conferir o código. Tente de novo.",
@@ -2656,7 +2656,7 @@
     "description": "Conecte ferramentas de IA como o Claude à sua conta Orbit pelo MCP",
     "apiKeys": "Chaves de API",
     "apiKeysDescription": "As chaves de API deixam ferramentas externas acessarem seus dados do Orbit",
-    "createKey": "Criar chave de API",
+    "createKey": "Criar chave",
     "createKeyShort": "Nova chave",
     "createHeading": "Criar chave de API",
     "revealHeading": "Chave de API criada",
@@ -2712,6 +2712,9 @@
   },
   "about": {
     "title": "Sobre e Ajuda",
+    "featureGuide": "Recursos",
+    "terms": "Termos",
+    "privacy": "Privacidade",
     "version": "Versão {version}",
     "tagline": "Uma IA que acompanha hábitos, para quem não consegue manter uma rotina.",
     "versionLabel": "Versão",
@@ -2743,7 +2746,7 @@
   "forceUpdate": {
     "title": "Esta versão do Orbit parou de funcionar",
     "description": "Atualize na loja para voltar a usar.",
-    "cta": "Atualizar na loja",
+    "cta": "Abrir loja",
     "banner": "Uma versão nova do Orbit está pronta",
     "refresh": "Recarregar",
     "versions": "A versão instalada é a {currentVersion} e o servidor já pede a {minVersion}. Atualize na loja para voltar a usar.",
@@ -2854,7 +2857,7 @@
     }
   },
   "dataExport": {
-    "button": "Exportar os meus dados",
+    "button": "Exportar dados",
     "preparing": "Preparando",
     "done": "Os seus dados foram baixados.",
     "error": "Não foi possível preparar sua exportação. Tente de novo.",
@@ -2886,7 +2889,7 @@
   "errorScreen": {
     "title": "O pedido não terminou",
     "body": "Tente de novo, e se continuar, saia e entre de novo na conta.",
-    "retry": "Tentar de novo",
+    "retry": "Tentar novamente",
     "reference": "ref {requestId}",
     "throttleTitle": "Muitos pedidos em pouco tempo",
     "throttleBody": "O servidor pediu para esperar antes do próximo pedido."
