@@ -276,6 +276,18 @@ describe('Android widget header', () => {
     expect(views.has('widget_flame')).toBe(false)
   })
 
+  it('hides a zero streak without reserving its group and shows a positive streak', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const buildWidgetViews = kotlinFunctionBody(provider, 'buildWidgetViews')
+
+    expect(buildWidgetViews).toContain(
+      'val streakVisible = if (streak > 0) View.VISIBLE else View.GONE',
+    )
+    expect(buildWidgetViews).toContain(
+      'views.setViewVisibility(R.id.widget_streak_group, streakVisible)',
+    )
+  })
+
   /**
    * The drawing renders the day label in fg-3 and the subtitle in fg-4. fg-4 measures 2.83 dark
    * and 3.48 light as 11sp text, both under the 4.5 floor, so the subtitle holds fg-3 and the
@@ -491,6 +503,24 @@ describe('Android widget header', () => {
     )
     expect(provider).toContain('applyRefreshingState(views, refreshing)')
     expect(provider).not.toContain('setFloat(R.id.widget_content, "setAlpha"')
+  })
+
+  it('keeps cached rows and cache metadata when a refresh fetch fails', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const resolveWidgetData = kotlinFunctionBody(service, 'resolveWidgetData')
+    const loadWidgetData = kotlinFunctionBody(service, 'loadWidgetData')
+    const cacheWrites = preferenceWriteChains(resolveWidgetData)
+
+    expect(cacheWrites).toHaveLength(1)
+    expect(cacheWrites[0]).toContain('.putString("habits_json", freshJson)')
+    expect(cacheWrites[0]).toContain('.putString("habits_session", session)')
+    expect(cacheWrites[0]).toContain('.putLong("habits_updated_at", System.currentTimeMillis())')
+    expect(resolveWidgetData).toMatch(
+      /if \(freshData != null && freshJson != null\) \{[\s\S]*?\.apply\(\)\s*return freshData\s*\}\s*return cachedData\s*$/,
+    )
+    expect(loadWidgetData).toMatch(
+      /val widgetData = resolveWidgetData\(token\)[\s\S]*?if \(widgetData == null\) \{[\s\S]*?return\s*\}[\s\S]*?habits = dayState\.habits[\s\S]*?renderWidgets\(\)/,
+    )
   })
 
   it('renders an accessible remainder item and hides only time on the narrow variant', () => {

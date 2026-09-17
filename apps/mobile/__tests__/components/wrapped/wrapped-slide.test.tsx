@@ -38,6 +38,7 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
         tokens={tokens}
         shareRef={{ current: null }}
         shareError={false}
+        savedFileName={null}
       />,
     )
   })
@@ -167,6 +168,7 @@ describe('mobile WrappedSlide', () => {
           tokens={tokens}
           shareRef={{ current: null }}
           shareError
+          savedFileName={null}
         />,
       )
     })
@@ -177,6 +179,41 @@ describe('mobile WrappedSlide', () => {
       ),
     ).toHaveLength(1)
     expect(tree.root.findAll((node) => String(node.type) === 'ShareCard')).toHaveLength(1)
+  })
+
+  it('states the file name after the share card is saved', () => {
+    const share = buildWrappedSlides(recap).find((slide) => slide.id === 'share')!
+    let tree!: ReactTestRenderer
+    void renderer.act(() => {
+      tree = renderer.create(
+        <WrappedSlide
+          slide={share}
+          recap={recap}
+          period="week"
+          tokens={tokens}
+          shareRef={{ current: null }}
+          shareError={false}
+          savedFileName="orbit-recap.png"
+        />,
+      )
+    })
+
+    const status = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite',
+    )
+    expect(status).toHaveLength(1)
+    expect(status[0]!.props.children).toBe('shareCard.saved:{"file":"orbit-recap.png"}')
+  })
+
+  it('keeps an empty save status mounted before a file is saved', () => {
+    const share = buildWrappedSlides(recap).find((slide) => slide.id === 'share')!
+    const tree = renderSlide(share)
+
+    const status = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite',
+    )
+    expect(status).toHaveLength(1)
+    expect(status[0]!.props.children).toBe('')
   })
 
   it('starts every page part 16px low at full opacity on the shared timing scale', () => {

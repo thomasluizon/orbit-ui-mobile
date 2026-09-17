@@ -16,9 +16,8 @@ export function useLogout(): () => Promise<void> {
   const router = useRouter()
   const logout = useAuthStore((state) => state.logout)
   return useCallback(async () => {
-    try {
-      await logout()
-    } finally {
+    const didLogout = await logout()
+    if (didLogout) {
       router.replace('/login')
     }
   }, [logout, router])

@@ -58,6 +58,7 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
       period="week"
       captureRef={{ current: null }}
       shareError={false}
+      savedFileName={null}
     />,
   )
 }
@@ -154,11 +155,37 @@ describe('WrappedSlide', () => {
         period="week"
         captureRef={{ current: null }}
         shareError
+        savedFileName={null}
       />,
     )
 
     expect(screen.getByRole('alert')).toHaveTextContent('shareCard.shareError')
     expect(screen.getByTestId('share-card')).toBeInTheDocument()
+  })
+
+  it('states the file name after the share card is saved', () => {
+    const share = buildWrappedSlides(recap).find((slide) => slide.id === 'share')!
+    render(
+      <WrappedSlide
+        slide={share}
+        recap={recap}
+        period="week"
+        captureRef={{ current: null }}
+        shareError={false}
+        savedFileName="orbit-recap.png"
+      />,
+    )
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'shareCard.saved:{"file":"orbit-recap.png"}',
+    )
+  })
+
+  it('keeps an empty save status mounted before a file is saved', () => {
+    const share = buildWrappedSlides(recap).find((slide) => slide.id === 'share')!
+    renderSlide(share)
+
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('starts every page part 16px low at full opacity on the shared timing scale', () => {

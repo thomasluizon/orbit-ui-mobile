@@ -286,7 +286,6 @@ function StepUpSuccess({
 }>) {
   return (
     <FlowShell nav={false} action={
-      /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
       <PillButton onClick={onSignOut}>{t('signOut')}</PillButton>
     }>
       <StepUpHeader operationLabel={operationLabel} t={t} title={t('successTitle', { date: deletionDate })} />

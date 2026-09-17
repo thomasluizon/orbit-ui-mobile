@@ -48,7 +48,6 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
     return (
       <View style={styles.errorState}>
         <Text accessibilityRole="alert" style={[styles.message, { color: tokens.statusBadText }]}>{t('orbitMcp.apiKeysError')}</Text>
-        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
         <PillButton size="sm" variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
       </View>
     )

@@ -141,7 +141,7 @@ describe('mobile search', () => {
     await type('yoga')
     expect(text()).toContain('“yoga”')
     expect(text()).toContain('No habit with that name, that description or that tag.')
-    await pressText('Create with that name')
+    await pressText('Create habit')
     expect(host('CreateForm').props.initialTitle).toBe('yoga')
   })
 
@@ -206,7 +206,7 @@ describe('mobile search', () => {
     await pressText('Log a habit')
     await type('zzz')
     expect(text()).toContain('Nothing by that name.')
-    expect(text()).not.toContain('Create with that name')
+    expect(text()).not.toContain('Create habit')
   })
 
   it('pages past twenty and resets the page when the query changes', async () => {
