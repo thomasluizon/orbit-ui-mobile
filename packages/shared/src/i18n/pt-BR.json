@@ -1545,6 +1545,7 @@
     "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
     "error": "Não foi possível carregar seu resumo. Tente novamente.",
     "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
+    "saved": "Salvo como {file}",
     "weeklyBarLabel": "Conclusão em {day}: {percent}%",
     "periods": {
       "week": "Semana",
