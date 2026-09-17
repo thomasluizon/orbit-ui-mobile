@@ -31,7 +31,13 @@ vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingG
 vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => ({ composerProps: {} }) }))
-vi.mock('@/stores/onboarding-draft-store', () => ({ useOnboardingDraftHydrated: () => true, useOnboardingHasPendingAnswers: () => false }))
+vi.mock('@/stores/onboarding-draft-store', () => ({
+  useOnboardingDraftHydrated: () => true,
+  useOnboardingHasPendingAnswers: () => false,
+  useOnboardingDraftStore: (
+    selector: (state: { pushRegistrationFailed: boolean }) => unknown,
+  ) => selector({ pushRegistrationFailed: false }),
+}))
 vi.mock('@/lib/actions/calendar', () => ({ dismissCalendarImport: vi.fn() }))
 vi.mock('@/lib/actions/onboarding', () => ({ dismissImportPrompt: vi.fn() }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
