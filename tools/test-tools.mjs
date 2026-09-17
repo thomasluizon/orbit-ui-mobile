@@ -337,9 +337,10 @@ T(
   `case modules that asserted nothing: ${silent.join(", ")}\n     An assertion that stops running prints nothing at all. Restore the cases.`,
 )
 
+const printedTally = assertionTally()
 const failures = failureCount()
 console.log("\n# assertion coverage")
-for (const [tool, count] of Object.entries(tally).sort(([left], [right]) => left.localeCompare(right))) {
+for (const [tool, count] of Object.entries(printedTally).sort(([left], [right]) => left.localeCompare(right))) {
   console.log(`${String(count).padStart(4)}  ${tool}`)
 }
 console.log(`\n${failures === 0 ? "ORBIT TOOLS GATE OK" : `ORBIT TOOLS GATE FAILED (${failures})`}`)

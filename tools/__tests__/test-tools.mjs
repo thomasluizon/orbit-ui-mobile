@@ -5,6 +5,11 @@ const assertionCount = (result) => {
   return match ? Number(match[1]) : null
 }
 
+const talliedRows = (result) => {
+  const table = result.stdout.split("# assertion coverage")[1] ?? ""
+  return [...table.matchAll(/^\s*(\d+)\s+(\S+)$/gm)].map(([, count, tool]) => ({ tool, count: Number(count) }))
+}
+
 export async function cases() {
   const focused = run("test-tools.mjs", ["--only", "bounded-process"])
   T("test-tools.mjs: --only runs the named case module", focused.status === 0, focused.stderr || focused.stdout)
@@ -18,6 +23,15 @@ export async function cases() {
     "test-tools.mjs: a focused success keeps the gate verdict and prints its measurements",
     /ORBIT TOOLS GATE OK/.test(focused.stdout) && assertionCount(focused) !== null,
     focused.stdout,
+  )
+
+
+  const rows = talliedRows(focused)
+  const rowSum = rows.reduce((total, row) => total + row.count, 0)
+  T(
+    "test-tools.mjs: the printed tally rows sum to the reported assertion count",
+    rows.length > 0 && rowSum === assertionCount(focused),
+    `rows ${rows.map((row) => `${row.tool}=${row.count}`).join(" ")} sum to ${rowSum}, reported ${assertionCount(focused)}`,
   )
 
   const repeated = run("test-tools.mjs", ["--only", "bounded-process", "--only", "manual-steps"])
