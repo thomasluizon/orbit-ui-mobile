@@ -1192,7 +1192,7 @@ T("progress: a closed stacked parent is never reported as the integration branch
   resolvesEveryState: progressSkill.includes("gh pr list --head <candidate> --state all"),
   followsOpenAndMergedParents: progressSkill.includes("`OPEN` or `MERGED`"),
   refusesClosedParent: /never report that head as the integration\s+branch/.test(progressSkill),
-  terminatesOnAnEmptyArray: /An empty array means the candidate is no pull request's\s+head/.test(progressSkill),
+  terminatesOnAnEmptyArray: /An empty array, or one left empty by that filter, means the candidate is no pull request's\s+head/.test(progressSkill),
 }, { resolvesEveryState: true, followsOpenAndMergedParents: true, refusesClosedParent: true, terminatesOnAnEmptyArray: true })
 
 /**
@@ -1206,6 +1206,17 @@ T("progress: a reused head has exactly one deterministic rule", {
   twoOpenRowsAreTheAmbiguity: /Two or more rows are `OPEN`: that is the ambiguity/.test(progressSkill),
   noContradictoryDuplicateRule: !progressSkill.includes("A duplicate matching head or a cycle is ambiguity"),
 }, { oneOpenRowDecides: true, highestNumberWhenNoneOpen: true, twoOpenRowsAreTheAmbiguity: true, noContradictoryDuplicateRule: true })
+
+/**
+ * `--head` filters on the branch NAME only, and its own help says `<owner>:<branch>` is not
+ * supported. On a public repository a fork's pull request carrying the same branch name is
+ * therefore in the listing, and following its base walks into a stranger's branch.
+ */
+T("progress: a fork's pull request is never read as a stacked parent", {
+  requestsTheField: progressSkill.includes("isCrossRepository"),
+  dropsForkRowsFirst: /Drop every row whose `isCrossRepository` is true, before anything else/.test(progressSkill),
+  saysWhyTheFilterIsNeeded: /`--head` filters on\s+the branch NAME only/.test(progressSkill),
+}, { requestsTheField: true, dropsForkRowsFirst: true, saysWhyTheFilterIsNeeded: true })
 
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by

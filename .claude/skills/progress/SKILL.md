@@ -51,11 +51,18 @@ repository whose work you report, using one base-chain rule:
    be closed while it is still the child's recorded base:
 
    ```bash
-   gh pr list --head <candidate> --state all --limit 10 --json number,state,baseRefName
+   gh pr list --head <candidate> --state all --limit 10 \
+     --json number,state,baseRefName,isCrossRepository
    ```
 
-   An empty array means the candidate is no pull request's head, and that candidate is the
-   integration branch.
+   **Drop every row whose `isCrossRepository` is true, before anything else.** `--head` filters on
+   the branch NAME only and its own help says the `<owner>:<branch>` form is not supported, so on a
+   public repository a FORK's pull request carrying the same branch name comes back in this
+   listing. A fork's pull request is never this repository's stacked parent, and following its
+   `baseRefName` would walk into a stranger's branch.
+
+   An empty array, or one left empty by that filter, means the candidate is no pull request's head
+   in this repository, and that candidate is the integration branch.
 
    **One row decides it, and which row is deterministic.** A branch name can be reused, so this
    listing returning several rows is normal rather than ambiguous:
