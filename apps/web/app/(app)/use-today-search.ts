@@ -7,6 +7,7 @@ export interface TodaySearch {
   localSearchQuery: string
   searchOpen: boolean
   setLocalSearchQuery: (value: string) => void
+  closeSearch: () => void
   toggleSearch: () => void
 }
 
@@ -32,12 +33,20 @@ export function useTodaySearch(): TodaySearch {
     }
   }, [localSearchQuery, setSearchQuery])
 
-  const toggleSearch = useCallback(() => {
-    if (searchOpen && localSearchQuery) {
-      setLocalSearchQuery('')
-    }
-    setSearchOpen((open) => !open)
-  }, [searchOpen, localSearchQuery])
+  const closeSearch = useCallback(() => {
+    setLocalSearchQuery('')
+    setSearchQuery('')
+    setSearchOpen(false)
+  }, [setSearchQuery])
 
-  return { localSearchQuery, searchOpen, setLocalSearchQuery, toggleSearch }
+  const toggleSearch = useCallback(() => {
+    if (searchOpen) {
+      closeSearch()
+      return
+    }
+
+    setSearchOpen(true)
+  }, [closeSearch, searchOpen])
+
+  return { localSearchQuery, searchOpen, setLocalSearchQuery, closeSearch, toggleSearch }
 }

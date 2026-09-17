@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useTodayViewSync, type TodayViewSyncParams } from '@/app/(app)/use-today-view-sync'
 
-function makeParams(overrides: Partial<TodayViewSyncParams> = {}): TodayViewSyncParams {
+function makeParams(
+  overrides: Partial<TodayViewSyncParams> = {},
+): TodayViewSyncParams {
   return {
     pinnedDateStr: null,
     searchQueryStore: '',
@@ -10,7 +12,7 @@ function makeParams(overrides: Partial<TodayViewSyncParams> = {}): TodayViewSync
     isSelectMode: false,
     setActiveView: vi.fn(),
     setLocalSearchQuery: vi.fn(),
-    setSearchQuery: vi.fn(),
+    closeSearch: vi.fn(),
     clearSelection: vi.fn(),
     ...overrides,
   }
@@ -18,26 +20,26 @@ function makeParams(overrides: Partial<TodayViewSyncParams> = {}): TodayViewSync
 
 describe('useTodayViewSync', () => {
   it('clears the search query when a pinned date is deep-linked', () => {
-    const setSearchQuery = vi.fn()
-    const initial = makeParams({ setSearchQuery })
+    const closeSearch = vi.fn()
+    const initial = makeParams({ closeSearch })
     const { rerender } = renderHook((props: TodayViewSyncParams) => useTodayViewSync(props), {
       initialProps: initial,
     })
 
-    rerender(makeParams({ setSearchQuery, pinnedDateStr: '2026-07-20' }))
+    rerender(makeParams({ closeSearch, pinnedDateStr: '2026-07-20' }))
 
-    expect(setSearchQuery).toHaveBeenCalledWith('')
+    expect(closeSearch).toHaveBeenCalledTimes(1)
   })
 
   it('clears the search query when the active view changes', () => {
-    const setSearchQuery = vi.fn()
-    const initial = makeParams({ setSearchQuery })
+    const closeSearch = vi.fn()
+    const initial = makeParams({ closeSearch })
     const { rerender } = renderHook((props: TodayViewSyncParams) => useTodayViewSync(props), {
       initialProps: initial,
     })
 
-    rerender(makeParams({ setSearchQuery, activeView: 'all' }))
+    rerender(makeParams({ closeSearch, activeView: 'all' }))
 
-    expect(setSearchQuery).toHaveBeenCalledWith('')
+    expect(closeSearch).toHaveBeenCalledTimes(1)
   })
 })

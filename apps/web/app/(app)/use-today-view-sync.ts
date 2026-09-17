@@ -9,7 +9,7 @@ export interface TodayViewSyncParams {
   isSelectMode: boolean
   setActiveView: (view: 'today') => void
   setLocalSearchQuery: (value: string) => void
-  setSearchQuery: (value: string) => void
+  closeSearch: () => void
   clearSelection: () => void
 }
 
@@ -26,7 +26,7 @@ export function useTodayViewSync({
   isSelectMode,
   setActiveView,
   setLocalSearchQuery,
-  setSearchQuery,
+  closeSearch,
   clearSelection,
 }: TodayViewSyncParams) {
   const [previousPinnedDateStr, setPreviousPinnedDateStr] = useState<string | null>(null)
@@ -35,7 +35,7 @@ export function useTodayViewSync({
     // react-doctor-disable-next-line no-prop-callback-in-render -- documented adjusting-state-during-render sync: idempotent store setter guarded by a prev-value check https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     if (pinnedDateStr) setActiveView('today')
     // react-doctor-disable-next-line no-prop-callback-in-render -- documented adjusting-state-during-render sync: idempotent store setter guarded by a prev-value check https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    setSearchQuery('')
+    closeSearch()
   }
 
   const [previousStoreSearch, setPreviousStoreSearch] = useState(searchQueryStore)
@@ -51,6 +51,6 @@ export function useTodayViewSync({
     // react-doctor-disable-next-line no-prop-callback-in-render -- documented adjusting-state-during-render sync: idempotent store setter guarded by a prev-value check https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     if (isSelectMode) clearSelection()
     // react-doctor-disable-next-line no-prop-callback-in-render -- documented adjusting-state-during-render sync: idempotent store setter guarded by a prev-value check https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    setSearchQuery('')
+    closeSearch()
   }
 }

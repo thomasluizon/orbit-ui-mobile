@@ -40,11 +40,10 @@ export interface TodayDate {
  * date, the localized day label and its enter animation, day-to-day navigation,
  * and the horizontal swipe gesture. Extracted from TodayScreen unchanged.
  */
-export function useTodayDate(): TodayDate {
+export function useTodayDate(closeSearch: () => void): TodayDate {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const setActiveView = useUIStore((s) => s.setActiveView);
-  const setSearchQuery = useUIStore((s) => s.setSearchQuery);
   const { date } = useLocalSearchParams<{ date?: string | string[] }>();
 
   const [slideDirection, setSlideDirection] = useState<"left" | "right">(
@@ -71,22 +70,22 @@ export function useTodayDate(): TodayDate {
 
   const goToPreviousDay = useCallback(() => {
     setSlideDirection("left");
-    setSearchQuery("");
+    closeSearch();
     router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`);
-  }, [router, selectedDate, setSearchQuery]);
+  }, [closeSearch, router, selectedDate]);
 
   const goToNextDay = useCallback(() => {
     setSlideDirection("right");
-    setSearchQuery("");
+    closeSearch();
     router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`);
-  }, [router, selectedDate, setSearchQuery]);
+  }, [closeSearch, router, selectedDate]);
 
   const goToToday = useCallback(() => {
     setSlideDirection(selectedDate > new Date() ? "left" : "right");
     setActiveView("today");
-    setSearchQuery("");
+    closeSearch();
     router.navigate("/");
-  }, [router, selectedDate, setActiveView, setSearchQuery]);
+  }, [closeSearch, router, selectedDate, setActiveView]);
 
   useEffect(() => {
     let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
