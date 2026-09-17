@@ -1,4 +1,6 @@
-import { check, stage } from "./_harness.mjs"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+import { check, REPO_ROOT, stage, T } from "./_harness.mjs"
 import { renderReviewEvidenceBlock } from "../lib/review-harness.mjs"
 
 const UI_CHANGE = ["apps/web/components/today/habit-row.tsx", "apps/mobile/components/today/habit-row.tsx"].join("\n")
@@ -42,6 +44,13 @@ const args = (label, body, changed, base = "redesign/main") => [
 ]
 
 export const cases = () => {
+  const pullRequestTemplate = readFileSync(join(REPO_ROOT, ".github", "pull_request_template.md"), "utf8")
+  T(
+    "check-review-harness.mjs: the pull request template carries the generated review evidence block verbatim",
+    pullRequestTemplate.includes(TEMPLATE_BLOCK),
+    `expected .github/pull_request_template.md to contain:\n${TEMPLATE_BLOCK}`,
+  )
+
   check(
     "check-review-harness.mjs",
     "accepts a UI redesign pull request whose body states what each skill found",
