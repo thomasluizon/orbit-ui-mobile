@@ -28,6 +28,7 @@ interface WrappedSlideProps {
   period: RecapSharePeriod
   captureRef: Ref<HTMLDivElement>
   shareError: boolean
+  savedFileName: string | null
 }
 
 function motionProps(step: number, reducedMotion: boolean) {
@@ -46,7 +47,7 @@ function motionProps(step: number, reducedMotion: boolean) {
   }
 }
 
-export function WrappedSlide({ slide, recap, period, captureRef, shareError }: Readonly<WrappedSlideProps>) {
+export function WrappedSlide({ slide, recap, period, captureRef, shareError, savedFileName }: Readonly<WrappedSlideProps>) {
   const t = useTranslations()
   const reducedMotion = Boolean(useReducedMotion())
 
@@ -179,6 +180,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError }: R
           recap={recap}
           captureRef={captureRef}
           hasError={shareError}
+          savedFileName={savedFileName}
           reducedMotion={reducedMotion}
         />
       )
@@ -357,10 +359,11 @@ interface WrappedShareSlideProps {
   recap: Recap
   captureRef: Ref<HTMLDivElement>
   hasError: boolean
+  savedFileName: string | null
   reducedMotion: boolean
 }
 
-function WrappedShareSlide({ recap, captureRef, hasError, reducedMotion }: Readonly<WrappedShareSlideProps>) {
+function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reducedMotion }: Readonly<WrappedShareSlideProps>) {
   const t = useTranslations()
 
   return (
@@ -393,6 +396,20 @@ function WrappedShareSlide({ recap, captureRef, hasError, reducedMotion }: Reado
           {t('shareCard.shareError')}
         </motion.p>
       )}
+
+      <motion.p
+        data-testid="wrapped-motion-part"
+        {...motionProps(2, reducedMotion)}
+        role="status"
+        style={{
+          textAlign: 'center',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 13,
+          color: 'var(--fg-2)',
+        }}
+      >
+        {!hasError && savedFileName ? t('shareCard.saved', { file: savedFileName }) : ''}
+      </motion.p>
 
     </div>
   )

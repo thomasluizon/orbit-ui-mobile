@@ -355,6 +355,7 @@
     "sessionExpiring": "Your session expires in {minutes} minutes. Save your work.",
     "sessionExpired": "Your session timed out.",
     "sessionSignedOut": "You were signed out. Sign in to pick up where you left off.",
+    "sessionRefreshFailed": "Orbit couldn't refresh your session. Try again.",
     "refresh": "Refresh",
     "todayBoundary": {
       "lastLoggable": "This is the oldest day you can log.",
@@ -1548,6 +1549,7 @@
     "empty": "Log a few habits first to build a card worth sharing.",
     "error": "Couldn't load your recap. Please try again.",
     "shareError": "Couldn't share your card. Please try again.",
+    "saved": "Saved as {file}",
     "weeklyBarLabel": "Completion on {day}: {percent}%",
     "periods": {
       "week": "Week",
@@ -1842,9 +1844,9 @@
       "astra": "Astra",
       "connect": "Connect",
       "rewards": "Rewards",
-      "settings": "Settings",
-      "progress": "Progress",
-      "notifications": "Notifications",
+      "progress": "Goals",
+      "reminders": "Reminders",
+      "widget": "Widget",
       "habitsSection": {
         "creatingTitle": "Creating Habits",
         "creatingDesc": "Tap the + button at the bottom of the screen, or ask the AI in chat. Set a name, optional description, and frequency schedule (daily, weekly on specific days, monthly, or yearly).",
@@ -1924,14 +1926,14 @@
         "tipsDesc": "Astra remembers your conversation, so you can say 'modify the previous suggestion' or 'change TestA to weekly'. It also knows your streaks and stats, so ask for honest feedback"
       },
       "connectSection": {
-        "mcpTitle": "Connect Your AI Assistant",
-        "mcpDesc": "Orbit speaks MCP (Model Context Protocol), so you can connect Claude, ChatGPT, or any MCP-capable assistant straight to your Orbit account. Manage your habits and goals from wherever you already chat with AI -- no need to open the app.",
-        "assistantCanDoTitle": "What Your Assistant Can Do",
-        "assistantCanDoDesc": "Once connected, your assistant can create and log habits, manage goals, tags, and checklists, read your progress, adjust notifications, and more -- 81 tools across 15 areas of the app. Every action is scoped to your account and follows the same permissions as the app.",
-        "apiKeysTitle": "API Keys (Pro)",
-        "apiKeysDesc": "MCP access comes with Orbit Pro. Create and manage scoped API keys in AI Settings, then paste one into your assistant to link it. Keys can be read-only or full-access, and you can revoke them anytime.",
-        "setupTitle": "Setting It Up",
-        "setupDesc": "Open AI Settings, create an API key, and add Orbit's MCP endpoint to your assistant. The connection uses a secure OAuth or API-key handshake -- full setup steps live in AI Settings."
+        "mcpTitle": "Outside assistants",
+        "mcpDesc": "Connect an MCP-compatible assistant to Orbit and use it where you already work.",
+        "assistantCanDoTitle": "81 tools",
+        "assistantCanDoDesc": "The connection has 81 tools across 15 areas, including habits, goals, tags, checklists, reminders, and progress.",
+        "apiKeysTitle": "Keys in Profile",
+        "apiKeysDesc": "Create a scoped API key in Profile after a fresh sign-in. Choose read-only or full access, and revoke it whenever you need.",
+        "setupTitle": "Connect the client",
+        "setupDesc": "Copy Orbit's MCP endpoint and one API key from Profile into your MCP client."
       },
       "calendarSection": {
         "dayDetailsTitle": "Day Details",
@@ -1944,22 +1946,20 @@
         "googleCalendarDesc": "Import events from your Google Calendar as one-time habits. Sync your schedule to Orbit so meetings, appointments, and events automatically appear as tasks on the right day."
       },
       "rewardsSection": {
-        "xpLevelsTitle": "XP & Levels",
-        "xpLevelsDesc": "Earn XP every time you complete habits and goals, and level up as you go. Free for everyone -- no Pro needed.",
-        "achievementsTitle": "Achievements & Badges",
-        "achievementsDesc": "Earn achievement badges for streaks, consistency, and milestones. Track everything you've earned on the Progress page.",
-        "streaksTitle": "Streaks",
-        "streaksDesc": "Every habit tracks a current and best streak. Keep the chain going day after day to watch your streaks climb.",
-        "streakFreezeTitle": "Streak Freeze",
-        "streakFreezeDesc": "Miss a day without losing your streak. Streak freezes shield your progress when life gets in the way -- you earn a limited number each month.",
+        "xpLevelsTitle": "XP and levels",
+        "xpLevelsDesc": "Logging habits earns XP, and your level rises as the XP adds up.",
+        "achievementsTitle": "Achievements",
+        "achievementsDesc": "Achievements are grouped by category in Progress.",
+        "streaksTitle": "Your streak",
+        "streaksDesc": "Progress shows your current streak and the days that build it.",
+        "streakFreezeTitle": "Repairing yesterday",
+        "streakFreezeDesc": "Orbit banks a freeze as your streak grows. You choose to spend one to repair yesterday.",
         "wrappedTitle": "Orbit Wrapped",
-        "wrappedDesc": "A shareable recap of your habits -- your best streaks, biggest wins, and standout stats, wrapped up to look back on and share.",
-        "widgetTitle": "Home Screen Widget",
-        "widgetDesc": "Android only. Add the Orbit widget to your home screen to see today's habits at a glance -- completion status, due times, and checklist progress. When nothing is scheduled for today, it shows tomorrow's habits instead.",
-        "milestoneShareTitle": "Milestone Sharing",
-        "milestoneShareDesc": "When you hit a big streak or achievement, share a milestone card with friends inside Orbit or anywhere else.",
-        "referralsTitle": "Invite Links & Referrals",
-        "referralsDesc": "Share your personal invite link to bring friends to Orbit. When they join and stick with it, referrals help the community grow -- find your link in your Profile."
+        "wrappedDesc": "Orbit Wrapped turns a finished period into a recap you can review and share.",
+        "milestoneShareTitle": "Share a milestone",
+        "milestoneShareDesc": "When you reach a streak or achievement milestone, you can share its card outside Orbit.",
+        "referralsTitle": "Invite links",
+        "referralsDesc": "Your personal invite link lives in Profile. Share it when you want to invite someone to Orbit."
       },
       "settingsSection": {
         "languageTitle": "Language",
@@ -1979,13 +1979,19 @@
         "showGeneralTodayTitle": "Show General on Today",
         "showGeneralTodayDesc": "Toggle to show general habits (habits without a schedule) on your Today view. When enabled, they appear in a separate section below your scheduled habits."
       },
-      "notificationsSection": {
-        "bellTitle": "Notification Bell",
-        "bellDesc": "Access your notifications from the bell icon on the habits page. A badge shows your unread count so you never miss a reminder.",
-        "managingTitle": "Managing Notifications",
-        "managingDesc": "Mark notifications as read, or delete them individually. Use 'Mark all' or 'Clear all' for bulk actions. Notifications are created when habit reminders fire.",
-        "configuringRemindersTitle": "Configuring Reminders",
-        "configuringRemindersDesc": "Set reminders in the habit edit form. Choose a time before the habit's due time -- at the due time, or minutes, hours, or up to 1 day before. You can add multiple reminders per habit."
+      "remindersSection": {
+        "bellTitle": "Your inbox",
+        "bellDesc": "The bell opens everything Orbit sends you: reminders that fired, streak and level updates, friend activity, calendar results, and goal deadlines. Its badge counts the unread ones.",
+        "managingTitle": "Reading reminders",
+        "managingDesc": "Mark reminders as read or delete them one at a time. You can also mark all as read or delete all.",
+        "configuringRemindersTitle": "Set on the habit",
+        "configuringRemindersDesc": "Set one or more reminders on the habit. Use its time or choose a fixed clock time."
+      },
+      "widgetSection": {
+        "todayTitle": "Today or tomorrow",
+        "todayDesc": "The Android widget shows today's habits. When nothing is scheduled today, it shows tomorrow's habits instead.",
+        "opensTitle": "Opens Orbit",
+        "opensDesc": "The widget never logs a habit. A tap anywhere on it opens Orbit, and refresh only updates the widget."
       }
     }
   },
@@ -2347,12 +2353,16 @@
       "protectedEmpty": "No protected days yet.",
       "protected": "Protected",
       "protectedToday": "Protected today",
+      "covered": "A freeze covered {date}. {count, plural, =0 {None remain.} one {One remains.} other {# remain.}}",
       "lockedTitle": "Freeze protection",
       "lockedBody": "Orbit Pro keeps a freeze bank for missed days.",
       "lockedAction": "See Orbit Pro",
       "gapBody": "{count, plural, one {One day with nothing logged.} other {# days with nothing logged.}} The habits are as they were.",
       "gapUnavailable": "A gap ended the previous streak. Today starts a new one; the habits are unchanged.",
-      "repairAction": "Spend {count, plural, one {# freeze} other {# freezes}}",
+      "repairAction": "Repair {dates}",
+      "repairConfirmTitle": "Repair {dates}?",
+      "repairConfirmBody": "{count, plural, one {One freeze will be spent.} other {# freezes will be spent.}} This repair cannot be undone.",
+      "repairConfirmAction": "Repair",
       "repairEmpty": "The gap is still open, but no freeze is banked to cover it. This repair offer ends today.",
       "repairPartial": "The gap is still open. It needs {needed, plural, one {# freeze} other {# freezes}}, but {banked, plural, one {only # is banked} other {only # are banked}}. This repair offer ends today.",
       "repairCapped": "This gap needs {needed, plural, one {# freeze} other {# freezes}} and {banked} is the most you can bank, so it cannot be repaired.",

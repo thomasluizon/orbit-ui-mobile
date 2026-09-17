@@ -24,6 +24,11 @@
  */
 
 import { readFileSync } from "node:fs"
+import {
+  REDESIGN_BASE,
+  REQUIRED_REVIEW_SKILLS,
+  isUiReviewPath,
+} from "./lib/review-harness.mjs"
 
 const USAGE = `usage: check-review-harness.mjs --base <ref> --body-file <path> --changed-files-file <path>
 
@@ -53,11 +58,6 @@ const fail = (code, message) => {
   process.exit(code)
 }
 
-const REQUIRED_SKILLS = ["interface-review", "better-interface"]
-/** The base D80 sends every redesign pull request to. Any other base is not this gate's business. */
-const REDESIGN_BASE = "redesign/main"
-/** The same scope the Cross-Platform Parity job reads, so "UI change" means one thing in this repo. */
-const UI_SCOPE = /^apps\/(?:web|mobile)\/(?:app|components|hooks|stores|lib)\//
 /**
  * A closed set, checked lowercased after punctuation is stripped. An open "looks empty" heuristic
  * would guess; this refuses only what somebody typed to fill the line.
@@ -100,7 +100,7 @@ const changedFiles = read(options.changedFilesFile, "changed-files list")
   .split(/\r?\n/)
   .map((line) => line.trim())
   .filter(Boolean)
-const uiFiles = changedFiles.filter((file) => UI_SCOPE.test(file))
+const uiFiles = changedFiles.filter(isUiReviewPath)
 if (uiFiles.length === 0) {
   console.log(`check-review-harness: ${changedFiles.length} changed path(s), none in UI scope; not applicable.`)
   process.exit(0)
@@ -135,7 +135,7 @@ const evidenceOf = (skill) => {
 
 const missing = []
 const empty = []
-for (const skill of REQUIRED_SKILLS) {
+for (const skill of REQUIRED_REVIEW_SKILLS) {
   const raw = evidenceOf(skill)
   if (raw === null) {
     missing.push(skill)
@@ -162,4 +162,4 @@ if (missing.length > 0 || empty.length > 0) {
   )
 }
 
-console.log(`check-review-harness: review-harness evidence present for ${REQUIRED_SKILLS.join(" and ")} across ${uiFiles.length} UI file(s).`)
+console.log(`check-review-harness: review-harness evidence present for ${REQUIRED_REVIEW_SKILLS.join(" and ")} across ${uiFiles.length} UI file(s).`)
