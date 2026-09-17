@@ -44,7 +44,7 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         <span className="h-px flex-1 bg-[var(--hairline)]" />
       </div>
       <div className="flex flex-col gap-2">
-        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+        {/* eslint-disable-next-line local/max-button-words -- Google's approved sign-in wording is required. */}
         <PillButton variant="ghost" disabled={isGoogleLoading || isSubmitting || !isOnline}
           loading={isGoogleLoading} onClick={onSignInWithGoogle}>{t('auth.signInWithGoogle')}</PillButton>
         {!isOnline && <p className="text-sm text-[var(--fg-3)]">{t('auth.googleOffline')}</p>}

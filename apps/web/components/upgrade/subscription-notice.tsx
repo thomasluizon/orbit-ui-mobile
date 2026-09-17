@@ -40,7 +40,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t }: Readonl
           </li>)}
         </ul>
         {onResubscribe ? <div className="flex pt-2">
-          {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
           <PillButton variant="primary" onClick={onResubscribe}>{t('upgrade.billing.lapsed.action')}</PillButton>
         </div> : null}
       </section>

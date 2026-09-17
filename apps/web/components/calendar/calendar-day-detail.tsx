@@ -94,7 +94,6 @@ function CalendarEventsSection({
         <ErrorState
           message={t('calendar.fetchError')}
           action={
-            /* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */
             <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
           }
         />
@@ -383,7 +382,6 @@ export function CalendarDayDetail({
       className="block"
       style={{ color: 'inherit', textDecoration: 'none' }}
     >
-      {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
       <ListRow
         icon="external-link"
         title={t('calendar.goToDay')}

@@ -107,7 +107,6 @@ export function HabitEmojiSelector({
   return (
     <>
       <div className="flex shrink-0 items-end gap-2">
-        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
         <button
           type="button"
           className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] disabled:cursor-not-allowed disabled:opacity-45"
@@ -157,7 +156,6 @@ export function HabitEmojiSelector({
               className="form-input min-w-0 flex-1"
             />
             {query ? (
-              /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
               <button
                 type="button"
                 className="habit-control-motion grid size-11 shrink-0 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
