@@ -13,24 +13,24 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type SectionKey =
+  | 'habits'
   | 'astra'
   | 'connect'
-  | 'habits'
   | 'progress'
   | 'calendar'
   | 'rewards'
-  | 'settings'
-  | 'notifications'
+  | 'reminders'
+  | 'widget'
 
 const tabs: { key: SectionKey; labelKey: string }[] = [
+  { key: 'habits', labelKey: 'onboarding.featureGuide.habits' },
   { key: 'astra', labelKey: 'onboarding.featureGuide.astra' },
   { key: 'connect', labelKey: 'onboarding.featureGuide.connect' },
-  { key: 'habits', labelKey: 'onboarding.featureGuide.habits' },
   { key: 'progress', labelKey: 'onboarding.featureGuide.progress' },
   { key: 'calendar', labelKey: 'onboarding.featureGuide.calendar' },
   { key: 'rewards', labelKey: 'onboarding.featureGuide.rewards' },
-  { key: 'settings', labelKey: 'onboarding.featureGuide.settings' },
-  { key: 'notifications', labelKey: 'onboarding.featureGuide.notifications' },
+  { key: 'reminders', labelKey: 'onboarding.featureGuide.reminders' },
+  { key: 'widget', labelKey: 'onboarding.featureGuide.widget' },
 ]
 
 interface SectionItem {
@@ -99,24 +99,17 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.rewardsSection.streaksTitle', descKey: 'onboarding.featureGuide.rewardsSection.streaksDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.streakFreezeTitle', descKey: 'onboarding.featureGuide.rewardsSection.streakFreezeDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.wrappedTitle', descKey: 'onboarding.featureGuide.rewardsSection.wrappedDesc' },
-    { titleKey: 'onboarding.featureGuide.rewardsSection.widgetTitle', descKey: 'onboarding.featureGuide.rewardsSection.widgetDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.milestoneShareTitle', descKey: 'onboarding.featureGuide.rewardsSection.milestoneShareDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.referralsTitle', descKey: 'onboarding.featureGuide.rewardsSection.referralsDesc' },
   ],
-  settings: [
-    { titleKey: 'onboarding.featureGuide.settingsSection.languageTitle', descKey: 'onboarding.featureGuide.settingsSection.languageDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.aiSummaryTitle', descKey: 'onboarding.featureGuide.settingsSection.aiSummaryDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.timezoneTitle', descKey: 'onboarding.featureGuide.settingsSection.timezoneDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.supportTitle', descKey: 'onboarding.featureGuide.settingsSection.supportDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.pushNotificationsTitle', descKey: 'onboarding.featureGuide.settingsSection.pushNotificationsDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.subscriptionTitle', descKey: 'onboarding.featureGuide.settingsSection.subscriptionDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.weekStartDayTitle', descKey: 'onboarding.featureGuide.settingsSection.weekStartDayDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.showGeneralTodayTitle', descKey: 'onboarding.featureGuide.settingsSection.showGeneralTodayDesc' },
+  reminders: [
+    { titleKey: 'onboarding.featureGuide.remindersSection.bellTitle', descKey: 'onboarding.featureGuide.remindersSection.bellDesc' },
+    { titleKey: 'onboarding.featureGuide.remindersSection.managingTitle', descKey: 'onboarding.featureGuide.remindersSection.managingDesc' },
+    { titleKey: 'onboarding.featureGuide.remindersSection.configuringRemindersTitle', descKey: 'onboarding.featureGuide.remindersSection.configuringRemindersDesc' },
   ],
-  notifications: [
-    { titleKey: 'onboarding.featureGuide.notificationsSection.bellTitle', descKey: 'onboarding.featureGuide.notificationsSection.bellDesc' },
-    { titleKey: 'onboarding.featureGuide.notificationsSection.managingTitle', descKey: 'onboarding.featureGuide.notificationsSection.managingDesc' },
-    { titleKey: 'onboarding.featureGuide.notificationsSection.configuringRemindersTitle', descKey: 'onboarding.featureGuide.notificationsSection.configuringRemindersDesc' },
+  widget: [
+    { titleKey: 'onboarding.featureGuide.widgetSection.todayTitle', descKey: 'onboarding.featureGuide.widgetSection.todayDesc' },
+    { titleKey: 'onboarding.featureGuide.widgetSection.opensTitle', descKey: 'onboarding.featureGuide.widgetSection.opensDesc' },
   ],
 }
 
@@ -136,7 +129,7 @@ export function FeatureGuideDrawer({
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [activeSection, setActiveSection] = useState<SectionKey>('astra')
+  const [activeSection, setActiveSection] = useState<SectionKey>('habits')
 
   const items = sectionItems[activeSection]
 
@@ -179,22 +172,22 @@ export function FeatureGuideDrawer({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     tabBarWrap: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 24,
       paddingVertical: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
     },
     tabBarContent: {
-      gap: 6,
+      gap: 8,
       paddingRight: 12,
     },
     sectionScroll: {
       flex: 1,
     },
     sectionContent: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 24,
       paddingTop: 16,
-      gap: 18,
+      gap: 16,
       paddingBottom: 24,
     },
     sectionItem: {
