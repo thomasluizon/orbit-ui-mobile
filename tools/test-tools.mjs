@@ -111,6 +111,7 @@ const CASE_MODULES = [
   ["lib/github-rate-limit.mjs", "github-rate-limit"],
   ["lib/github-target.mjs", "github-target"],
   ["lib/identifier-ledger.mjs", "identifier-ledger"],
+  ["lib/integration-branch.mjs", "integration-branch"],
   ["lib/manual-steps.mjs", "manual-steps"],
   ["lib/readiness-receipt.mjs", "readiness-receipt"],
   ["lib/run-state.mjs", "run-state"],

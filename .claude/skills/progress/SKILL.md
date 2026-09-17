@@ -39,13 +39,19 @@ within a day.
 repository whose work you report, using one base-chain rule:
 
 1. In that repository, read its open pull requests with
-   `gh pr list --state open --limit 100 --json number,headRefName,baseRefName`. That listing finds
-   the anchor in step 2; step 3 resolves each candidate in every state, not only this one.
+   `gh pr list --state open --limit 100 --json number,headRefName,baseRefName,isCrossRepository`.
+   That listing finds the anchor in step 2; step 3 resolves each candidate in every state, not only
+   this one. `isCrossRepository` is requested HERE and not only in step 3, because step 2 matches on
+   `headRefName` alone and a fork's row carries the same branch name.
 2. Choose the anchor that identifies the work in that repository. For the current checkout, read
-   `git rev-parse --abbrev-ref HEAD`; if one open row's `headRefName` exactly matches it, start with
-   that row's `baseRefName`, otherwise start with the checkout branch itself. For a session ledger
-   row, use the row's `prNumber` to find that repository's session pull request and start with its
-   `baseRefName`; do not assume the orchestrating checkout's branch exists in a sibling repository.
+   `git rev-parse --abbrev-ref HEAD`; if one open row's `headRefName` exactly matches it **AND that
+   row's `isCrossRepository` is false**, start with that row's `baseRefName`, otherwise start with
+   the checkout branch itself. A row that matches the name but belongs to a fork is not this
+   repository's pull request, so it never supplies the anchor, and a checkout whose branch only a
+   fork owns falls through to the real no-pull-request path rather than adopting a stranger's base.
+   For a session ledger row, use the row's `prNumber` to find that repository's session pull request
+   and start with its `baseRefName`; do not assume the orchestrating checkout's branch exists in a
+   sibling repository.
 3. While the candidate is itself some pull request's `headRefName`, it is a stacked pull request
    head, not the integration branch. Resolve that head in every state, because a stacked parent can
    be closed while it is still the child's recorded base:
@@ -81,6 +87,9 @@ repository whose work you report, using one base-chain rule:
 
    A cycle is the other ambiguity: say so and do not guess. This walk begins from one exact anchor,
    so unrelated bases cannot tie it.
+
+   `tools/lib/integration-branch.mjs` implements this base-chain rule as the executable contract.
+   Any change to the rule must change that function and its cases together.
 
    Reading only open heads is what this replaces. It accepted every absent head as integration, so a
    closed parent resolved to its own feature branch: PR 575's base is `feature/539-b5-apply-design`,

@@ -1213,10 +1213,11 @@ T("progress: a reused head has exactly one deterministic rule", {
  * therefore in the listing, and following its base walks into a stranger's branch.
  */
 T("progress: a fork's pull request is never read as a stacked parent", {
-  requestsTheField: progressSkill.includes("isCrossRepository"),
+  anchorListingRequestsTheField: /gh pr list --state open --limit 100 --json number,headRefName,baseRefName,isCrossRepository/.test(progressSkill),
+  anchorRequiresMappedRepository: /row's `isCrossRepository` is false/.test(progressSkill),
   dropsForkRowsFirst: /Drop every row whose `isCrossRepository` is true, before anything else/.test(progressSkill),
   saysWhyTheFilterIsNeeded: /`--head` filters on\s+the branch NAME only/.test(progressSkill),
-}, { requestsTheField: true, dropsForkRowsFirst: true, saysWhyTheFilterIsNeeded: true })
+}, { anchorListingRequestsTheField: true, anchorRequiresMappedRepository: true, dropsForkRowsFirst: true, saysWhyTheFilterIsNeeded: true })
 
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
