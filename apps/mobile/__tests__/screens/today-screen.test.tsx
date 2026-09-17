@@ -832,15 +832,15 @@ describe("TodayScreen", () => {
       (header.props.onSearchToggle as () => void)();
     });
 
-    let headerTree: ReturnType<typeof TestRenderer.create>;
+    let headerTree: any;
     await TestRenderer.act(() => {
       headerTree = TestRenderer.create(getHabitsHeader(tree));
     });
     const closeButton = headerTree!.root.findAll(
-      (node) => node.props.accessibilityLabel === "habits.closeSearch",
+      (node: any) => node.props.accessibilityLabel === "habits.closeSearch",
     )[0];
     const searchInput = headerTree!.root.findAll(
-      (node) =>
+      (node: any) =>
         node.props.placeholder === "habits.searchPlaceholder" &&
         typeof node.props.onChangeText === "function",
     )[0];
