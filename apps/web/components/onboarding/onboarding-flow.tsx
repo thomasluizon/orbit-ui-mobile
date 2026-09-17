@@ -277,7 +277,7 @@ export function OnboardingFlow() {
   const overlay = step === ONBOARDING_DONE_STEP ? (
     <DoneShell><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} onFinish={() => void actions.finishOnboarding()} /></DoneShell>
   ) : (
-    <FlowShell nav={false} header={<OnboardingHeader step={step} onBack={() => setStep(step - 1)} onSkip={step === ONBOARDING_REMIND_STEP ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
+    <FlowShell nav={false} header={<OnboardingHeader step={step} onBack={() => setStep(step - 1)} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
   )
   return createPortal(<div ref={overlayRef} role="dialog" aria-modal="true" aria-labelledby="onboarding-title" className="z-modal fixed inset-0">{overlay}</div>, portalRoot)
 }

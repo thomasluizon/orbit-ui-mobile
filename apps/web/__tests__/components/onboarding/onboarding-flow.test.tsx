@@ -122,6 +122,9 @@ describe('OnboardingFlow state model', () => {
   it.each([true, false])('removes Skip after a habit exists when isLive=%s', async (isLive) => {
     await reachReminder(isLive)
     expect(screen.queryByRole('button', { name: 'skip' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'back' }))
+    expect(screen.getByTestId('schedule')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'skip' })).toBeNull()
   })
 
   it('asks for browser permission on the signed-out path', async () => {

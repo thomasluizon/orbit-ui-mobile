@@ -113,6 +113,15 @@ function renderedText(tree: ReturnType<typeof TestRenderer.create>): unknown[] {
   return byType(tree.root, 'Text').map((node) => node.props.children)
 }
 
+async function pressTextAction(tree: ReturnType<typeof TestRenderer.create>, label: string) {
+  const action = tree.root.findAll((node) => (
+    typeof Reflect.get(node.props, 'onPress') === 'function'
+    && byType(node, 'Text').some((child) => child.props.children === label)
+  )).at(-1)
+  expect(action).toBeDefined()
+  await TestRenderer.act(() => prop<() => void>(action!, 'onPress')())
+}
+
 async function reachReminder(isLive: boolean) {
   if (isLive) mocks.profile.aiMessagesUsed = mocks.profile.aiMessagesLimit
   const tree = await mount(isLive)
@@ -162,6 +171,9 @@ describe('OnboardingFlow state model', () => {
 
   it.each([true, false])('removes Skip after a habit exists when isLive=%s', async (isLive) => {
     const tree = await reachReminder(isLive)
+    expect(renderedText(tree)).not.toContain('onboarding.flow.skip')
+    await pressTextAction(tree, 'onboarding.flow.back')
+    expect(oneByType(tree.root, 'Schedule')).toBeDefined()
     expect(renderedText(tree)).not.toContain('onboarding.flow.skip')
   })
 
