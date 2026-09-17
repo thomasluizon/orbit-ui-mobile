@@ -75,8 +75,8 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Sheet
           close-overlay
         </button>
       ) : null}
-      {children}
-      {actions}
+      <div data-slot="sheet-body">{children}</div>
+      <div data-slot="sheet-actions">{actions}</div>
     </div>
   )
 }

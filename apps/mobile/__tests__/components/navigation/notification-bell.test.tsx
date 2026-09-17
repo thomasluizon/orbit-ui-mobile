@@ -227,6 +227,39 @@ describe('mobile alerts', () => {
     expect(action('Delete').props.testID).toBe('button-destructive-sm')
   })
 
+  it('keeps detail actions in the pinned sheet slot when a long body scrolls', () => {
+    const longBody = Array.from({ length: 80 }, (_, index) => `Line ${index + 1}`).join('\n')
+    const tree = render(<NotificationDetailModal
+      open
+      notification={createMockNotification({ body: longBody, url: '/progress', isRead: false })}
+      onClose={vi.fn()}
+      onMarkAsRead={vi.fn()}
+      onDelete={vi.fn()}
+    />)
+    const body = testId(tree, 'sheet-body-slot')[0]!
+    const actions = testId(tree, 'sheet-actions-slot')[0]!
+
+    expect(body.findAll((node) => node.type === 'Text' && node.props.children === longBody)).toHaveLength(1)
+    expect(body.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+    for (const label of ['Open Progress', en.notifications.markAsRead, en.notifications.delete]) {
+      expect(actions.findAll((node) => node.type === 'Text' && node.props.children === label)).toHaveLength(1)
+    }
+  })
+
+  it('keeps rejected destinations out of the detail actions', () => {
+    const tree = render(<NotificationDetailModal
+      open
+      notification={createMockNotification({ url: '//evil.com', isRead: false })}
+      onClose={vi.fn()}
+      onMarkAsRead={vi.fn()}
+      onDelete={vi.fn()}
+    />)
+    const actionLabels = testId(tree, 'sheet-actions-slot')[0]!.findAll((node) => node.type === 'Text')
+      .map((node) => node.props.children)
+
+    expect(actionLabels).toEqual([en.notifications.markAsRead, en.notifications.delete])
+  })
+
   it.each([
     ['en', 'Mark all', 'Mark read'],
     ['pt-BR', 'Marcar todas', 'Marcar lida'],
