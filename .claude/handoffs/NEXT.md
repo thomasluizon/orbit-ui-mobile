@@ -62,12 +62,19 @@ So when batch 1 closes:
 
 1. **Ship `redesign/main` to a CLOSED Play INTERNAL track** with `/android-release`. Answered
    2026-09-17: he tests it as a real update, not a sideloaded file. Not the open track. Not `main`.
-2. **Tell him it is ready to test, and STOP.** Do not merge. Do not start batch 2. Do not start
+2. **Tell him it is ready to test, and STOP.** Do not merge. Do not start batch 2a. Do not start
    anything else in the spec. Waiting on him here is a legitimate ending under `/sleep`, reported as
    blocked on his approval, never as finished.
 3. On his explicit approval: merge `redesign/main` into `main`, then `/android-release` to the OPEN
    track. The redesign is finished at that merge and not before it.
-4. Batch 2 starts after that release. Batches 2 to 10 are in the spec.
+4. Batch 2a starts after that release. The order after the gate, reworked with him on 2026-09-17 so
+   the store and the landing page stop showing a product that no longer exists:
+   **2a** the twelve API contracts the UI waits on, **2b** every remaining ticket that changes what a
+   person sees (the UI those contracts unblock, the design-system corrections, the packaging copy),
+   **3** the landing page and the Play listing TOGETHER, **4** the component-library migration, which
+   changes zero visuals, **5** Astra, **6** security, correctness and the deletions, **7**
+   `/prod-readiness` and every finding it raises. The spec carries the ticket list and the reasoning
+   per batch.
 
 ## In flight, with a disposition on every row
 
@@ -92,7 +99,7 @@ So when batch 1 closes:
 | api 521 | `main` | `44611e5f` | `#526`. Order posted. |
 | Dependabot | both | ui 798/799/801/881, api 510/525/526 | Leave. Not this effort. |
 
-`orbit-landing-page` has 5 open pull requests, untouched by this effort; batch 7 owns that repo.
+`orbit-landing-page` has 5 open pull requests, untouched by this effort; batch 3 owns that repo.
 
 **Four codex processes were alive at handoff.** Read every worktree before assuming anything: a
 finished worker leaves commits, a dirty tree, or nothing, and each means something different.

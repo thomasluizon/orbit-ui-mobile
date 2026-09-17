@@ -219,7 +219,7 @@ screens these tickets are still rewriting, so doing anything else first means do
 batch ends when `node tools/redesign-coverage.mjs` reports a valid mapping AND every screen ticket
 closes against its own acceptance criteria.
 
-### THE REDESIGN GATE, between batch 1 and batch 2
+### THE REDESIGN GATE, between batch 1 and batch 2a
 
 **Thomas's instruction, 2026-09-17, and it is absolute:**
 
@@ -232,120 +232,133 @@ So the sequence at the end of batch 1 is:
 1. Every screen ticket closes against its own acceptance criteria, and
    `node tools/redesign-coverage.mjs` reports a valid mapping with nothing missing.
 2. **Stop. Tell him the redesign is ready to test on `redesign/main`.** Do not merge. Do not start
-   batch 2. Do not start anything else in this spec.
+   batch 2a. Do not start anything else in this spec.
 3. **Ship it to a CLOSED Play INTERNAL track**, answered 2026-09-17: he tests it as a real update
    rather than a sideloaded file. `/android-release` to the internal track, off `redesign/main`, not
    the open track and not `main`. This is the one release that leaves `redesign/main`.
 4. He tests everything on his phone from that build.
 5. **Only on his explicit approval** does `redesign/main` merge into `main`.
 6. The redesign is finished at that merge, not before it. Then `/android-release` to the OPEN
-   track off `main`, and batch 2 starts.
+   track off `main`, and batch 2a starts.
 
 A session that reaches step 2 and keeps going has broken the one rule this gate exists for. If the
 queue looks empty at step 2, that is correct: the run is waiting on him, and waiting on him is a
 legitimate ending under `/sleep` as long as it is reported as blocked on his approval rather than as
 finished.
 
-### Batch 2: the component-library migration
+### Why the order after the gate changed, 2026-09-17
+
+Thomas read the first draft and found a real defect in it: the Play listing and the landing page sat
+in batch 7 and 9, so **anyone downloading the open beta after the redesign shipped would see a store
+page and a marketing site showing a product that no longer exists**, and that desync would last five
+batches.
+
+> what i propose: after the redesign, do every ticket that changes something on the UI, and after
+> that, do the landing page and the play store update, then the rest, so we spend the least amount of
+> time with those desynced
+
+That is the order below. One mechanical correction was applied with his agreement: "every UI ticket"
+is not one block, because batch 2b's screens read fields that do not exist until batch 2a deploys, so
+the API contracts keep their place in front. And one refinement: **the component-library migration
+changes ZERO visuals**, so it is invisible to the store and to the landing page and buys nothing by
+coming first. It moved after them.
+
+### Batch 2a: the API contracts the UI is already waiting on
+
+`#391`, `#394`, `#387`, `#385`, `#389`, `#505`, `#483`, `#257`, `#571`, `#372`, `#369`, `#367`.
+
+**Why it still leads:** each one is a field or an endpoint a batch 2b ticket is blocked on, and the
+repository contract is deploy-API-first. Merging is not deploying: every one needs Thomas to deploy
+before its consumer can merge. Twelve api-only tickets, nothing visible, so it is the shortest thing
+standing between the redesign and the visible work.
+
+### Batch 2b: every remaining ticket that changes what a person sees
+
+The UI those contracts unblock: `#392`, `#395`, `#386`, `#390`, `#361`, `#572`, `#516`, `#297`,
+`#181`, `#179`, `#178`, `#471`, `#454`, `#441`, `#222`, `#62`, `#28`, `#64`, `#216`, `#533`, `#532`,
+`#214`.
+
+The design system's own corrections: `#377`, `#370`, `#431`, `#424`, `#421`, `#519`, `#518`, `#497`,
+`#509`, `#559`, `#535`, `#426`, `#434`, `#531`, `#465`, `#463`, `#466`, `#458`, `#499`.
+
+The packaging and pricing changes that alter visible copy and gating: `#195`, `#196`, `#197`, `#199`,
+`#200`, `#237`, `#238`, `#327`, `#328`.
+
+**Why these run together and before the store:** every one changes a screen, a string or what a plan
+includes. Shipping the store listing before them means writing it twice. `#531` also retires the four
+`eslint-disable` comments pull request 1008 ships, and the packaging tickets settle what the pricing
+copy says before anyone writes a store description against it.
+
+### Batch 3: the landing page and the Play listing, together
+
+Landing: `#78` (redesign against the new canon), `#209` (pricing and FAQ copy realigned), `#204`,
+`#212`, `#206`, `#251`, `#250`, and the Turnstile and consent set `#269` to `#282`, `#285`, `#286`,
+`#291`, `#292`, `#279`, `#280`, `#313`, `#107`, `#108`, `#114`.
+
+Play: the new screenshots and feature graphic from the finished app, the updated store description
+and ASO copy against `BRAND.md`, and `#33` (7 demo clips and 2 landing videos). **`#34` is CLOSED**:
+the LTDA address, the contact address and the ADHD ASO keywords already landed, so this batch does
+not reopen it.
+
+**Why here and not last:** this is the whole point of the reorder. The moment batch 2b ships, the app
+a person downloads and the pages selling it are the same product, and the window where they disagree
+is one batch wide instead of five.
+
+**Who does what, answered 2026-09-17: THOMAS captures the screenshots on his phone.** He is already
+testing on device at the gate, so the screens are in front of him. **The run never boots the emulator
+for this**, which keeps his standing rule intact. What the run owes him is the exact shot list,
+naming each screen, its state and its locale, ready before he tests, plus every caption, the store
+description and the ASO copy written from `BRAND.md` and passed through `/humanizer`, per his
+2026-09-16 instruction that copy he asks for still gets both passes.
+
+### Batch 4: the component-library migration
 
 `#576` first, alone, because it installs the layer and proves it loads on Expo SDK 57 / RN 0.86.3.
 Then `#577`, `#578`, `#579`, `#580` in any order, then `#581` (Astra on beautifului.dev).
 
-**Why here and not earlier:** Thomas asked on 2026-09-17 whether this goes before or after the
-redesign. After. Doing it first rewrites every primitive under thirteen screens that currently have
-thirteen open pull requests against them, and every one of those pull requests would conflict. After,
-the screens are stable and each primitive family swaps behind unchanged visuals. Batch 5's
-design-system tickets get cheaper too, because a headless primitive removes the hand-rolled focus and
-dismissal code they would otherwise have to correct.
+**Why it is here and not before the redesign:** doing it first would rewrite every primitive under
+thirteen screens that had thirteen open pull requests against them, and every one would conflict.
+**Why it is not before the store either:** it changes no visuals at all. It swaps the behaviour layer
+under primitives whose look is unchanged, so a store listing written before it stays true after it.
 
-### Batch 3: the API contracts the UI is already waiting on
-
-`#391`, `#394`, `#387`, `#385`, `#389`, `#505`, `#483`, `#257`, `#571`, `#372`, `#369`, `#367`.
-
-**Why before the UI that needs them:** each one is a field or an endpoint a UI ticket in batch 4 is
-blocked on, and the repository contract is deploy-API-first. Merging is not deploying: every one of
-these needs Thomas to deploy before its consumer can merge.
-
-### Batch 4: the UI that those contracts unblock
-
-`#392`, `#395`, `#386`, `#390`, `#361`, `#572`, `#516`, `#297`, `#181`, `#179`, `#178`, `#471`,
-`#454`, `#441`, `#222`, `#62`, `#28`, `#64`, `#216`, `#533`, `#532`, `#214`.
-
-**Why after batch 3:** every one reads a field that does not exist until batch 3 deploys.
-
-### Batch 5: the design system's own corrections
-
-`#377`, `#370`, `#431`, `#424`, `#421`, `#519`, `#518`, `#497`, `#509`, `#559`, `#535`, `#426`,
-`#434`, `#531`, `#465`, `#463`, `#466`, `#458`, `#499`.
-
-**Why after the migration:** several of these are focus, target-size and motion corrections that a
-headless primitive either fixes for free or changes the shape of. `#531` in particular retires the
-four disables pull request 1008 is shipping.
-
-### Batch 6: Astra
+### Batch 5: Astra
 
 `#16`, `#582`, `#583`, `#584` (cost and analytics) first, then `#17`, `#18`, `#21`, `#19`, `#23`,
 `#24`, `#25`, `#26`, `#49`, `#48`, `#201`, `#202`, `#236`, `#244`, `#245`, `#246`, `#247`, `#248`,
 `#259`, `#264`, `#265`, `#319`, `#396`, `#418`, `#513`, `#514`.
 
-**Why as one block, and why here:** Astra is the product's second surface and it has its own
-milestone, its own security work (`#17`, `#18`) and its own eval gate (`#26`). It runs after the
-component layer because `#581` builds its chat surface, and `#24` is the preview-confirm-edit pattern
-that surface renders. `#319` (crisis response to a self-harm disclosure) ships inside this batch and
-never after it.
+**Why after the migration:** `#581` builds the Astra chat surface, and `#24` is the
+preview-confirm-edit pattern that surface renders. Astra has its own milestone, its own security work
+(`#17`, `#18`) and its own eval gate (`#26`). `#319`, the crisis response to a self-harm disclosure,
+ships inside this batch and never after it.
 
-### Batch 7: packaging, pricing and the landing page
+**Note on the store:** Astra IS user-visible, so if this batch materially changes what Orbit offers,
+the listing gets a second, smaller pass at the end of it. That is one revisit, not five.
 
-`#195`, `#196`, `#197`, `#199`, `#200`, `#209`, `#237`, `#238`, `#327`, `#328`, then `#78` (redesign
-the landing against the new canon), `#204`, `#212`, `#206`, `#251`, `#250`, and the Turnstile and
-consent set: `#269` to `#282`, `#285`, `#286`, `#291`, `#292`, `#279`, `#280`, `#313`, `#107`,
-`#108`, `#114`.
-
-**Why here:** the pricing and packaging copy has to be settled before the landing page is redesigned
-against it, and before the Play listing is written in batch 9. The landing's Turnstile and consent
-defects are a block of related work on one surface, so they ship together.
-
-### Batch 8: security, correctness and the deletions
+### Batch 6: security, correctness and the deletions
 
 `#101`, `#102`, `#115`, `#208`, `#325`, `#324`, `#323`, `#330`, `#500`, `#501`, `#493`, `#495`,
 `#527`, `#526`, `#529`, `#569`, `#562`, `#549`, `#556`, `#568`, `#564`, `#565`, `#566`, `#567`,
 `#227`, `#225`, `#205`, `#218`, `#235`, `#239`, `#299`, `#300`, `#301`, `#302`, `#249`, `#253`,
-`#254`, `#255`, `#260`, `#262`, `#263`, `#311`, `#89`.
+`#254`, `#255`, `#260`, `#262`, `#263`, `#311`, `#89`, plus the analytics set `#83`, `#84`, `#82`,
+`#213`, and the Sentry triage `#32`, `#31`.
 
 **Why before the readiness run:** every one of these is a thing `/prod-readiness` would find anyway.
 Fixing them first makes that run a verification rather than a second backlog.
 
-### Batch 9: the Play listing and the store presence
-
-The new screenshots and feature graphic from the finished redesign, the updated store description
-and ASO copy against `BRAND.md`, `#33` (7 demo clips and 2 landing videos), `#83`, `#84`, `#82`,
-`#213` (PostHog and the retention cohort), `#32`, `#31` (Sentry triage). **`#34` is CLOSED**: the
-LTDA address, the contact address and the ADHD ASO keywords already landed, so this batch does not
-reopen it.
-
-**Why this late:** the listing shows the app. Screenshots taken before the redesign closes are
-screenshots of a product that no longer exists.
-
-**Who does what, answered 2026-09-17: THOMAS captures the screenshots on his phone.** He is already
-testing the whole redesign on device at the gate, so the screens are in front of him. **The run never
-boots the emulator for this**, which keeps his standing rule intact. What the run owes him is the
-exact shot list, naming each screen, its state and its locale, ready before he tests, plus every
-caption, the store description and the ASO copy written from `BRAND.md` and passed through
-`/humanizer`, per his 2026-09-16 instruction that copy he asks for still gets both passes.
-
 ### Release cadence, answered 2026-09-17
 
-**One release per batch, to the OPEN track.** Every batch from 2 onward ends with
+**One release per batch, to the OPEN track.** Every batch from 2a onward ends with
 `/android-release` to the open beta, so a defect surfaces against a known, small change set, which is
 how the two releases before this worked. The harness, API-contract and readiness batches release too:
 a batch that changes nothing a person sees still ships, because a version with no visible change is
-cheaper to diagnose than nine batches arriving at once.
+cheaper to diagnose than several batches arriving at once.
 
 Two exceptions, both already stated above: the gate build goes to the CLOSED internal track off
 `redesign/main`, and the `main` merge that ends the redesign gets its own open-track release before
-batch 2 starts.
+batch 2a starts.
 
-### Batch 10: the production readiness run, and its findings
+### Batch 7: the production readiness run, and its findings
 
 `#315`: run `/prod-readiness` with the board clear. It fans out security, tests, performance,
 code-quality, an ops audit, a static WCAG 2.2 AA sweep, a dependency sweep across both repositories
