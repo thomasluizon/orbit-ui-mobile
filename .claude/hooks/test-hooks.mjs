@@ -1149,6 +1149,76 @@ for (const [relative, tool, problem] of prescribed) {
 T("skill commands: every prescribed tool invocation names flags the tool accepts", prescribed.length === 0, true)
 T("skill commands: the scan actually found invocations", toolFlagSets.size > 0, true)
 
+const progressSkill = readFileSync(join(repoRoot, ".claude", "skills", "progress", "SKILL.md"), "utf8")
+T("progress: integration discovery starts from the current PR head and removes stacked heads", {
+  readsHeads: progressSkill.includes("headRefName"),
+  readsBases: progressSkill.includes("baseRefName"),
+  excludesStackedHeads: progressSkill.includes("not the integration branch"),
+  refreshesIntegrationRef: progressSkill.includes("git fetch origin <integration-branch>"),
+}, { readsHeads: true, readsBases: true, excludesStackedHeads: true, refreshesIntegrationRef: true })
+T("progress: session discovery uses the current run ledger and proves integration ancestry", {
+  checksSessionIdentity: progressSkill.includes("currentRunIdentifier"),
+  readsLedger: progressSkill.includes("readinessLedger"),
+  readsLiveIdentity: progressSkill.includes("gh pr view <number> --json state,mergeCommit"),
+  checksIntegrationAncestry: progressSkill.includes("git merge-base --is-ancestor <merge-commit-oid> origin/<integration-branch>"),
+  claimsMergedField: /readRunState[^\n]*\bmerged\b/.test(progressSkill),
+  readsWorkingTree: progressSkill.includes("git status --short"),
+}, { checksSessionIdentity: true, readsLedger: true, readsLiveIdentity: true, checksIntegrationAncestry: true, claimsMergedField: false, readsWorkingTree: true })
+T("progress: a missing session baseline degrades explicitly to effort scope", {
+  namesMissingBaseline: progressSkill.includes("no session baseline"),
+  fallsBackToEffortScope: progressSkill.includes("report the effort scope instead"),
+  admitsLinkedWorktreeBlindSpot: progressSkill.includes("linked worktrees"),
+}, { namesMissingBaseline: true, fallsBackToEffortScope: true, admitsLinkedWorktreeBlindSpot: true })
+T("progress: each ledger repository resolves and refreshes its own integration branch", {
+  readsLiveBase: progressSkill.includes("gh pr view <number> --json state,mergeCommit,baseRefName"),
+  anchorsResolutionToSessionPullRequest: progressSkill.includes("repository's session pull request"),
+  resolvesInsideMappedRepository: progressSkill.includes("in that mapped repository"),
+  scopesFetchFailure: progressSkill.includes("does not affect the other repositories"),
+}, { readsLiveBase: true, anchorsResolutionToSessionPullRequest: true, resolvesInsideMappedRepository: true, scopesFetchFailure: true })
+T("progress: stacked squash merges do not make an impossible ancestry promise", {
+  limitsAncestryToDirectIntegrationMerges: progressSkill.includes("equals that repository's resolved integration branch"),
+  reportsImmediateBase: progressSkill.includes("landed into `<baseRefName>`"),
+  admitsSquashBoundary: progressSkill.includes("cannot prove arrival across that squash boundary"),
+  namesRetargetPractice: /retargets a stacked child onto the integration branch before\s+merging\s+its parent/.test(progressSkill),
+}, { limitsAncestryToDirectIntegrationMerges: true, reportsImmediateBase: true, admitsSquashBoundary: true, namesRetargetPractice: true })
+
+/**
+ * A walk that searches only OPEN heads reads "not an open head" as "integration branch", and a
+ * stacked parent can be CLOSED while it is still the child's recorded base. PR 575's base is
+ * `feature/539-b5-apply-design`, which is PR 560's head, and 560 is CLOSED with nothing merged, so
+ * the old rule named a feature branch as integration for that whole chain.
+ */
+T("progress: a closed stacked parent is never reported as the integration branch", {
+  resolvesEveryState: progressSkill.includes("gh pr list --head <candidate> --state all"),
+  followsOpenAndMergedParents: progressSkill.includes("`OPEN` or `MERGED`"),
+  refusesClosedParent: /never report that head as the integration\s+branch/.test(progressSkill),
+  terminatesOnAnEmptyArray: /An empty array, or one left empty by that filter, means the candidate is no pull request's\s+head/.test(progressSkill),
+}, { resolvesEveryState: true, followsOpenAndMergedParents: true, refusesClosedParent: true, terminatesOnAnEmptyArray: true })
+
+/**
+ * A reused branch name makes that listing return several rows, which is normal rather than
+ * ambiguous. The rule said BOTH "take the highest number" and "a duplicate matching head is
+ * ambiguity", so the same response could either continue the walk or refuse it.
+ */
+T("progress: a reused head has exactly one deterministic rule", {
+  oneOpenRowDecides: /Exactly one row has `state` `OPEN`: that row decides/.test(progressSkill),
+  highestNumberWhenNoneOpen: /No row is `OPEN`: the highest `number` decides/.test(progressSkill),
+  twoOpenRowsAreTheAmbiguity: /Two or more rows are `OPEN`: that is the ambiguity/.test(progressSkill),
+  noContradictoryDuplicateRule: !progressSkill.includes("A duplicate matching head or a cycle is ambiguity"),
+}, { oneOpenRowDecides: true, highestNumberWhenNoneOpen: true, twoOpenRowsAreTheAmbiguity: true, noContradictoryDuplicateRule: true })
+
+/**
+ * `--head` filters on the branch NAME only, and its own help says `<owner>:<branch>` is not
+ * supported. On a public repository a fork's pull request carrying the same branch name is
+ * therefore in the listing, and following its base walks into a stranger's branch.
+ */
+T("progress: a fork's pull request is never read as a stacked parent", {
+  anchorListingRequestsTheField: /gh pr list --state open --limit 100 --json number,headRefName,baseRefName,isCrossRepository/.test(progressSkill),
+  anchorRequiresMappedRepository: /row's `isCrossRepository` is false/.test(progressSkill),
+  dropsForkRowsFirst: /Drop every row whose `isCrossRepository` is true, before anything else/.test(progressSkill),
+  saysWhyTheFilterIsNeeded: /`--head` filters on\s+the branch NAME only/.test(progressSkill),
+}, { anchorListingRequestsTheField: true, anchorRequiresMappedRepository: true, dropsForkRowsFirst: true, saysWhyTheFilterIsNeeded: true })
+
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
  * looking rather than by any gate. A pre-commit hook does not check for them and neither did
