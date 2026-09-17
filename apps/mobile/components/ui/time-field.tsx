@@ -27,7 +27,7 @@ import {
 } from '@orbit/shared/utils'
 import { Clock3, X } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-group'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'

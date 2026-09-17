@@ -191,7 +191,7 @@ describe('list primitives on mobile', () => {
 
   it('renders RadioRow selection details and disables unavailable choices', () => {
     const onSelect = vi.fn()
-    const tree = render(<RadioRow label="Daily" onSelect={onSelect} />)
+    const tree = render(<RadioRow index={0} label="Daily" onSelect={onSelect} />)
     const choice = tree.root.findByType(Pressable)
     expect(choice.props.accessibilityState).toEqual({ checked: false })
     press(choice)
@@ -201,6 +201,7 @@ describe('list primitives on mobile', () => {
     void act(() => {
       tree.update(
         <RadioRow
+          index={0}
           label="Weekly"
           description="Every Monday"
           selected
@@ -216,7 +217,7 @@ describe('list primitives on mobile', () => {
 
     void act(() => {
       tree.update(
-        <RadioRow label="Locked" selected disabled reason="Upgrade required" depth={-2} />,
+        <RadioRow index={0} label="Locked" selected disabled reason="Upgrade required" depth={-2} />,
       )
     })
     expect(tree.root.findAllByType(Pressable)).toHaveLength(0)

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Pressable } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RadioGroup } from '@/components/ui/radio-group'
+import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 import {
   __resetTestHostConfig,

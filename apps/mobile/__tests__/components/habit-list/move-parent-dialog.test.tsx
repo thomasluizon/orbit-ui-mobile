@@ -1,10 +1,14 @@
 import React from 'react'
-import { describe, expect, it, vi } from 'vitest'
-import { Pressable } from 'react-native'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Pressable, View } from 'react-native'
 import {
   MoveParentDialog,
   type MoveParentOption,
 } from '@/components/habit-list/move-parent-dialog'
+import {
+  __resetTestHostConfig,
+  __setFocusImpl,
+} from '../../../test-mocks/react-native'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
@@ -113,6 +117,7 @@ function renderDialog(
 function findOptionRows(tree: RenderedTree): RenderedNode[] {
   return tree.root.findAll(
     (node) =>
+      (node.type === Pressable || node.type === View) &&
       node.props.accessibilityRole === 'radio' &&
       typeof node.props.accessibilityState === 'object' &&
       node.props.accessibilityState !== null &&
@@ -129,6 +134,10 @@ function findSearchInputs(tree: RenderedTree): RenderedNode[] {
 }
 
 describe('MoveParentDialog', () => {
+  beforeEach(() => {
+    __resetTestHostConfig()
+  })
+
   it('presents as a sheet with the move-parent title', () => {
     const { tree } = renderDialog()
 
@@ -284,6 +293,42 @@ describe('MoveParentDialog', () => {
     })
 
     expect(props.onSelectOption).toHaveBeenLastCalledWith('zeta5')
+  })
+
+  it('redirects entry to the checked destination without changing selection', () => {
+    const options = [
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha' }),
+      makeOption({ id: 'bravo', label: 'Bravo' }),
+    ]
+    const focusedStates: unknown[] = []
+    __setFocusImpl((props) => focusedStates.push(props.accessibilityState))
+    const { tree, props } = renderDialog({ options, selectedMoveParentId: null })
+    const rows = findOptionRows(tree)
+
+    void TestRenderer.act(() => {
+      ;(rows[1]!.props.onFocus as () => void)()
+    })
+
+    expect(focusedStates).toEqual([{ checked: true }])
+    expect(props.onSelectOption).not.toHaveBeenCalled()
+  })
+
+  it('selects a destination when focus moves within the group', () => {
+    const options = [
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha' }),
+      makeOption({ id: 'bravo', label: 'Bravo' }),
+    ]
+    const { tree, props } = renderDialog({ options, selectedMoveParentId: null })
+    const rows = findOptionRows(tree)
+
+    void TestRenderer.act(() => {
+      ;(rows[0]!.props.onFocus as () => void)()
+      ;(rows[1]!.props.onFocus as () => void)()
+    })
+
+    expect(props.onSelectOption).toHaveBeenCalledExactlyOnceWith('alpha')
   })
 
   it('locks the sheet and swaps to the moving label while pending', () => {

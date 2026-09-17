@@ -5,6 +5,10 @@ import { Pressable, Text, View } from 'react-native'
 
 import SupportScreen from '@/app/support'
 import { i18n } from '@/lib/i18n'
+import {
+  __resetTestHostConfig,
+  __setFocusImpl,
+} from '../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -137,6 +141,7 @@ function sentRequestBody() {
 describe('SupportScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __resetTestHostConfig()
     mocks.isOnline = true
     mocks.profile = createMockProfile()
     mocks.getItem.mockResolvedValue(null)
@@ -238,6 +243,40 @@ describe('SupportScreen', () => {
     })
     choices = findSubjectChoices(tree.root)
     expect((choices[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+  })
+
+  it('redirects subject entry to the checked row without changing the value', async () => {
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'billing', message: '' }))
+    const focusedStates: unknown[] = []
+    __setFocusImpl((props) => focusedStates.push(props.accessibilityState))
+    const tree = await renderScreen()
+    const choices = findSubjectChoices(tree.root)
+
+    await TestRenderer.act(async () => {
+      ;(choices[0]!.props.onFocus as () => void)()
+      await Promise.resolve()
+    })
+
+    expect(focusedStates).toEqual([{ checked: true }])
+    expect(findSubjectChoices(tree.root).map((choice) => (
+      choice.props.accessibilityState as { checked: boolean }
+    ).checked)).toEqual([false, true, false, false])
+  })
+
+  it('selects a subject when focus moves within the group', async () => {
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'billing', message: '' }))
+    const tree = await renderScreen()
+    const choices = findSubjectChoices(tree.root)
+
+    await TestRenderer.act(async () => {
+      ;(choices[1]!.props.onFocus as () => void)()
+      ;(choices[2]!.props.onFocus as () => void)()
+      await Promise.resolve()
+    })
+
+    expect((findSubjectChoices(tree.root)[2]!.props.accessibilityState as {
+      checked: boolean
+    }).checked).toBe(true)
   })
 
   it('does not show the locked email reason when the account email is editable', async () => {

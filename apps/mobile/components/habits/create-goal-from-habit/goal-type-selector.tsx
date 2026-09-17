@@ -3,7 +3,7 @@ import { Target, Flame } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { GoalType } from '@orbit/shared/types/goal'
 import type { CreateGoalStyles, CreateGoalTokens } from './styles'
-import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-group'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 
 const goalTypeOptions = [
   {

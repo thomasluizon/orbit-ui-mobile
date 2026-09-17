@@ -1,7 +1,7 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { StyleSheet, Text } from 'react-native'
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
-import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-group'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
