@@ -176,7 +176,9 @@ export function getCalendarSyncImportIssue(
 
   const parts = parseRuleParts(rule)
   const weekdayTokens = parts.BYDAY?.split(',').map((day) => day.trim()) ?? []
-  if (weekdayTokens.some((day) => ORDINAL_WEEKDAY_PATTERN.test(day))) {
+  const hasOrdinalPrefix = weekdayTokens.some((day) => ORDINAL_WEEKDAY_PATTERN.test(day))
+  const hasPositionalSelection = weekdayTokens.length > 0 && !!parts.BYSETPOS
+  if (hasOrdinalPrefix || hasPositionalSelection) {
     return 'ordinal-weekday'
   }
 

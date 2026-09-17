@@ -6,6 +6,7 @@ import {
   formatCalendarSyncRecurrenceLabel,
   getCalendarSyncClockValue,
   getCalendarSyncImportIssue,
+  isCalendarSyncEventImportable,
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
@@ -172,6 +173,43 @@ describe('calendar-sync utils', () => {
     expect(() => buildCalendarSyncImportRequest([event])).toThrow(
       'Unsupported calendar recurrence: ordinal-weekday',
     )
+  })
+
+  it('refuses a BYSETPOS ordinal weekday, which spells the same schedule another way', () => {
+    const event = {
+      id: 'event-second-monday-setpos',
+      title: 'Second Monday review',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=MO;BYSETPOS=2',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBe('ordinal-weekday')
+    expect(isCalendarSyncEventImportable(event)).toBe(false)
+    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
+      'Unsupported calendar recurrence: ordinal-weekday',
+    )
+  })
+
+  it('refuses the last weekday of the month, which Google spells with BYSETPOS=-1', () => {
+    const event = {
+      id: 'event-last-weekday',
+      title: 'Month end wrap up',
+      description: null,
+      startDate: '2026-09-30',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(event.recurrenceRule)).toBe('ordinal-weekday')
+    expect(isCalendarSyncEventImportable(event)).toBe(false)
   })
 
   it('builds bulk create requests from suggestions', () => {
