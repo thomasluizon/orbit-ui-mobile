@@ -369,11 +369,13 @@ export type {
 } from './habit-list-progress'
 export {
   buildGoalTitle,
+  getGoalDraftFieldErrorKeys,
   isGoalDeadlinePast,
   parseGoalTargetValue,
   validateGoalDraftInput,
   validateGoalProgressInput,
 } from './goal-form'
+export type { GoalDraftFieldErrorKeys } from './goal-form'
 export {
   createEmptyNotificationsResponse,
   deleteNotificationFromList,

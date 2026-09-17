@@ -13,6 +13,18 @@ import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
+const accessibilityMocks = vi.hoisted(() => ({ sendAccessibilityEvent: vi.fn() }))
+
+vi.mock('react-native', async () => {
+  const native = await vi.importActual<typeof import('react-native')>('react-native')
+  return {
+    ...native,
+    AccessibilityInfo: {
+      ...native.AccessibilityInfo,
+      sendAccessibilityEvent: accessibilityMocks.sendAccessibilityEvent,
+    },
+  }
+})
 
 type TestNode = {
   type: unknown
@@ -193,10 +205,10 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     : null,
 }))
 
-async function renderProgress(): Promise<TestTree> {
+async function renderProgress(createNodeMock?: (element: { props: Record<string, unknown> }) => unknown): Promise<TestTree> {
   let tree: TestTree | undefined
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<ProgressScreen />)
+    tree = TestRenderer.create(<ProgressScreen />, { createNodeMock })
     await Promise.resolve()
   })
   return tree!
@@ -1307,15 +1319,19 @@ describe('mobile ProgressContent', () => {
 
   it('stage 5 opens inline detail and returns to its goal list', async () => {
     mocks.goals.data.allGoals = [createMockGoal()]
+    accessibilityMocks.sendAccessibilityEvent.mockReset()
     const tree = await renderProgress()
     const card = findGoalCard(tree.root, 'Read 12 Books')
     TestRenderer.act(() => (card.props.onPress as () => void)())
     const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]
     if (!detail) throw new Error('Goal detail missing')
+    const detailGoalId = String(detail.props.goalId)
     expect(detail.props.inline).toBe(true)
     TestRenderer.act(() => (detail.props.onClose as () => void)())
     expect(tree.root.findAll((node) => node.type === 'GoalDetail')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).includes('\"title\":\"Read 12 Books\"'))).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.props.testID === `goal-card-${detailGoalId}`).length).toBeGreaterThan(0)
+    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenCalledWith(expect.any(Object), 'focus')
   })
 
   it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {

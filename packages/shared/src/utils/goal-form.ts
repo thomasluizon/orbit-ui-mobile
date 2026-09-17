@@ -1,8 +1,18 @@
 import { formatAPIDate } from './dates'
 import {
+  MAX_GOAL_TITLE_LENGTH,
+  MAX_GOAL_UNIT_LENGTH,
+} from '../validation/constants'
+import {
   validateGoalForm,
   validateGoalProgressValue,
 } from '../validation/goal-form'
+
+export interface GoalDraftFieldErrorKeys {
+  description?: string
+  targetValue?: string
+  unit?: string
+}
 
 export function parseGoalTargetValue(value: string): number | null {
   const trimmedValue = value.trim()
@@ -38,6 +48,29 @@ export function validateGoalDraftInput(
   const title = buildGoalTitle(description, targetValue ?? '', unit)
 
   return validateGoalForm(title, parsedTargetValue, unit)
+}
+
+export function getGoalDraftFieldErrorKeys(
+  description: string,
+  targetValue: string | number | null | undefined,
+  unit: string,
+): GoalDraftFieldErrorKeys {
+  const errors: GoalDraftFieldErrorKeys = {}
+  const parsedTargetValue = typeof targetValue === 'number'
+    ? targetValue
+    : parseGoalTargetValue(targetValue ?? '')
+  const title = buildGoalTitle(description, targetValue ?? '', unit)
+  const trimmedUnit = unit.trim()
+
+  if (!title.trim()) errors.description = 'goals.form.titleRequired'
+  else if (title.trim().length > MAX_GOAL_TITLE_LENGTH) errors.description = 'goals.form.titleTooLong'
+
+  if (!parsedTargetValue || parsedTargetValue <= 0) errors.targetValue = 'goals.form.targetValueRequired'
+
+  if (!trimmedUnit) errors.unit = 'goals.form.unitRequired'
+  else if (trimmedUnit.length > MAX_GOAL_UNIT_LENGTH) errors.unit = 'goals.form.unitTooLong'
+
+  return errors
 }
 
 export function validateGoalProgressInput(

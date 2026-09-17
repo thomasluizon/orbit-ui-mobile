@@ -1,5 +1,7 @@
 'use client'
 
+import type { Ref } from 'react'
+
 interface FieldWellProps {
   label: string
   id: string
@@ -9,6 +11,8 @@ interface FieldWellProps {
   placeholder?: string
   maxLength?: number
   error?: string
+  inputRef?: Ref<HTMLInputElement>
+  required?: boolean
   onChange: (next: string) => void
 }
 
@@ -22,6 +26,8 @@ export function FieldWell({
   placeholder,
   maxLength,
   error,
+  inputRef,
+  required = false,
   onChange,
 }: Readonly<FieldWellProps>) {
   return (
@@ -38,6 +44,7 @@ export function FieldWell({
         {label}
       </label>
       <input
+        ref={inputRef}
         id={id}
         type={type}
         value={value}
@@ -46,6 +53,7 @@ export function FieldWell({
         step={type === 'number' ? 'any' : undefined}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
+        required={required}
         onChange={(e) => onChange(e.target.value)}
         className="w-full appearance-none rounded-2xl border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none placeholder:text-[var(--fg-3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
         style={{

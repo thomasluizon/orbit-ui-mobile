@@ -70,6 +70,9 @@ describe('EditGoalModal', () => {
     expect(screen.getByDisplayValue('100')).toBeInTheDocument()
     expect(screen.getByDisplayValue('km')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Run 100km')).toBeInTheDocument()
+    expect(screen.getByLabelText('goals.form.description')).not.toBeRequired()
+    expect(screen.getByLabelText('goals.form.targetValue')).toBeRequired()
+    expect(screen.getByLabelText('goals.form.unit')).toBeRequired()
   })
 
   it('shows validation error when target is 0', () => {
@@ -90,6 +93,40 @@ describe('EditGoalModal', () => {
     fireEvent.submit(form!)
     expect(mockShowError).toHaveBeenCalledWith('goals.form.unitRequired')
     expect(mockMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('links every inline error and focuses each first remaining invalid field', async () => {
+    render(<EditGoalModal open={true} onOpenChange={vi.fn()} goal={mockGoal} />)
+    const descriptionInput = screen.getByLabelText('goals.form.description')
+    const targetInput = screen.getByLabelText('goals.form.targetValue')
+    const unitInput = screen.getByLabelText('goals.form.unit')
+    fireEvent.change(descriptionInput, { target: { value: '' } })
+    fireEvent.change(targetInput, { target: { value: '' } })
+    fireEvent.change(unitInput, { target: { value: '' } })
+
+    fireEvent.submit(targetInput.closest('form')!)
+
+    await waitFor(() => expect(descriptionInput).toHaveFocus())
+    expect(descriptionInput).toHaveAccessibleDescription('goals.form.titleRequired')
+    expect(targetInput).toHaveAccessibleDescription('goals.form.targetValueRequired')
+    expect(unitInput).toHaveAccessibleDescription('goals.form.unitRequired')
+    expect(descriptionInput).toHaveAttribute('aria-invalid', 'true')
+    expect(targetInput).toHaveAttribute('aria-invalid', 'true')
+    expect(unitInput).toHaveAttribute('aria-invalid', 'true')
+
+    fireEvent.change(descriptionInput, { target: { value: 'Run weekly' } })
+    fireEvent.change(targetInput, { target: { value: '10' } })
+    fireEvent.submit(targetInput.closest('form')!)
+
+    await waitFor(() => expect(unitInput).toHaveFocus())
+    expect(descriptionInput).toHaveAttribute('aria-invalid', 'false')
+    expect(targetInput).toHaveAttribute('aria-invalid', 'false')
+    expect(unitInput).toHaveAccessibleDescription('goals.form.unitRequired')
+
+    mockMutateAsync.mockResolvedValueOnce(undefined)
+    fireEvent.change(unitInput, { target: { value: 'km' } })
+    fireEvent.submit(targetInput.closest('form')!)
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledOnce())
   })
 
   it('submits update request', async () => {

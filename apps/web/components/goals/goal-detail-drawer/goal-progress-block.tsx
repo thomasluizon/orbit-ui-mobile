@@ -39,6 +39,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
   const pending = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [announcement, setAnnouncement] = useState('')
   const abandoned = goal.status === 'Abandoned'
   const active = goal.status === 'Active'
   const derived = goal.isProgressDerived === true
@@ -53,6 +54,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
     pending.current = true
     setBusy(true)
     setError('')
+    setAnnouncement('')
     try {
       await update.mutateAsync({
         goalId: goal.id,
@@ -61,6 +63,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         goalCount: goal.targetValue,
         goalUnit: goal.unit,
       })
+      setAnnouncement(t('goals.detail.progressUpdated', { current: value, target: goal.targetValue, unit: goal.unit }))
       await refetchDetail()
     } catch (failure: unknown) {
       setError(getFriendlyErrorMessage(failure, t, 'goals.errors.progress', 'goalProgress'))
@@ -93,6 +96,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         </div>
       </div> : null}
       <p role="alert" className={error ? 'text-[14px] text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
+      <p role="status" aria-live="polite" className="sr-only">{announcement}</p>
       {active && done ? <div className="flex flex-col items-start gap-2">
         <PillButton variant="secondary" size="sm" accessibleName={t('goals.detail.markCompleted')} disabled={busy || isUpdatingStatus} onClick={onComplete}>{t('goals.detail.markCompleted')}</PillButton>
         <p className="text-[14px] text-[var(--fg-2)]">{t('goals.detail.completeWhy')}</p>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -276,10 +276,11 @@ function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
 }
 
 function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, onOpen, tokens }: Readonly<{
-  goal: Goal; index: number; total: number; canReorder: boolean; isDragging: boolean; onDrag?: () => void; onMove: (goalId: string, target: number) => void; onOpen: () => void; tokens: AppTokensV2
+  goal: Goal; index: number; total: number; canReorder: boolean; isDragging: boolean; onDrag?: () => void; onMove: (goalId: string, target: number) => void; onOpen: (origin: View | null) => void; tokens: AppTokensV2
 }>) {
   const { t } = useTranslation()
   const { suppressPress, ...gesture } = useGoalDrag(canReorder ? onDrag : undefined)
+  const focusRef = useRef<View>(null)
   const labelKey = getProgressGoalLabelKey(goal)
   const abandoned = goal.status === 'Abandoned'
   const state = t(labelKey ?? 'goals.status.active')
@@ -293,14 +294,14 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         position,
       })
   return (
-    <MotionPressable active={isDragging} accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
+    <MotionPressable focusRef={focusRef} testID={`goal-card-${goal.id}`} active={isDragging} accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
       accessibilityHint={canReorder ? t('progressScreen.goals.reorderHint') : undefined}
       accessibilityActions={canReorder ? [{ name: 'decrement', label: t('progressScreen.goals.moveUp') }, { name: 'increment', label: t('progressScreen.goals.moveDown') }] : undefined}
       onAccessibilityAction={canReorder ? (event) => {
         const action = event.nativeEvent.actionName
         if (action === 'decrement' || action === 'increment') onMove(goal.id, index + (action === 'decrement' ? -1 : 1))
       } : undefined}
-      {...gesture} onPress={() => { if (!suppressPress()) onOpen() }}
+      {...gesture} onPress={() => { if (!suppressPress()) onOpen(focusRef.current) }}
       style={({ pressed }) => [
         styles.goalCard,
         { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost },
@@ -318,7 +319,7 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
   )
 }
 
-function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onOpenGoal: (goalId: string) => void }>) {
+function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onOpenGoal: (goalId: string, origin: View | null) => void }>) {
   const { t } = useTranslation()
   const router = useRouter()
   const reorder = useReorderGoals()
@@ -354,7 +355,7 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
   }
   const renderGoal = ({ item, getIndex, drag, isActive }: RenderItemParams<Goal>) => {
     const index = getIndex() ?? goals.findIndex((goal) => goal.id === item.id)
-    return <GoalCard goal={item} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} isDragging={isActive} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} tokens={tokens} />
+    return <GoalCard goal={item} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} isDragging={isActive} onDrag={drag} onMove={move} onOpen={(origin) => onOpenGoal(item.id, origin)} tokens={tokens} />
   }
   return (
     <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
@@ -362,7 +363,7 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
-      {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} tokens={tokens} />) : null}
+      {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} onMove={move} onOpen={(origin) => onOpenGoal(goal.id, origin)} tokens={tokens} />) : null}
       {reorder.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.reorderError')}</Text> : null}
     </View>
   )
@@ -507,6 +508,8 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
 
 export function ProgressContent() {
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
+  const previousDetailGoalId = useRef<string | null>(null)
+  const originGoalRef = useRef<View | null>(null)
   const { t } = useTranslation()
   const router = useRouter()
   const { width } = useWindowDimensions()
@@ -530,6 +533,17 @@ export function ProgressContent() {
     void goals.refetch()
     void gamification.refetch()
   }
+  const openGoal = useCallback((goalId: string, origin: View | null) => {
+    originGoalRef.current = origin
+    setDetailGoalId(goalId)
+  }, [])
+  useEffect(() => {
+    if (previousDetailGoalId.current && !detailGoalId && originGoalRef.current) {
+      AccessibilityInfo.sendAccessibilityEvent(originGoalRef.current, 'focus')
+      originGoalRef.current = null
+    }
+    previousDetailGoalId.current = detailGoalId
+  }, [detailGoalId])
   return (
     <>
       {detailGoalId ? <ScrollView style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={styles.content}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
@@ -547,7 +561,7 @@ export function ProgressContent() {
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
       {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={openGoal} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
     </NestableScrollContainer>
     </>
   )

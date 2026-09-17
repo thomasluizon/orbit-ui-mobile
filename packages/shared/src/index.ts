@@ -79,6 +79,7 @@ export {
   normalizeHabits,
   sortNormalizedHabits,
   buildGoalTitle,
+  getGoalDraftFieldErrorKeys,
   isGoalDeadlinePast,
   parseGoalTargetValue,
   validateGoalDraftInput,

@@ -2276,6 +2276,7 @@
       "manualProgress": "Atualize o progresso. Ao alcançar o alvo, a meta é concluída.",
       "increase": "Aumentar progresso",
       "decrease": "Diminuir progresso",
+      "progressUpdated": "Progresso atualizado para {current} de {target} {unit}.",
       "derivedStreak": "O progresso da sequência é calculado automaticamente, então não pode ser editado aqui. | Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui. | Vem da menor sequência atual entre os {count} hábitos ligados a esta meta, então não pode ser editado aqui.",
       "derivedHabits": "O progresso vem dos registros dos hábitos ligados a esta meta, então não é editável aqui.",
       "completeWhy": "Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.",

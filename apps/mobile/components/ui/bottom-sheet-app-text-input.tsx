@@ -17,7 +17,7 @@ type AppTokens = ReturnType<typeof createTokensV2>
 type BottomSheetAppTextInputProps = ComponentProps<typeof TextInput>
 
 export const BottomSheetAppTextInput = forwardRef<
-  unknown,
+  TextInput,
   BottomSheetAppTextInputProps
 >(function BottomSheetAppTextInput(
   { onBlur, onChangeText, onFocus, placeholderTextColor, style, value, ...props },
@@ -44,8 +44,8 @@ export const BottomSheetAppTextInput = forwardRef<
   }, [value])
 
   const assignRef = useCallback(
-    (node: unknown) => {
-      localRef.current = node as Parameters<typeof findNodeHandle>[0]
+    (node: TextInput | null) => {
+      localRef.current = node
 
       if (typeof ref === 'function') {
         ref(node)
