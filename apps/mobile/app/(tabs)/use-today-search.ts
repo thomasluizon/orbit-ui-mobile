@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Keyboard } from "react-native";
 import { useUIStore } from "@/stores/ui-store";
 
 export interface TodaySearch {
@@ -18,6 +19,7 @@ export function useTodaySearch(): TodaySearch {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const closeSearch = useCallback(() => {
+    Keyboard.dismiss();
     setSearchQuery("");
     setIsSearchOpen(false);
     setIsSearchFocused(false);

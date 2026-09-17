@@ -365,7 +365,7 @@
   },
   "components/habits/habit-row-styles.ts": {
     "local/spacing-scale": {
-      "count": 8
+      "count": 6
     }
   },
   "components/habits/reschedule-sheet.tsx": {

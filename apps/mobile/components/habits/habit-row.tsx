@@ -67,7 +67,7 @@ function resolveTrailingLayout(
     }
   }
   return {
-    cardPaddingRight: 16,
+    cardPaddingRight: 8,
     bodyPaddingRight: 0,
     bodyTrailingContent: null,
     siblingTrailingContent: trailingContent,

@@ -86,14 +86,19 @@ interface MenuAnchorHostProps {
 /**
  * Host wrapper for a menu trigger. Renders a non-collapsible View so the anchor
  * ref resolves to a real native view (a flattened view can make measurement
- * no-op on Android), keeping the measure/open invariant in one place.
+ * no-op on Android). Its 44dp floor keeps the host from clipping any point in
+ * the trigger's own minimum touch box during Android's ancestor hit-test walk.
  */
 export function MenuAnchorHost({
   anchorRef,
   children,
 }: Readonly<MenuAnchorHostProps>) {
   return (
-    <View ref={anchorRef} collapsable={false}>
+    <View
+      ref={anchorRef}
+      collapsable={false}
+      style={{ minWidth: 44, minHeight: 44 }}
+    >
       {children}
     </View>
   )

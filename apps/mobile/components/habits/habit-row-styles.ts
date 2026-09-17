@@ -73,7 +73,7 @@ export const styles = StyleSheet.create({
   trailing: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   linkedGoalDot: {
     width: 5,
@@ -93,10 +93,9 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   menuButton: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: 999,
-    margin: -3,
     alignItems: 'center',
     justifyContent: 'center',
   },
