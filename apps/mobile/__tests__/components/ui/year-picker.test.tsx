@@ -32,10 +32,10 @@ describe('YearPicker (mobile)', () => {
     expect(tree!.root.findByProps({ testID: 'year-picker-scroll' }).props.nestedScrollEnabled).toBe(true)
 
     const selectedCell = tree!.root.findByProps({ accessibilityLabel: '2026' })
-    const [cellStyle] = selectedCell.props.style({ pressed: false }) as Array<{
+    const [cellStyle] = selectedCell.props.style({ pressed: false }) as {
       height: number
       marginBottom: number
-    }>
+    }[]
     const renderedRowHeight = cellStyle.height + cellStyle.marginBottom
 
     expect(scrollTo).toHaveBeenCalledWith({ y: 3 * renderedRowHeight, animated: false })
