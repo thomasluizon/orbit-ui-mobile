@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-modal'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
@@ -124,6 +125,7 @@ describe('FreshStartModal', () => {
     queryClientClear.mockClear()
   })
   afterEach(() => {
+    sheetTestControls.defer(false)
     vi.clearAllMocks()
   })
 
@@ -153,6 +155,7 @@ await Promise.resolve()
 
   it('resets the account online, clears caches and navigates after sheet dismissal', async () => {
     const onClose = vi.fn()
+    sheetTestControls.defer(true)
     const { apiClient } = await import('@/lib/api-client')
     const offlineQueue = await import('@/lib/offline-queue')
     const tree = await render(<FreshStartModal open onClose={onClose} />)
@@ -162,9 +165,17 @@ await Promise.resolve()
     expect(vi.mocked(offlineQueue.clear)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(offlineQueue.enqueue)).not.toHaveBeenCalled()
     expect(queryClientClear).toHaveBeenCalled()
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
 
+    await TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
     expect(replace).toHaveBeenCalledWith('/')
+    expect(replace).toHaveBeenCalledTimes(1)
   })
 
   it('enqueues the reset when it is queued offline', async () => {

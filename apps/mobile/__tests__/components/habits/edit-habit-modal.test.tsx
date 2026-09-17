@@ -1,10 +1,11 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -22,6 +23,7 @@ const mockShowInfo = vi.fn()
 const mockUpdateMutateAsync = vi.hoisted(() => vi.fn())
 const mockBuildUpdateHabitRequest = vi.hoisted(() => vi.fn((...args: unknown[]): Record<string, unknown> => ({ goalIds: args[4] })))
 const mockAssignTagsMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
+const mockPush = vi.hoisted(() => vi.fn())
 
 let mockHabitDetailResult: {
   data: unknown
@@ -30,8 +32,12 @@ let mockHabitDetailResult: {
 } = { data: null, isPending: false, error: null }
 
 vi.mock('expo-router', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
 }))
+
+vi.mock('@/components/ui/sheet', async () =>
+  await import('@/__tests__/support/sheet-double'),
+)
 
 vi.mock('react-hook-form', () => ({
   useWatch: (args: { name: string }) => useWatchMock(args),
@@ -151,12 +157,12 @@ function findFieldsWrapper(tree: {
   )[0]
 }
 
-async function renderModal(relationshipFieldsLoaded = true) {
+async function renderModal(relationshipFieldsLoaded = true, onClose = vi.fn()) {
   const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
   let tree: any
   await TestRenderer.act(() => {
     tree = TestRenderer.create(
-      <EditHabitModal open onClose={vi.fn()} habit={habit} relationshipFieldsLoaded={relationshipFieldsLoaded} />,
+      <EditHabitModal open onClose={onClose} habit={habit} relationshipFieldsLoaded={relationshipFieldsLoaded} />,
     )
   })
   return tree
@@ -191,9 +197,35 @@ describe('EditHabitModal (mobile)', () => {
     )
   })
 
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
   const findFormFields = (tree: {
     root: { findAll: (predicate: (node: any) => boolean) => any[] }
   }) => tree.root.findAll((node: any) => node.type === 'HabitFormFields')[0]
+
+  it('routes to upgrade only after the sheet dismisses', async () => {
+    const onClose = vi.fn()
+    sheetTestControls.defer(true)
+    const tree = await renderModal(true, onClose)
+
+    TestRenderer.act(() => {
+      findFormFields(tree).props.onUpgrade()
+    })
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockPush).toHaveBeenCalledTimes(1)
+  })
 
   it('blocks the fields and disables save while the habit detail is loading', async () => {
     mockHabitDetailResult = { data: null, isPending: true, error: null }

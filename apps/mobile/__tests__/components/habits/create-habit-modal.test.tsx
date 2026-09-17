@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
@@ -7,6 +7,7 @@ import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -160,6 +161,10 @@ vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
     React.createElement('TextInput', props),
 }))
 
+vi.mock('@/components/ui/sheet', async () =>
+  await import('@/__tests__/support/sheet-double'),
+)
+
 function renderModal(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -224,6 +229,10 @@ describe('CreateHabitModal (mobile)', () => {
           return undefined
       }
     })
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
   })
 
   it('renders nothing when closed', () => {
@@ -734,9 +743,10 @@ await Promise.resolve()
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
   })
 
-  it('routes a Free standalone sub-habit attempt to upgrade without calling the API', async () => {
+  it('routes a Free standalone sub-habit attempt after the sheet dismisses', async () => {
     mockProfileState.hasProAccess = false
     const onClose = vi.fn()
+    sheetTestControls.defer(true)
     const tree = renderModal(
       <CreateHabitModal
         open
@@ -750,7 +760,17 @@ await Promise.resolve()
       await Promise.resolve()
     })
 
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockPush).toHaveBeenCalledTimes(1)
     expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledOnce()
   })

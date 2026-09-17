@@ -9,6 +9,7 @@ const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
   profile: undefined as Record<string, unknown> | undefined,
   pathname: '/',
+  push: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -17,7 +18,7 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('expo-router', () => ({
   usePathname: () => mocks.pathname,
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: mocks.push, replace: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -39,8 +40,8 @@ vi.mock('@/lib/theme', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('PillButton', null, children),
+  PillButton: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) =>
+    React.createElement('PillButton', { onClick }, children),
 }))
 
 function renderPrompt() {
@@ -65,8 +66,39 @@ function baseProfile(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks()
   mocks.profile = undefined
   mocks.pathname = '/'
+})
+
+describe('CalendarImportPrompt navigation', () => {
+  beforeEach(() => {
+    sheetTestControls.defer(true)
+  })
+
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
+  it('opens calendar sync only after the sheet dismisses', () => {
+    mocks.profile = baseProfile()
+    const tree = renderPrompt()
+    const importAction = tree.root.findAllByType('PillButton')[0]
+
+    TestRenderer.act(() => {
+      importAction.props.onClick()
+    })
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(mocks.push).toHaveBeenCalledWith('/calendar-sync')
+    expect(mocks.push).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('CalendarImportPrompt gating', () => {
