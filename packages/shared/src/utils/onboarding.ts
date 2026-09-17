@@ -1,5 +1,6 @@
-import type { CreateHabitRequest } from '../types/habit'
+import type { CreateHabitRequest, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
 import type { SupportedLocale } from '../types/profile'
+import { buildHabitFormPatchFromSuggestion } from './habit-form-helpers'
 import { readHabitPhrase } from './habit-phrase-parser'
 
 export const ONBOARDING_TOTAL_STEPS = 3
@@ -60,15 +61,100 @@ export function shouldHideOnboardingFooter(currentStep: number): boolean {
 
 export function getOnboardingHabitTitle(sentence: string, locale: SupportedLocale): string {
   const read = readHabitPhrase(sentence, locale)
+  if (read.consumed.length === 0) return sentence
+
   const characters = sentence.split('')
+  const removed = Array.from({ length: characters.length }, () => false)
   for (const token of read.consumed) {
     characters.fill(' ', token.start, token.end)
+    removed.fill(true, token.start, token.end)
   }
+
   const glue = locale === 'pt-BR'
-    ? /\b(?:toda|todo|todos|as|os|e|por|na|no|a|em)\b/giu
+    ? /\b(?:toda|todo|todas|todos|as|os|e|por|na|no|nas|nos|a|em|cada)\b/giu
     : /\b(?:every|each|and|a|per|at|on|times?|week)\b/giu
-  const title = characters.join('').replace(glue, ' ').replaceAll(/[\s,]+/gu, ' ').trim()
+  const removable = [...sentence.matchAll(glue)]
+  const touchesRemoved = (start: number, direction: -1 | 1): boolean => {
+    for (let index = start; index >= 0 && index < characters.length; index += direction) {
+      if (removed[index]) return true
+      if (!/[\s,;]/u.test(characters[index]!)) return false
+    }
+    return false
+  }
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const match of removable) {
+      const start = match.index
+      const end = start + match[0].length
+      if (removed.slice(start, end).every(Boolean)) continue
+      if (touchesRemoved(start - 1, -1) || touchesRemoved(end, 1)) {
+        characters.fill(' ', start, end)
+        removed.fill(true, start, end)
+        changed = true
+      }
+    }
+  }
+  const title = characters.join('').replaceAll(/[\s,;]+/gu, ' ').trim()
   return title || sentence.trim()
+}
+
+export interface OnboardingSchedule {
+  frequencyUnit: FrequencyUnit | null
+  frequencyQuantity: number | null
+  intervalWeeks: number
+  days: string[]
+  isGeneral: boolean
+  isFlexible: boolean
+  dueTime: string
+}
+
+const EVERY_DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+export function buildOnboardingScheduleFromPhrase(
+  sentence: string,
+  locale: SupportedLocale,
+): OnboardingSchedule {
+  const read = readHabitPhrase(sentence, locale)
+  const intervalWeeks = read.intervalWeeks ?? 1
+  if (read.cadence === 'flexible') {
+    return {
+      frequencyUnit: 'Week', frequencyQuantity: read.frequencyQuantity ?? 1,
+      intervalWeeks, days: [], isGeneral: false, isFlexible: true, dueTime: read.dueTime ?? '',
+    }
+  }
+  if (read.cadence === 'fixed' || read.cadence === 'daily') {
+    return {
+      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks,
+      days: read.cadence === 'daily' ? EVERY_DAY : read.days,
+      isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
+    }
+  }
+  if (read.intervalWeeks) {
+    return {
+      frequencyUnit: 'Week', frequencyQuantity: 1, intervalWeeks,
+      days: [], isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
+    }
+  }
+  return {
+    frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 1,
+    days: [], isGeneral: true, isFlexible: false, dueTime: read.dueTime ?? '',
+  }
+}
+
+export function buildOnboardingScheduleFromSuggestion(
+  suggestion: HabitSetupSuggestion,
+): OnboardingSchedule {
+  const patch = buildHabitFormPatchFromSuggestion(suggestion)
+  return {
+    frequencyUnit: patch.frequencyUnit,
+    frequencyQuantity: patch.frequencyQuantity,
+    intervalWeeks: 1,
+    days: patch.days,
+    isGeneral: false,
+    isFlexible: patch.mode === 'flexible',
+    dueTime: patch.dueTime ?? '',
+  }
 }
 
 export function buildOnboardingHabitInput(input: {
@@ -77,17 +163,21 @@ export function buildOnboardingHabitInput(input: {
   emoji: string
   days: string[]
   dueTime: string
+  schedule?: OnboardingSchedule
 }): CreateHabitRequest {
-  const scheduled = input.days.length > 0
+  const schedule = input.schedule ?? buildOnboardingScheduleFromPhrase(input.sentence, input.locale)
   return {
     title: getOnboardingHabitTitle(input.sentence, input.locale),
     emoji: input.emoji || null,
-    ...(scheduled
-      ? { frequencyUnit: 'Day' as const, frequencyQuantity: 1, days: input.days }
-      : { isGeneral: true }),
-    ...(input.dueTime ? { dueTime: input.dueTime } : {}),
-    reminderEnabled: input.dueTime.length > 0,
-    reminderTimes: input.dueTime ? [ONBOARDING_REMINDER_MINUTES] : [],
+    ...(schedule.frequencyUnit ? { frequencyUnit: schedule.frequencyUnit } : {}),
+    ...(schedule.frequencyQuantity ? { frequencyQuantity: schedule.frequencyQuantity } : {}),
+    ...(schedule.isFlexible || schedule.frequencyUnit ? { intervalWeeks: schedule.intervalWeeks } : {}),
+    ...(schedule.days.length > 0 ? { days: schedule.days } : {}),
+    ...(schedule.isGeneral ? { isGeneral: true } : {}),
+    ...(schedule.isFlexible ? { isFlexible: true } : {}),
+    ...(schedule.dueTime ? { dueTime: schedule.dueTime } : {}),
+    reminderEnabled: schedule.dueTime.length > 0,
+    reminderTimes: schedule.dueTime ? [ONBOARDING_REMINDER_MINUTES] : [],
   }
 }
 

@@ -85,7 +85,7 @@ describe('form primitives on mobile', () => {
     const tokens = createTokensV2('purple', 'dark')
     const tree = render(<Input label="Email" value="invalid" onChange={vi.fn()} error={error} />)
     const input = tree.root.findAllByType('TextInput')[0]!
-    const style = () => StyleSheet.flatten(prop(tree.root.findByProps({ testID: 'input-control' }), 'style'))
+    const style = () => StyleSheet.flatten(prop(tree.root.findAll((node) => prop(node, 'testID') === 'input-control')[0]!, 'style'))
     const resting = style()
     void act(() => prop<(() => void) | undefined>(input, 'onFocus')?.())
     expect(style()).not.toEqual(resting)

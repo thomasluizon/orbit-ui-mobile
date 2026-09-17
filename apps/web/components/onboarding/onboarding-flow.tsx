@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import {
-  buildHabitFormPatchFromSuggestion,
   buildOnboardingHabitInput,
+  buildOnboardingScheduleFromPhrase,
+  buildOnboardingScheduleFromSuggestion,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
   ONBOARDING_DONE_STEP,
@@ -16,6 +17,7 @@ import {
   ONBOARDING_WHEN_STEP,
   readHabitPhrase,
   shouldRequestOnboardingSuggestion,
+  type OnboardingSchedule,
 } from '@orbit/shared/utils'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -28,7 +30,7 @@ import { Toast } from '@/components/ui/toast'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
-import { subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
+import { requestWebPushPermission, subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
 import { OnboardingRemind, type ReminderState } from './onboarding-remind'
@@ -37,6 +39,18 @@ import { useOnboardingActions, useOnboardingIsLive } from './onboarding-actions-
 
 function ActionStack({ primary, secondary }: Readonly<{ primary: ReactNode; secondary?: ReactNode }>) {
   return <div className="flex flex-col gap-3">{primary}{secondary ? <div className="flex justify-center">{secondary}</div> : null}</div>
+}
+
+function subscribePortalRoot(): () => void {
+  return () => undefined
+}
+
+function getPortalRoot(): HTMLElement {
+  return document.body
+}
+
+function getServerPortalRoot(): null {
+  return null
 }
 
 function DoneShell({ children }: Readonly<{ children: ReactNode }>) {
@@ -104,10 +118,10 @@ function DecisionAction(props: Readonly<DecisionProps>) {
   return <PillButton onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>
 }
 
-function OnboardingHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack: () => void; onSkip: () => void }>) {
+function OnboardingHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack: () => void; onSkip?: () => void }>) {
   const t = useTranslations('onboarding.flow')
   const displayStep = getOnboardingDisplayStep(step)
-  return <div className="flex min-h-14 items-center justify-between px-4"><div className="flex items-center gap-4">{step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP ? <QuietLink onClick={onBack}>{t('back')}</QuietLink> : null}<span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums">Orbit <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div><QuietLink onClick={onSkip}>{t('skip')}</QuietLink></div>
+  return <div className="flex min-h-14 items-center justify-between px-4"><div className="flex items-center gap-4">{step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP ? <QuietLink onClick={onBack}>{t('back')}</QuietLink> : null}<span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums">Orbit <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>{onSkip ? <QuietLink onClick={onSkip}>{t('skip')}</QuietLink> : null}</div>
 }
 
 export function OnboardingFlow() {
@@ -122,8 +136,7 @@ export function OnboardingFlow() {
   const [step, setStep] = useState(ONBOARDING_WHAT_STEP)
   const [sentence, setSentence] = useState('')
   const [emoji, setEmoji] = useState('◎')
-  const [days, setDays] = useState<string[]>([])
-  const [dueTime, setDueTime] = useState('')
+  const [schedule, setSchedule] = useState<OnboardingSchedule>(() => buildOnboardingScheduleFromPhrase('', locale))
   const [proposed, setProposed] = useState(false)
   const [correcting, setCorrecting] = useState(false)
   const [createdId, setCreatedId] = useState<string | null>(null)
@@ -133,29 +146,44 @@ export function OnboardingFlow() {
   const [reminderState, setReminderState] = useState<ReminderState>('ask')
   const [remindersOff, setRemindersOff] = useState(false)
   const [skipped, setSkipped] = useState(false)
+  const [suggestionPending, setSuggestionPending] = useState(false)
+  const portalRoot = useSyncExternalStore(subscribePortalRoot, getPortalRoot, getServerPortalRoot)
   const overlayRef = useRef<HTMLDivElement>(null)
+  const suggestionRevision = useRef(0)
   const read = useMemo(() => readHabitPhrase(sentence, locale), [locale, sentence])
+  const { days, dueTime } = schedule
   const allowance = profile?.aiMessagesLimit ?? 5
   const atLimit = isLive && (profile?.aiMessagesUsed ?? 0) >= allowance
 
   async function continueFromWhat() {
-    if (!sentence.trim()) return
+    if (!sentence.trim() || suggestionPending) return
+    const localSchedule = buildOnboardingScheduleFromPhrase(sentence, locale)
     setEmoji(read.emoji ?? '◎')
-    setDays(read.days)
-    setDueTime(read.dueTime ?? '')
+    setSchedule(localSchedule)
     setProposed(false)
     setCorrecting(false)
-    setStep(ONBOARDING_WHEN_STEP)
-    if (!shouldRequestOnboardingSuggestion({ isLive, atLimit })) return
+    if (!shouldRequestOnboardingSuggestion({ isLive, atLimit })) {
+      setStep(ONBOARDING_WHEN_STEP)
+      return
+    }
+    const revision = suggestionRevision.current + 1
+    suggestionRevision.current = revision
+    setSuggestionPending(true)
     try {
       const result = await suggestion.mutateAsync({ title: sentence, language: locale })
-      const patch = buildHabitFormPatchFromSuggestion(result)
-      setEmoji(patch.emoji ?? read.emoji ?? '◎')
-      setDays(patch.days)
-      setDueTime(patch.dueTime ?? '')
+      if (suggestionRevision.current !== revision) return
+      const nextSchedule = buildOnboardingScheduleFromSuggestion(result)
+      setEmoji(result.emoji ?? read.emoji ?? '◎')
+      setSchedule(nextSchedule)
       setProposed(true)
     } catch {
+      if (suggestionRevision.current !== revision) return
       setCorrecting(true)
+    } finally {
+      if (suggestionRevision.current === revision) {
+        setSuggestionPending(false)
+        setStep(ONBOARDING_WHEN_STEP)
+      }
     }
   }
 
@@ -163,7 +191,7 @@ export function OnboardingFlow() {
     if (creating) return
     setCreating(true)
     setCreateFailed(false)
-    const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime })
+    const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime, schedule })
     try {
       if (createdId) await actions.updateHabit(createdId, input)
       else {
@@ -171,7 +199,7 @@ export function OnboardingFlow() {
         setCreatedId(result.id)
       }
       setCreatedTitle(input.title)
-      setReminderState(!dueTime ? 'no-time' : push.permission === 'denied' ? 'refused' : 'ask')
+      setReminderState(!dueTime ? 'no-time' : !push.supported ? 'unsupported' : push.permission === 'denied' ? 'refused' : 'ask')
       setStep(ONBOARDING_REMIND_STEP)
     } catch {
       setCreateFailed(true)
@@ -181,17 +209,18 @@ export function OnboardingFlow() {
   }
 
   async function allowReminders() {
-    if (!isLive) {
-      setStep(ONBOARDING_DONE_STEP)
-      return
-    }
     try {
+      if (!isLive) {
+        const outcome = await requestWebPushPermission()
+        if (outcome === 'granted') setStep(ONBOARDING_DONE_STEP)
+        else setReminderState(outcome)
+        return
+      }
       const result = await subscribeToPushNotifications()
       if (result.status === 'registered') setStep(ONBOARDING_DONE_STEP)
-      else if (result.status === 'denied') {
-        setRemindersOff(true)
-        setStep(ONBOARDING_DONE_STEP)
-      } else setReminderState('failed')
+      else if (!result.supported) setReminderState('unsupported')
+      else if (result.status === 'denied') setReminderState('denied')
+      else setReminderState('failed')
     } catch {
       setReminderState('failed')
     }
@@ -203,6 +232,8 @@ export function OnboardingFlow() {
   }
 
   function skip() {
+    suggestionRevision.current += 1
+    setSuggestionPending(false)
     setSkipped(true)
     setCreatedTitle('')
     setStep(ONBOARDING_DONE_STEP)
@@ -240,13 +271,13 @@ export function OnboardingFlow() {
     overlayRef.current?.querySelector<HTMLElement>('button, [href], input, select, textarea')?.focus()
   }, [step])
 
-  const decisionProps: DecisionProps = { step, sentence, marks: read.consumed, isLive, emoji, days, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending: suggestion.isPending, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: setSentence, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onEmoji: setEmoji, onToggleDay: (day) => setDays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day]), onTime: setDueTime, onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: continueWithoutReminders, onSetTime: () => setStep(ONBOARDING_WHEN_STEP) }
+  const decisionProps: DecisionProps = { step, sentence, marks: read.consumed, isLive, emoji, days, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onEmoji: setEmoji, onToggleDay: (day) => setSchedule((current) => { const nextDays = current.days.includes(day) ? current.days.filter((value) => value !== day) : [...current.days, day]; return { ...current, days: nextDays, frequencyUnit: nextDays.length ? 'Day' : null, frequencyQuantity: nextDays.length ? 1 : null, intervalWeeks: 1, isGeneral: nextDays.length === 0, isFlexible: false } }), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: continueWithoutReminders, onSetTime: () => setStep(ONBOARDING_WHEN_STEP) }
 
-  if (!('document' in globalThis)) return null
+  if (!portalRoot) return null
   const overlay = step === ONBOARDING_DONE_STEP ? (
     <DoneShell><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} onFinish={() => void actions.finishOnboarding()} /></DoneShell>
   ) : (
-    <FlowShell nav={false} header={<OnboardingHeader step={step} onBack={() => setStep(step - 1)} onSkip={skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
+    <FlowShell nav={false} header={<OnboardingHeader step={step} onBack={() => setStep(step - 1)} onSkip={step === ONBOARDING_REMIND_STEP ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
   )
-  return createPortal(<div ref={overlayRef} role="dialog" aria-modal="true" aria-labelledby="onboarding-title" className="z-modal fixed inset-0">{overlay}</div>, document.body)
+  return createPortal(<div ref={overlayRef} role="dialog" aria-modal="true" aria-labelledby="onboarding-title" className="z-modal fixed inset-0">{overlay}</div>, portalRoot)
 }

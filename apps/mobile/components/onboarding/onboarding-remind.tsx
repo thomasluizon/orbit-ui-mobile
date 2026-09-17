@@ -6,9 +6,11 @@ import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export type ReminderState = 'ask' | 'refused' | 'failed' | 'no-time'
+export type ReminderState = 'ask' | 'denied' | 'refused' | 'unsupported' | 'failed' | 'no-time'
 function getMessageKeys(state: Exclude<ReminderState, 'ask'>): readonly [string, string] {
+  if (state === 'denied') return ['deniedTitle', 'deniedBody']
   if (state === 'refused') return ['refusedTitle', 'refusedBody']
+  if (state === 'unsupported') return ['unsupportedTitle', 'unsupportedBody']
   if (state === 'failed') return ['failedTitle', 'failedBody']
   return ['noTimeTitle', 'noTimeBody']
 }

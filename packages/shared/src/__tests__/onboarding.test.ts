@@ -50,6 +50,20 @@ describe('onboarding helpers', () => {
     expect(getOnboardingHabitTitle('Caminhar toda segunda e quinta às 18:00', 'pt-BR')).toBe('Caminhar')
   })
 
+  it.each([
+    ['Read a book', 'en'],
+    ['Work on posture', 'en'],
+    ['Ler um livro', 'pt-BR'],
+    ['Trabalhar na postura', 'pt-BR'],
+  ] as const)('preserves an ordinary title byte for byte: %s', (sentence, locale) => {
+    expect(getOnboardingHabitTitle(sentence, locale)).toBe(sentence)
+  })
+
+  it('removes only connectors orphaned by consumed schedule words', () => {
+    expect(getOnboardingHabitTitle('Work on posture every Monday', 'en')).toBe('Work on posture')
+    expect(getOnboardingHabitTitle('Trabalhar na postura toda segunda', 'pt-BR')).toBe('Trabalhar na postura')
+  })
+
   it('builds the saved habit from the chosen schedule', () => {
     expect(buildOnboardingHabitInput({
       sentence: 'Walk every Monday and Thursday at 18:00',
@@ -62,6 +76,32 @@ describe('onboarding helpers', () => {
       days: ['Monday', 'Thursday'], dueTime: '18:00', reminderEnabled: true,
       reminderTimes: [15],
     })
+  })
+
+  it.each([
+    {
+      sentence: 'Read every day at 08:00',
+      expected: {
+        frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1,
+        days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      },
+    },
+    {
+      sentence: 'Walk 3 times a week',
+      expected: { frequencyUnit: 'Week', frequencyQuantity: 3, intervalWeeks: 1, isFlexible: true },
+    },
+    {
+      sentence: 'Clean every 2 weeks',
+      expected: { frequencyUnit: 'Week', frequencyQuantity: 1, intervalWeeks: 2 },
+    },
+  ])('preserves the parsed cadence for $sentence', ({ sentence, expected }) => {
+    expect(buildOnboardingHabitInput({
+      sentence,
+      locale: 'en',
+      emoji: '',
+      days: [],
+      dueTime: '',
+    })).toMatchObject(expected)
   })
 
   it('previews the notification fifteen minutes before the due time', () => {

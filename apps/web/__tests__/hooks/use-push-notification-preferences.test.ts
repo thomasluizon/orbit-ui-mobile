@@ -12,6 +12,7 @@ import {
   getPushStatusMessageKey,
   getPushStatusTone,
   loadPushNotificationState,
+  requestWebPushPermission,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
   usePushNotificationPreferences,
@@ -182,6 +183,20 @@ describe('use-push-notification-preferences helpers', () => {
       permission: 'denied',
       status: 'denied',
     })
+  })
+
+  it('requests permission without registering a signed-out device', async () => {
+    setupPushEnvironment({ permission: 'default', requestPermissionResult: 'granted' })
+
+    await expect(requestWebPushPermission()).resolves.toBe('granted')
+    expect(mockSubscribePush).not.toHaveBeenCalled()
+  })
+
+  it('keeps permission-only denial and unsupported devices distinct', async () => {
+    setupPushEnvironment({ permission: 'default', requestPermissionResult: 'denied' })
+    await expect(requestWebPushPermission()).resolves.toBe('denied')
+    vi.unstubAllGlobals()
+    await expect(requestWebPushPermission()).resolves.toBe('unsupported')
   })
 
   it('subscribes and syncs the backend when the user grants permission', async () => {
