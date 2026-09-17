@@ -150,6 +150,7 @@ export function OnboardingFlow() {
   const [skipped, setSkipped] = useState(false)
   const [suggestionPending, setSuggestionPending] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)
+  const [overlayOpen, setOverlayOpen] = useState(true)
   const suggestionRevision = useRef(0)
   const read = useMemo(() => readHabitPhrase(sentence, locale), [locale, sentence])
   const { days, dueTime } = schedule
@@ -290,13 +291,8 @@ export function OnboardingFlow() {
   const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, days, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, pushLoading, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => { const nextDays = current.days.includes(day) ? current.days.filter((value) => value !== day) : [...current.days, day]; return { ...current, days: nextDays, frequencyUnit: nextDays.length ? 'Day' : null, frequencyQuantity: nextDays.length ? 1 : null, isGeneral: nextDays.length === 0, isFlexible: false } }), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onSetTime: () => setStep(ONBOARDING_WHEN_STEP) }
 
   function closeOverlay() {
-    if (resolvingDeferredPush) return
-    if (step === ONBOARDING_DONE_STEP) {
-      void actions.finishOnboarding()
-      return
-    }
-    if (step > ONBOARDING_WHAT_STEP) setStep(step - 1)
-    else skip()
+    setOverlayOpen(false)
+    void actions.finishOnboarding()
   }
 
   const overlay = step === ONBOARDING_DONE_STEP ? (
@@ -304,5 +300,5 @@ export function OnboardingFlow() {
   ) : (
     <FlowShell nav={false} header={<OnboardingHeader step={step} onBack={resolvingDeferredPush ? undefined : () => setStep(step - 1)} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
   )
-  return <Dialog.Root open modal disablePointerDismissal onOpenChange={(open) => { if (!open) closeOverlay() }}><Dialog.Portal><Dialog.Viewport className="z-modal fixed inset-0"><Dialog.Popup aria-labelledby="onboarding-title" className="fixed inset-0">{overlay}</Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
+  return <Dialog.Root open={overlayOpen} modal disablePointerDismissal onOpenChange={(open) => { if (!open) closeOverlay() }}><Dialog.Portal><Dialog.Viewport className="z-modal fixed inset-0"><Dialog.Popup aria-labelledby="onboarding-title" className="fixed inset-0">{overlay}</Dialog.Popup></Dialog.Viewport></Dialog.Portal></Dialog.Root>
 }

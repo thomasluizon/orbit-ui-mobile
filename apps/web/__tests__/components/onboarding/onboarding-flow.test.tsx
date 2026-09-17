@@ -99,6 +99,13 @@ describe('OnboardingFlow state model', () => {
     useOnboardingDraftStore.getState().reset()
   })
 
+  it('dismisses the overlay directly with Escape', async () => {
+    mount(true)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+    expect(screen.queryByLabelText('sentence')).not.toBeInTheDocument()
+  })
+
   it('keeps one counter across three decisions and the done state', () => {
     expect(getOnboardingDisplayTotal()).toBe(3)
     expect(getOnboardingDisplayStep(0)).toBe(1)
