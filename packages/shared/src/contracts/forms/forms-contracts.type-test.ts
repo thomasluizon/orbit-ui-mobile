@@ -28,7 +28,7 @@ type ExpectedMinute = `${'0' | '1' | '2' | '3' | '4' | '5'}${ExpectedDigit}`
 type ExpectedTime24 = `${ExpectedHour24}:${ExpectedMinute}`
 
 type SingleLineVariant = Extract<InputProps, { multiline?: never }>
-type MultilineVariant = Extract<InputProps, { multiline: true }>
+type MarkedVariant = Extract<InputProps, { marks: readonly { start: number; end: number }[] }>
 type ExpectedSingleLineVariant = {
   label: string
   value: string
@@ -51,23 +51,22 @@ type ExpectedSingleLineVariant = {
   multiline?: never
   rows?: never
 }
-type ExpectedMultilineVariant = Omit<
-  ExpectedSingleLineVariant,
-  'multiline' | 'rows'
-> & {
-  multiline: true
-  rows?: number
-}
-
 type InputBase = { label: 'Name'; value: ''; onChange: (value: string) => void }
 type SingleInput = Exact<InputBase & { maxLength: 60 }, InputProps>
 type MultilineInput = Exact<InputBase & { multiline: true; rows: 4; maxLength: 60 }, InputProps>
+type MarkedMultilineInput = InputBase & {
+  multiline: true,
+  rows: 3
+  marks: readonly [{ start: 0; end: 3 }]
+  marksLabel: 'Words Orbit understood',
+}
+type MarkedMultilineFits = Assert<MarkedMultilineInput extends InputProps ? true : false>
 // @ts-expect-error false would create a second single-line shape
 type FalseMultiline = Exact<InputBase & { multiline: false }, InputProps>
 // @ts-expect-error rows only describe a multiline field
 type RowsWithoutMultiline = Exact<InputBase & { rows: 4 }, InputProps>
-// @ts-expect-error marks ship with the parser that produces them, not before
-type PrematureMarks = Exact<InputBase & { multiline: true; marks: [[0, 3]] }, InputProps>
+// @ts-expect-error marks require a localized accessible label
+type MarksWithoutLabel = Exact<InputBase & { multiline: true; marks: readonly [] }, InputProps>
 
 type OtpBase = { label: 'Code'; value: ''; onChange: (value: string) => void }
 type Otp = Exact<OtpBase, OtpInputProps>
@@ -144,7 +143,8 @@ type DateObjectRow = Exact<{ label: 'Started'; value: Date }, DateRowProps>
 
 export type FormContractAssertionsWidthAssertions = [
   Assert<IsExactWidth<Fields<SingleLineVariant>, ExpectedSingleLineVariant>>,
-  Assert<IsExactWidth<Fields<MultilineVariant>, Fields<ExpectedMultilineVariant>>>,
+  Assert<IsExactWidth<MarkedVariant['marks'], readonly { start: number; end: number }[]>>,
+  Assert<IsExactWidth<MarkedVariant['marksLabel'], string>>,
   Assert<IsExactWidth<InputProps['label'], string>>,
   Assert<IsExactWidth<InputProps['value'], string>>,
   Assert<IsExactWidth<InputProps['onChange'], (value: string) => void>>,
@@ -214,9 +214,11 @@ export type FormContractAssertionsWidthAssertions = [
 export type FormContractAssertions =
   | SingleInput
   | MultilineInput
+  | MarkedMultilineInput
+  | MarkedMultilineFits
   | FalseMultiline
   | RowsWithoutMultiline
-  | PrematureMarks
+  | MarksWithoutLabel
   | Otp
   | OtpWithoutChange
   | OtpWithoutValue

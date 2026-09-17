@@ -29,6 +29,9 @@ type SingleLineInput = {
 type MultilineInput = {
   multiline: true
   rows?: number
-}
+} & (
+  | { marks?: never; marksLabel?: never }
+  | { marks: readonly { start: number; end: number }[]; marksLabel: string }
+)
 
 export type InputProps = InputBase & (SingleLineInput | MultilineInput)

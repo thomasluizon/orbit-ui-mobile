@@ -34,6 +34,7 @@ export interface PersistedOnboardingDraft {
 export interface OnboardingDraftState extends PersistedOnboardingDraft {
   setStep: (step: number) => void
   bufferHabit: (habit: ApplyOnboardingHabit) => number
+  replaceHabit: (habitIndex: number, habit: ApplyOnboardingHabit) => void
   bufferFirstLog: (habitIndex: number, date: string) => void
   bufferGoal: (goal: CreateGoalRequest | null) => void
   bufferWeekStartDay: (day: OnboardingWeekStartDay) => void
@@ -128,6 +129,13 @@ export function createOnboardingDraftState(
       set((state) => ({ habits: [...state.habits, { ...habit }] }))
       return index
     },
+
+    replaceHabit: (habitIndex, habit) =>
+      set((state) => ({
+        habits: state.habits.map((current, index) =>
+          index === habitIndex ? { ...habit } : current,
+        ),
+      })),
 
     bufferFirstLog: (habitIndex, date) => set({ firstLog: { habitIndex, date } }),
 

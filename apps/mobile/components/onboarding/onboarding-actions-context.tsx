@@ -11,7 +11,7 @@ import type { BulkHabitItem, CreateHabitRequest } from '@orbit/shared/types/habi
 import type { CreateGoalRequest } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
-import { useBulkCreateHabits, useCreateHabit, useLogHabit } from '@/hooks/use-habits'
+import { useBulkCreateHabits, useCreateHabit, useLogHabit, useUpdateHabit } from '@/hooks/use-habits'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -25,6 +25,7 @@ import { useUIStore } from '@/stores/ui-store'
  */
 export interface OnboardingActions {
   createHabit: (input: CreateHabitRequest) => Promise<{ id: string; title: string }>
+  updateHabit: (habitId: string, input: CreateHabitRequest) => Promise<void>
   createHabitsBulk: (items: BulkHabitItem[]) => Promise<void>
   logHabit: (habitId: string) => Promise<void>
   createGoal: (input: CreateGoalRequest) => Promise<void>
@@ -89,35 +90,24 @@ export function useBufferOnboardingActions(): OnboardingActions {
         const index = useOnboardingDraftStore.getState().bufferHabit(input)
         return Promise.resolve({ id: String(index), title: input.title })
       },
+      updateHabit: (habitId, input) => {
+        useOnboardingDraftStore.getState().replaceHabit(Number(habitId), input)
+        return Promise.resolve()
+      },
       createHabitsBulk: (items) => {
         const store = useOnboardingDraftStore.getState()
-        for (const item of items) {
-          store.bufferHabit({
-            title: item.title,
-            ...(item.emoji != null ? { emoji: item.emoji } : {}),
-            ...(item.frequencyUnit != null ? { frequencyUnit: item.frequencyUnit } : {}),
-            ...(item.frequencyQuantity != null
-              ? { frequencyQuantity: item.frequencyQuantity }
-              : {}),
-            ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
-          })
-        }
+        for (const item of items) store.bufferHabit({
+          title: item.title,
+          ...(item.emoji != null ? { emoji: item.emoji } : {}),
+          ...(item.frequencyUnit != null ? { frequencyUnit: item.frequencyUnit } : {}),
+          ...(item.frequencyQuantity != null ? { frequencyQuantity: item.frequencyQuantity } : {}),
+          ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
+        })
         return Promise.resolve()
       },
-      logHabit: (habitId) => {
-        useOnboardingDraftStore
-          .getState()
-          .bufferFirstLog(Number(habitId), formatAPIDate(new Date()))
-        return Promise.resolve()
-      },
-      createGoal: (input) => {
-        useOnboardingDraftStore.getState().bufferGoal(input)
-        return Promise.resolve()
-      },
-      setWeekStartDay: (day) => {
-        useOnboardingDraftStore.getState().bufferWeekStartDay(day)
-        return Promise.resolve()
-      },
+      logHabit: (habitId) => { useOnboardingDraftStore.getState().bufferFirstLog(Number(habitId), formatAPIDate(new Date())); return Promise.resolve() },
+      createGoal: (input) => { useOnboardingDraftStore.getState().bufferGoal(input); return Promise.resolve() },
+      setWeekStartDay: (day) => { useOnboardingDraftStore.getState().bufferWeekStartDay(day); return Promise.resolve() },
       finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
         router.replace('/login?from=onboarding')
@@ -134,6 +124,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const createHabit = useCreateHabit()
+  const updateHabit = useUpdateHabit()
   const bulkCreateHabits = useBulkCreateHabits()
   const logHabit = useLogHabit()
   const createGoal = useCreateGoal()
@@ -145,24 +136,17 @@ export function useLiveOnboardingActions(): OnboardingActions {
         const created = await createHabit.mutateAsync(input)
         return { id: created.id, title: input.title }
       },
-      createHabitsBulk: async (items) => {
-        await bulkCreateHabits.mutateAsync({ habits: items })
-      },
-      logHabit: async (habitId) => {
-        await logHabit.mutateAsync({ habitId, intent: 'log' })
-      },
-      createGoal: async (input) => {
-        await createGoal.mutateAsync(input)
-      },
-      setWeekStartDay: async (day) => {
-        await performQueuedApiMutation({
-          type: 'setWeekStartDay',
-          scope: 'profile',
-          endpoint: API.profile.weekStartDay,
-          method: 'PUT',
-          payload: { weekStartDay: day },
-          dedupeKey: 'onboarding-week-start-day',
+      updateHabit: async (habitId, input) => {
+        await updateHabit.mutateAsync({
+          habitId,
+          data: { ...input, isBadHabit: false, dueTime: input.dueTime ?? null },
         })
+      },
+      createHabitsBulk: async (items) => { await bulkCreateHabits.mutateAsync({ habits: items }) },
+      logHabit: async (habitId) => { await logHabit.mutateAsync({ habitId, intent: 'log' }) },
+      createGoal: async (input) => { await createGoal.mutateAsync(input) },
+      setWeekStartDay: async (day) => {
+        await performQueuedApiMutation({ type: 'setWeekStartDay', scope: 'profile', endpoint: API.profile.weekStartDay, method: 'PUT', payload: { weekStartDay: day }, dedupeKey: 'onboarding-week-start-day' })
         patchProfile({ weekStartDay: day })
       },
       finishOnboarding: async () => {
@@ -193,14 +177,15 @@ export function useLiveOnboardingActions(): OnboardingActions {
       },
     }),
     [
+      createHabit,
       bulkCreateHabits,
       createGoal,
-      createHabit,
       logHabit,
       patchProfile,
       queryClient,
       router,
       t,
+      updateHabit,
     ],
   )
 }

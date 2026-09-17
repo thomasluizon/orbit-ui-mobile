@@ -1,44 +1,46 @@
-export type OnboardingFrequencyUnit = 'Day' | 'Week' | 'Month' | 'Year'
+import type { CreateHabitRequest } from '../types/habit'
+import type { SupportedLocale } from '../types/profile'
+import { readHabitPhrase } from './habit-phrase-parser'
 
 export const ONBOARDING_TOTAL_STEPS = 3
-export const ONBOARDING_CREATE_HABIT_STEP = 1
-export const ONBOARDING_COMPLETE_STEP = 2
-
-export const ONBOARDING_HABIT_SUGGESTIONS: ReadonlyArray<{
-  key: string
-  frequency: OnboardingFrequencyUnit
-}> = [
-  { key: 'water', frequency: 'Day' },
-  { key: 'read', frequency: 'Day' },
-  { key: 'exercise', frequency: 'Week' },
-  { key: 'meditate', frequency: 'Day' },
+export const ONBOARDING_WHAT_STEP = 0
+export const ONBOARDING_WHEN_STEP = 1
+export const ONBOARDING_REMIND_STEP = 2
+export const ONBOARDING_DONE_STEP = 3
+export const ONBOARDING_STARTERS = ['water', 'walk', 'read', 'tidy'] as const
+export const ONBOARDING_REMINDER_MINUTES = 15
+export const ONBOARDING_STATE_AXIS = [
+  'what',
+  'what typed',
+  'what signed out',
+  'when',
+  'when corrected',
+  'at limit',
+  'create failed',
+  'remind',
+  'remind already refused',
+  'remind enable failed',
+  'remind no time',
+  'done',
+  'done no reminders',
+  'done signed out',
 ] as const
 
-export const ONBOARDING_HABIT_FREQUENCIES: ReadonlyArray<{
-  value: OnboardingFrequencyUnit | 'one-time'
-  labelKey: string
-}> = [
-  { value: 'Day', labelKey: 'onboarding.flow.createHabit.frequency.daily' },
-  { value: 'Week', labelKey: 'onboarding.flow.createHabit.frequency.weekly' },
-  { value: 'one-time', labelKey: 'onboarding.flow.createHabit.frequency.oneTime' },
-] as const
-
-export const ONBOARDING_WEEK_START_OPTIONS = [
-  { value: 1, labelKey: 'settings.weekStartDay.monday' },
-  { value: 0, labelKey: 'settings.weekStartDay.sunday' },
-] as const
+export function shouldRequestOnboardingSuggestion(input: { isLive: boolean; atLimit: boolean }): boolean {
+  return input.isLive && !input.atLimit
+}
 
 export function getOnboardingDisplayTotal(): number {
   return ONBOARDING_TOTAL_STEPS
 }
 
 export function getOnboardingDisplayStep(currentStep: number): number {
-  return currentStep + 1
+  return Math.min(Math.max(currentStep + 1, 1), ONBOARDING_TOTAL_STEPS)
 }
 
 export function getOnboardingNextStep(currentStep: number): number {
-  if (currentStep >= ONBOARDING_COMPLETE_STEP) {
-    return ONBOARDING_COMPLETE_STEP
+  if (currentStep >= ONBOARDING_DONE_STEP) {
+    return ONBOARDING_DONE_STEP
   }
 
   return currentStep + 1
@@ -53,28 +55,47 @@ export function getOnboardingPreviousStep(currentStep: number): number {
 }
 
 export function shouldHideOnboardingFooter(currentStep: number): boolean {
-  return [
-    ONBOARDING_CREATE_HABIT_STEP,
-    ONBOARDING_COMPLETE_STEP,
-  ].includes(currentStep)
+  return currentStep === ONBOARDING_DONE_STEP
 }
 
-export function getOnboardingHabitFrequencyLabelKey(
-  frequencyUnit: OnboardingFrequencyUnit | undefined,
-): string {
-  if (!frequencyUnit) {
-    return 'onboarding.flow.createHabit.frequency.oneTime'
+export function getOnboardingHabitTitle(sentence: string, locale: SupportedLocale): string {
+  const read = readHabitPhrase(sentence, locale)
+  const characters = sentence.split('')
+  for (const token of read.consumed) {
+    characters.fill(' ', token.start, token.end)
   }
+  const glue = locale === 'pt-BR'
+    ? /\b(?:toda|todo|todos|as|os|e|por|na|no|a|em)\b/giu
+    : /\b(?:every|each|and|a|per|at|on|times?|week)\b/giu
+  const title = characters.join('').replace(glue, ' ').replaceAll(/[\s,]+/gu, ' ').trim()
+  return title || sentence.trim()
+}
 
-  if (frequencyUnit === 'Day') {
-    return 'onboarding.flow.createHabit.frequency.daily'
+export function buildOnboardingHabitInput(input: {
+  sentence: string
+  locale: SupportedLocale
+  emoji: string
+  days: string[]
+  dueTime: string
+}): CreateHabitRequest {
+  const scheduled = input.days.length > 0
+  return {
+    title: getOnboardingHabitTitle(input.sentence, input.locale),
+    emoji: input.emoji || null,
+    ...(scheduled
+      ? { frequencyUnit: 'Day' as const, frequencyQuantity: 1, days: input.days }
+      : { isGeneral: true }),
+    ...(input.dueTime ? { dueTime: input.dueTime } : {}),
+    reminderEnabled: input.dueTime.length > 0,
+    reminderTimes: input.dueTime ? [ONBOARDING_REMINDER_MINUTES] : [],
   }
+}
 
-  if (frequencyUnit === 'Week') {
-    return 'onboarding.flow.createHabit.frequency.weekly'
-  }
-
-  return 'onboarding.flow.createHabit.frequency.oneTime'
+export function getOnboardingReminderPreviewTime(dueTime: string): string | null {
+  const match = /^(\d{2}):(\d{2})$/u.exec(dueTime)
+  if (!match) return null
+  const minutes = (Number(match[1]) * 60 + Number(match[2]) - ONBOARDING_REMINDER_MINUTES + 1440) % 1440
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 }
 
 export type RetainedOnboardingAction = 'show' | 'autocomplete' | 'none'

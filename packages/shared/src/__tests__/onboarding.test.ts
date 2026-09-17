@@ -1,54 +1,73 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildOnboardingHabitInput,
   canSnapshotOnboardingEntry,
+  getOnboardingHabitTitle,
+  getOnboardingReminderPreviewTime,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
-  getOnboardingHabitFrequencyLabelKey,
   getOnboardingNextStep,
   getOnboardingPreviousStep,
-  ONBOARDING_HABIT_FREQUENCIES,
-  ONBOARDING_HABIT_SUGGESTIONS,
-  ONBOARDING_WEEK_START_OPTIONS,
+  ONBOARDING_DONE_STEP,
+  ONBOARDING_REMIND_STEP,
+  ONBOARDING_STARTERS,
+  ONBOARDING_STATE_AXIS,
+  shouldRequestOnboardingSuggestion,
   resolveRetainedOnboarding,
   shouldHideOnboardingFooter,
 } from '../utils/onboarding'
 
 describe('onboarding helpers', () => {
-  it('exposes the canonical suggestions and options', () => {
-    expect(ONBOARDING_HABIT_SUGGESTIONS.map((suggestion) => suggestion.key)).toEqual([
-      'water',
-      'read',
-      'exercise',
-      'meditate',
-    ])
-    expect(ONBOARDING_HABIT_FREQUENCIES.map((frequency) => frequency.value)).toEqual([
-      'Day',
-      'Week',
-      'one-time',
-    ])
-    expect(ONBOARDING_WEEK_START_OPTIONS.map((option) => option.value)).toEqual([1, 0])
+  it('exposes the four sentence starters', () => {
+    expect(ONBOARDING_STARTERS).toEqual(['water', 'walk', 'read', 'tidy'])
   })
 
-  it('derives onboarding progress consistently', () => {
+  it('covers all fourteen canvas states', () => {
+    expect(ONBOARDING_STATE_AXIS).toEqual([
+      'what', 'what typed', 'what signed out', 'when', 'when corrected', 'at limit',
+      'create failed', 'remind', 'remind already refused', 'remind enable failed',
+      'remind no time', 'done', 'done no reminders', 'done signed out',
+    ])
+  })
+
+  it('never spends an Astra message signed out or at the ceiling', () => {
+    expect(shouldRequestOnboardingSuggestion({ isLive: false, atLimit: false })).toBe(false)
+    expect(shouldRequestOnboardingSuggestion({ isLive: true, atLimit: true })).toBe(false)
+    expect(shouldRequestOnboardingSuggestion({ isLive: true, atLimit: false })).toBe(true)
+  })
+
+  it('keeps three decisions while the done screen rests at 03 of 03', () => {
     expect(getOnboardingDisplayTotal()).toBe(3)
     expect(getOnboardingDisplayStep(0)).toBe(1)
-    expect(getOnboardingNextStep(1)).toBe(2)
-    expect(getOnboardingPreviousStep(2)).toBe(1)
-    expect(shouldHideOnboardingFooter(1)).toBe(true)
-    expect(shouldHideOnboardingFooter(5)).toBe(false)
-    expect(shouldHideOnboardingFooter(0)).toBe(false)
+    expect(getOnboardingDisplayStep(ONBOARDING_DONE_STEP)).toBe(3)
+    expect(getOnboardingNextStep(ONBOARDING_REMIND_STEP)).toBe(ONBOARDING_DONE_STEP)
+    expect(getOnboardingPreviousStep(ONBOARDING_DONE_STEP)).toBe(ONBOARDING_REMIND_STEP)
+    expect(shouldHideOnboardingFooter(ONBOARDING_DONE_STEP)).toBe(true)
   })
 
-  it('maps habit frequency labels', () => {
-    expect(getOnboardingHabitFrequencyLabelKey('Day')).toBe(
-      'onboarding.flow.createHabit.frequency.daily',
-    )
-    expect(getOnboardingHabitFrequencyLabelKey('Week')).toBe(
-      'onboarding.flow.createHabit.frequency.weekly',
-    )
-    expect(getOnboardingHabitFrequencyLabelKey(undefined)).toBe(
-      'onboarding.flow.createHabit.frequency.oneTime',
-    )
+  it('removes schedule words from the habit title', () => {
+    expect(getOnboardingHabitTitle('Walk every Monday and Thursday at 18:00', 'en')).toBe('Walk')
+    expect(getOnboardingHabitTitle('Caminhar toda segunda e quinta às 18:00', 'pt-BR')).toBe('Caminhar')
+  })
+
+  it('builds the saved habit from the chosen schedule', () => {
+    expect(buildOnboardingHabitInput({
+      sentence: 'Walk every Monday and Thursday at 18:00',
+      locale: 'en',
+      emoji: '🚶',
+      days: ['Monday', 'Thursday'],
+      dueTime: '18:00',
+    })).toMatchObject({
+      title: 'Walk', emoji: '🚶', frequencyUnit: 'Day', frequencyQuantity: 1,
+      days: ['Monday', 'Thursday'], dueTime: '18:00', reminderEnabled: true,
+      reminderTimes: [15],
+    })
+  })
+
+  it('previews the notification fifteen minutes before the due time', () => {
+    expect(getOnboardingReminderPreviewTime('18:00')).toBe('17:45')
+    expect(getOnboardingReminderPreviewTime('00:10')).toBe('23:55')
+    expect(getOnboardingReminderPreviewTime('')).toBeNull()
   })
 })
 

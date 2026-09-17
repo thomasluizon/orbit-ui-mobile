@@ -1,60 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) return `${key}(${JSON.stringify(params)})`
-    return key
-  },
-  useLocale: () => 'en',
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({
-    profile: {
-      hasProAccess: true,
-      isTrialActive: false,
-      trialEndsAt: null,
-    },
-  }),
-  useHasProAccess: () => false,
-}))
-
-vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
-  useOnboardingIsLive: () => true,
-}))
-
+import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+
 describe('OnboardingComplete', () => {
-  const defaultProps = {
-    createdHabit: 'Exercise',
-    onFinish: vi.fn(),
-  }
-
-  beforeEach(() => {
-    defaultProps.onFinish.mockClear()
+  it('shows the created habit and uses the signed-out ending', () => {
+    const onFinish = vi.fn()
+    render(<OnboardingComplete createdHabit="Exercise" emoji="🏃" remindersOff={false} skipped={false} signedOut onFinish={onFinish} />)
+    expect(screen.getByText('signedOutTitle')).toBeInTheDocument()
+    expect(screen.getByText('Exercise')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('signIn'))
+    expect(onFinish).toHaveBeenCalledOnce()
   })
 
-  it('renders the completion title', () => {
-    render(<OnboardingComplete {...defaultProps} />)
-    expect(screen.getByText('onboarding.flow.complete.title')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.flow.complete.subtitle')).toBeInTheDocument()
-  })
-
-  it('shows the created habit recap', () => {
-    render(<OnboardingComplete {...defaultProps} />)
-    expect(screen.getByText('onboarding.flow.complete.recap.habit')).toBeInTheDocument()
-  })
-
-  it('does not claim a Pro account personalized a theme', () => {
-    render(<OnboardingComplete {...defaultProps} />)
-    expect(screen.queryByText('onboarding.flow.complete.recap.theme')).not.toBeInTheDocument()
-  })
-
-  it('calls onFinish when CTA clicked', () => {
-    render(<OnboardingComplete {...defaultProps} />)
-    fireEvent.click(screen.getByText('onboarding.flow.complete.start'))
-    expect(defaultProps.onFinish).toHaveBeenCalled()
+  it('names the no-reminders outcome without plan copy', () => {
+    render(<OnboardingComplete createdHabit="Read" emoji="📖" remindersOff skipped={false} signedOut={false} onFinish={vi.fn()} />)
+    expect(screen.getByText('remindersOffBody')).toBeInTheDocument()
+    expect(screen.queryByText(/Pro/u)).not.toBeInTheDocument()
   })
 })

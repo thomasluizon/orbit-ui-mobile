@@ -25,6 +25,22 @@ describe('onboarding draft store', () => {
     expect(store.getState().habits).toHaveLength(2)
   })
 
+  it('replaces one buffered habit without changing its index', () => {
+    const store = makeStore()
+    store.getState().bufferHabit({ title: 'Drink water' })
+    store.getState().bufferHabit({ title: 'Read' })
+
+    store.getState().replaceHabit(0, {
+      title: 'Drink water',
+      frequencyUnit: 'Day',
+    })
+
+    expect(store.getState().habits).toEqual([
+      { title: 'Drink water', frequencyUnit: 'Day' },
+      { title: 'Read' },
+    ])
+  })
+
   it('builds an apply payload from buffered answers', () => {
     const store = makeStore()
     store.getState().bufferHabit({ title: 'Drink water', frequencyUnit: 'Day' })

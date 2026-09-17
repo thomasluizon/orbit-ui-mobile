@@ -1,244 +1,57 @@
 'use client'
 
-import { useState, useCallback, useEffect, useEffectEvent } from 'react'
-import { Check, Settings2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { useAppToast } from '@/hooks/use-app-toast'
-import { useOnboardingActions } from './onboarding-actions-context'
-import {
-  getFriendlyErrorMessage,
-  getOnboardingHabitFrequencyLabelKey,
-  ONBOARDING_HABIT_FREQUENCIES,
-  ONBOARDING_HABIT_SUGGESTIONS,
-  translateErrorKey,
-  validateHabitFormInput,
-} from '@orbit/shared/utils'
-import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
-import type { FrequencyUnit } from '@orbit/shared/types/habit'
+import type { Time24 } from '@orbit/shared/contracts/forms'
 import { Chip } from '@/components/ui/chip'
-import { SectionLabel } from '@/components/ui/section-label'
-import { Input } from '@/components/ui/input'
-import { PillButton } from '@/components/ui/pill-button'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { Proposed } from '@/components/ui/proposed'
+import { TimeField } from '@/components/ui/time-field'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 
-interface Suggestion {
-  key: string
-  frequency: FrequencyUnit
-}
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 
 interface OnboardingCreateHabitProps {
-  onCreated: (habitId: string, title: string) => void
+  emoji: string
+  days: string[]
+  dueTime: string
+  proposed: boolean
+  correcting: boolean
+  atLimit: boolean
+  allowance: number
+  onCorrect: () => void
+  onEmojiChange: (value: string) => void
+  onToggleDay: (day: string) => void
+  onTimeChange: (value: string) => void
 }
 
-export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHabitProps>) {
-  const t = useTranslations()
-  const translate = useCallback(
-    (key: string, values?: Record<string, string | number | Date>) => t(key, values),
-    [t],
-  )
-  const [title, setTitle] = useState('')
-  const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit | undefined>('Day')
-  const [createdInfo, setCreatedInfo] = useState<{ id: string; title: string } | null>(null)
-  const isCreated = createdInfo !== null
-  const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
-  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
-  const { showError } = useAppToast()
-  const actions = useOnboardingActions()
-
-  const onCreatedEvent = useEffectEvent(onCreated)
-
-  useEffect(() => {
-    if (!createdInfo) return
-    const timer = setTimeout(() => {
-      onCreatedEvent(createdInfo.id, createdInfo.title)
-    }, 1500)
-    return () => clearTimeout(timer)
-  }, [createdInfo])
-
-  const activeFrequency = frequencyUnit ?? 'one-time'
-
-  function selectSuggestion(suggestion: Suggestion) {
-    setTitle(t(`onboarding.flow.createHabit.suggestions.${suggestion.key}`))
-    setFrequencyUnit(suggestion.frequency)
-    setSelectedSuggestion(suggestion.key)
-  }
-
-  function selectFrequency(value: FrequencyUnit | 'one-time') {
-    setFrequencyUnit(value === 'one-time' ? undefined : value)
-    setSelectedSuggestion(null)
-  }
-
-  const handleCreate = useCallback(async () => {
-    if (!title.trim() || isCreating) return
-
-    const validationError = translateErrorKey(
-      translate,
-      validateHabitFormInput({
-        title: title.trim(),
-        frequencyUnit,
-        frequencyQuantity: frequencyUnit ? 1 : null,
-      }),
-    )
-    if (validationError) {
-      showError(validationError)
-      return
-    }
-
-    setIsCreating(true)
-    try {
-      const result = await actions.createHabit({
-        title: title.trim(),
-        frequencyQuantity: 1,
-        ...(frequencyUnit ? { frequencyUnit } : {}),
-      })
-      setCreatedInfo({ id: result.id, title: title.trim() })
-    } catch (err: unknown) {
-      showError(getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'))
-    } finally {
-      setIsCreating(false)
-    }
-  }, [title, frequencyUnit, isCreating, actions, showError, translate])
-
-  if (isCreated) {
-    return (
-      <div className="flex flex-col items-center" style={{ gap: 16, padding: '32px 0' }}>
-        <div
-          className="flex items-center justify-center rounded-full"
-          style={{
-            width: 56,
-            height: 56,
-            background: 'var(--primary)',
-            animation: 'orb-entrance 0.5s var(--ease-out) both',
-          }}
-        >
-          <Check
-            className="animate-check-pop size-7"
-            style={{ color: 'var(--fg-on-primary)', animationDelay: '300ms' }}
-            strokeWidth={2.4}
-          />
-        </div>
-        <div
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 17,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {title}
-        </div>
-        <div
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t(getOnboardingHabitFrequencyLabelKey(frequencyUnit))}
-          {' · '}
-          {t('onboarding.flow.createHabit.success')}
+export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps>) {
+  const t = useTranslations('onboarding.flow')
+  const controls = (
+    <div className="flex flex-col gap-4 rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
+      <label className="flex flex-col gap-2 text-sm font-medium text-[var(--fg-2)]">
+        {t('when.emojiLabel')}
+        <input className="min-h-[54px] w-20 rounded-[12px] bg-[var(--bg-field)] px-4 text-2xl shadow-[inset_0_0_0_1px_var(--border-control)]" value={props.emoji} maxLength={4} onChange={(event) => props.onEmojiChange(event.target.value)} />
+      </label>
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-[var(--fg-2)]">{t('when.daysLabel')}</span>
+        <div className="flex flex-wrap gap-2">
+          {DAYS.map((day) => <Chip key={day} active={props.days.includes(day)} onClick={() => props.onToggleDay(day)}>{t(`when.days.${day.toLowerCase()}`)}</Chip>)}
         </div>
       </div>
-    )
-  }
-
-  return (
-    <div
-      className="stagger-enter"
-      style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '16px 0' }}
-    >
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 24,
-          fontWeight: 500,
-          letterSpacing: '-0.01em',
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {t('onboarding.flow.createHabit.title')}
-      </div>
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          color: 'var(--fg-2)',
-          lineHeight: 1.55,
-        }}
-      >
-        {t('onboarding.flow.createHabit.subtitle')}
-      </div>
-
-      <Input
-        label={t('onboarding.flow.createHabit.label')}
-        value={title}
-        onChange={setTitle}
-        placeholder={t('onboarding.flow.createHabit.placeholder')}
-        maxLength={MAX_HABIT_TITLE_LENGTH}
-        disabled={isCreating}
-        onSubmit={() => void handleCreate()}
-      />
-
-      <div className="flex justify-center">
-        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
-        <Chip
-          active={showFrequencyPicker}
-          leading={
-            <Settings2 size={11} strokeWidth={1.5} color="var(--fg-2)" />
-          }
-          onClick={() => setShowFrequencyPicker((v) => !v)}
-        >
-          {t('onboarding.flow.createHabit.useForm')}
-        </Chip>
-      </div>
-
-      {showFrequencyPicker && (
-        <div className="flex flex-wrap justify-center" style={{ gap: 6 }}>
-          {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
-            <Chip
-              key={freq.value}
-              active={activeFrequency === freq.value}
-              onClick={() => selectFrequency(freq.value)}
-            >
-              {t(freq.labelKey)}
-            </Chip>
-          ))}
-        </div>
-      )}
-
-      <SectionLabel>
-        {t('onboarding.flow.createHabit.starters')}
-      </SectionLabel>
-      <div className="flex flex-wrap" style={{ gap: 6 }}>
-        {ONBOARDING_HABIT_SUGGESTIONS.map((suggestion) => (
-          <Chip
-            key={suggestion.key}
-            active={selectedSuggestion === suggestion.key}
-            onClick={() => selectSuggestion(suggestion)}
-          >
-            {t(`onboarding.flow.createHabit.suggestions.${suggestion.key}`)}
-          </Chip>
-        ))}
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <PillButton
-
-          disabled={!title.trim() || isCreating}
-          loading={isCreating}
-          onClick={() => void handleCreate()}
-
-        >
-          {isCreating
-            ? t('onboarding.flow.createHabit.creating')
-            : t('onboarding.flow.createHabit.create')}
-        </PillButton>
-      </div>
+      <TimeField label={t('when.timeLabel')} value={props.dueTime as Time24 | ''} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('when.timeHint')} />
     </div>
+  )
+  return (
+    <section className="flex flex-col gap-6">
+      <div className="flex items-start gap-3">{props.proposed ? <span className="grid h-[26px] w-5 shrink-0 place-items-center text-[var(--fg-3)]"><AstraGlyph size={18} color="currentColor" /></span> : null}<h1 id="onboarding-title" className="m-0 min-w-0 flex-1 text-pretty text-[17px] font-normal leading-[1.5] text-[var(--fg-1)]">{props.proposed ? t('when.astraRead') : t('when.direct')}</h1></div>
+      {props.atLimit ? <CapacityNotice message={t('when.limit', { allowance: props.allowance })} /> : null}
+      {props.proposed && !props.correcting ? (
+        <button type="button" className="w-full text-left" onClick={props.onCorrect}>
+          <Proposed proposed scope="block" label={t('when.proposedBy')}>
+            <div className="flex items-center gap-4 rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"><span className="text-3xl">{props.emoji}</span><span>{props.days.map((day) => t(`when.days.${day.toLowerCase()}`)).join(', ')}{props.dueTime ? ` · ${props.dueTime}` : ''}</span></div>
+          </Proposed>
+        </button>
+      ) : controls}
+    </section>
   )
 }

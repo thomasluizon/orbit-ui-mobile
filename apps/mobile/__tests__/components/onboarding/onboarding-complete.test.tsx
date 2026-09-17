@@ -87,6 +87,10 @@ describe('OnboardingComplete', () => {
       tree = TestRenderer.create(
         <OnboardingComplete
           createdHabit="Exercise"
+          emoji="🏃"
+          remindersOff={false}
+          skipped={false}
+          signedOut={false}
           onFinish={vi.fn()}
         />,
       )
@@ -96,7 +100,7 @@ describe('OnboardingComplete', () => {
       .findAll((node: { type: unknown }) => node.type === 'Text')
       .map((node: { props: { children?: unknown } }) => node.props.children)
 
-    expect(renderedText).toContain(i18n.t('onboarding.flow.complete.recap.habit'))
+    expect(renderedText).toContain('Exercise')
     expect(renderedText).not.toContain(i18n.t('onboarding.flow.complete.recap.theme'))
   })
 })

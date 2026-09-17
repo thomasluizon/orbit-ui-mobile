@@ -71,27 +71,6 @@
       "count": 4
     }
   },
-  "components/onboarding/onboarding-complete.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/onboarding/onboarding-create-habit.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/onboarding/onboarding-welcome.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "components/ui/app-text-input.tsx": {
     "local/spacing-scale": {
       "count": 1

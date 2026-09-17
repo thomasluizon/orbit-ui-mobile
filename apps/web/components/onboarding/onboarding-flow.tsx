@@ -1,199 +1,252 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import {
+  buildHabitFormPatchFromSuggestion,
+  buildOnboardingHabitInput,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
-  getOnboardingNextStep,
-  getOnboardingPreviousStep,
-  ONBOARDING_COMPLETE_STEP,
-  ONBOARDING_CREATE_HABIT_STEP,
-  shouldHideOnboardingFooter,
+  ONBOARDING_DONE_STEP,
+  ONBOARDING_REMIND_STEP,
+  ONBOARDING_WHAT_STEP,
+  ONBOARDING_WHEN_STEP,
+  readHabitPhrase,
+  shouldRequestOnboardingSuggestion,
 } from '@orbit/shared/utils'
-import {
-  useOnboardingActions,
-  useOnboardingIsLive,
-} from './onboarding-actions-context'
-import { Pager } from '@/components/ui/pager'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { FlowShell } from '@/components/shell/flow-shell'
+import { Shell412 } from '@/components/shell/shell-412'
+import { ShellWide } from '@/components/shell/shell-wide'
+import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
-import { OnboardingWelcome } from './onboarding-welcome'
-import { OnboardingCreateHabit } from './onboarding-create-habit'
+import { Toast } from '@/components/ui/toast'
+import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { useProfile } from '@/hooks/use-profile'
+import { subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { OnboardingComplete } from './onboarding-complete'
+import { OnboardingCreateHabit } from './onboarding-create-habit'
+import { OnboardingRemind, type ReminderState } from './onboarding-remind'
+import { OnboardingWelcome } from './onboarding-welcome'
+import { useOnboardingActions, useOnboardingIsLive } from './onboarding-actions-context'
 
-export function OnboardingFlow() {
+function ActionStack({ primary, secondary }: Readonly<{ primary: ReactNode; secondary?: ReactNode }>) {
+  return <div className="flex flex-col gap-3">{primary}{secondary ? <div className="flex justify-center">{secondary}</div> : null}</div>
+}
+
+function DoneShell({ children }: Readonly<{ children: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
+  const wide = useIsWideDesktop()
+  const items = useMemo(() => [
+    { id: 'hoje', label: t('nav.today'), icon: 'home' },
+    { id: 'calendario', label: t('nav.calendar'), icon: 'calendar' },
+    { id: 'progresso', label: t('nav.progress'), icon: 'chart-line' },
+    { id: 'perfil', label: t('nav.profile'), icon: 'user' },
+  ] satisfies ShellWideItem[], [t])
+  const routes: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
+  const onSelect = (id: string) => router.push(routes[id] ?? '/')
+  if (wide) return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect}><div className="mx-auto flex min-h-full max-w-[440px] items-center px-4">{children}</div></ShellWide>
+  return <Shell412 tabBar={<BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={items.map((item) => ({ ...item, icon: ({ active }) => {
+    const Icon = { hoje: Home, calendario: CalendarDays, progresso: ChartLine, perfil: User }[item.id] ?? Home
+    return <Icon size={24} strokeWidth={active ? 2 : 1.5} />
+  } }))} onSelect={onSelect} />}><div className="mx-auto flex min-h-full max-w-[440px] items-center px-6">{children}</div></Shell412>
+}
+
+interface DecisionProps {
+  step: number
+  sentence: string
+  marks: ReturnType<typeof readHabitPhrase>['consumed']
+  isLive: boolean
+  emoji: string
+  days: string[]
+  dueTime: string
+  proposed: boolean
+  correcting: boolean
+  atLimit: boolean
+  allowance: number
+  createFailed: boolean
+  creating: boolean
+  suggestionPending: boolean
+  reminderState: ReminderState
+  createdTitle: string
+  onAccount: () => void
+  onSentence: (value: string) => void
+  onContinueWhat: () => void
+  onCorrect: () => void
+  onEmoji: (value: string) => void
+  onToggleDay: (day: string) => void
+  onTime: (value: string) => void
+  onSave: () => void
+  onAllow: () => void
+  onContinueWithout: () => void
+  onSetTime: () => void
+}
+
+function DecisionContent(props: Readonly<DecisionProps>) {
+  if (props.step === ONBOARDING_WHAT_STEP) return <OnboardingWelcome sentence={props.sentence} marks={props.marks} onChange={props.onSentence} onHaveAccount={!props.isLive ? props.onAccount : undefined} />
+  if (props.step === ONBOARDING_WHEN_STEP) return <OnboardingCreateHabit emoji={props.emoji} days={props.days} dueTime={props.dueTime} proposed={props.proposed} correcting={props.correcting} atLimit={props.atLimit} allowance={props.allowance} onCorrect={props.onCorrect} onEmojiChange={props.onEmoji} onToggleDay={props.onToggleDay} onTimeChange={props.onTime} />
+  return <OnboardingRemind state={props.reminderState} title={props.createdTitle} dueTime={props.dueTime} />
+}
+
+function DecisionAction(props: Readonly<DecisionProps>) {
+  const t = useTranslations('onboarding.flow')
+  if (props.step === ONBOARDING_WHAT_STEP) return <PillButton disabled={!props.sentence.trim()} loading={props.suggestionPending} onClick={props.onContinueWhat}>{t('continue')}</PillButton>
+  if (props.step === ONBOARDING_WHEN_STEP) return <PillButton loading={props.creating} onClick={props.onSave}>{props.createFailed ? t('retry') : t('create')}</PillButton>
+  if (props.reminderState === 'ask') return <ActionStack primary={<PillButton onClick={props.onAllow}>{t('remind.allow')}</PillButton>} secondary={<QuietLink onClick={props.onContinueWithout}>{t('remind.deny')}</QuietLink>} />
+  if (props.reminderState === 'failed') return <ActionStack primary={<PillButton onClick={props.onAllow}>{t('retry')}</PillButton>} secondary={<QuietLink onClick={props.onContinueWithout}>{t('remind.continue')}</QuietLink>} />
+  if (props.reminderState === 'no-time') return <ActionStack primary={<PillButton onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>} secondary={<QuietLink onClick={props.onSetTime}>{t('remind.setTime')}</QuietLink>} />
+  return <PillButton onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>
+}
+
+function OnboardingHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack: () => void; onSkip: () => void }>) {
+  const t = useTranslations('onboarding.flow')
+  const displayStep = getOnboardingDisplayStep(step)
+  return <div className="flex min-h-14 items-center justify-between px-4"><div className="flex items-center gap-4">{step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP ? <QuietLink onClick={onBack}>{t('back')}</QuietLink> : null}<span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums">Orbit <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div><QuietLink onClick={onSkip}>{t('skip')}</QuietLink></div>
+}
+
+export function OnboardingFlow() {
+  const t = useTranslations('onboarding.flow')
+  const router = useRouter()
+  const locale = useLocale() === 'pt-BR' ? 'pt-BR' : 'en'
   const actions = useOnboardingActions()
   const isLive = useOnboardingIsLive()
-
-  const [sharedStep, setSharedStep] = useState(0)
-  const [createdHabitTitle, setCreatedHabitTitle] = useState('')
-  const [mounted, setMounted] = useState(false)
-
-  if ('document' in globalThis && !mounted) {
-    setMounted(true)
-  }
-
-  const displayTotal = getOnboardingDisplayTotal()
-  const displayStep = getOnboardingDisplayStep(sharedStep)
-
-  const hasPrev = sharedStep > 0
-  const canAdvance = sharedStep !== ONBOARDING_COMPLETE_STEP
-
-  const goNext = useCallback(() => {
-    setSharedStep((step) => getOnboardingNextStep(step))
-  }, [])
-
-  const goPrev = useCallback(() => {
-    setSharedStep((step) => getOnboardingPreviousStep(step))
-  }, [])
-
-  function handleHabitCreated(_habitId: string, title: string) {
-    setCreatedHabitTitle(title)
-    goNext()
-  }
-
-  function handleFinish() {
-    void actions.finishOnboarding()
-  }
-
-  function handleSkip() {
-    setSharedStep(ONBOARDING_COMPLETE_STEP)
-  }
-
-  const hideFooter = shouldHideOnboardingFooter(sharedStep)
-
-  const stepContent = (() => {
-    switch (sharedStep) {
-      case 0:
-        return (
-          <OnboardingWelcome
-            key="welcome"
-            onHaveAccount={!isLive ? () => router.push('/login') : undefined}
-          />
-        )
-      case ONBOARDING_CREATE_HABIT_STEP:
-        return <OnboardingCreateHabit key="create-habit" onCreated={handleHabitCreated} />
-      case ONBOARDING_COMPLETE_STEP:
-        return (
-          <OnboardingComplete
-            key="complete"
-            createdHabit={createdHabitTitle}
-            finishLabel={!isLive ? t('onboarding.flow.saveYourPlan.cta') : undefined}
-            onFinish={handleFinish}
-          />
-        )
-      default:
-        return null
-    }
-  })()
-
+  const { profile } = useProfile({ enabled: isLive })
+  const suggestion = useHabitSuggestion()
+  const push = usePushNotificationPreferences()
+  const [step, setStep] = useState(ONBOARDING_WHAT_STEP)
+  const [sentence, setSentence] = useState('')
+  const [emoji, setEmoji] = useState('◎')
+  const [days, setDays] = useState<string[]>([])
+  const [dueTime, setDueTime] = useState('')
+  const [proposed, setProposed] = useState(false)
+  const [correcting, setCorrecting] = useState(false)
+  const [createdId, setCreatedId] = useState<string | null>(null)
+  const [createdTitle, setCreatedTitle] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createFailed, setCreateFailed] = useState(false)
+  const [reminderState, setReminderState] = useState<ReminderState>('ask')
+  const [remindersOff, setRemindersOff] = useState(false)
+  const [skipped, setSkipped] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!mounted) return
-    const el = overlayRef.current
-    if (!el) return
+  const read = useMemo(() => readHabitPhrase(sentence, locale), [locale, sentence])
+  const allowance = profile?.aiMessagesLimit ?? 5
+  const atLimit = isLive && (profile?.aiMessagesUsed ?? 0) >= allowance
 
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key !== 'Tab') return
-      const focusable = el!.querySelectorAll<HTMLElement>(
+  async function continueFromWhat() {
+    if (!sentence.trim()) return
+    setEmoji(read.emoji ?? '◎')
+    setDays(read.days)
+    setDueTime(read.dueTime ?? '')
+    setProposed(false)
+    setCorrecting(false)
+    setStep(ONBOARDING_WHEN_STEP)
+    if (!shouldRequestOnboardingSuggestion({ isLive, atLimit })) return
+    try {
+      const result = await suggestion.mutateAsync({ title: sentence, language: locale })
+      const patch = buildHabitFormPatchFromSuggestion(result)
+      setEmoji(patch.emoji ?? read.emoji ?? '◎')
+      setDays(patch.days)
+      setDueTime(patch.dueTime ?? '')
+      setProposed(true)
+    } catch {
+      setCorrecting(true)
+    }
+  }
+
+  async function saveHabit() {
+    if (creating) return
+    setCreating(true)
+    setCreateFailed(false)
+    const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime })
+    try {
+      if (createdId) await actions.updateHabit(createdId, input)
+      else {
+        const result = await actions.createHabit(input)
+        setCreatedId(result.id)
+      }
+      setCreatedTitle(input.title)
+      setReminderState(!dueTime ? 'no-time' : push.permission === 'denied' ? 'refused' : 'ask')
+      setStep(ONBOARDING_REMIND_STEP)
+    } catch {
+      setCreateFailed(true)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function allowReminders() {
+    if (!isLive) {
+      setStep(ONBOARDING_DONE_STEP)
+      return
+    }
+    try {
+      const result = await subscribeToPushNotifications()
+      if (result.status === 'registered') setStep(ONBOARDING_DONE_STEP)
+      else if (result.status === 'denied') {
+        setRemindersOff(true)
+        setStep(ONBOARDING_DONE_STEP)
+      } else setReminderState('failed')
+    } catch {
+      setReminderState('failed')
+    }
+  }
+
+  function continueWithoutReminders() {
+    setRemindersOff(true)
+    setStep(ONBOARDING_DONE_STEP)
+  }
+
+  function skip() {
+    setSkipped(true)
+    setCreatedTitle('')
+    setStep(ONBOARDING_DONE_STEP)
+  }
+
+  useEffect(() => {
+    const overlay = overlayRef.current
+    if (!overlay) return
+    const previousFocus = document.activeElement
+    function trapFocus(event: KeyboardEvent) {
+      if (event.key !== 'Tab') return
+      const focusable = overlay?.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
       )
-      if (focusable.length === 0) return
-      const first = focusable[0] ?? null
-      const last = focusable[focusable.length - 1] ?? null
-        if (e.shiftKey) {
-          if (document.activeElement === first && last) {
-            e.preventDefault()
-            last.focus()
-          }
-        } else if (document.activeElement === last && first) {
-          e.preventDefault()
-          first.focus()
-        }
+      if (!focusable?.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
       }
+    }
+    overlay.addEventListener('keydown', trapFocus)
+    return () => {
+      overlay.removeEventListener('keydown', trapFocus)
+      if (previousFocus instanceof HTMLElement) previousFocus.focus()
+    }
+  }, [])
 
-    el.addEventListener('keydown', handleKeyDown)
-    const firstFocusable = el.querySelector<HTMLElement>('button, [href], input')
-    firstFocusable?.focus()
+  useEffect(() => {
+    overlayRef.current?.querySelector<HTMLElement>('button, [href], input, select, textarea')?.focus()
+  }, [step])
 
-    return () => el.removeEventListener('keydown', handleKeyDown)
-  }, [mounted, sharedStep])
+  const decisionProps: DecisionProps = { step, sentence, marks: read.consumed, isLive, emoji, days, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending: suggestion.isPending, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: setSentence, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onEmoji: setEmoji, onToggleDay: (day) => setDays((current) => current.includes(day) ? current.filter((value) => value !== day) : [...current, day]), onTime: setDueTime, onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: continueWithoutReminders, onSetTime: () => setStep(ONBOARDING_WHEN_STEP) }
 
-  if (!mounted) return null
-
-  const isFinalStep = sharedStep === ONBOARDING_COMPLETE_STEP
-  const isStarter = sharedStep === 0
-
-  const overlay = (
-    // react-doctor-disable-next-line prefer-html-dialog -- full-screen onboarding takeover with its own focus/escape management via overlayRef; native <dialog>'s modal backdrop and sizing do not fit a full-viewport flow; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    <div
-      ref={overlayRef}
-      role="dialog"
-      className="fixed inset-0 z-[60] m-0 h-dvh w-screen overflow-y-auto"
-      style={{ background: 'var(--bg)' }}
-      aria-modal="true"
-      aria-labelledby="onboarding-title"
-    >
-      <div className="flex flex-col min-h-dvh relative">
-        <div
-          className="relative z-[1] flex items-center justify-between"
-          style={{ padding: '8px 20px', minHeight: 56 }}
-        >
-          <span
-            id="onboarding-title"
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-              letterSpacing: '0.04em',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            Orbit ·{' '}
-            <span style={{ color: 'var(--fg-1)' }}>
-              {String(displayStep).padStart(2, '0')}
-            </span>{' '}
-            / {String(displayTotal).padStart(2, '0')}
-          </span>
-          {!isFinalStep && (
-            <QuietLink onClick={handleSkip}>{t('onboarding.flow.skip')}</QuietLink>
-          )}
-        </div>
-
-        <div
-          className="relative z-[1] flex-1 min-h-0 overflow-y-auto flex flex-col"
-          style={{ padding: '12px 28px' }}
-        >
-          <div
-            key={`step-${sharedStep}`}
-            className="w-full max-w-sm mx-auto my-auto"
-          >
-            {stepContent}
-          </div>
-        </div>
-
-        {!hideFooter && (
-          <div
-            className="relative z-[1] flex flex-col items-center"
-            style={{ padding: '12px 24px 24px', gap: 24 }}
-          >
-            <div className="w-full">
-              <Pager index={displayStep - 1} count={displayTotal}
-                label={t('onboarding.flow.step', { current: displayStep, total: displayTotal })}
-                backLabel={t('onboarding.flow.back')} onBack={hasPrev ? goPrev : undefined}
-                forwardLabel={isStarter ? t('onboarding.flow.begin') : t('onboarding.flow.next')}
-                onForward={canAdvance ? goNext : undefined} />
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+  if (!('document' in globalThis)) return null
+  const overlay = step === ONBOARDING_DONE_STEP ? (
+    <DoneShell><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} onFinish={() => void actions.finishOnboarding()} /></DoneShell>
+  ) : (
+    <FlowShell nav={false} header={<OnboardingHeader step={step} onBack={() => setStep(step - 1)} onSkip={skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
   )
-
-  return createPortal(overlay, document.body)
+  return createPortal(<div ref={overlayRef} role="dialog" aria-modal="true" aria-labelledby="onboarding-title" className="z-modal fixed inset-0">{overlay}</div>, document.body)
 }

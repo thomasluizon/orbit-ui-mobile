@@ -1,120 +1,38 @@
 'use client'
 
-import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ONBOARDING_WEEK_START_OPTIONS } from '@orbit/shared/utils'
-import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
-import { useOnboardingActions } from './onboarding-actions-context'
-import type { ReactNode } from 'react'
-import { AppLogo } from '@/components/ui/app-logo'
+import type { HabitPhraseToken } from '@orbit/shared/utils'
+import { ONBOARDING_STARTERS } from '@orbit/shared/utils'
 import { Chip } from '@/components/ui/chip'
+import { Input } from '@/components/ui/input'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { QuietLink } from '@/components/ui/quiet-link'
 
 interface OnboardingWelcomeProps {
+  sentence: string
+  marks: readonly HabitPhraseToken[]
+  onChange: (value: string) => void
   onHaveAccount?: () => void
 }
 
-export function OnboardingWelcome({
-  onHaveAccount,
-}: Readonly<OnboardingWelcomeProps>) {
-  const t = useTranslations()
-  const actions = useOnboardingActions()
-  const [selectedWeekStart, setSelectedWeekStart] = useState<OnboardingWeekStartDay>(1)
-
-  function handleWeekStartDaySelect(day: OnboardingWeekStartDay) {
-    setSelectedWeekStart(day)
-    void actions.setWeekStartDay(day)
-  }
-
+export function OnboardingWelcome({ sentence, marks, onChange, onHaveAccount }: Readonly<OnboardingWelcomeProps>) {
+  const t = useTranslations('onboarding.flow')
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '16px 0' }}>
-      <div
-        className="flex flex-col items-center"
-        style={{ gap: 20, paddingTop: 14 }}
-      >
-        <div
-          className="flex items-center justify-center rounded-full"
-          style={{
-            width: 116,
-            height: 116,
-            background: 'rgba(var(--primary-rgb), 0.14)',
-            animation: 'orb-entrance 0.6s var(--ease-out) both',
-          }}
-        >
-          <AppLogo size={56} />
-        </div>
-        <h1
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 28,
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
-            lineHeight: 1.15,
-            color: 'var(--fg-1)',
-            margin: 0,
-          }}
-        >
-          {t('onboarding.flow.welcome.title')}
-        </h1>
-        <p
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 16,
-            color: 'var(--fg-2)',
-            lineHeight: 1.55,
-            margin: 0,
-            maxWidth: 300,
-          }}
-        >
-          {t('onboarding.flow.welcome.subtitle')}
-        </p>
+    <section className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <OrbitMark size={40} />
+        <h1 id="onboarding-title" className="m-0 text-pretty font-display text-[28px] font-medium leading-[1.15] tracking-[-0.02em] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.12]">{t('what.title')}</h1>
       </div>
-
-      <div>
-        <OnboardingSectionLabel>
-          {t('onboarding.flow.welcome.weekStart')}
-        </OnboardingSectionLabel>
-        <div className="flex justify-center" style={{ gap: 12 }}>
-          {ONBOARDING_WEEK_START_OPTIONS.map((option) => (
-            <Chip
-              key={option.value}
-              active={selectedWeekStart === option.value}
-              onClick={() => handleWeekStartDaySelect(option.value)}
-            >
-              {t(option.labelKey)}
-            </Chip>
+      <Input label={t('what.label')} value={sentence} onChange={onChange} placeholder={t('what.placeholder')} maxLength={100} multiline rows={3} marks={marks} marksLabel={t('what.marksLabel')} autoFocus />
+      <div className="flex flex-col gap-3">
+        <p className="m-0 text-sm text-[var(--fg-3)]">{t('what.startersTitle')}</p>
+        <div className="flex flex-wrap gap-2">
+          {ONBOARDING_STARTERS.map((key) => (
+            <Chip key={key} active={sentence === t(`what.starters.${key}`)} onClick={() => onChange(t(`what.starters.${key}`))}>{t(`what.starters.${key}`)}</Chip>
           ))}
         </div>
       </div>
-
-      {onHaveAccount && (
-        <div className="flex justify-center">
-          <QuietLink onClick={onHaveAccount}>
-            {t('onboarding.flow.saveYourPlan.haveAccount')}
-          </QuietLink>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function OnboardingSectionLabel({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    <div
-      className="text-center uppercase"
-      style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 12,
-        fontWeight: 500,
-        letterSpacing: '0.08em',
-        color: 'var(--fg-3)',
-        paddingTop: 12,
-        paddingBottom: 10,
-      }}
-    >
-      {children}
-    </div>
+      {onHaveAccount ? <div className="flex justify-center"><QuietLink onClick={onHaveAccount}>{t('what.haveAccount')}</QuietLink></div> : null}
+    </section>
   )
 }

@@ -1769,53 +1769,65 @@
     "flow": {
       "step": "{current} de {total}",
       "skip": "Pular",
-      "next": "Continuar",
-      "begin": "Começar",
       "back": "Voltar",
-      "welcome": {
-        "title": "Boas-vindas ao Orbit",
-        "subtitle": "Vamos deixar tudo do seu jeito e criar seu primeiro hábito.",
-        "weekStart": "Quando sua semana começa?"
-      },
-      "saveYourPlan": {
-        "title": "Salve seu plano",
-        "subtitle": "Crie sua conta para manter tudo o que você acabou de configurar.",
-        "habitSummary": "{count} hábitos prontos",
-        "habitSummaryOne": "1 hábito pronto",
-        "cta": "Criar conta e salvar",
+      "continue": "Continuar",
+      "create": "Criar hábito",
+      "retry": "Tentar novamente",
+      "createFailed": "O hábito não foi criado. Verifique a conexão e tente de novo.",
+      "what": {
+        "title": "O que você quer continuar fazendo?",
+        "label": "Escreva com as suas palavras",
+        "placeholder": "Caminhar toda segunda e quinta às 18:00",
+        "marksLabel": "Palavras que o Orbit entendeu",
+        "startersTitle": "Se quiser um começo",
+        "starters": {
+          "water": "Beber água pela manhã",
+          "walk": "Caminhar 3 vezes por semana",
+          "read": "Ler antes de dormir",
+          "tidy": "Arrumar a casa no sábado"
+        },
         "haveAccount": "Já tenho uma conta"
       },
-      "createHabit": {
-        "title": "Crie seu primeiro hábito",
-        "subtitle": "Os hábitos são a base de tudo. O que você quer acompanhar?",
-        "label": "Nome do hábito",
-        "placeholder": "ex: Beber água, Ler, Treinar",
-        "create": "Criar hábito",
-        "creating": "Criando...",
-        "success": "Hábito criado",
-        "useForm": "Usar o formulário",
-        "starters": "Ou experimente",
-        "frequency": {
-          "daily": "Diário",
-          "weekly": "Semanal",
-          "oneTime": "Única vez"
-        },
-        "suggestions": {
-          "water": "Beber água",
-          "read": "Ler 10 páginas",
-          "exercise": "Exercitar",
-          "meditate": "Meditar"
+      "when": {
+        "astraRead": "Entendi assim. Toque para corrigir.",
+        "direct": "Escolha os dias e a hora.",
+        "proposedBy": "Proposto pelo Astra",
+        "emojiLabel": "Emoji proposto pelo Astra",
+        "daysLabel": "Dias da semana",
+        "timeLabel": "Hora",
+        "timeHint": "Deixe vazio para qualquer hora do dia",
+        "limit": "As {allowance} mensagens de hoje foram usadas. A leitura da frase usa a mesma conta.",
+        "days": {
+          "sunday": "D", "monday": "S", "tuesday": "T", "wednesday": "Q", "thursday": "Q", "friday": "S", "saturday": "S"
         }
       },
-      "complete": {
-        "title": "Tudo pronto",
-        "subtitle": "É tudo de verdade. Seu hábito e seu progresso já estão salvos.",
-        "start": "Começar a usar o Orbit",
-        "recap": {
-          "habit": "Hábito criado"
-        },
-        "trialTitle": "7 dias de Pro, grátis",
-        "trialDesc": "Sem cartão. Você tem acesso Pro completo até {date}."
+      "remind": {
+        "title": "Podemos te lembrar?",
+        "body": "O hábito já está criado. É assim que o lembrete chega:",
+        "notificationBody": "Em 15 minutos",
+        "fine": "Ele chega 15 minutos antes do hábito. Se o hábito já estiver registrado, ele não é enviado.",
+        "noTimeTitle": "Lembretes precisam de uma hora",
+        "noTimeBody": "O hábito ficou sem hora marcada, então não há lembrete para enviar. Você pode voltar e definir uma, ou seguir sem lembretes.",
+        "setTime": "Definir a hora",
+        "refusedTitle": "Os lembretes estão desligados",
+        "refusedBody": "O aparelho está bloqueando as notificações do Orbit. Para receber lembretes, ligue as notificações do Orbit nas configurações do sistema. O hábito já está salvo.",
+        "failedTitle": "Os lembretes não ligaram",
+        "failedBody": "A permissão foi dada e o registro deste aparelho falhou. O hábito já está salvo.",
+        "allow": "Permitir lembretes",
+        "deny": "Agora não",
+        "continue": "Continuar"
+      },
+      "done": {
+        "title": "Pronto. Ele está no seu dia.",
+        "body": "Toque no anel para registrar quando acontecer.",
+        "remindersOffBody": "Toque no anel para registrar quando acontecer. Você pode ligar os lembretes no hábito.",
+        "skippedTitle": "Você pode começar pelo Hoje.",
+        "skippedBody": "Crie o primeiro hábito quando quiser, escrevendo uma frase.",
+        "signedOutTitle": "O seu plano está pronto.",
+        "signedOutBody": "Ele fica guardado neste aparelho e entra na sua conta quando você entrar.",
+        "seeDay": "Ver dia",
+        "signIn": "Entrar",
+        "pending": "pendente"
       },
       "meetAstra": {
         "importPrompt": "Me ajude a importar meus hábitos de outro app. Vou anexar um arquivo ou colar minha lista, e você cria os hábitos."
