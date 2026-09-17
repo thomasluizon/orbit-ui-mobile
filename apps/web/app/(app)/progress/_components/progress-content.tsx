@@ -24,6 +24,8 @@ import {
   extractBackendErrorCode,
   extractBackendStatus,
   filterProgressGoals,
+  formatStreakDate,
+  formatStreakRepairDates,
   getBestRetrospectiveWeekdayKey,
   getProgressGoalLabelKey,
   getGamificationLevelTitleKey,
@@ -37,6 +39,7 @@ import {
 } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -159,6 +162,23 @@ function FrozenTodayStatus({ isFrozenToday }: Readonly<{ isFrozenToday: boolean 
   )
 }
 
+function AutomaticFreezeStatus({ date, remaining, locale }: Readonly<{
+  date: string
+  remaining: number
+  locale: string
+}>) {
+  const t = useTranslations()
+  return (
+    <div role="status" className="flex items-center gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-[14px] text-[var(--fg-2)]">
+      <Snowflake size={20} strokeWidth={2} color="var(--status-frozen)" aria-hidden="true" />
+      <p>{t('progressScreen.streak.automaticCovered', {
+        date: formatStreakDate(date, locale),
+        count: remaining,
+      })}</p>
+    </div>
+  )
+}
+
 function RepairUnavailableCopy({ state }: Readonly<{
   state: StreakRepairState
 }>) {
@@ -183,6 +203,8 @@ function StreakRepairPanel({
   isDesktop: boolean
 }>) {
   const t = useTranslations()
+  const locale = useLocale()
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const repairStatus = extractBackendStatus(repair.error)
   if (state.gapUnavailable) {
     return (
@@ -192,13 +214,27 @@ function StreakRepairPanel({
     )
   }
   if (state.showGap) {
+    const datesLabel = formatStreakRepairDates(state.dates, locale)
     return (
-      <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
-        <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
-        {state.canRepair ? <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => repair.mutate(state.dates)}>{t('progressScreen.streak.repairAction', { count: state.count })}</PillButton> : null}
-        {!state.canRepair ? <RepairUnavailableCopy state={state} /> : null}
-        {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}
-      </div>
+      <>
+        <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
+          <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
+          {state.canRepair ? <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => setConfirmOpen(true)}>{t('progressScreen.streak.repairAction', { dates: datesLabel })}</PillButton> : null}
+          {!state.canRepair ? <RepairUnavailableCopy state={state} /> : null}
+          {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}
+        </div>
+        <ConfirmSheet
+          open={confirmOpen}
+          title={t('progressScreen.streak.repairConfirmTitle', { dates: datesLabel })}
+          message={t('progressScreen.streak.repairConfirmBody', { count: state.count })}
+          confirmLabel={t('progressScreen.streak.repairConfirmAction')}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={() => {
+            setConfirmOpen(false)
+            repair.mutate(state.dates)
+          }}
+        />
+      </>
     )
   }
   return state.bankFull
@@ -264,6 +300,13 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
         <p className="text-[17px] text-[var(--fg-2)]">{t('progressScreen.streak.currentLabel', { count: currentStreak })}</p>
       </div>
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} />
+      {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? (
+        <AutomaticFreezeStatus
+          date={freeze.streakInfo.lastFreezeCoveredDate}
+          remaining={freeze.streakInfo.freezeBankRemaining}
+          locale={locale}
+        />
+      ) : null}
       <div className="min-w-0 w-full py-1">
         <DayStrip size={isDesktop ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       </div>

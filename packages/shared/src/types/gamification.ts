@@ -142,6 +142,8 @@ export const streakInfoSchema = z.object({
   isRepairAvailable: z.boolean().optional(),
   repairDate: z.string().nullable().optional(),
   repairableGapDates: z.array(z.string()).nullable().optional(),
+  lastFreezeCoveredDate: z.string().nullable().optional(),
+  freezeBankRemaining: z.number().nullable().optional(),
 })
 
 export type StreakInfo = z.infer<typeof streakInfoSchema>

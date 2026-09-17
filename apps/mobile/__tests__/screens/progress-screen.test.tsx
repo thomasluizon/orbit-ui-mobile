@@ -114,6 +114,8 @@ const mocks = vi.hoisted(() => ({
       isRepairAvailable: false,
       repairDate: null as string | null,
       repairableGapDates: undefined as string[] | undefined,
+      lastFreezeCoveredDate: null as string | null,
+      freezeBankRemaining: null as number | null,
     },
     streakQuery: { isError: false, refetch: vi.fn() },
     isFrozenToday: false,
@@ -184,6 +186,11 @@ vi.mock('@/components/ui/pro-badge', () => ({
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
   StatTile: (props: Record<string, unknown>) => React.createElement('StatTile', props),
+}))
+vi.mock('@/components/ui/confirm-sheet', () => ({
+  ConfirmSheet: ({ open, title, confirmLabel, onConfirm }: { open: boolean; title: string; confirmLabel: string; onConfirm: () => void }) => open
+    ? React.createElement('ConfirmSheet', { title, confirmLabel, onConfirm })
+    : null,
 }))
 
 async function renderProgress(): Promise<TestTree> {
@@ -504,6 +511,8 @@ describe('mobile ProgressContent', () => {
       isRepairAvailable: false,
       repairDate: null,
       repairableGapDates: undefined,
+      lastFreezeCoveredDate: null,
+      freezeBankRemaining: null,
       streakFreezesAccumulated: 2,
       maxStreakFreezesAccumulated: 3,
       daysUntilNextFreeze: 3,
@@ -898,12 +907,26 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
 
     const tree = await renderProgress()
-    const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"count":1}')
+    const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')
 
     expect(action.props.testID).toBe('button-secondary-sm')
     await TestRenderer.act(() => (action.props.onPress as () => void)())
+    expect(mocks.repair.mutate).not.toHaveBeenCalled()
+    const confirm = tree.root.findAll((node) => node.type === 'ConfirmSheet')[0]
+    expect(confirm?.props.title).toBe('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')
+    await TestRenderer.act(() => (confirm?.props.onConfirm as () => void)())
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
     dimensions.mockRestore()
+  })
+
+  it('shows the date and remaining bank after an automatic freeze spend', async () => {
+    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
+    mocks.freeze.streakInfo.freezeBankRemaining = 2
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toContain('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}')
   })
 
   it('shows the no-freeze gap without an action or blame', async () => {

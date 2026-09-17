@@ -11,6 +11,7 @@ import type { Profile } from '../types/profile'
 import { formatAPIDateInTimeZone, nowDate } from './dates'
 import { isPayGateError } from './error-utils'
 import { getGoalMetricsStatusPresentation } from './goal-metrics'
+import { formatLocaleDate } from './locale-format'
 
 type ProgressQueryState = { isLoading: boolean; isError: boolean }
 
@@ -180,6 +181,21 @@ export function getStreakRepairErrorMessageKey(status: number | undefined):
   return status === 429
     ? 'progressScreen.streak.repairRateLimited'
     : 'progressScreen.streak.repairError'
+}
+
+export function formatStreakDate(date: string, locale: string): string {
+  return formatLocaleDate(date, locale, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+export function formatStreakRepairDates(dates: readonly string[], locale: string): string {
+  return new Intl.ListFormat(locale, {
+    style: 'long',
+    type: 'conjunction',
+  }).format(dates.map((date) => formatStreakDate(date, locale)))
 }
 
 function isApiDate(value: string | null | undefined): value is string {
