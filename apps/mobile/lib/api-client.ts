@@ -207,12 +207,12 @@ async function handleUnauthorized<T>(
 
   const {
     clearSessionAndResetAuth,
-    getSessionGeneration,
+    getSessionEpoch,
     refreshSession,
     isAuthTransitionInFlight,
   } =
     await import('@/stores/auth-store')
-  const refreshGeneration = getSessionGeneration()
+  const sessionEpoch = getSessionEpoch()
   const refreshOutcome = await refreshSession({ clearOnFailure: false })
 
   if (refreshOutcome.status === 'network-error') {
@@ -220,7 +220,6 @@ async function handleUnauthorized<T>(
   }
 
   if (refreshOutcome.status === 'refreshed') {
-    const refreshedGeneration = getSessionGeneration()
     const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
     if (retry.response.status !== 401) {
       return {
@@ -230,14 +229,14 @@ async function handleUnauthorized<T>(
     }
 
     if (!isAuthTransitionInFlight()) {
-      await clearSessionAndResetAuth(refreshedGeneration)
+      await clearSessionAndResetAuth(sessionEpoch)
       await redirectToLogin()
     }
     throw toUnauthorizedError(retry.requestId)
   }
 
   if (!isAuthTransitionInFlight()) {
-    await clearSessionAndResetAuth(refreshGeneration)
+    await clearSessionAndResetAuth(sessionEpoch)
     await redirectToLogin()
   }
   throw toUnauthorizedError(requestId)
@@ -284,9 +283,9 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   }
 
   if (response.status === 401) {
-    const { clearSessionAndResetAuth, getSessionGeneration } =
+    const { clearSessionAndResetAuth, getSessionEpoch } =
       await import('@/stores/auth-store')
-    await clearSessionAndResetAuth(getSessionGeneration())
+    await clearSessionAndResetAuth(getSessionEpoch())
     throw toUnauthorizedError(requestId)
   }
 

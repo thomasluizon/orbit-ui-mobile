@@ -4,7 +4,7 @@ import { getErrorSurface } from '@orbit/shared/utils'
 
 import {
   clearSessionAndResetAuth,
-  getSessionGeneration,
+  getSessionEpoch,
   isAuthTransitionInFlight,
   refreshSession,
   refreshSessionToken,
@@ -347,6 +347,77 @@ describe('mobile auth store security paths', () => {
     expect(signedInPublications).toBe(1)
   })
 
+  it('finishes login after a successful refresh during account cleanup', async () => {
+    const loginExpirySeconds = Math.floor(Date.now() / 1000) + 1800
+    const refreshedExpirySeconds = loginExpirySeconds + 1800
+    const loginToken = makeJwtWithClaims(loginExpirySeconds, 'user-1', 'user@example.com')
+    const refreshedToken = makeJwtWithClaims(
+      refreshedExpirySeconds,
+      'user-1',
+      'user@example.com',
+    )
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockResolvedValue(Response.json({
+      token: refreshedToken,
+      refreshToken: 'next-refresh',
+    }))
+
+    let releasePersistedCacheClear!: () => void
+    const persistedCacheClearReleased = new Promise<void>((resolve) => {
+      releasePersistedCacheClear = resolve
+    })
+    clearPersistedQueryCacheMock.mockReturnValue(persistedCacheClearReleased)
+
+    const login = useAuthStore.getState().login(loginToken, 'refresh-token', {
+      userId: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+    })
+    await vi.waitFor(() => expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1))
+
+    await expect(refreshSession()).resolves.toEqual({
+      status: 'refreshed',
+      token: refreshedToken,
+    })
+
+    releasePersistedCacheClear()
+    await login
+
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      expiresAt: refreshedExpirySeconds * 1000,
+    })
+  })
+
+  it('aborts a blocked login when teardown changes the session', async () => {
+    let releasePersistedCacheClear!: () => void
+    const persistedCacheClearReleased = new Promise<void>((resolve) => {
+      releasePersistedCacheClear = resolve
+    })
+    clearPersistedQueryCacheMock
+      .mockReturnValueOnce(persistedCacheClearReleased)
+      .mockResolvedValue(undefined)
+
+    const login = useAuthStore.getState().login('access-token', 'refresh-token', {
+      userId: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+    })
+    await vi.waitFor(() => expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1))
+
+    await clearSessionAndResetAuth(getSessionEpoch())
+    releasePersistedCacheClear()
+    await login
+
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-out',
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+    })
+  })
+
   it('keeps a restored session unauthenticated until cache scoping completes', async () => {
     const rotatedToken = makeJwtWithClaims(
       Math.floor(Date.now() / 1000) + 3600,
@@ -407,9 +478,9 @@ describe('mobile auth store security paths', () => {
   })
 
   it('keeps the session authenticated when a concurrent clear fires mid-login', async () => {
-    const previousGeneration = getSessionGeneration()
+    const previousEpoch = getSessionEpoch()
     apiClientMock.mockImplementation(async () => {
-      await clearSessionAndResetAuth(previousGeneration)
+      await clearSessionAndResetAuth(previousEpoch)
       return undefined
     })
 
@@ -782,10 +853,10 @@ describe('mobile auth store security paths', () => {
     }
   })
 
-  it('advances the session generation and signs out when revocation rejects', async () => {
+  it('advances the session epoch and signs out when revocation rejects', async () => {
     getRefreshTokenMock.mockResolvedValue('refresh-token')
     apiClientMock.mockRejectedValueOnce(new Error('network down'))
-    const generationBeforeLogout = getSessionGeneration()
+    const epochBeforeLogout = getSessionEpoch()
     useAuthStore.setState({
       isAuthenticated: true,
       user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
@@ -795,7 +866,7 @@ describe('mobile auth store security paths', () => {
 
     await expect(useAuthStore.getState().logout()).resolves.toBeUndefined()
 
-    expect(getSessionGeneration()).toBeGreaterThan(generationBeforeLogout)
+    expect(getSessionEpoch()).toBeGreaterThan(epochBeforeLogout)
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
