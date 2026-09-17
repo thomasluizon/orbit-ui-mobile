@@ -31,7 +31,6 @@
  * Run: node tools/test-tools.mjs   (exits non-zero on any failure)
  */
 
-import { spawn } from "node:child_process"
 import { existsSync, readdirSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { performance } from "node:perf_hooks"
@@ -40,7 +39,6 @@ import { fileURLToPath } from "node:url"
 const startedAt = performance.now()
 let assertionCount = () => 0
 process.on("exit", () => {
-  if (process.env.ORBIT_TOOLS_POOL_WORKER === "1") return
   const elapsedSeconds = (performance.now() - startedAt) / 1000
   console.log(`Assertions: ${assertionCount()} | Elapsed: ${elapsedSeconds.toFixed(3)}s`)
 })
@@ -165,19 +163,16 @@ const selectedCaseModules = requestedSet.size === 0
   ? CASE_MODULES
   : CASE_MODULES.filter(([, module]) => requestedSet.has(module))
 const selectedFiles = new Set(selectedCaseModules.map(([file]) => file))
-const isPoolWorker = process.env.ORBIT_TOOLS_POOL_WORKER === "1"
-const isPoolCoordinator = requestedSet.size === 0 && !isPoolWorker
 
 // Loaded after CLI validation, so --help and a bad argument stage no fixture root.
 const { BASH, T, assertionTally, beginToolScope, check, configure, endToolScope, failureCount, orphanCaseKeys, stage, toolPath } =
   await import("./__tests__/_harness.mjs")
 
 configure({ toolsDir: TOOLS_DIR, self: SELF })
-let pooledAssertionCount = 0
-assertionCount = () => Object.values(assertionTally()).reduce((total, count) => total + count, pooledAssertionCount)
+assertionCount = () => Object.values(assertionTally()).reduce((total, count) => total + count, 0)
 
 const gateCases = {}
-for (const [file, module] of isPoolCoordinator ? [] : selectedCaseModules) {
+for (const [file, module] of selectedCaseModules) {
   const loaded = await import(`./__tests__/${module}.mjs`)
   if (typeof loaded.cases !== "function") {
     console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
@@ -187,7 +182,7 @@ for (const [file, module] of isPoolCoordinator ? [] : selectedCaseModules) {
 }
 
 const repositoryCases = {}
-for (const [file, module] of isPoolCoordinator ? REPOSITORY_CASE_MODULES : []) {
+for (const [file, module] of requestedSet.size === 0 ? REPOSITORY_CASE_MODULES : []) {
   const loaded = await import(`./__tests__/${module}.mjs`)
   if (typeof loaded.cases !== "function") {
     console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
@@ -252,123 +247,59 @@ const scripts = readdirSync(TOOLS_DIR)
 const libraries = existsSync(LIB_DIR) ? readdirSync(LIB_DIR).filter((file) => file.endsWith(".mjs")).sort() : []
 const registeredCaseFiles = new Set(CASE_MODULES.map(([file]) => file))
 const contractScripts = requestedSet.size === 0 ? scripts : scripts.filter((file) => selectedFiles.has(file))
-if (!isPoolWorker) {
-  console.log("# structural coverage")
-  const uncovered = scripts.filter((file) => !INVALID_INPUT[file])
-  T(
-    `every tools/ script has coverage (${scripts.length} scripts)`,
-    uncovered.length === 0,
-    `no COVERAGE entry for: ${uncovered.join(", ")}\n     Add one to INVALID_INPUT (and a CASE_MODULES row plus a tools/__tests__ module if it has decision paths) in tools/${SELF}.`,
-  )
-  T("the coverage guard actually enumerated scripts", scripts.length > 0, "tools/ resolved to zero scripts, so this gate proved nothing")
-  const staleRows = Object.keys(INVALID_INPUT).filter((file) => !scripts.includes(file))
-  T(
-    "every COVERAGE entry names a tools/ script that exists",
-    staleRows.length === 0,
-    `INVALID_INPUT rows with no tools/ script: ${staleRows.join(", ")}\n     Delete the row, or restore the script it claims to cover.`,
-  )
-  const uncoveredLibraries = libraries.filter((file) => !registeredCaseFiles.has(`lib/${file}`))
-  T(
-    `every tools/lib/ module has a case module (${libraries.length} modules)`,
-    uncoveredLibraries.length === 0,
-    `no CASE_MODULES row for: ${uncoveredLibraries.map((file) => `lib/${file}`).join(", ")}\n     A library has no CLI, so a case module is the only coverage it can carry.`,
-  )
+console.log("# structural coverage")
+const uncovered = scripts.filter((file) => !INVALID_INPUT[file])
+T(
+  `every tools/ script has coverage (${scripts.length} scripts)`,
+  uncovered.length === 0,
+  `no COVERAGE entry for: ${uncovered.join(", ")}\n     Add one to INVALID_INPUT (and a CASE_MODULES row plus a tools/__tests__ module if it has decision paths) in tools/${SELF}.`,
+)
+T("the coverage guard actually enumerated scripts", scripts.length > 0, "tools/ resolved to zero scripts, so this gate proved nothing")
+const staleRows = Object.keys(INVALID_INPUT).filter((file) => !scripts.includes(file))
+T(
+  "every COVERAGE entry names a tools/ script that exists",
+  staleRows.length === 0,
+  `INVALID_INPUT rows with no tools/ script: ${staleRows.join(", ")}\n     Delete the row, or restore the script it claims to cover.`,
+)
+const uncoveredLibraries = libraries.filter((file) => !registeredCaseFiles.has(`lib/${file}`))
+T(
+  `every tools/lib/ module has a case module (${libraries.length} modules)`,
+  uncoveredLibraries.length === 0,
+  `no CASE_MODULES row for: ${uncoveredLibraries.map((file) => `lib/${file}`).join(", ")}\n     A library has no CLI, so a case module is the only coverage it can carry.`,
+)
 
-  console.log("\n# universal contract (tools/CONVENTIONS.md)")
-  T("a real bash is resolvable", Boolean(BASH) || !contractScripts.some((file) => file.endsWith(".sh")), "no working bash found; set ORBIT_BASH to one (the PATH bash on Windows is the WSL stub)")
-  for (const file of contractScripts) {
-    if (file.endsWith(".sh") && !BASH) continue
-    check(file, "--help exits 0 with usage on stdout", ["--help"], { status: 0, stdout: /usage|Usage/ })
-    const invalid = INVALID_INPUT[file]
-    if (invalid) check(file, "invalid input is refused", invalid.argv, { status: invalid.status })
-  }
+console.log("\n# universal contract (tools/CONVENTIONS.md)")
+T("a real bash is resolvable", Boolean(BASH) || !contractScripts.some((file) => file.endsWith(".sh")), "no working bash found; set ORBIT_BASH to one (the PATH bash on Windows is the WSL stub)")
+for (const file of contractScripts) {
+  if (file.endsWith(".sh") && !BASH) continue
+  check(file, "--help exits 0 with usage on stdout", ["--help"], { status: 0, stdout: /usage|Usage/ })
+  const invalid = INVALID_INPUT[file]
+  if (invalid) check(file, "invalid input is refused", invalid.argv, { status: invalid.status })
 }
 
-if (!isPoolWorker) {
-  console.log("\n# decision paths")
-  T(
-    "a path resolved inside a case module equals the runner's",
-    toolPath(SELF) === join(TOOLS_DIR, SELF) && existsSync(toolPath(SELF)),
-    `the module resolved ${toolPath(SELF)}, the runner resolved ${join(TOOLS_DIR, SELF)}; TOOLS_DIR was not injected`,
-  )
-  const caseKeyProbe = dirname(stage("case-key-guard/present.mjs", "#!/usr/bin/env node\n"))
-  T(
-    "a case key naming a real tools/ script is not an orphan",
-    orphanCaseKeys(["present.mjs"], caseKeyProbe).length === 0,
-    `orphanCaseKeys reported ${orphanCaseKeys(["present.mjs"], caseKeyProbe).join(", ")} for a staged, existing script`,
-  )
-  T(
-    "a case key naming no real tools/ script is reported by name",
-    orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(",") === "absent.mjs",
-    `orphanCaseKeys reported ${orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(", ")} instead of absent.mjs`,
-  )
-}
+console.log("\n# decision paths")
+T(
+  "a path resolved inside a case module equals the runner's",
+  toolPath(SELF) === join(TOOLS_DIR, SELF) && existsSync(toolPath(SELF)),
+  `the module resolved ${toolPath(SELF)}, the runner resolved ${join(TOOLS_DIR, SELF)}; TOOLS_DIR was not injected`,
+)
+const caseKeyProbe = dirname(stage("case-key-guard/present.mjs", "#!/usr/bin/env node\n"))
+T(
+  "a case key naming a real tools/ script is not an orphan",
+  orphanCaseKeys(["present.mjs"], caseKeyProbe).length === 0,
+  `orphanCaseKeys reported ${orphanCaseKeys(["present.mjs"], caseKeyProbe).join(", ")} for a staged, existing script`,
+)
+T(
+  "a case key naming no real tools/ script is reported by name",
+  orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(",") === "absent.mjs",
+  `orphanCaseKeys reported ${orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(", ")} instead of absent.mjs`,
+)
 const orphanedCaseKeys = orphanCaseKeys(CASE_MODULES.map(([file]) => file), TOOLS_DIR)
-if (!isPoolWorker) {
-  T(
-    "every registered case key names a real tools/ file",
-    orphanedCaseKeys.length === 0,
-    `CASE_MODULES rows with no tools/ file: ${orphanedCaseKeys.join(", ")}\n     A skipped key exits 0 while its cases never run. Delete the row or restore the file.`,
-  )
-}
-
-const POOL_RESULT_PREFIX = "ORBIT_TOOLS_POOL_RESULT "
-const runCaseWorker = ([, module]) => new Promise((resolveWorker) => {
-  const child = spawn(process.execPath, [toolPath(SELF), "--only", module], {
-    cwd: process.cwd(),
-    env: { ...process.env, ORBIT_TOOLS_POOL_WORKER: "1" },
-    stdio: ["ignore", "pipe", "pipe"],
-  })
-  let stdout = ""
-  let stderr = ""
-  child.stdout.setEncoding("utf8")
-  child.stderr.setEncoding("utf8")
-  child.stdout.on("data", (chunk) => { stdout += chunk })
-  child.stderr.on("data", (chunk) => { stderr += chunk })
-  child.on("error", (error) => resolveWorker({ module, status: null, stdout, stderr: `${stderr}${error.message}` }))
-  child.on("close", (status) => resolveWorker({ module, status, stdout, stderr }))
-})
-
-const pooledTallies = {}
-if (isPoolCoordinator) {
-  const results = new Array(CASE_MODULES.length)
-  let nextCaseIndex = 0
-  const drainQueue = async () => {
-    while (nextCaseIndex < CASE_MODULES.length) {
-      const index = nextCaseIndex++
-      results[index] = await runCaseWorker(CASE_MODULES[index])
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(4, CASE_MODULES.length) }, drainQueue))
-  for (const result of results) {
-    const outputLines = result.stdout.trimEnd().split(/\r?\n/)
-    const resultLine = outputLines.find((line) => line.startsWith(POOL_RESULT_PREFIX))
-    console.log(outputLines.filter((line) => !line.startsWith(POOL_RESULT_PREFIX)).join("\n"))
-    if (result.stderr) console.error(result.stderr.trimEnd())
-    let workerResult = null
-    try {
-      workerResult = resultLine ? JSON.parse(resultLine.slice(POOL_RESULT_PREFIX.length)) : null
-    } catch {
-      workerResult = null
-    }
-    if (result.status !== 0 || !workerResult || workerResult.failures !== 0) {
-      T(
-        `${result.module} case worker completed successfully`,
-        false,
-        `exit ${result.status}; ${resultLine ?? "no worker result"}`,
-      )
-      continue
-    }
-    for (const [tool, count] of Object.entries(workerResult.tally)) {
-      pooledTallies[tool] = (pooledTallies[tool] ?? 0) + count
-      pooledAssertionCount += count
-    }
-  }
-  T(
-    "the four-worker pool completed every registered case module",
-    Object.keys(pooledTallies).filter((key) => key !== "(runner)").length === CASE_MODULES.length,
-  )
-}
+T(
+  "every registered case key names a real tools/ file",
+  orphanedCaseKeys.length === 0,
+  `CASE_MODULES rows with no tools/ file: ${orphanedCaseKeys.join(", ")}\n     A skipped key exits 0 while its cases never run. Delete the row or restore the file.`,
+)
 
 for (const [file, cases] of Object.entries(gateCases)) {
   if (orphanedCaseKeys.includes(file)) continue
@@ -376,20 +307,18 @@ for (const [file, cases] of Object.entries(gateCases)) {
   await cases()
   endToolScope()
 }
-if (!isPoolWorker) {
-  const missingRepositoryCaseFiles = Object.keys(repositoryCases).filter(
-    (file) => !existsSync(join(TOOLS_DIR, "..", file)),
-  )
-  T(
-    "every registered repository case key names a file that exists",
-    missingRepositoryCaseFiles.length === 0,
-    `repository case rows with no file: ${missingRepositoryCaseFiles.join(", ")}`,
-  )
-  for (const [file, cases] of Object.entries(repositoryCases)) {
-    beginToolScope(file)
-    await cases()
-    endToolScope()
-  }
+const missingRepositoryCaseFiles = Object.keys(repositoryCases).filter(
+  (file) => !existsSync(join(TOOLS_DIR, "..", file)),
+)
+T(
+  "every registered repository case key names a file that exists",
+  missingRepositoryCaseFiles.length === 0,
+  `repository case rows with no file: ${missingRepositoryCaseFiles.join(", ")}`,
+)
+for (const [file, cases] of Object.entries(repositoryCases)) {
+  beginToolScope(file)
+  await cases()
+  endToolScope()
 }
 
 /**
@@ -399,12 +328,8 @@ if (!isPoolWorker) {
  * `return`. A case module that contributes NOTHING is the shape that reaches zero cost silently,
  * so it fails here by name rather than passing quietly.
  */
-const ownTally = assertionTally()
-const tally = { ...pooledTallies }
-for (const [tool, count] of Object.entries(ownTally)) tally[tool] = (tally[tool] ?? 0) + count
-const expectedCaseFiles = isPoolCoordinator
-  ? [...CASE_MODULES.map(([file]) => file), ...Object.keys(repositoryCases)]
-  : [...Object.keys(gateCases), ...Object.keys(repositoryCases)]
+const tally = assertionTally()
+const expectedCaseFiles = [...Object.keys(gateCases), ...Object.keys(repositoryCases)]
 const silent = expectedCaseFiles.filter((file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0))
 T(
   "every registered case module ran at least one assertion",
@@ -413,11 +338,6 @@ T(
 )
 
 const failures = failureCount()
-if (isPoolWorker) {
-  console.log(`${POOL_RESULT_PREFIX}${JSON.stringify({ failures, tally: assertionTally() })}`)
-  process.exit(failures === 0 ? 0 : 1)
-}
-
 console.log("\n# assertion coverage")
 for (const [tool, count] of Object.entries(tally).sort(([left], [right]) => left.localeCompare(right))) {
   console.log(`${String(count).padStart(4)}  ${tool}`)

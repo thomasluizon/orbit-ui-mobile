@@ -6,8 +6,7 @@ const assertionCount = (result) => {
 }
 
 export async function cases() {
-  const publicRun = { env: { ORBIT_TOOLS_POOL_WORKER: "" } }
-  const focused = run("test-tools.mjs", ["--only", "bounded-process"], publicRun)
+  const focused = run("test-tools.mjs", ["--only", "bounded-process"])
   T("test-tools.mjs: --only runs the named case module", focused.status === 0, focused.stderr || focused.stdout)
   T(
     "test-tools.mjs: --only runs no unselected case module",
@@ -21,7 +20,7 @@ export async function cases() {
     focused.stdout,
   )
 
-  const repeated = run("test-tools.mjs", ["--only", "bounded-process", "--only", "manual-steps"], publicRun)
+  const repeated = run("test-tools.mjs", ["--only", "bounded-process", "--only", "manual-steps"])
   T("test-tools.mjs: repeatable --only accepts two case modules", repeated.status === 0, repeated.stderr || repeated.stdout)
   T(
     "test-tools.mjs: repeatable --only runs both named modules",
@@ -35,7 +34,7 @@ export async function cases() {
     `focused ${assertionCount(focused)}, repeated ${assertionCount(repeated)}`,
   )
 
-  const unknown = run("test-tools.mjs", ["--only", "not-a-case"], publicRun)
+  const unknown = run("test-tools.mjs", ["--only", "not-a-case"])
   T("test-tools.mjs: an unknown --only name exits 2", unknown.status === 2, unknown.stderr || unknown.stdout)
   T(
     "test-tools.mjs: an unknown --only name prints the valid set",
@@ -49,7 +48,7 @@ export async function cases() {
     unknown.stdout,
   )
 
-  const help = run("test-tools.mjs", ["--help"], publicRun)
+  const help = run("test-tools.mjs", ["--help"])
   T(
     "test-tools.mjs: help exits 0 and prints elapsed time and an assertion count",
     help.status === 0 && /usage: test-tools\.mjs/.test(help.stdout) && assertionCount(help) === 0,
