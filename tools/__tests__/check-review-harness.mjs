@@ -1,7 +1,12 @@
-import { check, stage } from "./_harness.mjs"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+import { check, REPO_ROOT, stage, T } from "./_harness.mjs"
+import { renderReviewEvidenceBlock } from "../lib/review-harness.mjs"
 
 const UI_CHANGE = ["apps/web/components/today/habit-row.tsx", "apps/mobile/components/today/habit-row.tsx"].join("\n")
 const TOOLING_CHANGE = ["tools/arch-map.mjs", ".claude/rules/core.md"].join("\n")
+const TEMPLATE_BLOCK = renderReviewEvidenceBlock()
+const templateLine = (label) => TEMPLATE_BLOCK.split("\n").find((line) => line.startsWith(`- ${label}:`))
 
 const FULL_BLOCK = `## What changed
 
@@ -9,8 +14,24 @@ Rebuilt the Today row.
 
 ## Review harness
 
+- execution lane: spacing and target checks passed
+- motion lane: reduced-motion behavior and transition purpose passed
+- gates lane: WCAG checks passed
 - interface-review: one Introduced finding on the row's press target, fixed in this diff
 - better-interface (full mode): better-typography flagged the label leading; the rest clean
+- design-reviewer: no findings in the diff
+- completeness-critic: surface inventory remained complete
+`
+
+const NO_ANIMATION_BLOCK = FULL_BLOCK.replace(
+  "- motion lane: reduced-motion behavior and transition purpose passed",
+  "- motion lane: not applicable: no changed animation",
+)
+
+const CHANGE_LANE_ONLY_BLOCK = `## Review harness
+
+- interface-review: one Introduced finding, fixed here
+- better-interface (full mode): clean across all six domains
 `
 
 const args = (label, body, changed, base = "redesign/main") => [
@@ -23,11 +44,55 @@ const args = (label, body, changed, base = "redesign/main") => [
 ]
 
 export const cases = () => {
+  const pullRequestTemplate = readFileSync(join(REPO_ROOT, ".github", "pull_request_template.md"), "utf8")
+  T(
+    "check-review-harness.mjs: the pull request template carries the generated review evidence block verbatim",
+    pullRequestTemplate.replaceAll("\r\n", "\n").includes(TEMPLATE_BLOCK),
+    `expected .github/pull_request_template.md to contain:\n${TEMPLATE_BLOCK}`,
+  )
+
   check(
     "check-review-harness.mjs",
     "accepts a UI redesign pull request whose body states what each skill found",
     args("complete", FULL_BLOCK, UI_CHANGE),
     { status: 0, stdout: /evidence present/ },
+  )
+
+  check(
+    "check-review-harness.mjs",
+    "rejects change-lane-only evidence and names every missing lane and close-gate agent",
+    args("change-lane-only", CHANGE_LANE_ONLY_BLOCK, UI_CHANGE),
+    {
+      status: 1,
+      stderr: /no line for: execution lane, motion lane, gates lane, design-reviewer, completeness-critic.*Each required review entry needs one line/,
+    },
+  )
+
+  check(
+    "check-review-harness.mjs",
+    "accepts every review lane and each close-gate agent",
+    args("all-lanes", FULL_BLOCK, UI_CHANGE),
+    {
+      status: 0,
+      stdout: /execution lane, motion lane, gates lane, interface-review, better-interface, design-reviewer, completeness-critic/,
+    },
+  )
+
+  check(
+    "check-review-harness.mjs",
+    "accepts an explicit does-not-animate statement without running the motion lane",
+    args("no-animation", NO_ANIMATION_BLOCK, UI_CHANGE),
+    {
+      status: 0,
+      stdout: /execution lane, motion lane, gates lane, interface-review, better-interface, design-reviewer, completeness-critic/,
+    },
+  )
+
+  check(
+    "check-review-harness.mjs",
+    "rejects a placeholder in any newly required lane",
+    args("lane-placeholder", FULL_BLOCK.replace("- execution lane: spacing and target checks passed", "- execution lane: TODO"), UI_CHANGE),
+    { status: 1, stderr: /empty or placeholder evidence for: execution lane/ },
   )
 
   // The red direction, and the one this gate exists for: #766, #765 and #763 all looked exactly
@@ -42,21 +107,62 @@ export const cases = () => {
   check(
     "check-review-harness.mjs",
     "rejects a block that names only one of the two required skills",
-    args("half", "## Review harness\n\n- interface-review: one Introduced finding, fixed here\n", UI_CHANGE),
+    args(
+      "half",
+      FULL_BLOCK.replace("- better-interface (full mode): better-typography flagged the label leading; the rest clean\n", ""),
+      UI_CHANGE,
+    ),
     { status: 1, stderr: /no line for: better-interface/ },
   )
 
   check(
     "check-review-harness.mjs",
     "rejects the unfilled template, so a pasted empty block is not evidence",
-    args("empty", "## Review harness\n\n- interface-review:\n- better-interface (full mode):\n", UI_CHANGE),
-    { status: 1, stderr: /empty or placeholder evidence for: interface-review, better-interface/ },
+    args("empty", TEMPLATE_BLOCK, UI_CHANGE),
+    {
+      status: 1,
+      stderr: /empty or placeholder evidence for: execution lane, motion lane, gates lane, interface-review, better-interface, design-reviewer, completeness-critic/,
+    },
+  )
+
+  check(
+    "check-review-harness.mjs",
+    "rejects one unchanged plain template answer and names only that requirement",
+    args(
+      "one-template-answer",
+      FULL_BLOCK.replace(
+        "- execution lane: spacing and target checks passed",
+        templateLine("execution lane"),
+      ),
+      UI_CHANGE,
+    ),
+    { status: 1, stderr: /empty or placeholder evidence for: execution lane\.(?![\s\S]*motion lane)/ },
+  )
+
+  check(
+    "check-review-harness.mjs",
+    "rejects the unchanged conditional template answer",
+    args(
+      "conditional-template-answer",
+      FULL_BLOCK.replace(
+        "- motion lane: reduced-motion behavior and transition purpose passed",
+        templateLine("motion lane"),
+      ),
+      UI_CHANGE,
+    ),
+    { status: 1, stderr: /empty or placeholder evidence for: motion lane/ },
   )
 
   check(
     "check-review-harness.mjs",
     "rejects a placeholder standing in for evidence",
-    args("placeholder", "## Review harness\n\n- interface-review: TODO\n- better-interface (full mode): n/a\n", UI_CHANGE),
+    args(
+      "placeholder",
+      FULL_BLOCK
+        .replace("- interface-review: one Introduced finding on the row's press target, fixed in this diff", "- interface-review: TODO")
+        .replace("- better-interface (full mode): better-typography flagged the label leading; the rest clean", "- better-interface (full mode): n/a"),
+      UI_CHANGE,
+    ),
     { status: 1, stderr: /empty or placeholder evidence/ },
   )
 
@@ -65,7 +171,7 @@ export const cases = () => {
   check(
     "check-review-harness.mjs",
     "accepts no findings as an answer",
-    args("no-findings", "## Review harness\n\n- interface-review: no findings\n- better-interface (full mode): no findings\n", UI_CHANGE),
+    args("no-findings", FULL_BLOCK.replaceAll(/: [^\n]+/g, ": no findings"), UI_CHANGE),
     { status: 0 },
   )
 
@@ -88,7 +194,7 @@ export const cases = () => {
   check(
     "check-review-harness.mjs",
     "accepts a deeper heading level for the block",
-    args("deep-heading", "## Body\n\n### Review harness\n\n- interface-review: one Regression on focus order\n- better-interface: clean across all six domains\n", UI_CHANGE),
+    args("deep-heading", FULL_BLOCK.replace("## Review harness", "### Review harness"), UI_CHANGE),
     { status: 0 },
   )
 
@@ -99,7 +205,7 @@ export const cases = () => {
     "does not read evidence from a section after the block ends",
     args(
       "section-bounded",
-      "## Review harness\n\n- interface-review: one Introduced finding, fixed here\n\n## Notes\n\n- better-interface (full mode): ran it somewhere else entirely\n",
+      `${FULL_BLOCK.replace("- better-interface (full mode): better-typography flagged the label leading; the rest clean\n", "")}\n## Notes\n\n- better-interface (full mode): ran it somewhere else entirely\n`,
       UI_CHANGE,
     ),
     { status: 1, stderr: /no line for: better-interface/ },

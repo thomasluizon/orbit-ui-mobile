@@ -6,8 +6,6 @@
 
 <!-- The commands you ran and their result. Not "tests pass": the command and its output. -->
 
-## Review harness
-
 <!--
 Required on a UI pull request based on redesign/main, and checked by the "Redesign Review Harness"
 job in guards.yml. Delete this whole section on any other pull request.
@@ -21,5 +19,12 @@ Write one line each, saying what it found. "no findings" is a legitimate answer.
 This gate only withholds. It never grants completion; a human still does that.
 -->
 
-- interface-review:
-- better-interface (full mode):
+## Review harness
+
+- execution lane: <what it found, or "no findings">
+- motion lane: <what it found, "no findings", or "not applicable: no changed animation">
+- gates lane: <what it found, or "no findings">
+- interface-review: <what it found, or "no findings">
+- better-interface (full mode): <what it found, or "no findings">
+- design-reviewer: <what it found, or "no findings">
+- completeness-critic: <what it found, or "no findings">

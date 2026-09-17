@@ -26,8 +26,10 @@
 import { readFileSync } from "node:fs"
 import {
   REDESIGN_BASE,
-  REQUIRED_REVIEW_SKILLS,
+  REQUIRED_REVIEW_EVIDENCE,
   isUiReviewPath,
+  reviewEvidenceTemplateAnswer,
+  renderReviewEvidenceBlock,
 } from "./lib/review-harness.mjs"
 
 const USAGE = `usage: check-review-harness.mjs --base <ref> --body-file <path> --changed-files-file <path>
@@ -39,12 +41,10 @@ const USAGE = `usage: check-review-harness.mjs --base <ref> --body-file <path> -
   --changed-files-file <path>  file holding the changed paths, one per line
   --help, -h                   print this usage and exit 0
 
-  The body must carry a "## Review harness" heading, and under it one line per required skill:
+  The body must carry a "## Review harness" heading, and under it one line per required lane and close-gate agent.
+  The motion lane may be skipped only through its explicit does-not-animate statement:
 
-      ## Review harness
-
-      - interface-review: <what it found, or "no findings">
-      - better-interface (full mode): <what it found, or "no findings">
+${renderReviewEvidenceBlock().split("\n").map((line) => `      ${line}`).join("\n")}
 
 exit codes: 0 not applicable or evidence present, 1 evidence missing or empty, 2 usage or configuration error`
 
@@ -112,7 +112,7 @@ const headingIndex = lines.findIndex((line) => /^#{2,}\s+review\s+harness\s*$/i.
 if (headingIndex === -1) {
   fail(
     1,
-    `::error::This pull request changes ${uiFiles.length} UI file(s) on ${REDESIGN_BASE} and its body carries no "## Review harness" block. Run jakubkrehel/interface-review, then jakubkrehel/better-interface in full mode against the diff, then record one line each. Fetch each SKILL.md by raw URL from github.com/jakubkrehel/skills; "npx ui-skills get" does not serve them.`,
+    `::error::This pull request changes ${uiFiles.length} UI file(s) on ${REDESIGN_BASE} and its body carries no "## Review harness" block. Complete every lane and close-gate agent in the canonical review sweep, then record one line each. The motion lane may instead say "not applicable: no changed animation".`,
   )
 }
 
@@ -133,33 +133,49 @@ const evidenceOf = (skill) => {
   return null
 }
 
+const normalizeEvidence = (value) => value
+  .toLowerCase()
+  .replaceAll(/[`*_~[\]()<>./\\|,;:!?"'-]/g, " ")
+  .replaceAll(/\s+/g, " ")
+  .trim()
+
 const missing = []
 const empty = []
-for (const skill of REQUIRED_REVIEW_SKILLS) {
-  const raw = evidenceOf(skill)
+const invalidConditional = []
+for (const requirement of REQUIRED_REVIEW_EVIDENCE) {
+  const raw = evidenceOf(requirement.name)
   if (raw === null) {
-    missing.push(skill)
+    missing.push(requirement.name)
     continue
   }
-  const normalized = raw
-    .toLowerCase()
-    .replaceAll(/[`*_~[\]()<>./\\|,;:!?"'-]/g, " ")
-    .replaceAll(/\s+/g, " ")
-    .trim()
-  if (PLACEHOLDERS.has(normalized) || normalized.length < 8) empty.push(skill)
+  const normalized = normalizeEvidence(raw)
+  const templateAnswer = normalizeEvidence(reviewEvidenceTemplateAnswer(requirement))
+  if (PLACEHOLDERS.has(normalized) || normalized.length < 8 || normalized === templateAnswer) {
+    empty.push(requirement.name)
+    continue
+  }
+  const notApplicable = requirement.notApplicable
+    ? `not applicable ${requirement.notApplicable}`
+    : null
+  if (normalized.startsWith("not applicable") && normalized !== notApplicable) {
+    invalidConditional.push(requirement.name)
+  }
 }
 
-if (missing.length > 0 || empty.length > 0) {
+if (missing.length > 0 || empty.length > 0 || invalidConditional.length > 0) {
   const detail = [
     missing.length > 0 ? `no line for: ${missing.join(", ")}` : null,
     empty.length > 0 ? `empty or placeholder evidence for: ${empty.join(", ")}` : null,
+    invalidConditional.length > 0
+      ? `invalid not-applicable statement for: ${invalidConditional.join(", ")}; use "not applicable: no changed animation" only for the motion lane`
+      : null,
   ]
     .filter(Boolean)
     .join("; ")
   fail(
     1,
-    `::error::The "Review harness" block in this pull request body is incomplete: ${detail}. Each required skill needs one line saying what it found, or "no findings" where it found nothing. This gate only withholds; it never grants completion.`,
+    `::error::The "Review harness" block in this pull request body is incomplete: ${detail}. Each required review entry needs one line saying what it found, or "no findings" where it found nothing. This gate only withholds; it never grants completion.`,
   )
 }
 
-console.log(`check-review-harness: review-harness evidence present for ${REQUIRED_REVIEW_SKILLS.join(" and ")} across ${uiFiles.length} UI file(s).`)
+console.log(`check-review-harness: review-harness evidence present for ${REQUIRED_REVIEW_EVIDENCE.map(({ name }) => name).join(", ")} across ${uiFiles.length} UI file(s).`)
