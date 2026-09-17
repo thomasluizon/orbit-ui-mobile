@@ -11,7 +11,6 @@ export function ThemeToggle() {
   const isDark = currentTheme === 'dark'
 
   return (
-    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
     <button
       type="button"
       onClick={toggleTheme}

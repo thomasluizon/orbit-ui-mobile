@@ -28,7 +28,7 @@ describe('mobile i18n interpolation', () => {
   it('interpolates single-brace placeholders', () => {
     expect(
       i18n.t('profile.settingsRows.timezoneValue', { timeZone: 'America/Sao_Paulo' }),
-    ).toBe('Timezone: America/Sao_Paulo')
+    ).toBe('Timezone America/Sao_Paulo')
   })
 
   it('works with the plural helper for pipe-separated forms', () => {
