@@ -190,10 +190,10 @@ async function clearObservedSessionAndRedirect(generation: {
   credentialVersion: number
 }): Promise<void> {
   const { clearSessionAndResetAuth } = await import('@/stores/auth-store')
-  const cleared = await clearSessionAndResetAuth(
-    generation.epoch,
-    generation.credentialVersion,
-  )
+  const cleared = await clearSessionAndResetAuth({
+    authority: 'observed-credential',
+    ...generation,
+  })
   if (cleared) await redirectToLogin()
 }
 
@@ -305,10 +305,10 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
 
   if (response.status === 401) {
     const { clearSessionAndResetAuth } = await import('@/stores/auth-store')
-    await clearSessionAndResetAuth(
-      observedGeneration.epoch,
-      observedGeneration.credentialVersion,
-    )
+    await clearSessionAndResetAuth({
+      authority: 'observed-credential',
+      ...observedGeneration,
+    })
     throw toUnauthorizedError(requestId)
   }
 

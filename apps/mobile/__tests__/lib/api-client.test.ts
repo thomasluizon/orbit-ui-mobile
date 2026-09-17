@@ -546,7 +546,11 @@ describe('mobile apiClient', () => {
 
     await expect(apiClient(API.auth.refresh)).rejects.toThrow('Unauthorized')
 
-    expect(clearSessionAndResetAuthMock).toHaveBeenCalledWith(7, 0)
+    expect(clearSessionAndResetAuthMock).toHaveBeenCalledWith({
+      authority: 'observed-credential',
+      epoch: 7,
+      credentialVersion: 0,
+    })
     expect(refreshSessionMock).not.toHaveBeenCalled()
   })
 })

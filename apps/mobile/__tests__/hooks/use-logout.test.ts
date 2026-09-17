@@ -15,7 +15,7 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: { logout: () => Promise<void> }) => unknown) =>
+  useAuthStore: (selector: (state: { logout: () => Promise<boolean> }) => unknown) =>
     selector({ logout: mocks.logout }),
 }))
 
@@ -34,7 +34,7 @@ function renderHookValue<T>(hook: () => T): T {
 beforeEach(() => {
   mocks.replace.mockReset()
   mocks.logout.mockReset()
-  mocks.logout.mockResolvedValue(undefined)
+  mocks.logout.mockResolvedValue(true)
 })
 
 describe('useLogout (mobile)', () => {
@@ -51,7 +51,7 @@ describe('useLogout (mobile)', () => {
     const order: string[] = []
     mocks.logout.mockImplementation(() => {
       order.push('logout')
-      return Promise.resolve()
+      return Promise.resolve(true)
     })
     mocks.replace.mockImplementation(() => {
       order.push('replace')
@@ -63,12 +63,21 @@ describe('useLogout (mobile)', () => {
     expect(order).toEqual(['logout', 'replace'])
   })
 
-  it('still routes to /login when logout teardown rejects', async () => {
+  it('does not route when logout teardown rejects', async () => {
     mocks.logout.mockRejectedValue(new Error('teardown failed'))
 
     const logoutAndRedirect = renderHookValue(() => useLogout())
     await expect(logoutAndRedirect()).rejects.toThrow('teardown failed')
 
-    expect(mocks.replace).toHaveBeenCalledWith('/login')
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('does not route when logout refuses stale session authority', async () => {
+    mocks.logout.mockResolvedValue(false)
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    await logoutAndRedirect()
+
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 })

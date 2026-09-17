@@ -41,10 +41,23 @@ let credentialMutationTail = Promise.resolve()
 let profileHydrationInFlight: Promise<void> | null = null
 let refreshSessionInFlight: Promise<RefreshSessionAttempt> | null = null
 
-type SessionOwnership = {
+type SessionSnapshot = {
   epoch: number
   credentialVersion: number
 }
+
+type SessionOwnerAuthority = {
+  authority: 'session-owner'
+  epoch: number
+}
+
+export type ObservedCredentialAuthority = {
+  authority: 'observed-credential'
+  epoch: number
+  credentialVersion: number
+}
+
+type SessionTeardownAuthority = SessionOwnerAuthority | ObservedCredentialAuthority
 
 /**
  * True while a session owner is preparing account state before the protected
@@ -55,7 +68,7 @@ export function isAuthTransitionInFlight(): boolean {
   return useAuthStore.getState().sessionPhase === 'establishing'
 }
 
-export function getSessionGeneration(): SessionOwnership {
+export function getSessionGeneration(): SessionSnapshot {
   return { epoch: sessionEpoch, credentialVersion }
 }
 
@@ -78,7 +91,7 @@ interface AuthState {
   isLoading: boolean
   expiresAt: number | null
   login: (token: string, refreshToken: string | null, user: User) => Promise<void>
-  logout: () => Promise<void>
+  logout: () => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
 }
@@ -122,9 +135,9 @@ function isCurrentSessionEpoch(epoch: number): boolean {
   return sessionEpoch === epoch
 }
 
-function isCurrentSessionOwnership(ownership: SessionOwnership): boolean {
-  return isCurrentSessionEpoch(ownership.epoch)
-    && credentialVersion === ownership.credentialVersion
+function isCurrentCredentialObservation(observation: SessionSnapshot): boolean {
+  return isCurrentSessionEpoch(observation.epoch)
+    && credentialVersion === observation.credentialVersion
 }
 
 function isCurrentSessionTeardown(epoch: number): boolean {
@@ -159,11 +172,15 @@ type SessionTeardownResult = {
 }
 
 async function clearSessionCredentials(
-  ownership: SessionOwnership,
+  authority: SessionTeardownAuthority,
   captureRefreshToken: boolean,
 ): Promise<SessionTeardownResult | null> {
   return withCredentialMutationLock(async () => {
-    if (!isCurrentSessionOwnership(ownership)) return null
+    if (authority.authority === 'session-owner') {
+      if (!isCurrentSessionEpoch(authority.epoch)) return null
+    } else if (!isCurrentCredentialObservation(authority)) {
+      return null
+    }
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
     clearStepUpState()
     sessionEpoch += 1
@@ -189,10 +206,10 @@ async function runSessionTeardownStep(
 }
 
 async function runSessionTeardown(
-  ownership: SessionOwnership,
+  authority: SessionTeardownAuthority,
   captureRefreshToken: boolean,
 ): Promise<SessionTeardownResult | null> {
-  const teardown = await clearSessionCredentials(ownership, captureRefreshToken)
+  const teardown = await clearSessionCredentials(authority, captureRefreshToken)
   if (!teardown) return null
   const { epoch } = teardown
   if (!(await runSessionTeardownStep(epoch, () => cancelPersistentReminder().catch(() => {})))) return null
@@ -213,13 +230,9 @@ async function runSessionTeardown(
 }
 
 export async function clearSessionAndResetAuth(
-  epoch: number,
-  expectedCredentialVersion: number,
+  authority: ObservedCredentialAuthority,
 ): Promise<boolean> {
-  return (await runSessionTeardown(
-    { epoch, credentialVersion: expectedCredentialVersion },
-    false,
-  )) !== null
+  return (await runSessionTeardown(authority, false)) !== null
 }
 
 /**
@@ -264,13 +277,13 @@ function resetOnboardingDraftForSignOut(): void {
 
 async function classifyRejectedRefresh(
   response: Response,
-  ownership: SessionOwnership,
+  ownership: SessionSnapshot,
 ): Promise<RefreshSessionOutcome> {
   if (response.status === 429) {
     const throttlePayload = await response.json()
       .then((value: unknown) => value)
       .catch(() => null)
-    if (!isCurrentSessionOwnership(ownership)) return { status: 'superseded' }
+    if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
     useThrottleStore.getState().show(response.status, throttlePayload)
   }
   return { status: response.status === 401 ? 'unauthorized' : 'network-error' }
@@ -290,7 +303,7 @@ async function rotateSessionToken(
 ): Promise<RefreshSessionOutcome> {
   const ownership = { epoch, credentialVersion: expectedCredentialVersion }
   const refreshToken = await getRefreshToken()
-  if (!isCurrentSessionOwnership(ownership)) return { status: 'superseded' }
+  if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
   if (!refreshToken) {
     return { status: 'unauthorized' }
   }
@@ -304,14 +317,14 @@ async function rotateSessionToken(
       body: JSON.stringify({ refreshToken }),
     })
   } catch (error: unknown) {
-    if (!isCurrentSessionOwnership(ownership)) return { status: 'superseded' }
+    if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
     if (!isTransientNetworkError(error)) {
       return { status: 'unauthorized' }
     }
     return { status: 'network-error' }
   }
 
-  if (!isCurrentSessionOwnership(ownership)) return { status: 'superseded' }
+  if (!isCurrentCredentialObservation(ownership)) return { status: 'superseded' }
   if (!response.ok) {
     return classifyRejectedRefresh(response, ownership)
   }
@@ -319,7 +332,7 @@ async function rotateSessionToken(
   const data = (await response.json()) as RefreshResponse
   const tokenUser = getUserFromToken(data.token, currentUser?.name)
   const published = await withCredentialMutationLock(async () => {
-    if (!isCurrentSessionOwnership(ownership)) return false
+    if (!isCurrentCredentialObservation(ownership)) return false
     await setToken(data.token)
     await setRefreshToken(data.refreshToken)
     await saveWidgetToken(data.token).catch(() => {})
@@ -359,7 +372,11 @@ export async function refreshSession(options?: {
   const attempt = await (refreshSessionInFlight ??= runRefreshSession())
 
   if (attempt.outcome.status === 'unauthorized' && clearOnFailure) {
-    await clearSessionAndResetAuth(attempt.epoch, attempt.credentialVersion)
+    await clearSessionAndResetAuth({
+      authority: 'observed-credential',
+      epoch: attempt.epoch,
+      credentialVersion: attempt.credentialVersion,
+    })
   }
 
   return attempt.outcome
@@ -413,7 +430,10 @@ async function hydrateSessionProfile(): Promise<void> {
     }
   } catch (err: unknown) {
     if (err instanceof Error && err.message === 'Unauthorized') {
-      await clearSessionAndResetAuth(ownership.epoch, ownership.credentialVersion)
+      await clearSessionAndResetAuth({
+        authority: 'observed-credential',
+        ...ownership,
+      })
     }
   }
 }
@@ -495,7 +515,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           credentialVersion === ownership.credentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
     } catch (error: unknown) {
-      await runSessionTeardown(ownership, false).catch(() => {})
+      await runSessionTeardown({
+        authority: 'session-owner',
+        epoch: ownership.epoch,
+      }, false).catch(() => {})
       throw error
     }
   },
@@ -506,7 +529,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .then((module) => module.unsubscribePushToken())
       .catch(() => {})
 
-    const teardown = await runSessionTeardown(ownership, true)
+    const teardown = await runSessionTeardown({
+      authority: 'session-owner',
+      epoch: ownership.epoch,
+    }, true)
     const refreshToken = teardown?.refreshToken ?? null
     if (teardown && refreshToken && isCurrentSessionTeardown(teardown.epoch)) {
       await apiClient(API.auth.logout, {
@@ -516,10 +542,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }).catch(() => {})
     }
 
-    if (!teardown || !isCurrentSessionTeardown(teardown.epoch)) return
+    if (!teardown) return false
+    if (!isCurrentSessionTeardown(teardown.epoch)) return true
     await clearStoredAuthReturnUrl()
-    if (!isCurrentSessionTeardown(teardown.epoch)) return
+    if (!isCurrentSessionTeardown(teardown.epoch)) return true
     offlineQueue.clear()
+    return true
   },
 
   checkAuth: async () => {
@@ -532,7 +560,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     let token = await getToken()
     if (!isCurrentSessionEpoch(ownership.epoch)) return false
     if (!token) {
-      await clearSessionAndResetAuth(ownership.epoch, ownership.credentialVersion)
+      await clearSessionAndResetAuth({
+        authority: 'observed-credential',
+        ...ownership,
+      })
       return false
     }
 
@@ -578,7 +609,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const isValid = await get().checkAuth()
       if (!isValid) {
-        if (isCurrentSessionOwnership(ownership)) {
+        if (isCurrentCredentialObservation(ownership)) {
           set({
             ...deriveSessionPhase('signed-out'),
             user: null,
@@ -601,7 +632,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })()
       void profileHydrationInFlight
     } catch {
-      await clearSessionAndResetAuth(ownership.epoch, ownership.credentialVersion)
+      await clearSessionAndResetAuth({
+        authority: 'observed-credential',
+        ...ownership,
+      })
     }
   },
 }))

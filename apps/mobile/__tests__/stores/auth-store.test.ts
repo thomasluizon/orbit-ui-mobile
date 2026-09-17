@@ -390,6 +390,89 @@ describe('mobile auth store security paths', () => {
     })
   })
 
+  it('rolls back login after a same-session refresh when later cleanup fails', async () => {
+    const loginToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 1800,
+      'user-1',
+      'user@example.com',
+    )
+    const refreshedToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'user-1',
+      'user@example.com',
+    )
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockResolvedValue(Response.json({
+      token: refreshedToken,
+      refreshToken: 'next-refresh',
+    }))
+
+    let releasePersistedCacheClear!: () => void
+    const persistedCacheClearReleased = new Promise<void>((resolve) => {
+      releasePersistedCacheClear = resolve
+    })
+    clearPersistedQueryCacheMock.mockReturnValue(persistedCacheClearReleased)
+    setQueryCacheScopeMock.mockRejectedValueOnce(new Error('cache scope failed'))
+
+    const login = useAuthStore.getState().login(loginToken, 'refresh-token', {
+      userId: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+    })
+    await vi.waitFor(() => expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1))
+
+    await expect(refreshSession()).resolves.toMatchObject({ status: 'refreshed' })
+    releasePersistedCacheClear()
+
+    await expect(login).rejects.toThrow('cache scope failed')
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-out',
+      isAuthenticated: false,
+      user: null,
+    })
+  })
+
+  it('refuses a stale login rollback after a replacement login advances the epoch', async () => {
+    const replacementToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'replacement-user',
+      'replacement@example.com',
+    )
+    let rejectOriginalCleanup!: (error: Error) => void
+    const originalCleanup = new Promise<void>((_resolve, reject) => {
+      rejectOriginalCleanup = reject
+    })
+    clearPersistedQueryCacheMock
+      .mockReturnValueOnce(originalCleanup)
+      .mockResolvedValue(undefined)
+
+    const originalLogin = useAuthStore.getState().login('original-token', 'original-refresh', {
+      userId: 'original-user',
+      email: 'original@example.com',
+      name: 'Original user',
+    })
+    await vi.waitFor(() => expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1))
+
+    await useAuthStore.getState().login(
+      replacementToken,
+      'replacement-refresh',
+      {
+        userId: 'replacement-user',
+        email: 'replacement@example.com',
+        name: 'Replacement user',
+      },
+    )
+    rejectOriginalCleanup(new Error('original cleanup failed'))
+
+    await expect(originalLogin).rejects.toThrow('original cleanup failed')
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'replacement-user' },
+    })
+  })
+
   /**
    * The consumers of `superseded` are covered where they live, but nothing proved the STORE ever
    * produces it. Collapsing this one return back to `unauthorized` left every one of those consumer
@@ -510,7 +593,10 @@ describe('mobile auth store security paths', () => {
     await vi.waitFor(() => expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1))
 
     const generation = getSessionGeneration()
-    await clearSessionAndResetAuth(generation.epoch, generation.credentialVersion)
+    await clearSessionAndResetAuth({
+      authority: 'observed-credential',
+      ...generation,
+    })
     releasePersistedCacheClear()
     await login
 
@@ -584,10 +670,10 @@ describe('mobile auth store security paths', () => {
   it('keeps the session authenticated when a concurrent clear fires mid-login', async () => {
     const previousGeneration = getSessionGeneration()
     apiClientMock.mockImplementation(async () => {
-      await clearSessionAndResetAuth(
-        previousGeneration.epoch,
-        previousGeneration.credentialVersion,
-      )
+      await clearSessionAndResetAuth({
+        authority: 'observed-credential',
+        ...previousGeneration,
+      })
       return undefined
     })
 
@@ -832,7 +918,7 @@ describe('mobile auth store security paths', () => {
       expiresAt: Date.now() + 3600_000,
     })
 
-    await expect(useAuthStore.getState().logout()).resolves.toBeUndefined()
+    await expect(useAuthStore.getState().logout()).resolves.toBe(true)
 
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
     expect(offlineQueueClearMock).toHaveBeenCalledTimes(1)
@@ -971,7 +1057,7 @@ describe('mobile auth store security paths', () => {
       expiresAt: Date.now() + 3600_000,
     })
 
-    await expect(useAuthStore.getState().logout()).resolves.toBeUndefined()
+    await expect(useAuthStore.getState().logout()).resolves.toBe(true)
 
     expect(getSessionGeneration().epoch).toBeGreaterThan(epochBeforeLogout)
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
@@ -1067,7 +1153,7 @@ describe('mobile auth store security paths', () => {
     let storedAuthReturnUrl: string | null = '/old-destination'
     const offlineEntries = ['old-mutation']
     let releaseSecondUnsubscribe!: () => void
-    let secondLogout!: Promise<void>
+    let secondLogout!: Promise<boolean>
     const secondUnsubscribeReleased = new Promise<void>((resolve) => {
       releaseSecondUnsubscribe = resolve
     })
@@ -1109,7 +1195,7 @@ describe('mobile auth store security paths', () => {
 
     const firstLogout = useAuthStore.getState().logout()
     await vi.waitFor(() => expect(unsubscribePushTokenMock).toHaveBeenCalledTimes(2))
-    await firstLogout
+    await expect(firstLogout).resolves.toBe(true)
 
     await useAuthStore.getState().login(
       replacementToken,
@@ -1124,7 +1210,7 @@ describe('mobile auth store security paths', () => {
     offlineEntries.splice(0, offlineEntries.length, 'replacement-mutation')
 
     releaseSecondUnsubscribe()
-    await secondLogout
+    await expect(secondLogout).resolves.toBe(false)
 
     expect(storedToken).toBe(replacementToken)
     expect(storedRefreshToken).toBe('replacement-refresh-token')
@@ -1218,10 +1304,10 @@ describe('mobile auth store security paths', () => {
       token: rotatedToken,
     })
 
-    await expect(clearSessionAndResetAuth(
-      generationBeforeRefresh.epoch,
-      generationBeforeRefresh.credentialVersion,
-    )).resolves.toBe(false)
+    await expect(clearSessionAndResetAuth({
+      authority: 'observed-credential',
+      ...generationBeforeRefresh,
+    })).resolves.toBe(false)
     expect(clearAllTokensMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState().sessionPhase).toBe('signed-in')
   })
@@ -1407,6 +1493,39 @@ describe('mobile auth store security paths', () => {
 
     expect(outcome).toEqual({ status: 'unauthorized' })
     expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('completes logout after push unsubscribe refreshes the same session', async () => {
+    const refreshedToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'user-1',
+      'user@example.com',
+    )
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockResolvedValue(Response.json({
+      token: refreshedToken,
+      refreshToken: 'next-refresh',
+    }))
+    unsubscribePushTokenMock.mockImplementation(async () => {
+      await refreshSession()
+    })
+    useAuthStore.setState({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() + 60_000,
+    })
+
+    await expect(useAuthStore.getState().logout()).resolves.toBe(true)
+
+    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+    expect(queryClientClearMock).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState()).toMatchObject({
+      sessionPhase: 'signed-out',
+      isAuthenticated: false,
+      user: null,
+    })
   })
 
   it('preserves tokens when refreshSession has no refresh token but clearOnFailure is false', async () => {
