@@ -34,6 +34,7 @@ describe('useTodaySearch', () => {
     act(() => result.current.toggleSearch())
     expect(result.current.searchOpen).toBe(false)
     expect(result.current.localSearchQuery).toBe('')
+    expect(setSearchQuery).toHaveBeenCalledWith('')
   })
 
   it('toggles closed without error when the search box is empty', () => {

@@ -28,6 +28,7 @@ const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
 let mockHabitsDataUpdatedAt = 1
+let mockHabitsLoading = false
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
 const colorProxy: Record<string, string> = new Proxy(
@@ -41,6 +42,7 @@ const mockHabitsData = {
   habitsById: new Map<string, NormalizedHabit>(),
   childrenByParent: new Map<string, string[]>(),
   topLevelHabits: [] as NormalizedHabit[],
+  totalCount: 0,
 }
 
 const mockDrillState = {
@@ -86,7 +88,7 @@ vi.mock('expo-secure-store', () => ({
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({
     data: mockHabitsData,
-    isLoading: false,
+    isLoading: mockHabitsLoading,
     isFetching: false,
     dataUpdatedAt: mockHabitsDataUpdatedAt,
     refetch: vi.fn(),
@@ -236,6 +238,7 @@ function seedHabits(habits: NormalizedHabit[]) {
   mockHabitsData.habitsById = new Map(habits.map((habit) => [habit.id, habit]))
   mockHabitsData.childrenByParent = new Map<string, string[]>()
   mockHabitsData.topLevelHabits = habits.filter((habit) => !habit.parentId)
+  mockHabitsData.totalCount = habits.length
 
   for (const habit of habits) {
     if (!habit.parentId) continue
@@ -249,6 +252,7 @@ describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHabitsDataUpdatedAt = 1
+    mockHabitsLoading = false
     visibilityMockState.useRealTodayVisibility = false
     logMutateAsync.mockReset()
     skipMutateAsync.mockReset()
@@ -837,6 +841,74 @@ describe('HabitList', () => {
     expect(draggableList).toBeTruthy()
     expect(tree.root.findAllByType('Header')).toHaveLength(1)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(0)
+  })
+
+  it('keeps handled taps enabled on the today list', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    expect(tree.root.findByType('DraggableFlatList').props.keyboardShouldPersistTaps).toBe('handled')
+  })
+
+  it('keeps handled taps enabled on the all list', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="all" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
+  })
+
+  it('keeps handled taps enabled on the drill list', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    seedHabits([parent])
+    mockDrillState.currentParentId = parent.id
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = [parent.id]
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
+  })
+
+  it('keeps handled taps enabled on the loading list', () => {
+    mockHabitsLoading = true
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
+  })
+
+  it('keeps handled taps enabled on the all-done list', () => {
+    seedHabits([])
+    mockHabitsData.totalCount = 1
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted={false} onCreatePress={vi.fn()} />,
+      )
+    })
+
+    expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
   })
 
   it('uses plain lists for all view and drill view', () => {

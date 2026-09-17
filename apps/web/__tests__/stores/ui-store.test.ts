@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useUIStore } from '@/stores/ui-store'
 import { formatAPIDate } from '@orbit/shared/utils'
@@ -494,7 +494,6 @@ describe('ui store', () => {
           allCollapsed: false,
           onSearchToggle: vi.fn(),
           onSearchChange: vi.fn(),
-          onSearchClear: vi.fn(),
           onFrequencyChange: vi.fn(),
           onTagToggle: vi.fn(),
           onToggleSelect: vi.fn(),
@@ -512,6 +511,61 @@ describe('ui store', () => {
           boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.45)',
         })
       }
+    })
+
+    it('closes and clears a populated search with one press on the X', () => {
+      function SearchHarness() {
+        const [searchOpen, setSearchOpen] = React.useState(true)
+        const [searchValue, setSearchValue] = React.useState('')
+
+        return React.createElement(
+          React.Fragment,
+          null,
+          React.createElement(
+            'output',
+            { 'data-testid': 'search-state', 'data-open': searchOpen },
+            searchValue,
+          ),
+          React.createElement(TodayUtilityRow, {
+            activeView: 'general',
+            searchOpen,
+            searchValue,
+            selectedFrequency: null,
+            selectedTagIds: [],
+            tags: [],
+            frequencyOptions: [],
+            isSelectMode: false,
+            showCompleted: false,
+            isFetching: false,
+            allCollapsed: false,
+            onSearchToggle: () => {
+              setSearchValue('')
+              setSearchOpen(false)
+            },
+            onSearchChange: setSearchValue,
+            onFrequencyChange: vi.fn(),
+            onTagToggle: vi.fn(),
+            onToggleSelect: vi.fn(),
+            onToggleCollapse: vi.fn(),
+            onRefresh: vi.fn(),
+            onToggleCompleted: vi.fn(),
+          }),
+        )
+      }
+
+      render(React.createElement(SearchHarness))
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'focus' } })
+
+      const closeControl = screen.getByRole('button', {
+        name: /^(common\.clear|habits\.closeSearch)$/,
+      })
+      const populatedAccessibleName = closeControl.getAttribute('aria-label')
+      fireEvent.click(closeControl)
+
+      expect(screen.getByTestId('search-state')).toHaveAttribute('data-open', 'false')
+      expect(screen.getByTestId('search-state')).toBeEmptyDOMElement()
+      expect(populatedAccessibleName).toBe('habits.closeSearch')
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     })
   })
 

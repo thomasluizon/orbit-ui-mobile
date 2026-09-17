@@ -106,7 +106,6 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
           allCollapsed={habitListAllCollapsed}
           onSearchToggle={search.toggleSearch}
           onSearchChange={search.setLocalSearchQuery}
-          onSearchClear={() => search.setLocalSearchQuery('')}
           onFrequencyChange={data.setSelectedFrequency}
           onTagToggle={data.toggleTagFilter}
           onToggleSelect={view.toggleSelectMode}

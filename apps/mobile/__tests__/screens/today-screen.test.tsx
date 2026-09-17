@@ -460,6 +460,12 @@ function isBackToTopHiddenFromAccessibility(tree: RenderedTree): boolean {
   throw new Error("Expected the back-to-top visibility wrapper to be rendered");
 }
 
+function getHabitsHeader(tree: RenderedTree): React.ReactElement<Record<string, unknown>> {
+  return tree.root.findByType("HabitList").props.listHeader as React.ReactElement<
+    Record<string, unknown>
+  >;
+}
+
 describe("TodayScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -780,6 +786,12 @@ describe("TodayScreen", () => {
 
   it("clears the search query when the active view changes", async () => {
     const tree = await renderTodayScreen();
+    const header = getHabitsHeader(tree);
+    await TestRenderer.act(() => {
+      (header.props.onSearchToggle as () => void)();
+    });
+    (getHabitsHeader(tree).props.onSearchChange as (value: string) => void)("gym");
+    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(true);
 
     const tabs = tree.root.findAllByType("TodayTabs")[0];
     if (!tabs) {
@@ -792,6 +804,58 @@ describe("TodayScreen", () => {
     });
 
     expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
+    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(false);
+  });
+
+  it("closes a typed search when the selected day changes", async () => {
+    const tree = await renderTodayScreen();
+    const header = getHabitsHeader(tree);
+    await TestRenderer.act(() => {
+      (header.props.onSearchToggle as () => void)();
+    });
+    (getHabitsHeader(tree).props.onSearchChange as (value: string) => void)("gym");
+    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(true);
+
+    const dateNav = tree.root.findByType("TodayDateNavigation");
+    await TestRenderer.act(() => {
+      (dateNav.props.onGoToNextDay as () => void)();
+    });
+
+    expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
+    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(false);
+  });
+
+  it("closes and clears a typed search with one press on the X", async () => {
+    const tree = await renderTodayScreen();
+    const header = getHabitsHeader(tree);
+    await TestRenderer.act(() => {
+      (header.props.onSearchToggle as () => void)();
+    });
+
+    let headerTree: any;
+    await TestRenderer.act(() => {
+      headerTree = TestRenderer.create(getHabitsHeader(tree));
+    });
+    const closeButton = headerTree!.root.findAll(
+      (node: any) => node.props.accessibilityLabel === "habits.closeSearch",
+    )[0];
+    const searchInput = headerTree!.root.findAll(
+      (node: any) =>
+        node.props.placeholder === "habits.searchPlaceholder" &&
+        typeof node.props.onChangeText === "function",
+    )[0];
+    assert(closeButton);
+    assert(searchInput);
+    await TestRenderer.act(() => {
+      (searchInput.props.onChangeText as (value: string) => void)("gym");
+    });
+    expect(closeButton.props.accessibilityLabel).toBe("habits.closeSearch");
+    await TestRenderer.act(() => {
+      (closeButton.props.onPress as () => void)();
+    });
+
+    expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
+    expect(getHabitsHeader(tree).props.isSearchOpen).toBe(false);
   });
 
   it("locks the edit modal General toggle to the parent isGeneral when editing a sub-habit", async () => {

@@ -59,7 +59,6 @@ interface TodaySearchBarProps {
   onFocusChange: (focused: boolean) => void;
   onCancel: () => void;
   placeholder: string;
-  clearLabel: string;
   closeLabel: string;
   focused: boolean;
   tokens: ReturnType<typeof createTokensV2>;
@@ -72,7 +71,6 @@ const TodaySearchBar = memo(function TodaySearchBar({
   onFocusChange,
   onCancel,
   placeholder,
-  clearLabel,
   closeLabel,
   focused,
   tokens,
@@ -141,15 +139,9 @@ const TodaySearchBar = memo(function TodaySearchBar({
           selectionColor={tokens.primary}
         />
         <Pressable
-          onPress={() => {
-            if (draft.length > 0) {
-              setDraft("");
-              return;
-            }
-            onCancel();
-          }}
+          onPress={onCancel}
           accessibilityRole="button"
-          accessibilityLabel={draft.length > 0 ? clearLabel : closeLabel}
+          accessibilityLabel={closeLabel}
           hitSlop={8}
           style={({ pressed }) => [
             styles.searchClear,
@@ -672,7 +664,6 @@ export function TodayHabitsHeader({
             onFocusChange={onSearchFocusChange}
             onCancel={onSearchToggle}
             placeholder={t("habits.searchPlaceholder")}
-            clearLabel={t("common.clear")}
             closeLabel={t("habits.closeSearch")}
             focused={isSearchFocused}
             tokens={tokens}

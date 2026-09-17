@@ -157,6 +157,7 @@ const SKELETON_KEYS = [
   'skeleton-4',
   'skeleton-5',
 ]
+const KEYBOARD_SHOULD_PERSIST_TAPS = 'handled'
 
 // react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, date-group-section, drill-view, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
@@ -1527,6 +1528,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             data={SKELETON_KEYS}
+            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={(item) => item}
             renderItem={renderSkeletonItem}
             ListHeaderComponent={listHeaderComponent}
@@ -1553,6 +1555,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             data={[]}
+            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={() => 'all-done'}
             renderItem={undefined}
             ListHeaderComponent={listHeaderComponent}
@@ -1586,6 +1589,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           <FlatList
             ref={allViewListRef}
             data={dateGroups}
+            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={(item) => item.key}
             renderItem={renderGroupSection}
             ListHeaderComponent={listHeaderComponent}
@@ -1614,6 +1618,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <DraggableFlatList
           ref={scrollContainerRef}
           data={activeDragItems}
+          keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           extraData={listExtraData}

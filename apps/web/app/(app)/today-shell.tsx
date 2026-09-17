@@ -210,7 +210,6 @@ export interface TodayUtilityRowProps {
   allCollapsed: boolean
   onSearchToggle: () => void
   onSearchChange: (value: string) => void
-  onSearchClear: () => void
   onFrequencyChange: (key: FreqKey | null) => void
   onTagToggle: (tagId: string) => void
   onToggleSelect: () => void
@@ -233,7 +232,6 @@ export function TodayUtilityRow({
   allCollapsed,
   onSearchToggle,
   onSearchChange,
-  onSearchClear,
   onFrequencyChange,
   onTagToggle,
   onToggleSelect,
@@ -303,8 +301,8 @@ export function TodayUtilityRow({
           />
           <button
             type="button"
-            aria-label={searchValue ? t('common.clear') : t('habits.closeSearch')}
-            onClick={searchValue ? onSearchClear : onSearchToggle}
+            aria-label={t('habits.closeSearch')}
+            onClick={onSearchToggle}
             className="icon-btn touch-target-y shrink-0"
             style={{ width: 36, height: 36 }}
           >

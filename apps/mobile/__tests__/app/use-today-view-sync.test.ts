@@ -23,7 +23,7 @@ function makeParams(
     setRenderBulkActionBar: vi.fn(),
     setActiveView: vi.fn(),
     setFilters: vi.fn(),
-    setSearchQuery: vi.fn(),
+    closeSearch: vi.fn(),
     ...overrides,
   };
 }
@@ -35,8 +35,8 @@ function Probe(props: TodayViewSyncParams) {
 
 describe("useTodayViewSync (mobile)", () => {
   it("clears the search query when a pinned date is deep-linked", () => {
-    const setSearchQuery = vi.fn();
-    const initial = makeParams({ setSearchQuery });
+    const closeSearch = vi.fn();
+    const initial = makeParams({ closeSearch });
     let renderer!: { update(element: React.ReactNode): void };
     TestRenderer.act(() => {
       renderer = TestRenderer.create(React.createElement(Probe, initial));
@@ -46,17 +46,17 @@ describe("useTodayViewSync (mobile)", () => {
       renderer.update(
         React.createElement(
           Probe,
-          makeParams({ setSearchQuery, pinnedDateStr: "2026-07-20" }),
+          makeParams({ closeSearch, pinnedDateStr: "2026-07-20" }),
         ),
       );
     });
 
-    expect(setSearchQuery).toHaveBeenCalledWith("");
+    expect(closeSearch).toHaveBeenCalledTimes(1);
   });
 
   it("clears the search query when the active view changes", () => {
-    const setSearchQuery = vi.fn();
-    const initial = makeParams({ setSearchQuery });
+    const closeSearch = vi.fn();
+    const initial = makeParams({ closeSearch });
     let renderer!: { update(element: React.ReactNode): void };
     TestRenderer.act(() => {
       renderer = TestRenderer.create(React.createElement(Probe, initial));
@@ -66,11 +66,11 @@ describe("useTodayViewSync (mobile)", () => {
       renderer.update(
         React.createElement(
           Probe,
-          makeParams({ setSearchQuery, currentActiveView: "all" }),
+          makeParams({ closeSearch, currentActiveView: "all" }),
         ),
       );
     });
 
-    expect(setSearchQuery).toHaveBeenCalledWith("");
+    expect(closeSearch).toHaveBeenCalledTimes(1);
   });
 });

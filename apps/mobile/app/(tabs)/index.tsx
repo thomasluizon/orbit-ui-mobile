@@ -53,6 +53,7 @@ import { TodayScreenBody } from "./today-sections";
 import { useTodayDate } from "./use-today-date";
 import { useTodayMotion } from "./use-today-motion";
 import { useTodaySelection } from "./use-today-selection";
+import { useTodaySearch } from "./use-today-search";
 import { TodayModals } from "./today-modals";
 
 export { resolveBulkActionBarEnterShift } from "./today-model";
@@ -95,8 +96,6 @@ export default function TodayScreen() {
 
   const activeView = useUIStore((s) => s.activeView);
   const setActiveView = useUIStore((s) => s.setActiveView);
-  const searchQueryStore = useUIStore((s) => s.searchQuery);
-  const setSearchQueryStore = useUIStore((s) => s.setSearchQuery);
   const selectedFrequency = useUIStore((s) => s.selectedFrequency);
   const setSelectedFrequency = useUIStore((s) => s.setSelectedFrequency);
   const selectedTagIds = useUIStore((s) => s.selectedTagIds);
@@ -123,8 +122,15 @@ export default function TodayScreen() {
     close: closeFreqMenu,
     toggle: toggleFreqMenu,
   } = useAnchoredMenu();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const {
+    searchQuery: searchQueryStore,
+    isSearchOpen,
+    isSearchFocused,
+    setSearchQuery: setSearchQueryStore,
+    setIsSearchFocused,
+    closeSearch,
+    toggleSearch,
+  } = useTodaySearch();
   const habitListRef = useRef<HabitListHandle>(null);
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -183,7 +189,7 @@ export default function TodayScreen() {
     goToNextDay,
     goToToday,
     swipeGesture,
-  } = useTodayDate();
+  } = useTodayDate(closeSearch);
 
   const { slot: engagementSlot } = useEngagementSlot({
     isTodayView: currentActiveView === "today",
@@ -236,9 +242,9 @@ export default function TodayScreen() {
       }
 
       setActiveView(nextView);
-      setSearchQueryStore("");
+      closeSearch();
     },
-    [profile?.hasProAccess, router, setActiveView, setSearchQueryStore],
+    [closeSearch, profile?.hasProAccess, router, setActiveView],
   );
 
   const tabItems = useMemo<TodayTabItem[]>(
@@ -353,7 +359,7 @@ export default function TodayScreen() {
     setRenderBulkActionBar,
     setActiveView,
     setFilters,
-    setSearchQuery: setSearchQueryStore,
+    closeSearch,
   });
 
   const showSummary = currentActiveView === "today" && isToday(selectedDate);
@@ -410,15 +416,6 @@ export default function TodayScreen() {
   const handleListScrollBeginDrag = useCallback(() => {
     closeControlsMenu();
   }, [closeControlsMenu]);
-
-  const handleToggleSearch = useCallback(() => {
-    setIsSearchOpen((open) => {
-      if (open) {
-        setSearchQueryStore("");
-      }
-      return !open;
-    });
-  }, [setSearchQueryStore]);
 
   const sharedHeader = useMemo(
     () => (
@@ -502,7 +499,7 @@ export default function TodayScreen() {
         onGoToPreviousDay={goToPreviousDay}
         onGoToToday={goToToday}
         onGoToNextDay={goToNextDay}
-        onSearchToggle={handleToggleSearch}
+        onSearchToggle={toggleSearch}
         onSearchChange={setSearchQueryStore}
         onSearchFocusChange={setIsSearchFocused}
         onTagToggle={toggleTagFilter}
@@ -539,7 +536,6 @@ export default function TodayScreen() {
       handleToggleCompleted,
       toggleControlsMenu,
       toggleFreqMenu,
-      handleToggleSearch,
       handleToggleSelectMode,
       isSearchFocused,
       isSearchOpen,
@@ -563,6 +559,7 @@ export default function TodayScreen() {
       toggleTagFilter,
       freqMenuAnchorRect,
       showFreqMenu,
+      toggleSearch,
     ],
   );
 

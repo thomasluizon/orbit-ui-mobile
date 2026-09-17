@@ -147,6 +147,7 @@ export function HabitListDrillView({
     <FlatList
       ref={drillListRef}
       data={drill.drillLoading || drill.drillError ? [] : drill.drillChildren}
+      keyboardShouldPersistTaps="handled"
       keyExtractor={(item) => item.id}
       renderItem={renderDrillItem}
       ListHeaderComponent={drillListHeader}
