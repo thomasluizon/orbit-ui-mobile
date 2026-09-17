@@ -19,6 +19,7 @@ export interface ListRowBase {
   chevron?: boolean
   href?: string
   onClick?: () => void
+  disabled?: boolean
   inset?: boolean
 }
 

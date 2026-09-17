@@ -488,6 +488,36 @@ export const cases = async () => {
     JSON.stringify(receipt),
   )
 
+  const priorReceipt = JSON.parse(readFileSync(receipt.mirrorPath, "utf8"))
+  priorReceipt.ticket = "#397"
+  writeFileSync(receipt.mirrorPath, JSON.stringify(priorReceipt))
+  writeFileSync(entry.log, "")
+  const cwdLog = stage("submit-cloud/cwd-safe.txt", "")
+  const launchRepository = stageRepo("submit-cloud-cwd-safe-launch")
+  const cwdSafeResult = run(TOOL, argvOf(entry), {
+    path: entry.path,
+    cwd: launchRepository.path,
+    env: {
+      ORBIT_FAKE_CODEX_LOG: entry.log,
+      ORBIT_FAKE_CODEX_CWD_LOG: cwdLog,
+      ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_c0d2",
+      ORBIT_FAKE_LIST: taskPage([task(priorReceipt.taskId, "pending", 0)]),
+    },
+  })
+  const cwdSafeInvocations = readFileSync(entry.log, "utf8").trim().split(/\r?\n/).map(JSON.parse)
+  const childWorkingDirectories = readFileSync(cwdLog, "utf8").trim().split(/\r?\n/)
+  const expectedStateRoot = cloudStateRoot(entry.repo.path)
+  const launchStateRoot = cloudStateRoot(launchRepository.path)
+  T(
+    `${TOOL}: list and exec use the target worktree cloud state root from another repository`,
+    cwdSafeResult.status === 0 &&
+      JSON.stringify(cwdSafeInvocations.map((args) => args[1])) === JSON.stringify(["list", "exec"]) &&
+      JSON.stringify(childWorkingDirectories) === JSON.stringify([expectedStateRoot, expectedStateRoot]) &&
+      !childWorkingDirectories.includes(launchStateRoot),
+    `exit ${cwdSafeResult.status}: ${cwdSafeResult.stdout || cwdSafeResult.stderr}\n` +
+      `invocations ${JSON.stringify(cwdSafeInvocations)}\nworking directories ${JSON.stringify(childWorkingDirectories)}`,
+  )
+
   const watcher = spawnTool(entry, ["--watch", receipt.receiptPath], {
     ORBIT_FAKE_CODEX_LOG: entry.log,
     ORBIT_FAKE_LIST: taskPage([task(receipt.taskId, "ready", 1)]),

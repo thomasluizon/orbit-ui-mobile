@@ -1,28 +1,33 @@
-# Continue the Orbit redesign
+# Finish the Orbit redesign
 
 Read `.claude/specs/orbit-redesign.md` first. It is the living spec and it holds everything durable:
 the standing instructions, the decisions, the constraints, the full state and every answer Thomas has
 given. This prompt only says what to do next.
 
-`.claude/specs/beta-release.md` is DONE and is a record, not a queue. Read its constraints once.
+`.claude/specs/beta-release.md` is the record for work that ships off `main`, and it covers TWO
+releases. Read its constraints once; they bite on any `main` work.
 
-**Read the brain notes the spec names, through the Obsidian MCP, before you act.** They are listed
-under `## Decisions this effort runs on`. All thirteen filenames were confirmed to still exist on
-2026-09-16, but the MCP itself was unreachable at that moment (`fetch failed`, Obsidian not running)
-so they were confirmed on disk, which misses frontmatter, tags and which decision superseded which.
-**Re-confirm through the MCP when it is up.**
+**Read the brain notes the spec names before you act.** They are listed under
+`## Decisions this effort runs on`, eighteen of them. On 2026-09-16 all three vault MCPs failed to
+connect (`obsidian`, `vault-fs` and `circleci`, all `CONNECT_TIMEOUT`), so the check fell back to
+reading frontmatter on disk: every one reads `status: accepted`, and a scan of
+`^superseded_by: *[^ ]` across the whole `Decisions/` directory returned exactly ONE non-empty value,
+on `Cap Codex worker parallelism at two while Thomas is at the machine.md`, which is not one of the
+eighteen. **Backlinks were not read. Re-confirm through the Obsidian MCP when it is up.**
 
 ## Your entry point
 
-`/orchestrate`. Do not restate what it does; work through it.
+`/sleep`. It enters `/orchestrate --sleep` itself, so do not treat them as two choices. Do not
+restate what either one does; work through them.
 
 ## The goal
 
 **Finish `.claude/specs/orbit-redesign.md`.** The run ends when every screen ticket is closed and
 `node tools/redesign-coverage.mjs` reports a valid mapping with nothing missing. That command is
-necessary and NOT sufficient: it validates the MAPPING, never whether a surface satisfies its ticket,
-and it reads a manifest no CI job regenerates. Judge every ticket against its own acceptance criteria,
-in the tree, before closing it.
+necessary and NOT sufficient: it reported `valid: 184 manifest surfaces accounted for, 14 deleted, 3
+excluded` on 2026-09-16 while seven screen tickets were still open. It validates the MAPPING only,
+and it reads a manifest no CI job regenerates. Judge every ticket against its own acceptance criteria
+in the tree before closing it.
 
 A blocker is the next piece of work, not an ending. Re-derive what is left:
 
@@ -30,79 +35,98 @@ A blocker is the next piece of work, not an ending. Re-derive what is left:
     gh pr list --repo thomasluizon/orbit-ui-mobile --state open
     gh pr list --repo thomasluizon/orbit-api --state open
 
-130 carried `repo:ui` and 65 carried `repo:api` on 2026-09-16.
+## Read this before you merge anything
+
+**An APPROVED Pullfrog review is not the verdict.** A later review of the SAME head supersedes it,
+and `list-bot-threads.mjs --re-review` returns on the first one.
+
+Decide every merge on **the LAST Pullfrog review of the exact head being APPROVED AND the newest
+`pullfrog-approval` check run at that head concluding `success`**, ignoring SonarCloud only when the
+base is `redesign/main`. That condition merged 984 and 986 cleanly on 2026-09-16 and refused four
+others that looked ready. **Rebuild the tool that does exactly that read**; it lives in a scratchpad
+that dies with its session, and it is about five minutes of work. Read it as four parts: last bot
+review at head, newest check run per NAME, unresolved bot threads, and reds excluding SonarCloud.
+
+Two cheap things that save real time:
+
+- `node tools/list-bot-threads.mjs --pr <n> --repo <key> --no-request --wait-seconds 0` is the read.
+  Without those flags it posts `@pullfrog review` and waits up to fifteen minutes.
+- That tool RECORDS every thread id it prints, which is what clears
+  `forbid-invented-identifier.mjs`. An id read through raw GraphQL is refused even when it is
+  correct. The gate is right; do not work around it.
 
 ## In flight, with a disposition on every row
 
-**Nine UI pull requests and two `orbit-api` ones are open. No worker is running.** Every UI one
-carries its `## Review harness` block, so that gate is satisfied; do not re-run those sweeps.
+**Four UI pull requests and two `orbit-api` ones are open. No worker is running: Thomas said "stop
+all the work" and every one was stopped deliberately.**
 
 | PR | repo | head | disposition |
 |---|---|---|---|
-| 998 | ui | `2212d9e1` | **FIRST.** Perfil stage 11, the last five suppressions. `Cross-Platform Parity` is RED because it is mobile-only: add the `parity:exempt` label with a one-line body justification. **Never type-checked or pushed by a person** because the session was interrupted mid-verification; lint is clean on the file and the ratchet reads mobile 90 to 85. Verify, push, drive to approval, merge. **`#71` closes when it merges.** |
-| 994 | ui | `921ed55c` | DRIVE to approval, then merge. Rounds 4 and 5 pushed and evidenced |
-| 992 | ui | `8cdef1b4` | DRIVE to approval, then merge. SonarCloud red does not gate this branch |
-| 991 | ui | `b604fb54` | **NEVER OPENED this session.** Read its findings from scratch |
-| 988 | ui | `4558b2c2` | ALL GREEN as of late afternoon. Re-check, force a re-review at the merge head, merge |
-| 987 | ui | `3ffc788d` | DRIVE to approval, then merge. SonarCloud red only |
-| 986 | ui | `4e890c67` | DRIVE to approval, then merge |
-| 984 | ui | `fcfde93c` | **NEVER OPENED this session.** Read its findings from scratch |
-| 970 | ui | `52974481` | **NEVER OPENED this session.** Three P1s were answered at this head on 09-15; re-read |
-| 520 | api | `b74178ba` | A NEW finding arrived after round 3 and is UNREAD. The spec's Open questions section has the analysis and the model change to consider |
-| 521 | api | `3d59d9f9` | A NEW finding arrived after round 2 and is UNREAD. Also BEHIND `main`, so it needs a merge-forward. Consider `TimeZoneInfo.HasSameRules`; the spec says why |
-| Dependabot | both | Leave. Not this effort |
+| 994 | ui | `1b502877` | round 11. `auth-store.ts:289`: the token refresh advances `sessionGeneration` while `login()` awaits cleanup, so the login owner fails its next generation check and returns before its only `signed-in` publication. Same model, one more writer outside it. **Finish the model, never guard it from outside** |
+| 992 | ui | `0cbcd183` | `radio-group.tsx:52`: every enabled radio is focusable now, so forward focus has no route to the CHECKED item, lands on an unchecked one, and `onFocus` selects it. Traversal alone changes the value. Decide the entry route |
+| 991 | ui | `9b806654` | `compose-prompt.mjs:146`: the order makes `.truncated` and `.tree[].type` load-bearing GitHub API fields with no recorded invocation or typed response shape in the body. Same class the `gh --json` proof closed on 970 |
+| 970 | ui | `81586aa3` | TWO findings. `SKILL.md:50`: the walk treats "not an open PR head" as "integration branch", but a stacked parent can be CLOSED and still be the child's base, and PR 575 over closed parent 560 is a live example. `SKILL.md:68`: prove the response SHAPE with real typed three-field output, not just that the field is accepted |
+| 521 | api | `82134581` | **All four threads RESOLVED by removal.** Needs a review of this head, then merge and deploy |
+| 520 | api | `3d5d6929` | **Zero unresolved threads.** CI was still running. Needs a review of this head, then merge and deploy |
+| Dependabot | both | ui 798/799/801/881, api 510/525/526 | Leave. Not this effort |
+
+**`#561` HAS UNCOMMITTED WORK AND NO COMMIT. Read it before anything else touches that worktree.**
+`C:\Users\thoma\orca\workspaces\orbit-ui-mobile\ticket-561-sheet-nav`, branch
+`fix/ticket-561-sheet-nav`, sitting at `0600332b` with **15 modified files covering all eight sites
+the ticket names plus seven test files**. The worker was stopped mid-write, so nothing was committed
+and no test result was ever captured. Do not reset, stash or discard it. Read the diff, decide what
+is already correct, and continue from there.
 
 ## Do this, in this order
 
-1. **Merge 998 and close `#71`.** Verify it first; nobody has.
-2. **Clear the review findings on the other eight UI pull requests and merge them.** Ask for a forced
-   `--re-review` on any head that matters. That has now found a real defect on an already-green pull
-   request SEVEN separate times, most recently 248 lines of dead code on 983.
-3. **Read the two `orbit-api` findings and act on them**, then merge and deploy both.
-4. **`#561`, filed this session and not picked up.** Eight Android sheets navigate while presented,
-   which wedges every later modal until the app restarts. The paywall push inside the habit form is
-   one of them. The ticket carries every `file:line`.
-5. **`#529`**, unblocked and decided but NOT BUILT. Server change alone, no config flag, no
-   `MinSupportedVersion` raise, the break recorded in the pull request body, scoped to beta only.
-6. **Give the ownerless suppressions a home.** 66 web and 90 mobile remain. Most map to a screen
-   ticket, but a block of shared overlays and primitives maps to none. Assign each file to a ticket,
-   or file one for the shared surfaces. A suppression with no owner survives every screen pass.
-7. **Then the remaining screen tickets**: `#63`, `#67`, `#73`, `#76`, `#329`, plus `#57` and `#58`.
-8. **`#34` is one external line from closed.** The listing is applied and submitted; Google's review
-   takes up to 7 days. Re-read the live public listing, logged out, and close the ticket when the new
-   text is live. No console work remains.
+1. **Drive 994, 992, 991 and 970 to merge.** Each has exactly one round of work left, listed above.
+   None is blocked.
+2. **`#561`**: read the stopped worktree first, then finish and deliver it.
+3. **The two `orbit-api` pull requests**: review each head, then merge and deploy both.
+4. **`#529`**, fully specified and answered. Gate BOTH listing and revoking behind the emailed code.
+   **The switch is the part that matters**: `AppConfigKeys.RequireApiKeyCreationStepUp` defaults to
+   `false`, so flip it to true in `AppConfigs` AFTER the deploy or the ticket ships inert.
+5. **`#562`**: a weekday-scoped calendar event has NEVER imported on any shipped build, because the
+   client sends `days` with a weekly unit and `HabitInvariants.cs:42-43` rejects that. Its interval
+   and ordinal cases are already decided as visible refusals.
+6. **`#545` stages 2 to 5**, 77 suppressions. Its reconciliation comment proves nothing is ownerless.
+7. **The seven remaining screen tickets**: `#63`, `#67`, `#73`, `#76`, `#329`, `#57`, `#58`.
 
-## Four things that cost real work
+## Five things that cost real work on 2026-09-16
 
-- **The local worker cap is TWO**, and the harness killed workers with 11.3 GB of 31.5 GB free, so
-  free memory tells you nothing. **Do not run a root type-check or a vitest suite while two workers
-  are up.** Every killed worker had already COMMITTED; read the worktree before assuming loss.
-- **`npx turbo run type-check --force`** when the result is evidence. A cached `FULL TURBO` pass on a
-  file you just changed proves nothing.
-- **Prove red on a commit somebody else wrote**: `git checkout <sha>~1 -- <source files>`, run,
-  capture, `git checkout <sha> -- <same files>`, confirm the tree is clean.
-- **Read only the LATEST check run per name**: `group_by(.name) | map(sort_by(.startedAt) | last)`.
-- **`--match-head-commit` needs the FULL sha.** A short one fails to coerce to `GitObjectID`.
-- **Never `git worktree remove --force` on Windows.** `rmdir` the junctions first.
+- **A killed worker has almost always COMMITTED, and the tree decides who finishes it.** CLEAN plus a
+  complete commit: the orchestrator verifies and pushes it, which is delivery and saves a launch.
+  DIRTY with a half-written edit: relaunch the worker. Both answers were correct on the same night.
+- **Prove red AFTER the fact rather than quoting a dead session.** `git checkout <sha>~1 -- <only the
+  source files>`, run the new test, capture, restore, confirm clean. Say in the pull request body
+  that the worker was killed and that none of ITS numbers are quoted.
+- **An order can be wrong, and a refusing worker can be more right than you.** On `#543` one refused
+  and was half right, the correction was also wrong, and three P1s proved it. The root error was
+  importing the WEB ARIA roving single-tab-stop pattern into an Android platform adapter. Check an
+  order against the platform it targets, not against the pattern you know.
+- **The local worker cap is TWO**, and the harness kills for low memory with 11 GB free. Do not run a
+  root `turbo type-check` or a vitest suite while two are up. A `timeout 590 node tools/test-tools.mjs`
+  exiting 124 with zero failures is starvation, not a result; re-run it unbounded.
+- **`npx turbo run type-check --force`** when the result is evidence, and say it was forced.
+  `--match-head-commit` needs the FULL sha. Never `git worktree remove --force` on Windows.
 
-## Worktree debt, corrected
+## State of the tree
 
-The previous prompt called `ticket-335-avisos` eleven commits that exist only on this machine. **That
-was wrong.** Its upstream is `origin/redesign/main`, so a squash-merged branch's own commits read as
-unpushed forever. Pull request 843 is MERGED and `#335` is CLOSED. The same correction applies to
-`orbit-api`'s `ticket-337-api-copy`: 504 is MERGED, `#411` is CLOSED. All four detached HEADs are
-reachable from a branch. Nothing is at risk.
+`redesign/main` is `43bc28ad`, **299 commits ahead of `main`**. `main` is `a9558f7a` with Orbit
+1.3.29 (88) live on the Play open track. Merged tonight: 984 (`3d2f01a5`) and 986 (`43bc28ad`).
 
-The real debt is the count: **180 worktrees in ui, 20 in api**, plus four stashes and six dirty trees.
-The spec's State section lists them.
+183 worktrees in ui and 20 in api, four stashes in ui, none in api. Seven dirty trees in ui, one of
+which is `#561`'s stopped worker. The spec's State section lists them with counts.
 
 ## `--sleep`
 
-Thomas ran `/wrap-up --sleep`. Nobody is going to open this file, so do not stop after reading it.
+Thomas ran `/handoff --sleep`. Nobody is going to open this file, so do not stop after reading it.
 Read and execute `.claude/skills/sleep/SKILL.md`, write run state under this session's own id, and
-leave a live wake source before the turn ends. Take every decision yourself, always the best approach
-and never the easiest, and log each one.
+leave a live wake source before the turn ends. **A worker launched by a previous session does not
+wake you**: its wake source belongs to that session. Own your own. Take every decision yourself,
+always the best approach and never the easiest, and log each one.
 
 ## One more thing
 
-Every identifier above came from a previous session. Treat each as a lead to verify, not a fact.
+Every identifier above came from a previous session. Treat each as a lead to verify, not a fact. On
+2026-09-16 a handoff row said `#561`'s order was posted and the ticket had zero comments.

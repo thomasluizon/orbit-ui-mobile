@@ -1,9 +1,10 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-account-modal'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -89,6 +90,10 @@ describe('DeleteAccountModal', () => {
     mocks.apiClient.mockResolvedValue({ message: 'sent' })
   })
 
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
   it('keeps the cancellation path in the pre-confirmation copy', async () => {
     const tree = await renderModal()
     const copy = textContent(tree.root)
@@ -139,7 +144,8 @@ describe('DeleteAccountModal', () => {
     expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro)
   })
 
-  it('requests the code before entering the deletion step up', async () => {
+  it('enters the deletion step up only after the sheet dismisses', async () => {
+    sheetTestControls.defer(true)
     const tree = await renderModal()
 
     await TestRenderer.act(async () => {
@@ -154,6 +160,16 @@ describe('DeleteAccountModal', () => {
       expect.anything(),
     )
     expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(mocks.onClose).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(mocks.onClose).toHaveBeenCalledTimes(1)
     expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
+    expect(mocks.push).toHaveBeenCalledTimes(1)
   })
 })

@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockRescheduleSuggestion } from '@orbit/shared/__tests__/factories'
 import type { RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
@@ -74,6 +74,10 @@ describe('RescheduleSheet (mobile)', () => {
     mockReschedule = { suggestion: null, isLoading: false, error: null, refetch: mockRefetch }
   })
 
+  afterEach(() => {
+    sheetTestControls.defer(false)
+  })
+
   it('accept applies the suggestion through the update path with a merged request', async () => {
     mockReschedule.suggestion = createMockRescheduleSuggestion({
       frequencyUnit: 'Week',
@@ -115,6 +119,7 @@ describe('RescheduleSheet (mobile)', () => {
     })
 
     /** The sheet is still presented, so neither the close nor the navigation may run yet. */
+    expect(sheetTestControls.isDismissPending).toBe(true)
     expect(onOpenChange).not.toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
 
