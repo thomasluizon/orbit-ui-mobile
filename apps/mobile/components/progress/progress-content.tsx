@@ -149,14 +149,14 @@ function FrozenTodayStatus({ isFrozenToday, tokens }: Readonly<{ isFrozenToday: 
   )
 }
 
-function AutomaticFreezeStatus({ date, remaining, locale, tokens }: Readonly<{
+function FreezeCoveredStatus({ date, remaining, locale, tokens }: Readonly<{
   date: string
   remaining: number
   locale: string
   tokens: AppTokensV2
 }>) {
   const { t } = useTranslation()
-  const message = t('progressScreen.streak.automaticCovered', {
+  const message = t('progressScreen.streak.covered', {
     date: formatStreakDate(date, locale),
     count: remaining,
   })
@@ -259,7 +259,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
     <View style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
       <View style={styles.streakFigure}><Text style={[styles.streak, { color: tokens.fg1 }]}>{new Intl.NumberFormat(i18n.language).format(currentStreak)}</Text><Text style={[styles.streakLabel, { color: tokens.fg2 }]}>{t('progressScreen.streak.currentLabel', { count: currentStreak })}</Text></View>
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
-      {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? <AutomaticFreezeStatus date={freeze.streakInfo.lastFreezeCoveredDate} remaining={freeze.streakInfo.freezeBankRemaining} locale={i18n.language} tokens={tokens} /> : null}
+      {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? <FreezeCoveredStatus date={freeze.streakInfo.lastFreezeCoveredDate} remaining={freeze.streakInfo.freezeBankRemaining} locale={i18n.language} tokens={tokens} /> : null}
       <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><View style={styles.tileGrid}><View style={styles.half}><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /></View><View style={styles.half}><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></View></View><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
       {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} isWide={width >= 768} /> : null}

@@ -834,13 +834,38 @@ describe('ProgressContent', () => {
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
   })
 
-  it('shows the date and remaining bank after an automatic freeze spend', () => {
+  it('shows the date and remaining bank after a freeze spend', () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
 
     render(<ProgressPage />)
 
-    expect(screen.getByText('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')).toBeInTheDocument()
+  })
+
+  it('makes no automatic claim when a manual repair returns the same lastFreezeCoveredDate', () => {
+    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-09'
+    mocks.freeze.streakInfo.freezeBankRemaining = 1
+    mocks.freeze.streakInfo.isRepairAvailable = false
+
+    render(<ProgressPage />)
+
+    expect(screen.getByText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')).toBeInTheDocument()
+    expect(screen.queryByText(/automaticCovered/)).not.toBeInTheDocument()
+  })
+
+  it('states coverage without claiming who spent the freeze, in both locales', () => {
+    for (const locale of [en, ptBR]) {
+      const covered = locale.progressScreen.streak.covered
+      expect(covered).toBeTypeOf('string')
+      expect(covered).not.toMatch(/automatic|automátic|automatica|automaticamente/i)
+    }
+    expect(en.progressScreen.streak.covered).toBe(
+      'A freeze covered {date}. {count, plural, =0 {None remain.} one {One remains.} other {# remain.}}',
+    )
+    expect(ptBR.progressScreen.streak.covered).toBe(
+      'Um congelamento cobriu {date}. {count, plural, =0 {Nenhum resta.} one {Um resta.} other {# restam.}}',
+    )
   })
 
   it('shows the no-freeze gap without an action or blame', () => {

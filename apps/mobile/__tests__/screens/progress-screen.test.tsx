@@ -919,14 +919,34 @@ describe('mobile ProgressContent', () => {
     dimensions.mockRestore()
   })
 
-  it('shows the date and remaining bank after an automatic freeze spend', async () => {
+  it('shows the date and remaining bank after a freeze spend', async () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
     mocks.freeze.streakInfo.freezeBankRemaining = 2
 
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
-    expect(text).toContain('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}')
+    expect(text).toContain('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')
+  })
+
+  it('makes no automatic claim when a manual repair returns the same lastFreezeCoveredDate', async () => {
+    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-09'
+    mocks.freeze.streakInfo.freezeBankRemaining = 1
+    mocks.freeze.streakInfo.isRepairAvailable = false
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toContain('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')
+    expect(text.some((entry) => String(entry).includes('automaticCovered'))).toBe(false)
+  })
+
+  it('states coverage without claiming who spent the freeze, in both locales', () => {
+    for (const locale of [i18n.getResourceBundle('en', 'translation'), i18n.getResourceBundle('pt-BR', 'translation')]) {
+      const covered = locale.progressScreen.streak.covered
+      expect(covered).toBeTypeOf('string')
+      expect(covered).not.toMatch(/automatic|automátic|automatica|automaticamente/i)
+    }
   })
 
   it('shows the no-freeze gap without an action or blame', async () => {

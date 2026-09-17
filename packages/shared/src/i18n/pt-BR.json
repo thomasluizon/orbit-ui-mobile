@@ -2343,7 +2343,7 @@
       "protectedEmpty": "Nenhum dia protegido ainda.",
       "protected": "Protegido",
       "protectedToday": "Protegido hoje",
-      "automaticCovered": "Um congelamento cobriu {date} automaticamente. {count, plural, =0 {Nenhum resta.} one {Um resta.} other {# restam.}}",
+      "covered": "Um congelamento cobriu {date}. {count, plural, =0 {Nenhum resta.} one {Um resta.} other {# restam.}}",
       "lockedTitle": "Proteção por congelamento",
       "lockedBody": "O Orbit Pro mantém um banco de congelamentos para dias perdidos.",
       "lockedAction": "Ver o Orbit Pro",

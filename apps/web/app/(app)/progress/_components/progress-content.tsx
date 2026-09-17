@@ -162,7 +162,7 @@ function FrozenTodayStatus({ isFrozenToday }: Readonly<{ isFrozenToday: boolean 
   )
 }
 
-function AutomaticFreezeStatus({ date, remaining, locale }: Readonly<{
+function FreezeCoveredStatus({ date, remaining, locale }: Readonly<{
   date: string
   remaining: number
   locale: string
@@ -171,7 +171,7 @@ function AutomaticFreezeStatus({ date, remaining, locale }: Readonly<{
   return (
     <div role="status" className="flex items-center gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-[14px] text-[var(--fg-2)]">
       <Snowflake size={20} strokeWidth={2} color="var(--status-frozen)" aria-hidden="true" />
-      <p>{t('progressScreen.streak.automaticCovered', {
+      <p>{t('progressScreen.streak.covered', {
         date: formatStreakDate(date, locale),
         count: remaining,
       })}</p>
@@ -301,7 +301,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
       </div>
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} />
       {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? (
-        <AutomaticFreezeStatus
+        <FreezeCoveredStatus
           date={freeze.streakInfo.lastFreezeCoveredDate}
           remaining={freeze.streakInfo.freezeBankRemaining}
           locale={locale}
