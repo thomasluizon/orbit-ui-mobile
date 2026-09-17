@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import {
   __resetTestHostConfig,
-  __setFocusImpl,
   __setScrollToImpl,
 } from '../../../test-mocks/react-native'
 
@@ -239,15 +238,14 @@ await Promise.resolve()
     expect(clearButton).toBeUndefined()
   })
 
-  it('redirects initial column entry to its checked time without changing selection', async () => {
-    const focusedLabels: unknown[] = []
-    __setFocusImpl((props) => focusedLabels.push(props.accessibilityLabel))
+  it('keeps initial column focus on the receiving time without changing selection', async () => {
+    const onChange = vi.fn()
     let tree: any
 
     await TestRenderer.act(async () => {
       await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />,
+        <TimeField value="23:59" onChange={onChange} placeholder="HH:MM" />,
       )
     })
     await openPicker(tree)
@@ -258,7 +256,7 @@ await Promise.resolve()
 
     expect(radioOption(tree, 'common.hours', '23').props.accessibilityState.checked).toBe(true)
     expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(false)
-    expect(focusedLabels).toEqual(['23'])
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('selects a time option when native focus moves inside its column', async () => {

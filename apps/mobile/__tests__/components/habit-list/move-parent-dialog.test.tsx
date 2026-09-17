@@ -5,10 +5,7 @@ import {
   MoveParentDialog,
   type MoveParentOption,
 } from '@/components/habit-list/move-parent-dialog'
-import {
-  __resetTestHostConfig,
-  __setFocusImpl,
-} from '../../../test-mocks/react-native'
+import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
@@ -295,14 +292,12 @@ describe('MoveParentDialog', () => {
     expect(props.onSelectOption).toHaveBeenLastCalledWith('zeta5')
   })
 
-  it('redirects entry to the checked destination without changing selection', () => {
+  it('keeps entry on the receiving destination without changing selection', () => {
     const options = [
       makeOption({ id: null, label: 'Top level' }),
       makeOption({ id: 'alpha', label: 'Alpha' }),
       makeOption({ id: 'bravo', label: 'Bravo' }),
     ]
-    const focusedStates: unknown[] = []
-    __setFocusImpl((props) => focusedStates.push(props.accessibilityState))
     const { tree, props } = renderDialog({ options, selectedMoveParentId: null })
     const rows = findOptionRows(tree)
 
@@ -310,8 +305,9 @@ describe('MoveParentDialog', () => {
       ;(rows[1]!.props.onFocus as () => void)()
     })
 
-    expect(focusedStates).toEqual([{ checked: true }])
     expect(props.onSelectOption).not.toHaveBeenCalled()
+    expect((rows[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+    expect((rows[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(false)
   })
 
   it('selects a destination when focus moves within the group', () => {

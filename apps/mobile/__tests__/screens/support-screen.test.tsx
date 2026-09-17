@@ -5,10 +5,7 @@ import { Pressable, Text, View } from 'react-native'
 
 import SupportScreen from '@/app/support'
 import { i18n } from '@/lib/i18n'
-import {
-  __resetTestHostConfig,
-  __setFocusImpl,
-} from '../../test-mocks/react-native'
+import { __resetTestHostConfig } from '../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -245,10 +242,8 @@ describe('SupportScreen', () => {
     expect((choices[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
   })
 
-  it('redirects subject entry to the checked row without changing the value', async () => {
+  it('keeps subject entry on the receiving row without changing the value', async () => {
     mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'billing', message: '' }))
-    const focusedStates: unknown[] = []
-    __setFocusImpl((props) => focusedStates.push(props.accessibilityState))
     const tree = await renderScreen()
     const choices = findSubjectChoices(tree.root)
 
@@ -257,10 +252,10 @@ describe('SupportScreen', () => {
       await Promise.resolve()
     })
 
-    expect(focusedStates).toEqual([{ checked: true }])
     expect(findSubjectChoices(tree.root).map((choice) => (
       choice.props.accessibilityState as { checked: boolean }
     ).checked)).toEqual([false, true, false, false])
+    expect(mocks.setItem).not.toHaveBeenCalled()
   })
 
   it('selects a subject when focus moves within the group', async () => {

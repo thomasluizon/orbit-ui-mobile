@@ -41,14 +41,9 @@ interface RadioGroupContextValue {
   getNavigationProps: (id: string) => RadioNavigationProps
   onBlur: (id: string) => void
   onFocus: (id: string, onSelect?: () => void) => void
-  register: (id: string) => () => void
-  setElement: (id: string, element: View | null) => void
+  register: (id: string, nativeHandle: number | null) => () => void
+  setNativeHandle: (id: string, nativeHandle: number | null) => void
   update: (state: Omit<RadioItemState, 'nativeHandle'>) => void
-}
-
-interface RadioItemElement {
-  element: View
-  nativeHandle: number | null
 }
 
 const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
@@ -78,29 +73,24 @@ export function RadioGroup({ children, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & { children: ReactNode }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
-  const itemElementsRef = useRef(new Map<string, RadioItemElement>())
   const focusedItemIdRef = useRef<string | null>(null)
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const register = useCallback((id: string) => {
+  const register = useCallback((id: string, nativeHandle: number | null) => {
     setItems((current) => [...current.filter((item) => item.id !== id), {
       disabled: false,
       id,
       index: 0,
-      nativeHandle: itemElementsRef.current.get(id)?.nativeHandle ?? null,
+      nativeHandle,
       selected: false,
     }])
     return () => {
-      itemElementsRef.current.delete(id)
       setItems((current) => current.filter((item) => item.id !== id))
     }
   }, [])
   const update = useCallback((state: Omit<RadioItemState, 'nativeHandle'>) => {
     setItems((current) => current.map((item) => item.id === state.id ? { ...item, ...state } : item))
   }, [])
-  const setElement = useCallback((id: string, element: View | null) => {
-    if (!element) return
-    const nativeHandle = findNodeHandle(element)
-    itemElementsRef.current.set(id, { element, nativeHandle })
+  const setNativeHandle = useCallback((id: string, nativeHandle: number | null) => {
     setItems((current) => {
       const item = current.find((candidate) => candidate.id === id)
       if (!item || item.nativeHandle === nativeHandle) return current
@@ -134,15 +124,9 @@ export function RadioGroup({ children, ...props }: Readonly<
     const focusedItem = enabledItems.find((item) => item.id === id)
     if (!focusedItem) return
 
-    if (previouslyFocusedId !== null) {
-      if (previouslyFocusedId !== id && !focusedItem.selected) onSelect?.()
-      return
-    }
-
-    const selectedItem = enabledItems.find((item) => item.selected)
-    if (selectedItem && selectedItem.id !== id) {
-      itemElementsRef.current.get(selectedItem.id)?.element.focus()
-    }
+    if (previouslyFocusedId !== null
+      && previouslyFocusedId !== id
+      && !focusedItem.selected) onSelect?.()
   }, [enabledItems])
   useLayoutEffect(() => () => {
     if (blurTimerRef.current !== null) clearTimeout(blurTimerRef.current)
@@ -152,9 +136,9 @@ export function RadioGroup({ children, ...props }: Readonly<
     onBlur,
     onFocus,
     register,
-    setElement,
+    setNativeHandle,
     update,
-  }), [getNavigationProps, onBlur, onFocus, register, setElement, update])
+  }), [getNavigationProps, onBlur, onFocus, register, setNativeHandle, update])
   return (
     <RadioGroupContext.Provider value={contextValue}>
       <View {...props} accessibilityRole="radiogroup">{children}</View>
@@ -177,18 +161,25 @@ export function useRadioGroupItem({
   const registerWithGroup = group?.register
   const handleGroupBlur = group?.onBlur
   const handleGroupFocus = group?.onFocus
-  const setGroupElement = group?.setElement
+  const setGroupNativeHandle = group?.setNativeHandle
   const updateGroup = group?.update
   const id = useId()
+  const nativeHandleRef = useRef<number | null>(null)
 
-  useLayoutEffect(() => registerWithGroup?.(id), [id, registerWithGroup])
+  useLayoutEffect(
+    () => registerWithGroup?.(id, nativeHandleRef.current),
+    [id, registerWithGroup],
+  )
   useLayoutEffect(() => {
     updateGroup?.({ disabled, id, index, selected })
   }, [disabled, id, index, selected, updateGroup])
 
   const elementRef = useCallback((element: View | null) => {
-    setGroupElement?.(id, element)
-  }, [id, setGroupElement])
+    if (!element) return
+    const nativeHandle = findNodeHandle(element)
+    nativeHandleRef.current = nativeHandle
+    setGroupNativeHandle?.(id, nativeHandle)
+  }, [id, setGroupNativeHandle])
   const onBlur = useCallback(() => {
     handleGroupBlur?.(id)
   }, [handleGroupBlur, id])

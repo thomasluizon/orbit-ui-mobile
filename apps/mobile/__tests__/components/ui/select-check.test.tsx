@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, TextInput, View } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
@@ -67,16 +67,37 @@ describe('select-check RadioRow group', () => {
     vi.useRealTimers()
   })
 
-  it('redirects initial entry to the checked row without changing selection', () => {
+  it('keeps initial focus on the receiving row without changing selection', () => {
     const onChange = vi.fn()
-    const focusedLabels: unknown[] = []
-    __setFocusImpl((props) => focusedLabels.push(props.accessibilityLabel))
     const [first] = renderEntryRows(onChange)
 
     void act(() => first.props.onFocus())
 
     expect(onChange).not.toHaveBeenCalled()
-    expect(focusedLabels).toEqual(['Second'])
+    expect(first.props.accessibilityState.checked).toBe(false)
+  })
+
+  it('models imperative focus for TextInput only', () => {
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const viewRef = React.createRef<React.ElementRef<typeof View>>()
+    const inputRef = React.createRef<React.ElementRef<typeof TextInput>>()
+
+    void act(() => {
+      create(
+        <>
+          <View ref={viewRef} focusable accessibilityLabel="View" />
+          <TextInput ref={inputRef} accessibilityLabel="Input" />
+        </>,
+      )
+    })
+    viewRef.current?.focus()
+    expect(focus).not.toHaveBeenCalled()
+
+    inputRef.current?.focus()
+    expect(focus).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ accessibilityLabel: 'Input' }),
+    )
   })
 
   it('selects a new row when focus moves inside the group', () => {
