@@ -41,7 +41,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
           </View>)}
         </View>
         {onResubscribe ? <View style={{ alignItems: 'flex-start', paddingTop: 8 }}>
-          {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
           <PillButton variant="primary" onClick={onResubscribe}>{t('upgrade.billing.lapsed.action')}</PillButton>
         </View> : null}
       </View>

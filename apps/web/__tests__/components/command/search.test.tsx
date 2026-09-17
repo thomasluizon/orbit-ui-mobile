@@ -128,7 +128,7 @@ describe('habit search', () => {
     const create = vi.fn()
     mount(true, 'en', create)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'yoga' } })
-    const button = await screen.findByRole('button', { name: 'Create with that name' })
+    const button = await screen.findByRole('button', { name: 'Create habit' })
     expect(screen.getByText('“yoga”')).toBeInTheDocument()
     expect(screen.getByText('No habit with that name, that description or that tag.')).toBeInTheDocument()
     fireEvent.click(button)
@@ -242,7 +242,7 @@ describe('habit search', () => {
     mocks.wide = wide
     mount(true)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'yoga' } })
-    expect(await screen.findByRole('button', { name: 'Create with that name' })).toHaveAttribute('data-variant', variant)
+    expect(await screen.findByRole('button', { name: 'Create habit' })).toHaveAttribute('data-variant', variant)
   })
 
   it('offers retry on failure while preserving the query', async () => {

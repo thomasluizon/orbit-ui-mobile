@@ -26,6 +26,7 @@ export function useShareCard() {
   const captureRef = useRef<HTMLDivElement>(null)
   const [isSharing, setIsSharing] = useState(false)
   const [hasError, setHasError] = useState(false)
+  const [savedFileName, setSavedFileName] = useState<string | null>(null)
   const { mutate: reportEvent } = useReportEvent()
 
   const canShareFiles = useMemo(() => {
@@ -55,6 +56,7 @@ export function useShareCard() {
   async function share(payload: ShareCardPayload) {
     setIsSharing(true)
     setHasError(false)
+    setSavedFileName(null)
     try {
       const file = await captureFile()
       if (canShareFiles && navigator.canShare({ files: [file] })) {
@@ -66,6 +68,7 @@ export function useShareCard() {
         })
       } else {
         downloadFile(file)
+        setSavedFileName(file.name)
       }
       reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch (error) {
@@ -81,8 +84,11 @@ export function useShareCard() {
   async function download() {
     setIsSharing(true)
     setHasError(false)
+    setSavedFileName(null)
     try {
-      downloadFile(await captureFile())
+      const file = await captureFile()
+      downloadFile(file)
+      setSavedFileName(file.name)
       reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch {
       setHasError(true)
@@ -91,5 +97,5 @@ export function useShareCard() {
     }
   }
 
-  return { captureRef, isSharing, hasError, canShareFiles, share, download }
+  return { captureRef, isSharing, hasError, savedFileName, canShareFiles, share, download }
 }

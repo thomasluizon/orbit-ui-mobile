@@ -106,6 +106,26 @@ describe('profileSchema.canViewGamification', () => {
 })
 
 describe('streakInfoSchema repair offer', () => {
+  it('preserves the latest automatic freeze spend', () => {
+    const parsed = streakInfoSchema.parse({
+      currentStreak: 8,
+      longestStreak: 12,
+      lastActiveDate: '2026-09-16',
+      freezesUsedThisMonth: 1,
+      freezesAvailable: 2,
+      maxFreezesPerMonth: 3,
+      isFrozenToday: false,
+      recentFreezeDates: ['2026-09-16'],
+      lastFreezeCoveredDate: '2026-09-16',
+      freezeBankRemaining: 2,
+    })
+
+    expect(parsed).toMatchObject({
+      lastFreezeCoveredDate: '2026-09-16',
+      freezeBankRemaining: 2,
+    })
+  })
+
   it('parses the API-owned repair date', () => {
     const parsed = streakInfoSchema.parse({
       currentStreak: 0,

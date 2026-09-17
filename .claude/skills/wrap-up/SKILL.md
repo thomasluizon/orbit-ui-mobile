@@ -55,21 +55,36 @@ session is still a session, and the next one needs the state.
 If Thomas answers a question in a way that removes a whole effort, say so in the progress line and
 let `/handoff` record the removal in that effort's spec. Do not act on it.
 
-## Every step produces VISIBLE output before the next one starts
+## Every step ENDS THE TURN and waits for him to say proceed
 
-This is the contract, not a style note. A step whose output Thomas never saw did not run.
+This is the contract, not a style note. A step whose output Thomas never saw did not run, and a step
+he never got to read before the next one started is the same failure one turn later.
+
+**Each step is its own turn.** Print that step's output, then the handover line, then STOP. Do not
+begin the next step in the same turn. The next step starts when he replies.
+
+The handover line is the last line of the turn, exactly:
+
+- End of step 1: `say proceed to go to /questions`
+- End of step 2: `say proceed to go to /handoff`
+
+Step 3 has no handover line. `/handoff` ends with its own last line and that is the end.
 
 **Step 1 ends with the `/progress` answer printed to him, in the chat.** Not gathered, not used
-internally to inform the handoff: printed, in the shape `/progress` defines, before step 2 begins.
-The whole reason `/progress` runs first is that he reads it.
+internally to inform the handoff: printed, in the shape `/progress` defines. Then the step-1 handover
+line. Then stop.
 
 **Step 2 ends with either his answers or an explicit empty result.** If questions survive the filter,
-they go to him through `AskUserQuestion` and step 3 waits for the answers. If none survive, say so in
-one line and say what you filtered and why it closed. "No questions" that he never saw is
-indistinguishable from never having looked.
+they go to him through `AskUserQuestion` and the turn ends when they are answered. If none survive,
+say so in one line and say what you filtered and why it closed. "No questions" that he never saw is
+indistinguishable from never having looked. Then the step-2 handover line. Then stop.
 
-**Step 3 starts only after both of those are on screen.** If you find yourself writing the spec while
-he has seen neither, stop and go back.
+**Step 3 starts only after he has said proceed to it.** If you find yourself writing the spec in the
+same turn as the progress answer, stop and go back.
+
+Under `--sleep` the gates still hold. `--sleep` changes what happens AFTER `/handoff`, never whether
+he reads the first two steps. A `--sleep` run that writes the spec without showing him progress and
+questions has skipped the two steps he asked for.
 
 ### This skill failed this way on the day it shipped
 
@@ -85,9 +100,10 @@ saying "now running /progress". Output is the progress answer itself. Never conf
 
 Do not narrate the steps: no "now running /progress", no "step 2 of 3". Their OUTPUT is the reply.
 
-`/progress` prints its answer. `/questions` asks its questions or states the empty result.
-`/handoff` ends with its own one line: the `NEXT.md` path and its branch. That last line is the end
-of the reply. Nothing after it.
+`/progress` prints its answer, then `say proceed to go to /questions`. `/questions` asks its
+questions or states the empty result, then `say proceed to go to /handoff`. `/handoff` ends with its
+own one line: the `NEXT.md` path and its branch. That last line is the end of the reply. Nothing
+after it.
 
-Each of the three keeps its own writing contract. Three short outputs in sequence, not one merged
-summary.
+Each of the three keeps its own writing contract. Three short replies across three turns, not one
+merged summary.

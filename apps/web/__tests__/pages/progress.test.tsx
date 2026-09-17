@@ -101,6 +101,8 @@ const mocks = vi.hoisted(() => ({
       isRepairAvailable: false,
       repairDate: null as string | null,
       repairableGapDates: undefined as string[] | undefined,
+      lastFreezeCoveredDate: null as string | null,
+      freezeBankRemaining: null as number | null,
     },
     streakQuery: { isError: false, refetch: vi.fn() },
     isFrozenToday: false,
@@ -479,6 +481,8 @@ describe('ProgressContent', () => {
       isRepairAvailable: false,
       repairDate: null,
       repairableGapDates: undefined,
+      lastFreezeCoveredDate: null,
+      freezeBankRemaining: null,
       streakFreezesAccumulated: 2,
       maxStreakFreezesAccumulated: 3,
       daysUntilNextFreeze: 3,
@@ -820,11 +824,48 @@ describe('ProgressContent', () => {
 
     render(<ProgressContent />)
 
-    const action = screen.getByText('progressScreen.streak.repairAction:{"count":1}').closest('button')
+    const action = screen.getByText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}').closest('button')
     expect(action).toHaveAttribute('data-variant', 'secondary')
     expect(action).toHaveAttribute('data-size', 'sm')
     fireEvent.click(action!)
+    expect(mocks.repair.mutate).not.toHaveBeenCalled()
+    expect(screen.getByText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
+  })
+
+  it('shows the date and remaining bank after a freeze spend', () => {
+    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
+    mocks.freeze.streakInfo.freezeBankRemaining = 2
+
+    render(<ProgressPage />)
+
+    expect(screen.getByText('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')).toBeInTheDocument()
+  })
+
+  it('makes no automatic claim when a manual repair returns the same lastFreezeCoveredDate', () => {
+    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-09'
+    mocks.freeze.streakInfo.freezeBankRemaining = 1
+    mocks.freeze.streakInfo.isRepairAvailable = false
+
+    render(<ProgressPage />)
+
+    expect(screen.getByText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')).toBeInTheDocument()
+    expect(screen.queryByText(/automaticCovered/)).not.toBeInTheDocument()
+  })
+
+  it('states coverage without claiming who spent the freeze, in both locales', () => {
+    for (const locale of [en, ptBR]) {
+      const covered = locale.progressScreen.streak.covered
+      expect(covered).toBeTypeOf('string')
+      expect(covered).not.toMatch(/automatic|automátic|automatica|automaticamente/i)
+    }
+    expect(en.progressScreen.streak.covered).toBe(
+      'A freeze covered {date}. {count, plural, =0 {None remain.} one {One remains.} other {# remain.}}',
+    )
+    expect(ptBR.progressScreen.streak.covered).toBe(
+      'Um congelamento cobriu {date}. {count, plural, =0 {Nenhum resta.} one {Um resta.} other {# restam.}}',
+    )
   })
 
   it('shows the no-freeze gap without an action or blame', () => {

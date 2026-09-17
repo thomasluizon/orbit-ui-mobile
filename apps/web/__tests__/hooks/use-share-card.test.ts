@@ -45,6 +45,7 @@ describe('useShareCard', () => {
     })
     expect(fetch).not.toHaveBeenCalled()
     expect(result.current.hasError).toBe(false)
+    expect(result.current.savedFileName).toBe('orbit-recap.png')
   })
 
   it('reports an error when the card cannot be captured as an image', async () => {
@@ -57,6 +58,7 @@ describe('useShareCard', () => {
     })
 
     expect(result.current.hasError).toBe(true)
+    expect(result.current.savedFileName).toBeNull()
     expect(clickSpy).not.toHaveBeenCalled()
     expect(reportEventMock).not.toHaveBeenCalled()
   })
@@ -108,5 +110,64 @@ describe('useShareCard', () => {
 
     expect(result.current.hasError).toBe(false)
     expect(reportEventMock).not.toHaveBeenCalled()
+  })
+
+  it('clears a previous save when the next share is cancelled', async () => {
+    const shareMock = vi.fn().mockRejectedValue(new DOMException('cancelled', 'AbortError'))
+    Object.defineProperty(navigator, 'canShare', { value: vi.fn(() => true), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: shareMock, configurable: true })
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+
+    await act(async () => {
+      await result.current.download()
+    })
+    expect(result.current.savedFileName).toBe('orbit-recap.png')
+
+    await act(async () => {
+      await result.current.share(payload)
+    })
+
+    expect(result.current.savedFileName).toBeNull()
+    expect(result.current.hasError).toBe(false)
+  })
+
+  it('clears a previous save when the next capture fails', async () => {
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+
+    await act(async () => {
+      await result.current.download()
+    })
+    expect(result.current.savedFileName).toBe('orbit-recap.png')
+
+    toBlobMock.mockResolvedValue(null)
+    await act(async () => {
+      await result.current.download()
+    })
+
+    expect(result.current.savedFileName).toBeNull()
+    expect(result.current.hasError).toBe(true)
+  })
+
+  it('clears a previous save when the next share hands the file to the system', async () => {
+    const shareMock = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'canShare', { value: vi.fn(() => true), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: shareMock, configurable: true })
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+
+    await act(async () => {
+      await result.current.download()
+    })
+    expect(result.current.savedFileName).toBe('orbit-recap.png')
+
+    await act(async () => {
+      await result.current.share(payload)
+    })
+
+    expect(shareMock).toHaveBeenCalledTimes(1)
+    expect(result.current.savedFileName).toBeNull()
+    expect(result.current.hasError).toBe(false)
   })
 })
