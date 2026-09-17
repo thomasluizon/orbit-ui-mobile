@@ -7,6 +7,7 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 const COLUMNS = 3
 const ROW_HEIGHT = 48
+const ROW_GAP = 4
 
 interface YearPickerProps {
   selectedYear: number
@@ -86,8 +87,8 @@ const styles = StyleSheet.create({
   },
   yearCell: {
     width: `${100 / COLUMNS}%`,
-    height: ROW_HEIGHT - 6,
-    marginBottom: 4,
+    height: ROW_HEIGHT - ROW_GAP,
+    marginBottom: ROW_GAP,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',

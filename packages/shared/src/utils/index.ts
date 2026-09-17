@@ -507,8 +507,6 @@ export {
   withChildren,
 } from './habit-optimistic'
 export type { HabitTreeNode } from './habit-optimistic'
-export { highlightText } from './highlight-text'
-export type { HighlightSegment } from './highlight-text'
 export { initialsOf } from './name-initials'
 export {
   buildBreakdownCreateRequest,
