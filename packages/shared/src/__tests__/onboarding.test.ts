@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  changeOnboardingScheduleMode,
   buildOnboardingHabitInput,
   canSnapshotOnboardingEntry,
   getOnboardingHabitTitle,
@@ -8,6 +9,7 @@ import {
   getOnboardingDisplayTotal,
   getOnboardingNextStep,
   getOnboardingPreviousStep,
+  getOnboardingScheduleMode,
   ONBOARDING_DONE_STEP,
   ONBOARDING_REMIND_STEP,
   ONBOARDING_STARTERS,
@@ -73,7 +75,7 @@ describe('onboarding helpers', () => {
       dueTime: '18:00',
     })).toMatchObject({
       title: 'Walk', emoji: '🚶', frequencyUnit: 'Day', frequencyQuantity: 1,
-      days: ['Monday', 'Thursday'], dueTime: '18:00', reminderEnabled: true,
+      days: ['Monday', 'Thursday'], dueTime: '18:00', reminderEnabled: false,
       reminderTimes: [15],
     })
   })
@@ -198,6 +200,25 @@ describe('resolveRetainedOnboarding', () => {
         hadHabitsAtEntry: true,
       }),
     ).toBe('none')
+  })
+
+  it('uses one schedule model for proposal rendering and correction', () => {
+    const recurring = {
+      frequencyUnit: 'Month' as const,
+      frequencyQuantity: 2,
+      intervalWeeks: 1,
+      days: [],
+      isGeneral: false,
+      isFlexible: false,
+      dueTime: '',
+    }
+    expect(getOnboardingScheduleMode(recurring)).toBe('interval')
+    expect(changeOnboardingScheduleMode(recurring, 'oneTime')).toMatchObject({
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      isGeneral: false,
+      isFlexible: false,
+    })
   })
 
   it('does nothing before the profile has loaded', () => {

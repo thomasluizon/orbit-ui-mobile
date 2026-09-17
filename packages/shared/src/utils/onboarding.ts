@@ -109,6 +109,32 @@ export interface OnboardingSchedule {
   dueTime: string
 }
 
+export type OnboardingScheduleMode = 'fixed' | 'flexible' | 'interval' | 'oneTime'
+
+export function getOnboardingScheduleMode(schedule: OnboardingSchedule): OnboardingScheduleMode {
+  if (schedule.isFlexible) return 'flexible'
+  if (schedule.frequencyUnit === null) return schedule.isGeneral ? 'fixed' : 'oneTime'
+  if (schedule.days.length > 0 || (schedule.frequencyUnit === 'Day' && schedule.frequencyQuantity === 1)) return 'fixed'
+  return 'interval'
+}
+
+export function changeOnboardingScheduleMode(
+  schedule: OnboardingSchedule,
+  mode: OnboardingScheduleMode,
+): OnboardingSchedule {
+  if (mode === 'oneTime') {
+    return { ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: false }
+  }
+  if (mode === 'flexible') {
+    return { ...schedule, frequencyUnit: 'Week', frequencyQuantity: schedule.isFlexible ? schedule.frequencyQuantity ?? 3 : 3, days: [], isGeneral: false, isFlexible: true }
+  }
+  if (mode === 'interval') {
+    const alreadyInterval = schedule.frequencyUnit !== null && schedule.days.length === 0 && !schedule.isFlexible && !(schedule.frequencyUnit === 'Day' && schedule.frequencyQuantity === 1)
+    return { ...schedule, frequencyUnit: alreadyInterval ? schedule.frequencyUnit : 'Week', frequencyQuantity: alreadyInterval ? schedule.frequencyQuantity ?? 1 : 2, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: false }
+  }
+  return { ...schedule, frequencyUnit: 'Day', frequencyQuantity: 1, isGeneral: schedule.days.length === 0, isFlexible: false }
+}
+
 const EVERY_DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 export function buildOnboardingScheduleFromPhrase(
@@ -176,7 +202,7 @@ export function buildOnboardingHabitInput(input: {
     ...(schedule.isGeneral ? { isGeneral: true } : {}),
     ...(schedule.isFlexible ? { isFlexible: true } : {}),
     ...(schedule.dueTime ? { dueTime: schedule.dueTime } : {}),
-    reminderEnabled: schedule.dueTime.length > 0,
+    reminderEnabled: false,
     reminderTimes: schedule.dueTime ? [ONBOARDING_REMINDER_MINUTES] : [],
   }
 }

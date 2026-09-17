@@ -11,7 +11,7 @@ vi.mock('next-intl', () => ({ useTranslations: (namespace: string) => (key: stri
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => <div data-testid="time-field" /> }))
 
 const schedule = { frequencyUnit: 'Week' as const, frequencyQuantity: 3, intervalWeeks: 2, days: [], isGeneral: false, isFlexible: true, dueTime: '' }
-const base = { emoji: '🚶', days: [], dueTime: '', schedule, proposed: false, correcting: true, atLimit: false, allowance: 5, onCorrect: vi.fn(), onEmojiChange: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
+const base = { emoji: '🚶', days: [], dueTime: '', schedule, proposed: false, correcting: true, atLimit: false, allowance: 5, onCorrect: vi.fn(), onEmojiChange: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
 
 describe('OnboardingCreateHabit', () => {
   beforeAll(async () => {
@@ -51,5 +51,49 @@ describe('OnboardingCreateHabit', () => {
 
     expect(onModeChange).toHaveBeenCalledWith('fixed')
     expect(screen.getByRole('button', { name: 'Repeat more often' })).toBeInTheDocument()
+  })
+
+  it.each([
+    [{ ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 1, isFlexible: false }, 'once'],
+    [{ ...schedule, frequencyUnit: 'Week' as const, frequencyQuantity: 2, intervalWeeks: 1, isFlexible: false }, 'every 2 weeks'],
+    [{ ...schedule, frequencyUnit: 'Month' as const, frequencyQuantity: 3, intervalWeeks: 1, isFlexible: false }, 'every 3 months'],
+  ])('shows the saved cadence as %s', (savedSchedule, sentence) => {
+    render(<OnboardingCreateHabit {...base} schedule={savedSchedule} proposed correcting={false} />)
+    expect(screen.getByText((_content, element) => element?.tagName === 'P' && element.textContent === sentence)).toBeInTheDocument()
+  })
+
+  it('gives every weekday chip its full localized name', () => {
+    render(<OnboardingCreateHabit {...base} schedule={{ ...schedule, frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 1, days: ['Monday'], isFlexible: false }} />)
+    expect(screen.getByRole('button', { name: 'Sunday' })).toHaveTextContent('Sun')
+    expect(screen.getByRole('button', { name: 'Saturday' })).toHaveTextContent('Sat')
+  })
+
+  it('lets a recurring proposal change its unit and quantity', () => {
+    const onFrequencyUnitChange = vi.fn()
+    const onQuantityChange = vi.fn()
+    render(
+      <OnboardingCreateHabit
+        {...base}
+        schedule={{ ...schedule, frequencyUnit: 'Week', frequencyQuantity: 2, isFlexible: false }}
+        onFrequencyUnitChange={onFrequencyUnitChange}
+        onQuantityChange={onQuantityChange}
+      />,
+    )
+
+    expect(screen.getByRole('radio', { name: 'Repeat' })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: 'Months' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Repeat later' }))
+    expect(onFrequencyUnitChange).toHaveBeenCalledWith('Month')
+    expect(onQuantityChange).toHaveBeenCalledWith(3)
+  })
+
+  it('shows a one-time proposal as the selected correction mode', () => {
+    render(
+      <OnboardingCreateHabit
+        {...base}
+        schedule={{ ...schedule, frequencyUnit: null, frequencyQuantity: null, isFlexible: false }}
+      />,
+    )
+    expect(screen.getByRole('radio', { name: 'Once' })).toBeChecked()
   })
 })

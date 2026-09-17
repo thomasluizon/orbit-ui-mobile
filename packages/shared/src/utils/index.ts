@@ -318,7 +318,9 @@ export {
   buildOnboardingHabitInput,
   buildOnboardingScheduleFromPhrase,
   buildOnboardingScheduleFromSuggestion,
+  changeOnboardingScheduleMode,
   getOnboardingHabitTitle,
+  getOnboardingScheduleMode,
   getOnboardingReminderPreviewTime,
   getOnboardingNextStep,
   getOnboardingPreviousStep,
@@ -334,7 +336,7 @@ export {
   shouldHideOnboardingFooter,
   shouldRequestOnboardingSuggestion,
 } from './onboarding'
-export type { OnboardingSchedule, RetainedOnboardingAction } from './onboarding'
+export type { OnboardingSchedule, OnboardingScheduleMode, RetainedOnboardingAction } from './onboarding'
 export {
   isMissingBillingError,
   isMissingBillingStatus,

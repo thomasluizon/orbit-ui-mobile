@@ -173,6 +173,21 @@ describe('OnboardingFlow state model', () => {
   })
 
   it.each([
+    [{ emoji: '🧾', frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }, {}],
+    [{ emoji: '🧹', frequencyUnit: 'Week' as const, frequencyQuantity: 2, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }, { frequencyUnit: 'Week', frequencyQuantity: 2 }],
+  ])('persists the exact Astra cadence', async (suggestion, expected) => {
+    mocks.suggest.mockResolvedValue(suggestion)
+    const tree = await mount(true)
+    await enterSentence(tree, 'Astra cadence')
+    await click(tree, 'onboarding.flow.continue')
+    await click(tree, 'onboarding.flow.create')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining(expected))
+    const request = mocks.createHabit.mock.calls[0]?.[0]
+    expect(request).not.toHaveProperty('isGeneral')
+    expect(request).not.toHaveProperty('isFlexible')
+  })
+
+  it.each([
     ['general', 'Journal'],
     ['flexible', 'Walk 3 times a week at 18:00'],
   ])('sends explicit fixed mode when correcting a %s habit after Back', async (_mode, sentence) => {
@@ -203,6 +218,8 @@ describe('OnboardingFlow state model', () => {
     const tree = await reachReminder(false)
     await click(tree, 'onboarding.flow.remind.allow')
     expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(false)
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ reminderEnabled: false }))
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: true }))
   })
 
   it('keeps a denial distinct from a successful permission grant', async () => {
@@ -210,6 +227,7 @@ describe('OnboardingFlow state model', () => {
     const tree = await reachReminder(true)
     await click(tree, 'onboarding.flow.remind.allow')
     expect(oneByType(tree.root, 'ReminderState').props.state).toBe('denied')
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: false }))
     expect(byType(tree.root, 'Done')).toHaveLength(0)
   })
 
@@ -233,6 +251,13 @@ describe('OnboardingFlow state model', () => {
     const tree = await reachReminder(true)
     await click(tree, 'onboarding.flow.remind.allow')
     expect(oneByType(tree.root, 'ReminderState').props.state).toBe('failed')
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: false }))
+  })
+
+  it.each([true, false])('persists Not now as reminders off when isLive=%s', async (isLive) => {
+    const tree = await reachReminder(isLive)
+    await pressTextAction(tree, 'onboarding.flow.remind.deny')
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: false }))
   })
 
   it('surfaces deferred registration failure after sign-in and retries it', async () => {

@@ -1798,6 +1798,14 @@
         "scheduleMode": "Schedule",
         "fixedMode": "Set days",
         "flexibleMode": "Any day",
+        "intervalMode": "Repeat",
+        "oneTimeMode": "Once",
+        "frequencyUnitLabel": "Repeat unit",
+        "frequencyLess": "Repeat sooner",
+        "frequencyMore": "Repeat later",
+        "units": {
+          "day": "Days", "week": "Weeks", "month": "Months", "year": "Years"
+        },
         "quantityLess": "Fewer times",
         "quantityMore": "More times",
         "quantityUnit": "{count, plural, one {time a week} other {times a week}}",
@@ -1818,6 +1826,21 @@
           "fixed": "every {days}",
           "daily": "every day",
           "flex": " times a week, any day",
+          "flexUnit": {
+            "day": "{count, plural, one { time a day, any day} other { times a day, any day}}",
+            "week": "{count, plural, one { time a week, any day} other { times a week, any day}}",
+            "month": "{count, plural, one { time a month, any day} other { times a month, any day}}",
+            "year": "{count, plural, one { time a year, any day} other { times a year, any day}}"
+          },
+          "once": "once",
+          "every": "every ",
+          "onDays": " on {days}",
+          "unit": {
+            "day": "{count, plural, one {day} other {days}}",
+            "week": "{count, plural, one {week} other {weeks}}",
+            "month": "{count, plural, one {month} other {months}}",
+            "year": "{count, plural, one {year} other {years}}"
+          },
           "at": " at ",
           "flexAt": ", at ",
           "and": "and"

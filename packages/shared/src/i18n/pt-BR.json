@@ -1798,6 +1798,14 @@
         "scheduleMode": "Agenda",
         "fixedMode": "Dias fixos",
         "flexibleMode": "Qualquer dia",
+        "intervalMode": "Repetir",
+        "oneTimeMode": "Uma vez",
+        "frequencyUnitLabel": "Unidade de repetição",
+        "frequencyLess": "Repetir antes",
+        "frequencyMore": "Repetir depois",
+        "units": {
+          "day": "Dias", "week": "Semanas", "month": "Meses", "year": "Anos"
+        },
         "quantityLess": "Menos vezes",
         "quantityMore": "Mais vezes",
         "quantityUnit": "{count, plural, one {vez por semana} other {vezes por semana}}",
@@ -1818,6 +1826,21 @@
           "fixed": "toda {days}",
           "daily": "todo dia",
           "flex": " vezes por semana, qualquer dia",
+          "flexUnit": {
+            "day": "{count, plural, one { vez por dia, qualquer dia} other { vezes por dia, qualquer dia}}",
+            "week": "{count, plural, one { vez por semana, qualquer dia} other { vezes por semana, qualquer dia}}",
+            "month": "{count, plural, one { vez por mês, qualquer dia} other { vezes por mês, qualquer dia}}",
+            "year": "{count, plural, one { vez por ano, qualquer dia} other { vezes por ano, qualquer dia}}"
+          },
+          "once": "uma vez",
+          "every": "a cada ",
+          "onDays": ", toda {days}",
+          "unit": {
+            "day": "{count, plural, one {dia} other {dias}}",
+            "week": "{count, plural, one {semana} other {semanas}}",
+            "month": "{count, plural, one {mês} other {meses}}",
+            "year": "{count, plural, one {ano} other {anos}}"
+          },
           "at": " às ",
           "flexAt": ", às ",
           "and": "e"

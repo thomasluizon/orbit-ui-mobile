@@ -123,6 +123,21 @@ describe('OnboardingFlow state model', () => {
   })
 
   it.each([
+    [{ emoji: '🧾', frequencyUnit: null, frequencyQuantity: null, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }, {}],
+    [{ emoji: '🧹', frequencyUnit: 'Week' as const, frequencyQuantity: 2, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] }, { frequencyUnit: 'Week', frequencyQuantity: 2 }],
+  ])('persists the exact Astra cadence', async (suggestion, expected) => {
+    mocks.suggest.mockResolvedValue(suggestion)
+    mount(true)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Astra cadence' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'create' }))
+    await waitFor(() => expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining(expected)))
+    const request = mocks.createHabit.mock.calls[0]?.[0]
+    expect(request).not.toHaveProperty('isGeneral')
+    expect(request).not.toHaveProperty('isFlexible')
+  })
+
+  it.each([
     ['general', 'Journal'],
     ['flexible', 'Walk 3 times a week at 18:00'],
   ])('sends explicit fixed mode when correcting a %s habit after Back', async (_mode, sentence) => {
@@ -154,6 +169,8 @@ describe('OnboardingFlow state model', () => {
     await reachReminder(false)
     fireEvent.click(screen.getByRole('button', { name: 'remind.allow' }))
     await waitFor(() => expect(mocks.requestPermissionOnly).toHaveBeenCalledOnce())
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ reminderEnabled: false }))
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: true }))
   })
 
   it('shows a denied permission outcome instead of reporting success', async () => {
@@ -161,6 +178,7 @@ describe('OnboardingFlow state model', () => {
     await reachReminder(true)
     fireEvent.click(screen.getByRole('button', { name: 'remind.allow' }))
     expect(await screen.findByTestId('reminder-state')).toHaveTextContent('denied')
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: false }))
     expect(screen.queryByTestId('done')).toBeNull()
   })
 
@@ -183,6 +201,13 @@ describe('OnboardingFlow state model', () => {
     await reachReminder(true)
     fireEvent.click(screen.getByRole('button', { name: 'remind.allow' }))
     expect(await screen.findByTestId('reminder-state')).toHaveTextContent('failed')
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: false }))
+  })
+
+  it.each([true, false])('persists Not now as reminders off when isLive=%s', async (isLive) => {
+    await reachReminder(isLive)
+    fireEvent.click(screen.getByRole('button', { name: 'remind.deny' }))
+    await waitFor(() => expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: false })))
   })
 
   it('surfaces deferred registration failure after sign-in and retries it', async () => {

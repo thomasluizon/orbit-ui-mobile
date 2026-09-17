@@ -27,7 +27,7 @@ export function useOnboardingFlush(): void {
   const { profile } = useProfile()
   const queryClient = useQueryClient()
   const applyOnboarding = useApplyOnboarding()
-  const push = usePushNotifications()
+  const { requestPermissionOutcome } = usePushNotifications()
   const pushPermissionGranted = useOnboardingDraftStore((state) => state.pushPermissionGranted)
   const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
   const runningRef = useRef(false)
@@ -52,7 +52,7 @@ export function useOnboardingFlush(): void {
         await applyOnboarding()
         onboardingApplied = true
         if (pushPermissionGranted) {
-          const outcome = await push.requestPermissionOutcome(true)
+          const outcome = await requestPermissionOutcome(true)
           if (outcome !== 'granted') throw new Error('Failed to register deferred push subscription')
         }
         if (cancelled) return
@@ -81,5 +81,5 @@ export function useOnboardingFlush(): void {
     return () => {
       cancelled = true
     }
-  }, [applyOnboarding, push, pushPermissionGranted, queryClient, shouldFlush])
+  }, [applyOnboarding, pushPermissionGranted, queryClient, requestPermissionOutcome, shouldFlush])
 }

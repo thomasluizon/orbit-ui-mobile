@@ -1,3 +1,4 @@
+import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -139,6 +140,39 @@ describe('useOnboardingFlush', () => {
 
     expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true)
     expect(mocks.draftState.reset).toHaveBeenCalledTimes(1)
+  })
+
+  it('finishes after the push provider rerenders during deferred registration', async () => {
+    mocks.draftState.pushPermissionGranted = true
+    let resolvePermission!: (outcome: 'granted') => void
+    mocks.requestPermissionOutcome.mockReturnValue(new Promise((resolve) => { resolvePermission = resolve }))
+
+    function Harness({ providerVersion }: Readonly<{ providerVersion: number }>) {
+      useOnboardingFlush()
+      return React.createElement('ProviderVersion', { providerVersion })
+    }
+
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Harness providerVersion={1} />)
+      await Promise.resolve()
+    })
+    expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true)
+    mocks.draftState.reset.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
+
+    await TestRenderer.act(async () => {
+      tree.update(<Harness providerVersion={2} />)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      resolvePermission('granted')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mocks.draftState.reset).toHaveBeenCalledTimes(1)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(4)
   })
 
   it('retains the draft and marks a deferred registration failure', async () => {
