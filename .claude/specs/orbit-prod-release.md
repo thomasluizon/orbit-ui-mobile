@@ -883,70 +883,117 @@ Two rules for this work, both learned the hard way:
   branch left the guide untouched. **Post the correction to the ticket, because the worker reads
   comments and not your reasoning.**
 
+## What the night of 2026-09-17 into 09-18 added
+
+- **A verification is only worth the tree it ran against.** Three tickets were verified for closure
+  from an orchestrating checkout that was FIVE commits behind `origin/redesign/main`, because
+  `git fetch` had run and `git merge --ff-only` had not. Every verdict survived the re-check, but one
+  number in a durable closing comment was wrong and had to be corrected in public. **Fast-forward the
+  root checkout after every merge, before reading the tree for anything.**
+- **A ticket verification that finds a miss produces work, not a closure.** `#74` looked finished and
+  was not: `goals.detail.askAstraEyebrow` was `"ASK ASTRA"` with no caller anywhere, and it was the
+  only reason `tools/copy-baseline.json` had entries. The gate's own message says "the whole-app copy
+  pass (R19) clears it", and R19 IS `#74`, so closing it would have signed off the one thing it
+  exists to do. Shipped as 1013 instead.
+- **A red `Unit Tests` can be a coverage FLOOR rather than a broken assertion.** 1001 failed with
+  every test green: `ERROR: Coverage for functions (95.98%) does not meet global threshold (96%)`.
+  Adding a branch without covering the file's untested functions moves a global ratio. Reproduce with
+  `npm test -w @orbit/shared -- --coverage`; the fix is to cover the functions the pull request owns,
+  never to move the floor.
+- **`--only` changes how a contended failure is diagnosed.** `#585`'s full run produced one FAIL whose
+  payload was `"results":[{"status":null,...}]`, a child killed by a SIGNAL under two workers. Proving
+  it was contention cost 72 seconds with `--only create-worktree` instead of another fifteen minutes.
+- **A printed number can disagree with the run that produced it.** `#585`'s per-tool tally was taken
+  before the last assertion and printed afterwards, so every table summed one short. Pullfrog gave
+  the exact arithmetic, `10 + 6` under `Assertions: 17`, and it reproduced first try.
+- **The step 6 sweep finds things a diff review does not.** Running it on 1001 found that the row
+  wrapper kept `hover:bg-[var(--bg-elev)]` while the button inside became `disabled`, so a refused
+  event still lit up as actionable. Fetch both SKILL.md files by raw URL from
+  `github.com/jakubkrehel/skills`; `npx ui-skills get` does not serve them.
+- **`better-interface` rule 5 is a real constraint on what may be reported.** Whether a disabled
+  control announces its `aria-describedby` is runtime behaviour, so it cannot be reported from source
+  alone. A citation around a guess is still a guess.
+- **A generated baseline is resolved by REGENERATING, never by hand-merging.** 1002's
+  `apps/web/eslint-suppressions.json` conflict was resolved by taking the base wholesale and running
+  `npm run lint:prune -w @orbit/web`, which removed 112 lines and converged on what the linter
+  actually finds.
+- **A squash merge retargets a stacked child by itself.** 1010 moved from
+  `chore/ticket-560-sweep-order` to `redesign/main` the moment 991 merged. The trap is
+  `--delete-branch`, which was never passed.
+- **`complete-ticket.mjs` without `--preflight` closes silently and its output looks identical.**
+  Post the evidence comment BEFORE calling it, or the closure lands with no record.
+- **Provider capacity fails fast and clears fast.** One worker died in 19 seconds on
+  `ERROR: Selected model is at capacity` while another launched a minute earlier ran fine. Relaunch;
+  external is an ending only when it does not clear.
+- **A worker that verifies before it commits can lose 45 minutes.** Two hit the ceiling with a dirty
+  tree and zero commits. The continuation order that worked says: focused tests, COMMIT, then full
+  verification.
+
 ## State
 
-Read live 2026-09-17 at 20:00 UTC.
+Read live 2026-09-18 at 00:00 UTC.
 
-`redesign/main` is **`58cd7896`**. `main` is **`a9558f7a`** with Orbit 1.3.29 (88) on the Play open
-track. `orbit-api` `main` is **`fd219126`** (pull request 520 merged, NOT deployed).
+`redesign/main` is **`75b1e99b`**. `main` is **`7771c79a`**, and **Orbit 1.3.30 (89) shipped to the
+Play OPEN track** off that commit, run `35259661979`, carrying `#573`. `orbit-api` `main` is
+unchanged at `fd219126`.
 
-**Nothing merged this session.** Both branches are where they started.
+### Merged this session, seven
 
-### Ready to merge the moment the run resumes
+`1011` to `main` (`7771c79a`, the live Android defect), then to `redesign/main`: `1008` (`04ad126c`),
+`991` (`f470f4ce`), `994` (`ce5ad59a`), `1005` (`107ffa5f`), `1004` (`fbb8c52e`), `1003`
+(`75b1e99b`).
 
-| PR | base | head | why it is ready |
-|---|---|---|---|
-| 1011 | `main` | `719a771a` | `#573`, the live Android defect. APPROVED at head, `pullfrog-approval` SUCCESS, zero reds, zero pending, zero threads. **Merge, then `/android-release` to the open track** on his 2026-09-16 standing permission. |
-| 1008 | `redesign/main` | `c7d60ad0` | `#74`. Same condition met. Removes 116 suppressions, the largest single clearance. |
+### Closed this session, three, each with a per-criterion table
 
-### Open pull requests, every one, with its disposition
+`#57`, `#63` and `#73`. Every divergence from the ticket body is written on the ticket rather than
+ticked: two retired screenshot criteria, a stale `#574` reference, `#73`'s offline promise corrected
+because no queued send exists, the Metas versus progress naming, the Astra insights entry that is not
+the deleted route, and `#63`'s eighteen canvas states, which no grep can prove.
 
-`gh pr list --repo thomasluizon/orbit-ui-mobile --state open` returns 17. Four are Dependabot
-(798, 799, 801, 881) and are not this effort.
+### Filed this session, four
+
+`#586` the widget deep link, `#587` the orphaned `settingsSection` keys and the D70 guard that has to
+move first, `#588` the `orbit-api` bulk item dropping `IntervalWeeks`, `#589` its blocked UI consumer.
+
+### Open pull requests, every one
 
 | PR | base | head | disposition |
 |---|---|---|---|
-| 1011 | `main` | `719a771a` | READY. Merge first, release. |
-| 1008 | `redesign/main` | `c7d60ad0` | READY. Merge second. |
-| 1010 | `chore/ticket-560-sweep-order` | `d5f7178f` | `#570`, stacked on 991. **Retarget onto `redesign/main` BEFORE 991 merges.** |
-| 1007 | `redesign/main` | `a128ca12` | `#67`. Three P1s: the create-vs-update payload, deferred web push registration, the hidden Astra cadence. Order posted on the ticket. |
-| 1005 | `redesign/main` | `1c4e90fd` | `#73`. Two copy corrections; worker was reaped mid-round, tree DIRTY, relaunch rather than push. |
-| 1004 | `redesign/main` | `e002e817` | `#57`. Source-neutral freeze wording; `#571`/`#572` carry the API provenance. |
-| 1003 | `redesign/main` | `b52e3d79` | `#63`. One test-quality finding. |
-| 1002 | `redesign/main` | `baeec3dc` | `#545`. No review at head; request one. |
-| 1001 | `redesign/main` | `744173b3` | `#562`. Two findings, one widening the refusal and one narrowing it. |
-| 994 | `redesign/main` | `1b0fdb44` | `#557`. Commit `b4338304` exists in the worktree, CLEAN, **unpushed**. Verify and push it. |
-| 992 | `redesign/main` | `fb520fb1` | `#543`. The RN 0.86 focus gate; fix the test mock in the same round. |
-| 991 | `redesign/main` | `3cda0bd9` | `#560`. The literal playbook expectation is written in the tree, mid red experiment. |
-| 970 | `redesign/main` | `b56d1b5e` | `#558`. CHANGES_REQUESTED, one thread. |
+| 1013 | `redesign/main` | `c0464fb7` | `#74`'s last criterion: the dead `ASK ASTRA` key and an empty copy baseline. Awaiting CI. |
+| 1012 | `redesign/main` | `bb8ca9f0` | `#585`. The tally fix is committed with its red proof; push after the full harness confirms, then reply and resolve `PRRT_kwDOR5Siws6jhMwq`. |
+| 1010 | `redesign/main` | `d5f7178f` | `#570`. Auto-retargeted when 991 merged. CHANGES_REQUESTED, one thread, and CONFLICTING after seven merges. |
+| 1007 | `redesign/main` | pushed | `#67`. Three P1s fixed, zero unresolved, zero reds, zero pending. A re-review was requested and is the only thing left. |
+| 1002 | `redesign/main` | `e8cc44b4` | `#545`. Suppressions 63 to 20 web and 81 to 16 mobile. Awaiting review. |
+| 1001 | `redesign/main` | `de07207c` | `#562`. BYSETPOS fixed, sweep recorded, hover fixed, coverage floor fixed. |
+| 992 | `redesign/main` | working | `#543`. Worker running: stop redirecting entry focus, `View.focus()` is inert in RN 0.86.3. |
+| 970 | `redesign/main` | `cc5f405d` | `#558`. The walk is executable in `tools/lib/integration-branch.mjs`, eight cases, fork case proven red. APPROVED, CI finishing. |
+| api 528 | `main` | `dfb885b3` | `#529`. Order written at `scratchpad/api-528-order.md`; needs a worker. |
+| api 521 | `main` | `44611e5f` | `#526`. Order written at `scratchpad/api-521-order.md`; needs a worker. Its `Dash Ban` red is an en dash in the BODY, inside quoted `dotnet test` output. |
 
-`orbit-api`: 528 (`#529`) and 521 (`#526`), both with orders posted. Three Dependabot.
-`orbit-landing-page`: 5 open, none touched by this effort yet.
+`#461` is in a worker now, in the `ticket-58-achievements` worktree on
+`fix/ticket-461-notification-actions`.
 
-### Worktrees needing attention
+### The redesign gate, measured
 
-- `ticket-557-android-login`: 1 unpushed commit, `b4338304`, clean tree. Verify and push.
-- `ticket-560-sweep-order`: DIRTY on purpose, mid red experiment, `wshobson/wcag-audit-patterns`
-  removed from the gates lane and the static orchestrate copy. Finish the experiment, restore, commit.
-- `ticket-73-static`: DIRTY with two unfinished feature-guide test files. Relaunch the worker.
-- The main checkout on `redesign/main`: `.claude/calibration.json` modified, reseeded this session.
-- **Four codex processes were alive at handoff.** Read every worktree before assuming anything.
+`node tools/redesign-coverage.mjs` reports **`redesign coverage valid: 184 manifest surfaces
+accounted for, 14 deleted, 3 excluded`** at `75b1e99b`. That half of batch 1's exit condition is MET
+and has been re-run on the current tree.
+
+The other half is not. **22 tickets remain open in the `539 Redesign` milestone**, of which these are
+not started at all: `#520`, `#481`, `#479`, `#477`, `#476`, `#475`, `#473`, `#472`, `#460`, `#336`,
+`#175`, `#217`, `#320`, `#318`, plus `#78` (landing), `#75` and `#367` (api). That list is the real
+distance to the gate.
 
 ### Tickets
 
-**231 open** at 2026-09-17, plus `#585` filed after the count. Re-derive:
+Re-derive:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
 
-### Filed this session
-
-`#571` api freeze provenance, `#572` its UI consumer, `#573` the live Android defect, `#574` habit
-list render counts, `#576` to `#581` the component-library migration and Astra's surface, `#585` the
-harness speed fix. `#329` was closed on verified evidence.
-
 ### The suppressed lint violations
 
-`redesign/main` still reads 66 web and 85 mobile. 1008 and 1002 are what collapse it.
+`redesign/main` reads 63 web and 81 mobile. 1002 takes them to 20 and 16.
+
 
 ## Open questions
 
@@ -967,8 +1014,23 @@ external and it is reported as external.
   flipped in `AppConfigs` AFTER the server deploy or the ticket ships inert.
 - **The interval and ordinal calendar rules on `#562` are DECIDED, not his.** Both refuse, visibly,
   on the review surface before the person taps import. Importing a schedule the person did not pick
-  is the worse failure, and `WEEKDAY_MAP` at `calendar-sync.ts:52` plus
-  `HabitScheduleService.cs:691-694` mean neither shape can be encoded honestly.
+  is the worse failure.
+  **CORRECTED 2026-09-17 into 09-18, against the installed `orbit-api` source.** The reason recorded
+  here, that "neither shape can be encoded honestly", was half wrong and the halves need separating.
+  - **The ORDINAL refusal is right and was too narrow.** `ORDINAL_WEEKDAY_PATTERN` only recognised
+    the `2MO` prefix, so `BYDAY=MO;BYSETPOS=2` passed as importable and became every Monday. Google
+    writes "the last weekday of the month" the same way, with `BYSETPOS=-1`. Fixed in `b1c2774b` on
+    1001: either spelling now refuses.
+  - **The INTERVAL refusal is wrong.** `Habit.IntervalWeeks` exists and
+    `HabitScheduleService.IsActiveIntervalWeek:670-684` applies it as an active-week filter over
+    `Days`, so "every other Monday and Wednesday" IS representable. What is missing is the ENDPOINT:
+    `BulkHabitItemRequest` at `HabitsControllerRequests.cs:65-85` carries no `IntervalWeeks`, so
+    `POST /api/habits/bulk` drops it while the single create and update endpoints accept it.
+  - **A third defect sits underneath and the refusal was hiding it.**
+    `parseCalendarSyncRecurrence:150-156` maps `INTERVAL` onto `frequencyQuantity`, which for a
+    weekly rule means "twice a week" rather than "every second week". Lifting the refusal without
+    fixing that mapping would import a WRONG schedule rather than none.
+  - Filed as `#588` (api, add the field to the bulk item) and `#589` (ui, blocked by it).
 - **991's "open question for the human" about the Cloud sweep is DECIDED**, not his: the sweep runs
   in the local materialization lane, because a Cloud container has no origin remote and cannot fetch,
   and the sweep is nothing but fetches.
