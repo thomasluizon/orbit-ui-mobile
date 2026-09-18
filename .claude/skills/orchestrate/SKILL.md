@@ -867,8 +867,9 @@ push, and both pull requests were correct.
 **A salvaged pull request RE-ENTERS this algorithm at step 7 and runs every remaining step exactly as
 a worker-delivered one does.** Opening the pull request is the MIDDLE of salvage, never the end. Add
 its `{repositoryKey, prNumber, receiptPath}` identity to `pullRequests` in the run record the moment
-it opens. It remains outstanding until current-head delivery, green CI with `pullfrog-approval`
-included, `behind_by=0`, and ticket synchronization are all recorded for the same head/base pair.
+it opens. It remains outstanding until current-head delivery, green CI carrying the review verdict
+admissible on that base under Hard prohibitions, `behind_by=0`, and ticket synchronization are all
+recorded for the same head/base pair.
 
 Measured, and the reason this sentence is here: PR #690 (ORB-39) was salvaged by hand, cleaned,
 pushed and opened, and then reported as finished. It was carrying two failing
@@ -1092,9 +1093,12 @@ node tools/record-readiness.mjs --repo <key> --pr <n> --delivery <json> --ticket
 
 The recorder re-reads the live PR base/head, draft state, the base branch's required status checks
 with the newest run of each, the compare `behind_by`, and the live ticket at aggregation time; it
-never labels cached artifacts or the delivery artifact's old SHAs as current. `pullfrog-approval` is
-one of those required checks, so the review verdict is read here with the rest of CI and needs no
-axis of its own. Its explicit stale/blocking verdicts are `DRAFT`, `OUT_OF_DATE`, `CI_STALE` and
+never labels cached artifacts or the delivery artifact's old SHAs as current. The review verdict is
+read here with the rest of CI and needs no axis of its own: on protected `main` `pullfrog-approval`
+is one of those required checks, and on an unprotected base, where protection names none at all,
+`record-readiness.mjs:151` supplies that one check itself through `reviewChecksFor` (#429). An
+unprotected base does not drop the review axis; it leaves the review as the only required check
+there. Its explicit stale/blocking verdicts are `DRAFT`, `OUT_OF_DATE`, `CI_STALE` and
 `TICKET_STALE`. Any commit, ordinary push, merge from main, or base advancement invalidates receipts
 tied to the old head or base. Bare PR numbers are never sufficient run state.
 
@@ -1115,7 +1119,24 @@ For each existing PR, repeat within the configured `caps.reviewFixAttempts` fixe
 5. Re-record and evaluate. READY ends the loop. A genuine permission, external, or human-only
    blocker, or exhaustion of the bounded fixer budget, produces a precise handoff and keeps
    the PR in the run record. A READY result permits a merge only under the D88/D90 conditions
-   in Hard prohibitions; a blocked result never does.
+   in Hard prohibitions; a blocked result never does, with one exception and only this one.
+
+**The exception: a receipt blocked only on the review axis, on an unprotected base.** Its single
+verdict is `CI_STALE`, the one unsatisfied required check is the `pullfrog-approval` the recorder
+supplied itself, every check that did run is green at the exact head, and the pull request comment
+names the substitution with its evidence exactly as Hard prohibitions requires. That receipt
+carries the same evidence a READY one would, so it permits the same merge and nothing weaker does.
+Any second verdict beside `CI_STALE` is an unrelated blocker and the exception does not reach it.
+`tools/__tests__/readiness-receipt.mjs` pins that verdict string, so read it rather than describe it.
+
+**A night when Pullfrog cannot run ends on that receipt, and it is the expected result rather than
+a fault.** The recorder reads checks and reviews, never a claim in a comment, so it cannot verify a
+named substitute reviewer and does not pretend to. Teaching it to accept the claim would make the
+recorder trust evidence it cannot check, which is worse than a written exception a human reads, and
+it would undo the reason `record-readiness.mjs:151` supplies the check at all (#429). So on such a
+night expect exactly one `CI_STALE`, confirm the rest of the rollup is green at the exact head,
+confirm the comment names the substitution and its evidence, and record that reasoning in the run
+record. An operator who meets an unexplained blocked receipt at 03:00 has no way back to it.
 
 ## Step 10. Hand over
 
@@ -1237,11 +1258,19 @@ default implementer and a gate wins over a run (D95). Run `git checkout -- .clau
 when the allowance resets. Nothing in a commit records which engine wrote it, so **the run report
 names the engine that produced its commits.**
 
+**While that edit is live it exists in one checkout and in no file, so the run names it in its
+handoff inventory and in its step 11 report, beside the engine that produced its commits.** Every
+session in that checkout meets two FAILs from `node tools/test-tools.mjs` and `exit 1` from
+`node tools/check-calibration.mjs` while it stands, and a session that finds no record of why reads
+a live switch as a broken harness. The revert is worse unrecorded: run it in a checkout whose
+`origin/redesign/main` predates the `claude` block and it restores a config with no such block at
+all, so name the checkout too.
+
 **The engine's isolation flags are not decoration.** `--strict-mcp-config` with no `--mcp-config`
 beside it loads zero MCP servers, which is what stops a headless worker inheriting the user-scope
 servers in `~/.claude.json`. Those load in every project and several carry live tokens, and
 `--permission-mode bypassPermissions` removes the approval that would otherwise catch a call to one.
-`--output-format stream-json` keeps the log growing during the run, which is the second of the four
+`--output-format stream-json` keeps the log growing during the run, which is the second of the three
 progress signals `launch-worker.mjs:505-509` supervises on. Text output prints once at the end, so
 that signal would be dead for this engine and a quiet model turn would have to be carried by tree
 mtime or by process CPU alone. CPU does reset the clock at `:555-569`, above 1.5% of one core, so the
@@ -1297,12 +1326,14 @@ because the process is external, the launcher's pid is the wake source with the 
 beside it, and its output is a commit rather than a conversation.
 
 **The reviewer rule turns on the word *quietly*, not on the seat.** What it bans is a hidden
-substitution, not a substitute that exists. On protected `main` the rule is absolute: a real
-`pullfrog-approval` check exists there, a subagent cannot publish it, and nothing may stand in for
-it. On unprotected `redesign/main` no such check exists to forge, so a separate-agent review is
-admissible **only when the pull request comment names the substitution, says Pullfrog could not run,
-and lists the evidence a reader can check**, alongside green checks at the exact head and zero
-unresolved threads. A green check alone is never an approval, on either branch. Merging on an unnamed
+substitution, not a substitute that exists. It decides one case only: Pullfrog produced neither the
+check nor an APPROVED review at the exact head. While that review exists, step 8's `#440` fallback
+supplies the verdict on either branch and this clause never runs. After that, on protected `main`
+the rule is absolute: a real `pullfrog-approval` check exists there, a subagent cannot publish it,
+and nothing may stand in for it. On unprotected `redesign/main` no such check exists to forge, so a
+separate-agent review is admissible **only when the pull request comment names the substitution,
+says Pullfrog could not run, and lists the evidence a reader can check**, alongside green checks at
+the exact head and zero unresolved threads. A green check alone is never an approval, on either branch. Merging on an unnamed
 subagent's word is the failure; saying plainly which agent reviewed what, and why Pullfrog did not,
 is not. Hard prohibitions and step 8 state this same rule in the same words, so a run that reads any
 one of the three reaches the same answer.
@@ -1329,10 +1360,11 @@ It cannot ask what only a running worker discovers, and it does not pretend to.
 
 **A failed worker attempt is recorded, but its ticket is not silently skipped.** Preserve its work,
 use the step 7 salvage path when the caller-specified workspace test is green, and keep the PR in
-the bounded readiness loop until CI with `pullfrog-approval`, base freshness, and the ticket agree
-on one head/base pair. The queue may continue independent tickets while a wake source owns that debt. Only
-a genuine permission, external, human-only, or exhausted bounded-fixer blocker permits handoff, and
-the ticket remains In Progress with the exact decision required.
+the bounded readiness loop until CI carrying the review verdict admissible on that base under Hard
+prohibitions, base freshness, and the ticket agree on one head/base pair. The queue may continue
+independent tickets while a wake source owns that debt. Only a genuine permission, external,
+human-only, or exhausted bounded-fixer blocker permits handoff, and the ticket remains In Progress
+with the exact decision required.
 
 ### Every turn under `--sleep` ends with a live wake source, named
 
@@ -1448,12 +1480,15 @@ the wrong branch loses the entire night. Discover it at the start, not at 03:00.
   head just verified. Log the evidence. Outside that authority, leave the PR ready for Thomas.
   A green check alone is not an exact-head approval, on either branch.
 - **What may stand in for Pullfrog turns on the branch, and it is the same rule in `§5.4.1` and in
-  step 8.** On protected `main` it is absolute: a real `pullfrog-approval` check exists there, only
-  Pullfrog can publish it, and nothing else may stand in for it. On unprotected `redesign/main` no
-  such check exists to forge, so a separate-agent review is admissible **only when the pull request
-  comment names the substitution, says Pullfrog could not run, and lists the evidence a reader can
-  check**, alongside green checks at the exact head and zero unresolved threads. A hidden
-  substitution is the failure; a named one with its evidence is not.
+  step 8.** It decides one case only: Pullfrog produced neither the check nor an APPROVED review at
+  the exact head. While that review exists, step 8's `#440` fallback supplies the verdict on either
+  branch, and `tools/lib/readiness-receipt.mjs:215-218` implements it with no branch condition.
+  After that, on protected `main` it is absolute: a real `pullfrog-approval` check exists there,
+  only Pullfrog can publish it, and nothing else may stand in for it. On unprotected
+  `redesign/main` no such check exists to forge, so a separate-agent review is admissible **only
+  when the pull request comment names the substitution, says Pullfrog could not run, and lists the
+  evidence a reader can check**, alongside green checks at the exact head and zero unresolved
+  threads. A hidden substitution is the failure; a named one with its evidence is not.
 - **Never `--admin` inside `/orchestrate` or `/sleep`.** Per `CLAUDE.md`, that exception belongs only
   to the canonical `/merge-prs` skill after Thomas explicitly invokes it for an already-approved
   frozen PR set. Standing ordinary merge authority does not invoke that skill. Direct merge APIs

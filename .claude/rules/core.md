@@ -59,9 +59,9 @@ Never invent ratings, prices, reviews, or org details, or a `file:line` no tool 
 
 ### 9. Carry the standing operating contract (D89, D90)
 
-Enter through `/orchestrate`: Codex writes every code change, or Claude headless through the same launcher
-when the Codex allowance is exhausted (`§5.4.1`); the orchestrating session never edits code itself,
-except a review fix (step 8).
+Enter through `/orchestrate`: Codex writes every code change, or Claude headless through the same
+launcher when the Codex allowance is exhausted (`orchestrate/SKILL.md` §5.4.1); the orchestrating session never edits code itself,
+except a review fix (`orchestrate/SKILL.md` step 8).
 A bare ticket stays local.
 Redesign queues use `/orchestrate --cloud --parallel` for UI, a small local pool for `api`/`landing` (D89).
 D76 covers the thirteen redesign screens; groundwork runs autonomously. See `.claude/playbooks/redesign-screen.md`.
