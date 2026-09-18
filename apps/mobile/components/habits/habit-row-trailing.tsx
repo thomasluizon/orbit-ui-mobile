@@ -128,7 +128,6 @@ export function HabitRowTrailing({
         <MenuAnchorHost anchorRef={menuButtonRef}>
           <Pressable
             onPress={onOpenMenu}
-            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel={t('habits.actions.more')}
             style={({ pressed }) => [

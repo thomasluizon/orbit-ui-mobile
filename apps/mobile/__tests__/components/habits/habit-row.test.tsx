@@ -153,6 +153,34 @@ describe('HabitRow menu (mobile)', () => {
     })
   })
 
+  it('keeps the menu target at the design floor without ancestor clipping', () => {
+    const renderer = renderRowWithMenu()
+    const moreButton = getMoreButton(renderer)
+    const anchorHost = renderer.root.find(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.collapsable === false,
+    )
+    const anchorStyle = resolveStyle(anchorHost.props.style)
+    const rowCardStyle = resolveStyle(getRowCard(renderer).props.style)
+    const menuIcon = renderer.root.find(
+      (node: { type: unknown }) => node.type === 'MoreVertical',
+    )
+    const menuMargin = Number(resolveStyle(styles.menuButton).margin ?? 0)
+    const iconRightInset =
+      Number(rowCardStyle.paddingRight) +
+      menuMargin +
+      (styles.menuButton.width - Number(menuIcon.props.size)) / 2
+
+    expect(styles.menuButton.width).toBeGreaterThanOrEqual(44)
+    expect(styles.menuButton.height).toBeGreaterThanOrEqual(44)
+    expect(styles.menuButton).not.toHaveProperty('margin')
+    expect(moreButton.props.hitSlop).toBeUndefined()
+    expect(anchorStyle.minWidth).toBeGreaterThanOrEqual(styles.menuButton.width)
+    expect(anchorStyle.minHeight).toBeGreaterThanOrEqual(styles.menuButton.height)
+    expect(menuIcon.props.size).toBe(18)
+    expect(iconRightInset).toBe(21)
+  })
+
   it('keeps the full select-mode card inside the selection target', () => {
     const onToggleSelection = vi.fn()
     let renderer: ReturnType<typeof TestRenderer.create>

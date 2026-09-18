@@ -567,7 +567,6 @@ export function TodayHabitsHeader({
               accessibilityRole="button"
               accessibilityLabel={t("habits.searchPlaceholder")}
               accessibilityState={{ selected: searchActive }}
-              hitSlop={6}
               style={({ pressed }) => [
                 styles.iconBtn,
                 searchActive
@@ -599,7 +598,6 @@ export function TodayHabitsHeader({
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.frequencyFilter")}
                   accessibilityState={{ selected: selectedFrequency != null }}
-                  hitSlop={6}
                   style={({ pressed }) => [
                     styles.iconBtn,
                     selectedFrequency != null
@@ -627,7 +625,6 @@ export function TodayHabitsHeader({
                 onPress={onToggleControlsMenu}
                 accessibilityRole="button"
                 accessibilityLabel={t("habits.actions.more")}
-                hitSlop={6}
                 style={({ pressed }) => [
                   styles.iconBtn,
                   pressed
@@ -795,8 +792,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingBottom: 6,
     },
     iconBtn: {
-      width: 36,
-      height: 36,
+      width: 44,
+      height: 44,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
