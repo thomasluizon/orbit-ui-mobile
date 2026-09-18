@@ -373,7 +373,7 @@ export function resolveCalendarSyncEndDate(
   return null
 }
 
-function hasFiniteDateClamp(
+function didFiniteDateWalkSkip(
   parts: Record<string, string>,
   startDate: string | null,
   startTime: string | null,
@@ -389,6 +389,7 @@ function hasFiniteDateClamp(
     const endDate = resolveUtcUntilDate(parts.UNTIL, startDate, startTime, startUtc)
     if (!endDate) return false
     const inclusiveEnd = new Date(`${endDate}T00:00:00Z`)
+    if (Number.isNaN(inclusiveEnd.getTime())) return false
     return walkMonthlyOrYearlyDates(parts, start, null, inclusiveEnd).skippedCandidate
   }
 
@@ -437,7 +438,7 @@ export function getCalendarSyncImportIssue(
     return 'weekday-interval'
   }
 
-  if (hasFiniteDateClamp(parts, startDate, startTime, startUtc)) {
+  if (didFiniteDateWalkSkip(parts, startDate, startTime, startUtc)) {
     return 'finite-date-clamp'
   }
 
