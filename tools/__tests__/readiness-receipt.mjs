@@ -13,10 +13,12 @@ import {
   readinessReceiptPath,
   readinessReport,
   requiredCheckSatisfied,
+  requiredChecksFromResponse,
   requiredChecksOf,
   MAX_REVIEW_PAGES,
   resolveReviewVerdict,
   reviewAppVerdictAtHead,
+  reviewChecksFor,
   reviewPageArgv,
   reviewPageFromGraphQl,
   reviewSatisfiedOutOfBand,
@@ -163,6 +165,51 @@ export const cases = async () => {
   )
   T(`${TOOL}: a protection payload carrying only contexts is refused`, requiredChecksOf({ contexts: ["Unit Tests"] }) === null)
   T(`${TOOL}: a protection check with a non-integer app id is refused`, requiredChecksOf({ checks: [{ context: "Unit Tests", app_id: "15368" }] }) === null)
+
+  /**
+   * The unprotected base, which is where the review axis is easiest to lose. `redesign/main` is not
+   * protected, so the protection read is a confirmed 404 and the required set is EMPTY (#429). An
+   * empty set is a free pass on its own: every check that ran is green, so readiness would clear
+   * with no review at all. `reviewChecksFor` supplies the axis that stops that, and the receipt it
+   * produces is blocked on the CI axis ALONE.
+   *
+   * The skill cites this verdict string rather than describing it. On an unprotected base with no
+   * `pullfrog-approval`, the recorder reports CI_STALE and nothing else, so an operator who reads a
+   * receipt carrying any second verdict is looking at a second, unrelated problem. That matters on a
+   * night when Pullfrog cannot run and a named substitute reviewed the pull request instead: the
+   * recorder verifies no such claim, so the expected receipt is this one and the substitution is
+   * read by a human on the pull request.
+   */
+  const unprotected = requiredChecksFromResponse({ status: "404" }, false)
+  T(`${TOOL}: an unprotected base has no required checks at all`, JSON.stringify(unprotected) === "[]", JSON.stringify(unprotected))
+  T(
+    `${TOOL}: an empty required set clears CI on its own, which is why the review axis is supplied`,
+    readinessCiIsGreen([greenRun], unprotected) === true,
+  )
+  const unprotectedReview = reviewChecksFor(unprotected)
+  T(
+    `${TOOL}: the supplied review axis is pullfrog-approval pinned to the Pullfrog app`,
+    JSON.stringify(unprotectedReview) === JSON.stringify([{ context: REVIEW_APP_CONTEXT, appId: PULLFROG_APP }]),
+    JSON.stringify(unprotectedReview),
+  )
+  T(
+    `${TOOL}: a protected base keeps its own required checks rather than the supplied axis`,
+    JSON.stringify(reviewChecksFor([requiredUnitTests])) === JSON.stringify([requiredUnitTests]),
+    JSON.stringify(reviewChecksFor([requiredUnitTests])),
+  )
+  const unreviewedGreen = readinessCiIsGreen([greenRun], unprotectedReview)
+  const unreviewed = { ...receipt, baseBranch: "redesign/main", ci: { ...receipt.ci, green: unreviewedGreen } }
+  T(
+    `${TOOL}: an unprotected base with no pullfrog-approval blocks on the review axis ALONE, as CI_STALE`,
+    unreviewedGreen === false && JSON.stringify(readinessReport(unreviewed).verdicts) === JSON.stringify(["CI_STALE"]),
+    JSON.stringify(readinessReport(unreviewed).verdicts),
+  )
+  const reviewedOnUnprotected = { ...unreviewed, ci: { ...receipt.ci, green: readinessCiIsGreen([greenRun, approval], unprotectedReview) } }
+  T(
+    `${TOOL}: satisfying that one axis and nothing else turns the same receipt READY`,
+    readinessReport(reviewedOnUnprotected).verdict === "READY",
+    JSON.stringify(readinessReport(reviewedOnUnprotected).verdicts),
+  )
 
   /**
    * The live envelope, copied from the 2026-08-12 response to

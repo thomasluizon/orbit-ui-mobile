@@ -493,6 +493,24 @@ export const requiredChecksOf = (payload) => {
 export const requiredChecksFromResponse = (payload, succeeded) =>
   succeeded ? requiredChecksOf(payload) : payload?.status === "404" ? [] : null
 
+/**
+ * The recorder's independent review contract when protection supplies no inventory (#429). An
+ * unprotected base returns NO required checks, and an empty required set is a free pass:
+ * `readinessCiIsGreen` would then ask only that the checks which happened to run are green, so a
+ * pull request no reviewer ever approved would reach READY on `redesign/main`. The review axis is
+ * therefore supplied here rather than read from protection. The Pullfrog context/app pair was
+ * reconfirmed against main protection on 2026-09-05.
+ *
+ * It lives beside the reader it feeds so one function is the only place that decides it, and so a
+ * test can drive the real rule instead of restating it. Nothing here admits a substitute reviewer:
+ * the only evidence that stands in for the missing check is `reviewSatisfiedOutOfBand`, an APPROVED
+ * review by the Pullfrog app itself (#440). A receipt blocked only on this axis is CI_STALE, and a
+ * human reads the named substitution on the pull request; the recorder never reads a claim it
+ * cannot verify.
+ */
+export const reviewChecksFor = (requiredChecks) =>
+  requiredChecks.length === 0 ? [{ context: REVIEW_APP_CONTEXT, appId: REVIEW_APP_ID }] : requiredChecks
+
 const requiredChecksAreValid = (required) =>
   Array.isArray(required) && required.every((entry) => typeof entry?.context === "string" && entry.context !== "" && (entry.appId === null || Number.isInteger(entry.appId)))
 

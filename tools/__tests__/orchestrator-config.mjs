@@ -142,15 +142,20 @@ export const cases = async () => {
   )
 
   /**
-   * The fallback engine's isolation flags, pinned by name. `--strict-mcp-config` with no
-   * `--mcp-config` beside it is what stops an unattended worker inheriting the user-scope MCP
-   * servers, and `--output-format stream-json` is what keeps the launcher's log-growth progress
-   * signal live. `--verbose` is not decoration: the binary refuses stream-json without it.
+   * The fallback engine's isolation flags, pinned by name, and the ABSENCE that carries the whole
+   * safety argument. `--strict-mcp-config` narrows the worker to the servers `--mcp-config` names,
+   * so it isolates nothing on its own: with no `--mcp-config` beside it the set is empty and the
+   * worker loads zero MCP servers, which is what stops it inheriting the user-scope servers in
+   * `~/.claude.json` while running at `bypassPermissions`. Presence alone is the weaker property and
+   * asserting it alone leaves a green test beside a real change, so the absence is asserted too.
+   * `--output-format stream-json` is what keeps the launcher's log-growth progress signal live, and
+   * `--verbose` is not decoration: the binary refuses stream-json without it.
    */
   const fallbackArgs = real.workers.claude?.args ?? []
   T(
     `${NAME}: the claude fallback engine loads no MCP server and streams its output`,
     fallbackArgs.includes("--strict-mcp-config") &&
+      !fallbackArgs.some((argument) => argument === "--mcp-config" || argument.startsWith("--mcp-config=")) &&
       fallbackArgs.includes("--verbose") &&
       fallbackArgs.join(" ").includes("--output-format stream-json"),
     JSON.stringify(fallbackArgs),
