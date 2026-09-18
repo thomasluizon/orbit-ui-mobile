@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import type { SkeletonProps } from '@orbit/shared/contracts/feedback'
+import { skeletonPulseIterations } from '@orbit/shared/theme'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated already drives this single opacity pulse on the UI thread; the existing Reanimated migration remains device-gated https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
@@ -26,8 +27,11 @@ function usePulseOpacity() {
         Animated.timing(opacity, { toValue: 0.55, duration: 550, useNativeDriver: true }),
         Animated.timing(opacity, { toValue: 1, duration: 550, useNativeDriver: true }),
       ]),
+      { iterations: skeletonPulseIterations },
     )
-    pulse.start()
+    pulse.start(({ finished }) => {
+      if (finished) opacity.setValue(1)
+    })
     return () => pulse.stop()
   }, [opacity, prefersReducedMotion])
 

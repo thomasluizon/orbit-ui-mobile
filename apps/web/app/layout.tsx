@@ -8,7 +8,7 @@ import { Bell, Check, X } from '@/components/ui/icons'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { neutralColors } from '@orbit/shared/theme'
+import { neutralColors, skeletonPulseIterations } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
@@ -53,7 +53,10 @@ const variablesByScheme = Object.fromEntries(
     },
   ]),
 )
-const defaultThemeStyle = resolveWebThemeVariables('purple', 'dark') as CSSProperties
+const defaultThemeStyle = {
+  ...resolveWebThemeVariables('purple', 'dark'),
+  '--skeleton-pulse-iterations': skeletonPulseIterations,
+} as CSSProperties
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')

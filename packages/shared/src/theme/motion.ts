@@ -57,6 +57,8 @@ export const motionDurations = {
   listStagger: 36,
 } as const
 
+export const skeletonPulseIterations = 4
+
 export const motionLayerTiming = {
   backdropEnterDelay: 0,
   panelEnterDelay: 32,
