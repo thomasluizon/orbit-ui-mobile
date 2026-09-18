@@ -18,12 +18,14 @@ function TimeZoneOptions({
   searchLabel,
   noResultsLabel,
   showMoreLabel,
+  onCommit,
   onSelect,
 }: Readonly<{
   selected?: string | null
   searchLabel: string
   noResultsLabel: string
   showMoreLabel: string
+  onCommit: () => void
   onSelect: (timeZone: string) => void
 }>) {
   const [query, setQuery] = useState('')
@@ -54,7 +56,7 @@ function TimeZoneOptions({
           placeholder={searchLabel}
         />
       </label>
-      <RadioGroup aria-label={searchLabel}>
+      <RadioGroup aria-label={searchLabel} onCommit={onCommit}>
         {visible.map((option, index) => (
           <RadioRow
             key={option}
@@ -125,11 +127,7 @@ export function PreferencePickerSheet({
   onWeekStartChange,
 }: Readonly<PreferencePickerSheetProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
-  const selectAndClose = (apply: () => void) =>
-    closeSheet(() => {
-      onClose()
-      apply()
-    })
+  const commitSelection = () => closeSheet(onClose)
 
   if (activePicker === null) return null
 
@@ -144,27 +142,27 @@ export function PreferencePickerSheet({
         {pickerDescriptions[activePicker]}
       </p>
       {activePicker === 'language' ? (
-        <RadioGroup aria-label={pickerTitles.language}>
+        <RadioGroup aria-label={pickerTitles.language} onCommit={commitSelection}>
           {LANGUAGE_OPTIONS.map((lang, index) => (
           <RadioRow
             key={lang.value}
             label={lang.label}
             selected={mounted && selectedLanguage === lang.value}
             divider={index < LANGUAGE_OPTIONS.length - 1}
-            onClick={() => selectAndClose(() => onLanguageChange(lang.value))}
+            onClick={() => onLanguageChange(lang.value)}
           />
           ))}
         </RadioGroup>
       ) : null}
       {activePicker === 'theme' ? (
-        <RadioGroup aria-label={pickerTitles.theme}>
+        <RadioGroup aria-label={pickerTitles.theme} onCommit={commitSelection}>
           {themeModeOptions.map((mode, index) => (
           <RadioRow
             key={mode.value}
             label={mode.label}
             selected={mounted && currentTheme === mode.value}
             divider={index < themeModeOptions.length - 1}
-            onClick={() => selectAndClose(() => onThemeModeChange(mode.value))}
+            onClick={() => onThemeModeChange(mode.value)}
           />
           ))}
         </RadioGroup>
@@ -175,18 +173,19 @@ export function PreferencePickerSheet({
           searchLabel={timeZoneSearchLabel}
           noResultsLabel={timeZoneNoResultsLabel}
           showMoreLabel={timeZoneShowMoreLabel}
-          onSelect={(option) => selectAndClose(() => onTimeZoneChange(option))}
+          onCommit={commitSelection}
+          onSelect={onTimeZoneChange}
         />
       ) : null}
       {activePicker === 'weekStart' ? (
-        <RadioGroup aria-label={pickerTitles.weekStart}>
+        <RadioGroup aria-label={pickerTitles.weekStart} onCommit={commitSelection}>
           {weekStartOptions.map((option, index) => (
           <RadioRow
             key={option.value}
             label={option.label}
             selected={mounted && weekStartDay === option.value}
             divider={index < weekStartOptions.length - 1}
-            onClick={() => selectAndClose(() => onWeekStartChange(option.value))}
+            onClick={() => onWeekStartChange(option.value)}
           />
           ))}
         </RadioGroup>

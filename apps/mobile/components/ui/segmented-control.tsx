@@ -24,7 +24,7 @@ function SegmentOption<TValue extends string>({
   const select = () => {
     if (!disabled && !selected) onChange(option.value)
   }
-  const { elementRef, ...navigationProps } = useRadioGroupItem({
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
     disabled,
     index,
     onSelect: select,
@@ -38,7 +38,7 @@ function SegmentOption<TValue extends string>({
       accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}
       testID={`segment-${option.value}-${selected ? 'selected' : 'unselected'}-${disabled ? 'disabled' : 'enabled'}`}
-      onPress={select}
+      onPress={onActivate}
       style={({ pressed }) => [
         styles.option,
         selected

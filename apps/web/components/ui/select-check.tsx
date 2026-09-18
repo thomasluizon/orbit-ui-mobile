@@ -91,7 +91,7 @@ export function RadioRow({
   divider = true,
   disabled = false,
 }: Readonly<RadioRowProps>) {
-  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect: onClick, selected })
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect: onClick, selected })
   return (
     <button
       ref={elementRef}
@@ -100,7 +100,7 @@ export function RadioRow({
       aria-checked={selected}
       disabled={disabled}
       tabIndex={tabIndex}
-      onClick={onClick}
+      onClick={onActivate}
       onKeyDown={onKeyDown}
       className="w-full appearance-none bg-transparent cursor-pointer flex items-center text-left disabled:cursor-default disabled:opacity-40"
       style={{

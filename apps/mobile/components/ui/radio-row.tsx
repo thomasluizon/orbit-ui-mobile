@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -38,7 +39,13 @@ interface RadioNavigationProps {
   nextFocusUp?: number
 }
 
+interface ArmedRedirect {
+  fromTarget: number | null
+  id: string
+}
+
 interface RadioGroupContextValue {
+  commit: () => void
   getNavigationProps: (id: string) => RadioNavigationProps
   onFocus: (id: string, onSelect?: () => void) => void
   register: (id: string, nativeHandle: number | null) => () => void
@@ -69,14 +76,22 @@ function navigationProps(
   }
 }
 
-export function RadioGroup({ children, ...props }: Readonly<
-  Omit<ViewProps, 'accessibilityRole'> & { children: ReactNode }
+export function RadioGroup({ children, onCommit, ...props }: Readonly<
+  Omit<ViewProps, 'accessibilityRole'> & {
+    children: ReactNode
+    /** Runs when a row is explicitly pressed, never when native focus moves the selection. */
+    onCommit?: () => void
+  }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
   const elementsRef = useRef(new Map<string, View>())
-  const fallbackFocusedHandleRef = useRef<number | null>(null)
-  const redirectTargetIdRef = useRef<string | null>(null)
+  const armedRedirectRef = useRef<ArmedRedirect | null>(null)
   const getPreviousFocusTarget = usePreviousFocusTarget()
+  const onCommitRef = useRef(onCommit)
+  useEffect(() => {
+    onCommitRef.current = onCommit
+  }, [onCommit])
+  const commit = useCallback(() => onCommitRef.current?.(), [])
   const register = useCallback((id: string, nativeHandle: number | null) => {
     setItems((current) => [...current.filter((item) => item.id !== id), {
       disabled: false,
@@ -117,21 +132,19 @@ export function RadioGroup({ children, ...props }: Readonly<
   const onFocus = useCallback((id: string, onSelect?: () => void) => {
     const focusedItem = enabledItems.find((item) => item.id === id)
     if (!focusedItem) return
-    const previousTarget = getPreviousFocusTarget?.()
-      ?? fallbackFocusedHandleRef.current
-    fallbackFocusedHandleRef.current = focusedItem.nativeHandle
-
-    if (redirectTargetIdRef.current === id) {
-      redirectTargetIdRef.current = null
-      return
-    }
+    const previousTarget = getPreviousFocusTarget?.() ?? null
+    const armedRedirect = armedRedirectRef.current
+    armedRedirectRef.current = null
+    const landedFromRedirect = armedRedirect?.id === id
+      && armedRedirect.fromTarget === previousTarget
+    if (landedFromRedirect) return
 
     const movedWithinGroup = previousTarget !== null
       && items.some((item) => item.nativeHandle === previousTarget)
     if (!movedWithinGroup) {
       const entryItem = enabledItems.find((item) => item.selected) ?? enabledItems[0]
       if (entryItem && entryItem.id !== id) {
-        redirectTargetIdRef.current = entryItem.id
+        armedRedirectRef.current = { fromTarget: focusedItem.nativeHandle, id: entryItem.id }
         elementsRef.current.get(entryItem.id)?.focus()
       }
       return
@@ -140,12 +153,13 @@ export function RadioGroup({ children, ...props }: Readonly<
     if (!focusedItem.selected) onSelect?.()
   }, [enabledItems, getPreviousFocusTarget, items])
   const contextValue = useMemo(() => ({
+    commit,
     getNavigationProps,
     onFocus,
     register,
     setElement,
     update,
-  }), [getNavigationProps, onFocus, register, setElement, update])
+  }), [commit, getNavigationProps, onFocus, register, setElement, update])
   return (
     <RadioGroupContext.Provider value={contextValue}>
       <View {...props} accessibilityRole="radiogroup">{children}</View>
@@ -166,6 +180,7 @@ export function useRadioGroupItem({
 }>) {
   const group = useContext(RadioGroupContext)
   const registerWithGroup = group?.register
+  const commitGroup = group?.commit
   const handleGroupFocus = group?.onFocus
   const setGroupElement = group?.setElement
   const updateGroup = group?.update
@@ -193,6 +208,11 @@ export function useRadioGroupItem({
     }
     if (!disabled && !selected) onSelect?.()
   }, [disabled, handleGroupFocus, id, onSelect, selected])
+  /** The press is the only commit path, so native focus movement can change the value without closing a host. */
+  const onActivate = useCallback(() => {
+    onSelect?.()
+    commitGroup?.()
+  }, [commitGroup, onSelect])
   const groupNavigationProps = group?.getNavigationProps(id)
 
   return {
@@ -202,6 +222,7 @@ export function useRadioGroupItem({
     nextFocusLeft: groupNavigationProps?.nextFocusLeft,
     nextFocusRight: groupNavigationProps?.nextFocusRight,
     nextFocusUp: groupNavigationProps?.nextFocusUp,
+    onActivate,
     onFocus,
   }
 }
@@ -209,7 +230,7 @@ export function useRadioGroupItem({
 export function RadioRow({ index, label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps & { index: number }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { elementRef, ...navigationProps } = useRadioGroupItem({
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
     disabled,
     index,
     onSelect,
@@ -248,7 +269,7 @@ export function RadioRow({ index, label, description, selected = false, onSelect
       ref={elementRef}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
-      onPress={onSelect}
+      onPress={onActivate}
       style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.99 }] } : null]}
     >{content}</Pressable>
   )

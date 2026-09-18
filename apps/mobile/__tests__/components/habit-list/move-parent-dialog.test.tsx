@@ -6,6 +6,7 @@ import {
   type MoveParentOption,
 } from '@/components/habit-list/move-parent-dialog'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
@@ -104,7 +105,7 @@ function renderDialog(
   let tree: RenderedTree | undefined
   void TestRenderer.act(() => {
     tree = TestRenderer.create(
-      <MoveParentDialog {...props} />,
+      withFocusProvenance(<MoveParentDialog {...props} />),
     ) as unknown as RenderedTree
   })
   if (!tree) throw new Error('Expected move-parent dialog to render')
@@ -302,7 +303,7 @@ describe('MoveParentDialog', () => {
     const rows = findOptionRows(tree)
 
     void TestRenderer.act(() => {
-      ;(rows[1]!.props.onFocus as () => void)()
+      focusHost(tree, rows[1]!)
     })
 
     expect(props.onSelectOption).not.toHaveBeenCalled()
@@ -320,8 +321,8 @@ describe('MoveParentDialog', () => {
     const rows = findOptionRows(tree)
 
     void TestRenderer.act(() => {
-      ;(rows[0]!.props.onFocus as () => void)()
-      ;(rows[1]!.props.onFocus as () => void)()
+      focusHost(tree, rows[0]!)
+      focusHost(tree, rows[1]!)
     })
 
     expect(props.onSelectOption).toHaveBeenCalledExactlyOnceWith('alpha')

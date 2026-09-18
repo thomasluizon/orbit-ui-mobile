@@ -8,7 +8,7 @@ import {
 } from '../../../test-mocks/react-native'
 
 import { TimeField } from '@/components/ui/time-field'
-import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
+import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -96,7 +96,7 @@ describe('TimeField', () => {
     await TestRenderer.act(async () => {
 await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="14:30" onChange={vi.fn()} placeholder="HH:MM" />,
+        withFocusProvenance(<TimeField value="14:30" onChange={vi.fn()} placeholder="HH:MM" />),
       )
     })
 
@@ -117,7 +117,7 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
       await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />,
+        withFocusProvenance(<TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />),
       )
     })
 
@@ -137,7 +137,7 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
       await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />,
+        withFocusProvenance(<TimeField value="14:30" onChange={onChange} placeholder="HH:MM" />),
       )
     })
 
@@ -156,7 +156,7 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
       await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="07:15" onChange={vi.fn()} placeholder="HH:MM" />,
+        withFocusProvenance(<TimeField value="07:15" onChange={vi.fn()} placeholder="HH:MM" />),
       )
     })
 
@@ -174,7 +174,7 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
       await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />,
+        withFocusProvenance(<TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />),
       )
     })
 
@@ -202,7 +202,7 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
 await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="14:30" onChange={vi.fn()} onClear={onClear} />,
+        withFocusProvenance(<TimeField value="14:30" onChange={vi.fn()} onClear={onClear} />),
       )
     })
 
@@ -227,7 +227,7 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
 await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="" onChange={vi.fn()} onClear={vi.fn()} />,
+        withFocusProvenance(<TimeField value="" onChange={vi.fn()} onClear={vi.fn()} />),
       )
     })
 
@@ -246,13 +246,13 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
       await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="23:59" onChange={onChange} placeholder="HH:MM" />,
+        withFocusProvenance(<TimeField value="23:59" onChange={onChange} placeholder="HH:MM" />),
       )
     })
     await openPicker(tree)
 
     TestRenderer.act(() => {
-      radioOption(tree, 'common.hours', '00').props.onFocus()
+      focusHost(tree, radioOption(tree, 'common.hours', '00'))
     })
 
     expect(radioOption(tree, 'common.hours', '23').props.accessibilityState.checked).toBe(true)
@@ -266,18 +266,18 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
       await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />,
+        withFocusProvenance(<TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />),
       )
     })
     await openPicker(tree)
     TestRenderer.act(() => {
-      radioOption(tree, 'common.hours', '23').props.onFocus()
-      radioOption(tree, 'common.hours', '00').props.onFocus()
+      focusHost(tree, radioOption(tree, 'common.hours', '23'))
+      focusHost(tree, radioOption(tree, 'common.hours', '00'))
     })
     expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(true)
     TestRenderer.act(() => {
-      radioOption(tree, 'common.minutes', '59').props.onFocus()
-      radioOption(tree, 'common.minutes', '00').props.onFocus()
+      focusHost(tree, radioOption(tree, 'common.minutes', '59'))
+      focusHost(tree, radioOption(tree, 'common.minutes', '00'))
     })
     expect(radioOption(tree, 'common.minutes', '00').props.accessibilityState.checked).toBe(true)
   })
@@ -288,30 +288,25 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
       await Promise.resolve()
       tree = TestRenderer.create(
-        <FocusProvenanceView>
-          <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />
-          <View focusable accessibilityLabel="Outside" />
-        </FocusProvenanceView>,
+        withFocusProvenance(
+          <>
+            <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />
+            <View focusable accessibilityLabel="Outside" />
+          </>,
+        ),
       )
     })
     await openPicker(tree)
     const selectedHour = radioOption(tree, 'common.hours', '23')
     const nextHour = radioOption(tree, 'common.hours', '00')
-    const focusRoot = tree.root.find(
-      (node: any) => typeof node.props.onFocusCapture === 'function',
-    )
     const outside = tree.root.find(
       (node: any) => typeof node.type === 'string'
         && node.props.accessibilityLabel === 'Outside',
     )
-    const focusHost = (target: any) => {
-      focusRoot.props.onFocusCapture({ nativeEvent: { target: target.props.__nativeTag } })
-      target.props.onFocus?.()
-    }
     TestRenderer.act(() => {
-      focusHost(selectedHour)
-      focusHost(outside)
-      focusHost(nextHour)
+      focusHost(tree, selectedHour)
+      focusHost(tree, outside)
+      focusHost(tree, nextHour)
     })
 
     expect(radioOption(tree, 'common.hours', '23').props.accessibilityState.checked).toBe(true)

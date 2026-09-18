@@ -5,6 +5,7 @@ import { PreferencePickerSheet } from '@/components/profile/preferences-sections
 import type { SheetHandle } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 vi.mock('@orbit/shared/utils', async (importOriginal) => ({
   ...await importOriginal<typeof import('@orbit/shared/utils')>(),
@@ -53,7 +54,7 @@ function baseProps() {
       { value: 0 as const, label: 'Sunday' },
     ],
     sheetRef: createRef<SheetHandle>(),
-    closePicker: (exitAction?: () => void) => exitAction?.(),
+    closePicker: vi.fn((exitAction?: () => void) => exitAction?.()),
     onHidden: vi.fn(),
     onLanguageChange: vi.fn(),
     onThemeModeChange: vi.fn(),
@@ -71,15 +72,38 @@ describe('PreferencePickerSheet', () => {
     const props = baseProps()
     let tree: any
     void act(() => {
-      tree = create(<PreferencePickerSheet {...props} />)
+      tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />))
     })
     const radios = tree.root.findAll(
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
     expect(radios.map((option: any) => option.props.focusable)).toEqual([true, true])
-    void act(() => radios[0]!.props.onFocus())
-    void act(() => radios[1]!.props.onFocus())
+    void act(() => focusHost(tree, radios[0]))
+    void act(() => focusHost(tree, radios[1]))
     expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
+    expect(props.closePicker).not.toHaveBeenCalled()
+    expect(props.onHidden).not.toHaveBeenCalled()
+  })
+
+  it('closes the sheet only when a press commits the language', () => {
+    const props = baseProps()
+    let tree: any
+    void act(() => {
+      tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />))
+    })
+    const radios = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+
+    void act(() => focusHost(tree, radios[0]))
+    void act(() => focusHost(tree, radios[1]))
+    expect(props.closePicker).not.toHaveBeenCalled()
+
+    void act(() => radios[1]!.props.onPress())
+
+    expect(props.onLanguageChange).toHaveBeenCalledWith('pt-BR')
+    expect(props.closePicker).toHaveBeenCalledOnce()
+    expect(props.onHidden).toHaveBeenCalledOnce()
   })
 
   it('uses rendered timezone order after filtered options remount', () => {
@@ -90,7 +114,7 @@ describe('PreferencePickerSheet', () => {
     }
     let tree: any
     void act(() => {
-      tree = create(<PreferencePickerSheet {...props} />)
+      tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />))
     })
     const search = tree.root.find(
       (node: any) => typeof node.type === 'string'
@@ -116,9 +140,11 @@ describe('PreferencePickerSheet', () => {
     const retainedOption = restoredRadios[retainedIndex]!
 
     expect(retainedOption.props.nextFocusDown).toBe(adjacentOption.props.__nativeTag)
-    void act(() => retainedOption.props.onFocus())
-    void act(() => adjacentOption.props.onFocus())
+    void act(() => focusHost(tree, retainedOption))
+    void act(() => focusHost(tree, adjacentOption))
 
     expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(adjacentLabel)
+    expect(props.closePicker).not.toHaveBeenCalled()
+    expect(props.onHidden).not.toHaveBeenCalled()
   })
 })

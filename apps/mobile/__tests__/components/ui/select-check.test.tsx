@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
+import { focusHost } from '../../support/focus-provenance'
 import {
   __resetTestHostConfig,
   __setFocusImpl,
@@ -24,6 +25,26 @@ function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>
         <RadioRow index={1} label="Disabled" selected={false} disabled onPress={() => select('disabled')} />
         <RadioRow index={2} label="Third" selected={value === 'third'} onPress={() => select('third')} />
         <RadioRow index={3} label="Last" selected={value === 'last'} onPress={() => select('last')} />
+      </RadioGroup>
+    </FocusProvenanceView>
+  )
+}
+
+function CommitRows({
+  onChange,
+  onCommit,
+}: Readonly<{ onChange: (value: string) => void; onCommit: () => void }>) {
+  const [value, setValue] = useState('first')
+  const select = (nextValue: string) => {
+    setValue(nextValue)
+    onChange(nextValue)
+  }
+
+  return (
+    <FocusProvenanceView>
+      <RadioGroup accessibilityLabel="Cadence" onCommit={onCommit}>
+        <RadioRow index={0} label="First" selected={value === 'first'} onPress={() => select('first')} />
+        <RadioRow index={1} label="Second" selected={value === 'second'} onPress={() => select('second')} />
       </RadioGroup>
     </FocusProvenanceView>
   )
@@ -62,18 +83,10 @@ function renderEntryRows(onChange: (value: string) => void, initialValue?: strin
   const radios = tree.root.findAll(
     (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
   )
-  const focusRoot = tree.root.find(
-    (node: any) => typeof node.props.onFocusCapture === 'function',
-  )
   const outside = tree.root.find(
     (node: any) => node.props.accessibilityLabel === 'Outside' && typeof node.type === 'string',
   )
-  return { focusRoot, outside, radios }
-}
-
-function focusHost(focusRoot: any, target: any) {
-  focusRoot.props.onFocusCapture({ nativeEvent: { target: target.props.__nativeTag } })
-  target.props.onFocus?.()
+  return { outside, radios, tree }
 }
 
 describe('select-check RadioRow group', () => {
@@ -85,13 +98,48 @@ describe('select-check RadioRow group', () => {
     vi.useRealTimers()
   })
 
+  it('changes the value on a focus move without committing the group', () => {
+    const onChange = vi.fn()
+    const onCommit = vi.fn()
+    let tree: any
+    void act(() => {
+      tree = create(<CommitRows onChange={onChange} onCommit={onCommit} />)
+    })
+    const radios = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+
+    void act(() => focusHost(tree, radios[0]))
+    void act(() => focusHost(tree, radios[1]))
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
+    expect(onCommit).not.toHaveBeenCalled()
+  })
+
+  it('commits the group only when a row is pressed', () => {
+    const onChange = vi.fn()
+    const onCommit = vi.fn()
+    let tree: any
+    void act(() => {
+      tree = create(<CommitRows onChange={onChange} onCommit={onCommit} />)
+    })
+    const radios = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+
+    void act(() => radios[1]!.props.onPress())
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
+    expect(onCommit).toHaveBeenCalledOnce()
+  })
+
   it('redirects initial entry to the checked row without changing selection', () => {
     const onChange = vi.fn()
     const focus = vi.fn()
     __setFocusImpl(focus)
-    const { focusRoot, radios: [first] } = renderEntryRows(onChange)
+    const { tree, radios: [first] } = renderEntryRows(onChange)
 
-    void act(() => focusHost(focusRoot, first))
+    void act(() => focusHost(tree, first))
 
     expect(onChange).not.toHaveBeenCalled()
     expect(first.props.accessibilityState.checked).toBe(false)
@@ -130,23 +178,23 @@ describe('select-check RadioRow group', () => {
 
   it('selects a new row when focus moves inside the group', () => {
     const onChange = vi.fn()
-    const { focusRoot, radios: [first, second] } = renderEntryRows(onChange)
+    const { tree, radios: [first, second] } = renderEntryRows(onChange)
 
-    void act(() => focusHost(focusRoot, second))
-    void act(() => focusHost(focusRoot, first))
+    void act(() => focusHost(tree, second))
+    void act(() => focusHost(tree, first))
 
     expect(onChange).toHaveBeenCalledExactlyOnceWith('first')
   })
 
   it('treats immediate re-entry as entry after focus leaves the group', () => {
     const onChange = vi.fn()
-    const { focusRoot, outside, radios: [first, second] } = renderEntryRows(onChange)
+    const { tree, outside, radios: [first, second] } = renderEntryRows(onChange)
 
     void act(() => {
-      focusHost(focusRoot, second)
+      focusHost(tree, second)
       second.props.onBlur?.()
-      focusHost(focusRoot, outside)
-      focusHost(focusRoot, first)
+      focusHost(tree, outside)
+      focusHost(tree, first)
     })
 
     expect(onChange).not.toHaveBeenCalled()
@@ -156,9 +204,9 @@ describe('select-check RadioRow group', () => {
     const onChange = vi.fn()
     const focus = vi.fn()
     __setFocusImpl(focus)
-    const { focusRoot, radios: [first] } = renderEntryRows(onChange, null)
+    const { tree, radios: [first] } = renderEntryRows(onChange, null)
 
-    void act(() => focusHost(focusRoot, first))
+    void act(() => focusHost(tree, first))
 
     expect(onChange).not.toHaveBeenCalled()
     expect(focus).not.toHaveBeenCalled()
@@ -168,10 +216,10 @@ describe('select-check RadioRow group', () => {
     const onChange = vi.fn()
     const focus = vi.fn()
     __setFocusImpl(focus)
-    const { focusRoot, radios: [first, , third] } = renderEntryRows(onChange, null)
+    const { tree, radios: [first, , third] } = renderEntryRows(onChange, null)
 
-    void act(() => focusHost(focusRoot, third))
-    void act(() => focusHost(focusRoot, first))
+    void act(() => focusHost(tree, third))
+    void act(() => focusHost(tree, first))
 
     expect(onChange).not.toHaveBeenCalled()
     expect(focus).toHaveBeenCalledExactlyOnceWith(
@@ -204,12 +252,8 @@ describe('select-check RadioRow group', () => {
     expect(last.props.nextFocusDown).toBe(handles[0])
     expect(options.every((option: any) => option.props.nextFocusForward === undefined)).toBe(true)
     expect(options.every((option: any) => option.props.onKeyDown === undefined)).toBe(true)
-    const focusRoot = tree.root.find(
-      (node: any) => typeof node.props.onFocusCapture === 'function',
-    )
-
-    void act(() => focusHost(focusRoot, first))
-    void act(() => focusHost(focusRoot, third))
+    void act(() => focusHost(tree, first))
+    void act(() => focusHost(tree, third))
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
   })
 

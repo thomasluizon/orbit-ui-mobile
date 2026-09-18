@@ -38,7 +38,7 @@ function GoalTypeOption({
   onSelect: () => void
   option: (typeof goalTypeOptions)[number]
 }>) {
-  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect, selected: active })
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect, selected: active })
   const Icon = option.icon
 
   return (
@@ -48,7 +48,7 @@ function GoalTypeOption({
       role="radio"
       aria-checked={active}
       tabIndex={tabIndex}
-      onClick={onSelect}
+      onClick={onActivate}
       onKeyDown={onKeyDown}
       className="flex flex-1 cursor-pointer appearance-none items-center justify-center transition-[background-color,color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:active:scale-[0.98]"
       style={{

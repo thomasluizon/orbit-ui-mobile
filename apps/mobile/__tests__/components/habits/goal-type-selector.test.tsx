@@ -6,6 +6,7 @@ import { GoalTypeSelector } from '@/components/habits/create-goal-from-habit/goa
 import { createStyles } from '@/components/habits/create-goal-from-habit/styles'
 import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { focusHost, withFocusProvenance } from '../../support/focus-provenance'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -16,7 +17,7 @@ const styles = createStyles(tokens, 0)
 
 function Selector({ onChange }: Readonly<{ onChange: (value: GoalType) => void }>) {
   const [value, setValue] = useState<GoalType>('Standard')
-  return (
+  return withFocusProvenance(
     <GoalTypeSelector
       tokens={tokens}
       styles={styles}
@@ -44,10 +45,10 @@ describe('GoalTypeSelector', () => {
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
     expect(radios().map((option) => option.props.focusable)).toEqual([true, true])
-    void act(() => radios()[0]!.props.onFocus())
-    void act(() => radios()[1]!.props.onFocus())
+    void act(() => focusHost(tree, radios()[0]))
+    void act(() => focusHost(tree, radios()[1]))
     expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
-    void act(() => radios()[0]!.props.onFocus())
+    void act(() => focusHost(tree, radios()[0]))
     expect(onChange).toHaveBeenLastCalledWith('Standard')
   })
 

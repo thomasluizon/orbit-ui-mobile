@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 
 vi.mock('next-intl', () => ({
@@ -109,5 +110,52 @@ describe('PreferencePickerSheet', () => {
     fireEvent.keyDown(english, { key: 'ArrowDown' })
     expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
     expect(focus).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the language sheet open when ArrowDown moves the selection', () => {
+    const props = { ...baseProps(), activePicker: 'language' as const }
+    render(<PreferencePickerSheet {...props} />)
+    const english = screen.getByRole('radio', { name: 'English' })
+
+    english.focus()
+    fireEvent.keyDown(english, { key: 'ArrowDown' })
+
+    expect(props.onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('radio', { name: 'Português' })).toBeInTheDocument()
+  })
+
+  it('closes the language sheet only once Enter commits the moved selection', async () => {
+    const user = userEvent.setup()
+    const props = { ...baseProps(), activePicker: 'language' as const }
+    render(<PreferencePickerSheet {...props} />)
+    const english = screen.getByRole('radio', { name: 'English' })
+
+    english.focus()
+    fireEvent.keyDown(english, { key: 'ArrowDown' })
+    expect(props.onClose).not.toHaveBeenCalled()
+
+    await user.keyboard('{Enter}')
+
+    expect(props.onLanguageChange).toHaveBeenCalledWith('pt-BR')
+    expect(props.onClose).toHaveBeenCalled()
+  })
+
+  it('keeps the timezone sheet open when ArrowDown moves the selection', () => {
+    const props = { ...baseProps(), activePicker: 'timeZone' as const }
+    render(<PreferencePickerSheet {...props} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search timezones' }), {
+      target: { value: 'Europe/L' },
+    })
+    const options = screen.getAllByRole('radio')
+    expect(options.length).toBeGreaterThan(1)
+
+    options[0]!.focus()
+    fireEvent.keyDown(options[0]!, { key: 'ArrowDown' })
+
+    expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(
+      options[1]!.textContent,
+    )
+    expect(props.onClose).not.toHaveBeenCalled()
+    expect(screen.getAllByRole('radio').length).toBe(options.length)
   })
 })

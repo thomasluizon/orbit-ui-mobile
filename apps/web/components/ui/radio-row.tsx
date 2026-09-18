@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -23,6 +24,7 @@ interface RadioItemState {
 }
 
 interface RadioGroupContextValue {
+  commit: () => void
   getTabIndex: (id: string) => 0 | -1
   moveSelection: (id: string, key: string) => boolean
   register: (id: string) => () => void
@@ -44,6 +46,7 @@ export function useRadioGroupItem({
 }>) {
   const group = useContext(RadioGroupContext)
   const registerWithGroup = group?.register
+  const commitGroup = group?.commit
   const getGroupTabIndex = group?.getTabIndex
   const moveGroupSelection = group?.moveSelection
   const setGroupElement = group?.setElement
@@ -63,20 +66,34 @@ export function useRadioGroupItem({
       if (!moveGroupSelection?.(id, event.key)) return
       event.preventDefault()
   }, [id, moveGroupSelection])
+  /** A native button raises click for a pointer press, Enter and Space alike, so this is the only commit path. */
+  const onActivate = useCallback(() => {
+    onSelect?.()
+    commitGroup?.()
+  }, [commitGroup, onSelect])
   const elementRef = useCallback((element: HTMLButtonElement | null) => {
     setGroupElement?.(id, element)
   }, [id, setGroupElement])
   const tabIndex = getGroupTabIndex?.(id) ?? 0
 
-  return { elementRef, onKeyDown, tabIndex }
+  return { elementRef, onActivate, onKeyDown, tabIndex }
 }
 
-export function RadioGroup({ children, ...props }: Readonly<
-  Omit<ComponentPropsWithoutRef<'div'>, 'role'> & { children: ReactNode }
+export function RadioGroup({ children, onCommit, ...props }: Readonly<
+  Omit<ComponentPropsWithoutRef<'div'>, 'role'> & {
+    children: ReactNode
+    /** Runs when a row is explicitly activated, never when an arrow key moves the selection. */
+    onCommit?: () => void
+  }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
   const elementsRef = useRef(new Map<string, HTMLButtonElement>())
   const handlersRef = useRef(new Map<string, () => void>())
+  const onCommitRef = useRef(onCommit)
+  useEffect(() => {
+    onCommitRef.current = onCommit
+  }, [onCommit])
+  const commit = useCallback(() => onCommitRef.current?.(), [])
   const register = useCallback((id: string) => {
     setItems((current) => [...current.filter((item) => item.id !== id), { disabled: false, id, selected: false }])
     return () => {
@@ -126,13 +143,14 @@ export function RadioGroup({ children, ...props }: Readonly<
     return true
   }, [getEnabledItems])
   const contextValue = useMemo(() => ({
+    commit,
     getTabIndex,
     moveSelection,
     register,
     setElement,
     setHandler,
     update,
-  }), [getTabIndex, moveSelection, register, setElement, setHandler, update])
+  }), [commit, getTabIndex, moveSelection, register, setElement, setHandler, update])
 
   return (
     <RadioGroupContext.Provider value={contextValue}>
@@ -159,7 +177,7 @@ function RadioGlyph({ selected }: Readonly<{ selected: boolean }>) {
 }
 
 export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
-  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
   const content = (
     <>
       {leading ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
@@ -194,7 +212,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
       role="radio"
       aria-checked={selected}
       tabIndex={tabIndex}
-      onClick={onSelect}
+      onClick={onActivate}
       onKeyDown={onKeyDown}
       className="flex w-full cursor-pointer items-center border-0 text-left hover:bg-[var(--bg-elev)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
       style={style}

@@ -33,6 +33,7 @@ function TimeZoneOptions({
   searchLabel,
   noResultsLabel,
   showMoreLabel,
+  onCommit,
   onSelect,
 }: Readonly<{
   tokens: Tokens
@@ -40,6 +41,7 @@ function TimeZoneOptions({
   searchLabel: string
   noResultsLabel: string
   showMoreLabel: string
+  onCommit: () => void
   onSelect: (timeZone: string) => void
 }>) {
   const [query, setQuery] = useState('')
@@ -70,7 +72,7 @@ function TimeZoneOptions({
         placeholder={searchLabel}
         style={styles.timeZoneSearch}
       />
-      <RadioGroup accessibilityLabel={searchLabel}>
+      <RadioGroup accessibilityLabel={searchLabel} onCommit={onCommit}>
         {visible.map((option, index) => (
           <RadioRow
             key={option}
@@ -446,11 +448,7 @@ export function PreferencePickerSheet({
   onTimeZoneChange,
   onWeekStartChange,
 }: Readonly<PreferencePickerSheetProps>) {
-  const selectAndClose = (apply: () => void) =>
-    closePicker(() => {
-      onHidden()
-      apply()
-    })
+  const commitSelection = () => closePicker(onHidden)
 
   return (
     activePicker !== null ? (<Sheet
@@ -467,7 +465,7 @@ export function PreferencePickerSheet({
           </Text>
         ) : null}
         {activePicker === 'language' ? (
-          <RadioGroup accessibilityLabel={pickerTitles.language}>
+          <RadioGroup accessibilityLabel={pickerTitles.language} onCommit={commitSelection}>
             {LANGUAGE_OPTIONS.map((lang, index) => (
             <RadioRow
               key={lang.value}
@@ -475,13 +473,13 @@ export function PreferencePickerSheet({
               label={lang.label}
               selected={selectedLanguage === lang.value}
               divider={index < LANGUAGE_OPTIONS.length - 1}
-              onPress={() => selectAndClose(() => onLanguageChange(lang.value))}
+              onPress={() => onLanguageChange(lang.value)}
             />
             ))}
           </RadioGroup>
         ) : null}
         {activePicker === 'theme' ? (
-          <RadioGroup accessibilityLabel={pickerTitles.theme}>
+          <RadioGroup accessibilityLabel={pickerTitles.theme} onCommit={commitSelection}>
             {themeModeOptions.map((mode, index) => (
             <RadioRow
               key={mode.value}
@@ -489,7 +487,7 @@ export function PreferencePickerSheet({
               label={mode.label}
               selected={currentTheme === mode.value}
               divider={index < themeModeOptions.length - 1}
-              onPress={() => selectAndClose(() => onThemeModeChange(mode.value))}
+              onPress={() => onThemeModeChange(mode.value)}
             />
             ))}
           </RadioGroup>
@@ -501,11 +499,12 @@ export function PreferencePickerSheet({
             searchLabel={timeZoneSearchLabel}
             noResultsLabel={timeZoneNoResultsLabel}
             showMoreLabel={timeZoneShowMoreLabel}
-            onSelect={(option) => selectAndClose(() => onTimeZoneChange(option))}
+            onCommit={commitSelection}
+            onSelect={onTimeZoneChange}
           />
         ) : null}
         {activePicker === 'weekStart' ? (
-          <RadioGroup accessibilityLabel={pickerTitles.weekStart}>
+          <RadioGroup accessibilityLabel={pickerTitles.weekStart} onCommit={commitSelection}>
             {weekStartOptions.map((option, index) => (
             <RadioRow
               key={option.value}
@@ -513,7 +512,7 @@ export function PreferencePickerSheet({
               label={option.label}
               selected={weekStartDay === option.value}
               divider={index < weekStartOptions.length - 1}
-              onPress={() => selectAndClose(() => onWeekStartChange(option.value))}
+              onPress={() => onWeekStartChange(option.value)}
             />
             ))}
           </RadioGroup>

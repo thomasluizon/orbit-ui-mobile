@@ -103,7 +103,7 @@ export function RadioRow({
 }: Readonly<RadioRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { elementRef, ...navigationProps } = useRadioGroupItem({
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
     disabled,
     index,
     onSelect: onPress,
@@ -114,7 +114,7 @@ export function RadioRow({
       {...navigationProps}
       ref={elementRef}
       disabled={disabled}
-      onPress={disabled ? undefined : onPress}
+      onPress={disabled ? undefined : onActivate}
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected, disabled }}

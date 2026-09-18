@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
@@ -17,6 +18,24 @@ function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>
       <RadioRow label="Disabled" selected={false} disabled onClick={() => select('disabled')} />
       <RadioRow label="Third" selected={value === 'third'} onClick={() => select('third')} />
       <RadioRow label="Last" selected={value === 'last'} onClick={() => select('last')} />
+    </RadioGroup>
+  )
+}
+
+function CommitRows({
+  onChange,
+  onCommit,
+}: Readonly<{ onChange: (value: string) => void; onCommit: () => void }>) {
+  const [value, setValue] = useState('first')
+  const select = (nextValue: string) => {
+    setValue(nextValue)
+    onChange(nextValue)
+  }
+
+  return (
+    <RadioGroup aria-label="Cadence" onCommit={onCommit}>
+      <RadioRow label="First" selected={value === 'first'} onClick={() => select('first')} />
+      <RadioRow label="Second" selected={value === 'second'} onClick={() => select('second')} />
     </RadioGroup>
   )
 }
@@ -59,5 +78,37 @@ describe('select-check RadioRow group', () => {
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
     fireEvent.click(screen.getByRole('radio', { name: 'Disabled' }))
     expect(onChange).toHaveBeenCalledOnce()
+  })
+
+  it('changes the value on an arrow key without committing the group', () => {
+    const onChange = vi.fn()
+    const onCommit = vi.fn()
+    render(<CommitRows onChange={onChange} onCommit={onCommit} />)
+    const first = screen.getByRole('radio', { name: 'First' })
+
+    first.focus()
+    fireEvent.keyDown(first, { key: 'ArrowDown' })
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
+    expect(onCommit).not.toHaveBeenCalled()
+  })
+
+  it('commits the group on Enter, Space and a pointer press alike', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    const onCommit = vi.fn()
+    render(<CommitRows onChange={onChange} onCommit={onCommit} />)
+    const first = screen.getByRole('radio', { name: 'First' })
+
+    first.focus()
+    await user.keyboard('{Enter}')
+    expect(onCommit).toHaveBeenCalledOnce()
+
+    await user.keyboard(' ')
+    expect(onCommit).toHaveBeenCalledTimes(2)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Second' }))
+    expect(onCommit).toHaveBeenCalledTimes(3)
+    expect(onChange).toHaveBeenLastCalledWith('second')
   })
 })

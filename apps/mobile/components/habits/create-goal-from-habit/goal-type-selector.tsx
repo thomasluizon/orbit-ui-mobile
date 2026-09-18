@@ -45,7 +45,7 @@ function GoalTypeOption({
   styles: CreateGoalStyles
   tokens: CreateGoalTokens
 }>) {
-  const { elementRef, ...navigationProps } = useRadioGroupItem({
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
     disabled: false,
     index,
     onSelect,
@@ -67,7 +67,7 @@ function GoalTypeOption({
             ]
           : null,
       ]}
-      onPress={onSelect}
+      onPress={onActivate}
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked: active }}

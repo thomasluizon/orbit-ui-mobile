@@ -67,7 +67,7 @@ function TimeOption({
   selected: boolean
   tokens: Tokens
 }>) {
-  const { elementRef, ...navigationProps } = useRadioGroupItem({
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
     disabled: false,
     index,
     onSelect,
@@ -80,7 +80,7 @@ function TimeOption({
       accessibilityLabel={formattedValue}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, selected }}
-      onPress={onSelect}
+      onPress={onActivate}
       style={[
         styles.option,
         { backgroundColor: selected ? tokens.primary : 'transparent' },
