@@ -114,7 +114,7 @@ const EMPTY_STATE_MARKERS = ["empty-state", "empty-view", "no-results"]
 const USAGE = `surface-manifest - derive the visual-surface inventory for web AND mobile.
 
 Usage:
-  node tools/surface-manifest.mjs [--baseline <ref>] [--json] [--help]
+  node tools/surface-manifest.mjs [--baseline <ref>] [--json | --check] [--help]
 
 Writes .claude/manifests/surfaces.json (committed). Each cell is
 { surfaceId, platform, kind, state, sourceFile, theme, locale, href }.
@@ -124,11 +124,12 @@ reaches - frozen at generation time.
 Flags:
   --baseline  the pre-redesign ref surfaces are compared against (default ${DEFAULT_BASELINE_REF})
   --json      print the manifest to stdout instead of a human summary
+  --check     write nothing; compare the committed manifest against this tree and exit 1 on drift
   --help      this text
 
 Exit codes:
-  0  manifest written
-  1  inventory could not be derived (missing tree, duplicate surface id)
+  0  manifest written, or --check found no drift
+  1  inventory could not be derived (missing tree, duplicate surface id), or --check found drift
   2  usage error
 `
 
@@ -297,14 +298,17 @@ function specialSurfaceLabel(sourceFile, filename) {
 function chatBlockEntries(platform, routeSurfaceId, hostSourceFile) {
   const hostClosure = closureOf(join(REPO_ROOT, hostSourceFile))
   const componentsRoot = join(REPO_ROOT, "apps", platform, "components")
+  // Sorted AFTER the conversion, never before it. An absolute path carries the platform separator,
+  // and `\` (0x5C) sorts after `/` (0x2F), so sorting absolute paths orders a Windows run and a
+  // Linux run differently whenever a directory name is a prefix of a sibling file name.
   const candidates = walk(join(componentsRoot, "chat"))
     .concat(join(componentsRoot, "shell", "composer.tsx"))
     .concat(platform === "mobile" ? [join(REPO_ROOT, "apps", "mobile", "components", "message-bubble.tsx")] : [])
     .filter((file) => file.endsWith(".tsx") && hostClosure.has(file) && file !== join(REPO_ROOT, hostSourceFile))
+    .map(toPosix)
     .sort()
 
-  return candidates.map((absolutePath) => {
-    const sourceFile = toPosix(absolutePath)
+  return candidates.map((sourceFile) => {
     const componentsMarker = platform === "web" ? "apps/web/components/chat/" : "apps/mobile/components/chat/"
     const label = sourceFile.startsWith(componentsMarker)
       ? sourceFile.slice(componentsMarker.length).replace(/\.tsx$/, "")
@@ -445,9 +449,15 @@ function mobileEntries() {
     surfaces.push({ surfaceId: `m-overlay-${slug(overlayName(sourceFile))}`, platform: "mobile", kind: "overlay", sourceFile, href: null })
   }
 
-  const widgetRoot = join(REPO_ROOT, "apps", "mobile", "modules", "orbit-widget")
-  const widgetFiles = walk(widgetRoot)
-    .map(toPosix)
+  // The widget is the one surface whose ownership comes from a directory rather than from import
+  // edges, so it is the one place a file that is not in git can reach the manifest. git answers
+  // that question exactly, where a hand-written path list only guesses at it: .gitignore already
+  // ignores apps/mobile/modules/*/android/local.properties, which Android Studio writes on first
+  // open, and the directory exclusions below never named it. A regeneration on a machine that had
+  // opened the Android project would then disagree with the CI one over an untracked file, and
+  // Surface Manifest Drift would go red on a pull request whose author cannot reproduce it.
+  // check-copy.mjs and check-dashes.mjs already enumerate the tree through `git ls-files`.
+  const widgetFiles = trackedFiles("apps/mobile/modules/orbit-widget")
     .filter(
       (path) =>
         !path.includes("/ios/") &&
@@ -509,6 +519,21 @@ function attachOwnershipAndStates(surfaces) {
   return surfaces
 }
 
+/**
+ * Every tracked path under a directory, repository-relative and posix-separated. `-z` is what
+ * keeps it faithful: without it git C-quotes any path outside plain ASCII, and the quoted string
+ * would not match the tree it names.
+ */
+function trackedFiles(pathspec) {
+  return execFileSync("git", ["ls-files", "-z", "--", pathspec], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  })
+    .split("\0")
+    .filter(Boolean)
+}
+
 function gitSha(ref) {
   try {
     return execFileSync("git", ["rev-parse", ref], { cwd: REPO_ROOT, encoding: "utf8" }).trim()
@@ -552,6 +577,77 @@ function buildManifest(baselineRef) {
   }
 }
 
+// What --check compares, and what it deliberately drops.
+//
+// `generatedFrom` is the one field a correct manifest can never agree with. The generator
+// records the sha of HEAD at generation time, and the commit that CARRIES the manifest does
+// not exist yet when it runs, so a committed manifest always names its own parent. On a pull
+// request the head under test is an ephemeral merge commit that no committed file can name.
+// Comparing that field would therefore fail on every correct manifest, and #595 also proved
+// the inverse: a manifest whose `generatedFrom` was current went stale on the next merge, so
+// the field says nothing about whether the inventory still describes the tree.
+//
+// Drift lives in the inventory, so the inventory is what is compared: every surface, its
+// sourceFile, its frozen ownedFiles, its closure size and the derived counts.
+const inventoryOf = ({ generatedFrom, ...inventory }) => inventory
+
+function cellsBySurfaceId(manifest) {
+  const bySurfaceId = new Map()
+  for (const cell of Array.isArray(manifest.cells) ? manifest.cells : []) {
+    const records = bySurfaceId.get(cell?.surfaceId) ?? []
+    records.push(cell)
+    bySurfaceId.set(cell?.surfaceId, records)
+  }
+  return bySurfaceId
+}
+
+/** Every way the committed inventory disagrees with one derived from the tree, named precisely. */
+export function inventoryDifferences(committed, current) {
+  const differences = []
+  for (const field of [...new Set([...Object.keys(committed), ...Object.keys(current)])].sort()) {
+    if (field === "cells") continue
+    const before = JSON.stringify(committed[field])
+    const after = JSON.stringify(current[field])
+    if (before !== after) differences.push(`${field}: committed ${before}, derived from this tree ${after}`)
+  }
+  const committedCells = cellsBySurfaceId(committed)
+  const currentCells = cellsBySurfaceId(current)
+  for (const surfaceId of [...currentCells.keys()].sort()) {
+    if (!committedCells.has(surfaceId)) differences.push(`surface missing from the committed manifest: ${surfaceId}`)
+  }
+  for (const surfaceId of [...committedCells.keys()].sort()) {
+    if (!currentCells.has(surfaceId)) differences.push(`committed surface no longer exists in the tree: ${surfaceId}`)
+  }
+  for (const surfaceId of [...currentCells.keys()].sort()) {
+    if (!committedCells.has(surfaceId)) continue
+    if (JSON.stringify(committedCells.get(surfaceId)) !== JSON.stringify(currentCells.get(surfaceId))) {
+      differences.push(`committed surface record no longer matches the tree: ${surfaceId}`)
+    }
+  }
+  return differences
+}
+
+function checkCommittedManifest(manifest) {
+  let committed
+  try {
+    committed = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"))
+  } catch (error) {
+    process.stderr.write(`surface-manifest: the committed manifest could not be read: ${error.message}\n`)
+    return 1
+  }
+  const differences = inventoryDifferences(inventoryOf(committed), inventoryOf(manifest))
+  if (differences.length > 0) {
+    process.stderr.write(`surface-manifest: the committed inventory does not describe this tree\n`)
+    for (const difference of differences) process.stderr.write(`  - ${difference}\n`)
+    process.stderr.write(`Regenerate it with: node tools/surface-manifest.mjs\n`)
+    return 1
+  }
+  process.stdout.write(
+    `surface-manifest: the committed inventory matches this tree (${manifest.surfaceCount} surfaces, ${manifest.cellCount} cells).\n`,
+  )
+  return 0
+}
+
 function main() {
   const args = process.argv.slice(2)
   if (args.includes("--help") || args.includes("-h")) {
@@ -561,11 +657,15 @@ function main() {
   const baselineIndex = args.indexOf("--baseline")
   const baselineRef = baselineIndex !== -1 ? args[baselineIndex + 1] : DEFAULT_BASELINE_REF
 
-  const known = new Set(["--baseline", "--json"])
+  const known = new Set(["--baseline", "--json", "--check"])
   const baselineValueIndex = baselineIndex === -1 ? -1 : baselineIndex + 1
   const unknown = args.find((argument, index) => index !== baselineValueIndex && !known.has(argument))
   if (unknown) {
     process.stderr.write(`surface-manifest: unknown argument: ${unknown}\n\n${USAGE}`)
+    return 2
+  }
+  if (args.includes("--check") && args.includes("--json")) {
+    process.stderr.write(`surface-manifest: --check and --json cannot be combined\n\n${USAGE}`)
     return 2
   }
 
@@ -576,6 +676,9 @@ function main() {
     process.stderr.write(`surface-manifest: ${error.message}\n`)
     return 1
   }
+
+  // Before the first write, so a check can never repair the drift it exists to report.
+  if (args.includes("--check")) return checkCommittedManifest(manifest)
 
   mkdirSync(dirname(MANIFEST_PATH), { recursive: true })
   writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + "\n", "utf8")
