@@ -29,9 +29,9 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('moves between enabled views with arrow keys', () => {
+  it('keeps one tab stop and moves focus across enabled views with every radio key', () => {
     const onChange = vi.fn()
-    render(
+    const { rerender } = render(
       <SegmentedControl
         options={[
           options[0],
@@ -44,8 +44,27 @@ describe('SegmentedControl', () => {
       />,
     )
 
-    fireEvent.keyDown(screen.getByRole('radio', { name: 'All' }), { key: 'ArrowRight' })
+    const all = screen.getByRole('radio', { name: 'All' })
+    const active = screen.getByRole('radio', { name: 'Active' })
+    const completed = screen.getByRole('radio', { name: 'Completed' })
+    expect([all, active, completed].map((option) => option.tabIndex)).toEqual([0, -1, -1])
+
+    all.focus()
+    fireEvent.keyDown(all, { key: 'ArrowDown' })
     expect(onChange).toHaveBeenCalledWith('completed')
+    expect(completed).toHaveFocus()
+
+    rerender(
+      <SegmentedControl
+        options={[options[0], { ...options[1], disabled: true }, options[2]]}
+        value="completed"
+        onChange={onChange}
+        label="Goal views"
+      />,
+    )
+    fireEvent.keyDown(completed, { key: 'Home' })
+    expect(onChange).toHaveBeenLastCalledWith('all')
+    expect(all).toHaveFocus()
   })
 })
 

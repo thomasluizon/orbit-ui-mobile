@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useRadioGroupItem } from '@/components/ui/radio-row'
 
 /** Kit Radio glyph (visual only) — for rows that manage their own press target. */
 export function RadioGlyph({
@@ -98,10 +99,16 @@ export function RadioRow({
 }: Readonly<RadioRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
+    disabled: false,
+    onSelect: onPress,
+    selected,
+  })
   return (
     <Pressable
-      onPress={onPress}
+      {...navigationProps}
+      ref={elementRef}
+      onPress={onActivate}
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected }}

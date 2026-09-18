@@ -35,8 +35,8 @@ export async function cases() {
     "apps/mobile/components/ui/app-error-boundary.tsx": "export function AppErrorBoundary() { return null }\n",
     "apps/mobile/components/ui/sheet.tsx": "import { Modal } from 'react-native'\nexport function Sheet() { return <Modal /> }\n",
     "apps/mobile/components/preferences/picker.tsx": "import { Sheet } from '@/components/ui/sheet'\nexport function Picker() { return <Sheet /> }\n",
-    "apps/mobile/components/ui/selection-field.tsx": "import { Sheet } from '@/components/ui/sheet'\nexport function SelectionField() { return <Sheet /> }\n",
-    "apps/mobile/components/preferences/frequency-field.tsx": "import { SelectionField } from '@/components/ui/selection-field'\nexport function FrequencyField() { return <SelectionField /> }\n",
+    "apps/mobile/components/ui/confirm-sheet.tsx": "import { Sheet } from '@/components/ui/sheet'\nexport function ConfirmSheet() { return <Sheet /> }\n",
+    "apps/mobile/components/preferences/frequency-field.tsx": "import { ConfirmSheet } from '@/components/ui/confirm-sheet'\nexport function FrequencyField() { return <ConfirmSheet /> }\n",
     "apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml": "<FrameLayout />\n",
     "apps/mobile/modules/orbit-widget/android/build/generated/widget.xml": "<Generated />\n",
     "apps/mobile/modules/orbit-widget/android/.gradle/cache.bin": "generated\n",
@@ -47,9 +47,15 @@ export async function cases() {
   repository.git(["add", ...Object.keys(files)])
   repository.git(["commit", "-q", "-m", "surface fixture"])
 
-  // Android Studio writes this file on first open and .gitignore ignores it, so it exists only on
-  // a developer machine. A manifest that counts it disagrees with the CI regeneration over a file
-  // that is not in git, and the drift gate then goes red on a change nobody can reproduce.
+  // Android Studio writes this file on first open, so it exists only on a developer machine. A
+  // manifest that counts it disagrees with the CI regeneration over a file that is not in git, and
+  // the drift gate then goes red on a change nobody can reproduce.
+  //
+  // What excludes it is that it is UNTRACKED, not that .gitignore names it: `git ls-files` reads
+  // the index and never consults ignore rules. The fixture .gitignore staged above therefore
+  // changes no outcome here and is present only to mirror the real repository. Do not read this
+  // case as proof the generator honours .gitignore and replace `git ls-files` with
+  // `git check-ignore`, which would stop excluding an untracked file nothing ignores.
   write(join(repository.path, "apps/mobile/modules/orbit-widget/android/local.properties"), "sdk.dir=/opt/android-sdk\n")
 
   const result = run("surface-manifest.mjs", ["--baseline", "HEAD", "--json"], {
@@ -69,7 +75,11 @@ export async function cases() {
   T("mobile section files without a default export are not routes", !ids.has("m-route-preferences-sections"))
   T("mobile default-export screens remain routes", ids.has("m-route-preferences"))
   T("mobile aliases resolve inside the mobile app for overlays", ids.has("m-overlay-preferences-picker"))
-  T("a caller reaching Sheet only through the selection-field wrapper is inventoried", ids.has("m-overlay-preferences-frequency-field"))
+  // The wrapper is named from OVERLAY_BASES rather than invented: a caller imports the wrapper and
+  // never `sheet`, and isOverlaySource is direct-import only, so the base list is the only thing
+  // that keeps that caller in the inventory. A fixture wrapper the real tree does not have would
+  // test nothing, which is what the retired `selection-field` entry had become.
+  T("a caller reaching Sheet only through a listed wrapper is inventoried", ids.has("m-overlay-preferences-frequency-field"))
   T("web and mobile not-found surfaces are inventoried", ids.has("not-found-root") && ids.has("m-not-found-root"))
   T("web and mobile error surfaces are inventoried", ids.has("error-chat") && ids.has("m-error-root"))
   T("the Next root-layout global error is inventoried", surfaces.some((surface) => surface.surfaceId === "error-global" && surface.sourceFile === "apps/web/app/global-error.tsx"))
@@ -77,7 +87,7 @@ export async function cases() {
   const widget = surfaces.find((surface) => surface.surfaceId === "m-widget-orbit-widget")
   T("Android widget ownership excludes generated build trees", widget?.ownedFiles.every((path) => !/\/android\/(?:build|\.gradle|\.cxx)\//.test(path)), JSON.stringify(widget?.ownedFiles))
   T(
-    "Android widget ownership excludes an untracked file git ignores",
+    "Android widget ownership excludes an untracked developer file",
     widget?.ownedFiles.every((path) => !path.endsWith("/local.properties")),
     JSON.stringify(widget?.ownedFiles),
   )
@@ -107,13 +117,22 @@ export async function cases() {
   // report that as drift.
   const baseline = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim()
   const checkArgs = ["--baseline", baseline, "--check"]
-  run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
 
-  // The property every drift assertion below rests on: the generator is a function of the tree
-  // alone. A generator that answers differently twice over one unchanged tree turns the gate into
-  // a coin toss, and no amount of drift coverage would show it.
+  // The property every drift assertion below rests on: the generator is a function of the tree and
+  // this machine. A generator that answers differently twice over one unchanged tree turns the gate
+  // into a coin toss, and no amount of drift coverage would show it. Two runs on ONE machine cannot
+  // see the cross-platform class, where the two runs differ by path separator rather than by tree;
+  // `chatBlockEntries` carries that one, and its own comment names the condition.
+  //
+  // Both exit codes are asserted because the generator writes nothing on a non-zero exit. Without
+  // them a second run that crashed would leave the first run's bytes on disk and the byte
+  // comparison would pass, so the single assertion the drift gate rests on would go green on a
+  // dead process.
+  const firstDerivation = run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  T("the first determinism run writes a manifest", firstDerivation.status === 0, firstDerivation.stderr)
   const firstWrite = readFileSync(manifestPath, "utf8")
-  run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  const secondDerivation = run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  T("the second determinism run writes a manifest", secondDerivation.status === 0, secondDerivation.stderr)
   T("two runs over one unchanged tree write the same bytes", readFileSync(manifestPath, "utf8") === firstWrite)
 
   const fresh = run("surface-manifest.mjs", checkArgs, checkOptions)

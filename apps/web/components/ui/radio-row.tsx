@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -14,7 +15,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
-import { getRadioNavigationIndex } from './radio-navigation'
+import { getRadioNavigationIndex } from '@orbit/shared/utils'
 
 interface RadioItemState {
   disabled: boolean
@@ -23,6 +24,7 @@ interface RadioItemState {
 }
 
 interface RadioGroupContextValue {
+  commit: () => void
   getTabIndex: (id: string) => 0 | -1
   moveSelection: (id: string, key: string) => boolean
   register: (id: string) => () => void
@@ -33,12 +35,65 @@ interface RadioGroupContextValue {
 
 const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
 
-export function RadioGroup({ children, ...props }: Readonly<
-  Omit<ComponentPropsWithoutRef<'div'>, 'role'> & { children: ReactNode }
+export function useRadioGroupItem({
+  disabled,
+  onSelect,
+  selected,
+}: Readonly<{
+  disabled: boolean
+  onSelect?: () => void
+  selected: boolean
+}>) {
+  const group = useContext(RadioGroupContext)
+  const registerWithGroup = group?.register
+  const commitGroup = group?.commit
+  const getGroupTabIndex = group?.getTabIndex
+  const moveGroupSelection = group?.moveSelection
+  const setGroupElement = group?.setElement
+  const setGroupHandler = group?.setHandler
+  const updateGroup = group?.update
+  const id = useId()
+
+  useLayoutEffect(() => registerWithGroup?.(id), [id, registerWithGroup])
+  useLayoutEffect(() => {
+    updateGroup?.({ disabled, id, selected })
+  }, [disabled, id, selected, updateGroup])
+  useLayoutEffect(() => {
+    setGroupHandler?.(id, onSelect ?? (() => undefined))
+  }, [id, onSelect, setGroupHandler])
+
+  const onKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement>) => {
+      if (!moveGroupSelection?.(id, event.key)) return
+      event.preventDefault()
+  }, [id, moveGroupSelection])
+  /** A native button raises click for a pointer press, Enter and Space alike, so this is the only commit path. */
+  const onActivate = useCallback(() => {
+    if (!selected) onSelect?.()
+    commitGroup?.()
+  }, [commitGroup, onSelect, selected])
+  const elementRef = useCallback((element: HTMLButtonElement | null) => {
+    setGroupElement?.(id, element)
+  }, [id, setGroupElement])
+  const tabIndex = getGroupTabIndex?.(id) ?? 0
+
+  return { elementRef, onActivate, onKeyDown, tabIndex }
+}
+
+export function RadioGroup({ children, onCommit, ...props }: Readonly<
+  Omit<ComponentPropsWithoutRef<'div'>, 'role'> & {
+    children: ReactNode
+    /** Runs when a row is explicitly activated, never when an arrow key moves the selection. */
+    onCommit?: () => void
+  }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
   const elementsRef = useRef(new Map<string, HTMLButtonElement>())
   const handlersRef = useRef(new Map<string, () => void>())
+  const onCommitRef = useRef(onCommit)
+  useEffect(() => {
+    onCommitRef.current = onCommit
+  }, [onCommit])
+  const commit = useCallback(() => onCommitRef.current?.(), [])
   const register = useCallback((id: string) => {
     setItems((current) => [...current.filter((item) => item.id !== id), { disabled: false, id, selected: false }])
     return () => {
@@ -84,17 +139,18 @@ export function RadioGroup({ children, ...props }: Readonly<
     const nextItem = enabledItems[nextIndex]
     if (!nextItem) return false
     elementsRef.current.get(nextItem.id)?.focus()
-    handlersRef.current.get(nextItem.id)?.()
+    if (!nextItem.selected) handlersRef.current.get(nextItem.id)?.()
     return true
   }, [getEnabledItems])
   const contextValue = useMemo(() => ({
+    commit,
     getTabIndex,
     moveSelection,
     register,
     setElement,
     setHandler,
     update,
-  }), [getTabIndex, moveSelection, register, setElement, setHandler, update])
+  }), [commit, getTabIndex, moveSelection, register, setElement, setHandler, update])
 
   return (
     <RadioGroupContext.Provider value={contextValue}>
@@ -121,23 +177,7 @@ function RadioGlyph({ selected }: Readonly<{ selected: boolean }>) {
 }
 
 export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
-  const group = useContext(RadioGroupContext)
-  const registerWithGroup = group?.register
-  const setGroupHandler = group?.setHandler
-  const updateGroup = group?.update
-  const id = useId()
-  useLayoutEffect(() => registerWithGroup?.(id), [id, registerWithGroup])
-  useLayoutEffect(() => {
-    updateGroup?.({ disabled, id, selected })
-  }, [disabled, id, selected, updateGroup])
-  useLayoutEffect(() => {
-    setGroupHandler?.(id, onSelect ?? (() => undefined))
-  }, [id, onSelect, setGroupHandler])
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (!group?.moveSelection(id, event.key)) return
-    event.preventDefault()
-  }
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
   const content = (
     <>
       {leading ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
@@ -167,13 +207,13 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
     <div role="radio" aria-checked={selected} aria-disabled="true" className="flex items-center" style={style}>{content}</div>
   ) : (
     <button
-      ref={(element) => group?.setElement(id, element)}
+      ref={elementRef}
       type="button"
       role="radio"
       aria-checked={selected}
-      tabIndex={group?.getTabIndex(id) ?? 0}
-      onClick={onSelect}
-      onKeyDown={handleKeyDown}
+      tabIndex={tabIndex}
+      onClick={onActivate}
+      onKeyDown={onKeyDown}
       className="flex w-full cursor-pointer items-center border-0 text-left hover:bg-[var(--bg-elev)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
       style={style}
     >{content}</button>

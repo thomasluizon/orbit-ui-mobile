@@ -27,6 +27,7 @@ import {
 } from '@orbit/shared/utils'
 import { Clock3, X } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -52,6 +53,47 @@ interface TimeColumnProps {
 
 const TIME_24_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
 const TIME_12_PATTERN = /^(0?[1-9]|1[0-2]):([0-5]\d)\s*([ap]m)$/i
+
+function TimeOption({
+  formattedValue,
+  onSelect,
+  selected,
+  tokens,
+}: Readonly<{
+  formattedValue: string
+  onSelect: () => void
+  selected: boolean
+  tokens: Tokens
+}>) {
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
+    disabled: false,
+    onSelect,
+    selected,
+  })
+  return (
+    <Pressable
+      {...navigationProps}
+      ref={elementRef}
+      accessibilityLabel={formattedValue}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      onPress={onActivate}
+      style={[
+        styles.option,
+        { backgroundColor: selected ? tokens.primary : 'transparent' },
+      ]}
+    >
+      <Text
+        style={[
+          styles.optionLabel,
+          { color: selected ? tokens.fgOnPrimary : tokens.fg1 },
+        ]}
+      >
+        {formattedValue}
+      </Text>
+    </Pressable>
+  )
+}
 
 function presentTime(value: Time24 | '', hourCycle: 'h23' | 'h12'): string {
   if (!value || hourCycle === 'h23') return value
@@ -81,48 +123,32 @@ function TimeColumn({
   const selectedIndex = values.indexOf(selected)
 
   return (
-    <ScrollView
-      ref={listRef}
-      accessibilityRole="radiogroup"
-      accessibilityLabel={label}
-      contentContainerStyle={styles.columnContent}
-      nestedScrollEnabled
-      onLayout={() => {
-        if (selectedIndex < 0) return
-        listRef.current?.scrollTo({
-          y: Math.max(0, selectedIndex * ROW_HEIGHT - COLUMN_HEIGHT / 2 + ROW_HEIGHT / 2),
-          animated: false,
-        })
-      }}
-      showsVerticalScrollIndicator={false}
-      style={styles.column}
-    >
-      {values.map((option) => {
-        const isSelected = option === selected
-        return (
-          <Pressable
+    <RadioGroup accessibilityLabel={label} style={styles.column}>
+      <ScrollView
+        ref={listRef}
+        contentContainerStyle={styles.columnContent}
+        nestedScrollEnabled
+        onLayout={() => {
+          if (selectedIndex < 0) return
+          listRef.current?.scrollTo({
+            y: Math.max(0, selectedIndex * ROW_HEIGHT - COLUMN_HEIGHT / 2 + ROW_HEIGHT / 2),
+            animated: false,
+          })
+        }}
+        showsVerticalScrollIndicator={false}
+        style={styles.columnScroll}
+      >
+        {values.map((option) => (
+          <TimeOption
             key={String(option)}
-            accessibilityLabel={formatValue(option)}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: isSelected }}
-            onPress={() => onSelect(option)}
-            style={[
-              styles.option,
-              { backgroundColor: isSelected ? tokens.primary : 'transparent' },
-            ]}
-          >
-            <Text
-              style={[
-                styles.optionLabel,
-                { color: isSelected ? tokens.fgOnPrimary : tokens.fg1 },
-              ]}
-            >
-              {formatValue(option)}
-            </Text>
-          </Pressable>
-        )
-      })}
-    </ScrollView>
+            formattedValue={formatValue(option)}
+            selected={option === selected}
+            tokens={tokens}
+            onSelect={() => onSelect(option)}
+          />
+        ))}
+      </ScrollView>
+    </RadioGroup>
   )
 }
 
@@ -384,6 +410,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.6 },
   columns: { flexDirection: 'row', gap: 8, height: COLUMN_HEIGHT },
   column: { flex: 1 },
+  columnScroll: { flex: 1 },
   columnContent: { paddingVertical: 4 },
   option: {
     alignItems: 'center',
