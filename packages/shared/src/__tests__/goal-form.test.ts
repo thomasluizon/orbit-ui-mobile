@@ -10,6 +10,8 @@ import {
 } from '../validation/goal-form'
 import {
   buildGoalTitle,
+  getFirstGoalDraftFieldError,
+  getGoalDraftFieldErrorKeys,
   isGoalDeadlinePast,
   isStreakGoal,
   parseGoalTargetValue,
@@ -42,6 +44,31 @@ describe('goal form utils', () => {
     expect(validateGoalDraftInput('', 5, 'days')).toBeNull()
     expect(isStreakGoal('Streak')).toBe(true)
     expect(isStreakGoal('Standard')).toBe(false)
+  })
+
+  it('returns every invalid draft field without making a usable fallback description required', () => {
+    expect(getGoalDraftFieldErrorKeys('', '', '')).toEqual({
+      targetValue: 'goals.form.targetValueRequired',
+      unit: 'goals.form.unitRequired',
+    })
+    expect(getGoalDraftFieldErrorKeys('', '5', 'days')).toEqual({})
+    expect(getGoalDraftFieldErrorKeys('x'.repeat(MAX_GOAL_TITLE_LENGTH + 1), '5', 'days')).toEqual({
+      description: 'goals.form.titleTooLong',
+    })
+    expect(getGoalDraftFieldErrorKeys('', '1'.repeat(MAX_GOAL_TITLE_LENGTH + 1), 'days')).toEqual({
+      targetValue: 'goals.form.titleTooLong',
+    })
+  })
+
+  it('returns the first draft error in field order', () => {
+    expect(getFirstGoalDraftFieldError({
+      targetValue: 'goals.form.targetValueRequired',
+      unit: 'goals.form.unitRequired',
+    })).toEqual({
+      field: 'targetValue',
+      key: 'goals.form.targetValueRequired',
+    })
+    expect(getFirstGoalDraftFieldError({})).toBeNull()
   })
 })
 

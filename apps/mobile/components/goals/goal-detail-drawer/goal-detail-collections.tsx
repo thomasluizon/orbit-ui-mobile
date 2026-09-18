@@ -14,6 +14,7 @@ interface GoalDetailCollectionsProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
   habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence']
   entries: GoalDetailWithMetrics['goal']['progressHistory']
+  target: Goal['targetValue']
   unit: Goal['unit']
   formatDate: (dateStr: string) => string
   onOpenHabit: (habitId: string) => void
@@ -23,6 +24,7 @@ export function GoalDetailCollections({
   linkedHabits,
   habitAdherence,
   entries,
+  target,
   unit,
   formatDate,
   onOpenHabit,
@@ -52,14 +54,9 @@ export function GoalDetailCollections({
         <Text accessibilityRole="header" style={[styles.historyTitle, { color: tokens.fg2 }]}>{t('goals.progressHistory')}</Text>
         <GoalProgressHistorySection
           entries={entries}
+          target={target}
+          unit={unit}
           formatDate={formatDate}
-          renderEntryLabel={(entry) =>
-            t('goals.progressEntry', {
-              previous: entry.previousValue,
-              value: entry.value,
-              unit,
-            })
-          }
           showAllLabel={t('goals.detail.showAllHistory', { count: entries.length })}
           showLessLabel={t('goals.detail.showLessHistory')}
         />

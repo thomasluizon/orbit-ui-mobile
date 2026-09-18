@@ -9,12 +9,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
+const nextIntl = vi.hoisted(() => ({ locale: 'en' }))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     if (params) return `${key}:${JSON.stringify(params)}`
     return key
   },
-  useLocale: () => 'en',
+  useLocale: () => nextIntl.locale,
 }))
 
 vi.mock('dompurify', () => ({
@@ -68,6 +70,7 @@ describe('GoalDetailDrawer', () => {
     refetchDetail.mockClear()
     updateStatusMutateAsync.mockClear()
     updateProgressMutateAsync.mockClear()
+    nextIntl.locale = 'en'
     deleteMutateAsync.mockClear()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
@@ -92,19 +95,22 @@ describe('GoalDetailDrawer', () => {
       locale: 'en',
       messages: en,
       manual: 'Update progress. Reaching the target completes the goal.',
+      updated: 'Progress updated to 4 of 12 books.',
       open: 'This goal reached its target but is still open. Complete it when you are ready.',
     },
     {
       locale: 'pt-BR',
       messages: ptBR,
       manual: 'Atualize o progresso. Ao alcançar o alvo, a meta é concluída.',
+      updated: 'Progresso atualizado para 4 de 12 livros.',
       open: 'Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.',
     },
-  ])('keeps manual completion copy truthful in $locale', async ({ locale, messages, manual, open }) => {
+  ])('keeps manual completion copy truthful in $locale', async ({ locale, messages, manual, updated, open }) => {
     const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
     const translate = createTranslator({ locale, messages })
 
     expect(translate('goals.detail.manualProgress')).toBe(manual)
+    expect(translate('goals.detail.progressUpdated', { current: 4, target: 12, unit: locale === 'en' ? 'books' : 'livros' })).toBe(updated)
     expect(translate('goals.detail.completeWhy')).toBe(open)
   })
 
@@ -324,6 +330,20 @@ describe('GoalDetailDrawer', () => {
     })
   })
 
+  it('announces one successful progress update with the resulting value', async () => {
+    nextIntl.locale = 'pt-BR'
+    detailGoal = { ...listGoal, currentValue: 0.23456, targetValue: 2.34567, progressPercentage: 10, progressHistory: [] }
+    updateProgressMutateAsync.mockResolvedValueOnce(undefined)
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(
+      'goals.detail.progressUpdated:{"current":"1,23456","target":"2,34567","unit":"books"}',
+    ))
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+  })
+
   it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
     detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: true, progressHistory: [] }
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
@@ -333,6 +353,7 @@ describe('GoalDetailDrawer', () => {
     expect(complete).toBeTruthy()
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'goals.progressPercentage:{"pct":100}' })).toHaveAttribute('data-status', 'done')
+    expect(screen.getByRole('img', { name: 'goals.progressPercentage:{"pct":100}' })).toHaveStyle({ width: '44px', height: '44px' })
     expect(complete).toHaveAttribute("data-variant", "secondary")
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(updateStatusMutateAsync).toHaveBeenCalledWith({
@@ -343,6 +364,13 @@ describe('GoalDetailDrawer', () => {
       goalUnit: listGoal.unit,
     })
     expect(updateStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('stage 5 keeps unfinished goal progress at 60px', () => {
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByRole('progressbar')).toHaveAttribute('width', '60')
+    expect(screen.getByRole('progressbar')).toHaveAttribute('height', '60')
   })
 
   it('stage 5 lets the progress write complete a manual goal at its target', async () => {
@@ -440,11 +468,54 @@ describe('GoalDetailDrawer', () => {
     expect(document.body.textContent).toContain('entry-4')
     expect(document.body.textContent).not.toContain('entry-1')
     let label = 'goals.detail.showAllHistory:{"count":4}'
-    fireEvent.click(screen.getByRole('button', { name: label }))
+    const showAllButton = screen.getByRole('button', { name: label })
+    const historyId = showAllButton.getAttribute('aria-controls')
+    expect(historyId).toBeTruthy()
+    expect(document.getElementById(historyId!)?.tagName).toBe('UL')
+    fireEvent.click(showAllButton)
     expect(document.body.textContent).toContain('entry-1')
     label = 'goals.detail.showLessHistory'
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(document.body.textContent).not.toContain('entry-1')
+  })
+
+  it('stage 5 renders localized history dates, signed deltas, and current over target in three columns', () => {
+    detailGoal = {
+      ...listGoal,
+      targetValue: 0.0002,
+      progressHistory: [
+        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0, value: 0.0001, note: 'positive' },
+        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 0.0002, value: 0.0001, note: 'negative' },
+        { createdAtUtc: '2026-09-02T12:34:00Z', previousValue: 0.0001, value: 0.0001, note: 'zero' },
+      ],
+    }
+
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getByText('+0.0001')).toBeInTheDocument()
+    expect(screen.getByText('-0.0001')).toBeInTheDocument()
+    expect(screen.getByText('0')).toBeInTheDocument()
+    expect(screen.getAllByText('0.0001 / 0.0002')).toHaveLength(3)
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(document.querySelectorAll('[data-history-date]')).toHaveLength(3)
+    for (const date of document.querySelectorAll('[data-history-date]')) {
+      expect(date.textContent).not.toMatch(/\d:\d/)
+    }
+  })
+
+  it('rounds decimal history deltas without exposing floating-point noise', () => {
+    detailGoal = {
+      ...listGoal,
+      targetValue: 1.2,
+      progressHistory: [
+        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0.2, value: 0.3, note: null },
+        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 1.1, value: 1.2, note: null },
+      ],
+    }
+
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.getAllByText('+0.1')).toHaveLength(2)
   })
 
   it('stage 5 names the goal in deletion confirmation before any write', () => {

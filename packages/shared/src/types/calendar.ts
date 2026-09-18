@@ -30,6 +30,7 @@ const calendarSyncEventSchema = z.object({
   description: z.string().nullable(),
   startDate: z.string().nullable(),
   startTime: z.string().nullable(),
+  startUtc: z.string().nullable().optional(),
   endTime: z.string().nullable(),
   isRecurring: z.boolean(),
   recurrenceRule: z.string().nullable(),

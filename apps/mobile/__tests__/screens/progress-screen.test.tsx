@@ -13,9 +13,22 @@ import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
+const accessibilityMocks = vi.hoisted(() => ({ sendAccessibilityEvent: vi.fn() }))
+
+vi.mock('react-native', async () => {
+  const native = await vi.importActual<typeof import('react-native')>('react-native')
+  return {
+    ...native,
+    AccessibilityInfo: {
+      ...native.AccessibilityInfo,
+      sendAccessibilityEvent: accessibilityMocks.sendAccessibilityEvent,
+    },
+  }
+})
 
 type TestNode = {
   type: unknown
+  instance: unknown
   props: Record<string, unknown>
   parent: TestNode | null
   children: (TestNode | string | number)[]
@@ -193,10 +206,10 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
     : null,
 }))
 
-async function renderProgress(): Promise<TestTree> {
+async function renderProgress(createNodeMock?: (element: { props: Record<string, unknown> }) => unknown): Promise<TestTree> {
   let tree: TestTree | undefined
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<ProgressScreen />)
+    tree = TestRenderer.create(<ProgressScreen />, { createNodeMock })
     await Promise.resolve()
   })
   return tree!
@@ -246,6 +259,27 @@ function isAccessibilityHidden(node: TestNode): boolean {
 function findGoalCard(root: TestNode, title: string): TestNode {
   return root.findAll((node) => node.type === 'Pressable'
     && String(node.props.accessibilityLabel).includes(`\"title\":\"${title}\"`))[0]!
+}
+
+function findGoalsSection(root: TestNode) {
+  return root.findAll((node) =>
+    typeof node.props.onRegisterGoal === 'function',
+  )[0]!
+}
+
+function setGoalCardFocusTarget(root: TestNode, goalId: string) {
+  const goalsSection = findGoalsSection(root)
+  const card = { destination: `goal card ${goalId}` }
+  const registerGoal = goalsSection.props.onRegisterGoal as (id: string, instance: unknown) => void
+  registerGoal(goalId, card)
+  return card
+}
+
+function findProgressHeadingFocusTarget(root: TestNode) {
+  const heading = root.findAll((node) => typeof node.props.focusRef === 'object')[0]
+  const target = (heading?.props.focusRef as { current?: unknown } | undefined)?.current
+  if (!target) throw new Error('Progress heading focus target missing')
+  return target
 }
 
 describe('mobile ProgressContent', () => {
@@ -1307,15 +1341,73 @@ describe('mobile ProgressContent', () => {
 
   it('stage 5 opens inline detail and returns to its goal list', async () => {
     mocks.goals.data.allGoals = [createMockGoal()]
+    accessibilityMocks.sendAccessibilityEvent.mockReset()
     const tree = await renderProgress()
     const card = findGoalCard(tree.root, 'Read 12 Books')
     TestRenderer.act(() => (card.props.onPress as () => void)())
+    const cardTarget = setGoalCardFocusTarget(tree.root, String(card.props.testID).replace('goal-card-', ''))
     const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]
     if (!detail) throw new Error('Goal detail missing')
+    const detailGoalId = String(detail.props.goalId)
     expect(detail.props.inline).toBe(true)
     TestRenderer.act(() => (detail.props.onClose as () => void)())
     expect(tree.root.findAll((node) => node.type === 'GoalDetail')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).includes('\"title\":\"Read 12 Books\"'))).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.props.testID === `goal-card-${detailGoalId}`).length).toBeGreaterThan(0)
+    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenCalledWith(cardTarget, 'focus')
+  })
+
+  it.each([
+    ['deletion', (goal: ReturnType<typeof createMockGoal>) => null],
+    ['a filtered status transition', (goal: ReturnType<typeof createMockGoal>) => ({ ...goal, status: 'Completed' as const })],
+  ])('returns focus to the page heading after %s removes the opening card', async (_path, updateGoal) => {
+    const openingGoal = createMockGoal({ id: 'opening', title: 'Opening goal', status: 'Active' })
+    const survivingGoal = createMockGoal({ id: 'surviving', title: 'Surviving goal', status: 'Active' })
+    mocks.goals.data.allGoals = [openingGoal, survivingGoal]
+    accessibilityMocks.sendAccessibilityEvent.mockReset()
+    const tree = await renderProgress()
+    const activeFilter = tree.root.findAll((node) => node.props.testID === 'segment-active-unselected-enabled')[0]!
+    TestRenderer.act(() => (activeFilter.props.onPress as () => void)())
+    TestRenderer.act(() => (findGoalCard(tree.root, openingGoal.title).props.onPress as () => void)())
+
+    const updatedGoal = updateGoal(openingGoal)
+    mocks.goals.data.allGoals = updatedGoal ? [updatedGoal, survivingGoal] : [survivingGoal]
+    await TestRenderer.act(async () => {
+      tree.update(<ProgressScreen />)
+      await Promise.resolve()
+    })
+    const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]!
+    TestRenderer.act(() => (detail.props.onClose as () => void)())
+    const pageHeadingTarget = findProgressHeadingFocusTarget(tree.root)
+
+    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenLastCalledWith(pageHeadingTarget, 'focus')
+  })
+
+  it('returns focus to the page heading when deleting the sole goal empties progress', async () => {
+    const openingGoal = createMockGoal({ id: 'only', title: 'Only goal', status: 'Active' })
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, {
+      currentStreak: 0,
+      longestStreak: 0,
+      totalXp: 0,
+      achievementsEarned: 0,
+    })
+    mocks.goals.data.allGoals = [openingGoal]
+    accessibilityMocks.sendAccessibilityEvent.mockReset()
+    const tree = await renderProgress()
+    TestRenderer.act(() => (findGoalCard(tree.root, openingGoal.title).props.onPress as () => void)())
+
+    mocks.goals.data.allGoals = []
+    await TestRenderer.act(async () => {
+      tree.update(<ProgressScreen />)
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty').length).toBeGreaterThan(0)
+    const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]!
+    TestRenderer.act(() => (detail.props.onClose as () => void)())
+    const pageHeadingTarget = findProgressHeadingFocusTarget(tree.root)
+
+    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenLastCalledWith(pageHeadingTarget, 'focus')
   })
 
   it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
@@ -9,6 +9,11 @@ function staticTokenValue(token: string): string {
   const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
   const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return stylesheet.match(new RegExp(`${escapedToken}:\\s*([^;]+);`))?.[1]?.trim() ?? ''
+}
+
+function skeletonPulseDeclaration(): string {
+  const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+  return stylesheet.match(/\.skeleton-pulse\s*{([^}]+)}/)?.[1] ?? ''
 }
 
 function installStaticTokenStyle(token: string) {
@@ -23,6 +28,7 @@ function installStaticTokenStyle(token: string) {
 describe('Skeleton', () => {
   afterEach(() => {
     document.head.innerHTML = ''
+    vi.useRealTimers()
   })
 
   it('exposes its label, busy state, and final-layout variant', () => {
@@ -81,6 +87,17 @@ describe('Skeleton', () => {
 
     expect(container.querySelectorAll('.skeleton-pulse').length).toBeGreaterThan(0)
     expect(container.innerHTML).not.toMatch(/gradient|shimmer|spinner/i)
+  })
+
+  it('settles a stalled skeleton before five seconds and leaves it visible', () => {
+    vi.useFakeTimers()
+    const { container } = render(<Skeleton variant="settings" label="Loading settings" />)
+
+    vi.advanceTimersByTime(5_000)
+
+    expect(skeletonPulseDeclaration()).not.toContain('infinite')
+    expect(skeletonPulseDeclaration()).toContain('var(--skeleton-pulse-iterations)')
+    expect(container.querySelector('.skeleton-pulse')).toBeVisible()
   })
 
   it('renders the requested number of settings rows as one busy region', () => {

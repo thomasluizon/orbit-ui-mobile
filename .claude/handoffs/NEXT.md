@@ -2,137 +2,134 @@
 
 Read `.claude/specs/orbit-prod-release.md` first, all of it. It is the living record: the standing
 instructions in his words, the decisions, the constraints, the full state and every answer he has
-given. Read `## The order` before anything else, then `## State`.
+given. Read `## The order` before anything else, then `## State`, then
+`## What the night of 2026-09-18 into 09-19 added`.
 
 `.claude/specs/beta-release.md` is the record for work that ships off `main`. Read its constraints
-once; they bite on anything targeting `main`, which pull request 1015 does.
+once; they bite on anything targeting `main`.
 
 Read the brain notes the spec names through the Obsidian MCP: `mcp__obsidian__obsidian_list_notes`,
 then `mcp__obsidian__obsidian_get_note`. List `2 Areas/20-29 Orbit Engineering/Decisions/` and copy
-the filenames that come back rather than the ones you remember. **The MCP was UP on 2026-09-18 at
-00:30** and all nineteen notes the spec names were confirmed present; `obsidian_search_notes` needs
-`mode: "text"`.
+the filenames that come back rather than the ones you remember.
 
 ## Entry point
 
-`/sleep`. It enters `/orchestrate --sleep` itself. Do not treat them as two choices and do not
-restate what either does.
+`/sleep`. It enters `/orchestrate --sleep` itself. Do not treat them as two choices.
 
 ## The goal
 
-Finish `.claude/specs/orbit-prod-release.md`: an empty board and a production release. The order is
-in that spec and it is not negotiable. Re-derive what is left rather than trusting any list:
+Finish `.claude/specs/orbit-prod-release.md`: an empty board and a production release. Re-derive what
+is left rather than trusting any list below:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
     gh issue list --repo thomasluizon/orbit-tickets --state open --milestone "539 Redesign" --limit 400
     gh pr list --repo thomasluizon/orbit-ui-mobile --state open
     gh pr list --repo thomasluizon/orbit-api --state open
-    gh pr list --repo thomasluizon/orbit-landing-page --state open
 
-**A blocker is the next piece of work, not an ending.**
+**A blocker is the next piece of work, not an ending.** The only honest endings are the allowance
+running out, the machine stopping, or him saying stop.
 
-## A killed worker is a relaunch, never an ending
+## Two things he settled at the last wrap-up. Do not re-open either.
 
-**Thomas, 2026-09-18, after a session reported the night over because the host reaped two workers for
-system memory:**
+- **A worker editing `node_modules` is never his to explain.** He has answered it five times, the
+  last time angrily. Never ask, never investigate the origin. `#601` owns the fix and its scope is
+  prevention: the prohibition into `tools/compose-prompt.mjs` so every generated order carries it, a
+  `PreToolUse` hook refusing any write that resolves inside `node_modules`, and an mtime walk to
+  catch what arrives another way. **Put the prohibition into the order generator before you launch
+  the next worker**, because every order you send until then permits it.
+- **The failed-delete toast pauses on hover and focus.** Granted design-system change, one action
+  stays Retry, recorded on `#460`. It needs a caller sweep; the toast is a shared primitive.
 
-> wrong. the night doesnt end here. if you have any problem with the worker, just launch another one.
+## Codex is out until 2026-09-22 07:23, so Claude is the worker
 
-A harness kill, a host kill, a hard ceiling and `ERROR: Selected model is at capacity` are all the
-same thing: launch another worker. Read the worktree first, because a killed worker has usually
-COMMITTED, and check WHAT is dirty rather than whether anything is: two modified files that turn out
-to be `widget-header.test.ts.snap` and `theme.test.ts.snap` are the CLEAN case, because both flip
-their own line endings. The only endings are the allowance running out and him saying stop.
+Codex and Pullfrog share ONE OpenAI meter. Read `§5.4.1` of `.claude/skills/orchestrate/SKILL.md`.
 
-## First: pull request 1015, the live Android defect
+`.claude/orchestrator.json` in the main checkout is UNCOMMITTED and carries both the `claude` engine
+and `worker: "claude"`. Its args are the hardened set that pull request 1023 commits:
+`["-p", "--output-format", "stream-json", "--verbose", "--strict-mcp-config", "--permission-mode", "bypassPermissions"]`.
+Check it is still flipped before you launch anything. **Revert on 2026-09-22** with
+`git checkout -- .claude/orchestrator.json`, which restores the engine once 1023 has merged.
 
-`#590`, against `main` under D99, and it is the fix for the three-dot menu he has reported since
-`#134`. The root cause is proven from installed source and written up in the spec under
-`### The three-dot defect, solved`. **Read that before forming any theory**, and do not re-chase
-`removeClippedSubviews` or a drag gesture; both are ruled out there with the source that rules them
-out.
+Expect two reds for as long as the switch is on, and neither is a licence to edit a test:
+`node tools/test-tools.mjs` fails two assertions in `tools/__tests__/orchestrator-config.mjs`, and
+`node tools/check-calibration.mjs` exits 1. A third unexplained FAIL is a real defect.
 
-It is BLOCKED on one real P1, and Pullfrog is right:
+**Never use a Claude subagent as a worker.** `node tools/launch-worker.mjs` is the only path and its
+LAUNCHER pid is the wake source, not the worker's. **Two concurrent workers is the cap**, his words:
+"all these workers makes the machine unusable ... use less workers, at least 2". Cap each one with
+`--concurrency=1` on turbo and about `--maxWorkers=2` on vitest.
 
-- Thread `PRRT_kwDOR5Siws6ji8aZ`, `apps/mobile/app/(tabs)/use-today-search.ts:22`. The new
-  `Keyboard.dismiss()` is reachable **during React render**, because `useTodayViewSync` calls
-  `closeSearch` while rendering active-view and pinned-date changes. Move it to a committed
-  lifecycle or event path.
-- `Cross-Platform Parity` is red. `parity:exempt` is applied but the failing run predates the label,
-  so fire a fresh `pull_request` event with a body edit. That red is the trap, not a finding.
-
-**After it merges, `/android-release` to the OPEN track on his standing permission.** He wrote it and
-that is the authorization; do not ask again.
+**A subagent IS the right tool for a review, and point it at the worktree carrying the exact head.**
+The first three reviews last night read the base checkout and every citation they made about changed
+files was weaker for it.
 
 ## In flight, with a disposition on every row
 
-No stashes, no detached HEADs, no dirty worktrees, in any repository. `orbit-api` and
-`orbit-landing-page` are clean. One unpushed commit exists, `1890341c` in `ticket-58-achievements`,
-and it is the pre-squash form of merged pull request 1014, so it is disposable.
-
 | what | where | disposition |
 |---|---|---|
-| worker `#475` | `ticket-475-goal-grant`, log `orbit-workers\#475-1789689547628.log` | ALIVE at handoff, running the step 6 sweep for 1017. Outcome unknown. Read the worktree. |
-| 1015 | `#590`, base `main` | The P1 above. **Do this first.** |
-| 1018 | `#481` | Sweep DONE, head `3da49c08`. Needs a review. |
-| 1017 | `#475` | The live worker's. |
-| 1016 | `#520` | Acceptance verified: navigation findings 12 to 0. **Owes its step 6 sweep**, then a review. |
-| 1007 | `#67` | Head `8e297420`, all five P1s answered. Needs a fresh review. |
-| 1002 | `#545` | Threads resolved at `60cd943d`. Needs a review that can approve. |
-| 1001 | `#562` | Head `954c6279`, its P1 resolved, coverage 96.36 percent. **Merge it before 992**, because that clears 992's red. |
-| 992 | `#543` | Head `e818a478`. Its `Unit Tests` red IS 1001's coverage floor. |
-| api 528, 521 | `orbit-api` | Orders lost with an earlier scratchpad. Re-derive from the threads. 521's `Dash Ban` is cleared. |
-| `#460`, `#479` | tickets | The last two verified-unbuilt redesign tickets. `#460` already has a worktree with dependencies installed at `ticket-460-notify-announce`, branch `fix/ticket-460-notify-announce`, no commits. |
-| Dependabot | both repos | Leave. Not this effort. |
-| `orbit-landing-page` | 5 open | Leave. Batch 3 owns that repository. |
+| worker on `ui#1019` round 7 | `...\orbit-ui-mobile\ticket-460-notify-announce`, branch `fix/ticket-460-notify-announce`, log `%TEMP%\orbit-workers\#460-1789761460444.log`, launcher pid 12220 | ALIVE at handoff, one unpushed commit. **Outcome unknown, read the worktree first.** |
+| worker on `api#532` round 2 | `...\orbit-api\ticket-75-emails`, branch `feature/ticket-75-emails`, log `%TEMP%\orbit-workers\ORB-69-1789761486866.log`, launcher pid 1296 | ALIVE at handoff, 13 modified files. **Outcome unknown.** Sixteen findings ordered, four blocking. |
+| `ui#1007` | head `4e17d0c5` | Round 3 delivered AND pushed before its ceiling kill. CI 28 green, 0 failures, `Surface Manifest Drift` green. **Review at this head, then merge.** |
+| `ui#992` | head `24b2f7f6` | Both P1 fixed and verified, manifest regenerated to 185 surfaces, harness 1811 assertions. **Review at this head, then merge.** |
+| `ui#1023` | head `0efefd35` | Round 4 ORDERED on `#598`: the tool-versus-prose merge bar, the `--mcp-config` absence assertion, three P3. |
+| `api#521` | head `88c3de52` | Round 6 delivered and **never re-reviewed at that head.** Review it. |
+| `api#528` | head `3835402c` | Findings 2, 4, 5 fixed. Findings 1 and 3 remain, ordered on `#529`. **Do NOT flip `RequireApiKeyCreationStepUp`.** |
+| `api#531` | head `d652a1fd` | All three findings fixed, red-first proven. **Review at this head.** |
+| `1890341c` in `ticket-58-achievements` | branch `fix/ticket-461-notification-actions` | Still the disposable pre-squash form of merged pull request 1014. Leave. |
+| Dependabot, `orbit-landing-page` | both repos | Leave. Not this effort. |
 
-**1017 and 1018 deliberately shipped without a `## Review harness` block**, because their workers
-were stopped before step 6 and a line claiming a review nobody ran is forbidden. 1018's sweep has
-since run; 1016 and 1017 still owe theirs. A red `Redesign Review Harness` on those is the gate
-working.
+**Every `orbit-api` pull request targets protected `main` and cannot merge before 2026-09-22 or
+without him merging by hand.** That is external. Get them merge-ready anyway.
 
-## Then: the order
+## The order
 
-1. 1015, above.
-2. Merge 1001, then 992. Drive 1002, 1007, 1016, 1017, 1018 to approved and merge them.
-3. `#460` and `#479`, the last two unbuilt redesign tickets.
-4. `#545` and `#543` close out the suppressions; `#175` unblocks when they reach zero, `#217` when
-   `#67` lands.
-5. Then the redesign gate below.
+1. Put the `node_modules` prohibition into `tools/compose-prompt.mjs` before the next worker launch.
+2. Read both live worktrees and finish whatever those two workers left.
+3. Review `ui#1007` and `ui#992` at their exact heads and merge them. `redesign/main` is unprotected,
+   so the bar is green checks at the exact head plus a separate-agent review posted in full on the
+   pull request naming the substitution. Nothing this run merges on a READY receipt; see below.
+4. `ui#1023` round 4, then review and merge it, so the worker engine is committed.
+5. Review `api#521` and `api#531`; finish `api#528` findings 1 and 3; finish `api#532`.
+6. File the three findings the spec's State section lists under "Three findings that need tickets",
+   then take `#596`, `#597` and the remaining milestone tickets.
 
-## THE REDESIGN GATE, and never ask about it again
+## Known, and it will bite you at step 3
 
-Batch 1 closes when every `539 Redesign` screen ticket closes against its own acceptance criteria
-AND `node tools/redesign-coverage.mjs` reports a valid mapping. Then: ship `redesign/main` to a
-CLOSED Play INTERNAL track, tell him, and **STOP**. Do not merge. Waiting on him there is a
-legitimate ending under `/sleep`, reported as blocked on his approval.
+`tools/record-readiness.mjs:151` INJECTS `pullfrog-approval` when protection returns no required
+checks, so **no receipt can reach READY on unprotected `redesign/main` while the allowance is out**.
+`SKILL.md:1118` then says a blocked receipt never permits a merge, and
+`.claude/hooks/require-wake-source.mjs:29-33` will not let the night end on one either. `#598` round 4
+owns the reconciliation.
 
-**2026-09-18, asked and answered for the last time:** "never ask me again about this. the gate is
-setted, when the whole redesign is done, you build the internal build, i dont care how much screens
-are missing."
+Until it lands, run the other path and say so: green checks at the exact head, the independent review
+posted on the pull request, and his written instruction that a separate-agent review plus green
+checks is the bar on that branch. End on recorded named blockers rather than on receipts.
 
-Coverage is already GREEN at `63e8774d`: `184 manifest surfaces accounted for, 14 deleted, 3
-excluded`. The distance is the 15 open milestone tickets.
+## Blocked, needs Thomas
 
-## The Astra rendering brainstorm, still owed
-
-`#318`. His words are in the spec's standing instructions. The inventory is on the ticket: about
-**60 chat capabilities, 3 of which render as a block**. The component source is **`beautifului.dev`**;
-the `beautifui.dev` spelling does not resolve. This is a conversation with him, so under `--sleep` it
-waits; do the research that makes it cheap and put the options to him when he is there.
+- **Do NOT flip `RequireApiKeyCreationStepUp` to `true`.** `api#528` is still fixing the agent
+  lockout; with it on, chat and MCP can never obtain the grant. Also `AppConfigService.cs:51-74`
+  swallows a bad parse, so `1`, `yes` or `true ` leaves the gate OFF while the runbook's read-back
+  passes.
+- **Pullfrog's Claude fallback does not work for a real review.** The app's JSON payload resolves
+  models server side where only the Codex subscription is registered. Worth reporting to Pullfrog.
+- `#318` stage 2 and `#320` stage 5 are his: a conversation and a first-hand device pass.
+- `orbit-api` `521` and `528` still need him to merge and deploy by hand.
 
 ## `--sleep`
 
-Nobody is going to open this file, so do not stop after reading it. Read and execute
-`.claude/skills/sleep/SKILL.md`, write run state under this session's own id, and leave a live wake
-source before the turn ends. A worker launched by a previous session does not wake you: its wake
-source belongs to that session. Own your own.
+Nobody is going to open this file. Read and execute `.claude/skills/sleep/SKILL.md`, write run state
+under this session's own id, and leave a live wake source before the turn ends. A worker launched by
+a previous session does not wake you; its wake source belongs to that session.
 
 Take every decision yourself, always the best approach and never the easiest, and log each one.
 
 ## One more thing
 
-Every identifier here came from a previous session. Treat each as a lead to verify, not a fact. Two
-misreads happened in one night and both were summaries rather than sources: a ticket body that quoted
-Thomas saying something he never said, and a review finding judged from its one-line title when its
-body said something else. **Open the thread body and the tree, never the paraphrase.**
+Every identifier here came from a previous session. Treat each as a lead to verify, not a fact.
+
+**And when two honest readings of "the installed source" disagree, suspect the tree before you
+suspect the reader.** Four contradictory citations of the same two files were published across three
+sessions last night and every one was accurate about the checkout its author read, because a worker
+had edited `node_modules` in one of them. Check for a file whose mtime is later than its own
+package's `package.json` before you correct anyone in public.

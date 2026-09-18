@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { BackHandler, StyleSheet, View } from 'react-native'
+import { AccessibilityInfo, BackHandler, StyleSheet, Text, View } from 'react-native'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -40,6 +40,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const deleteGoal = useDeleteGoal()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const headingRef = useRef<Text>(null)
+  const focusedInlineGoalId = useRef<string | null>(null)
   const { sheetRef, closeSheet } = useSheetHost()
   const close = useCallback(() => {
     if (inline) onClose()
@@ -57,7 +59,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     goalUnit: goal?.unit,
     refetchDetail: () => void refetch(),
   })
-  const formatDate = (date: string) => formatLocaleDateTime(date, locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' })
+  const formatDate = (date: string) => formatLocaleDateTime(date, locale, { month: 'short', day: 'numeric' })
 
   async function confirmDelete() {
     try {
@@ -74,11 +76,17 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     return () => subscription.remove()
   }, [open, inline, editing, deleting, close])
 
+  useEffect(() => {
+    if (!open || !inline || !goal || focusedInlineGoalId.current === goalId || !headingRef.current) return
+    focusedInlineGoalId.current = goalId
+    AccessibilityInfo.sendAccessibilityEvent(headingRef.current, 'focus')
+  }, [goal, goalId, inline, open])
+
   const body = (
     <View style={layout.body}>
       {goal ? <>
-        <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
-        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
+        <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} headingRef={headingRef} />
+        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} iconColor={tokens.fg3} dangerColor={tokens.statusBad} styles={styles} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} styles={styles} /> : null}

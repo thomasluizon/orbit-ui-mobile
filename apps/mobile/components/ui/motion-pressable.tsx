@@ -1,18 +1,20 @@
-import { useState } from 'react'
-import { Pressable, type PressableProps } from 'react-native'
+import { useState, type Ref } from 'react'
+import { Pressable, type PressableProps, type View } from 'react-native'
 import Animated from 'react-native-reanimated'
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
 interface MotionPressableProps extends PressableProps {
   active?: boolean
+  focusRef?: Ref<View>
 }
 
-export function MotionPressable({ active = false, style, children, onPressIn, onPressOut, ...props }: Readonly<MotionPressableProps>) {
+export function MotionPressable({ active = false, focusRef, style, children, onPressIn, onPressOut, ...props }: Readonly<MotionPressableProps>) {
   const [pressed, setPressed] = useState(false)
 
   return (
     <AnimatedPressable
+      ref={focusRef}
       {...props}
       onPressIn={(event) => { setPressed(true); onPressIn?.(event) }}
       onPressOut={(event) => { setPressed(false); onPressOut?.(event) }}
