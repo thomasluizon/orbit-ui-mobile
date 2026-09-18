@@ -1096,7 +1096,8 @@ with the newest run of each, the compare `behind_by`, and the live ticket at agg
 never labels cached artifacts or the delivery artifact's old SHAs as current. The review verdict is
 read here with the rest of CI and needs no axis of its own: on protected `main` `pullfrog-approval`
 is one of those required checks, and on an unprotected base, where protection names none at all,
-`record-readiness.mjs:151` supplies that one check itself through `reviewChecksFor` (#429). An
+`record-readiness.mjs:150` supplies that one check itself through `reviewChecksFor`, which lives
+at `tools/lib/readiness-receipt.mjs:511` beside the reader it feeds (#429). An
 unprotected base does not drop the review axis; it leaves the review as the only required check
 there. Its explicit stale/blocking verdicts are `DRAFT`, `OUT_OF_DATE`, `CI_STALE` and
 `TICKET_STALE`. Any commit, ordinary push, merge from main, or base advancement invalidates receipts
@@ -1128,12 +1129,17 @@ names the substitution with its evidence exactly as Hard prohibitions requires. 
 carries the same evidence a READY one would, so it permits the same merge and nothing weaker does.
 Any second verdict beside `CI_STALE` is an unrelated blocker and the exception does not reach it.
 `tools/__tests__/readiness-receipt.mjs` pins that verdict string, so read it rather than describe it.
+A merge admitted here closes the pull request exactly as a READY one does, so the night ends on the
+merge and not on the receipt. When the exception does not apply and the merge does not happen,
+record the machine-readable `blocker` string on that pull request's ledger entry:
+`.claude/hooks/_lib/rules-sleep.mjs:61-90` then lets the run end as BLOCKED, reported as blocked
+rather than as finished. A blocked ending is a legitimate ending; a dishonest one is not.
 
 **A night when Pullfrog cannot run ends on that receipt, and it is the expected result rather than
 a fault.** The recorder reads checks and reviews, never a claim in a comment, so it cannot verify a
 named substitute reviewer and does not pretend to. Teaching it to accept the claim would make the
 recorder trust evidence it cannot check, which is worse than a written exception a human reads, and
-it would undo the reason `record-readiness.mjs:151` supplies the check at all (#429). So on such a
+it would undo the reason `reviewChecksFor` supplies the check at all (#429). So on such a
 night expect exactly one `CI_STALE`, confirm the rest of the rollup is green at the exact head,
 confirm the comment names the substitution and its evidence, and record that reasoning in the run
 record. An operator who meets an unexplained blocked receipt at 03:00 has no way back to it.

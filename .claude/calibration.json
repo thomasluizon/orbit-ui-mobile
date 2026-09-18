@@ -176,7 +176,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "f79d54907b8f2133",
+      "digest": "fb72acdd0772d44b",
       "calibratedAt": "2026-09-18",
       "verdict": "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review. Reseeded 2026-09-18 a third time, when the branch-conditional merge bar was carried out of the prose and into step 9, where record-readiness.mjs is what actually decides. That raises the demand again rather than lowering it: the skill now decides when an exhausted allowance justifies a transient worker switch, holds the revert and names the switch while it is live, reads two deliberately red gates as expected while treating any third failure as a real defect, judges whether a substitute reviewer is named openly or promoted quietly, and tells an instructed contract apart from one a run granted itself. The newest call is the hardest: the recorder cannot verify a substitution written in a comment, so it blocks on the review axis by design, and the run has to tell that one expected verdict apart from a real blocker reported under the same name at 03:00. Each of those is the kind of call a lower effort rounds to the easy answer, and merge authority is the most expensive rule here to get wrong."
     },
