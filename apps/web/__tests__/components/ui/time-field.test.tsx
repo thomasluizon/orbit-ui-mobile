@@ -22,8 +22,8 @@ function openPicker() {
 }
 
 function pickOption(columnLabel: string, label: string) {
-  const column = screen.getByRole('listbox', { name: columnLabel })
-  fireEvent.click(within(column).getByRole('option', { name: label }))
+  const column = screen.getByRole('radiogroup', { name: columnLabel })
+  fireEvent.click(within(column).getByRole('radio', { name: label }))
 }
 
 describe('TimeField', () => {
@@ -60,14 +60,14 @@ describe('TimeField', () => {
 
     openPicker()
 
-    const hours = screen.getByRole('listbox', { name: 'common.hours' })
-    const minutes = screen.getByRole('listbox', { name: 'common.minutes' })
-    expect(within(hours).getByRole('option', { name: '07' })).toHaveAttribute(
-      'aria-selected',
+    const hours = screen.getByRole('radiogroup', { name: 'common.hours' })
+    const minutes = screen.getByRole('radiogroup', { name: 'common.minutes' })
+    expect(within(hours).getByRole('radio', { name: '07' })).toHaveAttribute(
+      'aria-checked',
       'true',
     )
-    expect(within(minutes).getByRole('option', { name: '15' })).toHaveAttribute(
-      'aria-selected',
+    expect(within(minutes).getByRole('radio', { name: '15' })).toHaveAttribute(
+      'aria-checked',
       'true',
     )
   })
@@ -78,7 +78,34 @@ describe('TimeField', () => {
 
     openPicker()
 
-    const minutes = screen.getByRole('listbox', { name: 'common.minutes' })
-    expect(within(minutes).getAllByRole('option')).toHaveLength(60)
+    const minutes = screen.getByRole('radiogroup', { name: 'common.minutes' })
+    expect(within(minutes).getAllByRole('radio')).toHaveLength(60)
+  })
+
+  it('uses one tab stop and wraps arrow selection within each time column', () => {
+    uses24HourClock = true
+    const onChange = vi.fn()
+    render(<TimeField value="14:30" onChange={onChange} />)
+
+    openPicker()
+    const hours = screen.getByRole('radiogroup', { name: 'common.hours' })
+    const options = within(hours).getAllByRole('radio')
+    const selected = within(hours).getByRole('radio', { name: '14' })
+
+    expect(options.filter((option) => option.tabIndex === 0)).toEqual([selected])
+    selected.focus()
+    fireEvent.keyDown(selected, { key: 'End' })
+    const lastHour = within(hours).getByRole('radio', { name: '23' })
+    expect(lastHour).toHaveFocus()
+    expect(lastHour).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
+    const firstHour = within(hours).getByRole('radio', { name: '00' })
+    expect(firstHour).toHaveFocus()
+    expect(firstHour).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.done' }))
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(onChange).toHaveBeenCalledWith('00:30')
   })
 })

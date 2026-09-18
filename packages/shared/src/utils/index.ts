@@ -1,4 +1,5 @@
 export { achievementEmoji } from './achievement-emoji'
+export { getRadioNavigationIndex } from './radio-navigation'
 export { createClientId } from './client-id'
 export {
   parseAPIDate,

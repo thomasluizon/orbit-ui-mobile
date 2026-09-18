@@ -19,6 +19,7 @@ import {
 } from '@orbit/shared/utils'
 import { Clock3, X } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -49,45 +50,64 @@ function parseTypedTime(value: string, hourCycle: 'h23' | 'h12'): Time24 | null 
   return `${String(hour24).padStart(2, '0')}:${match[2]}` as Time24
 }
 
+function TimeOption({
+  formattedValue,
+  selected,
+  onSelect,
+}: Readonly<{
+  formattedValue: string
+  selected: boolean
+  onSelect: () => void
+}>) {
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({
+    disabled: false,
+    onSelect,
+    selected,
+  })
+
+  return (
+    <button
+      ref={elementRef}
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      tabIndex={tabIndex}
+      onClick={onActivate}
+      onKeyDown={onKeyDown}
+      className={`w-full min-h-[44px] snap-center rounded-[10px] py-2 text-center text-base transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
+        selected
+          ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
+          : 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
+      }`}
+      style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
+    >
+      {formattedValue}
+    </button>
+  )
+}
+
 function TimeColumn({ values, selected, formatValue, label, onSelect }: Readonly<TimeColumnProps>) {
   const listRef = useRef<HTMLDivElement>(null)
-  const selectedRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     const list = listRef.current
-    const option = selectedRef.current
+    const option = list?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
     if (!list || !option) return
     list.scrollTop = option.offsetTop - list.clientHeight / 2 + option.clientHeight / 2
   }, [])
 
   return (
-    <div
-      ref={listRef}
-      role="listbox"
-      aria-label={label}
-      className="h-full flex-1 snap-y overflow-y-auto px-1 [scrollbar-width:thin]"
-    >
-      {values.map((option) => {
-        const isSelected = option === selected
-        return (
-          <button
+    <div ref={listRef} className="h-full flex-1 snap-y overflow-y-auto px-1 [scrollbar-width:thin]">
+      <RadioGroup aria-label={label}>
+        {values.map((option) => (
+          <TimeOption
             key={String(option)}
-            ref={isSelected ? selectedRef : undefined}
-            type="button"
-            role="option"
-            aria-selected={isSelected}
-            onClick={() => onSelect(option)}
-            className={`w-full min-h-[44px] snap-center rounded-[10px] py-2 text-center text-base transition-colors ${
-              isSelected
-                ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
-                : 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
-            }`}
-            style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
-          >
-            {formatValue(option)}
-          </button>
-        )
-      })}
+            formattedValue={formatValue(option)}
+            selected={option === selected}
+            onSelect={() => onSelect(option)}
+          />
+        ))}
+      </RadioGroup>
     </div>
   )
 }

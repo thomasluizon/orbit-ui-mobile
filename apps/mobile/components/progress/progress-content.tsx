@@ -298,7 +298,7 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         position,
       })
   return (
-    <MotionPressable focusRef={focusRef} testID={`goal-card-${goal.id}`} active={isDragging} accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
+    <MotionPressable ref={focusRef} testID={`goal-card-${goal.id}`} active={isDragging} accessible accessibilityRole="button" accessibilityLabel={accessibilityLabel}
       accessibilityHint={canReorder ? t('progressScreen.goals.reorderHint') : undefined}
       accessibilityActions={canReorder ? [{ name: 'decrement', label: t('progressScreen.goals.moveUp') }, { name: 'increment', label: t('progressScreen.goals.moveDown') }] : undefined}
       onAccessibilityAction={canReorder ? (event) => {

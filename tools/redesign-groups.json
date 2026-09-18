@@ -193,7 +193,6 @@
       "m-overlay-ui-date-field",
       "m-overlay-ui-discard-changes-sheet",
       "m-overlay-ui-menu",
-      "m-overlay-ui-selection-field",
       "m-overlay-ui-sheet",
       "m-overlay-ui-time-field",
       "overlay-ui-confirm-sheet",
@@ -281,6 +280,10 @@
     {
       "surfaceId": "overlay-tour-tour-tooltip",
       "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+    },
+    {
+      "surfaceId": "m-overlay-ui-selection-field",
+      "decision": "#543 (2026-09-18): apps/mobile/components/ui/selection-field.tsx was deleted when every mobile radio group moved onto the single RadioGroup primitive, so a second mobile radio implementation no longer decides whether a caller gets keyboard navigation."
     }
   ],
   "excluded": [
