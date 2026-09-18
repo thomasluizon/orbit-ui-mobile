@@ -155,6 +155,10 @@ export function MoveParentOverlay({
           />
         )}
 
+        {treeRows.length > 0 && (
+          <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
+        )}
+
         <RadioGroup
           aria-label={t('habits.moveParent.destinations')}
           className="flex flex-col"
@@ -168,10 +172,6 @@ export function MoveParentOverlay({
               currentLabel={t('habits.moveParent.currentParent')}
               onSelect={onSelectOption}
             />
-          )}
-
-          {treeRows.length > 0 && (
-            <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
           )}
 
           {treeRows.map((option) => (

@@ -80,7 +80,6 @@ interface RadioRowProps {
   dot?: string
   onClick?: () => void
   divider?: boolean
-  disabled?: boolean
 }
 
 export function RadioRow({
@@ -89,20 +88,18 @@ export function RadioRow({
   dot,
   onClick,
   divider = true,
-  disabled = false,
 }: Readonly<RadioRowProps>) {
-  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect: onClick, selected })
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect: onClick, selected })
   return (
     <button
       ref={elementRef}
       type="button"
       role="radio"
       aria-checked={selected}
-      disabled={disabled}
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className="w-full appearance-none bg-transparent cursor-pointer flex items-center text-left disabled:cursor-default disabled:opacity-40"
+      className="w-full appearance-none bg-transparent cursor-pointer flex items-center text-left"
       style={{
         gap: 16,
         padding: '16px 4px',

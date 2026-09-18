@@ -66,6 +66,40 @@ class MainApplication : Application(), ReactApplication {
 }
 `
 
+/**
+ * What `npx expo prebuild` writes before any plugin runs. Root `.gitignore:86` ignores
+ * `apps/mobile/android/`, so every CI and EAS build starts from exactly this.
+ */
+const PRISTINE_MAIN_APPLICATION_TEMPLATE = MAIN_APPLICATION_TEMPLATE.replace(
+  `import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags
+import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults
+`,
+  '',
+).replace(
+  `    ReactNativeFeatureFlags.override(object : ReactNativeFeatureFlagsDefaults() {
+      override fun enableKeyEvents(): Boolean = true
+      override fun enableImperativeFocus(): Boolean = true
+    })
+`,
+  '',
+)
+
+/** An `android/` tree an older revision of this plugin patched with a block this one cannot match. */
+const STALE_MAIN_APPLICATION_TEMPLATE = PRISTINE_MAIN_APPLICATION_TEMPLATE.replace(
+  'import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint\n',
+  `import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
+import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags
+import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults
+`,
+).replace(
+  '    super.onCreate()\n',
+  `    super.onCreate()
+    ReactNativeFeatureFlags.override(object : ReactNativeFeatureFlagsDefaults() {
+      override fun enableKeyEvents(): Boolean = true
+    })
+`,
+)
+
 async function resolveJvmArgs(startingValue: string | null): Promise<string> {
   const config = withAndroidReleaseBuildFixes({ name: 'Orbit', slug: 'orbit' }) as ExportedConfig
   const gradlePropertiesMod = config.mods?.android?.gradleProperties
@@ -237,5 +271,77 @@ describe('withAndroidReleaseBuildFixes React Native imperative focus', () => {
     expect(mainApplication).not.toContain('override fun enableKeyEvents(): Boolean = true')
     expect(overrideIndex).toBeGreaterThan(loadReactNativeIndex)
     expect(overrideIndex).toBeLessThan(lifecycleDispatcherIndex)
+  })
+
+  it('patches the pristine template a release build actually starts from', async () => {
+    expect(PRISTINE_MAIN_APPLICATION_TEMPLATE).not.toContain('ReactNativeFeatureFlags')
+
+    const mainApplication = await resolveMainApplication(PRISTINE_MAIN_APPLICATION_TEMPLATE)
+    const loadReactNativeIndex = mainApplication.indexOf('loadReactNative(this)')
+    const overrideIndex = mainApplication.indexOf('ReactNativeFeatureFlags.dangerouslyForceOverride')
+    const lifecycleDispatcherIndex = mainApplication.indexOf(
+      'ApplicationLifecycleDispatcher.onApplicationCreate(this)',
+    )
+
+    expect(mainApplication).toContain(
+      'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsProvider',
+    )
+    expect(mainApplication).toContain(
+      'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsOverrides_RNOSS_Canary_Android',
+    )
+    expect(mainApplication).toContain(
+      'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsOverrides_RNOSS_Experimental_Android',
+    )
+    expect(mainApplication).toContain(
+      'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsOverrides_RNOSS_Stable_Android',
+    )
+    expect(
+      mainApplication
+        .split('\n')
+        .filter(
+          (line) =>
+            line.trim() === 'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags',
+        ),
+    ).toHaveLength(1)
+    expect(mainApplication).toContain('DefaultNewArchitectureEntryPoint.releaseLevel')
+    expect(mainApplication).toContain('ReleaseLevel.EXPERIMENTAL ->')
+    expect(mainApplication).toContain('ReleaseLevel.CANARY ->')
+    expect(mainApplication).toContain('ReleaseLevel.STABLE ->')
+    expect(mainApplication).toContain('override fun enableImperativeFocus(): Boolean = true')
+    expect(mainApplication).not.toContain('override fun enableKeyEvents(): Boolean = true')
+    expect(overrideIndex).toBeGreaterThan(loadReactNativeIndex)
+    expect(overrideIndex).toBeLessThan(lifecycleDispatcherIndex)
+  })
+
+  it('refuses a template whose load anchor no longer matches, rather than skipping the override', async () => {
+    const reindentedAnchor = PRISTINE_MAIN_APPLICATION_TEMPLATE.replace(
+      '    loadReactNative(this)',
+      '  loadReactNative(this)',
+    )
+
+    await expect(resolveMainApplication(reindentedAnchor)).rejects.toThrow(
+      'MainApplication.kt is missing the React Native load anchor',
+    )
+  })
+
+  it('logs the flags React Native read before the override instead of discarding them', async () => {
+    const mainApplication = await resolveMainApplication(PRISTINE_MAIN_APPLICATION_TEMPLATE)
+
+    expect(mainApplication).toContain(
+      'val featureFlagsReadBeforeOverride =\n      ReactNativeFeatureFlags.dangerouslyForceOverride(',
+    )
+    expect(mainApplication).toContain('if (featureFlagsReadBeforeOverride != null) {')
+    expect(mainApplication).toContain('android.util.Log.w(')
+  })
+
+  it('keeps the legacy import while a block an older revision wrote still constructs it', async () => {
+    expect(STALE_MAIN_APPLICATION_TEMPLATE).toContain('ReactNativeFeatureFlagsDefaults()')
+
+    const mainApplication = await resolveMainApplication(STALE_MAIN_APPLICATION_TEMPLATE)
+
+    expect(mainApplication).toContain('ReactNativeFeatureFlagsDefaults()')
+    expect(mainApplication).toContain(
+      'import com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults',
+    )
   })
 })

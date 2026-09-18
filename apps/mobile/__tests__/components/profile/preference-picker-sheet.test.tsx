@@ -87,6 +87,32 @@ describe('PreferencePickerSheet', () => {
     expect(props.onHidden).not.toHaveBeenCalled()
   })
 
+  it('checks the current timezone once the profile resolves after a cold start', () => {
+    const props = {
+      ...baseProps(),
+      activePicker: 'timeZone' as const,
+      timeZone: null,
+    }
+    let tree: any
+    void act(() => {
+      tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />))
+    })
+    const radios = () => tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+    expect(radios().some((option: any) => option.props.accessibilityState.checked)).toBe(false)
+
+    void act(() => {
+      tree.update(withFocusProvenance(<PreferencePickerSheet {...props} timeZone="Bravo/Keep" />))
+    })
+
+    expect(
+      radios()
+        .filter((option: any) => option.props.accessibilityState.checked)
+        .map((option: any) => option.props.accessibilityLabel),
+    ).toEqual(['Bravo/Keep'])
+  })
+
   it('closes the sheet only when a press commits the language', () => {
     const props = baseProps()
     let tree: any

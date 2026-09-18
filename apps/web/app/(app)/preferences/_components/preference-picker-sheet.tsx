@@ -25,14 +25,16 @@ function PickerOptions<Value extends string | number>({
   selected: Value | null
   onCommit: (value: Value) => void
 }>) {
-  const [draft, setDraft] = useState<Value | null>(selected)
-  const draftRef = useRef<Value | null>(selected)
+  const [draft, setDraft] = useState<Value | null>(null)
+  const draftRef = useRef<Value | null>(null)
+  /** Null until focus moves, so a profile that resolves after the first render still checks its row. */
+  const checked = draft ?? selected
   const selectDraft = (next: Value) => {
     draftRef.current = next
     setDraft(next)
   }
   const commitDraft = () => {
-    const pending = draftRef.current
+    const pending = draftRef.current ?? selected
     if (pending !== null) onCommit(pending)
   }
 
@@ -42,7 +44,7 @@ function PickerOptions<Value extends string | number>({
         <RadioRow
           key={String(option.value)}
           label={option.label}
-          selected={draft === option.value}
+          selected={checked === option.value}
           divider={index < options.length - 1}
           onClick={() => selectDraft(option.value)}
         />

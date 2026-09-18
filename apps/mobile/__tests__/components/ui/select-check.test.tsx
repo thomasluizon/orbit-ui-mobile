@@ -22,7 +22,7 @@ function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>
     <FocusProvenanceView>
       <RadioGroup accessibilityLabel="Cadence">
         <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
-        <RadioRow label="Disabled" selected={false} disabled onPress={() => select('disabled')} />
+        <RadioRow label="Second" selected={value === 'second'} onPress={() => select('second')} />
         <RadioRow label="Third" selected={value === 'third'} onPress={() => select('third')} />
         <RadioRow label="Last" selected={value === 'last'} onPress={() => select('last')} />
       </RadioGroup>
@@ -166,7 +166,6 @@ describe('select-check RadioRow group', () => {
 
     void act(() => {
       focusHost(tree, second)
-      second.props.onBlur?.()
       focusHost(tree, outside)
       focusHost(tree, first)
     })
@@ -213,7 +212,7 @@ describe('select-check RadioRow group', () => {
     const options = radios()
     const handles = options.map((option: any) => option.props.__nativeTag)
     const [first, , third] = options
-    expect(options.map((option: any) => option.props.focusable)).toEqual([true, false, true, true])
+    expect(options.map((option: any) => option.props.focusable)).toEqual([true, true, true, true])
     expect(handles.every((handle: unknown) => typeof handle === 'number')).toBe(true)
     for (const direction of [
       'nextFocusDown',
@@ -230,19 +229,22 @@ describe('select-check RadioRow group', () => {
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
   })
 
-  it('renders no empty focusable target alongside the visible radio options', () => {
+  it('makes one focusable host per radio option and nothing else', () => {
     let tree: any
     void act(() => {
       tree = create(<RadioRows onChange={vi.fn()} />)
     })
 
-    const emptyFocusableHosts = tree.root.findAll(
-      (node: any) => typeof node.type === 'string'
-        && node.props.focusable === true
-        && node.children.length === 0,
+    const focusableHosts = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.focusable === true,
+    )
+    const options = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
 
-    expect(emptyFocusableHosts).toEqual([])
+    expect(options).toHaveLength(4)
+    expect(focusableHosts.map((host: any) => host.props.accessibilityRole))
+      .toEqual(options.map(() => 'radio'))
   })
 
   it('commits without selecting again when a press lands on the focused row', () => {
@@ -264,7 +266,7 @@ describe('select-check RadioRow group', () => {
     expect(onCommit).toHaveBeenCalledOnce()
   })
 
-  it('keeps touch selection unchanged and blocks disabled rows', () => {
+  it('keeps touch selection unchanged', () => {
     const onChange = vi.fn()
     let tree: any
     void act(() => {
@@ -273,6 +275,5 @@ describe('select-check RadioRow group', () => {
     const controls = tree.root.findAllByType(Pressable)
     void act(() => controls[2].props.onPress())
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
-    expect(controls[1].props.onPress).toBeUndefined()
   })
 })

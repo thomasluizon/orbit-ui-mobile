@@ -329,6 +329,29 @@ describe('MoveParentDialog', () => {
     expect(props.onSelectOption).toHaveBeenCalledExactlyOnceWith('alpha')
   })
 
+  it('keeps a disabled destination out of the focus order and out of selection', () => {
+    const options = [
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha', disabled: true, reason: 'Too deep' }),
+      makeOption({ id: 'bravo', label: 'Bravo' }),
+    ]
+    const { tree, props } = renderDialog({ options, selectedMoveParentId: null })
+    const [root, blocked, bravo] = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+
+    expect([root!.props.focusable, blocked!.props.focusable, bravo!.props.focusable])
+      .toEqual([true, false, true])
+    expect(blocked!.props.onPress).toBeUndefined()
+
+    void TestRenderer.act(() => {
+      focusHost(tree, root as never)
+      focusHost(tree, bravo as never)
+    })
+
+    expect(props.onSelectOption).toHaveBeenCalledExactlyOnceWith('bravo')
+  })
+
   it('leaves directional focus to the platform between Top level and the first destination', () => {
     const options = [
       makeOption({ id: null, label: 'Top level' }),

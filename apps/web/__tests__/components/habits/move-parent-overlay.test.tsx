@@ -138,6 +138,24 @@ describe('MoveParentOverlay', () => {
     expect(onSelectOption).toHaveBeenLastCalledWith('zeta5')
   })
 
+  it('skips a disabled destination and never gives it a tab stop', () => {
+    const { onSelectOption } = renderOverlay([
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha', disabled: true, reason: 'Too deep' }),
+      makeOption({ id: 'bravo', label: 'Bravo' }),
+    ])
+    const root = screen.getByRole('radio', { name: /Top level/ })
+    const blocked = screen.getByRole('radio', { name: /Alpha/ })
+    const bravo = screen.getByRole('radio', { name: /Bravo/ })
+
+    expect([root.tabIndex, blocked.tabIndex, bravo.tabIndex]).toEqual([0, -1, -1])
+    root.focus()
+    fireEvent.keyDown(root, { key: 'ArrowDown' })
+
+    expect(bravo).toHaveFocus()
+    expect(onSelectOption).toHaveBeenCalledExactlyOnceWith('bravo')
+  })
+
   it('wraps arrow navigation between Top level and the first destination', () => {
     const { onSelectOption } = renderOverlay([
       makeOption({ id: null, label: 'Top level' }),

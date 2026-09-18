@@ -88,7 +88,6 @@ interface RadioRowProps {
   dot?: string
   onPress?: () => void
   divider?: boolean
-  disabled?: boolean
 }
 
 export function RadioRow({
@@ -97,12 +96,11 @@ export function RadioRow({
   dot,
   onPress,
   divider = true,
-  disabled = false,
 }: Readonly<RadioRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
-    disabled,
+    disabled: false,
     onSelect: onPress,
     selected,
   })
@@ -110,18 +108,16 @@ export function RadioRow({
     <Pressable
       {...navigationProps}
       ref={elementRef}
-      disabled={disabled}
-      onPress={disabled ? undefined : onActivate}
+      onPress={onActivate}
       accessibilityRole="radio"
       accessibilityLabel={label}
-      accessibilityState={{ checked: selected, disabled }}
+      accessibilityState={{ checked: selected }}
       style={[
         styles.radioRow,
         {
           borderBottomColor: tokens.hairline,
           borderBottomWidth: divider ? StyleSheet.hairlineWidth : 0,
         },
-        disabled ? styles.disabled : null,
       ]}
     >
       <RadioGlyph selected={selected} size={24} tokens={tokens} />
@@ -163,8 +159,5 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 999,
     flexShrink: 0,
-  },
-  disabled: {
-    opacity: 0.4,
   },
 })

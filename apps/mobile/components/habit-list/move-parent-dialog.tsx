@@ -153,6 +153,10 @@ export function MoveParentDialog({
           </View>
         ) : null}
 
+        {treeRows.length > 0 ? (
+          <Text style={styles.eyebrow}>{t('habits.moveParent.destinations')}</Text>
+        ) : null}
+
         <RadioGroup accessibilityLabel={t('habits.moveParent.destinations')}>
           {rootOption ? (
             <MoveTargetRow
@@ -164,10 +168,6 @@ export function MoveParentDialog({
               styles={styles}
               onSelect={onSelectOption}
             />
-          ) : null}
-
-          {treeRows.length > 0 ? (
-            <Text style={styles.eyebrow}>{t('habits.moveParent.destinations')}</Text>
           ) : null}
 
           <View style={styles.moveOptionsContent}>
@@ -183,13 +183,14 @@ export function MoveParentDialog({
                 onSelect={onSelectOption}
               />
             ))}
-            {isSearchEmpty ? (
-              <Text style={styles.moveDialogEmpty}>
-                {t('habits.moveParent.noSearchResults')}
-              </Text>
-            ) : null}
           </View>
         </RadioGroup>
+
+        {isSearchEmpty ? (
+          <Text style={styles.moveDialogEmpty}>
+            {t('habits.moveParent.noSearchResults')}
+          </Text>
+        ) : null}
 
         <View style={styles.footer}>
           <PillButton

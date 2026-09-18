@@ -90,6 +90,16 @@ describe('PreferencePickerSheet', () => {
     expect(props.onTimeZoneChange).toHaveBeenCalledWith('Europe/London')
   })
 
+  it('checks the current option once the profile resolves after the first render', () => {
+    const props = { ...baseProps(), activePicker: 'language' as const, mounted: false }
+    const { rerender } = render(<PreferencePickerSheet {...props} />)
+    expect(screen.queryByRole('radio', { checked: true })).not.toBeInTheDocument()
+
+    rerender(<PreferencePickerSheet {...props} mounted />)
+
+    expect(screen.getByRole('radio', { checked: true })).toHaveTextContent('English')
+  })
+
   it('marks the currently selected language radio as checked', () => {
     const props = { ...baseProps(), activePicker: 'language' as const }
     render(<PreferencePickerSheet {...props} />)
