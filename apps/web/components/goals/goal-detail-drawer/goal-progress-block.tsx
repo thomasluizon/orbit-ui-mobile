@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { Goal } from '@orbit/shared/types/goal'
 import { getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
@@ -35,6 +35,7 @@ interface GoalProgressBlockProps {
 
 export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchDetail }: Readonly<GoalProgressBlockProps>) {
   const t = useTranslations()
+  const locale = useLocale()
   const update = useUpdateGoalProgress()
   const pending = useRef(false)
   const [busy, setBusy] = useState(false)
@@ -63,7 +64,12 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         goalCount: goal.targetValue,
         goalUnit: goal.unit,
       })
-      setAnnouncement(t('goals.detail.progressUpdated', { current: value, target: goal.targetValue, unit: goal.unit }))
+      const numberFormat = new Intl.NumberFormat(locale)
+      setAnnouncement(t('goals.detail.progressUpdated', {
+        current: numberFormat.format(value),
+        target: numberFormat.format(goal.targetValue),
+        unit: goal.unit,
+      }))
       await refetchDetail()
     } catch (failure: unknown) {
       setError(getFriendlyErrorMessage(failure, t, 'goals.errors.progress', 'goalProgress'))

@@ -38,7 +38,7 @@ interface GoalProgressBlockProps {
 }
 
 export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchDetail, headingRef }: Readonly<GoalProgressBlockProps>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { width } = useWindowDimensions()
@@ -70,7 +70,12 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         goalCount: goal.targetValue,
         goalUnit: goal.unit,
       })
-      setAnnouncement(t('goals.detail.progressUpdated', { current: value, target: goal.targetValue, unit: goal.unit }))
+      const numberFormat = new Intl.NumberFormat(i18n.language)
+      setAnnouncement(t('goals.detail.progressUpdated', {
+        current: numberFormat.format(value),
+        target: numberFormat.format(goal.targetValue),
+        unit: goal.unit,
+      }))
       await refetchDetail()
     } catch (failure: unknown) {
       setError(getFriendlyErrorMessage(failure, t, 'goals.errors.progress', 'goalProgress'))

@@ -67,7 +67,6 @@ export function FieldWell({
       {error && (
         <p
           id={`${id}-error`}
-          role="alert"
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 12,

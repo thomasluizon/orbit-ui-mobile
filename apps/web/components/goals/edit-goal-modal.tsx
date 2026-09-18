@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -18,7 +18,6 @@ import {
   getGoalDraftFieldErrorKeys,
   isStreakGoal,
   parseGoalTargetValue,
-  validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 import { EditGoalDeadlineField } from './edit-goal-modal/edit-goal-deadline-field'
@@ -66,6 +65,7 @@ export function EditGoalModal({
   const [unit, setUnit] = useState(() => goal.unit)
   const [deadline, setDeadline] = useState(() => goal.deadline ?? '')
   const [submitted, setSubmitted] = useState(false)
+  const [focusRequest, setFocusRequest] = useState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
   const descriptionRef = useRef<HTMLInputElement>(null)
   const targetRef = useRef<HTMLInputElement>(null)
   const unitRef = useRef<HTMLInputElement>(null)
@@ -95,6 +95,12 @@ export function EditGoalModal({
     return errs
   }, [submitted, description, targetValue, unit, translate])
 
+  useEffect(() => {
+    if (focusRequest?.field === 'description') descriptionRef.current?.focus()
+    else if (focusRequest?.field === 'targetValue') targetRef.current?.focus()
+    else if (focusRequest?.field === 'unit') unitRef.current?.focus()
+  }, [focusRequest])
+
   const [previousSession, setPreviousSession] = useState<{ open: boolean; id: string | null }>({
     open,
     id: open ? goal.id : null,
@@ -117,16 +123,13 @@ export function EditGoalModal({
       setSubmitted(true)
 
       const errorKeys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
-
-      const err = translateErrorKey(
-        translate,
-        validateGoalDraftInput(description, targetValue, unit),
-      )
+      const firstError = errorKeys.description ?? errorKeys.targetValue ?? errorKeys.unit
+      const err = translateErrorKey(translate, firstError ?? null)
       if (err) {
         showError(err)
-        if (errorKeys.description) descriptionRef.current?.focus()
-        else if (errorKeys.targetValue) targetRef.current?.focus()
-        else if (errorKeys.unit) unitRef.current?.focus()
+        if (errorKeys.description) setFocusRequest({ field: 'description' })
+        else if (errorKeys.targetValue) setFocusRequest({ field: 'targetValue' })
+        else if (errorKeys.unit) setFocusRequest({ field: 'unit' })
         return
       }
 

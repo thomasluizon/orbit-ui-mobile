@@ -51,7 +51,7 @@ export function EditGoalTargetFields({
           accessibilityHint={[t('common.required'), fieldErrors.targetValue].filter(Boolean).join('. ')}
         />
         {fieldErrors.targetValue ? (
-          <Text nativeID="edit-goal-target-error" style={styles.fieldError} accessibilityRole="alert">
+          <Text nativeID="edit-goal-target-error" style={styles.fieldError}>
             {fieldErrors.targetValue}
           </Text>
         ) : null}
@@ -69,7 +69,7 @@ export function EditGoalTargetFields({
             accessibilityHint={[t('common.required'), fieldErrors.unit].filter(Boolean).join('. ')}
           />
           {fieldErrors.unit ? (
-            <Text nativeID="edit-goal-unit-error" style={styles.fieldError} accessibilityRole="alert">
+            <Text nativeID="edit-goal-unit-error" style={styles.fieldError}>
               {fieldErrors.unit}
             </Text>
           ) : null}

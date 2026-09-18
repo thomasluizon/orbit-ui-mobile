@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -19,7 +19,6 @@ import {
   getGoalDraftFieldErrorKeys,
   isStreakGoal,
   parseGoalTargetValue,
-  validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -72,6 +71,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [focusRequest, setFocusRequest] = useState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
   const descriptionRef = useRef<TextInput>(null)
   const targetRef = useRef<TextInput>(null)
   const unitRef = useRef<TextInput>(null)
@@ -100,6 +100,12 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     return errs
   }, [submitted, description, targetValue, unit, translate])
 
+  useEffect(() => {
+    if (focusRequest?.field === 'description') descriptionRef.current?.focus()
+    else if (focusRequest?.field === 'targetValue') targetRef.current?.focus()
+    else if (focusRequest?.field === 'unit') unitRef.current?.focus()
+  }, [focusRequest])
+
   const [prevResetKey, setPrevResetKey] = useState<string | null>(null)
   const resetKey = open
     ? `${goal.title}:${goal.targetValue}:${goal.unit}:${goal.deadline ?? ''}`
@@ -118,15 +124,13 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
   const onSubmit = useCallback(async () => {
     setSubmitted(true)
     const errorKeys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
-    const err = translateErrorKey(
-      translate,
-      validateGoalDraftInput(description, targetValue, unit),
-    )
+    const firstError = errorKeys.description ?? errorKeys.targetValue ?? errorKeys.unit
+    const err = translateErrorKey(translate, firstError ?? null)
     if (err) {
       showError(err)
-      if (errorKeys.description) descriptionRef.current?.focus()
-      else if (errorKeys.targetValue) targetRef.current?.focus()
-      else if (errorKeys.unit) unitRef.current?.focus()
+      if (errorKeys.description) setFocusRequest({ field: 'description' })
+      else if (errorKeys.targetValue) setFocusRequest({ field: 'targetValue' })
+      else if (errorKeys.unit) setFocusRequest({ field: 'unit' })
       return
     }
 
@@ -193,7 +197,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
               accessibilityHint={fieldErrors.description}
             />
             {fieldErrors.description ? (
-              <Text nativeID="edit-goal-description-error" style={styles.fieldError} accessibilityRole="alert">
+              <Text nativeID="edit-goal-description-error" style={styles.fieldError}>
                 {fieldErrors.description}
               </Text>
             ) : null}

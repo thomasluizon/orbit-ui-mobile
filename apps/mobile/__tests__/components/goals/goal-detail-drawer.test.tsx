@@ -53,6 +53,7 @@ const mockDeleteMutateAsync = vi.fn()
 const mockStatusMutateAsync = vi.fn()
 const mockPush = vi.fn()
 const translation = vi.hoisted(() => ({
+  language: 'en-US',
   current: (key: string, params?: Record<string, unknown>) =>
     params ? `${key}:${JSON.stringify(params)}` : key,
 }))
@@ -62,7 +63,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       translation.current(key, params),
-    i18n: { language: 'en-US' },
+    i18n: { language: translation.language },
   }),
 }))
 
@@ -192,6 +193,7 @@ describe('GoalDetailDrawer', () => {
     sheetTestControls.defer(false)
     translation.current = (key: string, params?: Record<string, unknown>) =>
       params ? `${key}:${JSON.stringify(params)}` : key
+    translation.language = 'en-US'
     updateProgressMutateAsync.mockReset()
     nativeMocks.sendAccessibilityEvent.mockReset()
     useChatStore.setState({ draft: '', draftHydrated: true })
@@ -591,6 +593,8 @@ describe('GoalDetailDrawer', () => {
   })
 
   it('announces one successful progress update with the resulting value', async () => {
+    translation.language = 'pt-BR'
+    detailGoal = { ...listGoal, currentValue: 0.5, targetValue: 2.5, progressPercentage: 20, progressHistory: [] }
     updateProgressMutateAsync.mockResolvedValueOnce(undefined)
     const tree = renderDrawer()
 
@@ -598,7 +602,7 @@ describe('GoalDetailDrawer', () => {
 
     const statuses = tree.root.findAll((node: any) =>
       node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite' &&
-      flattenText(node) === 'goals.detail.progressUpdated:{"current":4,"target":12,"unit":"books"}',
+      flattenText(node) === 'goals.detail.progressUpdated:{"current":"1,5","target":"2,5","unit":"books"}',
     )
     expect(statuses).toHaveLength(1)
   })

@@ -107,12 +107,14 @@ describe('EditGoalModal', () => {
     fireEvent.submit(targetInput.closest('form')!)
 
     await waitFor(() => expect(descriptionInput).toHaveFocus())
+    expect(mockShowError).toHaveBeenLastCalledWith('goals.form.titleRequired')
     expect(descriptionInput).toHaveAccessibleDescription('goals.form.titleRequired')
     expect(targetInput).toHaveAccessibleDescription('goals.form.targetValueRequired')
     expect(unitInput).toHaveAccessibleDescription('goals.form.unitRequired')
     expect(descriptionInput).toHaveAttribute('aria-invalid', 'true')
     expect(targetInput).toHaveAttribute('aria-invalid', 'true')
     expect(unitInput).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.queryAllByRole('alert')).toHaveLength(0)
 
     fireEvent.change(descriptionInput, { target: { value: 'Run weekly' } })
     fireEvent.change(targetInput, { target: { value: '10' } })

@@ -9,12 +9,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
+const nextIntl = vi.hoisted(() => ({ locale: 'en' }))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     if (params) return `${key}:${JSON.stringify(params)}`
     return key
   },
-  useLocale: () => 'en',
+  useLocale: () => nextIntl.locale,
 }))
 
 vi.mock('dompurify', () => ({
@@ -68,6 +70,7 @@ describe('GoalDetailDrawer', () => {
     refetchDetail.mockClear()
     updateStatusMutateAsync.mockClear()
     updateProgressMutateAsync.mockClear()
+    nextIntl.locale = 'en'
     deleteMutateAsync.mockClear()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
@@ -328,13 +331,15 @@ describe('GoalDetailDrawer', () => {
   })
 
   it('announces one successful progress update with the resulting value', async () => {
+    nextIntl.locale = 'pt-BR'
+    detailGoal = { ...listGoal, currentValue: 0.5, targetValue: 2.5, progressPercentage: 20, progressHistory: [] }
     updateProgressMutateAsync.mockResolvedValueOnce(undefined)
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
 
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(
-      'goals.detail.progressUpdated:{"current":4,"target":12,"unit":"books"}',
+      'goals.detail.progressUpdated:{"current":"1,5","target":"2,5","unit":"books"}',
     ))
     expect(screen.getAllByRole('status')).toHaveLength(1)
   })

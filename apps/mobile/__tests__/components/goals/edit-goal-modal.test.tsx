@@ -34,7 +34,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
   BottomSheetAppTextInput: React.forwardRef(function Input(props: Record<string, unknown>, ref) {
-    useImperativeHandle(ref, () => ({ focus: () => mocks.focus(props.accessibilityLabel) }))
+    useImperativeHandle(ref, () => ({ focus: () => mocks.focus(props.accessibilityLabel, props.accessibilityHint) }))
     return React.createElement('BottomSheetAppTextInput', props)
   }),
 }))
@@ -127,11 +127,12 @@ describe('EditGoalModal helpers', () => {
 
     await TestRenderer.act(() => save().props.onPress())
 
-    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.description')
+    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.description', 'goals.form.titleRequired')
+    expect(mocks.showError).toHaveBeenLastCalledWith('goals.form.titleRequired')
     expect(input('goals.form.description').props.accessibilityHint).toContain('goals.form.titleRequired')
     expect(input('goals.form.targetValue').props.accessibilityHint).toContain('goals.form.targetValueRequired')
     expect(input('goals.form.unit').props.accessibilityHint).toContain('goals.form.unitRequired')
-    expect(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')).toHaveLength(3)
+    expect(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')).toHaveLength(0)
 
     await TestRenderer.act(() => {
       input('goals.form.description').props.onChangeText('Run weekly')
@@ -139,7 +140,7 @@ describe('EditGoalModal helpers', () => {
     })
     await TestRenderer.act(() => save().props.onPress())
 
-    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.unit')
+    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.unit', 'common.required. goals.form.unitRequired')
     mocks.mutateAsync.mockResolvedValueOnce(undefined)
     await TestRenderer.act(() => {
       input('goals.form.unit').props.onChangeText('km')
