@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { buildYearRange } from '@orbit/shared/utils'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
@@ -55,22 +55,28 @@ export function YearPicker({
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
             accessibilityLabel={String(year)}
-            style={({ pressed }) => [
-              styles.yearCell,
-              isSelected && { backgroundColor: tokens.primary },
-              pressed && !isSelected && { backgroundColor: tokens.bgElev },
-              pressed && styles.yearCellPressed,
-            ]}
+            style={styles.yearCell}
           >
-            <Text
-              style={[
-                styles.yearText,
-                isSelected && styles.yearTextSelected,
-                { color: isSelected ? tokens.fgOnPrimary : tokens.fg1 },
-              ]}
-            >
-              {year}
-            </Text>
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.yearPill,
+                  isSelected && { backgroundColor: tokens.primary },
+                  pressed && !isSelected && { backgroundColor: tokens.bgHover },
+                  pressed && styles.yearPillPressed,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.yearText,
+                    isSelected && styles.yearTextSelected,
+                    { color: isSelected ? tokens.fgOnPrimary : tokens.fg1 },
+                  ]}
+                >
+                  {year}
+                </Text>
+              </View>
+            )}
           </Pressable>
         )
       })}
@@ -89,12 +95,18 @@ const styles = StyleSheet.create({
     width: `${100 / COLUMNS}%`,
     height: ROW_HEIGHT - ROW_GAP,
     marginBottom: ROW_GAP,
-    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  yearPill: {
+    width: '100%',
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
   },
-  yearCellPressed: {
+  yearPillPressed: {
     transform: [{ scale: 0.96 }],
   },
   yearText: {
