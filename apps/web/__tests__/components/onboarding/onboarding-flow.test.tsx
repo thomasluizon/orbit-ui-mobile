@@ -49,7 +49,7 @@ vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: () => n
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, onClick, disabled, loading }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean }) => <button type="button" disabled={disabled || loading} onClick={onClick}>{children}</button>,
 }))
-vi.mock('@/components/ui/quiet-link', () => ({ QuietLink: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <button type="button" onClick={onClick}>{children}</button> }))
+vi.mock('@/components/ui/quiet-link', () => ({ QuietLink: ({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) => <button type="button" disabled={disabled} onClick={onClick}>{children}</button> }))
 vi.mock('@/components/ui/toast', () => ({ Toast: ({ message }: { message: string }) => <div>{message}</div> }))
 vi.mock('@/components/onboarding/onboarding-welcome', () => ({
   OnboardingWelcome: ({ sentence, onChange }: { sentence: string; onChange: (value: string) => void }) => <input aria-label="sentence" value={sentence} onChange={(event) => onChange(event.target.value)} />,
@@ -231,5 +231,37 @@ describe('OnboardingFlow state model', () => {
 
     await waitFor(() => expect(mocks.subscribe).toHaveBeenCalledOnce())
     await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+  })
+
+  it('locks both reminder choices until Allow completes', async () => {
+    let resolveSubscription!: (value: { supported: true; subscribed: true; permission: 'granted'; status: 'registered' }) => void
+    mocks.subscribe.mockReturnValue(new Promise((resolve) => { resolveSubscription = resolve }))
+    await reachReminder(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'remind.allow' }))
+    const notNow = screen.getByRole('button', { name: 'remind.deny' })
+    expect(notNow).toBeDisabled()
+    fireEvent.click(notNow)
+    expect(mocks.updateHabit).not.toHaveBeenCalled()
+
+    resolveSubscription({ supported: true, subscribed: true, permission: 'granted', status: 'registered' })
+    await waitFor(() => expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: true })))
+    expect(mocks.updateHabit).toHaveBeenCalledOnce()
+    expect(await screen.findByTestId('done')).toBeInTheDocument()
+  })
+
+  it('clears deferred push recovery before Escape finishes onboarding', async () => {
+    useOnboardingDraftStore.setState({
+      habits: [{ title: 'Walk', dueTime: '18:00' }],
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+    mount(true)
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(false)
+    expect(useOnboardingDraftStore.getState().habits).toEqual([])
   })
 })

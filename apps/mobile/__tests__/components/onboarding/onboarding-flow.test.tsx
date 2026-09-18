@@ -116,12 +116,17 @@ function renderedText(tree: ReturnType<typeof TestRenderer.create>): unknown[] {
 }
 
 async function pressTextAction(tree: ReturnType<typeof TestRenderer.create>, label: string) {
+  const action = findTextAction(tree, label)
+  await TestRenderer.act(() => prop<() => void>(action, 'onPress')())
+}
+
+function findTextAction(tree: ReturnType<typeof TestRenderer.create>, label: string): TestNode {
   const action = tree.root.findAll((node) => (
     typeof Reflect.get(node.props, 'onPress') === 'function'
     && byType(node, 'Text').some((child) => child.props.children === label)
   )).at(-1)
   expect(action).toBeDefined()
-  await TestRenderer.act(() => prop<() => void>(action!, 'onPress')())
+  return action!
 }
 
 async function reachReminder(isLive: boolean) {
@@ -274,5 +279,37 @@ describe('OnboardingFlow state model', () => {
 
     expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true)
     expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+  })
+
+  it('locks both reminder choices until Allow completes', async () => {
+    let resolvePermission!: (value: 'granted') => void
+    mocks.requestPermissionOutcome.mockReturnValue(new Promise((resolve) => { resolvePermission = resolve }))
+    const tree = await reachReminder(true)
+
+    await click(tree, 'onboarding.flow.remind.allow')
+    const notNow = findTextAction(tree, 'onboarding.flow.remind.deny')
+    expect(notNow.props.disabled).toBe(true)
+    await TestRenderer.act(() => prop<() => void>(notNow, 'onPress')())
+    expect(mocks.updateHabit).not.toHaveBeenCalled()
+
+    await TestRenderer.act(() => resolvePermission('granted'))
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: true }))
+    expect(mocks.updateHabit).toHaveBeenCalledOnce()
+    expect(oneByType(tree.root, 'Done')).toBeDefined()
+  })
+
+  it('clears deferred push recovery before hardware Back finishes onboarding', async () => {
+    useOnboardingDraftStore.setState({
+      habits: [{ title: 'Walk', dueTime: '18:00' }],
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+    const tree = await mount(true)
+
+    await TestRenderer.act(() => prop<() => void>(oneByType(tree.root, 'Modal'), 'onRequestClose')())
+
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(false)
+    expect(useOnboardingDraftStore.getState().habits).toEqual([])
   })
 })

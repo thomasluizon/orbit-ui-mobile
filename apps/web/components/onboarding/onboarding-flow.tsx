@@ -42,6 +42,8 @@ import { OnboardingRemind, type ReminderState } from './onboarding-remind'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { useOnboardingActions, useOnboardingIsLive } from './onboarding-actions-context'
 
+type ReminderDecision = 'idle' | 'allowing' | 'declining'
+
 function ActionStack({ primary, secondary }: Readonly<{ primary: ReactNode; secondary?: ReactNode }>) {
   return <div className="flex flex-col gap-3">{primary}{secondary ? <div className="flex justify-center">{secondary}</div> : null}</div>
 }
@@ -82,7 +84,7 @@ interface DecisionProps {
   createFailed: boolean
   creating: boolean
   suggestionPending: boolean
-  pushLoading: boolean
+  reminderDecision: ReminderDecision
   reminderState: ReminderState
   createdTitle: string
   onAccount: () => void
@@ -109,12 +111,15 @@ function DecisionContent(props: Readonly<DecisionProps>) {
 
 function DecisionAction(props: Readonly<DecisionProps>) {
   const t = useTranslations('onboarding.flow')
+  const decisionPending = props.reminderDecision !== 'idle'
+  const allowing = props.reminderDecision === 'allowing'
+  const declining = props.reminderDecision === 'declining'
   if (props.step === ONBOARDING_WHAT_STEP) return <PillButton disabled={!props.sentence.trim()} loading={props.suggestionPending} onClick={props.onContinueWhat}>{t('continue')}</PillButton>
   if (props.step === ONBOARDING_WHEN_STEP) return <PillButton loading={props.creating} onClick={props.onSave}>{props.createFailed ? t('retry') : t('create')}</PillButton>
-  if (props.reminderState === 'ask') return <ActionStack primary={<PillButton loading={props.pushLoading} onClick={props.onAllow}>{t('remind.allow')}</PillButton>} secondary={<QuietLink onClick={props.onContinueWithout}>{t('remind.deny')}</QuietLink>} />
-  if (props.reminderState === 'failed') return <ActionStack primary={<PillButton loading={props.pushLoading} onClick={props.onAllow}>{t('retry')}</PillButton>} secondary={<QuietLink onClick={props.onContinueWithout}>{t('remind.continue')}</QuietLink>} />
-  if (props.reminderState === 'no-time') return <ActionStack primary={<PillButton onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>} secondary={<QuietLink onClick={props.onSetTime}>{t('remind.setTime')}</QuietLink>} />
-  return <PillButton onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>
+  if (props.reminderState === 'ask') return <ActionStack primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('remind.allow')}</PillButton>} secondary={<QuietLink disabled={decisionPending} onClick={props.onContinueWithout}>{t('remind.deny')}</QuietLink>} />
+  if (props.reminderState === 'failed') return <ActionStack primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('retry')}</PillButton>} secondary={<QuietLink disabled={decisionPending} onClick={props.onContinueWithout}>{t('remind.continue')}</QuietLink>} />
+  if (props.reminderState === 'no-time') return <ActionStack primary={<PillButton loading={declining} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>} secondary={<QuietLink disabled={decisionPending} onClick={props.onSetTime}>{t('remind.setTime')}</QuietLink>} />
+  return <PillButton loading={declining} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>
 }
 
 function OnboardingHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack?: () => void; onSkip?: () => void }>) {
@@ -149,7 +154,7 @@ export function OnboardingFlow() {
   const [remindersOff, setRemindersOff] = useState(false)
   const [skipped, setSkipped] = useState(false)
   const [suggestionPending, setSuggestionPending] = useState(false)
-  const [pushLoading, setPushLoading] = useState(false)
+  const [reminderDecision, setReminderDecision] = useState<ReminderDecision>('idle')
   const [overlayOpen, setOverlayOpen] = useState(true)
   const suggestionRevision = useRef(0)
   const read = useMemo(() => readHabitPhrase(sentence, locale), [locale, sentence])
@@ -239,8 +244,7 @@ export function OnboardingFlow() {
 
   async function finishRegisteredReminders() {
     if (resolvingDeferredPush) {
-      useOnboardingDraftStore.getState().reset()
-      await actions.finishOnboarding()
+      await finishDeferredPushRecovery()
       return
     }
     if (await persistReminderDecision(true)) setStep(ONBOARDING_DONE_STEP)
@@ -257,27 +261,37 @@ export function OnboardingFlow() {
   }
 
   async function allowReminders() {
-    if (pushLoading) return
-    setPushLoading(true)
+    if (reminderDecision !== 'idle') return
+    setReminderDecision('allowing')
     try {
       if (isLive) await allowLiveReminders()
       else await allowSignedOutReminders()
     } catch {
       await setReminderFailure('failed')
     } finally {
-      setPushLoading(false)
+      setReminderDecision('idle')
     }
   }
 
+  async function finishDeferredPushRecovery() {
+    useOnboardingDraftStore.getState().reset()
+    await actions.finishOnboarding()
+  }
+
   async function continueWithoutReminders() {
-    if (resolvingDeferredPush) {
-      useOnboardingDraftStore.getState().reset()
-      void actions.finishOnboarding()
-      return
+    if (reminderDecision !== 'idle') return
+    setReminderDecision('declining')
+    try {
+      if (resolvingDeferredPush) {
+        await finishDeferredPushRecovery()
+        return
+      }
+      if (!await persistReminderDecision(false)) return
+      setRemindersOff(true)
+      setStep(ONBOARDING_DONE_STEP)
+    } finally {
+      setReminderDecision('idle')
     }
-    if (!await persistReminderDecision(false)) return
-    setRemindersOff(true)
-    setStep(ONBOARDING_DONE_STEP)
   }
 
   function skip() {
@@ -288,11 +302,13 @@ export function OnboardingFlow() {
     setStep(ONBOARDING_DONE_STEP)
   }
 
-  const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, days, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, pushLoading, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => { const nextDays = current.days.includes(day) ? current.days.filter((value) => value !== day) : [...current.days, day]; return { ...current, days: nextDays, frequencyUnit: nextDays.length ? 'Day' : null, frequencyQuantity: nextDays.length ? 1 : null, isGeneral: nextDays.length === 0, isFlexible: false } }), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onSetTime: () => setStep(ONBOARDING_WHEN_STEP) }
+  const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, days, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => { const nextDays = current.days.includes(day) ? current.days.filter((value) => value !== day) : [...current.days, day]; return { ...current, days: nextDays, frequencyUnit: nextDays.length ? 'Day' : null, frequencyQuantity: nextDays.length ? 1 : null, isGeneral: nextDays.length === 0, isFlexible: false } }), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onSetTime: () => setStep(ONBOARDING_WHEN_STEP) }
 
   function closeOverlay() {
+    if (reminderDecision !== 'idle') return
     setOverlayOpen(false)
-    void actions.finishOnboarding()
+    if (resolvingDeferredPush) void finishDeferredPushRecovery()
+    else void actions.finishOnboarding()
   }
 
   const overlay = step === ONBOARDING_DONE_STEP ? (
