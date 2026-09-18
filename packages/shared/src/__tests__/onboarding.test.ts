@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import type { OnboardingSchedule } from '../utils/onboarding'
 import {
   changeOnboardingScheduleMode,
   buildOnboardingHabitInput,
+  buildOnboardingScheduleFromPhrase,
   buildOnboardingScheduleFromSuggestion,
   canSnapshotOnboardingEntry,
   getOnboardingHabitTitle,
+  toggleOnboardingScheduleDay,
   getOnboardingReminderPreviewTime,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
@@ -19,6 +22,32 @@ import {
   resolveRetainedOnboarding,
   shouldHideOnboardingFooter,
 } from '../utils/onboarding'
+
+/** Every rule a saved onboarding schedule owes the API, named so a failure reads as the transition. */
+function findScheduleViolations(
+  label: string,
+  schedule: OnboardingSchedule,
+  request: ReturnType<typeof buildOnboardingHabitInput>,
+): string[] {
+  const violations: string[] = []
+  if (request.isGeneral && request.frequencyUnit !== undefined) {
+    violations.push(`${label} emitted frequencyUnit with isGeneral`)
+  }
+  if (request.isGeneral && request.frequencyQuantity !== undefined) {
+    violations.push(`${label} emitted frequencyQuantity with isGeneral`)
+  }
+  if (schedule.intervalWeeks !== 1 && schedule.days.length === 0) {
+    violations.push(`${label} kept intervalWeeks ${schedule.intervalWeeks} with no day`)
+  }
+  if (request.intervalWeeks !== schedule.intervalWeeks) {
+    violations.push(`${label} sent intervalWeeks ${request.intervalWeeks} for ${schedule.intervalWeeks}`)
+  }
+  const dayAdded = toggleOnboardingScheduleDay(schedule, 'Monday')
+  if (schedule.days.length === 0 && dayAdded.intervalWeeks !== 1) {
+    violations.push(`${label} then Monday invented intervalWeeks ${dayAdded.intervalWeeks}`)
+  }
+  return violations
+}
 
 describe('onboarding helpers', () => {
   it('exposes the four sentence starters', () => {
@@ -62,6 +91,11 @@ describe('onboarding helpers', () => {
     expect(getOnboardingHabitTitle(sentence, locale)).toBe(sentence)
   })
 
+  it('trims a padded sentence the phrase reader leaves alone', () => {
+    expect(getOnboardingHabitTitle('  Read a book  ', 'en')).toBe('Read a book')
+    expect(getOnboardingHabitTitle('  Ler um livro  ', 'pt-BR')).toBe('Ler um livro')
+  })
+
   it('removes only connectors orphaned by consumed schedule words', () => {
     expect(getOnboardingHabitTitle('Work on posture every Monday', 'en')).toBe('Work on posture')
     expect(getOnboardingHabitTitle('Trabalhar na postura toda segunda', 'pt-BR')).toBe('Trabalhar na postura')
@@ -72,9 +106,8 @@ describe('onboarding helpers', () => {
       sentence: 'Walk every Monday and Thursday at 18:00',
       locale: 'en',
       emoji: '🚶',
-      days: ['Monday', 'Thursday'],
-      dueTime: '18:00',
       reminderEnabled: false,
+      schedule: buildOnboardingScheduleFromPhrase('Walk every Monday and Thursday at 18:00', 'en'),
     })).toMatchObject({
       title: 'Walk', emoji: '🚶', frequencyUnit: 'Day', frequencyQuantity: 1,
       days: ['Monday', 'Thursday'], dueTime: '18:00', reminderEnabled: false,
@@ -90,9 +123,8 @@ describe('onboarding helpers', () => {
       sentence: 'Walk every Monday at 18:00',
       locale: 'en',
       emoji: '🚶',
-      days: ['Monday'],
-      dueTime: '18:00',
       reminderEnabled,
+      schedule: buildOnboardingScheduleFromPhrase('Walk every Monday at 18:00', 'en'),
     })).toMatchObject({ reminderEnabled, reminderTimes })
   })
 
@@ -110,17 +142,44 @@ describe('onboarding helpers', () => {
     },
     {
       sentence: 'Clean every 2 weeks',
-      expected: { frequencyUnit: 'Week', frequencyQuantity: 1, intervalWeeks: 2 },
+      expected: { frequencyUnit: 'Week', frequencyQuantity: 2, intervalWeeks: 1 },
     },
   ])('preserves the parsed cadence for $sentence', ({ sentence, expected }) => {
     expect(buildOnboardingHabitInput({
       sentence,
       locale: 'en',
       emoji: '',
-      days: [],
-      dueTime: '',
       reminderEnabled: false,
+      schedule: buildOnboardingScheduleFromPhrase(sentence, 'en'),
     })).toMatchObject(expected)
+  })
+
+  it.each([
+    ['Clean every 2 weeks', 'en'],
+    ['Limpar a cada 2 semanas', 'pt-BR'],
+  ] as const)('reads a typed repeat interval into the control that shows it: %s', (sentence, locale) => {
+    const schedule = buildOnboardingScheduleFromPhrase(sentence, locale)
+
+    expect(getOnboardingScheduleMode(schedule)).toBe('interval')
+    expect(schedule).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 2, intervalWeeks: 1 })
+  })
+
+  it('clears the repeat interval when the last day goes', () => {
+    const weekly: OnboardingSchedule = {
+      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 3,
+      days: ['Monday'], isGeneral: false, isFlexible: false, dueTime: '08:00',
+    }
+    const general = toggleOnboardingScheduleDay(weekly, 'Monday')
+
+    expect(general.days).toEqual([])
+    expect(general.intervalWeeks).toBe(1)
+    expect(buildOnboardingHabitInput({
+      sentence: 'Read',
+      locale: 'en',
+      emoji: '',
+      reminderEnabled: false,
+      schedule: general,
+    }).intervalWeeks).toBe(1)
   })
 
   it('keeps every schedule mode transition valid for the API', () => {
@@ -172,26 +231,39 @@ describe('onboarding helpers', () => {
           sentence: 'Read',
           locale: 'en',
           emoji: '',
-          days: schedule.days,
-          dueTime: schedule.dueTime,
           reminderEnabled: false,
           schedule,
         })
 
         expect(getOnboardingScheduleMode(schedule), `${sourceMode} to ${targetMode}`).toBe(targetMode)
-        if (request.isGeneral && request.frequencyUnit !== undefined) {
-          violations.push(`${sourceMode} to ${targetMode} emitted frequencyUnit with isGeneral`)
-        }
-        if (request.isGeneral && request.frequencyQuantity !== undefined) {
-          violations.push(`${sourceMode} to ${targetMode} emitted frequencyQuantity with isGeneral`)
-        }
-        if (targetMode === 'flexible' && request.intervalWeeks !== 1) {
-          violations.push(`${sourceMode} to flexible retained intervalWeeks ${request.intervalWeeks}`)
-        }
+        violations.push(...findScheduleViolations(`${sourceMode} to ${targetMode}`, schedule, request))
       }
     }
 
     expect(violations).toEqual([])
+  })
+
+  it('gives a flexible Astra suggestion the period both screens show', () => {
+    const schedule = buildOnboardingScheduleFromSuggestion({
+      emoji: '🚶',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    expect(schedule).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true })
+    expect(buildOnboardingHabitInput({
+      sentence: 'Walk outside',
+      locale: 'en',
+      emoji: '',
+      reminderEnabled: false,
+      schedule,
+    })).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 3, isFlexible: true })
   })
 
   it('previews the notification fifteen minutes before the due time', () => {

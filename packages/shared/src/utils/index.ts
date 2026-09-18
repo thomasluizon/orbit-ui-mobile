@@ -312,6 +312,7 @@ export { isVersionBelow } from './version'
 export { formatTimeFieldInput } from './time-field'
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
 export {
+  canRepeatOnboardingScheduleWeeks,
   canSnapshotOnboardingEntry,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
@@ -319,6 +320,7 @@ export {
   buildOnboardingScheduleFromPhrase,
   buildOnboardingScheduleFromSuggestion,
   changeOnboardingScheduleMode,
+  toggleOnboardingScheduleDay,
   getOnboardingHabitTitle,
   getOnboardingScheduleMode,
   getOnboardingReminderPreviewTime,

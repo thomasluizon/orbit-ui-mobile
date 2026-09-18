@@ -20,6 +20,7 @@ import {
   ONBOARDING_WHEN_STEP,
   readHabitPhrase,
   shouldRequestOnboardingSuggestion,
+  toggleOnboardingScheduleDay,
   type OnboardingSchedule,
   type OnboardingScheduleMode,
 } from '@orbit/shared/utils'
@@ -75,7 +76,6 @@ interface DecisionProps {
   isLive: boolean
   emoji: string
   schedule: OnboardingSchedule
-  days: string[]
   dueTime: string
   proposed: boolean
   correcting: boolean
@@ -158,7 +158,7 @@ export function OnboardingFlow() {
   const [overlayOpen, setOverlayOpen] = useState(true)
   const suggestionRevision = useRef(0)
   const read = useMemo(() => readHabitPhrase(sentence, locale), [locale, sentence])
-  const { days, dueTime } = schedule
+  const { dueTime } = schedule
   const allowance = profile?.aiMessagesLimit ?? 5
   const atLimit = isLive && (profile?.aiMessagesUsed ?? 0) >= allowance
 
@@ -198,7 +198,7 @@ export function OnboardingFlow() {
     if (creating) return
     setCreating(true)
     setCreateFailed(false)
-    const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime, reminderEnabled: false, schedule })
+    const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: false, schedule })
     try {
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else {
@@ -217,7 +217,7 @@ export function OnboardingFlow() {
 
   async function persistReminderDecision(enabled: boolean): Promise<boolean> {
     if (!createdId || resolvingDeferredPush) return true
-    const input = buildOnboardingHabitInput({ sentence, locale, emoji, days, dueTime, reminderEnabled: enabled, schedule })
+    const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: enabled, schedule })
     try {
       await actions.updateHabit(createdId, input)
       return true
@@ -311,7 +311,7 @@ export function OnboardingFlow() {
     runStepTransition(() => setStep(step - 1))
   }
 
-  const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, days, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => { const nextDays = current.days.includes(day) ? current.days.filter((value) => value !== day) : [...current.days, day]; return { ...current, days: nextDays, frequencyUnit: nextDays.length ? 'Day' : null, frequencyQuantity: nextDays.length ? 1 : null, isGeneral: nextDays.length === 0, isFlexible: false } }), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onSetTime: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
+  const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onSetTime: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
 
   function closeOverlay() {
     runStepTransition(() => {

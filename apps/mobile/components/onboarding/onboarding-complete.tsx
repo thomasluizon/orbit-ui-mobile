@@ -27,7 +27,7 @@ function LandingRing() {
     animation.start(({ finished }) => { if (finished) setSwept(true) })
     return () => animation.stop()
   }, [length, offset, reduced])
-  return <Svg accessible={false} width={56} height={56} viewBox="0 0 34 34" onLayout={() => { const measured = circle.current?.getTotalLength(); if (measured) setLength(measured) }}><Circle cx={17} cy={17} r={15.5} fill="none" stroke={tokens.statusEmpty} strokeWidth={1.5} /><AnimatedCircle ref={circle} cx={17} cy={17} r={15.5} fill="none" stroke={tokens.primary} strokeWidth={2.5} strokeLinecap="round" strokeDasharray={`${length} ${length}`} strokeDashoffset={offset} opacity={swept ? 0 : 1} rotation={-90} origin="17, 17" /></Svg>
+  return <Svg accessible={false} width={56} height={56} viewBox="0 0 34 34" onLayout={() => { const measured = circle.current?.getTotalLength(); if (measured) setLength(measured); else setSwept(true) }}><Circle cx={17} cy={17} r={15.5} fill="none" stroke={tokens.statusEmpty} strokeWidth={1.5} /><AnimatedCircle ref={circle} cx={17} cy={17} r={15.5} fill="none" stroke={tokens.primary} strokeWidth={2.5} strokeLinecap="round" strokeDasharray={`${length} ${length}`} strokeDashoffset={offset} opacity={swept ? 0 : 1} rotation={-90} origin="17, 17" /></Svg>
 }
 
 interface Props { createdHabit: string; emoji: string; remindersOff: boolean; skipped: boolean; signedOut: boolean; onFinish: () => void }

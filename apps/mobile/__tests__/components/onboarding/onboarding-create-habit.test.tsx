@@ -100,6 +100,38 @@ describe('OnboardingCreateHabit data', () => {
     expect(labels).not.toContain('S')
   })
 
+  it('never offers a repeat interval the saved habit would drop', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit
+          {...base}
+          proposed={false}
+          correcting
+          schedule={{ ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 4, days: [], isGeneral: true, isFlexible: false }}
+        />,
+      )
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Repeat more often')).toHaveLength(0)
+  })
+
+  it('offers the repeat interval once a weekday carries it', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit
+          {...base}
+          proposed={false}
+          correcting
+          schedule={{ ...schedule, frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 4, days: ['Monday'], isFlexible: false }}
+        />,
+      )
+    })
+    const renderedText = tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Repeat more often').length).toBeGreaterThan(0)
+    expect(renderedText).toContain('Every 4 weeks')
+  })
+
   it('lets a recurring proposal change its unit and quantity', async () => {
     const onFrequencyUnitChange = vi.fn()
     const onQuantityChange = vi.fn()

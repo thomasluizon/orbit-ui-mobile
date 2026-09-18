@@ -7,6 +7,8 @@ import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
 
 const mocks = vi.hoisted(() => ({
   translations: new Map<string, string>(),
+  reducedMotion: true,
+  ringLength: undefined as number | undefined,
 }))
 
 vi.mock('react-native', async (importOriginal) => {
@@ -51,8 +53,20 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 vi.mock('@/lib/motion', () => ({
   toAnimatedEasing: () => undefined,
-  usePrefersReducedMotion: () => true,
+  usePrefersReducedMotion: () => mocks.reducedMotion,
 }))
+
+vi.mock('react-native-svg', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-native-svg')>()
+  const MockCircle = React.forwardRef(function MockCircle(
+    { children, ...props }: Readonly<{ children?: React.ReactNode }>,
+    ref: React.ForwardedRef<{ getTotalLength: () => number | undefined }>,
+  ) {
+    React.useImperativeHandle(ref, () => ({ getTotalLength: () => mocks.ringLength }), [])
+    return React.createElement('Circle', props, children)
+  })
+  return { ...actual, Circle: MockCircle }
+})
 
 vi.mock('@/components/ui/info-card', () => ({
   InfoCard: ({ children }: Readonly<{ children?: React.ReactNode }>) =>
@@ -74,14 +88,16 @@ describe('OnboardingComplete', () => {
   beforeAll(async () => {
     await i18n.changeLanguage('en')
     for (const key of [
-      'onboarding.flow.complete.recap.habit',
-      'onboarding.flow.complete.recap.theme',
+      'onboarding.flow.done.title',
+      'onboarding.flow.done.body',
+      'onboarding.flow.done.pending',
+      'onboarding.flow.done.seeDay',
     ]) {
       mocks.translations.set(key, i18n.t(key))
     }
   })
 
-  it('does not claim a Pro account personalized a theme', async () => {
+  it('names the created habit without claiming a personalized theme', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -101,6 +117,38 @@ describe('OnboardingComplete', () => {
       .map((node: { props: { children?: unknown } }) => node.props.children)
 
     expect(renderedText).toContain('Exercise')
-    expect(renderedText).not.toContain(i18n.t('onboarding.flow.complete.recap.theme'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.title'))
+    expect(JSON.stringify(renderedText).toLowerCase()).not.toContain('theme')
+  })
+
+  it('clears the landing ring when the accent length never measures', async () => {
+    mocks.reducedMotion = false
+    mocks.ringLength = undefined
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingComplete
+          createdHabit="Exercise"
+          emoji="🏃"
+          remindersOff={false}
+          skipped={false}
+          signedOut={false}
+          onFinish={vi.fn()}
+        />,
+      )
+    })
+    const svg = tree.root.findAll((node: { type: unknown }) => node.type === 'Svg').at(0)
+    expect(svg).toBeDefined()
+    await TestRenderer.act(() => {
+      (Reflect.get(svg!.props, 'onLayout') as () => void)()
+    })
+
+    const accent = tree.root
+      .findAll((node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'Circle' && node.props.strokeDasharray !== undefined)
+      .at(0)
+    expect(accent).toBeDefined()
+    expect(Reflect.get(accent!.props, 'opacity')).toBe(0)
+    mocks.reducedMotion = true
   })
 })

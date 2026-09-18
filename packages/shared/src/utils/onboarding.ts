@@ -61,7 +61,7 @@ export function shouldHideOnboardingFooter(currentStep: number): boolean {
 
 export function getOnboardingHabitTitle(sentence: string, locale: SupportedLocale): string {
   const read = readHabitPhrase(sentence, locale)
-  if (read.consumed.length === 0) return sentence
+  if (read.consumed.length === 0) return sentence.trim()
 
   const characters = sentence.split('')
   const removed = Array.from({ length: characters.length }, () => false)
@@ -118,6 +118,38 @@ export function getOnboardingScheduleMode(schedule: OnboardingSchedule): Onboard
   return 'interval'
 }
 
+/**
+ * Whether this schedule can carry a repeat interval of more than one week. Only a weekday schedule
+ * can: the API reads `IntervalWeeks` for a habit with weekdays, ignores it for a general habit, and
+ * onboarding renders the repeat stepper and the "every N weeks on Monday" sentence for that shape
+ * alone. Every other shape pins `intervalWeeks` to 1 so no screen shows a number the habit drops.
+ */
+export function canRepeatOnboardingScheduleWeeks(schedule: OnboardingSchedule): boolean {
+  return schedule.days.length > 0 && getOnboardingScheduleMode(schedule) === 'fixed'
+}
+
+function pinRepeatInterval(schedule: OnboardingSchedule): OnboardingSchedule {
+  if (canRepeatOnboardingScheduleWeeks(schedule)) return schedule
+  return schedule.intervalWeeks === 1 ? schedule : { ...schedule, intervalWeeks: 1 }
+}
+
+export function toggleOnboardingScheduleDay(
+  schedule: OnboardingSchedule,
+  day: string,
+): OnboardingSchedule {
+  const days = schedule.days.includes(day)
+    ? schedule.days.filter((value) => value !== day)
+    : [...schedule.days, day]
+  return pinRepeatInterval({
+    ...schedule,
+    days,
+    frequencyUnit: days.length > 0 ? 'Day' : null,
+    frequencyQuantity: days.length > 0 ? 1 : null,
+    isGeneral: days.length === 0,
+    isFlexible: false,
+  })
+}
+
 export function changeOnboardingScheduleMode(
   schedule: OnboardingSchedule,
   mode: OnboardingScheduleMode,
@@ -133,33 +165,38 @@ export function changeOnboardingScheduleMode(
     return { ...schedule, frequencyUnit: alreadyInterval ? schedule.frequencyUnit : 'Week', frequencyQuantity: alreadyInterval ? schedule.frequencyQuantity ?? 1 : 2, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: false }
   }
   const isGeneral = schedule.days.length === 0
-  return { ...schedule, frequencyUnit: isGeneral ? null : 'Day', frequencyQuantity: isGeneral ? null : 1, isGeneral, isFlexible: false }
+  return pinRepeatInterval({ ...schedule, frequencyUnit: isGeneral ? null : 'Day', frequencyQuantity: isGeneral ? null : 1, isGeneral, isFlexible: false })
 }
 
 const EVERY_DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
+/**
+ * Reads a typed sentence into the schedule the when screen shows. A bare "every 2 weeks" becomes the
+ * week unit with quantity 2, not `intervalWeeks`, because the interval stepper binds the quantity and
+ * the API fires a weekly habit on every `frequencyQuantity`-th week. `intervalWeeks` stays 1 unless
+ * the sentence also names weekdays, the one shape that shows and corrects it.
+ */
 export function buildOnboardingScheduleFromPhrase(
   sentence: string,
   locale: SupportedLocale,
 ): OnboardingSchedule {
   const read = readHabitPhrase(sentence, locale)
-  const intervalWeeks = read.intervalWeeks ?? 1
   if (read.cadence === 'flexible') {
     return {
       frequencyUnit: 'Week', frequencyQuantity: read.frequencyQuantity ?? 1,
-      intervalWeeks, days: [], isGeneral: false, isFlexible: true, dueTime: read.dueTime ?? '',
+      intervalWeeks: 1, days: [], isGeneral: false, isFlexible: true, dueTime: read.dueTime ?? '',
     }
   }
   if (read.cadence === 'fixed' || read.cadence === 'daily') {
     return {
-      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks,
+      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: read.intervalWeeks ?? 1,
       days: read.cadence === 'daily' ? EVERY_DAY : read.days,
       isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
     }
   }
   if (read.intervalWeeks) {
     return {
-      frequencyUnit: 'Week', frequencyQuantity: 1, intervalWeeks,
+      frequencyUnit: 'Week', frequencyQuantity: read.intervalWeeks, intervalWeeks: 1,
       days: [], isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
     }
   }
@@ -169,17 +206,24 @@ export function buildOnboardingScheduleFromPhrase(
   }
 }
 
+/**
+ * Reads an Astra proposal into the schedule the when screen shows. The suggestion is an LLM response,
+ * so a flexible one may arrive with no period at all; both screens read a flexible period as the week,
+ * and so does {@link changeOnboardingScheduleMode}, so this boundary settles it rather than sending a
+ * flexible habit with no unit, which the API never makes due.
+ */
 export function buildOnboardingScheduleFromSuggestion(
   suggestion: HabitSetupSuggestion,
 ): OnboardingSchedule {
   const patch = buildHabitFormPatchFromSuggestion(suggestion)
+  const isFlexible = patch.mode === 'flexible'
   return {
-    frequencyUnit: patch.frequencyUnit,
+    frequencyUnit: isFlexible ? patch.frequencyUnit ?? 'Week' : patch.frequencyUnit,
     frequencyQuantity: patch.frequencyQuantity,
     intervalWeeks: 1,
     days: patch.days,
     isGeneral: false,
-    isFlexible: patch.mode === 'flexible',
+    isFlexible,
     dueTime: patch.dueTime ?? '',
   }
 }
@@ -188,19 +232,17 @@ export function buildOnboardingHabitInput(input: {
   sentence: string
   locale: SupportedLocale
   emoji: string
-  days: string[]
-  dueTime: string
   reminderEnabled: boolean
-  schedule?: OnboardingSchedule
+  schedule: OnboardingSchedule
 }): CreateHabitRequest {
-  const schedule = input.schedule ?? buildOnboardingScheduleFromPhrase(input.sentence, input.locale)
+  const { schedule } = input
   const reminderEnabled = input.reminderEnabled && Boolean(schedule.dueTime)
   return {
     title: getOnboardingHabitTitle(input.sentence, input.locale),
     emoji: input.emoji || null,
     ...(!schedule.isGeneral && schedule.frequencyUnit ? { frequencyUnit: schedule.frequencyUnit } : {}),
     ...(!schedule.isGeneral && schedule.frequencyQuantity ? { frequencyQuantity: schedule.frequencyQuantity } : {}),
-    ...(schedule.isFlexible || schedule.frequencyUnit ? { intervalWeeks: schedule.intervalWeeks } : {}),
+    intervalWeeks: schedule.intervalWeeks,
     ...(schedule.days.length > 0 ? { days: schedule.days } : {}),
     ...(schedule.isGeneral ? { isGeneral: true } : {}),
     ...(schedule.isFlexible ? { isFlexible: true } : {}),

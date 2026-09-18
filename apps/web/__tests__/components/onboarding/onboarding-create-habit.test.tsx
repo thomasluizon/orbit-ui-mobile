@@ -72,6 +72,18 @@ describe('OnboardingCreateHabit', () => {
     expect(screen.getByRole('button', { name: 'Saturday' })).toHaveTextContent('Sat')
   })
 
+  it('never offers a repeat interval the saved habit would drop', () => {
+    render(<OnboardingCreateHabit {...base} schedule={{ ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 4, days: [], isGeneral: true, isFlexible: false }} />)
+    expect(screen.getByRole('radio', { name: 'Set days' })).toBeChecked()
+    expect(screen.queryByRole('button', { name: 'Repeat more often' })).not.toBeInTheDocument()
+  })
+
+  it('offers the repeat interval once a weekday carries it', () => {
+    render(<OnboardingCreateHabit {...base} schedule={{ ...schedule, frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 4, days: ['Monday'], isFlexible: false }} />)
+    expect(screen.getByRole('button', { name: 'Repeat more often' })).toBeInTheDocument()
+    expect(screen.getByText('Every 4 weeks')).toBeInTheDocument()
+  })
+
   it('lets a recurring proposal change its unit and quantity', () => {
     const onFrequencyUnitChange = vi.fn()
     const onQuantityChange = vi.fn()

@@ -14,6 +14,13 @@ describe('OnboardingComplete', () => {
     expect(onFinish).toHaveBeenCalledOnce()
   })
 
+  it('clears the landing ring when the browser cannot animate it', () => {
+    const { container } = render(<OnboardingComplete createdHabit="Exercise" emoji="🏃" remindersOff={false} skipped={false} signedOut={false} onFinish={vi.fn()} />)
+    const accent = container.querySelector('circle[stroke="var(--primary)"]')
+    expect(accent).not.toBeNull()
+    expect(accent).toHaveAttribute('opacity', '0')
+  })
+
   it('names the no-reminders outcome without plan copy', () => {
     render(<OnboardingComplete createdHabit="Read" emoji="📖" remindersOff skipped={false} signedOut={false} onFinish={vi.fn()} />)
     expect(screen.getByText('remindersOffBody')).toBeInTheDocument()
