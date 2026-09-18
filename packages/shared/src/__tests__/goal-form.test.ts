@@ -10,6 +10,7 @@ import {
 } from '../validation/goal-form'
 import {
   buildGoalTitle,
+  formatGoalValue,
   getGoalDraftFieldErrorKeys,
   isGoalDeadlinePast,
   isStreakGoal,
@@ -47,11 +48,19 @@ describe('goal form utils', () => {
 
   it('returns every invalid draft field without making a usable fallback description required', () => {
     expect(getGoalDraftFieldErrorKeys('', '', '')).toEqual({
-      description: 'goals.form.titleRequired',
       targetValue: 'goals.form.targetValueRequired',
       unit: 'goals.form.unitRequired',
     })
     expect(getGoalDraftFieldErrorKeys('', '5', 'days')).toEqual({})
+    expect(getGoalDraftFieldErrorKeys('x'.repeat(MAX_GOAL_TITLE_LENGTH + 1), '5', 'days')).toEqual({
+      description: 'goals.form.titleTooLong',
+    })
+  })
+
+  it('formats every stored fractional digit with locale separators', () => {
+    expect(formatGoalValue(1234.56789, 'en-US')).toBe('1,234.56789')
+    expect(formatGoalValue(1234.56789, 'pt-BR')).toBe('1.234,56789')
+    expect(formatGoalValue(0.00000001, 'en-US')).toBe('0.00000001')
   })
 })
 

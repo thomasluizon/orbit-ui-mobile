@@ -594,7 +594,7 @@ describe('GoalDetailDrawer', () => {
 
   it('announces one successful progress update with the resulting value', async () => {
     translation.language = 'pt-BR'
-    detailGoal = { ...listGoal, currentValue: 0.5, targetValue: 2.5, progressPercentage: 20, progressHistory: [] }
+    detailGoal = { ...listGoal, currentValue: 0.23456, targetValue: 2.34567, progressPercentage: 10, progressHistory: [] }
     updateProgressMutateAsync.mockResolvedValueOnce(undefined)
     const tree = renderDrawer()
 
@@ -602,7 +602,7 @@ describe('GoalDetailDrawer', () => {
 
     const statuses = tree.root.findAll((node: any) =>
       node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite' &&
-      flattenText(node) === 'goals.detail.progressUpdated:{"current":"1,5","target":"2,5","unit":"books"}',
+      flattenText(node) === 'goals.detail.progressUpdated:{"current":"1,23456","target":"2,34567","unit":"books"}',
     )
     expect(statuses).toHaveLength(1)
   })

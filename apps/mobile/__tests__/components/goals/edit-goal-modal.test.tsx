@@ -127,15 +127,14 @@ describe('EditGoalModal helpers', () => {
 
     await TestRenderer.act(() => save().props.onPress())
 
-    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.description', 'goals.form.titleRequired')
-    expect(mocks.showError).toHaveBeenLastCalledWith('goals.form.titleRequired')
-    expect(input('goals.form.description').props.accessibilityHint).toContain('goals.form.titleRequired')
+    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.targetValue', 'common.required. goals.form.targetValueRequired')
+    expect(mocks.showError).toHaveBeenLastCalledWith('goals.form.targetValueRequired')
+    expect(input('goals.form.description').props.accessibilityHint).toBeUndefined()
     expect(input('goals.form.targetValue').props.accessibilityHint).toContain('goals.form.targetValueRequired')
     expect(input('goals.form.unit').props.accessibilityHint).toContain('goals.form.unitRequired')
     expect(tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')).toHaveLength(0)
 
     await TestRenderer.act(() => {
-      input('goals.form.description').props.onChangeText('Run weekly')
       input('goals.form.targetValue').props.onChangeText('10')
     })
     await TestRenderer.act(() => save().props.onPress())

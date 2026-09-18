@@ -28,6 +28,7 @@ vi.mock('react-native', async () => {
 
 type TestNode = {
   type: unknown
+  instance: unknown
   props: Record<string, unknown>
   parent: TestNode | null
   children: (TestNode | string | number)[]
@@ -258,6 +259,28 @@ function isAccessibilityHidden(node: TestNode): boolean {
 function findGoalCard(root: TestNode, title: string): TestNode {
   return root.findAll((node) => node.type === 'Pressable'
     && String(node.props.accessibilityLabel).includes(`\"title\":\"${title}\"`))[0]!
+}
+
+function findGoalsSection(root: TestNode) {
+  return root.findAll((node) =>
+    typeof node.props.onRegisterGoal === 'function' && typeof node.props.onRegisterHeading === 'function',
+  )[0]!
+}
+
+function setGoalCardFocusTarget(root: TestNode, goalId: string) {
+  const goalsSection = findGoalsSection(root)
+  const card = { destination: `goal card ${goalId}` }
+  const registerGoal = goalsSection.props.onRegisterGoal as (id: string, instance: unknown) => void
+  registerGoal(goalId, card)
+  return card
+}
+
+function setGoalsHeadingFocusTarget(root: TestNode) {
+  const goalsSection = findGoalsSection(root)
+  const heading = { destination: 'goals heading' }
+  const registerHeading = goalsSection.props.onRegisterHeading as (instance: unknown) => void
+  registerHeading(heading)
+  return heading
 }
 
 describe('mobile ProgressContent', () => {
@@ -1323,6 +1346,7 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress()
     const card = findGoalCard(tree.root, 'Read 12 Books')
     TestRenderer.act(() => (card.props.onPress as () => void)())
+    const cardTarget = setGoalCardFocusTarget(tree.root, String(card.props.testID).replace('goal-card-', ''))
     const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]
     if (!detail) throw new Error('Goal detail missing')
     const detailGoalId = String(detail.props.goalId)
@@ -1331,7 +1355,33 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.type === 'GoalDetail')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).includes('\"title\":\"Read 12 Books\"'))).toHaveLength(1)
     expect(tree.root.findAll((node) => node.props.testID === `goal-card-${detailGoalId}`).length).toBeGreaterThan(0)
-    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenCalledWith(expect.any(Object), 'focus')
+    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenCalledWith(cardTarget, 'focus')
+  })
+
+  it.each([
+    ['deletion', (goal: ReturnType<typeof createMockGoal>) => null],
+    ['a filtered status transition', (goal: ReturnType<typeof createMockGoal>) => ({ ...goal, status: 'Completed' as const })],
+  ])('returns focus to the goals heading after %s removes the opening card', async (_path, updateGoal) => {
+    const openingGoal = createMockGoal({ id: 'opening', title: 'Opening goal', status: 'Active' })
+    const survivingGoal = createMockGoal({ id: 'surviving', title: 'Surviving goal', status: 'Active' })
+    mocks.goals.data.allGoals = [openingGoal, survivingGoal]
+    accessibilityMocks.sendAccessibilityEvent.mockReset()
+    const tree = await renderProgress()
+    const activeFilter = tree.root.findAll((node) => node.props.testID === 'segment-active-unselected-enabled')[0]!
+    TestRenderer.act(() => (activeFilter.props.onPress as () => void)())
+    TestRenderer.act(() => (findGoalCard(tree.root, openingGoal.title).props.onPress as () => void)())
+
+    const updatedGoal = updateGoal(openingGoal)
+    mocks.goals.data.allGoals = updatedGoal ? [updatedGoal, survivingGoal] : [survivingGoal]
+    await TestRenderer.act(async () => {
+      tree.update(<ProgressScreen />)
+      await Promise.resolve()
+    })
+    const goalsHeadingTarget = setGoalsHeadingFocusTarget(tree.root)
+    const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]!
+    TestRenderer.act(() => (detail.props.onClose as () => void)())
+
+    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenLastCalledWith(goalsHeadingTarget, 'focus')
   })
 
   it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {

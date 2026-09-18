@@ -14,6 +14,13 @@ export interface GoalDraftFieldErrorKeys {
   unit?: string
 }
 
+export interface GoalDraftFieldError {
+  field: keyof GoalDraftFieldErrorKeys
+  key: string
+}
+
+const INTL_MAXIMUM_FRACTION_DIGITS = 100
+
 export function parseGoalTargetValue(value: string): number | null {
   const trimmedValue = value.trim()
   if (!trimmedValue) return null
@@ -59,11 +66,10 @@ export function getGoalDraftFieldErrorKeys(
   const parsedTargetValue = typeof targetValue === 'number'
     ? targetValue
     : parseGoalTargetValue(targetValue ?? '')
-  const title = buildGoalTitle(description, targetValue ?? '', unit)
+  const trimmedDescription = description.trim()
   const trimmedUnit = unit.trim()
 
-  if (!title.trim()) errors.description = 'goals.form.titleRequired'
-  else if (title.trim().length > MAX_GOAL_TITLE_LENGTH) errors.description = 'goals.form.titleTooLong'
+  if (trimmedDescription.length > MAX_GOAL_TITLE_LENGTH) errors.description = 'goals.form.titleTooLong'
 
   if (!parsedTargetValue || parsedTargetValue <= 0) errors.targetValue = 'goals.form.targetValueRequired'
 
@@ -71,6 +77,25 @@ export function getGoalDraftFieldErrorKeys(
   else if (trimmedUnit.length > MAX_GOAL_UNIT_LENGTH) errors.unit = 'goals.form.unitTooLong'
 
   return errors
+}
+
+export function getFirstGoalDraftFieldError(
+  errors: GoalDraftFieldErrorKeys,
+): GoalDraftFieldError | null {
+  const firstError = Object.entries(errors)[0] as [keyof GoalDraftFieldErrorKeys, string] | undefined
+  return firstError ? { field: firstError[0], key: firstError[1] } : null
+}
+
+export function formatGoalValue(value: number, locale: string): string {
+  const [coefficient, exponentText] = Math.abs(value).toString().split('e')
+  const coefficientFractionDigits = coefficient?.split('.')[1]?.length ?? 0
+  const exponent = Number(exponentText ?? 0)
+  const maximumFractionDigits = Math.min(
+    INTL_MAXIMUM_FRACTION_DIGITS,
+    Math.max(0, coefficientFractionDigits - exponent),
+  )
+
+  return new Intl.NumberFormat(locale, { maximumFractionDigits }).format(value)
 }
 
 export function validateGoalProgressInput(

@@ -16,6 +16,7 @@ import {
 } from '@orbit/shared/utils'
 import {
   buildGoalTitle,
+  getFirstGoalDraftFieldError,
   getGoalDraftFieldErrorKeys,
   isStreakGoal,
   parseGoalTargetValue,
@@ -124,13 +125,11 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
   const onSubmit = useCallback(async () => {
     setSubmitted(true)
     const errorKeys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
-    const firstError = errorKeys.description ?? errorKeys.targetValue ?? errorKeys.unit
-    const err = translateErrorKey(translate, firstError ?? null)
+    const firstError = getFirstGoalDraftFieldError(errorKeys)
+    const err = translateErrorKey(translate, firstError?.key ?? null)
     if (err) {
       showError(err)
-      if (errorKeys.description) setFocusRequest({ field: 'description' })
-      else if (errorKeys.targetValue) setFocusRequest({ field: 'targetValue' })
-      else if (errorKeys.unit) setFocusRequest({ field: 'unit' })
+      if (firstError) setFocusRequest({ field: firstError.field })
       return
     }
 

@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Goal } from '@orbit/shared/types/goal'
-import { getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
+import { formatGoalValue, getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'
@@ -64,10 +64,9 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         goalCount: goal.targetValue,
         goalUnit: goal.unit,
       })
-      const numberFormat = new Intl.NumberFormat(locale)
       setAnnouncement(t('goals.detail.progressUpdated', {
-        current: numberFormat.format(value),
-        target: numberFormat.format(goal.targetValue),
+        current: formatGoalValue(value, locale),
+        target: formatGoalValue(goal.targetValue, locale),
         unit: goal.unit,
       }))
       await refetchDetail()

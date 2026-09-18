@@ -332,14 +332,14 @@ describe('GoalDetailDrawer', () => {
 
   it('announces one successful progress update with the resulting value', async () => {
     nextIntl.locale = 'pt-BR'
-    detailGoal = { ...listGoal, currentValue: 0.5, targetValue: 2.5, progressPercentage: 20, progressHistory: [] }
+    detailGoal = { ...listGoal, currentValue: 0.23456, targetValue: 2.34567, progressPercentage: 10, progressHistory: [] }
     updateProgressMutateAsync.mockResolvedValueOnce(undefined)
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
 
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(
-      'goals.detail.progressUpdated:{"current":"1,5","target":"2,5","unit":"books"}',
+      'goals.detail.progressUpdated:{"current":"1,23456","target":"2,34567","unit":"books"}',
     ))
     expect(screen.getAllByRole('status')).toHaveLength(1)
   })
