@@ -72,7 +72,7 @@ export function SelectCheck({
   )
 }
 
-/** Kit RadioRow: radio · Rubik 17 label · optional 12px color dot, hairline divider. */
+/** Kit RadioRow: radio · Geist Sans 17 label · optional 12px color dot, hairline divider. */
 interface RadioRowProps {
   label: string
   selected: boolean
@@ -99,7 +99,7 @@ export function RadioRow({
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className="w-full appearance-none bg-transparent cursor-pointer flex items-center text-left"
+      className="w-full appearance-none bg-transparent cursor-pointer flex items-center text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
       style={{
         gap: 16,
         padding: '16px 4px',

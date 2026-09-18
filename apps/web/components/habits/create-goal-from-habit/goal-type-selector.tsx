@@ -50,7 +50,7 @@ function GoalTypeOption({
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className="flex flex-1 cursor-pointer appearance-none items-center justify-center transition-[background-color,color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:active:scale-[0.98]"
+      className="flex flex-1 cursor-pointer appearance-none items-center justify-center transition-[background-color,color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
       style={{
         gap: 8,
         minHeight: 48,

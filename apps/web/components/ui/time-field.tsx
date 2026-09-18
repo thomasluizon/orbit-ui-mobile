@@ -74,7 +74,7 @@ function TimeOption({
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className={`w-full min-h-[44px] snap-center rounded-[10px] py-2 text-center text-base transition-colors ${
+      className={`w-full min-h-[44px] snap-center rounded-[10px] py-2 text-center text-base transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
         selected
           ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
           : 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
