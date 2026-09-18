@@ -661,7 +661,7 @@ describe('notification mutations across an account switch', () => {
     feedback.showError.mockReset()
   })
 
-  async function startAccountASession() {
+  async function startAccountASession(options: { stallCancellation?: boolean } = {}) {
     const { notificationKeys } = await import('@orbit/shared/query')
     useAuthStore.getState().setAuth({
       userId: 'account-a',
@@ -677,6 +677,15 @@ describe('notification mutations across an account switch', () => {
     })
     queryClient.setQueryData(notificationKeys.lists(), accountANotifications)
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    const cancelQueries = vi.spyOn(queryClient, 'cancelQueries')
+    let releaseCancellation: () => void = () => {}
+    if (options.stallCancellation) {
+      cancelQueries.mockImplementationOnce(
+        () => new Promise<void>((resolve) => {
+          releaseCancellation = resolve
+        }),
+      )
+    }
 
     function Wrapper({ children }: { children: React.ReactNode }) {
       return React.createElement(QueryClientProvider, { client: queryClient }, children)
@@ -684,6 +693,8 @@ describe('notification mutations across an account switch', () => {
 
     return {
       Wrapper,
+      cancelQueries,
+      releaseCancellation: () => releaseCancellation(),
       replaceAccount: async () => {
         await useAuthStore.getState().logout()
         useAuthStore.getState().setAuth({
@@ -775,6 +786,78 @@ describe('notification mutations across an account switch', () => {
       await pending.catch(() => undefined)
     })
 
+    scenario.expectReplacementAccountUntouched()
+  })
+
+  it('does not mark one read under the account that replaced the sender', async () => {
+    const { markNotificationRead } = await import('@/lib/actions/notifications')
+    const action = vi.mocked(markNotificationRead)
+    action.mockResolvedValue(undefined as never)
+    const scenario = await startAccountASession({ stallCancellation: true })
+    const { result } = renderHook(() => useMarkNotificationRead(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    act(() => {
+      pending = result.current.mutateAsync('account-a-notification')
+    })
+    await waitFor(() => expect(scenario.cancelQueries).toHaveBeenCalled())
+
+    await scenario.replaceAccount()
+    action.mockClear()
+    scenario.releaseCancellation()
+    await act(async () => {
+      await pending
+    })
+
+    expect(action).not.toHaveBeenCalled()
+    scenario.expectReplacementAccountUntouched()
+  })
+
+  it('does not mark all read under the account that replaced the sender', async () => {
+    const { markAllNotificationsRead } = await import('@/lib/actions/notifications')
+    const action = vi.mocked(markAllNotificationsRead)
+    action.mockResolvedValue(undefined as never)
+    const scenario = await startAccountASession({ stallCancellation: true })
+    const { result } = renderHook(() => useMarkAllNotificationsRead(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    act(() => {
+      pending = result.current.mutateAsync()
+    })
+    await waitFor(() => expect(scenario.cancelQueries).toHaveBeenCalled())
+
+    await scenario.replaceAccount()
+    action.mockClear()
+    scenario.releaseCancellation()
+    await act(async () => {
+      await pending
+    })
+
+    expect(action).not.toHaveBeenCalled()
+    scenario.expectReplacementAccountUntouched()
+  })
+
+  it('does not clear the notifications of the account that replaced the sender', async () => {
+    const { deleteAllNotifications } = await import('@/lib/actions/notifications')
+    const action = vi.mocked(deleteAllNotifications)
+    action.mockResolvedValue(undefined as never)
+    const scenario = await startAccountASession({ stallCancellation: true })
+    const { result } = renderHook(() => useDeleteAllNotifications(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    act(() => {
+      pending = result.current.mutateAsync()
+    })
+    await waitFor(() => expect(scenario.cancelQueries).toHaveBeenCalled())
+
+    await scenario.replaceAccount()
+    action.mockClear()
+    scenario.releaseCancellation()
+    await act(async () => {
+      await pending
+    })
+
+    expect(action).not.toHaveBeenCalled()
     scenario.expectReplacementAccountUntouched()
   })
 })

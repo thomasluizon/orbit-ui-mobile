@@ -6,6 +6,7 @@ import {
   useQuery,
   useMutation,
   useQueryClient,
+  type QueryClient,
 } from '@tanstack/react-query'
 import {
   notificationKeys,
@@ -39,6 +40,25 @@ import { getSessionEpoch } from '@/stores/auth-store'
 
 const runForNotificationSession = createSessionScopedRunner(getSessionEpoch)
 
+/**
+ * Cancels the list refetch for the session that owns the mutation and reports whether that session
+ * still owns it afterwards. The await is the gap an account replacement fits through, so the caller
+ * re-reads ownership here rather than trusting the epoch it captured before the await.
+ */
+async function cancelNotificationListForSession(
+  queryClient: QueryClient,
+  sessionEpoch: number,
+): Promise<boolean> {
+  const cancellation = runForNotificationSession(
+    sessionEpoch,
+    () => queryClient.cancelQueries({ queryKey: notificationKeys.lists() }),
+  )
+  if (!cancellation) return false
+
+  await cancellation
+  return sessionEpoch === getSessionEpoch()
+}
+
 export function useNotifications() {
   const queryClient = useQueryClient()
   useEffect(() => attachNotificationPolling(queryClient), [queryClient])
@@ -65,14 +85,23 @@ export function useMarkNotificationRead() {
   const t = useTranslations()
   const { showError } = useAppToast()
 
-  return useMutation({
-    mutationFn: (notificationId: string) => markNotificationRead(notificationId),
+  const mutation = useMutation({
+    mutationFn: ({ notificationId, sessionEpoch }: {
+      notificationId: string
+      sessionEpoch: number
+    }) => {
+      return runForNotificationSession(
+        sessionEpoch,
+        () => markNotificationRead(notificationId),
+      ) ?? Promise.resolve(undefined)
+    },
 
-    onMutate: async (notificationId) => {
-      const sessionGeneration = getSessionEpoch()
-      await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
+    onMutate: async ({ notificationId, sessionEpoch }) => {
+      if (!await cancelNotificationListForSession(queryClient, sessionEpoch)) {
+        return { previous: undefined, sessionEpoch }
+      }
 
-      const previous = runForNotificationSession(sessionGeneration, () => {
+      const previous = runForNotificationSession(sessionEpoch, () => {
         const snapshot = snapshotNotificationList(queryClient)
         queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
           if (!old) return old
@@ -81,118 +110,20 @@ export function useMarkNotificationRead() {
         return snapshot
       })
 
-      return { previous, sessionGeneration }
+      return { previous, sessionEpoch }
     },
 
-    onError: (_err, _id, context) => {
+    onError: (_err, _operation, context) => {
       if (!context) return
-      runForNotificationSession(context.sessionGeneration, () => {
+      runForNotificationSession(context.sessionEpoch, () => {
         restoreNotificationList(queryClient, context.previous)
         showError(t('notifications.markReadError'))
       })
     },
 
-    onSettled: (_data, _error, _id, context) => {
-      if (!context) return
-      runForNotificationSession(context.sessionGeneration, () => {
-        void invalidateNotificationList(queryClient)
-      })
-    },
-  })
-}
-
-export function useMarkAllNotificationsRead() {
-  const queryClient = useQueryClient()
-  const t = useTranslations()
-  const { showError } = useAppToast()
-
-  return useMutation({
-    mutationFn: () => markAllNotificationsRead(),
-
-    onMutate: async () => {
-      const sessionGeneration = getSessionEpoch()
-      await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
-
-      const previous = runForNotificationSession(sessionGeneration, () => {
-        const snapshot = snapshotNotificationList(queryClient)
-        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
-          if (!old) return old
-          return markAllNotificationsReadInList(old)
-        })
-        return snapshot
-      })
-
-      return { previous, sessionGeneration }
-    },
-
-    onError: (_err, _vars, context) => {
-      if (!context) return
-      runForNotificationSession(context.sessionGeneration, () => {
-        restoreNotificationList(queryClient, context.previous)
-        showError(t('notifications.markAllReadError'))
-      })
-    },
-
-    onSettled: (_data, _error, _vars, context) => {
-      if (!context) return
-      runForNotificationSession(context.sessionGeneration, () => {
-        void invalidateNotificationList(queryClient)
-      })
-    },
-  })
-}
-
-export function useDeleteNotification() {
-  const queryClient = useQueryClient()
-
-  const mutation = useMutation({
-    mutationFn: ({ notificationId, sessionGeneration }: {
-      notificationId: string
-      sessionGeneration: number
-    }) => {
-      return runForNotificationSession(
-        sessionGeneration,
-        () => deleteNotificationAction(notificationId),
-      ) ?? Promise.resolve(undefined)
-    },
-
-    onMutate: async ({ notificationId, sessionGeneration }) => {
-      const cancellation = runForNotificationSession(
-        sessionGeneration,
-        () => queryClient.cancelQueries({ queryKey: notificationKeys.lists() }),
-      )
-      if (!cancellation) {
-        return { previous: undefined, sessionGeneration }
-      }
-      await cancellation
-
-      if (sessionGeneration !== getSessionEpoch()) {
-        return { previous: undefined, sessionGeneration }
-      }
-
-      const previous = snapshotNotificationList(queryClient)
-
-      const cacheChanged = runForNotificationSession(sessionGeneration, () => {
-        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
-          if (!old) return old
-          return deleteNotificationFromList(old, notificationId)
-        })
-        return true
-      })
-
-      return { previous: cacheChanged ? previous : undefined, sessionGeneration }
-    },
-
-    onError: (_err, _operation, context) => {
-      if (!context) return
-      runForNotificationSession(context.sessionGeneration, () => {
-        restoreNotificationList(queryClient, context.previous)
-      })
-    },
-
     onSettled: (_data, _error, _operation, context) => {
       if (!context) return
-      runForNotificationSession(context.sessionGeneration, () => {
+      runForNotificationSession(context.sessionEpoch, () => {
         void invalidateNotificationList(queryClient)
       })
     },
@@ -202,11 +133,123 @@ export function useDeleteNotification() {
     ...mutation,
     mutate: (notificationId: string) => mutation.mutate({
       notificationId,
-      sessionGeneration: getSessionEpoch(),
+      sessionEpoch: getSessionEpoch(),
     }),
     mutateAsync: (notificationId: string) => mutation.mutateAsync({
       notificationId,
-      sessionGeneration: getSessionEpoch(),
+      sessionEpoch: getSessionEpoch(),
+    }),
+  }
+}
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
+
+  const mutation = useMutation({
+    mutationFn: ({ sessionEpoch }: { sessionEpoch: number }) => {
+      return runForNotificationSession(
+        sessionEpoch,
+        () => markAllNotificationsRead(),
+      ) ?? Promise.resolve(undefined)
+    },
+
+    onMutate: async ({ sessionEpoch }) => {
+      if (!await cancelNotificationListForSession(queryClient, sessionEpoch)) {
+        return { previous: undefined, sessionEpoch }
+      }
+
+      const previous = runForNotificationSession(sessionEpoch, () => {
+        const snapshot = snapshotNotificationList(queryClient)
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
+          if (!old) return old
+          return markAllNotificationsReadInList(old)
+        })
+        return snapshot
+      })
+
+      return { previous, sessionEpoch }
+    },
+
+    onError: (_err, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        restoreNotificationList(queryClient, context.previous)
+        showError(t('notifications.markAllReadError'))
+      })
+    },
+
+    onSettled: (_data, _error, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        void invalidateNotificationList(queryClient)
+      })
+    },
+  })
+
+  return {
+    ...mutation,
+    mutate: () => mutation.mutate({ sessionEpoch: getSessionEpoch() }),
+    mutateAsync: () => mutation.mutateAsync({ sessionEpoch: getSessionEpoch() }),
+  }
+}
+
+export function useDeleteNotification() {
+  const queryClient = useQueryClient()
+
+  const mutation = useMutation({
+    mutationFn: ({ notificationId, sessionEpoch }: {
+      notificationId: string
+      sessionEpoch: number
+    }) => {
+      return runForNotificationSession(
+        sessionEpoch,
+        () => deleteNotificationAction(notificationId),
+      ) ?? Promise.resolve(undefined)
+    },
+
+    onMutate: async ({ notificationId, sessionEpoch }) => {
+      if (!await cancelNotificationListForSession(queryClient, sessionEpoch)) {
+        return { previous: undefined, sessionEpoch }
+      }
+
+      const previous = runForNotificationSession(sessionEpoch, () => {
+        const snapshot = snapshotNotificationList(queryClient)
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
+          if (!old) return old
+          return deleteNotificationFromList(old, notificationId)
+        })
+        return snapshot
+      })
+
+      return { previous, sessionEpoch }
+    },
+
+    onError: (_err, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        restoreNotificationList(queryClient, context.previous)
+      })
+    },
+
+    onSettled: (_data, _error, _operation, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        void invalidateNotificationList(queryClient)
+      })
+    },
+  })
+
+  return {
+    ...mutation,
+    mutate: (notificationId: string) => mutation.mutate({
+      notificationId,
+      sessionEpoch: getSessionEpoch(),
+    }),
+    mutateAsync: (notificationId: string) => mutation.mutateAsync({
+      notificationId,
+      sessionEpoch: getSessionEpoch(),
     }),
   }
 }
@@ -216,14 +259,20 @@ export function useDeleteAllNotifications() {
   const t = useTranslations()
   const { showError } = useAppToast()
 
-  return useMutation({
-    mutationFn: () => deleteAllNotificationsAction(),
+  const mutation = useMutation({
+    mutationFn: ({ sessionEpoch }: { sessionEpoch: number }) => {
+      return runForNotificationSession(
+        sessionEpoch,
+        () => deleteAllNotificationsAction(),
+      ) ?? Promise.resolve(undefined)
+    },
 
-    onMutate: async () => {
-      const sessionGeneration = getSessionEpoch()
-      await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
+    onMutate: async ({ sessionEpoch }) => {
+      if (!await cancelNotificationListForSession(queryClient, sessionEpoch)) {
+        return { previous: undefined, sessionEpoch }
+      }
 
-      const previous = runForNotificationSession(sessionGeneration, () => {
+      const previous = runForNotificationSession(sessionEpoch, () => {
         const snapshot = snapshotNotificationList(queryClient)
         queryClient.setQueryData<NotificationsResponse>(
           notificationKeys.lists(),
@@ -232,22 +281,28 @@ export function useDeleteAllNotifications() {
         return snapshot
       })
 
-      return { previous, sessionGeneration }
+      return { previous, sessionEpoch }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (_err, _operation, context) => {
       if (!context) return
-      runForNotificationSession(context.sessionGeneration, () => {
+      runForNotificationSession(context.sessionEpoch, () => {
         restoreNotificationList(queryClient, context.previous)
         showError(t('notifications.deleteAllError'))
       })
     },
 
-    onSettled: (_data, _error, _vars, context) => {
+    onSettled: (_data, _error, _operation, context) => {
       if (!context) return
-      runForNotificationSession(context.sessionGeneration, () => {
+      runForNotificationSession(context.sessionEpoch, () => {
         void invalidateNotificationList(queryClient)
       })
     },
   })
+
+  return {
+    ...mutation,
+    mutate: () => mutation.mutate({ sessionEpoch: getSessionEpoch() }),
+    mutateAsync: () => mutation.mutateAsync({ sessionEpoch: getSessionEpoch() }),
+  }
 }

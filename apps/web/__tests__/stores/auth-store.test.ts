@@ -387,6 +387,44 @@ describe('auth store', () => {
       expect(staleDelete).not.toHaveBeenCalled()
     })
 
+    it('empties the query cache when a login replaces the account a dead session left', async () => {
+      const { getQueryClient } = await import('@/lib/query-client')
+      const { notificationKeys } = await import('@orbit/shared/query')
+      const queryClient = getQueryClient()
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      queryClient.setQueryData(notificationKeys.lists(), {
+        items: [{ id: 'account-a-notification', title: 'Account A reminder' }],
+        unreadCount: 1,
+      })
+
+      await useAuthStore.getState().checkSession()
+      useAuthStore.getState().setAuth(makeLoginResponse({
+        userId: 'user-2',
+        name: 'Bea',
+        email: 'bea@example.com',
+      }))
+
+      expect(queryClient.getQueryData(notificationKeys.lists())).toBeUndefined()
+      expect(queryClient.getQueryCache().getAll()).toEqual([])
+    })
+
+    it('refuses the replacement account the user the dead session remembered', async () => {
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ refreshFailed: true }),
+      })
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+      expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+      respondWithAccount('user-2')
+
+      await useAuthStore.getState().recoverSessionRefreshFailure()
+
+      expect(useAuthStore.getState().user).toBeNull()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    })
+
     it('leaves a tab alone while the cookie still holds its own account', async () => {
       useAuthStore.getState().setAuth(makeLoginResponse())
       const generationBeforeCheck = getSessionEpoch()

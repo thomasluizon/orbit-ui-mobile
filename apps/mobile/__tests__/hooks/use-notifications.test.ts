@@ -139,6 +139,17 @@ type MutationConfig<TResult, TVariables, TContext> = {
   ) => void
 }
 
+type MarkReadOperation = { notificationId: string; sessionEpoch: number }
+type BulkOperation = { sessionEpoch: number }
+
+function markReadOperation(notificationId: string): MarkReadOperation {
+  return { notificationId, sessionEpoch: session.epoch }
+}
+
+function bulkOperation(): BulkOperation {
+  return { sessionEpoch: session.epoch }
+}
+
 type LateFailureMutation = {
   onMutate?: (variables: unknown) => unknown
   onError?: (error: Error, variables: unknown, context: unknown) => void
@@ -221,7 +232,7 @@ describe('mobile notification hooks', () => {
   it('optimistically marks a notification as read when the mutation is queued offline', async () => {
     const mutation = useMarkNotificationRead() as unknown as MutationConfig<
       { queued: true; queuedMutationId: string },
-      string,
+      MarkReadOperation,
       { previous: NotificationsResponse | undefined }
     >
     mocks.queueOrExecute.mockResolvedValue({
@@ -229,9 +240,10 @@ describe('mobile notification hooks', () => {
       queuedMutationId: 'mutation-1',
     })
 
-    const context = await mutation.onMutate?.('n-1')
-    const result = await mutation.mutationFn('n-1')
-    mutation.onSettled?.(result, null, 'n-1', context)
+    const operation = markReadOperation('n-1')
+    const context = await mutation.onMutate?.(operation)
+    const result = await mutation.mutationFn(operation)
+    mutation.onSettled?.(result, null, operation, context)
 
     expect(mocks.state.notifications?.items.find((item) => item.id === 'n-1')?.isRead).toBe(true)
     expect(mocks.state.notifications?.unreadCount).toBe(0)
@@ -295,11 +307,12 @@ describe('mobile notification hooks', () => {
   })
 
   it.each([
-    ['mark one read', () => useMarkNotificationRead(), 'n-1'],
-    ['mark all read', () => useMarkAllNotificationsRead(), undefined],
-    ['clear all', () => useDeleteAllNotifications(), undefined],
-  ] as const)('ignores a %s rejection from a replaced session', async (_name, createMutation, variables) => {
+    ['mark one read', () => useMarkNotificationRead(), () => markReadOperation('n-1')],
+    ['mark all read', () => useMarkAllNotificationsRead(), bulkOperation],
+    ['clear all', () => useDeleteAllNotifications(), bulkOperation],
+  ] as const)('ignores a %s rejection from a replaced session', async (_name, createMutation, buildOperation) => {
     const mutation = createMutation() as unknown as LateFailureMutation
+    const variables = buildOperation()
     const context = await mutation.onMutate?.(variables)
 
     session.epoch = 2
@@ -352,6 +365,40 @@ describe('mobile notification hooks', () => {
     expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
   })
+
+  it.each([
+    ['mark one read', () => useMarkNotificationRead(), 'n-1'],
+    ['mark all read', () => useMarkAllNotificationsRead(), undefined],
+    ['clear all', () => useDeleteAllNotifications(), undefined],
+  ] as const)(
+    'does not send a %s after the session changes while query cancellation is pending',
+    async (_name, createMutation, notificationId) => {
+      let releaseCancellation!: () => void
+      mocks.queryClient.cancelQueries.mockImplementationOnce(() => new Promise<void>((resolve) => {
+        releaseCancellation = resolve
+      }))
+      mocks.queueOrExecute.mockResolvedValue(undefined)
+      const mutation = createMutation() as unknown as {
+        mutateAsync: (notificationId?: string) => Promise<unknown>
+      }
+
+      const pending = mutation.mutateAsync(notificationId)
+      await Promise.resolve()
+      session.epoch = 2
+      mocks.state.notifications = replacementAccountNotificationsFixture()
+      mocks.queryClient.setQueryData.mockClear()
+      mocks.queryClient.invalidateQueries.mockClear()
+      feedback.showError.mockClear()
+      releaseCancellation()
+      await pending
+
+      expect(mocks.queueOrExecute).not.toHaveBeenCalled()
+      expect(mocks.state.notifications).toEqual(replacementAccountNotificationsFixture())
+      expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+      expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+      expect(feedback.showError).not.toHaveBeenCalled()
+    },
+  )
 
   it('derives the unread badge and item list from the query cache', () => {
     const results: ReturnType<typeof useNotifications>[] = []
@@ -422,14 +469,15 @@ describe('mobile notification hooks', () => {
   it('invalidates the list after a mark-read confirms online', async () => {
     const mutation = useMarkNotificationRead() as unknown as MutationConfig<
       unknown,
-      string,
+      MarkReadOperation,
       { previous: NotificationsResponse | undefined }
     >
     mocks.queueOrExecute.mockResolvedValue(undefined)
 
-    const context = await mutation.onMutate?.('n-1')
-    const result = await mutation.mutationFn('n-1')
-    mutation.onSettled?.(result, null, 'n-1', context)
+    const operation = markReadOperation('n-1')
+    const context = await mutation.onMutate?.(operation)
+    const result = await mutation.mutationFn(operation)
+    mutation.onSettled?.(result, null, operation, context)
 
     expect(mocks.state.notifications?.unreadCount).toBe(0)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
@@ -452,14 +500,15 @@ describe('mobile notification hooks', () => {
   it('optimistically marks every notification read and skips invalidation when queued', async () => {
     const mutation = useMarkAllNotificationsRead() as unknown as MutationConfig<
       { queued: true; queuedMutationId: string },
-      void,
+      BulkOperation,
       { previous: NotificationsResponse | undefined }
     >
     mocks.queueOrExecute.mockResolvedValue({ queued: true, queuedMutationId: 'mutation-1' })
 
-    const context = await mutation.onMutate?.()
-    const result = await mutation.mutationFn()
-    mutation.onSettled?.(result, null, undefined, context)
+    const operation = bulkOperation()
+    const context = await mutation.onMutate?.(operation)
+    const result = await mutation.mutationFn(operation)
+    mutation.onSettled?.(result, null, operation, context)
 
     expect(mocks.state.notifications?.items.every((item) => item.isRead)).toBe(true)
     expect(mocks.state.notifications?.unreadCount).toBe(0)
@@ -473,31 +522,33 @@ describe('mobile notification hooks', () => {
   it('restores the list when mark-all-read fails', async () => {
     const mutation = useMarkAllNotificationsRead() as unknown as MutationConfig<
       unknown,
-      void,
+      BulkOperation,
       { previous: NotificationsResponse | undefined }
     >
     const initial = mocks.state.notifications
+    const operation = bulkOperation()
 
-    const context = await mutation.onMutate?.()
+    const context = await mutation.onMutate?.(operation)
     expect(mocks.state.notifications?.unreadCount).toBe(0)
 
-    mutation.onError?.(new Error('boom'), undefined, context)
+    mutation.onError?.(new Error('boom'), operation, context)
     expect(mocks.state.notifications).toEqual(initial)
   })
 
   it('empties the list optimistically on delete-all and invalidates online', async () => {
     const mutation = useDeleteAllNotifications() as unknown as MutationConfig<
       unknown,
-      void,
+      BulkOperation,
       { previous: NotificationsResponse | undefined }
     >
     mocks.queueOrExecute.mockResolvedValue(undefined)
 
-    const context = await mutation.onMutate?.()
+    const operation = bulkOperation()
+    const context = await mutation.onMutate?.(operation)
     expect(mocks.state.notifications).toEqual({ items: [], unreadCount: 0 })
 
-    const result = await mutation.mutationFn()
-    mutation.onSettled?.(result, null, undefined, context)
+    const result = await mutation.mutationFn(operation)
+    mutation.onSettled?.(result, null, operation, context)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: notificationKeys.lists(),
     })
@@ -506,15 +557,16 @@ describe('mobile notification hooks', () => {
   it('restores the list when delete-all fails', async () => {
     const mutation = useDeleteAllNotifications() as unknown as MutationConfig<
       unknown,
-      void,
+      BulkOperation,
       { previous: NotificationsResponse | undefined }
     >
     const initial = mocks.state.notifications
+    const operation = bulkOperation()
 
-    const context = await mutation.onMutate?.()
+    const context = await mutation.onMutate?.(operation)
     expect(mocks.state.notifications?.items).toEqual([])
 
-    mutation.onError?.(new Error('boom'), undefined, context)
+    mutation.onError?.(new Error('boom'), operation, context)
     expect(mocks.state.notifications).toEqual(initial)
   })
 })

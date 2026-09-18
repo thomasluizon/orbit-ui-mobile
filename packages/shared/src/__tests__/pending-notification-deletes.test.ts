@@ -134,6 +134,35 @@ describe('pending notification deletes', () => {
     expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
   })
 
+  it('keeps a failed delete retryable while its notice is still live', async () => {
+    const execute = vi.fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(undefined)
+    queuePendingNotificationDelete('notif-1', execute)
+
+    await vi.advanceTimersByTimeAsync(5000)
+    await vi.advanceTimersByTimeAsync(9000)
+
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['notif-1'])
+    expect(retryFailedNotificationDelete('notif-1')).toBe(true)
+  })
+
+  it('drops a failed delete once its notice life ends', async () => {
+    const subscriber = vi.fn()
+    queuePendingNotificationDelete('notif-1', () => Promise.reject(new Error('boom')))
+
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['notif-1'])
+    const unsubscribe = subscribePendingNotificationDeleteIds(subscriber)
+
+    await vi.advanceTimersByTimeAsync(10000)
+    unsubscribe()
+
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+    expect(subscriber).toHaveBeenCalledTimes(1)
+    expect(retryFailedNotificationDelete('notif-1')).toBe(false)
+  })
+
   it('cancels pending work and invalidates active and failed attempts when a session ends', async () => {
     let rejectActiveDelete!: (error: Error) => void
     const activeDeleteRequest = new Promise<never>((_resolve, reject) => {

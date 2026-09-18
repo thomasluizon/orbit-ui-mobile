@@ -19,39 +19,52 @@ export function getSessionEpoch(): number {
   return sessionGeneration
 }
 
-let currentAccountId: string | null = null
+let lastObservedAccountId: string | null = null
+
+/**
+ * The auth cookie belongs to every tab at once, so a sign in elsewhere replaces the account under a
+ * tab that keeps running. This is the one path that changes which account the tab holds, and every
+ * caller routes through it, because a writer left outside it is how each of the previous rounds left
+ * one more hole. It raises the session generation so an in-flight callback started by the previous
+ * account cannot write into the new account's cache; it drops the pending notification deletes so
+ * their timers cannot send a DELETE for the previous account's ids under the new cookie; and it
+ * empties the query cache, which holds the previous account's notifications, habits, goals and
+ * profile that nothing else evicts because this tab never navigates. The cache empties only when the
+ * tab leaves an account it already held, so a first login and a re-login as the same account keep
+ * theirs. The last observed account outlives a teardown, so the session after it can tell a return
+ * from a replacement.
+ */
+function startAccountScopedSession(nextAccountId: string | null): boolean {
+  const previousAccountId = lastObservedAccountId
+  const accountChanged = previousAccountId !== null && previousAccountId !== nextAccountId
+
+  sessionGeneration += 1
+  if (nextAccountId !== null) lastObservedAccountId = nextAccountId
+  clearPendingNotificationDeletes()
+  if (accountChanged) getQueryClient().clear()
+
+  return accountChanged
+}
 
 function clearAccountScopedSessionState(): void {
-  sessionGeneration += 1
-  currentAccountId = null
-  clearPendingNotificationDeletes()
+  startAccountScopedSession(null)
   clearStepUpState()
 }
 
 /**
- * The auth cookie belongs to every tab at once, so a sign in elsewhere replaces the account under a
- * tab that keeps running. Nothing account scoped may survive that: the query cache empties because
- * it holds the previous account's notifications, habits, goals and profile and this tab never
- * navigates, so nothing else would evict them; the session generation rises so an in-flight callback
- * started by the previous account cannot write into the new account's cache; the pending
- * notification deletes drop so their timers cannot send a DELETE for the previous account's ids
- * under the new cookie; and the remembered user goes because this tab cannot prove the new account's
- * name. A tab that has not yet learned an account only records it, which leaves a reload of the same
- * account untouched.
+ * Reads the account the cookie now names. A tab that has not yet learned an account only records it,
+ * which leaves a reload of the same account untouched, and a replacement also drops the remembered
+ * user because this tab cannot prove the new account's name.
  */
 function adoptSessionAccount(userId: string | null): boolean {
   if (userId === null) return false
-
-  const previousAccountId = currentAccountId
-  if (previousAccountId === userId) return false
-  if (previousAccountId === null) {
-    currentAccountId = userId
+  if (lastObservedAccountId === userId) return false
+  if (lastObservedAccountId === null) {
+    lastObservedAccountId = userId
     return false
   }
 
-  clearAccountScopedSessionState()
-  getQueryClient().clear()
-  currentAccountId = userId
+  startAccountScopedSession(userId)
   bindStepUpStateToAccount(userId)
   return true
 }
@@ -115,9 +128,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setAuth: (loginResponse: LoginResponse) => {
     sessionRecoveryUser = null
-    sessionGeneration += 1
-    currentAccountId = loginResponse.userId
-    clearPendingNotificationDeletes()
+    startAccountScopedSession(loginResponse.userId)
     bindStepUpStateToAccount(loginResponse.userId)
     set({
       isAuthenticated: true,
