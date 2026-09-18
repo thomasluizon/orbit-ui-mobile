@@ -3,7 +3,20 @@ import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { createChatStoreState, type ChatStoreState } from '@orbit/shared/stores'
 
 interface WebChatStoreState extends ChatStoreState {
-  clearMessages: () => void
+  resetAccountScopedChat: () => void
+}
+
+/**
+ * Removes the stored draft. A browser that denies storage access owns the property and throws
+ * `SecurityError` on the read, which `'localStorage' in globalThis` cannot see, and this runs inside
+ * sign in, so an unguarded throw would block the sign in rather than the Astra screen.
+ */
+function forgetStoredDraft(): void {
+  try {
+    globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
+  } catch {
+    return
+  }
 }
 
 export const useChatStore = create<WebChatStoreState>((set) => ({
@@ -12,10 +25,10 @@ export const useChatStore = create<WebChatStoreState>((set) => ({
   /**
    * Empties every field the previous account wrote into Astra, not only the conversation. Zustand
    * merges a partial set, so a field left out here survives the account change. The composer reads
-   * its draft back from storage whenever `draftHydrated` is false, so the stored copy goes with it.
+   * its draft back from storage whenever `draftHydrated` is false, so the stored copy goes first.
    */
-  clearMessages: () => {
-    if ('localStorage' in globalThis) globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
+  resetAccountScopedChat: () => {
+    forgetStoredDraft()
     set({
       messages: [],
       isTyping: false,

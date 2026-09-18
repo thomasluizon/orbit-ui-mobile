@@ -36,7 +36,7 @@ import {
 import { createSessionScopedRunner } from '@orbit/shared/utils/session-scope'
 import { fetchJson } from '@/lib/api-fetch'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { getSessionEpoch } from '@/stores/auth-store'
+import { getSessionEpoch } from '@/lib/session-epoch'
 
 const runForNotificationSession = createSessionScopedRunner(getSessionEpoch)
 

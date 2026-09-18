@@ -29,6 +29,8 @@ vi.mock('@/hooks/use-app-toast', () => ({
 }))
 vi.mock('@/stores/auth-store', () => ({
   getSessionGeneration: () => ({ epoch: session.epoch, credentialVersion: 1 }),
+}))
+vi.mock('@/lib/session-epoch', () => ({
   getSessionEpoch: () => session.epoch,
 }))
 

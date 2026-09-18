@@ -119,39 +119,58 @@ describe('chat store', () => {
   })
 
 
-  describe('clearMessages', () => {
+  describe('resetAccountScopedChat', () => {
     it('clears all messages', () => {
-      const { addMessage, clearMessages } = useChatStore.getState()
+      const { addMessage, resetAccountScopedChat } = useChatStore.getState()
       addMessage(makeMessage({ id: 'msg-1' }))
       addMessage(makeMessage({ id: 'msg-2' }))
 
-      clearMessages()
+      resetAccountScopedChat()
 
       expect(useChatStore.getState().messages).toEqual([])
     })
 
     it('resets typing state', () => {
       useChatStore.setState({ isTyping: true, streamingMessageId: 'draft-1' })
-      const { clearMessages } = useChatStore.getState()
-      clearMessages()
+      const { resetAccountScopedChat } = useChatStore.getState()
+      resetAccountScopedChat()
       expect(useChatStore.getState().isTyping).toBe(false)
       expect(useChatStore.getState().streamingMessageId).toBeNull()
     })
 
     it('resets the composer draft and its stored copy', () => {
-      const { clearMessages, hydrateDraft, setContextualSuggestion, setDraft } = useChatStore.getState()
+      const { resetAccountScopedChat, hydrateDraft, setContextualSuggestion, setDraft } = useChatStore.getState()
       setDraft('cancel my 9pm meds reminder')
       hydrateDraft('cancel my 9pm meds reminder')
       setContextualSuggestion({ id: 'habit-1', label: 'Ask about Morning walk', prompt: 'How is Morning walk going?' })
       globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'cancel my 9pm meds reminder')
 
-      clearMessages()
+      resetAccountScopedChat()
 
       expect(useChatStore.getState().draft).toBe('')
       expect(useChatStore.getState().draftRevision).toBe(0)
       expect(useChatStore.getState().draftHydrated).toBe(false)
       expect(useChatStore.getState().contextualSuggestion).toBeNull()
       expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
+    })
+
+    it('still resets when the browser denies access to storage', () => {
+      const realStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        get() {
+          throw new DOMException('The operation is insecure.', 'SecurityError')
+        },
+      })
+
+      try {
+        useChatStore.getState().setDraft('cancel my 9pm meds reminder')
+
+        expect(() => useChatStore.getState().resetAccountScopedChat()).not.toThrow()
+        expect(useChatStore.getState().draft).toBe('')
+      } finally {
+        if (realStorage) Object.defineProperty(globalThis, 'localStorage', realStorage)
+      }
     })
   })
 })

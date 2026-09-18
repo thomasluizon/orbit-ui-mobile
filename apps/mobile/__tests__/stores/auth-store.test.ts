@@ -40,7 +40,7 @@ const {
   queryClientClearMock,
   setQueryDataMock,
   clearStoredAuthReturnUrlMock,
-  clearMessagesMock,
+  resetAccountScopedChatMock,
   offlineQueueClearMock,
   retainAccountMock,
   clearOfflineStateMock,
@@ -69,7 +69,7 @@ const {
   queryClientClearMock: vi.fn(),
   setQueryDataMock: vi.fn(),
   clearStoredAuthReturnUrlMock: vi.fn(),
-  clearMessagesMock: vi.fn(),
+  resetAccountScopedChatMock: vi.fn(async () => {}),
   offlineQueueClearMock: vi.fn(),
   retainAccountMock: vi.fn(),
   clearOfflineStateMock: vi.fn(),
@@ -174,7 +174,7 @@ vi.mock('@/lib/auth-flow', () => ({
 vi.mock('@/stores/chat-store', () => ({
   useChatStore: {
     getState: () => ({
-      clearMessages: clearMessagesMock,
+      resetAccountScopedChat: resetAccountScopedChatMock,
     }),
   },
 }))
@@ -217,7 +217,8 @@ describe('mobile auth store security paths', () => {
     clearPersistedQueryCacheMock.mockReset()
     queryClientClearMock.mockReset()
     clearStoredAuthReturnUrlMock.mockReset()
-    clearMessagesMock.mockReset()
+    resetAccountScopedChatMock.mockReset()
+    resetAccountScopedChatMock.mockResolvedValue(undefined)
     offlineQueueClearMock.mockReset()
     retainAccountMock.mockReset()
     clearOfflineStateMock.mockReset()
@@ -759,7 +760,7 @@ describe('mobile auth store security paths', () => {
     expect(clearWidgetTokenMock).toHaveBeenCalledTimes(1)
     expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1)
     expect(queryClientClearMock).toHaveBeenCalledTimes(1)
-    expect(clearMessagesMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountScopedChatMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,
@@ -815,7 +816,7 @@ describe('mobile auth store security paths', () => {
     expect(clearWidgetTokenMock).toHaveBeenCalledTimes(1)
     expect(clearPersistedQueryCacheMock).toHaveBeenCalledTimes(1)
     expect(queryClientClearMock).toHaveBeenCalledTimes(1)
-    expect(clearMessagesMock).toHaveBeenCalledTimes(1)
+    expect(resetAccountScopedChatMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
       user: null,

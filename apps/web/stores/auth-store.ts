@@ -3,22 +3,13 @@ import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
 import { getQueryClient } from '@/lib/query-client'
+import { advanceSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
-let sessionGeneration = 0
-
-/**
- * The one session identity both platforms share. Web counts sessions in a bare number and mobile
- * pairs an epoch with a credential version, so account-scoped work reads this instead of either
- * store's own shape.
- */
-export function getSessionEpoch(): number {
-  return sessionGeneration
-}
 
 let lastObservedAccountId: string | null = null
 
@@ -26,15 +17,21 @@ let lastObservedAccountId: string | null = null
  * The auth cookie belongs to every tab at once, so a sign in elsewhere replaces the account under a
  * tab that keeps running. This is the one path that changes which account the tab holds, and every
  * caller routes through it, because a writer left outside it is how each of the previous rounds left
- * one more hole. It raises the session generation so an in-flight callback started by the previous
- * account cannot write into the new account's cache; it drops the pending notification deletes so
- * their timers cannot send a DELETE for the previous account's ids under the new cookie; and it
- * empties the query cache and the Astra conversation, which hold the previous account's
- * notifications, habits, goals, profile and chat that nothing else evicts because this tab never
- * navigates. Both empty only when the tab arrives at a DIFFERENT named account. A teardown names no
- * account, so a session that drops and returns as the same account keeps what it had; the last
- * observed account outlives that teardown, so the session after it can tell a return from a
- * replacement.
+ * one more hole.
+ *
+ * Three resets run on EVERY transition, a sign out included, because an account change that crosses
+ * a page load cannot be recognised: the hard navigation destroys `lastObservedAccountId`, so the
+ * next sign in sees no previous account to compare against. Raising the session epoch stops an
+ * in-flight callback the previous account started from writing into the next account's cache, and
+ * tells the hooks whose state no store holds to drop it. Dropping the pending notification deletes
+ * stops their timers sending a DELETE for the previous account's ids under the next cookie.
+ * Resetting the Astra chat removes the conversation, the composer draft and the stored copy of that
+ * draft, which outlive a sign out on a shared computer.
+ *
+ * The query cache alone stays gated on a real account change, because it is the one reset whose
+ * cost lands on the SAME account: a rejected refresh that recovers must not blank a tab full of
+ * habits, goals and profile rows. A teardown names no account, and the last observed account
+ * outlives it, so the session after a teardown can still tell a return from a replacement.
  */
 function startAccountScopedSession(nextAccountId: string | null): void {
   const previousAccountId = lastObservedAccountId
@@ -42,13 +39,11 @@ function startAccountScopedSession(nextAccountId: string | null): void {
     && previousAccountId !== null
     && previousAccountId !== nextAccountId
 
-  sessionGeneration += 1
+  advanceSessionEpoch()
   if (nextAccountId !== null) lastObservedAccountId = nextAccountId
   clearPendingNotificationDeletes()
-  if (accountChanged) {
-    getQueryClient().clear()
-    useChatStore.getState().clearMessages()
-  }
+  useChatStore.getState().resetAccountScopedChat()
+  if (accountChanged) getQueryClient().clear()
 }
 
 function clearAccountScopedSessionState(): void {

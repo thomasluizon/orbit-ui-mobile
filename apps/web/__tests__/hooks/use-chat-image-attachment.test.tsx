@@ -7,6 +7,7 @@ vi.mock('next-intl', () => ({
 }))
 
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
+import { advanceSessionEpoch } from '@/lib/session-epoch'
 
 function imageFile(type: string, sizeBytes: number, name = 'photo.png'): File {
   const file = new File(['x'], name, { type })
@@ -115,6 +116,19 @@ describe('useChatImageAttachment', () => {
     })
 
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-2')
+    expect(result.current.selectedImage).toBeNull()
+    expect(result.current.imagePreview).toBeNull()
+  })
+
+  it('drops the previous account image when the session moves on', () => {
+    const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
+    act(() => {
+      result.current.handleFileSelect(fileSelectEvent(imageFile('image/png', 1024)))
+    })
+    expect(result.current.selectedImage).not.toBeNull()
+
+    act(() => advanceSessionEpoch())
+
     expect(result.current.selectedImage).toBeNull()
     expect(result.current.imagePreview).toBeNull()
   })

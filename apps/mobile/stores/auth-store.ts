@@ -28,6 +28,7 @@ import {
 import { setRuntimeTheme } from '@/lib/theme'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
+import { advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
@@ -35,7 +36,6 @@ import { useThrottleStore } from './throttle-store'
 
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
-let sessionEpoch = 0
 let credentialVersion = 0
 let credentialMutationTail = Promise.resolve()
 
@@ -70,16 +70,7 @@ export function isAuthTransitionInFlight(): boolean {
 }
 
 export function getSessionGeneration(): SessionSnapshot {
-  return { epoch: sessionEpoch, credentialVersion }
-}
-
-/**
- * The one session identity both platforms share. Web counts sessions in a bare number and mobile
- * pairs an epoch with a credential version, so account-scoped work reads this instead of either
- * store's own shape.
- */
-export function getSessionEpoch(): number {
-  return sessionEpoch
+  return { epoch: getSessionEpoch(), credentialVersion }
 }
 
 /**
@@ -142,7 +133,7 @@ function isTokenExpired(token: string): boolean {
 }
 
 function isCurrentSessionEpoch(epoch: number): boolean {
-  return sessionEpoch === epoch
+  return getSessionEpoch() === epoch
 }
 
 function isCurrentCredentialObservation(observation: SessionSnapshot): boolean {
@@ -194,7 +185,7 @@ async function clearSessionCredentials(
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
     clearPendingNotificationDeletes()
     clearStepUpState()
-    sessionEpoch += 1
+    advanceSessionEpoch()
     credentialVersion += 1
     useAuthStore.setState({
       ...deriveSessionPhase('signed-out'),
@@ -203,7 +194,7 @@ async function clearSessionCredentials(
     })
     await clearAllTokens()
     await clearWidgetToken().catch(() => {})
-    return { epoch: sessionEpoch, refreshToken }
+    return { epoch: getSessionEpoch(), refreshToken }
   })
 }
 
@@ -232,7 +223,7 @@ async function runSessionTeardown(
   cancelScheduledFlush()
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
-  useChatStore.getState().clearMessages()
+  if (!(await runSessionTeardownStep(epoch, () => useChatStore.getState().resetAccountScopedChat()))) return null
   useReviewReminderStore.getState().setAccountScope(null)
   resetOnboardingDraftForSignOut()
   if (!isCurrentSessionTeardown(epoch)) return null
@@ -469,7 +460,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await saveWidgetToken(token).catch(() => {})
         bindStepUpStateToAccount(user.userId)
         clearPendingNotificationDeletes()
-        sessionEpoch += 1
+        advanceSessionEpoch()
         credentialVersion += 1
         set({
           ...deriveSessionPhase('establishing'),
@@ -490,7 +481,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       offlineQueue.retainAccount(user.userId)
       await clearOfflineState()
       if (!isCurrentSessionEpoch(ownership.epoch)) return
-      useChatStore.getState().clearMessages()
+      await useChatStore.getState().resetAccountScopedChat()
+      if (!isCurrentSessionEpoch(ownership.epoch)) return
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
 

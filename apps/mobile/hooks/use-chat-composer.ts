@@ -45,6 +45,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { usePendingOperationExecution } from "@/hooks/use-pending-operation-execution";
 import { useChatStore } from "@/stores/chat-store";
+import { useResetOnSessionChange } from "@/hooks/use-session-reset";
 
 interface AttemptedSend {
   content: string;
@@ -162,6 +163,19 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const [selectedTextFile, setSelectedTextFile] =
     useState<SelectedChatTextFile | null>(null);
 
+  /**
+   * The root layout keeps this hook mounted through an account change, so the previous account's
+   * attempted send would otherwise stay armed behind Retry and post its text and image under the
+   * next account's token. The store reset cannot reach React state, so it follows the session
+   * itself, and every field added here is covered by the same subscription.
+   */
+  useResetOnSessionChange(() => {
+    setLastFailedSend(null);
+    setSelectedImage(null);
+    setImagePreview(null);
+    setSelectedTextFile(null);
+  });
+
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
   const aiMessagesLimit = profile?.aiMessagesLimit ?? (hasProAccess ? 50 : 5);
@@ -187,6 +201,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   );
 
   useEffect(() => {
+    if (draftHydrated) return;
     let active = true;
     void AsyncStorage.getItem(CHAT_DRAFT_STORAGE_KEY).then((storedDraft) => {
       if (active) hydrateDraft(storedDraft);
@@ -194,7 +209,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     return () => {
       active = false;
     };
-  }, [hydrateDraft]);
+  }, [draftHydrated, hydrateDraft]);
 
   useEffect(() => {
     if (!draftHydrated) return;

@@ -63,6 +63,7 @@ vi.mock('@/app/actions/chat', () => ({
 }))
 
 import { useChatComposer } from '@/hooks/use-chat-composer'
+import { advanceSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
@@ -930,6 +931,35 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.sendError).toBe('chat.sendError')
     expect(result.current.canRetryLastSend).toBe(true)
     expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it('disarms the previous account retry when the session moves on', async () => {
+    mocks.fetch.mockRejectedValue(new Error('network unavailable'))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.sendMessage('cancel my 9pm meds reminder')
+    })
+    expect(result.current.canRetryLastSend).toBe(true)
+    expect(result.current.composerProps.onRetry).toBeTypeOf('function')
+
+    act(() => advanceSessionEpoch())
+
+    expect(result.current.canRetryLastSend).toBe(false)
+    expect(result.current.composerProps.onRetry).toBeUndefined()
+  })
+
+  it('drops the previous account text file when the session moves on', async () => {
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Walk')))
+    })
+    expect(result.current.selectedTextFile?.name).toBe('notes.txt')
+
+    act(() => advanceSessionEpoch())
+
+    expect(result.current.selectedTextFile).toBeNull()
   })
 
   it('sends a live suggestion label in the transport payload', async () => {

@@ -34,7 +34,7 @@ import {
 } from '@/lib/offline-mutations'
 import { createSessionScopedRunner } from '@orbit/shared/utils/session-scope'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { getSessionEpoch } from '@/stores/auth-store'
+import { getSessionEpoch } from '@/lib/session-epoch'
 
 const runForNotificationSession = createSessionScopedRunner(getSessionEpoch)
 

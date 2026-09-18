@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getSessionEpoch, useAuthStore } from '@/stores/auth-store'
+import { useAuthStore } from '@/stores/auth-store'
+import { getSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 import type { ChatMessage } from '@orbit/shared/types/chat'
@@ -31,6 +32,19 @@ describe('auth store', () => {
       ok: true,
       status: 200,
       json: () => Promise.resolve({ expiresAt: null }),
+    })
+  })
+
+  afterEach(() => {
+    globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
+    useChatStore.setState({
+      messages: [],
+      isTyping: false,
+      streamingMessageId: null,
+      draft: '',
+      draftRevision: 0,
+      draftHydrated: false,
+      contextualSuggestion: null,
     })
   })
 
@@ -90,6 +104,20 @@ describe('auth store', () => {
       expiresAt: null,
       sessionRefreshFailed: false,
     })
+  })
+
+  it('removes the stored Astra draft when the account signs out', async () => {
+    mockFetch.mockResolvedValue({ ok: true })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    useChatStore.getState().setDraft('cancel my 9pm meds reminder')
+    useChatStore.getState().hydrateDraft('cancel my 9pm meds reminder')
+    globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'cancel my 9pm meds reminder')
+
+    await useAuthStore.getState().logout()
+
+    expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
+    expect(useChatStore.getState().draft).toBe('')
+    expect(useChatStore.getState().draftHydrated).toBe(false)
   })
 
   it('marks the session as signed out after confirming a refresh rejection', async () => {
@@ -348,16 +376,6 @@ describe('auth store', () => {
       vi.useRealTimers()
       const { getQueryClient } = await import('@/lib/query-client')
       getQueryClient().clear()
-      globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
-      useChatStore.setState({
-        messages: [],
-        isTyping: false,
-        streamingMessageId: null,
-        draft: '',
-        draftRevision: 0,
-        draftHydrated: false,
-        contextualSuggestion: null,
-      })
     })
 
     function respondWithAccount(userId: string) {
