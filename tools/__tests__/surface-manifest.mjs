@@ -41,10 +41,16 @@ export async function cases() {
     "apps/mobile/modules/orbit-widget/android/build/generated/widget.xml": "<Generated />\n",
     "apps/mobile/modules/orbit-widget/android/.gradle/cache.bin": "generated\n",
     "apps/mobile/modules/orbit-widget/android/.cxx/debug/generated.ninja": "generated\n",
+    ".gitignore": "apps/mobile/modules/*/android/local.properties\n",
   }
   for (const [relativePath, body] of Object.entries(files)) write(join(repository.path, relativePath), body)
   repository.git(["add", ...Object.keys(files)])
   repository.git(["commit", "-q", "-m", "surface fixture"])
+
+  // Android Studio writes this file on first open and .gitignore ignores it, so it exists only on
+  // a developer machine. A manifest that counts it disagrees with the CI regeneration over a file
+  // that is not in git, and the drift gate then goes red on a change nobody can reproduce.
+  write(join(repository.path, "apps/mobile/modules/orbit-widget/android/local.properties"), "sdk.dir=/opt/android-sdk\n")
 
   const result = run("surface-manifest.mjs", ["--baseline", "HEAD", "--json"], {
     cwd: repository.path,
@@ -70,6 +76,11 @@ export async function cases() {
   T("the Android widget is an authoritative surface", ids.has("m-widget-orbit-widget"))
   const widget = surfaces.find((surface) => surface.surfaceId === "m-widget-orbit-widget")
   T("Android widget ownership excludes generated build trees", widget?.ownedFiles.every((path) => !/\/android\/(?:build|\.gradle|\.cxx)\//.test(path)), JSON.stringify(widget?.ownedFiles))
+  T(
+    "Android widget ownership excludes an untracked file git ignores",
+    widget?.ownedFiles.every((path) => !path.endsWith("/local.properties")),
+    JSON.stringify(widget?.ownedFiles),
+  )
   T("web layout-hosted chat blocks remain visible under the redirect route", surfaces.some((surface) => surface.surfaceId === "block-chat-pending-operation-card" && surface.parentSurfaceId === "route-chat"))
   T("mobile layout-hosted chat blocks remain visible under the redirect route", surfaces.some((surface) => surface.surfaceId === "m-block-chat-pending-operation-card" && surface.parentSurfaceId === "m-route-chat"))
   for (const platform of ["web", "mobile"]) {
@@ -97,6 +108,13 @@ export async function cases() {
   const baseline = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim()
   const checkArgs = ["--baseline", baseline, "--check"]
   run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+
+  // The property every drift assertion below rests on: the generator is a function of the tree
+  // alone. A generator that answers differently twice over one unchanged tree turns the gate into
+  // a coin toss, and no amount of drift coverage would show it.
+  const firstWrite = readFileSync(manifestPath, "utf8")
+  run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  T("two runs over one unchanged tree write the same bytes", readFileSync(manifestPath, "utf8") === firstWrite)
 
   const fresh = run("surface-manifest.mjs", checkArgs, checkOptions)
   T("--check accepts a manifest generated from the same tree", fresh.status === 0, fresh.stderr)

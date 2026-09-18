@@ -298,14 +298,17 @@ function specialSurfaceLabel(sourceFile, filename) {
 function chatBlockEntries(platform, routeSurfaceId, hostSourceFile) {
   const hostClosure = closureOf(join(REPO_ROOT, hostSourceFile))
   const componentsRoot = join(REPO_ROOT, "apps", platform, "components")
+  // Sorted AFTER the conversion, never before it. An absolute path carries the platform separator,
+  // and `\` (0x5C) sorts after `/` (0x2F), so sorting absolute paths orders a Windows run and a
+  // Linux run differently whenever a directory name is a prefix of a sibling file name.
   const candidates = walk(join(componentsRoot, "chat"))
     .concat(join(componentsRoot, "shell", "composer.tsx"))
     .concat(platform === "mobile" ? [join(REPO_ROOT, "apps", "mobile", "components", "message-bubble.tsx")] : [])
     .filter((file) => file.endsWith(".tsx") && hostClosure.has(file) && file !== join(REPO_ROOT, hostSourceFile))
+    .map(toPosix)
     .sort()
 
-  return candidates.map((absolutePath) => {
-    const sourceFile = toPosix(absolutePath)
+  return candidates.map((sourceFile) => {
     const componentsMarker = platform === "web" ? "apps/web/components/chat/" : "apps/mobile/components/chat/"
     const label = sourceFile.startsWith(componentsMarker)
       ? sourceFile.slice(componentsMarker.length).replace(/\.tsx$/, "")
@@ -446,9 +449,15 @@ function mobileEntries() {
     surfaces.push({ surfaceId: `m-overlay-${slug(overlayName(sourceFile))}`, platform: "mobile", kind: "overlay", sourceFile, href: null })
   }
 
-  const widgetRoot = join(REPO_ROOT, "apps", "mobile", "modules", "orbit-widget")
-  const widgetFiles = walk(widgetRoot)
-    .map(toPosix)
+  // The widget is the one surface whose ownership comes from a directory rather than from import
+  // edges, so it is the one place a file that is not in git can reach the manifest. git answers
+  // that question exactly, where a hand-written path list only guesses at it: .gitignore already
+  // ignores apps/mobile/modules/*/android/local.properties, which Android Studio writes on first
+  // open, and the directory exclusions below never named it. A regeneration on a machine that had
+  // opened the Android project would then disagree with the CI one over an untracked file, and
+  // Surface Manifest Drift would go red on a pull request whose author cannot reproduce it.
+  // check-copy.mjs and check-dashes.mjs already enumerate the tree through `git ls-files`.
+  const widgetFiles = trackedFiles("apps/mobile/modules/orbit-widget")
     .filter(
       (path) =>
         !path.includes("/ios/") &&
@@ -508,6 +517,21 @@ function attachOwnershipAndStates(surfaces) {
     surface.states = hasEmptyState(closure) ? ["default", "empty"] : ["default"]
   }
   return surfaces
+}
+
+/**
+ * Every tracked path under a directory, repository-relative and posix-separated. `-z` is what
+ * keeps it faithful: without it git C-quotes any path outside plain ASCII, and the quoted string
+ * would not match the tree it names.
+ */
+function trackedFiles(pathspec) {
+  return execFileSync("git", ["ls-files", "-z", "--", pathspec], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  })
+    .split("\0")
+    .filter(Boolean)
 }
 
 function gitSha(ref) {

@@ -4,7 +4,13 @@ import { readdirSync, readFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+// Honours ORBIT_SURFACE_ROOT for the same reason surface-manifest.mjs does, and it has to be the
+// same variable. The Surface Manifest Drift job runs both tools in one step, so a root that moved
+// one of them would have this tool validate a different tree from the one --check just read, and
+// the step would pass on a mismatch.
+const REPO_ROOT = process.env.ORBIT_SURFACE_ROOT
+  ? resolve(process.env.ORBIT_SURFACE_ROOT)
+  : resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const MANIFEST_PATH = join(REPO_ROOT, ".claude", "manifests", "surfaces.json")
 const MAPPING_PATH = join(REPO_ROOT, "tools", "redesign-groups.json")
 const CANVAS_DIRECTORY = join(REPO_ROOT, "design", "canvas")
