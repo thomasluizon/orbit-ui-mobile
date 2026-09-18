@@ -59,7 +59,9 @@ Never invent ratings, prices, reviews, or org details, or a `file:line` no tool 
 
 ### 9. Carry the standing operating contract (D89, D90)
 
-Enter through `/orchestrate`: Codex writes every code change; Claude never edits code. A bare ticket stays local.
+Enter through `/orchestrate`: Codex writes every code change, or Claude headless through the same launcher
+when the Codex allowance is exhausted (`§5.4.1`); the orchestrating session never edits code itself.
+A bare ticket stays local.
 Redesign queues use `/orchestrate --cloud --parallel` for UI, a small local pool for `api`/`landing` (D89).
 D76 covers the thirteen redesign screens; groundwork runs autonomously. See `.claude/playbooks/redesign-screen.md`.
 Until shipping, D90 suspends D76 steps 1/3/7/8 and D88's hold; steps 2/4/5/6 stand. No human wait; screens merge like groundwork. D76/D88 then return.

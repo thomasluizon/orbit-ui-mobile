@@ -1220,10 +1220,45 @@ the same order file, the same worktree, the same timeouts and the same wake sour
 ```bash
 node -e "const f='.claude/orchestrator.json',c=require('./'+f);c.worker='claude';require('fs').writeFileSync(f,JSON.stringify(c,null,2)+'\n')"
 node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run
+git checkout -- .claude/orchestrator.json
 ```
 
-Run the `--dry-run` before the first real launch and read the resolved `args` back. Switch `worker`
-to `codex` again when the allowance resets.
+**That `worker` edit is uncommitted and transient, and the third command is its revert.** The
+committed tree keeps `codex`, because `tools/__tests__/orchestrator-config.mjs` pins the shipped
+default implementer and a gate wins over a run (D95). Run `git checkout -- .claude/orchestrator.json`
+when the allowance resets. Nothing in a commit records which engine wrote it, so **the run report
+names the engine that produced its commits.**
+
+**The engine's isolation flags are not decoration.** `--strict-mcp-config` with no `--mcp-config`
+beside it loads zero MCP servers, which is what stops a headless worker inheriting the user-scope
+servers in `~/.claude.json`. Those load in every project and several carry live tokens, and
+`--permission-mode bypassPermissions` removes the approval that would otherwise catch a call to one.
+`--output-format stream-json` keeps the log growing during the run, which is the second progress
+signal `launch-worker.mjs:505-509` supervises on; text output prints once at the end, so a long model
+turn that writes no file reads as no progress and dies as `KILLED_NO_PROGRESS`. `--verbose` is
+mandatory beside `stream-json`: the installed binary refuses the pair without it.
+
+**`assertNotStale` fires the moment you edit `worker`.** `tools/lib/orchestrator-config.mjs:29-46`
+refuses a working copy that disagrees with `origin/<base>`, and `:41` exempts only a checkout that
+already contains `origin/redesign/main`. A worktree cut before that ref does not contain it, so every
+tool that reads the config refuses with the message at `:42-45`. Merge the base ref first:
+`git fetch origin redesign/main && git merge origin/redesign/main`.
+
+**The `--dry-run` is an argv check, not a preflight.** `launch-worker.mjs:259` resolves the
+executable on PATH before the `if (dryRun)` block at `:266`, and `:268` exits before
+`githubEnvironment` at `:323` and before any spawn. So it proves four things: the engine and tier
+resolve, the model id the launcher selected, the exact argv the child would receive, and that the
+command is on PATH in a shape Node can spawn without a shell. It proves nothing about the
+credentials, nothing about whether the model id is accepted, and nothing about the run. Read the
+`args` array back for both tiers.
+
+**Calibration goes stale for the duration of the switch. That is expected, and nobody reseeds to
+clear it.** `tools/__tests__/check-calibration.mjs:200-202` asserts that switching the engine without
+a fresh stamp exits 1, so `node tools/check-calibration.mjs` reports the engine mismatch while
+`worker` is `claude`. Leave it. A reseed taken in that state sets `workerMoved` true at
+`tools/reseed-calibration.mjs:195-199` and re-dates every verdict at once, which destroys the
+per-entry age backstop `check-calibration.mjs:336-349` exists to hold. Say the gate is red for this
+reason, and let the revert clear it.
 
 Nothing else changes. The order generator, `§5.7`'s queue, the readiness loop, the caps and every
 hard prohibition apply identically, because the engine is the only variable.
@@ -1232,14 +1267,19 @@ hard prohibition apply identically, because the engine is the only variable.
 session, so it dies with that session and a handoff inherits nothing: its edits sit uncommitted in a
 worktree with no record of what they were, and the next session cannot resume or even find them.
 A subagent also registers no wake source, so `.claude/hooks/require-wake-source.mjs` correctly reads
-an unattended run as having no continuation, and the night ends silently. Measured 2026-09-18: five
-subagents ran as workers, the Stop hook objected on every turn, and each one had to be told to commit
-and push before a handoff could be written at all. A headless engine through `launch-worker.mjs` has
-none of those problems, because the process is external, its pid is the wake source, and its output
-is a commit rather than a conversation.
+an unattended run as having no continuation. Measured 2026-09-18: five subagents ran as workers, the
+Stop hook objected on every turn, and each one had to be told to commit and push before a handoff
+could be written at all. A headless engine through `launch-worker.mjs` has none of those problems,
+because the process is external, the launcher's pid is the wake source with the worker's pid recorded
+beside it, and its output is a commit rather than a conversation.
 
-The same rule binds the reviewer. When Pullfrog cannot run, say so and record the blocker; do not
-quietly promote a subagent into the reviewer seat and merge on its word.
+**The reviewer rule turns on the word *quietly*, not on the seat.** What it bans is a hidden
+substitution, not a substitute that exists. On protected `main` the rule is absolute: a real
+`pullfrog-approval` check exists there, a subagent cannot publish it, and nothing may stand in for
+it. On unprotected `redesign/main` no such check exists to forge, so a separate-agent review is
+acceptable **when the pull request comment names the substitution, says Pullfrog could not run, and
+lists the evidence a reader can check**. Merging on an unnamed subagent's word is the failure; saying
+plainly which agent reviewed what, and why Pullfrog did not, is not.
 
 ## §5.7 The queue
 
