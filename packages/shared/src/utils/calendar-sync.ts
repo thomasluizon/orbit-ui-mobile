@@ -42,12 +42,14 @@ export type CalendarSyncImportIssue =
   | 'weekday-interval'
   | 'ordinal-weekday'
   | 'finite-date-clamp'
+  | 'finite-date-range'
   | 'utc-until-offset-shift'
 
 export type CalendarSyncImportIssueMessageKey =
   | 'calendar.importIssue.weekdayInterval'
   | 'calendar.importIssue.ordinalWeekday'
   | 'calendar.importIssue.finiteDateClamp'
+  | 'calendar.importIssue.finiteDateRange'
   | 'calendar.importIssue.utcUntilOffsetShift'
 
 export interface CalendarSyncTranslationAdapter {
@@ -178,8 +180,12 @@ export function parseCalendarSyncRecurrence(
 
 const ISO_DATE_LENGTH = 10
 const DAYS_IN_WEEK = 7
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 const SECONDS_PER_DAY = 24 * 60 * 60
 const MAX_RECURRING_OFFSET_SHIFT_SECONDS = 2 * 60 * 60
+const MAX_CALENDAR_SYNC_YEAR = 9999
+const MAX_CALENDAR_SYNC_MONTH = MAX_CALENDAR_SYNC_YEAR * 12 + 11
+const MAX_CALENDAR_SYNC_DATE = Date.UTC(MAX_CALENDAR_SYNC_YEAR, 11, 31)
 
 const WEEKDAY_INDEX: Record<string, number> = {
   SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6,
@@ -209,14 +215,14 @@ function walkMonthlyOrYearlyDates(
   const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
   const startMonth = start.getUTCFullYear() * 12 + start.getUTCMonth()
   const startDay = start.getUTCDate()
+  const monthStep = parts.FREQ === 'MONTHLY' ? interval : interval * 12
   let endDate = start
   let seen = 1
   let skippedCandidate = false
+  let monthNumber = startMonth
 
-  for (let step = 1; count === null || seen < count; step += 1) {
-    const monthNumber = parts.FREQ === 'MONTHLY'
-      ? startMonth + step * interval
-      : startMonth + step * interval * 12
+  while ((count === null || seen < count) && monthNumber <= MAX_CALENDAR_SYNC_MONTH - monthStep) {
+    monthNumber += monthStep
     const year = Math.floor(monthNumber / 12)
     const month = monthNumber % 12
     const candidate = new Date(Date.UTC(year, month, startDay))
@@ -234,6 +240,59 @@ function walkMonthlyOrYearlyDates(
   }
 
   return { endDate: formatUtcDate(endDate), skippedCandidate }
+}
+
+function resolveWeekdayCountOffset(
+  startWeekday: number,
+  weekdays: number[],
+  count: number,
+): number {
+  const firstWeekOffsets = weekdays
+    .filter((weekday) => weekday >= startWeekday)
+    .map((weekday) => weekday - startWeekday)
+  if (count <= firstWeekOffsets.length) return firstWeekOffsets[count - 1] ?? 0
+
+  const remaining = count - firstWeekOffsets.length
+  const fullWeeks = Math.floor((remaining - 1) / weekdays.length)
+  const finalWeekday = weekdays[(remaining - 1) % weekdays.length] ?? 0
+  return DAYS_IN_WEEK - startWeekday + fullWeeks * DAYS_IN_WEEK + finalWeekday
+}
+
+function isUntilBeyondCalendarSyncRange(until: string): boolean {
+  const match = /^\+?(\d{4,})(\d{2})(\d{2})(?:T\d{6}Z)?$/.exec(until)
+  return match?.[1] !== undefined && Number(match[1]) > MAX_CALENDAR_SYNC_YEAR
+}
+
+function hasFiniteDateRangeIssue(
+  parts: Record<string, string>,
+  startDate: string | null,
+): boolean {
+  if (parts.UNTIL && isUntilBeyondCalendarSyncRange(parts.UNTIL)) return true
+  if (!parts.COUNT || !startDate) return false
+
+  const count = parsePositiveInteger(parts.COUNT)
+  if (!count || count === 1) return false
+  const start = new Date(`${startDate.slice(0, ISO_DATE_LENGTH)}T00:00:00Z`)
+  if (Number.isNaN(start.getTime())) return false
+
+  const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
+  if (parts.FREQ === 'MONTHLY' || parts.FREQ === 'YEARLY') {
+    const startMonth = start.getUTCFullYear() * 12 + start.getUTCMonth()
+    const frequencyMonths = parts.FREQ === 'MONTHLY' ? 1 : 12
+    const lastCandidateMonth = startMonth + (count - 1) * interval * frequencyMonths
+    return !Number.isFinite(lastCandidateMonth) || lastCandidateMonth > MAX_CALENDAR_SYNC_MONTH
+  }
+
+  const weekdays = [...new Set(
+    (parts.BYDAY?.split(',') ?? [])
+      .map((token) => WEEKDAY_INDEX[token.trim()])
+      .filter((weekday): weekday is number => weekday !== undefined),
+  )].sort((left, right) => left - right)
+  const offsetDays = weekdays.length > 0
+    ? resolveWeekdayCountOffset(start.getUTCDay(), weekdays, count)
+    : (count - 1) * interval * (parts.FREQ === 'WEEKLY' ? DAYS_IN_WEEK : 1)
+  const remainingDays = Math.floor((MAX_CALENDAR_SYNC_DATE - start.getTime()) / MILLISECONDS_PER_DAY)
+  return !Number.isFinite(offsetDays) || offsetDays > remainingDays
 }
 
 function resolveUnfilteredCountEndDate(
@@ -438,6 +497,10 @@ export function getCalendarSyncImportIssue(
     return 'weekday-interval'
   }
 
+  if (hasFiniteDateRangeIssue(parts, startDate)) {
+    return 'finite-date-range'
+  }
+
   if (didFiniteDateWalkSkip(parts, startDate, startTime, startUtc)) {
     return 'finite-date-clamp'
   }
@@ -465,6 +528,7 @@ export function getCalendarSyncImportIssueMessageKey(
     'weekday-interval': 'calendar.importIssue.weekdayInterval',
     'ordinal-weekday': 'calendar.importIssue.ordinalWeekday',
     'finite-date-clamp': 'calendar.importIssue.finiteDateClamp',
+    'finite-date-range': 'calendar.importIssue.finiteDateRange',
     'utc-until-offset-shift': 'calendar.importIssue.utcUntilOffsetShift',
   }
   return keys[issue]

@@ -233,6 +233,7 @@ describe('calendar-sync utils', () => {
     expect(getCalendarSyncImportIssueMessageKey('ordinal-weekday')).toBe('calendar.importIssue.ordinalWeekday')
     expect(getCalendarSyncImportIssueMessageKey('weekday-interval')).toBe('calendar.importIssue.weekdayInterval')
     expect(getCalendarSyncImportIssueMessageKey('finite-date-clamp')).toBe('calendar.importIssue.finiteDateClamp')
+    expect(getCalendarSyncImportIssueMessageKey('finite-date-range')).toBe('calendar.importIssue.finiteDateRange')
     expect(getCalendarSyncImportIssueMessageKey('utc-until-offset-shift')).toBe('calendar.importIssue.utcUntilOffsetShift')
   })
 
@@ -421,6 +422,48 @@ describe('calendar-sync utils', () => {
       }],
       fromSyncReview: true,
     })
+  })
+
+  it('refuses a monthly COUNT beyond the supported date range promptly', () => {
+    const startedAt = performance.now()
+    const issue = getCalendarSyncImportIssue(
+      'RRULE:FREQ=MONTHLY;COUNT=5000000',
+      '2026-01-15',
+    )
+
+    expect(issue).toBe('finite-date-range')
+    expect(performance.now() - startedAt).toBeLessThan(100)
+  })
+
+  it('refuses a two-occurrence interval whose last candidate exceeds year 9999', () => {
+    expect(getCalendarSyncImportIssue(
+      'RRULE:FREQ=MONTHLY;INTERVAL=100000;COUNT=2',
+      '2026-01-15',
+    )).toBe('finite-date-range')
+  })
+
+  it('refuses an UNTIL date beyond year 9999', () => {
+    expect(getCalendarSyncImportIssue(
+      'RRULE:FREQ=DAILY;UNTIL=100000101',
+      '2026-01-15',
+    )).toBe('finite-date-range')
+  })
+
+  it('imports a recurrence whose last candidate stays within year 9998', () => {
+    const event = {
+      id: 'event-year-9998',
+      title: 'Long range review',
+      description: null,
+      startDate: '2026-01-15',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=YEARLY;INTERVAL=7972;COUNT=2',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(event.recurrenceRule, event.startDate)).toBeNull()
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('9998-01-15')
   })
 
   it('bounds an UNTIL series at the date the rule names', () => {
