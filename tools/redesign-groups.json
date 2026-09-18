@@ -128,9 +128,10 @@
     ],
     "Orbit Offline": [],
     "Orbit Onboarding": [
+      "m-overlay-onboarding-onboarding-create-habit",
       "m-overlay-onboarding-onboarding-flow",
       "m-route-onboarding-index",
-      "overlay-onboarding-onboarding-flow",
+      "overlay-onboarding-onboarding-create-habit",
       "route-onboarding"
     ],
     "Orbit Perfil": [

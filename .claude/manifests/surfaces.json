@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "51d8b8106aa04de1f00a38eb59e053702d8a9389",
+  "generatedFrom": "ffbb776d3e033811cee4f15f6e33749ce37e0776",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 186,
-  "cellCount": 800,
+  "surfaceCount": 187,
+  "cellCount": 804,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -719,8 +719,7 @@
         "apps/web/app/(app)/preferences/_components/preference-labels.ts",
         "apps/web/app/(app)/preferences/_components/preference-settings-list.tsx",
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
-        "apps/web/app/(app)/preferences/page.tsx",
-        "apps/web/hooks/use-push-notification-preferences.ts"
+        "apps/web/app/(app)/preferences/page.tsx"
       ],
       "closureSize": 206,
       "state": "default",
@@ -737,8 +736,7 @@
         "apps/web/app/(app)/preferences/_components/preference-labels.ts",
         "apps/web/app/(app)/preferences/_components/preference-settings-list.tsx",
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
-        "apps/web/app/(app)/preferences/page.tsx",
-        "apps/web/hooks/use-push-notification-preferences.ts"
+        "apps/web/app/(app)/preferences/page.tsx"
       ],
       "closureSize": 206,
       "state": "default",
@@ -755,8 +753,7 @@
         "apps/web/app/(app)/preferences/_components/preference-labels.ts",
         "apps/web/app/(app)/preferences/_components/preference-settings-list.tsx",
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
-        "apps/web/app/(app)/preferences/page.tsx",
-        "apps/web/hooks/use-push-notification-preferences.ts"
+        "apps/web/app/(app)/preferences/page.tsx"
       ],
       "closureSize": 206,
       "state": "default",
@@ -773,8 +770,7 @@
         "apps/web/app/(app)/preferences/_components/preference-labels.ts",
         "apps/web/app/(app)/preferences/_components/preference-settings-list.tsx",
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
-        "apps/web/app/(app)/preferences/page.tsx",
-        "apps/web/hooks/use-push-notification-preferences.ts"
+        "apps/web/app/(app)/preferences/page.tsx"
       ],
       "closureSize": 206,
       "state": "default",
@@ -1218,6 +1214,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
         "apps/web/components/ui/columns.tsx",
+        "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "closureSize": 202,
@@ -1238,6 +1235,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
         "apps/web/components/ui/columns.tsx",
+        "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "closureSize": 202,
@@ -1258,6 +1256,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
         "apps/web/components/ui/columns.tsx",
+        "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "closureSize": 202,
@@ -1278,6 +1277,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
         "apps/web/components/ui/columns.tsx",
+        "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "closureSize": 202,
@@ -1406,7 +1406,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 239,
+      "closureSize": 270,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -1420,7 +1420,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 239,
+      "closureSize": 270,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -1434,7 +1434,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 239,
+      "closureSize": 270,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -1448,7 +1448,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 239,
+      "closureSize": 270,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -2996,7 +2996,7 @@
         "apps/web/lib/actions/onboarding.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 433,
+      "closureSize": 434,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -3024,7 +3024,7 @@
         "apps/web/lib/actions/onboarding.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 433,
+      "closureSize": 434,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -3052,7 +3052,7 @@
         "apps/web/lib/actions/onboarding.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 433,
+      "closureSize": 434,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -3080,7 +3080,7 @@
         "apps/web/lib/actions/onboarding.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 433,
+      "closureSize": 434,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -3108,7 +3108,7 @@
         "apps/web/lib/actions/onboarding.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 433,
+      "closureSize": 434,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -3136,7 +3136,7 @@
         "apps/web/lib/actions/onboarding.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 433,
+      "closureSize": 434,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -3164,7 +3164,7 @@
         "apps/web/lib/actions/onboarding.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 433,
+      "closureSize": 434,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -3192,7 +3192,7 @@
         "apps/web/lib/actions/onboarding.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 433,
+      "closureSize": 434,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -5214,57 +5214,57 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-onboarding-onboarding-flow",
+      "surfaceId": "overlay-onboarding-onboarding-create-habit",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/onboarding/onboarding-flow.tsx",
+      "sourceFile": "apps/web/components/onboarding/onboarding-create-habit.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/onboarding/onboarding-flow.tsx"
+        "apps/web/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 200,
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-onboarding-onboarding-flow",
+      "surfaceId": "overlay-onboarding-onboarding-create-habit",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/onboarding/onboarding-flow.tsx",
+      "sourceFile": "apps/web/components/onboarding/onboarding-create-habit.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/onboarding/onboarding-flow.tsx"
+        "apps/web/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 200,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-onboarding-onboarding-flow",
+      "surfaceId": "overlay-onboarding-onboarding-create-habit",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/onboarding/onboarding-flow.tsx",
+      "sourceFile": "apps/web/components/onboarding/onboarding-create-habit.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/onboarding/onboarding-flow.tsx"
+        "apps/web/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 200,
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "overlay-onboarding-onboarding-flow",
+      "surfaceId": "overlay-onboarding-onboarding-create-habit",
       "platform": "web",
       "kind": "overlay",
-      "sourceFile": "apps/web/components/onboarding/onboarding-flow.tsx",
+      "sourceFile": "apps/web/components/onboarding/onboarding-create-habit.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/web/components/onboarding/onboarding-flow.tsx"
+        "apps/web/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 200,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -5894,7 +5894,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 266,
+      "closureSize": 284,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -5908,7 +5908,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 266,
+      "closureSize": 284,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -5922,7 +5922,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 266,
+      "closureSize": 284,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -5936,7 +5936,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 266,
+      "closureSize": 284,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6063,7 +6063,6 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
-        "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-ad-mob.ts",
@@ -6095,7 +6094,6 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
-        "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-ad-mob.ts",
@@ -6127,7 +6125,6 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
-        "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-ad-mob.ts",
@@ -6159,7 +6156,6 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
-        "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-ad-mob.ts",
@@ -6191,7 +6187,6 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
-        "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-ad-mob.ts",
@@ -6223,7 +6218,6 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
-        "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-ad-mob.ts",
@@ -6255,7 +6249,6 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
-        "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-ad-mob.ts",
@@ -6287,7 +6280,6 @@
         "apps/mobile/components/habit-list/styles.ts",
         "apps/mobile/components/habit-list/tree-helpers.ts",
         "apps/mobile/components/habits/selection-tray.tsx",
-        "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
         "apps/mobile/hooks/use-ad-mob.ts",
@@ -7360,7 +7352,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/hooks/use-date-format.ts"
       ],
       "closureSize": 220,
       "state": "default",
@@ -7374,7 +7367,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/hooks/use-date-format.ts"
       ],
       "closureSize": 220,
       "state": "default",
@@ -7388,7 +7382,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/hooks/use-date-format.ts"
       ],
       "closureSize": 220,
       "state": "default",
@@ -7402,7 +7397,8 @@
       "sourceFile": "apps/mobile/app/step-up.tsx",
       "href": "/step-up",
       "ownedFiles": [
-        "apps/mobile/app/step-up.tsx"
+        "apps/mobile/app/step-up.tsx",
+        "apps/mobile/hooks/use-date-format.ts"
       ],
       "closureSize": 220,
       "state": "default",
@@ -7643,6 +7639,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -7663,6 +7660,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -7683,6 +7681,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -7703,6 +7702,7 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
+        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -10722,6 +10722,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-onboarding-onboarding-create-habit",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/onboarding-create-habit.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "closureSize": 222,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-onboarding-create-habit",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/onboarding-create-habit.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "closureSize": 222,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-onboarding-create-habit",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/onboarding-create-habit.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "closureSize": 222,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-onboarding-onboarding-create-habit",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/onboarding/onboarding-create-habit.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
+      ],
+      "closureSize": 222,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-onboarding-onboarding-flow",
       "platform": "mobile",
       "kind": "overlay",
@@ -10730,7 +10786,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 265,
+      "closureSize": 283,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10744,7 +10800,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 265,
+      "closureSize": 283,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10758,7 +10814,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 265,
+      "closureSize": 283,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10772,7 +10828,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 265,
+      "closureSize": 283,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
