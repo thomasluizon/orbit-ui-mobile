@@ -523,6 +523,40 @@ describe('calendar-sync utils', () => {
     )).toBe('finite-date-range')
   })
 
+  it('builds a large in-range weekday request promptly from the resolved offset', () => {
+    const startedAt = performance.now()
+    const request = buildCalendarSyncImportRequest([{
+      id: 'event-large-weekday-count',
+      title: 'Long-running Monday review',
+      description: null,
+      startDate: '2026-01-05',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=YEARLY;BYDAY=MO;COUNT=416000',
+      reminders: [],
+    }])
+
+    expect(request).toEqual({
+      habits: [{
+        title: 'Long-running Monday review',
+        description: null,
+        dueDate: '2026-01-05',
+        dueTime: null,
+        dueEndTime: null,
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: ['Monday'],
+        endDate: '9998-10-12',
+        reminderEnabled: false,
+        reminderTimes: null,
+        googleEventId: 'event-large-weekday-count',
+      }],
+      fromSyncReview: true,
+    })
+    expect(performance.now() - startedAt).toBeLessThan(100)
+  })
+
   it('bounds an UNTIL series at the date the rule names', () => {
     expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261019T235959Z', '2026-09-14')).toBe('2026-10-19')
   })

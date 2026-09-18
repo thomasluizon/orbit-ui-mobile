@@ -457,17 +457,10 @@ function resolveCalendarSyncEndDateFromResolution(
     return resolveUnfilteredCountEndDate(parts, start, count).endDate
   }
 
-  const cursor = new Date(start)
-  let seen = 0
-  for (let step = 0; step < count * DAYS_IN_WEEK + DAYS_IN_WEEK; step += 1) {
-    if (weekdayIndexes.includes(cursor.getUTCDay())) {
-      seen += 1
-      if (seen === count) return cursor.toISOString().slice(0, ISO_DATE_LENGTH)
-    }
-    cursor.setUTCDate(cursor.getUTCDate() + 1)
-  }
-
-  return null
+  const offsetDays = resolveWeekdayCountOffset(start.getUTCDay(), weekdayIndexes, count)
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + offsetDays)
+  return formatUtcDate(end)
 }
 
 function didFiniteDateWalkSkip(
