@@ -1,11 +1,17 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
+import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+
+function clearAccountScopedSessionState(): void {
+  clearPendingNotificationDeletes()
+  clearStepUpState()
+}
 
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
   const next = sessionRevalidationQueue.then(task, task)
@@ -93,7 +99,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     if (session.kind === 'inactive') {
       sessionRecoveryUser = null
-      clearStepUpState()
+      clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
         user: null,
@@ -104,7 +110,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     if (session.kind === 'rejected') {
       sessionRecoveryUser ??= get().user
-      clearStepUpState()
+      clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
         user: null,
@@ -129,7 +135,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })
     } else if (session.kind === 'inactive') {
       sessionRecoveryUser = null
-      clearStepUpState()
+      clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
         user: null,
@@ -156,7 +162,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })
     } else if (session.kind === 'inactive') {
       sessionRecoveryUser = null
-      clearStepUpState()
+      clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
         user: null,
@@ -182,7 +188,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    clearStepUpState()
+    clearAccountScopedSessionState()
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {

@@ -27,6 +27,7 @@ import {
 } from '@/lib/jwt-session'
 import { setRuntimeTheme } from '@/lib/theme'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
+import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
@@ -182,6 +183,7 @@ async function clearSessionCredentials(
       return null
     }
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
+    clearPendingNotificationDeletes()
     clearStepUpState()
     sessionEpoch += 1
     credentialVersion += 1

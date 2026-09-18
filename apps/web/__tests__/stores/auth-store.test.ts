@@ -2,12 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth-store'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
+import {
+  getFailedNotificationDeleteIdsSnapshot,
+  queuePendingNotificationDelete,
+  resetPendingNotificationDeletesForTests,
+  retryFailedNotificationDelete,
+} from '@/lib/pending-notification-deletes'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 describe('auth store', () => {
   beforeEach(() => {
+    resetPendingNotificationDeletesForTests()
     clearStepUpState()
     useAuthStore.setState({
       isAuthenticated: false,
@@ -93,6 +100,27 @@ describe('auth store', () => {
     useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
 
     expect(isStepUpVerified('keys')).toBe(false)
+  })
+
+  it('does not carry a failed notification delete into a replacement account', async () => {
+    vi.useFakeTimers()
+    const executeDelete = vi.fn(() => { throw new Error('Server error') })
+    try {
+      useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+      queuePendingNotificationDelete('account-a-notification', executeDelete)
+      vi.advanceTimersByTime(5000)
+      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+
+      await useAuthStore.getState().logout()
+      useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
+
+      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(retryFailedNotificationDelete('account-a-notification')).toBe(false)
+      expect(executeDelete).toHaveBeenCalledTimes(1)
+    } finally {
+      resetPendingNotificationDeletesForTests()
+      vi.useRealTimers()
+    }
   })
 
   it('updates expiresAt from the session response', async () => {

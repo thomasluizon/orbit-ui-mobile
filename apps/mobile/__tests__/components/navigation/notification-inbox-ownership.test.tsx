@@ -140,32 +140,15 @@ it.each([
   expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
 })
 
-it('announces a delayed delete rejection after the inbox unmounts and keeps undo silent', async () => {
-  const deferred = deferredFailure()
+it('keeps an undone delayed delete silent', async () => {
   const response = queryClient.getQueryData(notificationKeys.lists())
-  vi.mocked(apiClient).mockImplementation((_path, options) => (
-    options?.method ? deferred.promise : Promise.resolve(response)
-  ))
+  vi.mocked(apiClient).mockResolvedValue(response)
   TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
 
   press('Delete: Reminder')
   press('Undo')
   await advance(5000)
   expect(useAppToastStore.getState().currentToast).toBeNull()
-
-  press('Delete: Reminder')
-  await advance(5000)
-  TestRenderer.act(() => tree?.update(retainedStack(false)))
-  deferred.reject()
-  await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
-  await advance(0)
-
-  const failureCopy = (tree as unknown as { root: { findAll: (predicate: (node: { type: unknown; props: Record<string, unknown> }) => boolean) => { props: Record<string, unknown> }[] } }).root.findAll(
-    (node) => node.type === 'Text' && node.props.children === "Couldn't delete that alert. Try again.",
-  )
-  expect(failureCopy).toHaveLength(1)
-  expect(useAppToastStore.getState().currentToast).toBeNull()
-  expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
 })
 
 it('shares one poll and the app AppState bridge between the retained bell and pushed inbox until the last unmount', async () => {

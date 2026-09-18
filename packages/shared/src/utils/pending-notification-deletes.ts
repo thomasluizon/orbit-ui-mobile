@@ -137,8 +137,7 @@ export function cancelPendingNotificationDelete(notificationId: string): boolean
   return true
 }
 
-/** Clears all pending deletes and timers; test-only escape hatch. */
-export function resetPendingNotificationDeletesForTests(): void {
+function clearPendingNotificationDeleteState(): void {
   for (const entry of pendingDeleteEntries.values()) {
     clearTimeout(entry.timer)
   }
@@ -148,4 +147,14 @@ export function resetPendingNotificationDeletesForTests(): void {
   activeDeleteAttempts.clear()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
+}
+
+/** Cancels and invalidates delayed deletes when the owning session ends. */
+export function clearPendingNotificationDeletes(): void {
+  clearPendingNotificationDeleteState()
+}
+
+/** Clears all pending deletes and timers; test-only escape hatch. */
+export function resetPendingNotificationDeletesForTests(): void {
+  clearPendingNotificationDeleteState()
 }

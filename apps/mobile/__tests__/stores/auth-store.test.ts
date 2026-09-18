@@ -14,6 +14,13 @@ import {
 import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
 import { shouldExposeOnboardingRoute } from '@/lib/capture-mode'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import {
+  getFailedNotificationDeleteIdsSnapshot,
+  getPendingNotificationDeleteIdsSnapshot,
+  queuePendingNotificationDelete,
+  resetPendingNotificationDeletesForTests,
+  retryFailedNotificationDelete,
+} from '@/lib/pending-notification-deletes'
 
 const {
   replaceMock,
@@ -157,6 +164,7 @@ function makeJwtWithClaims(expirySeconds: number, userId = 'jwt-user', email = '
 
 describe('mobile auth store security paths', () => {
   beforeEach(() => {
+    resetPendingNotificationDeletesForTests()
     clearStepUpState()
     replaceMock.mockReset()
     getTokenMock.mockReset()
@@ -1672,6 +1680,48 @@ describe('mobile auth store security paths', () => {
     })
 
     expect(isStepUpVerified('keys')).toBe(false)
+  })
+
+  it('does not carry delayed notification deletes into a replacement account', async () => {
+    vi.useFakeTimers()
+    const failedDelete = vi.fn(() => { throw new Error('Server error') })
+    let rejectActiveDelete!: (error: Error) => void
+    const activeDeleteRequest = new Promise<never>((_resolve, reject) => {
+      rejectActiveDelete = reject
+    })
+    const pendingDelete = vi.fn()
+    try {
+      await useAuthStore.getState().login('account-a-token', null, {
+        userId: 'account-a',
+        email: 'account-a@example.com',
+        name: 'Account A',
+      })
+      queuePendingNotificationDelete('failed-notification', failedDelete)
+      queuePendingNotificationDelete('active-notification', () => activeDeleteRequest)
+      await vi.advanceTimersByTimeAsync(5000)
+      queuePendingNotificationDelete('pending-notification', pendingDelete)
+      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['failed-notification'])
+
+      await useAuthStore.getState().logout()
+      rejectActiveDelete(new Error('Late server error'))
+      await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(5000)
+      await useAuthStore.getState().login('account-b-token', null, {
+        userId: 'account-b',
+        email: 'account-b@example.com',
+        name: 'Account B',
+      })
+
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(retryFailedNotificationDelete('failed-notification')).toBe(false)
+      expect(retryFailedNotificationDelete('active-notification')).toBe(false)
+      expect(failedDelete).toHaveBeenCalledTimes(1)
+      expect(pendingDelete).not.toHaveBeenCalled()
+    } finally {
+      resetPendingNotificationDeletesForTests()
+      vi.useRealTimers()
+    }
   })
 
   it('applies the profile language and theme during login hydration', async () => {

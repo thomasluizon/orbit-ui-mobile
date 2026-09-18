@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cancelPendingNotificationDelete,
+  clearPendingNotificationDeletes,
   clearFailedNotificationDeletes,
   getFailedNotificationDeleteIdsSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
@@ -131,5 +132,28 @@ describe('pending notification deletes', () => {
     await Promise.resolve()
 
     expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+  })
+
+  it('cancels pending work and invalidates active and failed attempts when a session ends', async () => {
+    let rejectActiveDelete!: (error: Error) => void
+    const activeDeleteRequest = new Promise<never>((_resolve, reject) => {
+      rejectActiveDelete = reject
+    })
+    const pendingDelete = vi.fn()
+    queuePendingNotificationDelete('failed', () => { throw new Error('failed') })
+    queuePendingNotificationDelete('active', () => activeDeleteRequest)
+    await vi.advanceTimersByTimeAsync(5000)
+    queuePendingNotificationDelete('pending', pendingDelete)
+
+    clearPendingNotificationDeletes()
+    rejectActiveDelete(new Error('late failure'))
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+    expect(retryFailedNotificationDelete('failed')).toBe(false)
+    expect(retryFailedNotificationDelete('active')).toBe(false)
+    expect(pendingDelete).not.toHaveBeenCalled()
   })
 })
