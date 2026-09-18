@@ -464,6 +464,11 @@ describe("CalendarSyncScreen", () => {
       checked: false,
       disabled: true,
     });
+    expect(eventRow.props.style({ pressed: false })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ backgroundColor: "#111111" }),
+      ]),
+    );
     const importPill = tree.root.find(
       (node: TestNode & { type?: unknown }) =>
         node.type === "PillButton" &&

@@ -974,10 +974,10 @@
     "importedCount": "{count} event imported as a habit | {count} events imported as habits",
     "importPartialFailure": "{count} event could not be imported | {count} events could not be imported",
     "importIssue": {
-      "weekdayInterval": "Orbit cannot preserve this event's weekday interval.",
-      "ordinalWeekday": "Orbit cannot import schedules like the second Monday of each month.",
-      "finiteDateClamp": "Orbit cannot preserve this finite schedule because some dates do not exist every month or year.",
-      "utcUntilOffsetShift": "Orbit cannot safely place this schedule's final occurrence after a time change."
+      "weekdayInterval": "Orbit cannot preserve this weekday interval. Change the event to repeat every week, then import it again.",
+      "ordinalWeekday": "Orbit cannot import schedules like the second Monday of each month. Change it to repeat weekly, then import it again.",
+      "finiteDateClamp": "Some months or years do not include this start date. Change it to day 28 or earlier, then import it again.",
+      "utcUntilOffsetShift": "Orbit cannot place the final occurrence after a clock change. Remove the event's end date, then import it again."
     },
     "goToHabits": "Open habits",
     "errorTitle": "Something went wrong",

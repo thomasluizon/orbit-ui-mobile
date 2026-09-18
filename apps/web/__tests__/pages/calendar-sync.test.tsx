@@ -427,6 +427,7 @@ describe('CalendarSyncPage', () => {
 
     const row = screen.getByText('Second Monday review').closest('button')?.parentElement
     expect(row?.className).not.toContain('hover:bg-[var(--bg-elev)]')
+    expect(row).toHaveStyle({ background: 'var(--bg-elev)' })
   })
 
   it('explains and disables a finite month-end suggestion before import', async () => {

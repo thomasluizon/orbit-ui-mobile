@@ -20,6 +20,21 @@ function rowEntrance(index: number) {
     .reduceMotion(ReduceMotion.System)
 }
 
+function importIssueVisuals(hasImportIssue: boolean, tokens: AppTokensV2) {
+  return hasImportIssue
+    ? { titleColor: tokens.fg3, selectorOpacity: 0.5 }
+    : { titleColor: tokens.fg1, selectorOpacity: 1 }
+}
+
+function eventRowBackground(
+  hasImportIssue: boolean,
+  pressed: boolean,
+  selectedBackground: string,
+  elevatedBackground: string,
+) {
+  return hasImportIssue || pressed ? elevatedBackground : selectedBackground
+}
+
 interface CalendarSyncEventRowProps {
   event: CalendarSyncEvent
   index: number
@@ -66,6 +81,8 @@ export function CalendarSyncEventRow({
   const endTimeSuffix = event.endTime ? ` - ${event.endTime}` : ''
   const timeLabel = event.startTime ? `${event.startTime}${endTimeSuffix}` : ''
   const selectedBackground = selected ? tintFromPrimary(tokens, 0.06) : 'transparent'
+  const hasImportIssue = importIssue !== null
+  const issueVisuals = importIssueVisuals(hasImportIssue, tokens)
 
   return (
     <Animated.View entering={rowEntrance(index)}>
@@ -79,12 +96,20 @@ export function CalendarSyncEventRow({
           styles.eventRow,
           {
             borderBottomColor: tokens.hairline,
-            backgroundColor: pressed ? tokens.bgElev : selectedBackground,
+            backgroundColor: eventRowBackground(
+              hasImportIssue,
+              pressed,
+              selectedBackground,
+              tokens.bgElev,
+            ),
           },
         ]}
       >
         <View style={styles.eventBody}>
-          <Text style={[styles.eventTitle, { color: tokens.fg1 }]} numberOfLines={1}>
+          <Text
+            style={[styles.eventTitle, { color: issueVisuals.titleColor }]}
+            numberOfLines={1}
+          >
             {event.title}
           </Text>
           <View style={styles.eventMetaRow}>
@@ -134,7 +159,9 @@ export function CalendarSyncEventRow({
             </Text>
           ) : null}
         </View>
-        <RadioGlyph selected={selected} size={24} tokens={tokens} />
+        <View style={{ opacity: issueVisuals.selectorOpacity }}>
+          <RadioGlyph selected={selected} size={24} tokens={tokens} />
+        </View>
         {isReviewMode && suggestionId ? (
           <Pressable
             onPress={() => onDismiss(suggestionId)}

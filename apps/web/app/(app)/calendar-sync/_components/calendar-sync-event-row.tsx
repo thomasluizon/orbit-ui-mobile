@@ -51,9 +51,11 @@ export function CalendarSyncEventRow({
         gap: 12,
         padding: '0 16px',
         borderBottom: '1px solid var(--hairline)',
-        background: selected
-          ? 'rgba(var(--primary-rgb), 0.06)'
-          : undefined,
+        background: importIssue
+          ? 'var(--bg-elev)'
+          : selected
+            ? 'rgba(var(--primary-rgb), 0.06)'
+            : undefined,
       }}
     >
       <button
@@ -65,7 +67,10 @@ export function CalendarSyncEventRow({
         className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer disabled:cursor-not-allowed"
         style={{ gap: 12, padding: '12px 0' }}
       >
-        <span className="shrink-0" style={{ marginTop: 0 }}>
+        <span
+          className="shrink-0"
+          style={{ marginTop: 0, opacity: importIssue ? 0.5 : 1 }}
+        >
           <RadioGlyph selected={selected} size={24} />
         </span>
         <span className="flex-1 min-w-0 block">
@@ -75,7 +80,7 @@ export function CalendarSyncEventRow({
               fontFamily: 'var(--font-sans)',
               fontSize: 15,
               fontWeight: 500,
-              color: 'var(--fg-1)',
+              color: importIssue ? 'var(--fg-3)' : 'var(--fg-1)',
             }}
           >
             {event.title}
