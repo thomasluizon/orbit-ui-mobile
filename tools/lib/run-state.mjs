@@ -34,6 +34,16 @@ const GITDIR_LINE = /^gitdir:[ \t]*(.+?)[ \t]*$/m
 // Linux proc_pid_stat(5): Z is zombie; x is the historical spelling of dead state X.
 const LINUX_DEAD_PROCESS_STATES = new Set(["Z", "X", "x"])
 export const PENDING_WAKE_SOURCE_MAX_AGE_MS = 45_000
+/**
+ * A ledger row's `merged` value must LOOK like a merge commit sha, because the whole safety
+ * argument for that field is that a reader can check it against GitHub. A `blocker` may be any
+ * non-empty string, since a false one prints a loud BLOCKED banner; a false `merged` ends an
+ * unattended night in silence. `orchestrate/SKILL.md` hands the run a template whose value is the
+ * literal "<merge commit sha once it is merged, or absent>", which a non-empty-string test accepts.
+ * `.claude/hooks/_lib/rules-sleep.mjs` carries the same rule for the Stop hook; the two must not
+ * drift, and `.claude/hooks/test-hooks.mjs` asserts that they have not.
+ */
+const MERGE_SHA = /^[0-9a-f]{7,40}$/
 
 /**
  * The directory git itself keeps state in. An ordinary checkout carries a `.git` DIRECTORY; a linked
@@ -171,15 +181,21 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     if (typeof entry?.repositoryKey !== "string" || !Number.isInteger(entry?.prNumber) || typeof entry?.receiptPath !== "string") continue
     const key = `${entry.repositoryKey}#${entry.prNumber}`
     const blocker = typeof entry.blocker === "string" && entry.blocker !== "" ? entry.blocker : null
+    const merged = typeof entry.merged === "string" && MERGE_SHA.test(entry.merged) ? entry.merged : null
     const existing = rows.get(key)
     if (!existing) {
-      rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker })
+      rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker, merged })
       continue
     }
     // A later sighting is the current one. It supersedes the receipt path, and it may add a blocker
     // the earlier sighting did not know about. It may also clear one that has since been resolved.
     existing.receiptPath = entry.receiptPath
     existing.blocker = blocker
+    // `merged` is STICKY, which is the one place this row does not take the latest value. A blocker
+    // can be resolved, so clearing it is a real transition; a merge cannot be undone, so a later
+    // write that simply does not carry the sha is silence rather than a reversal. Letting silence
+    // clear it would put a merged pull request back into the pending set at the next write.
+    existing.merged = merged ?? existing.merged
   }
   /**
    * A ledger row whose receipt file does not exist is a promise nobody kept. Measured 2026-08-08:
@@ -187,6 +203,12 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
    * them as unreadable rather than as absent, which is a different and much quieter failure.
    * The path is recorded either way, so the row is never silently dropped: `receiptWritten` says
    * which it is, and the hook can name it.
+   *
+   * `merged` is the third disposition, beside READY and BLOCKED. A pull request merged under the
+   * step 9 exception can never reach a READY receipt, because the check it waits on will never
+   * publish, so without this field the run that merged it met `block: true` at the next Stop and
+   * had nothing left to launch. The merge sha is the fact that settles the row, and it is checkable
+   * against GitHub in a way a self-asserted verdict is not.
    */
   const readinessLedger = [...rows.values()].map((row) => ({
     repositoryKey: row.repositoryKey,
@@ -194,6 +216,7 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     receiptPath: row.receiptPath,
     receiptWritten: existsSync(row.receiptPath),
     blocker: row.blocker,
+    merged: row.merged,
   }))
   writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
 }

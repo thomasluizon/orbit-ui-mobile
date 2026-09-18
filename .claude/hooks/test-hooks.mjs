@@ -422,6 +422,85 @@ T(
   null,
 )
 
+/**
+ * A MERGED pull request is the third disposition, and until 2026-09-18 it had no state at all.
+ * Driven against this function at pull request 1023's head: a run that merged under the step 9
+ * exception, with nothing left to launch, returned `{block:true, terminal:null}`. Its receipt stays
+ * `CI_STALE` forever, because `pullfrog-approval` never publishes on that base, and the ledger row
+ * is append only, so the merge itself could not clear it. The run deadlocked AFTER succeeding.
+ *
+ * The bar is the merge commit sha, recorded the way a blocker is recorded: a fact, checkable
+ * against GitHub, never a verdict the run asserts about its own work.
+ */
+const mergedEntry = { repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/receipt.json", receiptWritten: true, merged: "0123456789abcdef0123456789abcdef01234567" }
+const mergedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [mergedEntry] }
+T("sleep-stop: a pull request merged under the exception ends the run rather than deadlocking it", blocks(stop({ state: mergedRun })), false)
+// A merged-only ending is as loud as a BLOCKED one. Silence there and the sha reaches no reader,
+// so the night looks exactly like one where every receipt was READY.
+T("sleep-stop: the merged ending is reported as MERGED, never as a plain finish", stop({ state: mergedRun })?.terminal, "MERGED")
+T(
+  "sleep-stop: the MERGED banner names the pull request and its sha",
+  stop({ state: mergedRun })?.message.includes("ui#1023") && stop({ state: mergedRun })?.message.includes(mergedEntry.merged),
+  true,
+)
+// A live wake source means the TURN is ending, not the RUN, so a merged row gets no banner either.
+T(
+  "sleep-stop: a merged pull request with a LIVE wake source reports nothing, because the run has not ended",
+  checkSleepStop({ state: mergedRun, wakeSources: [{ pid: 1 }], sessionId: "s1", isWakeSourceAlive: alive }),
+  null,
+)
+T("sleep-stop: the same row with NO recorded merge sha still blocks the stop", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: null }] } })), true)
+T("sleep-stop: an empty merged string is not a merge", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: "" }] } })), true)
+/**
+ * The failure needs no dishonesty. `orchestrate/SKILL.md` hands the run a jsonc template to copy,
+ * and its `merged` value is the literal below. Copy the template, leave the placeholder unfilled,
+ * and a non-empty-string predicate reads an UNMERGED pull request as merged: the row leaves the
+ * pending set, escapes the unwritten-receipt check, and the hook allows the stop printing nothing.
+ *
+ * `blocker` is self-asserted too and that is fine, because a false blocker produces a loud BLOCKED
+ * banner naming the pull request. A false `merged` produces silence, so this one must be checkable.
+ * Every other merged assertion here uses a well-formed sha, so the suite stayed green over it.
+ */
+T(
+  "sleep-stop: the skill's own unfilled merge-sha placeholder is not a merge",
+  blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: "<merge commit sha once it is merged, or absent>" }] } })),
+  true,
+)
+T("sleep-stop: a bare claim in place of a sha is not a merge", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: "yes" }] } })), true)
+// A merge settles its OWN row and no other, or one merged pull request would end a night with work left.
+T(
+  "sleep-stop: a merged pull request beside a pending one still blocks",
+  blocks(stop({ state: { ...mergedRun, readinessLedger: [mergedEntry, { repositoryKey: "ui", prNumber: 1024, receiptPath: "C:/receipt.json", receiptWritten: true }] } })),
+  true,
+)
+// A merged row must not launder a blocked one into a silent finish: the banner still names the blocker.
+T(
+  "sleep-stop: a merged pull request beside a blocked one still reports BLOCKED, naming only the blocked one",
+  ((verdict) => verdict?.terminal === "BLOCKED" && verdict.message.includes("ui#698") && !verdict.message.includes("ui#1023"))(
+    stop({ state: { ...mergedRun, readinessLedger: [mergedEntry, blockedEntry] } }),
+  ),
+  true,
+)
+// The refusal has to name the way out, or an operator meeting it at 03:00 has no path back.
+T("sleep-stop: the refusal names the merged disposition beside the blocker one", stop({ state: salvaged })?.message.includes("`merged` string"), true)
+// A merged row's receipt debt is moot: the pull request is closed and the sha is the stronger evidence.
+T(
+  "sleep-stop: a merged row whose receipt was never written still ends the run",
+  blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, receiptWritten: false }] } })),
+  false,
+)
+/**
+ * The merge-sha rule is written twice, here and in `tools/lib/run-state.mjs`, because this file is
+ * a pure rule with no dependency on the tools tree. Two copies of one rule drift, and the drift
+ * that matters is the lenient direction: a recorder that accepts a placeholder while the hook
+ * rejects it puts the run right back in the deadlock. Pin them to the same literal.
+ */
+const mergeShaLiteral = "/^[0-9a-f]{7,40}$/"
+T("sleep-stop: the merge-sha rule is identical in the Stop hook and in the recorder", {
+  rule: readFileSync(join(hooksDir, "_lib", "rules-sleep.mjs"), "utf8").includes(`const MERGE_SHA = ${mergeShaLiteral}`),
+  recorder: readFileSync(join(repoRoot, "tools", "lib", "run-state.mjs"), "utf8").includes(`const MERGE_SHA = ${mergeShaLiteral}`),
+}, { rule: true, recorder: true })
+
 /** The ledger accepted four rows on 2026-08-08 whose receipt files were never written, and the hook
  * read them as unreadable rather than as absent, which is quieter and easier to mistake for a fault. */
 const unwritten = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [{ repositoryKey: "ui", prNumber: 699, receiptPath: "C:/never-written.json", receiptWritten: false }] }
@@ -1035,6 +1114,30 @@ T("wake identity: sweeping a dead registration keeps the live one", readWakeSour
 T("wake identity: a proven dead registration is removed", existsSync(deadWakeFile), false)
 clearWakeSource(process.pid, wakeCheckout)
 T("wake identity: cleanup removes the matching launch registration", existsSync(wakeFile), false)
+
+/**
+ * The MERGED ending has to reach a reader, and only the ADAPTER can put it there. The rule returns
+ * `{block:false, terminal:"MERGED"}`, and a hook that allows a stop otherwise prints nothing, so a
+ * night that merged a pull request under the step 9 exception would be indistinguishable in the
+ * transcript from one where every receipt was READY. This drives the real adapter with no live wake
+ * source left in the isolated checkout, which is why it sits after the cleanup above.
+ */
+const mergedAdapterSha = "4d5901100fe6d3f6db9004468c653f9ff9239ff4"
+writeFileSync(runStatePath(wakeCheckout), JSON.stringify({
+  sessionId: stopPayload.session_id,
+  sleep: true,
+  remaining: [],
+  readinessLedger: [{ repositoryKey: "ui", prNumber: 1023, receiptPath: join(wakeCheckout, "receipt.json"), merged: mergedAdapterSha }],
+}))
+const mergedAdapterStop = spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], {
+  input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
+})
+T("wake merged: a merged pull request allows the real Stop adapter", mergedAdapterStop.status, 0)
+T("wake merged: the adapter surfaces the merged ending and its sha, the way it surfaces BLOCKED", {
+  namesTheEnding: mergedAdapterStop.stderr.includes("MERGE"),
+  namesThePullRequest: mergedAdapterStop.stderr.includes("ui#1023"),
+  namesTheSha: mergedAdapterStop.stderr.includes(mergedAdapterSha),
+}, { namesTheEnding: true, namesThePullRequest: true, namesTheSha: true })
 
 // The ticket guard is wired to BOTH events: the shell call and source that would issue it later.
 const TICKET_HOOK = "forbid-raw-ticket-mutation.mjs"

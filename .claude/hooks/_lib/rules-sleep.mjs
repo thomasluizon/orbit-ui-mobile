@@ -59,12 +59,40 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
    * blocked" from becoming a cheaper synonym for "finished".
    */
   const hasRecordedBlocker = (entry) => typeof entry.blocker === "string" && entry.blocker !== ""
-  const notReady = uniquePullRequests.filter((entry) => receiptVerdict(entry) !== "READY")
+  /**
+   * A MERGED pull request is finished, and neither READY nor BLOCKED describes it.
+   *
+   * Measured 2026-09-18 by driving this function: a run that merged a pull request under the step 9
+   * exception, with nothing left to launch, got `block: true` here. The receipt stays `CI_STALE`
+   * forever, because the check it waits on will never publish, and the ledger row is append only, so
+   * the merge could not clear it. That is the 2026-08-08 deadlock reached after a SUCCESSFUL merge,
+   * and the two exits it left were the forbidden ones.
+   *
+   * The bar is the merge commit sha, which a reader can check against GitHub. A merge is not
+   * reversible, so a merged row leaves the pending set for good rather than waiting on a receipt
+   * that cannot change.
+   *
+   * It must LOOK like a sha, and that is not pedantry. `blocker` may be any non-empty string
+   * because a false blocker prints a loud BLOCKED banner naming the pull request; a false `merged`
+   * ends the night in SILENCE. Measured 2026-09-18 by driving this function: with a non-empty-string
+   * test, `orchestrate/SKILL.md`'s own unfilled template value,
+   * "<merge commit sha once it is merged, or absent>", and the bare word "yes" both returned null,
+   * so copying the template without filling it reported an UNMERGED pull request as a finished
+   * night. `tools/lib/run-state.mjs` carries the same rule over the same literal; the two must not
+   * drift, and `test-hooks.mjs` asserts that they have not.
+   */
+  const MERGE_SHA = /^[0-9a-f]{7,40}$/
+  const hasRecordedMerge = (entry) => typeof entry.merged === "string" && MERGE_SHA.test(entry.merged)
+  const mergedPullRequests = uniquePullRequests.filter(hasRecordedMerge)
+  const openPullRequests = uniquePullRequests.filter((entry) => !hasRecordedMerge(entry))
+  const notReady = openPullRequests.filter((entry) => receiptVerdict(entry) !== "READY")
   const blockedPullRequests = notReady.filter(hasRecordedBlocker)
   const pendingPullRequests = notReady.filter((entry) => !hasRecordedBlocker(entry))
   /** A ledger row whose receipt file was never written is an invalid identity too. It used to read
-   * as "unreadable receipt", which is quieter and easier to mistake for a transient fault. */
-  const unwrittenReceipts = uniquePullRequests.filter((entry) => entry.receiptWritten === false)
+   * as "unreadable receipt", which is quieter and easier to mistake for a transient fault. A merged
+   * row is exempt: its receipt debt is moot once the pull request is closed by a merge, and the sha
+   * is stronger evidence than the receipt it would have replaced. */
+  const unwrittenReceipts = openPullRequests.filter((entry) => entry.receiptWritten === false)
   const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length + unwrittenReceipts.length
   const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isWakeSourceAlive(source))
 
@@ -75,19 +103,41 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
      * stop prints nothing, so the distinction is returned for the caller to surface.
      *
      * A LIVE wake source means the run has not ended at all, so it gets no banner: this turn is
-     * ending, the run is not. Announcing BLOCKED there would be the mirror of the defect, a run
-     * reporting a final state while work is still in flight.
+     * ending, the run is not. Announcing a final state there would be the mirror of the defect, a
+     * run reporting an ending while work is still in flight.
+     *
+     * BLOCKED outranks MERGED when a run produced both, because the blocked row is the one that
+     * still needs a reader. The BLOCKED banner already names every blocked pull request, and step
+     * 11's report carries the merge shas beside it.
      */
-    return blockedPullRequests.length === 0 || live.length > 0
+    if (live.length > 0) return null
+    if (blockedPullRequests.length > 0) {
+      return {
+        block: false,
+        terminal: "BLOCKED",
+        message:
+          `This run ended BLOCKED, not finished. ${blockedPullRequests.length} pull request(s) never reached a READY\n` +
+          "final-head receipt and each carries a recorded blocker:\n\n" +
+          blockedPullRequests.map((entry) => `  ${entry.repositoryKey}#${entry.prNumber}: ${entry.blocker}`).join("\n") +
+          "\n\nReport it that way. A blocked ending is a legitimate ending and a dishonest one is not.",
+      }
+    }
+    /**
+     * A MERGED ending gets a banner for the same reason a BLOCKED one does. Without it the sha the
+     * run recorded reaches no reader, and a night that merged a pull request under the step 9
+     * exception, on a receipt that can never say READY, looks exactly like a night where every
+     * receipt was READY. BLOCKED is loud, so a merged-only completion has to be loud too.
+     */
+    return mergedPullRequests.length === 0
       ? null
       : {
           block: false,
-          terminal: "BLOCKED",
+          terminal: "MERGED",
           message:
-            `This run ended BLOCKED, not finished. ${blockedPullRequests.length} pull request(s) never reached a READY\n` +
-            "final-head receipt and each carries a recorded blocker:\n\n" +
-            blockedPullRequests.map((entry) => `  ${entry.repositoryKey}#${entry.prNumber}: ${entry.blocker}`).join("\n") +
-            "\n\nReport it that way. A blocked ending is a legitimate ending and a dishonest one is not.",
+            `This run ended on a MERGE, not on a receipt. ${mergedPullRequests.length} pull request(s) were merged and\n` +
+            "each carries a recorded merge commit sha:\n\n" +
+            mergedPullRequests.map((entry) => `  ${entry.repositoryKey}#${entry.prNumber}: ${entry.merged}`).join("\n") +
+            "\n\nReport it that way, naming each sha. A merge closes a row that no receipt could.",
         }
   }
 
@@ -121,6 +171,9 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
       "state for it. Record a machine-readable `blocker` string on that pull request's ledger entry\n" +
       "and the run may end as BLOCKED, reported as blocked rather than as finished. Writing the\n" +
       "blocker down is the whole bar: a blocker is a fact this run records, never a verdict it\n" +
-      "asserts about its own work.",
+      "asserts about its own work.\n\n" +
+      "If the pull request was MERGED, it is finished and neither state above describes it. Record\n" +
+      "its merge commit sha as the `merged` string on that ledger entry. A merge closes the row for\n" +
+      "good, which is what a receipt waiting on a check that will never publish cannot do.",
   }
 }

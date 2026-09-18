@@ -50,9 +50,21 @@ and `worker: "claude"`. Its args are the hardened set that pull request 1023 com
 Check it is still flipped before you launch anything. **Revert on 2026-09-22** with
 `git checkout -- .claude/orchestrator.json`, which restores the engine once 1023 has merged.
 
-Expect two reds for as long as the switch is on, and neither is a licence to edit a test:
-`node tools/test-tools.mjs` fails two assertions in `tools/__tests__/orchestrator-config.mjs`, and
-`node tools/check-calibration.mjs` exits 1. A third unexplained FAIL is a real defect.
+Expect five reds for as long as the switch is on, and none is a licence to edit a test:
+`node tools/test-tools.mjs` ends `ORBIT TOOLS GATE FAILED (4)`, two assertions in
+`tools/__tests__/orchestrator-config.mjs` (`:98-102`, `:103-108`) and two in
+`tools/__tests__/launch-worker.mjs` (`:274-277`, `:279-286`), and `node tools/check-calibration.mjs`
+exits 1. A FIFTH unexplained FAIL is a real defect. Run the whole gate: `--only orchestrator-config`
+cannot see the launch-worker pair, which is how the count was read as two.
+
+One further FAIL is LOAD-SENSITIVE and is not the switch: `tools/__tests__/launch-worker.mjs` runs
+`a worker burning CPU while writing nothing anywhere is NOT killed as stalled` against real clocks,
+a 0.15 minute ceiling and the 1.5 percent CPU floor at `tools/launch-worker.mjs:565`. With another
+worker on the machine it misses that floor and fails on its own. Measured 2026-09-18 at head
+`4d590110` in the `ticket-598-claude-engine` worktree, which carries the committed
+`"worker": "codex"`: `ORBIT TOOLS GATE FAILED (1)`, that one test alone, while a run on the same
+tree minutes apart read OK. Check that name first, rerun it on a quiet machine, and do not change
+it: it belongs to no engine-switch pull request and D95 applies.
 
 **Never use a Claude subagent as a worker.** `node tools/launch-worker.mjs` is the only path and its
 LAUNCHER pid is the wake source, not the worker's. **Two concurrent workers is the cap**, his words:

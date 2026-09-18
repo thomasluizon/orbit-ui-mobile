@@ -192,7 +192,7 @@ export const cases = () => {
   )
 
   /**
-   * The engine is resolved from `config.worker`, the same key launch-worker.mjs:115 reads, and not
+   * The engine is resolved from `config.worker`, the same key launch-worker.mjs:129 reads, and not
    * hardcoded. Switching the engine has to go red, or this gate compares a profile nobody runs.
    */
   check(

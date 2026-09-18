@@ -51,14 +51,18 @@ try {
     process.exit(2)
   }
   /**
-   * A run that ends BLOCKED is allowed to end, and it must not look like one that finished. The
-   * banner goes to stderr and the hook still exits 0, because exit 2 is this hook's only confirmed
-   * channel back into the session and using it here would BLOCK the very ending it is describing.
-   * So this marks the transcript, and the orchestrate skill's report step carries the same
-   * distinction where the model certainly reads it. Stated rather than implied: this line is a
-   * record, not a guaranteed prompt.
+   * A run that ends BLOCKED or on a MERGE is allowed to end, and neither must look like one that
+   * finished on its receipts. The banner goes to stderr and the hook still exits 0, because exit 2
+   * is this hook's only confirmed channel back into the session and using it here would BLOCK the
+   * very ending it is describing. So this marks the transcript, and the orchestrate skill's report
+   * step carries the same distinction where the model certainly reads it. Stated rather than
+   * implied: this line is a record, not a guaranteed prompt.
+   *
+   * MERGED is surfaced for the same reason BLOCKED is. A merged pull request leaves the pending set
+   * on a sha rather than on a READY receipt, so without a banner the sha reaches no reader and the
+   * night is indistinguishable in the transcript from one where every receipt was READY.
    */
-  if (verdict?.terminal === "BLOCKED") {
+  if (verdict?.terminal === "BLOCKED" || verdict?.terminal === "MERGED") {
     process.stderr.write(verdict.message)
   }
   process.exit(0)
