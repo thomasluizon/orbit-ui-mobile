@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import { getOnboardingReminderPreviewTime } from '@orbit/shared/utils'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 
-export type ReminderState = 'ask' | 'denied' | 'refused' | 'unsupported' | 'failed' | 'no-time'
+export type ReminderState = 'ask' | 'denied' | 'refused' | 'unsupported' | 'failed' | 'no-time' | 'no-day'
 
 interface OnboardingRemindProps {
   state: ReminderState
@@ -16,6 +16,7 @@ export function OnboardingRemind({ state, title, dueTime }: Readonly<OnboardingR
   const t = useTranslations('onboarding.flow.remind')
   const previewTime = getOnboardingReminderPreviewTime(dueTime)
   if (state === 'no-time') return <Message title={t('noTimeTitle')} body={t('noTimeBody')} />
+  if (state === 'no-day') return <Message title={t('noDayTitle')} body={t('noDayBody')} />
   if (state === 'denied') return <Message title={t('deniedTitle')} body={t('deniedBody')} />
   if (state === 'refused') return <Message title={t('refusedTitle')} body={t('refusedBody')} />
   if (state === 'unsupported') return <Message title={t('unsupportedTitle')} body={t('unsupportedBody')} />

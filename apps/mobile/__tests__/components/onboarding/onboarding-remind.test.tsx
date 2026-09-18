@@ -30,4 +30,15 @@ describe('OnboardingRemind', () => {
     const preview = tree.root.findAll((node) => flatStyle(node).gap === 8 && hasText(node, 'onboarding.flow.remind.fine'))
     expect(preview.length).toBeGreaterThan(0)
   })
+
+  it('never promises a reminder to a habit with no day of its own', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingRemind state="no-day" title="Meditate" dueTime="07:00" />)
+    })
+    expect(hasText(tree.root, 'onboarding.flow.remind.noDayTitle')).toBe(true)
+    expect(hasText(tree.root, 'onboarding.flow.remind.noDayBody')).toBe(true)
+    expect(hasText(tree.root, 'onboarding.flow.remind.notificationBody')).toBe(false)
+    expect(hasText(tree.root, 'onboarding.flow.remind.fine')).toBe(false)
+  })
 })

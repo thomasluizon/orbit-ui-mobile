@@ -10,23 +10,6 @@ export const ONBOARDING_REMIND_STEP = 2
 export const ONBOARDING_DONE_STEP = 3
 export const ONBOARDING_STARTERS = ['water', 'walk', 'read', 'tidy'] as const
 export const ONBOARDING_REMINDER_MINUTES = 15
-export const ONBOARDING_STATE_AXIS = [
-  'what',
-  'what typed',
-  'what signed out',
-  'when',
-  'when corrected',
-  'at limit',
-  'create failed',
-  'remind',
-  'remind already refused',
-  'remind enable failed',
-  'remind no time',
-  'done',
-  'done no reminders',
-  'done signed out',
-] as const
-
 export function shouldRequestOnboardingSuggestion(input: { isLive: boolean; atLimit: boolean }): boolean {
   return input.isLive && !input.atLimit
 }
@@ -118,19 +101,40 @@ export function getOnboardingScheduleMode(schedule: OnboardingSchedule): Onboard
   return 'interval'
 }
 
-/**
- * Whether this schedule can carry a repeat interval of more than one week. Only a weekday schedule
- * can: the API reads `IntervalWeeks` for a habit with weekdays, ignores it for a general habit, and
- * onboarding renders the repeat stepper and the "every N weeks on Monday" sentence for that shape
- * alone. Every other shape pins `intervalWeeks` to 1 so no screen shows a number the habit drops.
- */
-export function canRepeatOnboardingScheduleWeeks(schedule: OnboardingSchedule): boolean {
+function scheduleShapeCarriesRepeatWeeks(schedule: OnboardingSchedule): boolean {
   return schedule.days.length > 0 && getOnboardingScheduleMode(schedule) === 'fixed'
 }
 
-function pinRepeatInterval(schedule: OnboardingSchedule): OnboardingSchedule {
-  if (canRepeatOnboardingScheduleWeeks(schedule)) return schedule
+/**
+ * Whether this run can show and save a repeat interval of more than one week. Two conditions, and
+ * both have to hold. The shape has to carry it: only a weekday schedule does, because the API reads
+ * `IntervalWeeks` for a habit with weekdays and ignores it for a general habit. The transport has to
+ * carry it too: a signed-out draft flushes through `POST /api/profile/onboarding/apply`, whose
+ * `ApplyHabitInput` has no `IntervalWeeks` field (see `applyOnboardingHabitSchema`), so the server
+ * drops the number and the habit comes back as "every Monday". Ticket #596 adds the field to the
+ * API; until it deploys, a signed-out run hides the stepper rather than write nothing.
+ */
+export function canRepeatOnboardingScheduleWeeks(
+  schedule: OnboardingSchedule,
+  canSaveRepeatWeeks: boolean,
+): boolean {
+  return canSaveRepeatWeeks && scheduleShapeCarriesRepeatWeeks(schedule)
+}
+
+/**
+ * Pins the repeat interval to one week whenever {@link canRepeatOnboardingScheduleWeeks} is false,
+ * so no screen shows and no request sends a number the saved habit drops.
+ */
+export function clampOnboardingRepeatWeeks(
+  schedule: OnboardingSchedule,
+  canSaveRepeatWeeks: boolean,
+): OnboardingSchedule {
+  if (canRepeatOnboardingScheduleWeeks(schedule, canSaveRepeatWeeks)) return schedule
   return schedule.intervalWeeks === 1 ? schedule : { ...schedule, intervalWeeks: 1 }
+}
+
+function pinRepeatInterval(schedule: OnboardingSchedule): OnboardingSchedule {
+  return clampOnboardingRepeatWeeks(schedule, true)
 }
 
 export function toggleOnboardingScheduleDay(
@@ -169,6 +173,19 @@ export function changeOnboardingScheduleMode(
 }
 
 const EVERY_DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const WEEKDAY_BY_INDEX = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/**
+ * Whether the habit onboarding just created lands in today's list. The API moves a weekday habit's
+ * `DueDate` forward to the first matching weekday (`CreateHabitCommand.HandleLockedAsync`) and then
+ * reports every earlier date as not scheduled (`HabitScheduleService.IsHabitDueOnDate`, `if (target
+ * < anchor) return false`), so a fixed-day schedule that skips today is absent from today. Every
+ * other shape anchors on today and matches it, so the done screen may say the habit is in the day.
+ */
+export function isOnboardingHabitDueToday(schedule: OnboardingSchedule, today: Date): boolean {
+  if (schedule.days.length === 0) return true
+  return schedule.days.includes(WEEKDAY_BY_INDEX[today.getDay()]!)
+}
 
 /**
  * Reads a typed sentence into the schedule the when screen shows. A bare "every 2 weeks" becomes the
@@ -249,6 +266,40 @@ export function buildOnboardingHabitInput(input: {
     ...(schedule.dueTime ? { dueTime: schedule.dueTime } : {}),
     reminderEnabled,
     reminderTimes: reminderEnabled ? [ONBOARDING_REMINDER_MINUTES] : [],
+  }
+}
+
+export interface OnboardingCompleteState {
+  skipped: boolean
+  signedOut: boolean
+  remindersOff: boolean
+  dueToday: boolean
+}
+
+export interface OnboardingCompleteCopy {
+  titleKey: string
+  bodyKey: string
+  pendingKey: string
+}
+
+function getOnboardingCompleteBodyKey(state: OnboardingCompleteState): string {
+  if (state.skipped) return 'skippedBody'
+  if (state.signedOut) return 'signedOutBody'
+  if (!state.dueToday) return state.remindersOff ? 'notTodayRemindersOffBody' : 'notTodayBody'
+  return state.remindersOff ? 'remindersOffBody' : 'body'
+}
+
+/**
+ * Which `onboarding.flow.done` strings the last screen may truthfully show. Skip outranks signing
+ * out, because a run can only skip before a habit exists, so a skipped run has no plan to report.
+ * "It is in your day" holds only when the habit is due today (see {@link isOnboardingHabitDueToday}),
+ * and so does the pending ring beside it.
+ */
+export function getOnboardingCompleteCopy(state: OnboardingCompleteState): OnboardingCompleteCopy {
+  return {
+    titleKey: state.skipped ? 'skippedTitle' : state.signedOut ? 'signedOutTitle' : state.dueToday ? 'title' : 'notTodayTitle',
+    bodyKey: getOnboardingCompleteBodyKey(state),
+    pendingKey: state.dueToday ? 'pending' : 'notTodayPending',
   }
 }
 

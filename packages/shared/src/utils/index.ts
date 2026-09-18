@@ -314,6 +314,7 @@ export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './ref
 export {
   canRepeatOnboardingScheduleWeeks,
   canSnapshotOnboardingEntry,
+  clampOnboardingRepeatWeeks,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
   buildOnboardingHabitInput,
@@ -322,14 +323,15 @@ export {
   changeOnboardingScheduleMode,
   toggleOnboardingScheduleDay,
   getOnboardingHabitTitle,
+  getOnboardingCompleteCopy,
   getOnboardingScheduleMode,
   getOnboardingReminderPreviewTime,
   getOnboardingNextStep,
   getOnboardingPreviousStep,
+  isOnboardingHabitDueToday,
   ONBOARDING_DONE_STEP,
   ONBOARDING_REMIND_STEP,
   ONBOARDING_STARTERS,
-  ONBOARDING_STATE_AXIS,
   ONBOARDING_WHAT_STEP,
   ONBOARDING_WHEN_STEP,
   ONBOARDING_TOTAL_STEPS,
@@ -338,7 +340,7 @@ export {
   shouldHideOnboardingFooter,
   shouldRequestOnboardingSuggestion,
 } from './onboarding'
-export type { OnboardingSchedule, OnboardingScheduleMode, RetainedOnboardingAction } from './onboarding'
+export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingSchedule, OnboardingScheduleMode, RetainedOnboardingAction } from './onboarding'
 export {
   isMissingBillingError,
   isMissingBillingStatus,

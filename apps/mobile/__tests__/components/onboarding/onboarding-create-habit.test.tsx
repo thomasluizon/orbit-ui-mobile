@@ -33,7 +33,13 @@ function flattenText(node: unknown): string {
 }
 
 const schedule = { frequencyUnit: 'Week' as const, frequencyQuantity: 3, intervalWeeks: 2, days: [], isGeneral: false, isFlexible: true, dueTime: '' }
-const base = { title: 'Walk outside', emoji: '🚶', days: [], dueTime: '', schedule, proposed: true, correcting: false, atLimit: false, allowance: 5, onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
+const base = { title: 'Walk outside', emoji: '🚶', days: [], dueTime: '', schedule, proposed: true, correcting: false, canSaveRepeatWeeks: true, atLimit: false, allowance: 5, onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
+
+const everyThirdMonday = { ...schedule, frequencyUnit: 'Day' as const, frequencyQuantity: 1, intervalWeeks: 3, days: ['Monday'], isFlexible: false }
+
+function readText(tree: ReturnType<typeof TestRenderer.create>): string {
+  return tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')
+}
 
 describe('OnboardingCreateHabit data', () => {
   beforeAll(async () => {
@@ -130,6 +136,32 @@ describe('OnboardingCreateHabit data', () => {
     const renderedText = tree.root.findAll((node) => (node.type as unknown) === Text).map((node) => flattenText(node.props.children)).join('')
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Repeat more often').length).toBeGreaterThan(0)
     expect(renderedText).toContain('Every 4 weeks')
+  })
+
+  it('hides the repeat stepper from a signed-out run, which cannot save one', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit {...base} proposed={false} correcting canSaveRepeatWeeks={false} schedule={everyThirdMonday} />,
+      )
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Repeat more often')).toHaveLength(0)
+    expect(readText(tree)).not.toContain('Every 3 weeks')
+  })
+
+  it('drops the interval from a signed-out cadence sentence', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit {...base} proposed correcting={false} canSaveRepeatWeeks={false} schedule={everyThirdMonday} />,
+      )
+    })
+    expect(readText(tree)).toContain('every Monday')
+    expect(readText(tree)).not.toContain('every 3 weeks on Monday')
+    await TestRenderer.act(() => {
+      tree.update(<OnboardingCreateHabit {...base} proposed correcting={false} canSaveRepeatWeeks schedule={everyThirdMonday} />)
+    })
+    expect(readText(tree)).toContain('every 3 weeks on Monday')
   })
 
   it('lets a recurring proposal change its unit and quantity', async () => {

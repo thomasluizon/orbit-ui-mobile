@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { MAX_HABIT_INTERVAL_WEEKS, type FrequencyUnit } from '@orbit/shared/types/habit'
-import { canRepeatOnboardingScheduleWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
+import { canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -15,7 +15,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
-interface Props { title: string; emoji: string; schedule: OnboardingSchedule; proposed: boolean; correcting: boolean; atLimit: boolean; allowance: number; onCorrect: () => void; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void; onModeChange: (mode: OnboardingScheduleMode) => void; onFrequencyUnitChange: (unit: FrequencyUnit) => void; onQuantityChange: (quantity: number) => void; onIntervalWeeksChange: (intervalWeeks: number) => void }
+interface Props { title: string; emoji: string; schedule: OnboardingSchedule; proposed: boolean; correcting: boolean; canSaveRepeatWeeks: boolean; atLimit: boolean; allowance: number; onCorrect: () => void; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void; onModeChange: (mode: OnboardingScheduleMode) => void; onFrequencyUnitChange: (unit: FrequencyUnit) => void; onQuantityChange: (quantity: number) => void; onIntervalWeeksChange: (intervalWeeks: number) => void }
 
 function joinDays(days: string[], label: (day: string) => string, conjunction: string): string {
   const labels = days.map(label)
@@ -79,7 +79,7 @@ export function OnboardingCreateHabit(props: Readonly<Props>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  const { schedule } = props
+  const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
   const mode = getOnboardingScheduleMode(schedule)
   const frequencyUnitOptions = [
     { value: 'Day', label: t('onboarding.flow.when.units.day') },
@@ -95,7 +95,7 @@ export function OnboardingCreateHabit(props: Readonly<Props>) {
     {mode === 'flexible' ? <><SegmentedControl label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.quantityLess')} moreLabel={t('onboarding.flow.when.quantityMore')} description={t(`onboarding.flow.when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} colors={tokens} onChange={props.onQuantityChange} /></> : null}
     {mode === 'fixed' ? <><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.daysLabel')}</Text><View style={styles.days}>{DAYS.map((day) => <Chip key={day} active={schedule.days.includes(day)} accessibilityLabel={t(`onboarding.flow.when.daysLong.${day.toLowerCase()}`)} onPress={() => props.onToggleDay(day)}>{t(`onboarding.flow.when.days.${day.toLowerCase()}`)}</Chip>)}</View></> : null}
     {mode === 'interval' ? <><SegmentedControl label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.frequencyLess')} moreLabel={t('onboarding.flow.when.frequencyMore')} description={t(`onboarding.flow.when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} colors={tokens} onChange={props.onQuantityChange} /></> : null}
-    {canRepeatOnboardingScheduleWeeks(schedule) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('onboarding.flow.when.intervalLess')} moreLabel={t('onboarding.flow.when.intervalMore')} description={t('onboarding.flow.when.interval', { count: schedule.intervalWeeks })} colors={tokens} onChange={props.onIntervalWeeksChange} /> : null}
+    {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('onboarding.flow.when.intervalLess')} moreLabel={t('onboarding.flow.when.intervalMore')} description={t('onboarding.flow.when.interval', { count: schedule.intervalWeeks })} colors={tokens} onChange={props.onIntervalWeeksChange} /> : null}
     <TimeField label={t('onboarding.flow.when.timeLabel')} value={schedule.dueTime as Time24 | ''} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('onboarding.flow.when.timeHint')} />
   </View>
   return <View style={styles.root}>

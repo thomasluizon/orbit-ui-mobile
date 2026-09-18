@@ -5,8 +5,12 @@ import {
   buildOnboardingHabitInput,
   buildOnboardingScheduleFromPhrase,
   buildOnboardingScheduleFromSuggestion,
+  canRepeatOnboardingScheduleWeeks,
   canSnapshotOnboardingEntry,
+  clampOnboardingRepeatWeeks,
+  getOnboardingCompleteCopy,
   getOnboardingHabitTitle,
+  isOnboardingHabitDueToday,
   toggleOnboardingScheduleDay,
   getOnboardingReminderPreviewTime,
   getOnboardingDisplayStep,
@@ -17,7 +21,6 @@ import {
   ONBOARDING_DONE_STEP,
   ONBOARDING_REMIND_STEP,
   ONBOARDING_STARTERS,
-  ONBOARDING_STATE_AXIS,
   shouldRequestOnboardingSuggestion,
   resolveRetainedOnboarding,
   shouldHideOnboardingFooter,
@@ -52,14 +55,6 @@ function findScheduleViolations(
 describe('onboarding helpers', () => {
   it('exposes the four sentence starters', () => {
     expect(ONBOARDING_STARTERS).toEqual(['water', 'walk', 'read', 'tidy'])
-  })
-
-  it('covers all fourteen canvas states', () => {
-    expect(ONBOARDING_STATE_AXIS).toEqual([
-      'what', 'what typed', 'what signed out', 'when', 'when corrected', 'at limit',
-      'create failed', 'remind', 'remind already refused', 'remind enable failed',
-      'remind no time', 'done', 'done no reminders', 'done signed out',
-    ])
   })
 
   it('never spends an Astra message signed out or at the ceiling', () => {
@@ -410,5 +405,78 @@ describe('resolveRetainedOnboarding', () => {
         hadHabitsAtEntry: null,
       }),
     ).toBe('none')
+  })
+})
+
+const weekdaySchedule: OnboardingSchedule = {
+  frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 3,
+  days: ['Monday'], isGeneral: false, isFlexible: false, dueTime: '',
+}
+
+describe('a repeat interval the run can actually save', () => {
+  it('offers the stepper only to a signed-in weekday schedule', () => {
+    expect(canRepeatOnboardingScheduleWeeks(weekdaySchedule, true)).toBe(true)
+    expect(canRepeatOnboardingScheduleWeeks(weekdaySchedule, false)).toBe(false)
+    expect(canRepeatOnboardingScheduleWeeks({ ...weekdaySchedule, days: [], isGeneral: true }, true)).toBe(false)
+  })
+
+  it('pins a signed-out interval to one week so no screen promises what apply drops', () => {
+    expect(clampOnboardingRepeatWeeks(weekdaySchedule, false).intervalWeeks).toBe(1)
+    expect(clampOnboardingRepeatWeeks(weekdaySchedule, true)).toBe(weekdaySchedule)
+    const pinned = { ...weekdaySchedule, intervalWeeks: 1 }
+    expect(clampOnboardingRepeatWeeks(pinned, false)).toBe(pinned)
+  })
+
+  it('keeps the parsed interval for a signed-in run and drops it for a signed-out one', () => {
+    const parsed = buildOnboardingScheduleFromPhrase('Clean every 3 weeks on Monday', 'en')
+    expect(parsed.intervalWeeks).toBe(3)
+    expect(clampOnboardingRepeatWeeks(parsed, true).intervalWeeks).toBe(3)
+    expect(clampOnboardingRepeatWeeks(parsed, false).intervalWeeks).toBe(1)
+  })
+})
+
+describe('isOnboardingHabitDueToday', () => {
+  const wednesday = new Date(2026, 8, 16)
+
+  it('reports a weekday schedule that skips today as not due', () => {
+    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, days: ['Monday', 'Thursday'] }, wednesday)).toBe(false)
+  })
+
+  it('reports a weekday schedule that names today as due', () => {
+    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, days: ['Wednesday'] }, wednesday)).toBe(true)
+  })
+
+  it.each([
+    ['general', { days: [], isGeneral: true, frequencyUnit: null, frequencyQuantity: null }],
+    ['one time', { days: [], isGeneral: false, frequencyUnit: null, frequencyQuantity: null }],
+    ['flexible', { days: [], isGeneral: false, isFlexible: true, frequencyUnit: 'Week' as const, frequencyQuantity: 3 }],
+    ['interval', { days: [], isGeneral: false, frequencyUnit: 'Week' as const, frequencyQuantity: 2 }],
+  ])('anchors a %s schedule on today', (_label, patch) => {
+    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, ...patch }, wednesday)).toBe(true)
+  })
+})
+
+describe('getOnboardingCompleteCopy', () => {
+  const resting = { skipped: false, signedOut: false, remindersOff: false, dueToday: true }
+
+  it('says the habit is in the day only when it is due today', () => {
+    expect(getOnboardingCompleteCopy(resting)).toEqual({ titleKey: 'title', bodyKey: 'body', pendingKey: 'pending' })
+    expect(getOnboardingCompleteCopy({ ...resting, dueToday: false })).toEqual({
+      titleKey: 'notTodayTitle', bodyKey: 'notTodayBody', pendingKey: 'notTodayPending',
+    })
+  })
+
+  it('carries the reminders-off line into both due states', () => {
+    expect(getOnboardingCompleteCopy({ ...resting, remindersOff: true }).bodyKey).toBe('remindersOffBody')
+    expect(getOnboardingCompleteCopy({ ...resting, remindersOff: true, dueToday: false }).bodyKey).toBe('notTodayRemindersOffBody')
+  })
+
+  it('reports a skip as a skip even when the person is signed out', () => {
+    expect(getOnboardingCompleteCopy({ ...resting, skipped: true, signedOut: true })).toMatchObject({
+      titleKey: 'skippedTitle', bodyKey: 'skippedBody',
+    })
+    expect(getOnboardingCompleteCopy({ ...resting, signedOut: true })).toMatchObject({
+      titleKey: 'signedOutTitle', bodyKey: 'signedOutBody',
+    })
   })
 })

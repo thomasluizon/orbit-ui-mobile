@@ -235,7 +235,6 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
         modalOpen={modalOpen}
         registerScroller={registerScroller}
       />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-sticky shadow-[inset_0_0_0_1px_var(--hairline)]" />
 
       {conversationOpen && sidePanel ? (
         <aside

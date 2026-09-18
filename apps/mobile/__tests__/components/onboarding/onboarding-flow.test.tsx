@@ -88,10 +88,10 @@ vi.mock('@/components/onboarding/onboarding-welcome', () => ({
   OnboardingWelcome: ({ sentence, onChange }: { sentence: string; onChange: (value: string) => void }) => React.createElement('SentenceInput', { value: sentence, onChangeText: onChange }),
 }))
 vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
-  OnboardingCreateHabit: ({ proposed, onToggleDay, onTimeChange }: { proposed: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => React.createElement('Schedule', { proposed, onToggleDay, onTimeChange }),
+  OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => React.createElement('Schedule', { proposed, intervalWeeks: schedule.intervalWeeks, canSaveRepeatWeeks, onToggleDay, onTimeChange }),
 }))
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => React.createElement('ReminderState', { state }) }))
-vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: () => React.createElement('Done') }))
+vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday }: { dueToday: boolean }) => React.createElement('Done', { dueToday }) }))
 
 async function mount(isLive: boolean) {
   mocks.isLive = isLive
@@ -162,6 +162,50 @@ describe('OnboardingFlow state model', () => {
     expect(getOnboardingPreviousStep(ONBOARDING_DONE_STEP)).toBe(ONBOARDING_REMIND_STEP)
     expect(shouldHideOnboardingFooter(1)).toBe(false)
     expect(shouldHideOnboardingFooter(ONBOARDING_DONE_STEP)).toBe(true)
+  })
+
+  it('never shows or saves a repeat interval a signed-out draft cannot carry', async () => {
+    const tree = await mount(false)
+    await enterSentence(tree, 'Clean every 3 weeks on Monday')
+    await click(tree, 'onboarding.flow.continue')
+    const scheduleScreen = oneByType(tree.root, 'Schedule')
+    expect(prop<boolean>(scheduleScreen, 'canSaveRepeatWeeks')).toBe(false)
+    expect(prop<number>(scheduleScreen, 'intervalWeeks')).toBe(1)
+    await click(tree, 'onboarding.flow.create')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 1, days: ['Monday'] }))
+  })
+
+  it('keeps the repeat interval for a signed-in run, which saves it', async () => {
+    mocks.profile.aiMessagesUsed = mocks.profile.aiMessagesLimit
+    const tree = await mount(true)
+    await enterSentence(tree, 'Clean every 3 weeks on Monday')
+    await click(tree, 'onboarding.flow.continue')
+    const scheduleScreen = oneByType(tree.root, 'Schedule')
+    expect(prop<boolean>(scheduleScreen, 'canSaveRepeatWeeks')).toBe(true)
+    expect(prop<number>(scheduleScreen, 'intervalWeeks')).toBe(3)
+    await click(tree, 'onboarding.flow.create')
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 3 }))
+  })
+
+  it('never offers a reminder to a habit with no day of its own', async () => {
+    const tree = await mount(false)
+    await enterSentence(tree, 'Meditate at 07:00')
+    await click(tree, 'onboarding.flow.continue')
+    await click(tree, 'onboarding.flow.create')
+    expect(prop<string>(oneByType(tree.root, 'ReminderState'), 'state')).toBe('no-day')
+    expect(byType(tree.root, 'PillButton').some((node) => node.props.children === 'onboarding.flow.remind.allow')).toBe(false)
+    expect(findTextAction(tree, 'onboarding.flow.remind.setDays')).toBeDefined()
+  })
+
+  it('tells the done screen a weekday habit that skips today is not in the day', async () => {
+    vi.setSystemTime(new Date(2026, 8, 16))
+    const tree = await mount(false)
+    await enterSentence(tree, 'Walk every Monday and Thursday at 18:00')
+    await click(tree, 'onboarding.flow.continue')
+    await click(tree, 'onboarding.flow.create')
+    await pressTextAction(tree, 'onboarding.flow.remind.deny')
+    expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
+    vi.useRealTimers()
   })
 
   it('keeps quiet actions neutral', async () => {

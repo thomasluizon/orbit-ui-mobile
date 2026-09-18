@@ -14,4 +14,12 @@ describe('OnboardingRemind', () => {
     expect(screen.getByText('Walk')).not.toHaveClass('mt-1')
     expect(screen.getByText('fine').parentElement).toHaveClass('flex', 'flex-col', 'gap-2')
   })
+
+  it('never promises a reminder to a habit with no day of its own', () => {
+    render(<OnboardingRemind state="no-day" title="Meditate" dueTime="07:00" />)
+    expect(screen.getByRole('heading', { name: 'noDayTitle' })).toBeInTheDocument()
+    expect(screen.getByText('noDayBody')).toBeInTheDocument()
+    expect(screen.queryByText('notificationBody')).not.toBeInTheDocument()
+    expect(screen.queryByText('fine')).not.toBeInTheDocument()
+  })
 })

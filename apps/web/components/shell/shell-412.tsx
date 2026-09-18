@@ -85,7 +85,6 @@ export function Shell412(props: Readonly<Shell412Props>) {
           {props.conversation}
         </div>
       ) : null}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-sticky shadow-[inset_0_0_0_1px_var(--hairline)]" />
     </div>
   )
 }

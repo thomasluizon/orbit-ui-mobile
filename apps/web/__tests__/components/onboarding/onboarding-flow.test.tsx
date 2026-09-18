@@ -55,10 +55,10 @@ vi.mock('@/components/onboarding/onboarding-welcome', () => ({
   OnboardingWelcome: ({ sentence, onChange }: { sentence: string; onChange: (value: string) => void }) => <input aria-label="sentence" value={sentence} onChange={(event) => onChange(event.target.value)} />,
 }))
 vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
-  OnboardingCreateHabit: ({ proposed, onToggleDay, onTimeChange }: { proposed: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => <div data-testid="schedule" data-proposed={proposed}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>,
+  OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => <div data-testid="schedule" data-proposed={proposed} data-can-save-repeat-weeks={String(canSaveRepeatWeeks)} data-interval-weeks={String(schedule.intervalWeeks)}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>,
 }))
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => <div data-testid="reminder-state">{state}</div> }))
-vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: () => <div data-testid="done" /> }))
+vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday }: { dueToday: boolean }) => <div data-testid="done" data-due-today={String(dueToday)} /> }))
 
 function actions(): OnboardingActions {
   return {
@@ -97,6 +97,50 @@ describe('OnboardingFlow state model', () => {
     mocks.subscribe.mockResolvedValue({ supported: true, subscribed: true, permission: 'granted', status: 'registered' })
     mocks.requestPermissionOnly.mockResolvedValue('granted')
     useOnboardingDraftStore.getState().reset()
+  })
+
+  it('never shows or saves a repeat interval a signed-out draft cannot carry', async () => {
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Clean every 3 weeks on Monday' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    const screenProps = screen.getByTestId('schedule')
+    expect(screenProps).toHaveAttribute('data-can-save-repeat-weeks', 'false')
+    expect(screenProps).toHaveAttribute('data-interval-weeks', '1')
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    await waitFor(() => expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 1, days: ['Monday'] })))
+  })
+
+  it('keeps the repeat interval for a signed-in run, which saves it', async () => {
+    mocks.profile.aiMessagesUsed = mocks.profile.aiMessagesLimit
+    mount(true)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Clean every 3 weeks on Monday' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    expect(screen.getByTestId('schedule')).toHaveAttribute('data-can-save-repeat-weeks', 'true')
+    expect(screen.getByTestId('schedule')).toHaveAttribute('data-interval-weeks', '3')
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    await waitFor(() => expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ intervalWeeks: 3 })))
+  })
+
+  it('never offers a reminder to a habit with no day of its own', async () => {
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Meditate at 07:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    expect(await screen.findByTestId('reminder-state')).toHaveTextContent('no-day')
+    expect(screen.queryByRole('button', { name: 'remind.allow' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'remind.setDays' })).toBeInTheDocument()
+  })
+
+  it('tells the done screen a weekday habit that skips today is not in the day', async () => {
+    vi.setSystemTime(new Date(2026, 8, 16))
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday and Thursday at 18:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    await screen.findByTestId('reminder-state')
+    fireEvent.click(screen.getByRole('button', { name: 'remind.deny' }))
+    await waitFor(() => expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', 'false'))
+    vi.useRealTimers()
   })
 
   it('dismisses the overlay directly with Escape', async () => {

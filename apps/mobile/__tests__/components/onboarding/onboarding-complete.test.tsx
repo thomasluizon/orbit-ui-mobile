@@ -91,6 +91,12 @@ describe('OnboardingComplete', () => {
       'onboarding.flow.done.title',
       'onboarding.flow.done.body',
       'onboarding.flow.done.pending',
+      'onboarding.flow.done.notTodayTitle',
+      'onboarding.flow.done.notTodayBody',
+      'onboarding.flow.done.notTodayPending',
+      'onboarding.flow.done.skippedTitle',
+      'onboarding.flow.done.skippedBody',
+      'onboarding.flow.done.signedOutTitle',
       'onboarding.flow.done.seeDay',
     ]) {
       mocks.translations.set(key, i18n.t(key))
@@ -107,6 +113,7 @@ describe('OnboardingComplete', () => {
           remindersOff={false}
           skipped={false}
           signedOut={false}
+          dueToday
           onFinish={vi.fn()}
         />,
       )
@@ -121,6 +128,53 @@ describe('OnboardingComplete', () => {
     expect(JSON.stringify(renderedText).toLowerCase()).not.toContain('theme')
   })
 
+  it('tells a skipped signed-out run it skipped, not that a plan is ready', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingComplete
+          createdHabit=""
+          emoji="◎"
+          remindersOff={false}
+          skipped
+          signedOut
+          dueToday
+          onFinish={vi.fn()}
+        />,
+      )
+    })
+    const renderedText = tree.root
+      .findAll((node: { type: unknown }) => node.type === 'Text')
+      .map((node: { props: { children?: unknown } }) => node.props.children)
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedTitle'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedBody'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.signedOutTitle'))
+  })
+
+  it('never claims a habit is in the day when it is not due today', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingComplete
+          createdHabit="Walk"
+          emoji="🚶"
+          remindersOff={false}
+          skipped={false}
+          signedOut={false}
+          dueToday={false}
+          onFinish={vi.fn()}
+        />,
+      )
+    })
+    const renderedText = tree.root
+      .findAll((node: { type: unknown }) => node.type === 'Text')
+      .map((node: { props: { children?: unknown } }) => node.props.children)
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.notTodayTitle'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.notTodayBody'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.notTodayPending'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.title'))
+  })
+
   it('clears the landing ring when the accent length never measures', async () => {
     mocks.reducedMotion = false
     mocks.ringLength = undefined
@@ -133,6 +187,7 @@ describe('OnboardingComplete', () => {
           remindersOff={false}
           skipped={false}
           signedOut={false}
+          dueToday
           onFinish={vi.fn()}
         />,
       )

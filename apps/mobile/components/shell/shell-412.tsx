@@ -119,7 +119,6 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
               {props.conversation}
             </View>
           ) : null}
-          <View pointerEvents="none" accessibilityElementsHidden style={[styles.frame, { borderColor: tokens.hairline }]} />
         </View>
       </ShellComposerSlotProvider>
     </ShellNoticeSlotProvider>
@@ -162,5 +161,4 @@ const styles = StyleSheet.create({
     top: 0,
     zIndex: zLayers.modal,
   },
-  frame: { borderWidth: 1, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: zLayers.sticky },
 })

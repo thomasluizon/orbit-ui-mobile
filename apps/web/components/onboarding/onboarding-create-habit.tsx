@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { MAX_HABIT_INTERVAL_WEEKS, type FrequencyUnit } from '@orbit/shared/types/habit'
-import { canRepeatOnboardingScheduleWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
+import { canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -19,6 +19,7 @@ interface OnboardingCreateHabitProps {
   schedule: OnboardingSchedule
   proposed: boolean
   correcting: boolean
+  canSaveRepeatWeeks: boolean
   atLimit: boolean
   allowance: number
   onCorrect: () => void
@@ -99,7 +100,7 @@ function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, o
 
 export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps>) {
   const t = useTranslations('onboarding.flow')
-  const { schedule } = props
+  const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
   const mode = getOnboardingScheduleMode(schedule)
   const frequencyUnitOptions = [
     { value: 'Day', label: t('when.units.day') },
@@ -123,7 +124,7 @@ export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps
         </div>
       ) : null}
       {mode === 'interval' ? <><SegmentedControl label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={t(`when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} onChange={props.onQuantityChange} /></> : null}
-      {canRepeatOnboardingScheduleWeeks(schedule) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('when.intervalLess')} moreLabel={t('when.intervalMore')} description={t('when.interval', { count: schedule.intervalWeeks })} onChange={props.onIntervalWeeksChange} /> : null}
+      {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('when.intervalLess')} moreLabel={t('when.intervalMore')} description={t('when.interval', { count: schedule.intervalWeeks })} onChange={props.onIntervalWeeksChange} /> : null}
       <TimeField label={t('when.timeLabel')} value={schedule.dueTime as Time24 | ''} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('when.timeHint')} />
     </div>
   )

@@ -90,9 +90,10 @@ describe('form primitives on mobile', () => {
     void act(() => prop<(() => void) | undefined>(input, 'onFocus')?.())
     expect(style()).not.toEqual(resting)
     expect(style()).toMatchObject({
-      borderColor: error ? tokens.statusBad : tokens.primary,
-      borderWidth: 2,
+      borderColor: error ? tokens.statusBad : tokens.borderControl,
+      borderWidth: error ? 2 : 1,
       outlineColor: tokens.primary,
+      outlineOffset: 2,
       outlineWidth: 2,
     })
     void act(() => prop<() => void>(input, 'onBlur')())

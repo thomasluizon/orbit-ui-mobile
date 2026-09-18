@@ -11,7 +11,9 @@ vi.mock('next-intl', () => ({ useTranslations: (namespace: string) => (key: stri
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => <div data-testid="time-field" /> }))
 
 const schedule = { frequencyUnit: 'Week' as const, frequencyQuantity: 3, intervalWeeks: 2, days: [], isGeneral: false, isFlexible: true, dueTime: '' }
-const base = { title: 'Walk outside', emoji: '🚶', days: [], dueTime: '', schedule, proposed: false, correcting: true, atLimit: false, allowance: 5, onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
+const base = { title: 'Walk outside', emoji: '🚶', days: [], dueTime: '', schedule, proposed: false, correcting: true, canSaveRepeatWeeks: true, atLimit: false, allowance: 5, onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
+
+const everyThirdMonday = { ...schedule, frequencyUnit: 'Day' as const, frequencyQuantity: 1, intervalWeeks: 3, days: ['Monday'], isFlexible: false }
 
 describe('OnboardingCreateHabit', () => {
   beforeAll(async () => {
@@ -82,6 +84,20 @@ describe('OnboardingCreateHabit', () => {
     render(<OnboardingCreateHabit {...base} schedule={{ ...schedule, frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 4, days: ['Monday'], isFlexible: false }} />)
     expect(screen.getByRole('button', { name: 'Repeat more often' })).toBeInTheDocument()
     expect(screen.getByText('Every 4 weeks')).toBeInTheDocument()
+  })
+
+  it('hides the repeat stepper from a signed-out run, which cannot save one', () => {
+    render(<OnboardingCreateHabit {...base} canSaveRepeatWeeks={false} schedule={everyThirdMonday} />)
+    expect(screen.queryByRole('button', { name: 'Repeat more often' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Every 3 weeks')).not.toBeInTheDocument()
+  })
+
+  it('drops the interval from a signed-out cadence sentence', () => {
+    const { rerender } = render(<OnboardingCreateHabit {...base} proposed correcting={false} canSaveRepeatWeeks={false} schedule={everyThirdMonday} />)
+    const sentence = () => screen.getByText((_content, element) => element?.tagName === 'P').textContent
+    expect(sentence()).toBe('every Monday')
+    rerender(<OnboardingCreateHabit {...base} proposed correcting={false} canSaveRepeatWeeks schedule={everyThirdMonday} />)
+    expect(sentence()).toBe('every 3 weeks on Monday')
   })
 
   it('lets a recurring proposal change its unit and quantity', () => {
