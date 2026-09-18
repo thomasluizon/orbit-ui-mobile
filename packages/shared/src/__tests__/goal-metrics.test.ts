@@ -56,6 +56,16 @@ describe('goal metrics utils', () => {
     expect(formatGoalHistoryDelta(0, 1e-28, 'pt-BR')).toBe('+0,0000000000000000000000000001')
   })
 
+  it('subtracts distinct decimal values without binary cancellation', () => {
+    expect(formatGoalHistoryDelta(0.1, 0.10000000000000002, 'en')).toBe(
+      '+0.00000000000000002',
+    )
+    expect(formatGoalHistoryDelta(0.1, 0.10000000000000002, 'pt-BR')).toBe(
+      '+0,00000000000000002',
+    )
+    expect(formatGoalHistoryDelta(0.99999999, 1.00000001, 'en')).toBe('+0.00000002')
+  })
+
   it('maps tracking statuses to labels and tones', () => {
     expect(getGoalMetricsStatusPresentation('on_track')).toEqual({
       labelKey: 'goals.metrics.onTrack',
