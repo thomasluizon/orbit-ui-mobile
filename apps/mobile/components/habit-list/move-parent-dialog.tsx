@@ -153,41 +153,44 @@ export function MoveParentDialog({
           </View>
         ) : null}
 
-        {rootOption ? (
-          <MoveTargetRow
-            option={rootOption}
-            selected={rootOption.id === selectedMoveParentId}
-            isCurrentParent={rootOption.id === movingHabitParentId}
-            currentLabel={t('habits.moveParent.currentParent')}
-            tokens={tokens}
-            styles={styles}
-            onSelect={onSelectOption}
-          />
-        ) : null}
-
         {treeRows.length > 0 ? (
           <Text style={styles.eyebrow}>{t('habits.moveParent.destinations')}</Text>
         ) : null}
 
-        <RadioGroup style={styles.moveOptionsContent}>
-          {treeRows.map((option) => (
+        <RadioGroup accessibilityLabel={t('habits.moveParent.destinations')}>
+          {rootOption ? (
             <MoveTargetRow
-              key={option.id}
-              option={option}
-              selected={option.id === selectedMoveParentId}
-              isCurrentParent={option.id === movingHabitParentId}
+              option={rootOption}
+              selected={rootOption.id === selectedMoveParentId}
+              isCurrentParent={rootOption.id === movingHabitParentId}
               currentLabel={t('habits.moveParent.currentParent')}
               tokens={tokens}
               styles={styles}
               onSelect={onSelectOption}
             />
-          ))}
-          {isSearchEmpty ? (
-            <Text style={styles.moveDialogEmpty}>
-              {t('habits.moveParent.noSearchResults')}
-            </Text>
           ) : null}
+
+          <View style={styles.moveOptionsContent}>
+            {treeRows.map((option) => (
+              <MoveTargetRow
+                key={option.id}
+                option={option}
+                selected={option.id === selectedMoveParentId}
+                isCurrentParent={option.id === movingHabitParentId}
+                currentLabel={t('habits.moveParent.currentParent')}
+                tokens={tokens}
+                styles={styles}
+                onSelect={onSelectOption}
+              />
+            ))}
+          </View>
         </RadioGroup>
+
+        {isSearchEmpty ? (
+          <Text style={styles.moveDialogEmpty}>
+            {t('habits.moveParent.noSearchResults')}
+          </Text>
+        ) : null}
 
         <View style={styles.footer}>
           <PillButton
@@ -243,7 +246,7 @@ function createStyles(tokens: AppTokensV2) {
       textTransform: 'uppercase',
       color: tokens.fg3,
       marginTop: 4,
-      marginBottom: 4,
+      marginBottom: 8,
     },
     moveOptionsList: {
       flex: 1,

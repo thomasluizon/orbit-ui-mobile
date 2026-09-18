@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getRadioNavigationIndex } from '@/components/ui/radio-navigation'
+import { getRadioNavigationIndex } from '@orbit/shared/utils'
 
 describe('getRadioNavigationIndex', () => {
   it('moves through radio options with wrapping arrow navigation', () => {

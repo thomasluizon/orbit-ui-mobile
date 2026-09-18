@@ -1,16 +1,63 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { StyleSheet, Text, View } from 'react-native'
-import type { SegmentedControlProps } from '@orbit/shared/contracts/navigation'
+import { StyleSheet, Text } from 'react-native'
+import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+function SegmentOption<TValue extends string>({
+  controlDisabled,
+  onChange,
+  option,
+  selected,
+  tokens,
+}: Readonly<{
+  controlDisabled: boolean
+  onChange: (value: TValue) => void
+  option: SegmentedControlOption<TValue>
+  selected: boolean
+  tokens: ReturnType<typeof createTokensV2>
+}>) {
+  const disabled = controlDisabled || Boolean(option.disabled)
+  const select = () => {
+    if (!disabled && !selected) onChange(option.value)
+  }
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
+    disabled,
+    onSelect: select,
+    selected,
+  })
+  return (
+    <Pressable
+      {...navigationProps}
+      ref={elementRef}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected, disabled }}
+      disabled={disabled}
+      testID={`segment-${option.value}-${selected ? 'selected' : 'unselected'}-${disabled ? 'disabled' : 'enabled'}`}
+      onPress={onActivate}
+      style={({ pressed }) => [
+        styles.option,
+        selected
+          ? { backgroundColor: tokens.bgHover, borderColor: tokens.primary }
+          : styles.unselected,
+        disabled ? styles.disabled : null,
+        pressed ? styles.pressed : null,
+      ]}
+    >
+      <Text numberOfLines={1} style={[styles.label, { color: selected ? tokens.fg1 : tokens.fg2 }]}>
+        {option.label}
+      </Text>
+    </Pressable>
+  )
+}
 
 export function SegmentedControl<TValue extends string>(props: Readonly<SegmentedControlProps<TValue>>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
-    <View
-      accessibilityRole="radiogroup"
+    <RadioGroup
       accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled }}
       testID={`segmented-control-${props.disabled ? 'disabled' : 'enabled'}`}
@@ -19,35 +66,17 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
         { backgroundColor: tokens.bgField, borderColor: tokens.borderControl },
       ]}
     >
-      {props.options.map((option) => {
-        const selected = option.value === props.value
-        const disabled = props.disabled || option.disabled
-        return (
-          <Pressable
-            key={option.value}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: selected, disabled }}
-            disabled={disabled}
-            testID={`segment-${option.value}-${selected ? 'selected' : 'unselected'}-${disabled ? 'disabled' : 'enabled'}`}
-            onPress={() => {
-              if (!disabled && !selected) props.onChange(option.value)
-            }}
-            style={({ pressed }) => [
-              styles.option,
-              selected
-                ? { backgroundColor: tokens.bgHover, borderColor: tokens.primary }
-                : styles.unselected,
-              disabled ? styles.disabled : null,
-              pressed ? styles.pressed : null,
-            ]}
-          >
-            <Text numberOfLines={1} style={[styles.label, { color: selected ? tokens.fg1 : tokens.fg2 }]}>
-              {option.label}
-            </Text>
-          </Pressable>
-        )
-      })}
-    </View>
+      {props.options.map((option) => (
+        <SegmentOption
+          key={option.value}
+          controlDisabled={Boolean(props.disabled)}
+          onChange={props.onChange}
+          option={option}
+          selected={option.value === props.value}
+          tokens={tokens}
+        />
+      ))}
+    </RadioGroup>
   )
 }
 

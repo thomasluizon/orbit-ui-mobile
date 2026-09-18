@@ -35,8 +35,8 @@ interface MoveParentOverlayProps {
 const SEARCH_THRESHOLD = 8
 
 const eyebrowStyle = {
-  margin: '2px 0 0',
-  fontFamily: 'var(--font-sans)',
+  margin: 0,
+  fontFamily: 'var(--font-mono)',
   fontSize: 12,
   fontWeight: 500,
   letterSpacing: '0.08em',
@@ -155,21 +155,25 @@ export function MoveParentOverlay({
           />
         )}
 
-        {rootOption && (
-          <MoveTargetRow
-            option={rootOption}
-            selected={rootOption.id === selectedMoveParentId}
-            isCurrentParent={rootOption.id === movingHabitParentId}
-            currentLabel={t('habits.moveParent.currentParent')}
-            onSelect={onSelectOption}
-          />
-        )}
-
         {treeRows.length > 0 && (
           <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
         )}
 
-        <RadioGroup className="flex flex-col" style={{ gap: 4 }}>
+        <RadioGroup
+          aria-label={t('habits.moveParent.destinations')}
+          className="flex flex-col"
+          style={{ gap: 4 }}
+        >
+          {rootOption && (
+            <MoveTargetRow
+              option={rootOption}
+              selected={rootOption.id === selectedMoveParentId}
+              isCurrentParent={rootOption.id === movingHabitParentId}
+              currentLabel={t('habits.moveParent.currentParent')}
+              onSelect={onSelectOption}
+            />
+          )}
+
           {treeRows.map((option) => (
             <MoveTargetRow
               key={option.id}

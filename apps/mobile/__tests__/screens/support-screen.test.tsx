@@ -5,6 +5,8 @@ import { Pressable, Text, View } from 'react-native'
 
 import SupportScreen from '@/app/support'
 import { i18n } from '@/lib/i18n'
+import { __resetTestHostConfig } from '../../test-mocks/react-native'
+import { focusHost, withFocusProvenance } from '../support/focus-provenance'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -95,7 +97,7 @@ vi.mock('@/components/ui/offline-unavailable-state', () => ({
 async function renderScreen() {
   let tree: { root: TestNode; update: (element: React.ReactElement) => void } | undefined
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<SupportScreen />)
+    tree = TestRenderer.create(withFocusProvenance(<SupportScreen />))
     await Promise.resolve()
     await Promise.resolve()
   })
@@ -137,6 +139,7 @@ function sentRequestBody() {
 describe('SupportScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __resetTestHostConfig()
     mocks.isOnline = true
     mocks.profile = createMockProfile()
     mocks.getItem.mockResolvedValue(null)
@@ -238,6 +241,38 @@ describe('SupportScreen', () => {
     })
     choices = findSubjectChoices(tree.root)
     expect((choices[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+  })
+
+  it('keeps subject entry on the receiving row without changing the value', async () => {
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'billing', message: '' }))
+    const tree = await renderScreen()
+    const choices = findSubjectChoices(tree.root)
+
+    await TestRenderer.act(async () => {
+      focusHost(tree, choices[0]!)
+      await Promise.resolve()
+    })
+
+    expect(findSubjectChoices(tree.root).map((choice) => (
+      choice.props.accessibilityState as { checked: boolean }
+    ).checked)).toEqual([false, true, false, false])
+    expect(mocks.setItem).not.toHaveBeenCalled()
+  })
+
+  it('selects a subject when focus moves within the group', async () => {
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'billing', message: '' }))
+    const tree = await renderScreen()
+    const choices = findSubjectChoices(tree.root)
+
+    await TestRenderer.act(async () => {
+      focusHost(tree, choices[1]!)
+      focusHost(tree, choices[2]!)
+      await Promise.resolve()
+    })
+
+    expect((findSubjectChoices(tree.root)[2]!.props.accessibilityState as {
+      checked: boolean
+    }).checked).toBe(true)
   })
 
   it('does not show the locked email reason when the account email is editable', async () => {
@@ -411,7 +446,7 @@ describe('SupportScreen', () => {
     await selectSubject(tree.root)
     mocks.profile = { ...createMockProfile(), email: 'profile@example.com' }
     await TestRenderer.act(async () => {
-      tree.update(<SupportScreen />)
+      tree.update(withFocusProvenance(<SupportScreen />))
       await Promise.resolve()
     })
 
@@ -444,7 +479,7 @@ describe('SupportScreen', () => {
 
     mocks.profile = createMockProfile()
     await TestRenderer.act(async () => {
-      tree.update(<SupportScreen />)
+      tree.update(withFocusProvenance(<SupportScreen />))
       await Promise.resolve()
     })
     expect(tree.root.findAll((node) => node.props.children === 'profile.support.nameRequired')).toHaveLength(0)

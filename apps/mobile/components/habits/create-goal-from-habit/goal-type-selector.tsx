@@ -3,6 +3,7 @@ import { Target, Flame } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { GoalType } from '@orbit/shared/types/goal'
 import type { CreateGoalStyles, CreateGoalTokens } from './styles'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 
 const goalTypeOptions = [
   {
@@ -27,6 +28,64 @@ interface GoalTypeSelectorProps {
   onTypeChange: (type: GoalType) => void
 }
 
+function GoalTypeOption({
+  active,
+  label,
+  onSelect,
+  option,
+  styles,
+  tokens,
+}: Readonly<{
+  active: boolean
+  label: string
+  onSelect: () => void
+  option: (typeof goalTypeOptions)[number]
+  styles: CreateGoalStyles
+  tokens: CreateGoalTokens
+}>) {
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
+    disabled: false,
+    onSelect,
+    selected: active,
+  })
+  const OptionIcon = option.icon
+
+  return (
+    <Pressable
+      {...navigationProps}
+      ref={elementRef}
+      style={({ pressed }) => [
+        styles.typeOption,
+        active ? styles.typeOptionActive : styles.typeOptionInactive,
+        pressed
+          ? [
+              styles.typeOptionPressed,
+              active ? styles.typeOptionActivePressed : styles.typeOptionInactivePressed,
+            ]
+          : null,
+      ]}
+      onPress={onActivate}
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: active }}
+    >
+      <OptionIcon
+        size={20}
+        strokeWidth={1.8}
+        color={active ? tokens.fgOnPrimary : tokens.fg2}
+      />
+      <Text
+        style={[
+          styles.typeOptionText,
+          { color: active ? tokens.fgOnPrimary : tokens.fg2 },
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
 export function GoalTypeSelector({
   tokens,
   styles,
@@ -39,51 +98,25 @@ export function GoalTypeSelector({
   return (
     <View>
       <Text style={styles.fieldLabel}>{t('goals.form.type')}</Text>
-      <View
+      <RadioGroup
         style={styles.typeRow}
-        accessibilityRole="radiogroup"
         accessibilityLabel={t('goals.form.type')}
       >
         {goalTypeOptions.map((option) => {
           const isActive = goalType === option.key
-          const OptionIcon = option.icon
           return (
-            <Pressable
+            <GoalTypeOption
               key={option.key}
-              style={({ pressed }) => [
-                styles.typeOption,
-                isActive ? styles.typeOptionActive : styles.typeOptionInactive,
-                pressed
-                  ? [
-                      styles.typeOptionPressed,
-                      isActive
-                        ? styles.typeOptionActivePressed
-                        : styles.typeOptionInactivePressed,
-                    ]
-                  : null,
-              ]}
-              onPress={() => onTypeChange(option.key)}
-              accessibilityRole="radio"
-              accessibilityLabel={t(option.titleKey)}
-              accessibilityState={{ checked: isActive }}
-            >
-              <OptionIcon
-                size={20}
-                strokeWidth={1.8}
-                color={isActive ? tokens.fgOnPrimary : tokens.fg2}
-              />
-              <Text
-                style={[
-                  styles.typeOptionText,
-                  { color: isActive ? tokens.fgOnPrimary : tokens.fg2 },
-                ]}
-              >
-                {t(option.titleKey)}
-              </Text>
-            </Pressable>
+              active={isActive}
+              label={t(option.titleKey)}
+              onSelect={() => onTypeChange(option.key)}
+              option={option}
+              styles={styles}
+              tokens={tokens}
+            />
           )
         })}
-      </View>
+      </RadioGroup>
       <View style={styles.typeCaption}>
         <Text style={styles.typeDesc}>{t(activeTypeOption.descKey)}</Text>
         {'hintKey' in activeTypeOption ? (
