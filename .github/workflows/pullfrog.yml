@@ -74,30 +74,60 @@ jobs:
       # that beats the action's model input. Rewrite the payload so the
       # fallback below actually reaches Claude. A plain-text prompt has no
       # payload and passes through untouched.
-      - name: Repoint the prompt at Claude
+      # The Pullfrog app sends a JSON payload, and that path resolves models
+      # server side where only the Codex subscription is registered. A plain
+      # prompt uses the workflow credentials, which DO reach Claude. So the
+      # payload is rewritten as a plain-text review order.
+      - name: Rewrite the review order for Claude
         id: claude_prompt
         if: steps.codex.outcome == 'failure'
         env:
           PULLFROG_PROMPT: ${{ inputs.prompt }}
-          FALLBACK_MODEL: anthropic/claude-opus-5
         run: |
           node <<'NODE' >> "$GITHUB_OUTPUT"
           const raw = process.env.PULLFROG_PROMPT ?? '';
-          const model = process.env.FALLBACK_MODEL;
           let out = raw;
+          let shape = 'plain text, passed through';
+
           try {
             const payload = JSON.parse(raw);
             if (payload && typeof payload === 'object' && payload['~pullfrog']) {
-              payload.model = model;
-              payload.modelExplicit = true;
-              out = JSON.stringify(payload);
-              console.error(`repointed payload model to ${model}`);
+              const event = payload.event ?? {};
+              const context = event.context ?? {};
+              const number = event.issue_number;
+              const head = context.head_sha;
+              const base = context.base_ref;
+              const title = event.title;
+              const instructions = payload.eventInstructions || payload.prompt || '';
+
+              const lines = [];
+              lines.push(
+                `Review pull request #${number} in the ${process.env.GITHUB_REPOSITORY} repository.`
+              );
+              if (title) lines.push(`Its title is "${title}".`);
+              if (head) lines.push(`Review the code at head ${head}.`);
+              if (base) lines.push(`It targets the ${base} branch.`);
+              lines.push('');
+              if (instructions) {
+                lines.push(instructions);
+                lines.push('');
+              }
+              lines.push(
+                'Read the diff against the base branch, then post ONE GitHub pull request review.',
+                'Put every finding on the line it belongs to as an inline comment.',
+                'Approve the review when you find no blocking defect, and request changes when you do.',
+                'Report only defects you can point at in the diff, never a style preference.'
+              );
+              out = lines.join('\n');
+              shape = `pullfrog payload for #${number}, rewritten as plain text`;
             } else {
-              console.error('prompt is JSON but not a pullfrog payload; passing through');
+              shape = 'JSON but not a pullfrog payload, passed through';
             }
           } catch {
-            console.error('prompt is not JSON; passing through');
+            shape = 'plain text, passed through';
           }
+
+          console.error(`prompt shape: ${shape}`);
           const end = `PF_EOF_${Math.random().toString(36).slice(2)}`;
           process.stdout.write(`prompt<<${end}\n${out}\n${end}\n`);
           NODE
