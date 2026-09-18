@@ -1,5 +1,5 @@
 {
-  "worker": "claude",
+  "worker": "codex",
   "workers": {
     "codex": {
       "command": "codex",
