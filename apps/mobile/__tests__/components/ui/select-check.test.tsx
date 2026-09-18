@@ -75,6 +75,22 @@ function FocusEntryRows({
   )
 }
 
+/** No FocusProvenanceView, which is the tree a caller builds outside the root layout. */
+function UnprovenancedRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
+  const [value, setValue] = useState('first')
+  const select = (nextValue: string) => {
+    setValue(nextValue)
+    onChange(nextValue)
+  }
+
+  return (
+    <RadioGroup accessibilityLabel="Cadence">
+      <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
+      <RadioRow label="Second" selected={value === 'second'} onPress={() => select('second')} />
+    </RadioGroup>
+  )
+}
+
 function renderEntryRows(onChange: (value: string) => void, initialValue?: string | null) {
   let tree: any
   void act(() => {
@@ -114,6 +130,24 @@ describe('select-check RadioRow group', () => {
 
     expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
     expect(onCommit).not.toHaveBeenCalled()
+  })
+
+  it('selects the focused row instead of redirecting when no focus provenance exists', () => {
+    const onChange = vi.fn()
+    const focused: unknown[] = []
+    __setFocusImpl((props) => focused.push(props.accessibilityLabel))
+    let tree: any
+    void act(() => {
+      tree = create(<UnprovenancedRows onChange={onChange} />)
+    })
+    const radios = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+
+    void act(() => radios[1]!.props.onFocus())
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
+    expect(focused).toEqual([])
   })
 
   it('commits the group only when a row is pressed', () => {

@@ -37,7 +37,8 @@ interface ArmedRedirect {
 
 interface RadioGroupContextValue {
   commit: () => void
-  onFocus: (id: string, onSelect?: () => void) => void
+  /** Null without a FocusProvenanceView ancestor, because entry and movement are then the same event. */
+  onFocus: ((id: string, onSelect?: () => void) => void) | null
   register: (id: string, nativeHandle: number | null) => () => void
   setElement: (id: string, element: View, nativeHandle: number | null) => void
   update: (state: Omit<RadioItemState, 'nativeHandle'>) => void
@@ -90,7 +91,7 @@ export function RadioGroup({ children, onCommit, ...props }: Readonly<
         : candidate)
     })
   }, [])
-  const onFocus = useCallback((id: string, onSelect?: () => void) => {
+  const handleFocus = useCallback((id: string, onSelect?: () => void) => {
     const focusedItem = items.find((item) => item.id === id && !item.disabled)
     if (!focusedItem || !getPreviousFocusTarget) return
     const previousTarget = getPreviousFocusTarget()
@@ -113,6 +114,7 @@ export function RadioGroup({ children, onCommit, ...props }: Readonly<
 
     if (!focusedItem.selected) onSelect?.()
   }, [getPreviousFocusTarget, items])
+  const onFocus = getPreviousFocusTarget ? handleFocus : null
   const contextValue = useMemo(() => ({
     commit,
     onFocus,
@@ -120,11 +122,6 @@ export function RadioGroup({ children, onCommit, ...props }: Readonly<
     setElement,
     update,
   }), [commit, onFocus, register, setElement, update])
-
-  /** Without the provider every focus reads a null previous target, which reads as entry, so the group would redirect focus on every move. */
-  if (!getPreviousFocusTarget) {
-    throw new Error('RadioGroup requires a FocusProvenanceView ancestor')
-  }
 
   return (
     <RadioGroupContext.Provider value={contextValue}>
@@ -165,6 +162,7 @@ export function useRadioGroupItem({
     nativeHandleRef.current = nativeHandle
     setGroupElement?.(id, element, nativeHandle)
   }, [id, setGroupElement])
+  /** A group without focus provenance reads every focus as entry, so it falls back to the standalone rule rather than redirecting on every move. */
   const onFocus = useCallback(() => {
     if (handleGroupFocus) {
       handleGroupFocus(id, onSelect)
