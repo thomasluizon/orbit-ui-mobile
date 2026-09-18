@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { calendarSyncSuggestionSchema } from '../types/calendar'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
@@ -282,6 +283,30 @@ describe('calendar-sync utils', () => {
     expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=3', '2026-09-14')).toBe('2026-09-21')
   })
 
+  it('bounds a daily COUNT series using its interval', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=DAILY;INTERVAL=2;COUNT=3', '2026-09-14')).toBe('2026-09-18')
+  })
+
+  it('bounds a weekly COUNT series using its frequency', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;COUNT=3', '2026-09-14')).toBe('2026-09-28')
+  })
+
+  it('bounds a weekly COUNT series using its interval', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=3', '2026-09-14')).toBe('2026-10-12')
+  })
+
+  it('bounds a monthly COUNT series using its frequency', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=MONTHLY;COUNT=3', '2026-01-15')).toBe('2026-03-15')
+  })
+
+  it('skips missing month dates while counting monthly occurrences', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=MONTHLY;COUNT=3', '2026-01-31')).toBe('2026-05-31')
+  })
+
+  it('skips common years while counting leap-day yearly occurrences', () => {
+    expect(resolveCalendarSyncEndDate('RRULE:FREQ=YEARLY;COUNT=3', '2024-02-29')).toBe('2032-02-29')
+  })
+
   it('bounds an UNTIL series at the date the rule names', () => {
     expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261019T235959Z', '2026-09-14')).toBe('2026-10-19')
   })
@@ -308,6 +333,126 @@ describe('calendar-sync utils', () => {
     expect(habit).toBeDefined()
     expect(habit?.endDate).toBe('2026-09-28')
     expect(habit?.days).toEqual(['Monday'])
+  })
+
+  it('sends the exact finite bound for a non-daily series without weekdays', () => {
+    expect(buildCalendarSyncImportRequest([{
+      id: 'event-three-weeks',
+      title: 'Three weeks',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=WEEKLY;COUNT=3',
+      reminders: [],
+    }])).toEqual({
+      habits: [{
+        title: 'Three weeks',
+        description: null,
+        dueDate: '2026-09-14',
+        dueTime: null,
+        dueEndTime: null,
+        frequencyUnit: 'Week',
+        frequencyQuantity: 1,
+        days: null,
+        endDate: '2026-09-28',
+        reminderEnabled: false,
+        reminderTimes: null,
+        googleEventId: 'event-three-weeks',
+      }],
+      fromSyncReview: true,
+    })
+  })
+
+  it('converts a UTC UNTIL bound to the next local calendar date', () => {
+    const event = {
+      id: 'event-positive-offset',
+      title: 'Morning routine',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: '08:00',
+      startUtc: '2026-09-13T23:00:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
+      reminders: [],
+    }
+
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-10-01')
+  })
+
+  it('preserves startUtc when parsing a calendar sync suggestion', () => {
+    const suggestion = calendarSyncSuggestionSchema.parse({
+      id: 'suggestion-positive-offset',
+      googleEventId: 'event-positive-offset',
+      discoveredAtUtc: '2026-09-14T00:00:00Z',
+      event: {
+        id: 'event-positive-offset',
+        title: 'Morning routine',
+        description: null,
+        startDate: '2026-09-14',
+        startTime: '08:00',
+        startUtc: '2026-09-13T23:00:00Z',
+        endTime: null,
+        isRecurring: true,
+        recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
+        reminders: [],
+      },
+    })
+
+    expect(suggestion.event.startUtc).toBe('2026-09-13T23:00:00Z')
+  })
+
+  it('converts a UTC UNTIL bound to the same local calendar date', () => {
+    const event = {
+      id: 'event-negative-offset',
+      title: 'Morning routine',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: '08:00',
+      startUtc: '2026-09-14T13:00:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20261001T020000Z',
+      reminders: [],
+    }
+
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-09-30')
+  })
+
+  it('keeps a date-only UNTIL bound unchanged', () => {
+    const event = {
+      id: 'event-date-only-until',
+      title: 'Morning routine',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: '08:00',
+      startUtc: '2026-09-13T23:00:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930',
+      reminders: [],
+    }
+
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-09-30')
+  })
+
+  it('keeps the UTC UNTIL date when startUtc is null', () => {
+    const event = {
+      id: 'event-no-start-utc',
+      title: 'Morning routine',
+      description: null,
+      startDate: '2026-09-14',
+      startTime: '08:00',
+      startUtc: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
+      reminders: [],
+    }
+
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-09-30')
   })
 
   it('builds bulk create requests from suggestions', () => {
