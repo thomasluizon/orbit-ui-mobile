@@ -68,7 +68,6 @@ export function GoalProgressHistorySection({
         return (
           <View
             key={`${entry.createdAtUtc}-${entry.value}`}
-            role="listitem"
             style={styles.historyEntry}
           >
             <View style={styles.historyEntryHeader}>

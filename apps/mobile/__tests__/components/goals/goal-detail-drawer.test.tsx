@@ -731,7 +731,8 @@ describe('GoalDetailDrawer', () => {
     expect(historyText('history-delta-negative')).toEqual(['-1'])
     expect(historyText('history-delta-zero')).toEqual(['0'])
     expect(historyText('history-progress')).toEqual(['2 / 12', '2 / 12', '2 / 12'])
-    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.role === 'listitem')).toHaveLength(3)
+    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.accessibilityRole === 'list').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.role === 'listitem')).toHaveLength(0)
     for (const date of tree.root.findAll((node: any) => node.type === 'Text' && node.props.testID === 'history-date')) {
       expect(flattenText(date)).not.toMatch(/\d:\d/)
     }
