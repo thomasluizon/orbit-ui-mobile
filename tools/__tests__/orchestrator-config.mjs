@@ -107,6 +107,53 @@ export const cases = async () => {
     JSON.stringify(mechanicalInvocation),
   )
 
+  /**
+   * EVERY declared engine, not only the one `worker` names. `readOrchestratorConfig` validates
+   * `config.workers[config.worker]` alone, so a typo in a fallback engine nobody runs today stays
+   * invisible until the first real launch, and by then `reserveWorkerLaunch` has already spent one
+   * of the two launches `caps.workerLaunchesPerBranch` allows. The fallback exists for the night the
+   * primary allowance is exhausted, which is the worst moment to find out it does not resolve.
+   */
+  const engineFailures = []
+  for (const [declaredName, declaredEngine] of Object.entries(real.workers)) {
+    const tiers = Object.keys(declaredEngine.models ?? {})
+    if (tiers.length === 0) {
+      engineFailures.push(`${declaredName}: declares no model tiers`)
+      continue
+    }
+    for (const tier of tiers) {
+      const message = thrown(() => {
+        const resolved = resolveWorkerInvocation(declaredName, declaredEngine, tier)
+        const expectedModel = declaredEngine.models[tier].model
+        if (resolved.model !== expectedModel) throw new Error(`resolved model ${resolved.model}, declared ${expectedModel}`)
+        if (JSON.stringify(resolved.args.slice(-2)) !== JSON.stringify(["--model", expectedModel])) {
+          throw new Error(`args do not end with the declared model: ${JSON.stringify(resolved.args)}`)
+        }
+      })
+      if (message !== null) engineFailures.push(`${declaredName}.${tier}: ${message}`)
+    }
+  }
+  T(
+    `${NAME}: every declared tier of every declared engine resolves`,
+    engineFailures.length === 0,
+    engineFailures.join("; "),
+  )
+
+  /**
+   * The fallback engine's isolation flags, pinned by name. `--strict-mcp-config` with no
+   * `--mcp-config` beside it is what stops an unattended worker inheriting the user-scope MCP
+   * servers, and `--output-format stream-json` is what keeps the launcher's log-growth progress
+   * signal live. `--verbose` is not decoration: the binary refuses stream-json without it.
+   */
+  const fallbackArgs = real.workers.claude?.args ?? []
+  T(
+    `${NAME}: the claude fallback engine loads no MCP server and streams its output`,
+    fallbackArgs.includes("--strict-mcp-config") &&
+      fallbackArgs.includes("--verbose") &&
+      fallbackArgs.join(" ").includes("--output-format stream-json"),
+    JSON.stringify(fallbackArgs),
+  )
+
   const readAndFail = (label, config) => thrown(() => readOrchestratorConfig(configUrl(label, JSON.stringify(config))))
   T(
     `${NAME}: a config with no workers object is refused`,

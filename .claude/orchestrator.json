@@ -30,6 +30,10 @@
       "command": "claude",
       "args": [
         "-p",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--strict-mcp-config",
         "--permission-mode",
         "bypassPermissions"
       ],
