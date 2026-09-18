@@ -246,7 +246,7 @@ function createStyles(tokens: AppTokensV2) {
       textTransform: 'uppercase',
       color: tokens.fg3,
       marginTop: 4,
-      marginBottom: 4,
+      marginBottom: 8,
     },
     moveOptionsList: {
       flex: 1,

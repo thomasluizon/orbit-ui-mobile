@@ -35,8 +35,8 @@ interface MoveParentOverlayProps {
 const SEARCH_THRESHOLD = 8
 
 const eyebrowStyle = {
-  margin: '2px 0 0',
-  fontFamily: 'var(--font-sans)',
+  margin: 0,
+  fontFamily: 'var(--font-mono)',
   fontSize: 12,
   fontWeight: 500,
   letterSpacing: '0.08em',
