@@ -12,6 +12,7 @@ import {
 } from '@orbit/shared/utils'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -161,6 +162,13 @@ describe('OnboardingFlow state model', () => {
     expect(getOnboardingPreviousStep(ONBOARDING_DONE_STEP)).toBe(ONBOARDING_REMIND_STEP)
     expect(shouldHideOnboardingFooter(1)).toBe(false)
     expect(shouldHideOnboardingFooter(ONBOARDING_DONE_STEP)).toBe(true)
+  })
+
+  it('keeps quiet actions neutral', async () => {
+    const tree = await mount(false)
+    const skip = byType(tree.root, 'Text').find((node) => node.props.children === 'onboarding.flow.skip')
+    expect(skip).toBeDefined()
+    expect(prop<unknown[]>(skip!, 'style')).toContainEqual({ color: createTokensV2('purple', 'dark').fg3 })
   })
 
   it('waits for Astra before exposing schedule actions and persists its flexible cadence', async () => {

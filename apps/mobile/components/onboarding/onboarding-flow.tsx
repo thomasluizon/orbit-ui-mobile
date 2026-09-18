@@ -44,7 +44,7 @@ function QuietAction({ label, onPress, disabled = false, loading = false }: Read
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const unavailable = disabled || loading
-  return <Pressable accessibilityRole="button" accessibilityState={{ busy: loading, disabled: unavailable }} disabled={unavailable} onPress={onPress} style={[styles.quiet, unavailable && styles.quietDisabled]}><Text style={[styles.quietText, { color: tokens.primarySoft }]}>{label}</Text></Pressable>
+  return <Pressable accessibilityRole="button" accessibilityState={{ busy: loading, disabled: unavailable }} disabled={unavailable} onPress={onPress} style={[styles.quiet, unavailable && styles.quietDisabled]}><Text style={[styles.quietText, { color: tokens.fg3 }]}>{label}</Text></Pressable>
 }
 function ActionStack({ primary, secondary }: Readonly<{ primary: ReactNode; secondary?: ReactNode }>) { return <View style={styles.actions}>{primary}{secondary}</View> }
 

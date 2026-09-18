@@ -20,7 +20,7 @@ export function OnboardingWelcome({ sentence, marks, onChange, onHaveAccount }: 
     <Input label={t('onboarding.flow.what.label')} value={sentence} onChange={onChange} placeholder={t('onboarding.flow.what.placeholder')} maxLength={100} multiline rows={3} marks={marks} marksLabel={t('onboarding.flow.what.marksLabel')} autoFocus />
     <Text style={[styles.caption, { color: tokens.fg3 }]}>{t('onboarding.flow.what.startersTitle')}</Text>
     <View style={styles.chips}>{ONBOARDING_STARTERS.map((key) => <Chip key={key} active={sentence === t(`onboarding.flow.what.starters.${key}`)} onPress={() => onChange(t(`onboarding.flow.what.starters.${key}`))}>{t(`onboarding.flow.what.starters.${key}`)}</Chip>)}</View>
-    {onHaveAccount ? <Text accessibilityRole="link" onPress={onHaveAccount} style={[styles.link, styles.linkText, { color: tokens.primarySoft }]}>{t('onboarding.flow.what.haveAccount')}</Text> : null}
+    {onHaveAccount ? <Text accessibilityRole="link" onPress={onHaveAccount} style={[styles.link, styles.linkText, { color: tokens.fg3 }]}>{t('onboarding.flow.what.haveAccount')}</Text> : null}
   </View>
 }
 
