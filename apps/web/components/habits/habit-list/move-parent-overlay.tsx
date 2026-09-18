@@ -155,7 +155,11 @@ export function MoveParentOverlay({
           />
         )}
 
-        <RadioGroup className="flex flex-col" style={{ gap: 4 }}>
+        <RadioGroup
+          aria-label={t('habits.moveParent.destinations')}
+          className="flex flex-col"
+          style={{ gap: 4 }}
+        >
           {rootOption && (
             <MoveTargetRow
               option={rootOption}

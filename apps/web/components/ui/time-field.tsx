@@ -1,6 +1,13 @@
 'use client'
 
-import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Time24, TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
@@ -9,6 +16,7 @@ import {
   formatTimeParts,
   formatTimeFieldInput,
   from12Hour,
+  getRadioNavigationIndex,
   HOURS_12,
   HOURS_24,
   MINUTES,
@@ -52,6 +60,7 @@ function parseTypedTime(value: string, hourCycle: 'h23' | 'h12'): Time24 | null 
 function TimeColumn({ values, selected, formatValue, label, onSelect }: Readonly<TimeColumnProps>) {
   const listRef = useRef<HTMLDivElement>(null)
   const selectedRef = useRef<HTMLButtonElement>(null)
+  const optionRefs = useRef(new Map<string, HTMLButtonElement>())
 
   useEffect(() => {
     const list = listRef.current
@@ -60,6 +69,20 @@ function TimeColumn({ values, selected, formatValue, label, onSelect }: Readonly
     list.scrollTop = option.offsetTop - list.clientHeight / 2 + option.clientHeight / 2
   }, [])
 
+  function moveSelection(
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentIndex: number,
+  ) {
+    const nextIndex = getRadioNavigationIndex(event.key, currentIndex, values.length)
+    if (nextIndex === null) return
+    const nextValue = values[nextIndex]
+    if (nextValue === undefined) return
+
+    event.preventDefault()
+    optionRefs.current.get(String(nextValue))?.focus()
+    if (nextValue !== selected) onSelect(nextValue)
+  }
+
   return (
     <div
       ref={listRef}
@@ -67,16 +90,23 @@ function TimeColumn({ values, selected, formatValue, label, onSelect }: Readonly
       aria-label={label}
       className="h-full flex-1 snap-y overflow-y-auto px-1 [scrollbar-width:thin]"
     >
-      {values.map((option) => {
+      {values.map((option, index) => {
         const isSelected = option === selected
+        const optionKey = String(option)
         return (
           <button
-            key={String(option)}
-            ref={isSelected ? selectedRef : undefined}
+            key={optionKey}
+            ref={(element) => {
+              if (element) optionRefs.current.set(optionKey, element)
+              else optionRefs.current.delete(optionKey)
+              if (isSelected) selectedRef.current = element
+            }}
             type="button"
             role="option"
             aria-selected={isSelected}
+            tabIndex={isSelected ? 0 : -1}
             onClick={() => onSelect(option)}
+            onKeyDown={(event) => moveSelection(event, index)}
             className={`w-full min-h-[44px] snap-center rounded-[10px] py-2 text-center text-base transition-colors ${
               isSelected
                 ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'

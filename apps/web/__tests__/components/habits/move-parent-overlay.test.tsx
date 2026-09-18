@@ -49,6 +49,9 @@ describe('MoveParentOverlay', () => {
     ])
 
     expect(screen.getByText('habits.moveParent.destinations')).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', {
+      name: 'habits.moveParent.destinations',
+    })).toBeInTheDocument()
 
     const rootRow = screen.getByText('habits.moveParent.toRoot').closest('button')
     if (!rootRow) throw new Error('Expected the root row button')

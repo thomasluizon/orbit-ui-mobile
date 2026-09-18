@@ -81,4 +81,22 @@ describe('TimeField', () => {
     const minutes = screen.getByRole('listbox', { name: 'common.minutes' })
     expect(within(minutes).getAllByRole('option')).toHaveLength(60)
   })
+
+  it('uses one tab stop and wraps arrow selection within each time column', () => {
+    uses24HourClock = true
+    render(<TimeField value="14:30" onChange={vi.fn()} />)
+
+    openPicker()
+    const hours = screen.getByRole('listbox', { name: 'common.hours' })
+    const options = within(hours).getAllByRole('option')
+    const selected = within(hours).getByRole('option', { name: '14' })
+
+    expect(options.filter((option) => option.tabIndex === 0)).toEqual([selected])
+    selected.focus()
+    fireEvent.keyDown(selected, { key: 'End' })
+    expect(within(hours).getByRole('option', { name: '23' })).toHaveFocus()
+
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
+    expect(within(hours).getByRole('option', { name: '00' })).toHaveFocus()
+  })
 })

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Pressable, TextInput } from 'react-native'
+import { Pressable, TextInput, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import {
@@ -8,6 +8,7 @@ import {
 } from '../../../test-mocks/react-native'
 
 import { TimeField } from '@/components/ui/time-field'
+import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -282,22 +283,35 @@ await Promise.resolve()
   })
 
   it('treats a time column re-entry as entry instead of movement', async () => {
-    vi.useFakeTimers()
     let tree: any
 
     await TestRenderer.act(async () => {
       await Promise.resolve()
       tree = TestRenderer.create(
-        <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />,
+        <FocusProvenanceView>
+          <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />
+          <View focusable accessibilityLabel="Outside" />
+        </FocusProvenanceView>,
       )
     })
     await openPicker(tree)
     const selectedHour = radioOption(tree, 'common.hours', '23')
+    const nextHour = radioOption(tree, 'common.hours', '00')
+    const focusRoot = tree.root.find(
+      (node: any) => typeof node.props.onFocusCapture === 'function',
+    )
+    const outside = tree.root.find(
+      (node: any) => typeof node.type === 'string'
+        && node.props.accessibilityLabel === 'Outside',
+    )
+    const focusHost = (target: any) => {
+      focusRoot.props.onFocusCapture({ nativeEvent: { target: target.props.__nativeTag } })
+      target.props.onFocus?.()
+    }
     TestRenderer.act(() => {
-      selectedHour.props.onFocus()
-      selectedHour.props.onBlur()
-      vi.runAllTimers()
-      radioOption(tree, 'common.hours', '00').props.onFocus()
+      focusHost(selectedHour)
+      focusHost(outside)
+      focusHost(nextHour)
     })
 
     expect(radioOption(tree, 'common.hours', '23').props.accessibilityState.checked).toBe(true)
