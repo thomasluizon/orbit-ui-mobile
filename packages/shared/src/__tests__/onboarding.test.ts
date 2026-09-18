@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   changeOnboardingScheduleMode,
   buildOnboardingHabitInput,
+  buildOnboardingScheduleFromSuggestion,
   canSnapshotOnboardingEntry,
   getOnboardingHabitTitle,
   getOnboardingReminderPreviewTime,
@@ -197,6 +198,28 @@ describe('onboarding helpers', () => {
     expect(getOnboardingReminderPreviewTime('18:00')).toBe('17:45')
     expect(getOnboardingReminderPreviewTime('00:10')).toBe('23:55')
     expect(getOnboardingReminderPreviewTime('')).toBeNull()
+  })
+
+  it('uses an Astra suggestion as the schedule shown for confirmation', () => {
+    expect(buildOnboardingScheduleFromSuggestion({
+      emoji: '🚶',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+      days: [],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '18:00',
+      subHabits: [],
+      checklistItems: [],
+    })).toEqual({
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+      intervalWeeks: 1,
+      days: [],
+      isGeneral: false,
+      isFlexible: true,
+      dueTime: '18:00',
+    })
   })
 })
 

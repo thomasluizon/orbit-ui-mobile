@@ -77,6 +77,22 @@ describe('onboarding draft store', () => {
     expect(store.getState().hasPendingAnswers()).toBe(true)
   })
 
+  it('keeps deferred push registration outcomes in the persisted draft', () => {
+    const store = makeStore()
+
+    store.getState().markPushPermissionGranted()
+    expect(getPersistedOnboardingDraft(store.getState())).toMatchObject({
+      pushPermissionGranted: true,
+      pushRegistrationFailed: false,
+    })
+
+    store.getState().markPushRegistrationFailed()
+    expect(getPersistedOnboardingDraft(store.getState())).toMatchObject({
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+  })
+
   it('resets back to the initial draft', () => {
     const store = makeStore()
     store.getState().bufferHabit({ title: 'Drink water' })
