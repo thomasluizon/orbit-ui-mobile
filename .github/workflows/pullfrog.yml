@@ -29,6 +29,9 @@ jobs:
         uses: pullfrog/pullfrog@v0
         with:
           prompt: ${{ inputs.prompt }}
+          # Reviewer runs on Claude, not the OpenAI allowance the Codex
+          # workers share. Highest-priority model source per Pullfrog docs.
+          model: anthropic/claude-opus-5
         env:
           # add at least one provider API key
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
