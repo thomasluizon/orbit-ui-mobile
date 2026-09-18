@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSessionEpoch, useAuthStore } from '@/stores/auth-store'
+import { useChatStore } from '@/stores/chat-store'
 import type { LoginResponse } from '@orbit/shared/types/auth'
+import type { ChatMessage } from '@orbit/shared/types/chat'
 import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
 import {
   getFailedNotificationDeleteIdsSnapshot,
@@ -38,6 +40,21 @@ describe('auth store', () => {
       email: 'thomas@example.com',
       ...overrides,
     }
+  }
+
+  function makeChatMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
+    return {
+      id: 'message-1',
+      role: 'user',
+      content: 'Remind me about the gym tonight',
+      timestamp: new Date('2025-01-01T12:00:00Z'),
+      ...overrides,
+    }
+  }
+
+  const accountANotificationList = {
+    items: [{ id: 'account-a-notification', title: 'Account A reminder' }],
+    unreadCount: 1,
   }
 
   it('starts unauthenticated', () => {
@@ -363,16 +380,26 @@ describe('auth store', () => {
       const { notificationKeys } = await import('@orbit/shared/query')
       const queryClient = getQueryClient()
       useAuthStore.getState().setAuth(makeLoginResponse())
-      queryClient.setQueryData(notificationKeys.lists(), {
-        items: [{ id: 'account-a-notification', title: 'Account A reminder' }],
-        unreadCount: 1,
-      })
+      queryClient.setQueryData(notificationKeys.lists(), accountANotificationList)
       respondWithAccount('user-2')
 
       await useAuthStore.getState().checkSession()
 
       expect(queryClient.getQueryData(notificationKeys.lists())).toBeUndefined()
       expect(queryClient.getQueryCache().getAll()).toEqual([])
+    })
+
+    it('empties the Astra conversation the replaced account left', async () => {
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      useChatStore.getState().addMessage(makeChatMessage())
+      useChatStore.setState({ isTyping: true, streamingMessageId: 'message-2' })
+      respondWithAccount('user-2')
+
+      await useAuthStore.getState().checkSession()
+
+      expect(useChatStore.getState().messages).toEqual([])
+      expect(useChatStore.getState().isTyping).toBe(false)
+      expect(useChatStore.getState().streamingMessageId).toBeNull()
     })
 
     it('drops a previous account pending delete when a login follows no teardown', async () => {
@@ -392,12 +419,10 @@ describe('auth store', () => {
       const { notificationKeys } = await import('@orbit/shared/query')
       const queryClient = getQueryClient()
       useAuthStore.getState().setAuth(makeLoginResponse())
-      queryClient.setQueryData(notificationKeys.lists(), {
-        items: [{ id: 'account-a-notification', title: 'Account A reminder' }],
-        unreadCount: 1,
-      })
+      queryClient.setQueryData(notificationKeys.lists(), accountANotificationList)
 
       await useAuthStore.getState().checkSession()
+      queryClient.setQueryData(notificationKeys.lists(), accountANotificationList)
       useAuthStore.getState().setAuth(makeLoginResponse({
         userId: 'user-2',
         name: 'Bea',
@@ -436,6 +461,28 @@ describe('auth store', () => {
       expect(getSessionEpoch()).toBe(generationBeforeCheck)
       expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
       expect(useAuthStore.getState().user?.userId).toBe('user-1')
+    })
+
+    it('keeps the cache when the same account recovers from a rejected refresh', async () => {
+      const { getQueryClient } = await import('@/lib/query-client')
+      const { notificationKeys } = await import('@orbit/shared/query')
+      const queryClient = getQueryClient()
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      queryClient.setQueryData(notificationKeys.lists(), accountANotificationList)
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ refreshFailed: true }),
+      })
+
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+      expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+      respondWithAccount('user-1')
+      await useAuthStore.getState().recoverSessionRefreshFailure()
+
+      expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(accountANotificationList)
+      expect(useAuthStore.getState().user?.userId).toBe('user-1')
+      queryClient.clear()
     })
   })
 })

@@ -3,6 +3,7 @@ import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
 import { getQueryClient } from '@/lib/query-client'
+import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
@@ -28,20 +29,26 @@ let lastObservedAccountId: string | null = null
  * one more hole. It raises the session generation so an in-flight callback started by the previous
  * account cannot write into the new account's cache; it drops the pending notification deletes so
  * their timers cannot send a DELETE for the previous account's ids under the new cookie; and it
- * empties the query cache, which holds the previous account's notifications, habits, goals and
- * profile that nothing else evicts because this tab never navigates. The cache empties only when the
- * tab leaves an account it already held, so a first login and a re-login as the same account keep
- * theirs. The last observed account outlives a teardown, so the session after it can tell a return
- * from a replacement.
+ * empties the query cache and the Astra conversation, which hold the previous account's
+ * notifications, habits, goals, profile and chat that nothing else evicts because this tab never
+ * navigates. Both empty only when the tab arrives at a DIFFERENT named account. A teardown names no
+ * account, so a session that drops and returns as the same account keeps what it had; the last
+ * observed account outlives that teardown, so the session after it can tell a return from a
+ * replacement.
  */
 function startAccountScopedSession(nextAccountId: string | null): boolean {
   const previousAccountId = lastObservedAccountId
-  const accountChanged = previousAccountId !== null && previousAccountId !== nextAccountId
+  const accountChanged = nextAccountId !== null
+    && previousAccountId !== null
+    && previousAccountId !== nextAccountId
 
   sessionGeneration += 1
   if (nextAccountId !== null) lastObservedAccountId = nextAccountId
   clearPendingNotificationDeletes()
-  if (accountChanged) getQueryClient().clear()
+  if (accountChanged) {
+    getQueryClient().clear()
+    useChatStore.getState().clearMessages()
+  }
 
   return accountChanged
 }

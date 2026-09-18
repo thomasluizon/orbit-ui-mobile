@@ -41,22 +41,19 @@ import { getSessionEpoch } from '@/stores/auth-store'
 const runForNotificationSession = createSessionScopedRunner(getSessionEpoch)
 
 /**
- * Cancels the list refetch for the session that owns the mutation and reports whether that session
- * still owns it afterwards. The await is the gap an account replacement fits through, so the caller
- * re-reads ownership here rather than trusting the epoch it captured before the await.
+ * Cancels the list refetch for the session that owns the mutation. The await is the gap an account
+ * replacement fits through, and this reports nothing about who owns the session once it closes:
+ * every caller wraps the work that follows in runForNotificationSession, which re-reads the current
+ * epoch immediately before each write, so a second check here would decide nothing.
  */
 async function cancelNotificationListForSession(
   queryClient: QueryClient,
   sessionEpoch: number,
-): Promise<boolean> {
-  const cancellation = runForNotificationSession(
+): Promise<void> {
+  await runForNotificationSession(
     sessionEpoch,
     () => queryClient.cancelQueries({ queryKey: notificationKeys.lists() }),
   )
-  if (!cancellation) return false
-
-  await cancellation
-  return sessionEpoch === getSessionEpoch()
 }
 
 export function useNotifications() {
@@ -97,9 +94,7 @@ export function useMarkNotificationRead() {
     },
 
     onMutate: async ({ notificationId, sessionEpoch }) => {
-      if (!await cancelNotificationListForSession(queryClient, sessionEpoch)) {
-        return { previous: undefined, sessionEpoch }
-      }
+      await cancelNotificationListForSession(queryClient, sessionEpoch)
 
       const previous = runForNotificationSession(sessionEpoch, () => {
         const snapshot = snapshotNotificationList(queryClient)
@@ -156,9 +151,7 @@ export function useMarkAllNotificationsRead() {
     },
 
     onMutate: async ({ sessionEpoch }) => {
-      if (!await cancelNotificationListForSession(queryClient, sessionEpoch)) {
-        return { previous: undefined, sessionEpoch }
-      }
+      await cancelNotificationListForSession(queryClient, sessionEpoch)
 
       const previous = runForNotificationSession(sessionEpoch, () => {
         const snapshot = snapshotNotificationList(queryClient)
@@ -210,9 +203,7 @@ export function useDeleteNotification() {
     },
 
     onMutate: async ({ notificationId, sessionEpoch }) => {
-      if (!await cancelNotificationListForSession(queryClient, sessionEpoch)) {
-        return { previous: undefined, sessionEpoch }
-      }
+      await cancelNotificationListForSession(queryClient, sessionEpoch)
 
       const previous = runForNotificationSession(sessionEpoch, () => {
         const snapshot = snapshotNotificationList(queryClient)
@@ -268,9 +259,7 @@ export function useDeleteAllNotifications() {
     },
 
     onMutate: async ({ sessionEpoch }) => {
-      if (!await cancelNotificationListForSession(queryClient, sessionEpoch)) {
-        return { previous: undefined, sessionEpoch }
-      }
+      await cancelNotificationListForSession(queryClient, sessionEpoch)
 
       const previous = runForNotificationSession(sessionEpoch, () => {
         const snapshot = snapshotNotificationList(queryClient)
