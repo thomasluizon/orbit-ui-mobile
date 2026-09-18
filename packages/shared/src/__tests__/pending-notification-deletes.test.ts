@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cancelPendingNotificationDelete,
+  clearFailedNotificationDeletes,
   getFailedNotificationDeleteIdsSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
@@ -102,5 +103,33 @@ describe('pending notification deletes', () => {
 
     expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
     expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['notif-1'])
+  })
+
+  it('clears the failure after a repeated attempt succeeds', async () => {
+    const execute = vi.fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(undefined)
+    queuePendingNotificationDelete('notif-1', execute)
+
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['notif-1'])
+
+    retryFailedNotificationDelete('notif-1')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
+    expect(execute).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores a late rejection after bulk clear supersedes the delete', async () => {
+    let rejectDelete!: (error: Error) => void
+    const deleteRequest = new Promise<never>((_resolve, reject) => { rejectDelete = reject })
+    queuePendingNotificationDelete('notif-1', () => deleteRequest)
+
+    await vi.advanceTimersByTimeAsync(5000)
+    clearFailedNotificationDeletes()
+    rejectDelete(new Error('stale failure'))
+    await Promise.resolve()
+
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
   })
 })

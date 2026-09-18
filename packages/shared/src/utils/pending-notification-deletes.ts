@@ -8,6 +8,7 @@ type PendingDeleteExecutor = () => unknown
 const PENDING_DELETE_DELAY_MS = 5000
 const pendingDeleteEntries = new Map<string, PendingDeleteEntry>()
 const failedDeleteExecutors = new Map<string, PendingDeleteExecutor>()
+const activeDeleteAttempts = new Map<string, symbol>()
 const subscribers = new Set<() => void>()
 let pendingDeleteSnapshot: string[] = []
 let failedDeleteSnapshot: string[] = []
@@ -48,6 +49,17 @@ function reportFailedDelete(notificationId: string, execute: PendingDeleteExecut
   emitPendingDeleteChange()
 }
 
+function finishDeleteAttempt(
+  notificationId: string,
+  attempt: symbol,
+  execute: PendingDeleteExecutor,
+  failed: boolean,
+): void {
+  if (activeDeleteAttempts.get(notificationId) !== attempt) return
+  activeDeleteAttempts.delete(notificationId)
+  if (failed) reportFailedDelete(notificationId, execute)
+}
+
 /**
  * Queues a notification delete that executes after the undo window elapses.
  * Returns false when the notification already has a pending delete.
@@ -58,16 +70,23 @@ export function queuePendingNotificationDelete(notificationId: string, execute: 
   }
 
   failedDeleteExecutors.delete(notificationId)
+  activeDeleteAttempts.delete(notificationId)
 
   const timer = setTimeout(() => {
     const entry = pendingDeleteEntries.get(notificationId)
     if (!entry) return
 
+    const attempt = Symbol(notificationId)
+    activeDeleteAttempts.set(notificationId, attempt)
+
     try {
       const result = entry.execute()
-      void Promise.resolve(result).catch(() => reportFailedDelete(notificationId, execute))
+      void Promise.resolve(result).then(
+        () => finishDeleteAttempt(notificationId, attempt, execute, false),
+        () => finishDeleteAttempt(notificationId, attempt, execute, true),
+      )
     } catch {
-      reportFailedDelete(notificationId, execute)
+      finishDeleteAttempt(notificationId, attempt, execute, true)
     } finally {
       pendingDeleteEntries.delete(notificationId)
       syncPendingDeleteSnapshot()
@@ -92,10 +111,11 @@ export function retryFailedNotificationDelete(notificationId: string): boolean {
   return queuePendingNotificationDelete(notificationId, execute)
 }
 
-/** Clears delayed-delete failures superseded by a successful bulk action. */
+/** Supersedes delayed-delete failures and active attempts before a bulk clear. */
 export function clearFailedNotificationDeletes(): void {
-  if (failedDeleteExecutors.size === 0) return
+  if (failedDeleteExecutors.size === 0 && activeDeleteAttempts.size === 0) return
   failedDeleteExecutors.clear()
+  activeDeleteAttempts.clear()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
 }
@@ -125,6 +145,7 @@ export function resetPendingNotificationDeletesForTests(): void {
 
   pendingDeleteEntries.clear()
   failedDeleteExecutors.clear()
+  activeDeleteAttempts.clear()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
 }
