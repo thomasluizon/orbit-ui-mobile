@@ -55,7 +55,32 @@ const mocks = vi.hoisted(() => {
     queryClient,
     useQuery: vi.fn(() => ({ data: state.notifications })),
     useQueryClient: vi.fn(() => queryClient),
-    useMutation: vi.fn((config: unknown) => config),
+    useMutation: vi.fn((config: unknown) => {
+      const mutation = config as {
+        mutationFn: (variables: unknown) => Promise<unknown>
+        onMutate?: (variables: unknown) => unknown
+        onError?: (error: Error, variables: unknown, context: unknown) => void
+        onSettled?: (data: unknown, error: Error | null, variables: unknown, context: unknown) => void
+      }
+      const mutateAsync = async (variables: unknown) => {
+        const context = await mutation.onMutate?.(variables)
+        try {
+          const result = await mutation.mutationFn(variables)
+          mutation.onSettled?.(result, null, variables, context)
+          return result
+        } catch (error: unknown) {
+          mutation.onError?.(error as Error, variables, context)
+          mutation.onSettled?.(undefined, error as Error, variables, context)
+          throw error
+        }
+      }
+
+      return {
+        ...mutation,
+        mutate: (variables: unknown) => { void mutateAsync(variables) },
+        mutateAsync,
+      }
+    }),
     buildQueuedMutation: vi.fn((options) => ({
       id: 'mutation-1',
       timestamp: Date.now(),
@@ -198,18 +223,13 @@ describe('mobile notification hooks', () => {
   })
 
   it('restores the notification cache when delete fails', async () => {
-    const mutation = useDeleteNotification() as unknown as MutationConfig<
-      { queued: true; queuedMutationId: string },
-      string,
-      { previous: NotificationsResponse | undefined }
-    >
+    const mutation = useDeleteNotification() as unknown as {
+      mutateAsync: (notificationId: string) => Promise<unknown>
+    }
     const initial = mocks.state.notifications
     mocks.queueOrExecute.mockRejectedValue(new Error('Delete failed'))
 
-    const context = await mutation.onMutate?.('n-1')
-
-    await expect(mutation.mutationFn('n-1')).rejects.toThrow('Delete failed')
-    mutation.onError?.(new Error('Delete failed'), 'n-1', context)
+    await expect(mutation.mutateAsync('n-1')).rejects.toThrow('Delete failed')
 
     expect(mocks.state.notifications).toEqual(initial)
     expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(
@@ -221,10 +241,11 @@ describe('mobile notification hooks', () => {
   it('ignores a delete rejection from a replaced session', async () => {
     const mutation = useDeleteNotification() as unknown as MutationConfig<
       unknown,
-      string,
+      { notificationId: string; sessionEpoch: number },
       { previous: NotificationsResponse | undefined; sessionEpoch: number }
     >
-    const context = await mutation.onMutate?.('n-1')
+    const operation = { notificationId: 'n-1', sessionEpoch: session.epoch }
+    const context = await mutation.onMutate?.(operation)
     const replacementAccountNotifications: NotificationsResponse = {
       items: [{
         id: 'account-b-notification',
@@ -243,9 +264,44 @@ describe('mobile notification hooks', () => {
     mocks.queryClient.setQueryData.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
 
-    mutation.onError?.(new Error('Late delete failure'), 'n-1', context)
-    mutation.onSettled?.(undefined, new Error('Late delete failure'), 'n-1', context)
+    mutation.onError?.(new Error('Late delete failure'), operation, context)
+    mutation.onSettled?.(undefined, new Error('Late delete failure'), operation, context)
 
+    expect(mocks.state.notifications).toEqual(replacementAccountNotifications)
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('does not start a delete after the session changes while query cancellation is pending', async () => {
+    let releaseCancellation!: () => void
+    mocks.queryClient.cancelQueries.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      releaseCancellation = resolve
+    }))
+    const mutation = useDeleteNotification() as unknown as {
+      mutateAsync: (notificationId: string) => Promise<unknown>
+    }
+    const replacementAccountNotifications: NotificationsResponse = {
+      items: [{
+        id: 'account-b-notification',
+        title: 'Account B',
+        body: 'Account B body',
+        url: null,
+        habitId: null,
+        isRead: false,
+        createdAtUtc: '2025-01-02T00:00:00Z',
+      }],
+      unreadCount: 1,
+    }
+
+    const deletePromise = mutation.mutateAsync('n-1')
+    await Promise.resolve()
+    session.epoch = 2
+    mocks.state.notifications = replacementAccountNotifications
+    mocks.queryClient.setQueryData.mockClear()
+    releaseCancellation()
+    await deletePromise
+
+    expect(mocks.queueOrExecute).not.toHaveBeenCalled()
     expect(mocks.state.notifications).toEqual(replacementAccountNotifications)
     expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
@@ -336,14 +392,12 @@ describe('mobile notification hooks', () => {
   })
 
   it('keeps the unread badge when a read notification is removed', async () => {
-    const mutation = useDeleteNotification() as unknown as MutationConfig<
-      { queued: true; queuedMutationId: string },
-      string,
-      { previous: NotificationsResponse | undefined }
-    >
+    const mutation = useDeleteNotification() as unknown as {
+      mutateAsync: (notificationId: string) => Promise<unknown>
+    }
     mocks.queueOrExecute.mockResolvedValue({ queued: true, queuedMutationId: 'mutation-1' })
 
-    await mutation.onMutate?.('n-2')
+    await mutation.mutateAsync('n-2')
 
     expect(mocks.state.notifications?.items.map((item) => item.id)).toEqual(['n-1'])
     expect(mocks.state.notifications?.unreadCount).toBe(1)

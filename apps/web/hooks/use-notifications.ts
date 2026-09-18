@@ -36,6 +36,14 @@ import { fetchJson } from '@/lib/api-fetch'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getSessionGeneration } from '@/stores/auth-store'
 
+function runForNotificationDeleteSession<TResult>(
+  sessionGeneration: number,
+  operation: () => TResult,
+): TResult | undefined {
+  if (sessionGeneration !== getSessionGeneration()) return undefined
+  return operation()
+}
+
 export function useNotifications() {
   const queryClient = useQueryClient()
   useEffect(() => attachNotificationPolling(queryClient), [queryClient])
@@ -124,33 +132,70 @@ export function useMarkAllNotificationsRead() {
 export function useDeleteNotification() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: (notificationId: string) => deleteNotificationAction(notificationId),
+  const mutation = useMutation({
+    mutationFn: ({ notificationId, sessionGeneration }: {
+      notificationId: string
+      sessionGeneration: number
+    }) => {
+      return runForNotificationDeleteSession(
+        sessionGeneration,
+        () => deleteNotificationAction(notificationId),
+      ) ?? Promise.resolve(undefined)
+    },
 
-    onMutate: async (notificationId) => {
-      const sessionGeneration = getSessionGeneration()
-      await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
+    onMutate: async ({ notificationId, sessionGeneration }) => {
+      const cancellation = runForNotificationDeleteSession(
+        sessionGeneration,
+        () => queryClient.cancelQueries({ queryKey: notificationKeys.lists() }),
+      )
+      if (!cancellation) {
+        return { previous: undefined, sessionGeneration }
+      }
+      await cancellation
+
+      if (sessionGeneration !== getSessionGeneration()) {
+        return { previous: undefined, sessionGeneration }
+      }
 
       const previous = snapshotNotificationList(queryClient)
 
-      queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
-        if (!old) return old
-        return deleteNotificationFromList(old, notificationId)
+      const cacheChanged = runForNotificationDeleteSession(sessionGeneration, () => {
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
+          if (!old) return old
+          return deleteNotificationFromList(old, notificationId)
+        })
+        return true
       })
 
-      return { previous, sessionGeneration }
+      return { previous: cacheChanged ? previous : undefined, sessionGeneration }
     },
 
-    onError: (_err, _id, context) => {
-      if (!context || context.sessionGeneration !== getSessionGeneration()) return
-      restoreNotificationList(queryClient, context.previous)
+    onError: (_err, _operation, context) => {
+      if (!context) return
+      runForNotificationDeleteSession(context.sessionGeneration, () => {
+        restoreNotificationList(queryClient, context.previous)
+      })
     },
 
-    onSettled: (_data, _error, _notificationId, context) => {
-      if (!context || context.sessionGeneration !== getSessionGeneration()) return
-      void invalidateNotificationList(queryClient)
+    onSettled: (_data, _error, _operation, context) => {
+      if (!context) return
+      runForNotificationDeleteSession(context.sessionGeneration, () => {
+        void invalidateNotificationList(queryClient)
+      })
     },
   })
+
+  return {
+    ...mutation,
+    mutate: (notificationId: string) => mutation.mutate({
+      notificationId,
+      sessionGeneration: getSessionGeneration(),
+    }),
+    mutateAsync: (notificationId: string) => mutation.mutateAsync({
+      notificationId,
+      sessionGeneration: getSessionGeneration(),
+    }),
+  }
 }
 
 export function useDeleteAllNotifications() {
