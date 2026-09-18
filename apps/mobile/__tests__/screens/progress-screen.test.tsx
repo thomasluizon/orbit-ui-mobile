@@ -263,7 +263,7 @@ function findGoalCard(root: TestNode, title: string): TestNode {
 
 function findGoalsSection(root: TestNode) {
   return root.findAll((node) =>
-    typeof node.props.onRegisterGoal === 'function' && typeof node.props.onRegisterHeading === 'function',
+    typeof node.props.onRegisterGoal === 'function',
   )[0]!
 }
 
@@ -275,12 +275,11 @@ function setGoalCardFocusTarget(root: TestNode, goalId: string) {
   return card
 }
 
-function setGoalsHeadingFocusTarget(root: TestNode) {
-  const goalsSection = findGoalsSection(root)
-  const heading = { destination: 'goals heading' }
-  const registerHeading = goalsSection.props.onRegisterHeading as (instance: unknown) => void
-  registerHeading(heading)
-  return heading
+function findProgressHeadingFocusTarget(root: TestNode) {
+  const heading = root.findAll((node) => typeof node.props.focusRef === 'object')[0]
+  const target = (heading?.props.focusRef as { current?: unknown } | undefined)?.current
+  if (!target) throw new Error('Progress heading focus target missing')
+  return target
 }
 
 describe('mobile ProgressContent', () => {
@@ -1361,7 +1360,7 @@ describe('mobile ProgressContent', () => {
   it.each([
     ['deletion', (goal: ReturnType<typeof createMockGoal>) => null],
     ['a filtered status transition', (goal: ReturnType<typeof createMockGoal>) => ({ ...goal, status: 'Completed' as const })],
-  ])('returns focus to the goals heading after %s removes the opening card', async (_path, updateGoal) => {
+  ])('returns focus to the page heading after %s removes the opening card', async (_path, updateGoal) => {
     const openingGoal = createMockGoal({ id: 'opening', title: 'Opening goal', status: 'Active' })
     const survivingGoal = createMockGoal({ id: 'surviving', title: 'Surviving goal', status: 'Active' })
     mocks.goals.data.allGoals = [openingGoal, survivingGoal]
@@ -1377,11 +1376,38 @@ describe('mobile ProgressContent', () => {
       tree.update(<ProgressScreen />)
       await Promise.resolve()
     })
-    const goalsHeadingTarget = setGoalsHeadingFocusTarget(tree.root)
     const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]!
     TestRenderer.act(() => (detail.props.onClose as () => void)())
+    const pageHeadingTarget = findProgressHeadingFocusTarget(tree.root)
 
-    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenLastCalledWith(goalsHeadingTarget, 'focus')
+    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenLastCalledWith(pageHeadingTarget, 'focus')
+  })
+
+  it('returns focus to the page heading when deleting the sole goal empties progress', async () => {
+    const openingGoal = createMockGoal({ id: 'only', title: 'Only goal', status: 'Active' })
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, {
+      currentStreak: 0,
+      longestStreak: 0,
+      totalXp: 0,
+      achievementsEarned: 0,
+    })
+    mocks.goals.data.allGoals = [openingGoal]
+    accessibilityMocks.sendAccessibilityEvent.mockReset()
+    const tree = await renderProgress()
+    TestRenderer.act(() => (findGoalCard(tree.root, openingGoal.title).props.onPress as () => void)())
+
+    mocks.goals.data.allGoals = []
+    await TestRenderer.act(async () => {
+      tree.update(<ProgressScreen />)
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty').length).toBeGreaterThan(0)
+    const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]!
+    TestRenderer.act(() => (detail.props.onClose as () => void)())
+    const pageHeadingTarget = findProgressHeadingFocusTarget(tree.root)
+
+    expect(accessibilityMocks.sendAccessibilityEvent).toHaveBeenLastCalledWith(pageHeadingTarget, 'focus')
   })
 
   it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {

@@ -369,7 +369,6 @@ export type {
 } from './habit-list-progress'
 export {
   buildGoalTitle,
-  formatGoalValue,
   getFirstGoalDraftFieldError,
   getGoalDraftFieldErrorKeys,
   isGoalDeadlinePast,

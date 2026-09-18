@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode, type RefObject } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -323,16 +323,11 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
   )
 }
 
-function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onRegisterHeading }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void; onRegisterHeading: (instance: Text | null) => void }>) {
+function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void }>) {
   const { t } = useTranslation()
   const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
-  const headingRef = useRef<Text>(null)
-  useEffect(() => {
-    onRegisterHeading(headingRef.current)
-    return () => onRegisterHeading(null)
-  }, [onRegisterHeading])
   const announceReorderResult = (message: string) => {
     AccessibilityInfo.announceForAccessibility(message)
   }
@@ -367,7 +362,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal, onRegisterHea
     return <GoalCard goal={item} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} isDragging={isActive} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} onRegister={onRegisterGoal} tokens={tokens} />
   }
   return (
-    <View style={styles.goalsSection}><Text ref={headingRef} accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
+    <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={setFilter} label={t('progressScreen.goals.views')} /> : null}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
@@ -515,11 +510,15 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
   )
 }
 
+function ProgressPageHeading({ focusRef, title }: Readonly<{ focusRef: RefObject<Text | null>; title: string }>) {
+  return <Text ref={focusRef} testID="progress-screen-heading" accessible accessibilityRole="header" style={styles.screenReaderTitle}>{title}</Text>
+}
+
 export function ProgressContent() {
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const openingGoalIdRef = useRef<string | null>(null)
   const goalCardRefs = useRef(new Map<string, View>())
-  const goalsHeadingRef = useRef<Text>(null)
+  const pageHeadingRef = useRef<Text>(null)
   const { t } = useTranslation()
   const router = useRouter()
   const { width } = useWindowDimensions()
@@ -547,9 +546,6 @@ export function ProgressContent() {
     if (instance) goalCardRefs.current.set(goalId, instance)
     else goalCardRefs.current.delete(goalId)
   }, [])
-  const registerGoalsHeading = useCallback((instance: Text | null) => {
-    goalsHeadingRef.current = instance
-  }, [])
   const openGoal = useCallback((goalId: string) => {
     openingGoalIdRef.current = goalId
     setDetailGoalId(goalId)
@@ -557,7 +553,7 @@ export function ProgressContent() {
   useEffect(() => {
     const openingGoalId = openingGoalIdRef.current
     if (!detailGoalId && openingGoalId) {
-      const destination = goalCardRefs.current.get(openingGoalId) ?? goalsHeadingRef.current
+      const destination = goalCardRefs.current.get(openingGoalId) ?? pageHeadingRef.current
       if (destination) AccessibilityInfo.sendAccessibilityEvent(destination, 'focus')
       openingGoalIdRef.current = null
     }
@@ -566,7 +562,7 @@ export function ProgressContent() {
     <>
       {detailGoalId ? <ScrollView style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={styles.content}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
     <NestableScrollContainer style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessible accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.title')}</Text>
+      <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.title')} />
       <RowList>
         <ListRow
           accessibilityLabel={t('profile.wrappedTitle')}
@@ -579,7 +575,7 @@ export function ProgressContent() {
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
       {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} onRegisterHeading={registerGoalsHeading} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
     </NestableScrollContainer>
     </>
   )

@@ -4,7 +4,7 @@ import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import type { Goal } from '@orbit/shared/types/goal'
-import { formatGoalValue, getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
+import { formatGoalHistoryNumber, getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'
@@ -71,8 +71,8 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         goalUnit: goal.unit,
       })
       setAnnouncement(t('goals.detail.progressUpdated', {
-        current: formatGoalValue(value, i18n.language),
-        target: formatGoalValue(goal.targetValue, i18n.language),
+        current: formatGoalHistoryNumber(value, i18n.language),
+        target: formatGoalHistoryNumber(goal.targetValue, i18n.language),
         unit: goal.unit,
       }))
       await refetchDetail()
