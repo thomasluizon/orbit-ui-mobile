@@ -232,6 +232,8 @@ describe('calendar-sync utils', () => {
   it('names a message key per import issue', () => {
     expect(getCalendarSyncImportIssueMessageKey('ordinal-weekday')).toBe('calendar.importIssue.ordinalWeekday')
     expect(getCalendarSyncImportIssueMessageKey('weekday-interval')).toBe('calendar.importIssue.weekdayInterval')
+    expect(getCalendarSyncImportIssueMessageKey('finite-date-clamp')).toBe('calendar.importIssue.finiteDateClamp')
+    expect(getCalendarSyncImportIssueMessageKey('utc-until-offset-shift')).toBe('calendar.importIssue.utcUntilOffsetShift')
   })
 
   it('turns a revoked Google grant into a reconnect state and keeps the last sync time', () => {
@@ -299,12 +301,57 @@ describe('calendar-sync utils', () => {
     expect(resolveCalendarSyncEndDate('RRULE:FREQ=MONTHLY;COUNT=3', '2026-01-15')).toBe('2026-03-15')
   })
 
-  it('skips missing month dates while counting monthly occurrences', () => {
-    expect(resolveCalendarSyncEndDate('RRULE:FREQ=MONTHLY;COUNT=3', '2026-01-31')).toBe('2026-05-31')
+  it('refuses a finite monthly series that Orbit would clamp to different dates', () => {
+    const event = {
+      id: 'event-month-end',
+      title: 'Month end close',
+      description: null,
+      startDate: '2026-01-31',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+    )).toBe('finite-date-clamp')
+    expect(isCalendarSyncEventImportable(event)).toBe(false)
+    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
+      'Unsupported calendar recurrence: finite-date-clamp',
+    )
   })
 
-  it('skips common years while counting leap-day yearly occurrences', () => {
-    expect(resolveCalendarSyncEndDate('RRULE:FREQ=YEARLY;COUNT=3', '2024-02-29')).toBe('2032-02-29')
+  it('refuses a finite leap-day yearly series that Orbit would clamp to February 28', () => {
+    expect(getCalendarSyncImportIssue(
+      'RRULE:FREQ=YEARLY;COUNT=3',
+      '2024-02-29',
+      null,
+    )).toBe('finite-date-clamp')
+  })
+
+  it('keeps a finite monthly series whose anchor exists in every month', () => {
+    const event = {
+      id: 'event-monthly-28',
+      title: 'Monthly review',
+      description: null,
+      startDate: '2026-01-28',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+    )).toBeNull()
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-03-28')
   })
 
   it('bounds an UNTIL series at the date the rule names', () => {
@@ -371,8 +418,8 @@ describe('calendar-sync utils', () => {
       title: 'Morning routine',
       description: null,
       startDate: '2026-09-14',
-      startTime: '08:00',
-      startUtc: '2026-09-13T23:00:00Z',
+      startTime: '06:00',
+      startUtc: '2026-09-13T21:00:00Z',
       endTime: null,
       isRecurring: true,
       recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260930T235959Z',
@@ -453,6 +500,55 @@ describe('calendar-sync utils', () => {
     }
 
     expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-09-30')
+  })
+
+  it('refuses a UTC UNTIL bound whose date can change across a zone transition', () => {
+    const event = {
+      id: 'event-transition-edge',
+      title: 'Midnight routine',
+      description: null,
+      startDate: '2026-01-01',
+      startTime: '00:30',
+      startUtc: '2026-01-01T05:30:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+      event.startUtc,
+    )).toBe('utc-until-offset-shift')
+    expect(isCalendarSyncEventImportable(event)).toBe(false)
+    expect(() => buildCalendarSyncImportRequest([event])).toThrow(
+      'Unsupported calendar recurrence: utc-until-offset-shift',
+    )
+  })
+
+  it('imports a UTC UNTIL bound whose date is stable across a zone transition', () => {
+    const event = {
+      id: 'event-transition-safe',
+      title: 'Midday routine',
+      description: null,
+      startDate: '2026-01-01',
+      startTime: '12:00',
+      startUtc: '2026-01-01T17:00:00Z',
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule: 'RRULE:FREQ=DAILY;UNTIL=20260701T043000Z',
+      reminders: [],
+    }
+
+    expect(getCalendarSyncImportIssue(
+      event.recurrenceRule,
+      event.startDate,
+      event.startTime,
+      event.startUtc,
+    )).toBeNull()
+    expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-06-30')
   })
 
   it('builds bulk create requests from suggestions', () => {

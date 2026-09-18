@@ -975,7 +975,9 @@
     "importPartialFailure": "{count} evento não pôde ser importado | {count} eventos não puderam ser importados",
     "importIssue": {
       "weekdayInterval": "O Orbit não consegue preservar o intervalo entre os dias da semana deste evento.",
-      "ordinalWeekday": "O Orbit não consegue importar agendas como a segunda segunda-feira de cada mês."
+      "ordinalWeekday": "O Orbit não consegue importar agendas como a segunda segunda-feira de cada mês.",
+      "finiteDateClamp": "O Orbit não consegue preservar esta agenda finita porque algumas datas não existem em todos os meses ou anos.",
+      "utcUntilOffsetShift": "O Orbit não consegue determinar com segurança a última ocorrência desta agenda após uma mudança de horário."
     },
     "goToHabits": "Abrir hábitos",
     "errorTitle": "Algo deu errado",

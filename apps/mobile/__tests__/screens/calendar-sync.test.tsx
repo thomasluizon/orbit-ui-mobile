@@ -473,6 +473,37 @@ describe("CalendarSyncScreen", () => {
     expect(importPill.props.disabled).toBe(true);
   });
 
+  it("explains and disables a finite month-end suggestion before import", async () => {
+    const event = {
+      ...buildEvents(1)[0]!,
+      title: "Month end close",
+      startDate: "2026-01-31",
+      startTime: null,
+      isRecurring: true,
+      recurrenceRule: "RRULE:FREQ=MONTHLY;COUNT=3",
+    };
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "sug-month-end", event }];
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const eventRow = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityRole === "checkbox" &&
+        node.props.accessibilityHint === "calendar.importIssue.finiteDateClamp",
+    );
+    expect(eventRow.props.disabled).toBe(true);
+    expect(eventRow.props.accessibilityState).toEqual({
+      checked: false,
+      disabled: true,
+    });
+  });
+
   it("lists imported habits on the done step and toasts partial failures", async () => {
     mocks.eventsQuery.data = { status: "connected", events: buildEvents(2) };
     mocks.bulkMutateAsync.mockResolvedValue({

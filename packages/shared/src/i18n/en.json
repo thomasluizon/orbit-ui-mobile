@@ -975,7 +975,9 @@
     "importPartialFailure": "{count} event could not be imported | {count} events could not be imported",
     "importIssue": {
       "weekdayInterval": "Orbit cannot preserve this event's weekday interval.",
-      "ordinalWeekday": "Orbit cannot import schedules like the second Monday of each month."
+      "ordinalWeekday": "Orbit cannot import schedules like the second Monday of each month.",
+      "finiteDateClamp": "Orbit cannot preserve this finite schedule because some dates do not exist every month or year.",
+      "utcUntilOffsetShift": "Orbit cannot safely place this schedule's final occurrence after a time change."
     },
     "goToHabits": "Open habits",
     "errorTitle": "Something went wrong",

@@ -47,7 +47,12 @@ export function CalendarSyncEventRow({
   onToggle,
   onDismiss,
 }: Readonly<CalendarSyncEventRowProps>) {
-  const importIssue = getCalendarSyncImportIssue(event.recurrenceRule)
+  const importIssue = getCalendarSyncImportIssue(
+    event.recurrenceRule,
+    event.startDate,
+    event.startTime,
+    event.startUtc,
+  )
   const importIssueLabel = importIssue
     ? t(getCalendarSyncImportIssueMessageKey(importIssue))
     : null

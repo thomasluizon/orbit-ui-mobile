@@ -38,11 +38,17 @@ export interface CalendarSyncParsedRecurrence {
   days?: string[]
 }
 
-export type CalendarSyncImportIssue = 'weekday-interval' | 'ordinal-weekday'
+export type CalendarSyncImportIssue =
+  | 'weekday-interval'
+  | 'ordinal-weekday'
+  | 'finite-date-clamp'
+  | 'utc-until-offset-shift'
 
 export type CalendarSyncImportIssueMessageKey =
   | 'calendar.importIssue.weekdayInterval'
   | 'calendar.importIssue.ordinalWeekday'
+  | 'calendar.importIssue.finiteDateClamp'
+  | 'calendar.importIssue.utcUntilOffsetShift'
 
 export interface CalendarSyncTranslationAdapter {
   translate: (key: string, values?: Record<string, unknown>) => string
@@ -172,6 +178,8 @@ export function parseCalendarSyncRecurrence(
 
 const ISO_DATE_LENGTH = 10
 const DAYS_IN_WEEK = 7
+const SECONDS_PER_DAY = 24 * 60 * 60
+const MAX_RECURRING_OFFSET_SHIFT_SECONDS = 2 * 60 * 60
 
 const WEEKDAY_INDEX: Record<string, number> = {
   SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6,
@@ -187,50 +195,22 @@ function parsePositiveInteger(value: string | undefined): number | null {
   return Number.isFinite(parsed) && parsed >= 1 ? parsed : null
 }
 
-function resolveMonthlyCountEndDate(start: Date, count: number, interval: number): string {
-  const startMonth = start.getUTCFullYear() * 12 + start.getUTCMonth()
-  const targetDay = start.getUTCDate()
-  let seen = 1
-
-  for (let step = 1; seen < count; step += 1) {
-    const targetMonth = startMonth + step * interval
-    const year = Math.floor(targetMonth / 12)
-    const month = targetMonth % 12
-    const candidate = new Date(Date.UTC(year, month, targetDay))
-    if (candidate.getUTCFullYear() !== year || candidate.getUTCMonth() !== month) continue
-    seen += 1
-    if (seen === count) return formatUtcDate(candidate)
-  }
-
-  return formatUtcDate(start)
-}
-
-function resolveYearlyCountEndDate(start: Date, count: number, interval: number): string {
-  const month = start.getUTCMonth()
-  const day = start.getUTCDate()
-  let seen = 1
-
-  for (let step = 1; seen < count; step += 1) {
-    const year = start.getUTCFullYear() + step * interval
-    const candidate = new Date(Date.UTC(year, month, day))
-    if (candidate.getUTCFullYear() !== year || candidate.getUTCMonth() !== month) continue
-    seen += 1
-    if (seen === count) return formatUtcDate(candidate)
-  }
-
-  return formatUtcDate(start)
-}
-
 function resolveUnfilteredCountEndDate(
   parts: Record<string, string>,
   start: Date,
   count: number,
 ): string {
   const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
-  if (parts.FREQ === 'MONTHLY') return resolveMonthlyCountEndDate(start, count, interval)
-  if (parts.FREQ === 'YEARLY') return resolveYearlyCountEndDate(start, count, interval)
-
   const cursor = new Date(start)
+  if (parts.FREQ === 'MONTHLY') {
+    cursor.setUTCMonth(cursor.getUTCMonth() + (count - 1) * interval)
+    return formatUtcDate(cursor)
+  }
+  if (parts.FREQ === 'YEARLY') {
+    cursor.setUTCFullYear(cursor.getUTCFullYear() + (count - 1) * interval)
+    return formatUtcDate(cursor)
+  }
+
   const frequencyDays = parts.FREQ === 'WEEKLY' ? DAYS_IN_WEEK : 1
   cursor.setUTCDate(cursor.getUTCDate() + (count - 1) * interval * frequencyDays)
   return formatUtcDate(cursor)
@@ -252,6 +232,39 @@ function parseUtcUntil(value: string): Date | null {
   return instant
 }
 
+interface UtcUntilContext {
+  localBound: Date
+  occurrenceSeconds: number
+}
+
+function resolveUtcUntilContext(
+  untilUtc: Date,
+  startDate: string | null,
+  startTime: string | null,
+  startUtc: string | null | undefined,
+): UtcUntilContext | null {
+  const localStartMatch = startDate && startTime
+    ? /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(`${startDate}T${startTime}`)
+    : null
+  const startInstant = startUtc ? new Date(startUtc) : null
+  if (!localStartMatch || !startInstant || Number.isNaN(startInstant.getTime())) return null
+
+  const [, year, month, day, hour, minute, second = '0'] = localStartMatch
+  const localStartAsUtc = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  )
+  const offset = localStartAsUtc - startInstant.getTime()
+  return {
+    localBound: new Date(untilUtc.getTime() + offset),
+    occurrenceSeconds: Number(hour) * 3600 + Number(minute) * 60 + Number(second),
+  }
+}
+
 function resolveUtcUntilDate(
   until: string,
   startDate: string | null,
@@ -265,17 +278,10 @@ function resolveUtcUntilDate(
   const untilUtc = parseUtcUntil(until)
   if (!untilUtc) return null
   const utcDate = formatUtcDate(untilUtc)
-  const localStartMatch = startDate && startTime
-    ? /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(`${startDate}T${startTime}`)
-    : null
-  const startInstant = startUtc ? new Date(startUtc) : null
-  if (!localStartMatch || !startInstant || Number.isNaN(startInstant.getTime())) return utcDate
+  const context = resolveUtcUntilContext(untilUtc, startDate, startTime, startUtc)
+  if (!context) return utcDate
 
-  const [, year, month, day, hour, minute, second = '0'] = localStartMatch
-  const localStartAsUtc = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second))
-  const offset = localStartAsUtc - startInstant.getTime()
-  const localBound = new Date(untilUtc.getTime() + offset)
-  const occurrenceSeconds = Number(hour) * 3600 + Number(minute) * 60 + Number(second)
+  const { localBound, occurrenceSeconds } = context
   const boundSeconds = localBound.getUTCHours() * 3600 + localBound.getUTCMinutes() * 60 + localBound.getUTCSeconds()
   if (occurrenceSeconds > boundSeconds) localBound.setUTCDate(localBound.getUTCDate() - 1)
   return formatUtcDate(localBound)
@@ -331,8 +337,42 @@ export function resolveCalendarSyncEndDate(
   return null
 }
 
+function hasFiniteDateClamp(
+  parts: Record<string, string>,
+  startDate: string | null,
+): boolean {
+  if ((!parts.COUNT && !parts.UNTIL) || !startDate) return false
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate)
+  if (!match) return false
+  const month = Number(match[2])
+  const day = Number(match[3])
+  return (parts.FREQ === 'MONTHLY' && day >= 29)
+    || (parts.FREQ === 'YEARLY' && month === 2 && day === 29)
+}
+
+function hasUncertainUtcUntilDate(
+  parts: Record<string, string>,
+  startDate: string | null,
+  startTime: string | null,
+  startUtc: string | null | undefined,
+): boolean {
+  const untilUtc = parts.UNTIL ? parseUtcUntil(parts.UNTIL) : null
+  if (!untilUtc) return false
+  const context = resolveUtcUntilContext(untilUtc, startDate, startTime, startUtc)
+  if (!context) return false
+  const boundSeconds = context.localBound.getUTCHours() * 3600
+    + context.localBound.getUTCMinutes() * 60
+    + context.localBound.getUTCSeconds()
+  const directDistance = Math.abs(context.occurrenceSeconds - boundSeconds)
+  const wrappedDistance = SECONDS_PER_DAY - directDistance
+  return Math.min(directDistance, wrappedDistance) <= MAX_RECURRING_OFFSET_SHIFT_SECONDS
+}
+
 export function getCalendarSyncImportIssue(
   rule: string | null,
+  startDate: string | null = null,
+  startTime: string | null = null,
+  startUtc?: string | null,
 ): CalendarSyncImportIssue | null {
   if (!rule) return null
 
@@ -349,19 +389,36 @@ export function getCalendarSyncImportIssue(
     return 'weekday-interval'
   }
 
+  if (hasFiniteDateClamp(parts, startDate)) {
+    return 'finite-date-clamp'
+  }
+
+  if (hasUncertainUtcUntilDate(parts, startDate, startTime, startUtc)) {
+    return 'utc-until-offset-shift'
+  }
+
   return null
 }
 
 export function isCalendarSyncEventImportable(event: CalendarSyncEvent): boolean {
-  return getCalendarSyncImportIssue(event.recurrenceRule) === null
+  return getCalendarSyncImportIssue(
+    event.recurrenceRule,
+    event.startDate,
+    event.startTime,
+    event.startUtc,
+  ) === null
 }
 
 export function getCalendarSyncImportIssueMessageKey(
   issue: CalendarSyncImportIssue,
 ): CalendarSyncImportIssueMessageKey {
-  return issue === 'weekday-interval'
-    ? 'calendar.importIssue.weekdayInterval'
-    : 'calendar.importIssue.ordinalWeekday'
+  const keys: Record<CalendarSyncImportIssue, CalendarSyncImportIssueMessageKey> = {
+    'weekday-interval': 'calendar.importIssue.weekdayInterval',
+    'ordinal-weekday': 'calendar.importIssue.ordinalWeekday',
+    'finite-date-clamp': 'calendar.importIssue.finiteDateClamp',
+    'utc-until-offset-shift': 'calendar.importIssue.utcUntilOffsetShift',
+  }
+  return keys[issue]
 }
 
 export function formatCalendarSyncRecurrenceLabel(
@@ -417,7 +474,12 @@ export function buildCalendarSyncImportRequest(
 ): BulkCreateRequest {
   return {
     habits: events.map((event) => {
-      const importIssue = getCalendarSyncImportIssue(event.recurrenceRule)
+      const importIssue = getCalendarSyncImportIssue(
+        event.recurrenceRule,
+        event.startDate,
+        event.startTime,
+        event.startUtc,
+      )
       if (importIssue) {
         throw new Error(`Unsupported calendar recurrence: ${importIssue}`)
       }
