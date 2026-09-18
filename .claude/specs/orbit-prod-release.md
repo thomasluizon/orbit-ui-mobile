@@ -999,142 +999,187 @@ Two rules for this work, both learned the hard way:
   duplicate alerts and localized decimals, and checked all 14 input and 12 pressable production
   callers of the two shared primitives the diff touched.
 
+## What the day of 2026-09-18 added
+
+This was an ATTENDED day session, not a night run, and its output was almost entirely **reviews that
+found defects green CI had already passed**. Six pull requests were reviewed, five came back REQUEST
+CHANGES, and every one of those five was green on 30-plus checks at the time.
+
+### The reviewer is the thing that was missing, and it is now written down
+
+Five of six reviews found a defect no gate models. In order of how badly they would have hurt:
+
+1. **`ui#1019`** gated one notification mutation out of four, leaving SIX ungated write points. A
+   late account-A rejection wrote account A's notification titles and bodies into account B's query
+   client. Verified against installed `@tanstack/query-core` 5.101.4: `queryClient.clear()` only
+   empties the maps, it never cancels the retryer or suppresses the callback.
+2. **`ui#1019` again, on re-review**: `adoptSessionAccount` raised the generation, cleared pending
+   deletes and dropped the user, but never cleared the query cache. Deterministic, not a race, and it
+   fired AFTER the poll correctly detected the swap: the tab was account B and rendered account A's
+   notifications, habits, goals and profile for 60 seconds to 5 minutes.
+3. **`api#528`** would have broken Astra permanently the moment `RequireApiKeyCreationStepUp` flipped
+   to true, and a web revoke consumed the grant so the key list then 428s.
+4. **`ui#992`** made arrow keys the only keyboard route through a picker list and then fired
+   `selectAndClose` on the first arrow press, so the sheet closed and committed the adjacent value.
+   **Three tests asserted that behaviour as correct.**
+5. **`ui#1007`** dropped or misreported the cadence the user typed, three separate ways.
+6. **`api#521`** admits a recurring series on ONE sampled occurrence, so a Lisbon `BYDAY=TH` series
+   ships to a Sao Paulo account one weekday and one hour wrong for half the year.
+
+Only `ui#1021` came back APPROVE.
+
+### Vacuous tests are the recurring shape
+
+Four separate ones surfaced in one day, each passing while asserting nothing:
+
+- `ui#992`: three tests asserted `onChange` fired after a directional key, but that callback only
+  runs inside `closeSheet`, so they proved the sheet closed and called it correct.
+- `ui#1007`: a mobile test asserted against `onboarding.flow.complete.recap.theme`, a key in neither
+  locale file, so `i18n.t` returned the key string and `not.toContain` could never fail.
+- `ui#1019`: two deleted `expo-secure-store` mocks asserted nothing and existed only to get past a
+  missing global.
+- `api#532`: a reflection test was needed to prove the error catalog total; without it the
+  raw-English fallback stayed reachable.
+
+**A test that passes whether or not the product code is right is worse than no test.** Every fix this
+day was ordered red-first and the red output pasted into the report, which is what caught all four.
+
+### Exit codes and escapes, twice each in one day
+
+`| tail` masked a failing lint and then a failing commit for the `#67` worker. A separate `#75`
+worker reported the dash gate clean because its own check used `git diff --name-only HEAD`, which
+skips untracked files, and CI derives its list from `origin/main...HEAD`. And a bash heredoc ate one
+backslash, writing a literal `0x08` byte into a test that the suite happily passed; only
+`sonarjs/no-control-regex` caught it.
+
+Both traps are already in memory and both cost a cycle anyway. Record exit codes to a log file and
+write escaped strings through a file rather than a heredoc.
+
+### Pullfrog and Codex share ONE OpenAI allowance
+
+This corrects the 2026-09-17 into 09-18 entry, which framed them as two independent failures. Run
+`35310279801` shows `providerID=openai modelID=gpt-5.6-sol` returning `The usage limit has been
+reached`, which is the same allowance the Codex workers exhausted. One meter took down both the
+writer and the reviewer.
+
+`ui#1022` and `api#529` add a Claude fallback step to `.github/workflows/pullfrog.yml` in both
+repositories, both merged. **It does not work for a real review, and the reason is worth keeping**:
+the Pullfrog app sends a JSON payload, and that path resolves models SERVER SIDE where only the Codex
+subscription is registered. A plain-text prompt uses the workflow credentials and does reach Claude,
+proven by run `35350677932`. Thomas ran `pullfrog auth claude` and the console shows Claude Pro/Max
+configured, yet the runner's BYOK list still enumerates 15 OpenAI models and no Anthropic one. That
+looks like a Pullfrog-side scope bug and is worth reporting to them.
+
+Rewriting the payload as a plain-text review order (`ecebe633`, on `chore/pullfrog-fallback-v2`, not
+merged) does reach Claude, but the agent ran 25 minutes on `ui#992`, exhausted its context mid-review
+and never posted. Treat that branch as an experiment, not a solution.
+
+### When Codex is out, Claude is the worker, and never a subagent
+
+`ui#1023` adds a `claude` engine to `.claude/orchestrator.json` beside `codex`, running Claude Code
+headless through the same `launch-worker.mjs`, order file, worktree, timeouts and wake source.
+`§5.4.1` of the orchestrate skill states the switch and forbids substituting a subagent.
+
+**The committed default stays `codex`.** `tools/test-tools.mjs` pins the shipped default implementer
+to `gpt-5.6-sol` at high effort, and committing `worker: "claude"` broke both assertions. Per D95 the
+gate stood and the config yielded: running on Claude is an uncommitted operational switch a session
+makes while the allowance is out. That took the harness from 61 failures to 1.
+
+Why subagents are forbidden, measured this day: five ran as workers, every one died with the session,
+none registered a wake source so `require-wake-source.mjs` correctly objected on every turn, and each
+had to be individually told to commit and push before a handoff was possible at all. A headless
+engine has none of those problems, because the process is external, its pid IS the wake source, and
+its output is a commit rather than a conversation.
+
+### Two things this session published and had to correct
+
+Both are recorded because a run that hides its own errors is worse than one that makes them.
+
+1. A review claimed `ReactNativeFeatureFlagsDefaults.kt:86,92` read `false` in installed react-native
+   0.86.3. Both lines read `true`. The claim was posted to `ui#992` and corrected there. A review that
+   cites installed source and gets it backwards is worse than one that does not cite it, because the
+   citation is what makes it believable.
+2. `worker: "claude"` was committed before the tools harness had been read, and the harness caught it.
+
+### The machine, and the real worker cap
+
+Five parallel workers each running a full turbo suite took the laptop to **67 node processes, 7.4 GB
+and 6 GB free**, which Thomas reported as unusable. Killing the agents left **13 orphaned vitest
+processes** still holding memory; they had to be swept by hand under `orca\workspaces`.
+
+Capped to a serial turbo run with about two vitest workers, one worker sits at roughly 19 to 29 node
+processes and 1.5 to 5.4 GB, with 10 to 15 GB free. Thomas, 2026-09-18: **"all these workers makes
+the machine unusable, this is not good even if im not using it, because everything goes slow, use
+less workers, at least 2"**. Two is the cap, and a capped run is slower and just as valid.
+
 ## State
 
-Read live 2026-09-18 at 00:35 UTC.
+Read live 2026-09-18, end of the attended day session.
 
-`redesign/main` is **`63e8774d`**. `main` is **`7771c79a`**, and **Orbit 1.3.30 (89) is on the Play
-OPEN track** off it, run `35259661979`, which carries pull request 1011. `orbit-api` `main` is
-unchanged at `fd219126`.
+`redesign/main` is **`0671a2e6`**. `orbit-ui-mobile` `main` is **`959381da`**. `orbit-api` `main` is
+**`b6a92960`**. **Orbit 1.3.31 (90) is on the Play OPEN track**, run `35292263149`, carrying exactly
+one commit, `38a09441` (pull request 1015, ticket `#590`), the three-dot habit menu and search
+keyboard fix. 1.3.30 (89) does NOT contain it.
 
-**224 tickets open** across the three repositories, down from 227. **15 open in the `539 Redesign`
-milestone**: `#67`, `#75`, `#78`, `#175`, `#217`, `#318`, `#320`, `#367`, `#460`, `#475`, `#479`,
-`#481`, `#520`, `#543`, `#545`.
+**224 tickets open.** Open pull requests: **8** in `orbit-ui-mobile`, **7** in `orbit-api`, **6** in
+`orbit-landing-page`. **13 open in the `539 Redesign` milestone**: `#67`, `#75`, `#78`, `#175`,
+`#217`, `#318`, `#320`, `#367`, `#460`, `#543`, `#595`, `#596`, `#597`.
 
-No stashes and no detached HEADs in any repository. `orbit-api` and `orbit-landing-page` checkouts
-are clean. Every `orbit-ui-mobile` worktree is clean; the only unpushed commit anywhere is
-`1890341c` in `ticket-58-achievements`, which is the pre-squash form of merged pull request 1014 and
-is therefore disposable.
+No stashes anywhere. The only unpushed commit is `1890341c` in `ticket-58-achievements`, the
+pre-squash form of merged pull request 1014, still disposable.
 
 ### Merged this session, three
 
-To `redesign/main`: `1012` (`23961de0`), `1014` (`38cca272`), `1010` (`63e8774d`). Each proven to
-have arrived by the MERGE commit being an ancestor of `origin/redesign/main`. **For a squash merge
-that is the only valid proof**: the pull request HEAD is never an ancestor, and checking the head
-fails misleadingly.
+- `ui#1021` to `redesign/main` as **`0671a2e6`**, closing `#594`. Four dead web chart components and
+  three tests deleted, 708 deletions and 0 insertions, web lint suppressions 20 to 14.
+- `ui#1022` to `main` as **`959381da`** and `api#529` to `main` as **`b6a92960`**, the Pullfrog
+  Claude fallback. See the caveat above: it does not work for a real review.
 
-### Closed this session, four
+### Filed this session, three
 
-`#585`, `#570`, `#461` completed with a per-criterion table each. **`#573` CANCELED as superseded**,
-because its title and body quoted Thomas saying the three-dot menu failed "after a search" and he
-never said that. Its closing comment records what pull request 1011 did fix and what it did not.
+- **`#595`** the surface manifest is stale on `redesign/main` and its gate is invisible to CI.
+  Regenerating at `fc5f6268` yields 186 surfaces against the committed 184, and
+  `redesign-coverage.mjs` then exits 1 on `m-overlay-progress-progress-content` and
+  `overlay-components-progress-content`. **Every GREEN coverage report since `e2f34493` was measured
+  against an inventory that does not describe the tree**, and that gate is one of the two conditions
+  that close Batch 1.
+- **`#596`** a signed-out person loses a weekday repeat interval at sign-up, because neither the
+  draft schema nor the API's `ApplyHabitInput` carries the field. `repo:api`, deploy-API-first.
+- **`#597`** a web tab learns of a cross-tab account change only on its 60-second poll. **Widened
+  the same day**: the outbound direction is data loss, not stale content, because
+  `useDeleteAllNotifications.mutationFn` runs ungated so `DELETE /notifications` executes under the
+  other account's cookie and destroys THEIR notifications.
 
-### Filed this session, one
+### Open pull requests, every one, with a disposition
 
-**`#590`**, the three-dot tap and the search keyboard, with the root cause proven from installed
-source. See `### The three-dot defect, solved` below.
+| PR | base | head | state | disposition |
+|---|---|---|---|---|
+| `ui#1019` | `redesign/main` | `d5320f05` | all review findings fixed | **Merge when CI is green.** Six write points gated, cache cleared on account switch, red-first proven both times. Capped suite green locally: mobile 2657, web 2966, shared 2041. |
+| `ui#1007` | `redesign/main` | `89c42172` | all three blocking defects fixed | **Needs a re-review at this head, then merge.** Lint 3/3, type-check 3/3, full suite 8,112 tests over 727 files, all green on the committed bytes. |
+| `ui#992` | `redesign/main` | `8ddcca0e` | blocking defect fixed at the group level | **Needs a re-review at this head, then merge.** `selectAndClose` is gone from the codebase; `RadioGroup` gained `onCommit` and `useRadioGroupItem` returns `onActivate`, so no call site can reinherit it. `selection-field.tsx` deleted as dead. Full suite green on pre-lint-fix bytes only; type-check and 8 focused mobile suites green on the pushed bytes. |
+| `ui#1023` | `redesign/main` | `569d97c8` | opened this session | **Needs a review, then merge.** The `claude` worker engine and `§5.4.1`. |
+| `api#531` | `main` | `2b41b856` | built, CI green, **never reviewed** | Review, then it needs Thomas or Pullfrog to merge. `#367` API half. |
+| `api#532` | `main` | `dd862844` | built, 23 checks green, **never reviewed** | Review, then merge by hand. `#75`: 7 emails, 3 AI push prompts, 222 error codes in both locales. |
+| `api#521` | `main` | `44611e5f` | REQUEST CHANGES, worker live | A headless Claude worker is on it, see below. |
+| `api#528` | `main` | `dfb885b3` | REQUEST CHANGES, work uncommitted | See below. **Do not flip the config row.** |
 
-### Open pull requests, every one
+Dependabot pull requests in both repositories: leave, not this effort.
+`orbit-landing-page`: 6 open, leave, Batch 3 owns that repository.
 
-| PR | base | ticket | disposition |
-|---|---|---|---|
-| **1015** | `main` | `#590` | **BLOCKED on one real P1.** `Keyboard.dismiss()` is reachable during React render, because `useTodayViewSync` calls `closeSearch` while rendering active-view and pinned-date changes. Thread `PRRT_kwDOR5Siws6ji8aZ`, `use-today-search.ts:22`. Move it to a committed lifecycle or event path. `Cross-Platform Parity` is also red and needs a fresh `pull_request` event after the `parity:exempt` label. |
-| 1018 | `redesign/main` | `#481` | Sweep DONE and in the body; head `3da49c08`. Awaiting review. |
-| 1017 | `redesign/main` | `#475` | A worker is on its step 6 sweep now. Head `99d74996` until it pushes. |
-| 1016 | `redesign/main` | `#520` | Acceptance verified independently: `check-surface-scope.mjs` navigation findings 12 to 0. Needs its step 6 sweep and a review. |
-| 1007 | `redesign/main` | `#67` | Head `8e297420`. All five P1 threads answered. Needs a fresh review. |
-| 1002 | `redesign/main` | `#545` | Threads resolved at `60cd943d`. Awaiting a review that can approve. |
-| 1001 | `redesign/main` | `#562` | Head `954c6279`, its one P1 replied and resolved. Coverage now 96.36 percent against the 96 floor, so **merging it also clears 992's red**. |
-| 992 | `redesign/main` | `#543` | Head `e818a478`. Its `Unit Tests` red is that coverage floor; order it after 1001. |
-| api 528, 521 | `main` | `#529`, `#526` | Untouched this session. Orders must be re-derived from the threads. 521's `Dash Ban` is already cleared. |
-| Dependabot | both repos | | Leave. Not this effort. |
-| `orbit-landing-page` | 5 open | | Leave. Batch 3 owns that repository. |
+### In flight, exactly, because a subagent does not survive a handoff
 
-### The three-dot defect, solved
-
-**This is the answer to the bug Thomas has reported since `#134` and nobody found.** It is NOT
-related to search, and pull request 1011's `keyboardShouldPersistTaps` theory was refuted by his own
-test on 1.3.30, the build that carries it.
-
-Proven from installed source, every claim read rather than remembered:
-
-- `habit-row-styles.ts` gave `menuButton` `width: 34, height: 34, margin: -3`.
-- `MenuAnchorHost` in `anchored-menu.tsx` rendered `<View ref={anchorRef} collapsable={false}>` with
-  **no style**, so the host sized to the child's MARGIN box: **28x28** around a 34x34 button.
-- `habit-row-trailing.tsx` declared `hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}`.
-- `TouchTargetHelper.kt:186-208` descends into a child only when the point is inside the parent's
-  bounds or the parent's overflow inset. `:251-259` reads `hitSlop` ONLY from the view that declares
-  it. `SurfaceMountingManager.kt:920-927` derives the overflow inset from Fabric's computed layout,
-  never from hitSlop.
-
-**So the declared hitSlop was entirely dead on Android** and the live target was 34dp, under
-`DESIGN.md:688`'s floor of 44 minimum. `resolveTrailingLayout` put `cardPaddingRight: 16` of
-handler-free card to its right, so a near miss landed on nothing. Deterministic by thumb position,
-which is why it read as intermittent.
-
-`redesign/main` already carried 44x44 with no margin and no hitSlop, which is the control for the
-diagnosis, and 1015 converges `main` onto it. The 16dp gained is paid back exactly:
-`cardPaddingRight` 16 to 8 and `trailing.gap` 10 to 8, so the glyph's right edge stays at 21dp.
-
-**Ruled out, so nobody re-chases them:** `removeClippedSubviews={true}` on the All-view FlatList is
-not the cause, because `ReactViewGroup.kt:540-544` recurses clipping only into a child that itself
-sets it, and the date-group Views do not, so the clip unit is a whole off-screen cell. A drag gesture
-is not the cause either: the All branch renders a plain `FlatList`.
-
-**The search half, corrected.** Pull request 1011 DID fix the mobile X, verified by reading the
-merged diff at `7771c79a`: the old handler was
-`if (draft.length > 0) { setDraft(""); return } onCancel()` and 1011 replaced it with
-`onPress={onCancel}`. What is still broken is the **soft keyboard**, which no path dismisses:
-`ReactEditText.kt:864` `hideSoftKeyboard()` has exactly two callers, neither of them an unmount, and
-`ReactTextInputManager.kt` declares no `onDropViewInstance` that hides it.
-
-**`#134` stays open by design** and only Thomas closes it, by tapping the control on a device. Its
-root cause is now recorded on it, replacing `apps/mobile/CLAUDE.md:32`'s wrong one, which blames a
-react-native-screens patch that touches only iOS files on an Android-only product.
-
-### The parallelism decision, measured and SHIPPED
-
-Recorded here because `#585` is closed and the numbers must survive it. Taken on this machine under
-the same two-worker load as the serial baseline:
-
-| variant | elapsed | result |
+| what | where | disposition |
 |---|---|---|
-| serial, what ships | **970.3s** | 1,765 assertions, 0 FAIL |
-| parallel, 4-process pool from `7bbbb796` | **373s** | 0 FAIL |
-| parallel, same code, next run | **454s** | **5 FAIL** |
+| headless Claude worker on `api#521` | worktree `C:\Users\thoma\orca\workspaces\orbit-api\ticket-526-calendar-tz`, branch `fix/ticket-526-calendar-tz`, log `%TEMP%\orbit-workers\#526-1789748971554.log`, order `order-521.md` | ALIVE at handoff, pid 20560. **Outcome unknown, read the worktree first.** It was already dirty at launch: `GetCalendarEventsQuery.cs` plus five test files. |
+| `api#528` work, NOT committed | worktree `...\orbit-api\ticket-529-apikey-stepup`, branch `fix/ticket-529-apikey-stepup` | Three modified test files: `RevokeApiKeyCommandHandlerTests.cs`, `ApiKeysControllerTests.cs`, `AppConfigServiceTests.cs`. Its worker was killed for machine load. **Re-issue the six findings from the review comment on the pull request**, which is the durable copy. |
+| local `worker: "claude"` switch | `.claude/orchestrator.json`, uncommitted in the main checkout | Deliberate. The committed default is `codex` because the harness pins it. Keep the switch while the allowance is out; revert it on 2026-09-22. |
 
-Materially faster and NOT deterministic, so serial ships. The flaky cases are in
-`create-worktree.mjs`, which stages temporary directories. Two earlier runs at 325s and 390s both
-exited 1 for CONTAMINATION, not flakiness: staging `7bbbb796`'s harness into today's tree leaves
-`lib/integration-branch.mjs` and `lib/review-harness.mjs` unregistered. Do not cite them.
+### The allowance
 
-**`node tools/test-tools.mjs --only <name>` now exists**, so re-checking one module costs about 5
-seconds instead of roughly sixteen minutes.
-
-### The redesign gate, measured
-
-`node tools/redesign-coverage.mjs` reports **`redesign coverage valid: 184 manifest surfaces
-accounted for, 14 deleted, 3 excluded`** at `63e8774d`. That half of batch 1's exit condition is MET
-and was re-run on the current tree.
-
-The other half is the 15 milestone tickets. Of the five verified unbuilt on 2026-09-17, **three are
-now built and in review** (`#520` as 1016, `#475` as 1017, `#481` as 1018) and **two remain**:
-`#460` and `#479`. `#460` has a worktree with dependencies installed at
-`ticket-460-notify-announce`, branch `fix/ticket-460-notify-announce`, and no commits yet.
-`#175` is blocked on the suppressions reaching zero, `#217` on `#67`, and `#318` needs Thomas.
-
-### Tickets
-
-Re-derive, never trust a list:
-
-    gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
-    gh issue list --repo thomasluizon/orbit-tickets --state open --milestone "539 Redesign" --limit 400
-
-### The suppressed lint violations
-
-`redesign/main` reads 26 files on web and 20 on mobile. 1002 takes the entry counts to 20 and 16.
-Reproduce with a read of both `eslint-suppressions.json` files; never trust this number, it moves
-every merge.
+Codex and Pullfrog share one OpenAI meter and it is exhausted until **2026-09-22 07:23**. That makes
+`api#531` and `api#532` unmergeable by any route this session controls, because they target protected
+`main` which requires `pullfrog-approval`. Everything targeting `redesign/main` is unaffected, since
+that branch is unprotected and requires no approval check.
 
 ## Open questions
 
