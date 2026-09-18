@@ -42,7 +42,7 @@ interface RadioGroupContextValue {
   onBlur: (id: string) => void
   onFocus: (id: string, onSelect?: () => void) => void
   register: (id: string, nativeHandle: number | null) => () => void
-  setNativeHandle: (id: string, nativeHandle: number | null) => void
+  setElement: (id: string, element: View, nativeHandle: number | null) => void
   update: (state: Omit<RadioItemState, 'nativeHandle'>) => void
 }
 
@@ -73,6 +73,7 @@ export function RadioGroup({ children, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & { children: ReactNode }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
+  const elementsRef = useRef(new Map<string, View>())
   const focusedItemIdRef = useRef<string | null>(null)
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const register = useCallback((id: string, nativeHandle: number | null) => {
@@ -85,12 +86,18 @@ export function RadioGroup({ children, ...props }: Readonly<
     }])
     return () => {
       setItems((current) => current.filter((item) => item.id !== id))
+      elementsRef.current.delete(id)
     }
   }, [])
   const update = useCallback((state: Omit<RadioItemState, 'nativeHandle'>) => {
     setItems((current) => current.map((item) => item.id === state.id ? { ...item, ...state } : item))
   }, [])
-  const setNativeHandle = useCallback((id: string, nativeHandle: number | null) => {
+  const setElement = useCallback((
+    id: string,
+    element: View,
+    nativeHandle: number | null,
+  ) => {
+    elementsRef.current.set(id, element)
     setItems((current) => {
       const item = current.find((candidate) => candidate.id === id)
       if (!item || item.nativeHandle === nativeHandle) return current
@@ -124,8 +131,13 @@ export function RadioGroup({ children, ...props }: Readonly<
     const focusedItem = enabledItems.find((item) => item.id === id)
     if (!focusedItem) return
 
-    if (previouslyFocusedId !== null
-      && previouslyFocusedId !== id
+    if (previouslyFocusedId === null) {
+      const entryItem = enabledItems.find((item) => item.selected) ?? enabledItems[0]
+      if (entryItem && entryItem.id !== id) elementsRef.current.get(entryItem.id)?.focus()
+      return
+    }
+
+    if (previouslyFocusedId !== id
       && !focusedItem.selected) onSelect?.()
   }, [enabledItems])
   useLayoutEffect(() => () => {
@@ -136,9 +148,9 @@ export function RadioGroup({ children, ...props }: Readonly<
     onBlur,
     onFocus,
     register,
-    setNativeHandle,
+    setElement,
     update,
-  }), [getNavigationProps, onBlur, onFocus, register, setNativeHandle, update])
+  }), [getNavigationProps, onBlur, onFocus, register, setElement, update])
   return (
     <RadioGroupContext.Provider value={contextValue}>
       <View {...props} accessibilityRole="radiogroup">{children}</View>
@@ -161,7 +173,7 @@ export function useRadioGroupItem({
   const registerWithGroup = group?.register
   const handleGroupBlur = group?.onBlur
   const handleGroupFocus = group?.onFocus
-  const setGroupNativeHandle = group?.setNativeHandle
+  const setGroupElement = group?.setElement
   const updateGroup = group?.update
   const id = useId()
   const nativeHandleRef = useRef<number | null>(null)
@@ -178,8 +190,8 @@ export function useRadioGroupItem({
     if (!element) return
     const nativeHandle = findNodeHandle(element)
     nativeHandleRef.current = nativeHandle
-    setGroupNativeHandle?.(id, nativeHandle)
-  }, [id, setGroupNativeHandle])
+    setGroupElement?.(id, element, nativeHandle)
+  }, [id, setGroupElement])
   const onBlur = useCallback(() => {
     handleGroupBlur?.(id)
   }, [handleGroupBlur, id])

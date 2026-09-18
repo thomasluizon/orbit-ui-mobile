@@ -139,7 +139,7 @@ export function MoveParentOverlay({
         </div>
       }
     >
-      <div className="flex flex-col" style={{ gap: 10 }}>
+      <div className="flex flex-col" style={{ gap: 8 }}>
         {movingHabitTitle ? (
           <p className="text-sm text-[var(--fg-3)]">
             {t('habits.moveParent.description', { name: movingHabitTitle })}
@@ -155,31 +155,33 @@ export function MoveParentOverlay({
           />
         )}
 
-        {rootOption && (
-          <MoveTargetRow
-            option={rootOption}
-            selected={rootOption.id === selectedMoveParentId}
-            isCurrentParent={rootOption.id === movingHabitParentId}
-            currentLabel={t('habits.moveParent.currentParent')}
-            onSelect={onSelectOption}
-          />
-        )}
-
-        {treeRows.length > 0 && (
-          <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
-        )}
-
-        <RadioGroup className="flex flex-col" style={{ gap: 6 }}>
-          {treeRows.map((option) => (
+        <RadioGroup className="flex flex-col" style={{ gap: 8 }}>
+          {rootOption && (
             <MoveTargetRow
-              key={option.id}
-              option={option}
-              selected={option.id === selectedMoveParentId}
-              isCurrentParent={option.id === movingHabitParentId}
+              option={rootOption}
+              selected={rootOption.id === selectedMoveParentId}
+              isCurrentParent={rootOption.id === movingHabitParentId}
               currentLabel={t('habits.moveParent.currentParent')}
               onSelect={onSelectOption}
             />
-          ))}
+          )}
+
+          {treeRows.length > 0 && (
+            <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
+          )}
+
+          <div className="flex flex-col" style={{ gap: 8 }}>
+            {treeRows.map((option) => (
+              <MoveTargetRow
+                key={option.id}
+                option={option}
+                selected={option.id === selectedMoveParentId}
+                isCurrentParent={option.id === movingHabitParentId}
+                currentLabel={t('habits.moveParent.currentParent')}
+                onSelect={onSelectOption}
+              />
+            ))}
+          </div>
         </RadioGroup>
 
         {isSearchEmpty && (

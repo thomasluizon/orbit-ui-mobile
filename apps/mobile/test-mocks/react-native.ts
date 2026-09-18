@@ -78,7 +78,7 @@ function createHostComponent(name: string) {
       },
       setNativeProps: () => {},
       focus: () => {
-        if (name === 'TextInput') focusImpl(props)
+        if (name === 'TextInput' || props.focusable === true) focusImpl(props)
       },
       blur: () => {},
       scrollTo: scrollToImpl,

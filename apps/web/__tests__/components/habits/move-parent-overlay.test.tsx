@@ -126,4 +126,21 @@ describe('MoveParentOverlay', () => {
     expect(zetaFive).toHaveFocus()
     expect(onSelectOption).toHaveBeenLastCalledWith('zeta5')
   })
+
+  it('wraps arrow navigation between Top level and the first destination', () => {
+    const { onSelectOption } = renderOverlay([
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha' }),
+    ])
+    const root = screen.getByRole('radio', { name: /Top level/ })
+    const firstDestination = screen.getByRole('radio', { name: /Alpha/ })
+
+    root.focus()
+    fireEvent.keyDown(root, { key: 'ArrowDown' })
+    expect(firstDestination).toHaveFocus()
+    expect(onSelectOption).toHaveBeenLastCalledWith('alpha')
+
+    fireEvent.keyDown(firstDestination, { key: 'ArrowDown' })
+    expect(root).toHaveFocus()
+  })
 })

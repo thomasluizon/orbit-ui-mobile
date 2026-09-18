@@ -327,6 +327,22 @@ describe('MoveParentDialog', () => {
     expect(props.onSelectOption).toHaveBeenCalledExactlyOnceWith('alpha')
   })
 
+  it('wraps native focus between Top level and the first destination', () => {
+    const options = [
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha' }),
+    ]
+    const { tree } = renderDialog({ options, selectedMoveParentId: null })
+    const [root, firstDestination] = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+
+    expect(root!.props.nextFocusDown).toBe(firstDestination!.props.__nativeTag)
+    expect(firstDestination!.props.nextFocusDown).toBe(root!.props.__nativeTag)
+    expect(root!.props.nextFocusUp).toBe(firstDestination!.props.__nativeTag)
+    expect(firstDestination!.props.nextFocusUp).toBe(root!.props.__nativeTag)
+  })
+
   it('locks the sheet and swaps to the moving label while pending', () => {
     const { tree } = renderDialog({ isPending: true })
 

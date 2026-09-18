@@ -67,17 +67,24 @@ describe('select-check RadioRow group', () => {
     vi.useRealTimers()
   })
 
-  it('keeps initial focus on the receiving row without changing selection', () => {
+  it('redirects initial entry to the checked row without changing selection', () => {
     const onChange = vi.fn()
+    const focus = vi.fn()
+    __setFocusImpl(focus)
     const [first] = renderEntryRows(onChange)
 
     void act(() => first.props.onFocus())
 
     expect(onChange).not.toHaveBeenCalled()
     expect(first.props.accessibilityState.checked).toBe(false)
+    expect(focus).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        accessibilityState: expect.objectContaining({ checked: true }),
+      }),
+    )
   })
 
-  it('models imperative focus for TextInput only', () => {
+  it('models imperative focus for TextInput and focusable views', () => {
     const focus = vi.fn()
     __setFocusImpl(focus)
     const viewRef = React.createRef<React.ElementRef<typeof View>>()
@@ -92,10 +99,13 @@ describe('select-check RadioRow group', () => {
       )
     })
     viewRef.current?.focus()
-    expect(focus).not.toHaveBeenCalled()
+    expect(focus).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ accessibilityLabel: 'View' }),
+    )
 
     inputRef.current?.focus()
-    expect(focus).toHaveBeenCalledExactlyOnceWith(
+    expect(focus).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({ accessibilityLabel: 'Input' }),
     )
   })
