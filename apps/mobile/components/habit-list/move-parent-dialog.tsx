@@ -79,7 +79,7 @@ function MoveTargetRow({
       meta={option.childCount > 0 ? String(option.childCount) : undefined}
       tag={isCurrentParent ? currentLabel : undefined}
       leading={option.id === null
-        ? <Home size={18} strokeWidth={1.8} color={tokens.fg2} />
+        ? <Home size={20} strokeWidth={1.8} color={tokens.fg2} />
         : <Text style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>}
       onSelect={() => onSelect(option.id)}
     />
@@ -151,7 +151,7 @@ export function MoveParentDialog({
               value={searchQuery}
               onChange={setSearchQuery}
               placeholder={t('habits.moveParent.searchPlaceholder')}
-              trailing={<Search size={18} strokeWidth={1.8} color={tokens.fg3} />}
+                trailing={<Search size={20} strokeWidth={1.8} color={tokens.fg3} />}
             />
           </View>
         ) : null}
@@ -223,7 +223,7 @@ function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     sheetBody: {
       flex: 1,
-      paddingHorizontal: 22,
+      paddingHorizontal: 24,
       paddingTop: 4,
       paddingBottom: 24,
     },
@@ -250,14 +250,14 @@ function createStyles(tokens: AppTokensV2) {
       textTransform: 'uppercase',
       color: tokens.fg3,
       marginTop: 4,
-      marginBottom: 2,
+      marginBottom: 4,
     },
     moveOptionsList: {
       flex: 1,
     },
     moveOptionsContent: {
-      gap: 6,
-      paddingTop: 6,
+      gap: 4,
+      paddingTop: 4,
       paddingBottom: 8,
     },
     moveOption: {
@@ -289,7 +289,7 @@ function createStyles(tokens: AppTokensV2) {
     moveOptionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
     },
     rail: {
       width: 20,

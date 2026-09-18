@@ -99,7 +99,7 @@ function EditableChecklistItem({
           disabled={isFirst}
           hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
-          <ChevronUp size={14} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
+          <ChevronUp size={16} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -112,7 +112,7 @@ function EditableChecklistItem({
           disabled={isLast}
           hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
-          <ChevronDown size={14} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
+          <ChevronDown size={16} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
         </Pressable>
       </View>
       <View style={styles.uncheckedBox} />
@@ -243,7 +243,7 @@ function ChecklistAddRow({
         disabled={disabled || !value.trim()}
         onPress={onAdd}
       >
-        <Plus size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
+        <Plus size={16} color={tokens.fgOnPrimary} strokeWidth={1.8} />
       </Pressable>
     </View>
   )
@@ -505,7 +505,7 @@ function createStyles(tokens: AppTokens) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
   },
   moveButtons: {
     width: 24,
@@ -546,9 +546,9 @@ function createStyles(tokens: AppTokens) {
   interactiveItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     paddingVertical: 16,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
   },
   interactiveItemDivider: {
     borderBottomWidth: 1,

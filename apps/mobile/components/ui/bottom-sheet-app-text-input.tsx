@@ -118,7 +118,7 @@ function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.borderControl,
       paddingHorizontal: 16,
-      paddingVertical: 14,
+      paddingVertical: 12,
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       color: tokens.fg1,

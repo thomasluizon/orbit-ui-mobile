@@ -113,7 +113,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         borderRadius: 18,
         background: 'var(--bg-card)',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
-        padding: '16px 14px',
+        padding: '16px 12px',
       }}
     >
       <div className="flex items-center justify-between mb-3">
@@ -219,9 +219,9 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
               <X size={16} strokeWidth={1.8} />
             </button>
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {selectedDayLogs.map((log) => (
-              <div key={log.id} className="flex flex-col gap-0.5">
+              <div key={log.id} className="flex flex-col gap-1">
                 <span
                   className="text-[var(--fg-3)]"
                   style={{

@@ -1,6 +1,5 @@
 export const REVIEW_HARNESS_REPOSITORY = "ui"
 export const REDESIGN_BASE = "redesign/main"
-export const REQUIRED_REVIEW_SKILLS = ["interface-review", "better-interface"]
 
 export const UI_REVIEW_SWEEP_CONTRACT = Object.freeze({
   sourceFamilies: Object.freeze([
@@ -43,6 +42,7 @@ export const UI_REVIEW_SWEEP_CONTRACT = Object.freeze({
     Object.freeze({
       name: "motion",
       applicability: "when the change animates",
+      notApplicable: "no changed animation",
       skills: Object.freeze(["emilkowalski/animation-vocabulary", "raphaelsalaja/mastering-animate-presence", "iart-ai/accessible-animation"]),
     }),
     Object.freeze({
@@ -53,6 +53,7 @@ export const UI_REVIEW_SWEEP_CONTRACT = Object.freeze({
     Object.freeze({
       name: "the change",
       applicability: "mandatory",
+      evidence: Object.freeze(["interface-review", "better-interface"]),
       skills: Object.freeze([
         "jakubkrehel/interface-review",
         "jakubkrehel/better-interface in full mode",
@@ -65,17 +66,47 @@ export const UI_REVIEW_SWEEP_CONTRACT = Object.freeze({
       ]),
     }),
   ]),
-  closeGate: Object.freeze(["design-reviewer on the diff", "completeness-critic against the surface inventory"]),
+  closeGate: Object.freeze([
+    Object.freeze({ name: "design-reviewer", instruction: "design-reviewer on the diff" }),
+    Object.freeze({ name: "completeness-critic", instruction: "completeness-critic against the surface inventory" }),
+  ]),
 })
 
 const inlineCodeList = (values) => values.map((value) => `\`${value}\``).join(", ")
+
+export const reviewEvidenceRequirements = (contract = UI_REVIEW_SWEEP_CONTRACT) => Object.freeze([
+  ...contract.lanes.flatMap((lane) =>
+    (lane.evidence ?? [`${lane.name} lane`]).map((name) => Object.freeze({
+      name,
+      applicability: lane.applicability,
+      notApplicable: lane.notApplicable ?? null,
+    })),
+  ),
+  ...contract.closeGate.map(({ name }) => Object.freeze({ name, applicability: "mandatory", notApplicable: null })),
+])
+
+export const REQUIRED_REVIEW_EVIDENCE = reviewEvidenceRequirements()
+
+export const reviewEvidenceTemplateAnswer = ({ notApplicable }) => notApplicable
+  ? `<what it found, "no findings", or "not applicable: ${notApplicable}">`
+  : `<what it found, or "no findings">`
+
+const reviewEvidenceLine = ({ name, notApplicable }) => {
+  const label = name === "better-interface" ? "better-interface (full mode)" : name
+  const answer = reviewEvidenceTemplateAnswer({ notApplicable })
+  return `- ${label}: ${answer}`
+}
+
+export const renderReviewEvidenceBlock = (contract = UI_REVIEW_SWEEP_CONTRACT) => `## Review harness
+
+${reviewEvidenceRequirements(contract).map(reviewEvidenceLine).join("\n")}`
 
 export const renderUiReviewSweepContract = () => {
   const [registry, githubTree, vercel] = UI_REVIEW_SWEEP_CONTRACT.sourceFamilies
   const laneLines = UI_REVIEW_SWEEP_CONTRACT.lanes
     .map(({ name, applicability, skills }) => `- ${name} (${applicability}): ${inlineCodeList(skills)}`)
     .join("\n")
-  const closeGate = inlineCodeList(UI_REVIEW_SWEEP_CONTRACT.closeGate)
+  const closeGate = inlineCodeList(UI_REVIEW_SWEEP_CONTRACT.closeGate.map(({ instruction }) => instruction))
 
   return `Use \`.claude/playbooks/redesign-screen.md\` as the authority. Complete all three source families before starting a lane:
 
@@ -100,15 +131,7 @@ Verify each lane's PASS, not only its findings. A routed domain marked skipped i
 Fix every in-scope finding in this pull request. Only then write:
 
 \`\`\`md
-## Review harness
-
-- execution lane: <what it found, or "no findings">
-- motion lane: <what it found, "no findings", or "not applicable: no changed animation">
-- gates lane: <what it found, or "no findings">
-- interface-review: <what it found, or "no findings">
-- better-interface (full mode): <what it found, or "no findings">
-- design-reviewer: <what it found, or "no findings">
-- completeness-critic: <what it found, or "no findings">
+${renderReviewEvidenceBlock()}
 \`\`\`
 
 A line claiming a review you did not run is forbidden.`

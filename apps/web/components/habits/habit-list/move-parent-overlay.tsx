@@ -71,7 +71,7 @@ function MoveTargetRow({
       meta={option.childCount > 0 ? String(option.childCount) : undefined}
       tag={isCurrentParent ? currentLabel : undefined}
       leading={option.id === null
-        ? <Home size={18} strokeWidth={1.8} color="var(--fg-2)" />
+        ? <Home size={20} strokeWidth={1.8} color="var(--fg-2)" />
         : <span style={{ fontSize: 16, lineHeight: 1 }}>{option.emoji ?? '·'}</span>}
       onSelect={() => onSelect(option.id)}
     />
@@ -151,11 +151,11 @@ export function MoveParentOverlay({
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder={t('habits.moveParent.searchPlaceholder')}
-            trailing={<Search size={18} strokeWidth={1.8} color="var(--fg-3)" />}
+            trailing={<Search size={20} strokeWidth={1.8} color="var(--fg-3)" />}
           />
         )}
 
-        <RadioGroup className="flex flex-col" style={{ gap: 8 }}>
+        <RadioGroup className="flex flex-col" style={{ gap: 4 }}>
           {rootOption && (
             <MoveTargetRow
               option={rootOption}
@@ -170,18 +170,16 @@ export function MoveParentOverlay({
             <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
           )}
 
-          <div className="flex flex-col" style={{ gap: 8 }}>
-            {treeRows.map((option) => (
-              <MoveTargetRow
-                key={option.id}
-                option={option}
-                selected={option.id === selectedMoveParentId}
-                isCurrentParent={option.id === movingHabitParentId}
-                currentLabel={t('habits.moveParent.currentParent')}
-                onSelect={onSelectOption}
-              />
-            ))}
-          </div>
+          {treeRows.map((option) => (
+            <MoveTargetRow
+              key={option.id}
+              option={option}
+              selected={option.id === selectedMoveParentId}
+              isCurrentParent={option.id === movingHabitParentId}
+              currentLabel={t('habits.moveParent.currentParent')}
+              onSelect={onSelectOption}
+            />
+          ))}
         </RadioGroup>
 
         {isSearchEmpty && (

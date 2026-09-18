@@ -276,8 +276,8 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
       borderRadius: 18,
       paddingVertical: 16,
-      paddingHorizontal: 14,
-      gap: 10,
+      paddingHorizontal: 12,
+      gap: 8,
     },
     header: {
       flexDirection: "row",
@@ -327,7 +327,7 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
       borderRadius: 14,
       padding: 12,
-      gap: 10,
+      gap: 8,
     },
     selectedLogsHeader: {
       flexDirection: "row",
@@ -352,7 +352,7 @@ function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     logEntry: {
-      gap: 2,
+      gap: 4,
     },
     logMeta: {
       fontFamily: 'GeistMono_400Regular',

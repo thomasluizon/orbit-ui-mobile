@@ -47,7 +47,7 @@ export function DescriptionViewer({
 
   return (
     open ? (<Sheet open onClose={() => (handleOpenChange)(false)} title={title}>
-      <div className="flex items-center justify-end gap-2" style={{ paddingBottom: 10 }}>
+      <div className="flex items-center justify-end gap-2" style={{ paddingBottom: 8 }}>
         {copyFailed ? (
           <p role="alert" className="text-xs text-[var(--status-bad-text)]">
             {t('habits.detail.copyFailed')}
@@ -61,16 +61,16 @@ export function DescriptionViewer({
           onClick={copyDescription}
         >
           {copied ? (
-            <Check size={18} strokeWidth={1.8} style={{ color: 'var(--status-done)' }} />
+            <Check size={20} strokeWidth={1.8} style={{ color: 'var(--status-done)' }} />
           ) : (
-            <Copy size={18} strokeWidth={1.8} style={{ color: 'var(--fg-2)' }} />
+            <Copy size={20} strokeWidth={1.8} style={{ color: 'var(--fg-2)' }} />
           )}
         </button>
       </div>
       <div
         className="min-w-0 rounded-[18px] bg-[var(--bg-card)]"
         style={{
-          padding: '18px 20px',
+          padding: '16px',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >

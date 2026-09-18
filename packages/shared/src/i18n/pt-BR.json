@@ -2265,7 +2265,6 @@
     "updateProgress": "Atualizar progresso",
     "progressNote": "Nota (opcional)",
     "progressHistory": "Histórico",
-    "progressEntry": "{previous} -> {value} {unit}",
     "status": {
       "active": "Ativa",
       "completed": "Concluída",
@@ -2291,9 +2290,11 @@
       "loadError": "Não foi possível carregar todos os detalhes. Mostrando dados em cache.",
       "showAllHistory": "Ver tudo ({count})",
       "showLessHistory": "Ver menos",
+      "historyDate": "Data: {date}",
+      "historyDelta": "Mudança: {delta} {unit}",
+      "historyProgress": "Progresso: {current} de {target} {unit}",
       "askAstraDefault": "Quer um plano de check-in semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de check-in semanal para a meta \"{title}\".",
-      "askAstraEyebrow": "PERGUNTE À ASTRA",
       "statusLabel": "Status"
     },
     "deadline": {

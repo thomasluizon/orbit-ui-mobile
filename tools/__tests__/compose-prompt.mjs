@@ -76,6 +76,7 @@ const expectedReviewSweepContract = {
     {
       name: "motion",
       applicability: "when the change animates",
+      notApplicable: "no changed animation",
       skills: ["emilkowalski/animation-vocabulary", "raphaelsalaja/mastering-animate-presence", "iart-ai/accessible-animation"],
     },
     {
@@ -86,6 +87,7 @@ const expectedReviewSweepContract = {
     {
       name: "the change",
       applicability: "mandatory",
+      evidence: ["interface-review", "better-interface"],
       skills: [
         "jakubkrehel/interface-review",
         "jakubkrehel/better-interface in full mode",
@@ -98,7 +100,10 @@ const expectedReviewSweepContract = {
       ],
     },
   ],
-  closeGate: ["design-reviewer on the diff", "completeness-critic against the surface inventory"],
+  closeGate: [
+    { name: "design-reviewer", instruction: "design-reviewer on the diff" },
+    { name: "completeness-critic", instruction: "completeness-critic against the surface inventory" },
+  ],
 }
 const requiredSourceEvidence = [
   "npx --yes ui-skills get <owner>/<name>",

@@ -50,7 +50,7 @@ describe('ConflictWarning (mobile)', () => {
       fontSize: 12,
     })
     expect(StyleSheet.flatten(recommendation.props.style)).not.toHaveProperty('opacity')
-    expect(tree.root.findAll((node) => node.props.size === 14 && node.props.color === '#222222'))
+    expect(tree.root.findAll((node) => node.props.size === 16 && node.props.color === '#222222'))
       .not.toHaveLength(0)
   })
 })

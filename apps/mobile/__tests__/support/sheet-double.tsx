@@ -79,8 +79,8 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Sheet
       accessibilityLabel: 'attempt-dismiss',
       onPress: () => requestClose(),
     }),
-    children,
-    actions,
+    createElement('SheetBody', { testID: 'sheet-body-slot' }, children),
+    createElement('SheetActions', { testID: 'sheet-actions-slot' }, actions),
   )
 }
 

@@ -67,6 +67,23 @@ export function NotificationDetailModal({
       open
       onClose={onClose}
       title={notification.title}
+      actions={
+        <View style={styles.actions}>
+          {canView ? (
+            <Button variant={width >= 1024 ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
+              {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
+            </Button>
+          ) : null}
+          {canMarkAsRead ? (
+            <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
+              {t('notifications.markAsRead')}
+            </Button>
+          ) : null}
+          <Button variant="destructive" size="sm" onClick={handleDelete}>
+            {t('notifications.delete')}
+          </Button>
+        </View>
+      }
     >
       <View style={styles.container}>
         <Text style={styles.timestamp}>
@@ -77,26 +94,6 @@ export function NotificationDetailModal({
           {targetKey ? ` · ${t(targetKey)}` : null}
         </Text>
         <Text style={styles.bodyText}>{notification.body}</Text>
-
-        <View style={styles.actions}>
-          {canView ? (
-            <>
-              <Button variant={width >= 1024 ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
-                {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
-              </Button>
-            </>
-          ) : null}
-          {canMarkAsRead ? (
-            <>
-              <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
-                {t('notifications.markAsRead')}
-              </Button>
-            </>
-          ) : null}
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
-            {t('notifications.delete')}
-          </Button>
-        </View>
       </View>
     </Sheet>) : null
   )
@@ -105,7 +102,6 @@ export function NotificationDetailModal({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     container: {
-      flex: 1,
       paddingBottom: 8,
       gap: 12,
     },
