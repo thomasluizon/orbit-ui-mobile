@@ -358,6 +358,23 @@ describe('auth store', () => {
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
     })
 
+    it('empties the query cache the replaced account filled', async () => {
+      const { getQueryClient } = await import('@/lib/query-client')
+      const { notificationKeys } = await import('@orbit/shared/query')
+      const queryClient = getQueryClient()
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      queryClient.setQueryData(notificationKeys.lists(), {
+        items: [{ id: 'account-a-notification', title: 'Account A reminder' }],
+        unreadCount: 1,
+      })
+      respondWithAccount('user-2')
+
+      await useAuthStore.getState().checkSession()
+
+      expect(queryClient.getQueryData(notificationKeys.lists())).toBeUndefined()
+      expect(queryClient.getQueryCache().getAll()).toEqual([])
+    })
+
     it('drops a previous account pending delete when a login follows no teardown', async () => {
       const staleDelete = vi.fn(() => Promise.resolve())
       queuePendingNotificationDelete('account-a-notification', staleDelete)

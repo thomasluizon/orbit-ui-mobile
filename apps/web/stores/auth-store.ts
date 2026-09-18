@@ -2,16 +2,13 @@ import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
+import { getQueryClient } from '@/lib/query-client'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
 let sessionGeneration = 0
-
-export function getSessionGeneration(): number {
-  return sessionGeneration
-}
 
 /**
  * The one session identity both platforms share. Web counts sessions in a bare number and mobile
@@ -33,12 +30,14 @@ function clearAccountScopedSessionState(): void {
 
 /**
  * The auth cookie belongs to every tab at once, so a sign in elsewhere replaces the account under a
- * tab that keeps running. Nothing account scoped may survive that: the session generation rises so
- * an in-flight callback started by the previous account cannot write into the new account's cache,
- * the pending notification deletes drop so their timers cannot send a DELETE for the previous
- * account's ids under the new cookie, and the remembered user goes because this tab cannot prove the
- * new account's name. A tab that has not yet learned an account only records it, which leaves a
- * reload of the same account untouched.
+ * tab that keeps running. Nothing account scoped may survive that: the query cache empties because
+ * it holds the previous account's notifications, habits, goals and profile and this tab never
+ * navigates, so nothing else would evict them; the session generation rises so an in-flight callback
+ * started by the previous account cannot write into the new account's cache; the pending
+ * notification deletes drop so their timers cannot send a DELETE for the previous account's ids
+ * under the new cookie; and the remembered user goes because this tab cannot prove the new account's
+ * name. A tab that has not yet learned an account only records it, which leaves a reload of the same
+ * account untouched.
  */
 function adoptSessionAccount(userId: string | null): boolean {
   if (userId === null) return false
@@ -51,6 +50,7 @@ function adoptSessionAccount(userId: string | null): boolean {
   }
 
   clearAccountScopedSessionState()
+  getQueryClient().clear()
   currentAccountId = userId
   bindStepUpStateToAccount(userId)
   return true
