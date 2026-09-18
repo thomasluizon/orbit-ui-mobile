@@ -22,15 +22,38 @@ describe('goal metrics utils', () => {
     expect(formatGoalHistoryNumber(1e-7, 'pt-BR')).toBe('0,0000001')
   })
 
+  it('formats values beyond the portable fraction-digit limit', () => {
+    const NativeNumberFormat = Intl.NumberFormat
+    const nativeNumberFormatDescriptor = Object.getOwnPropertyDescriptor(Intl, 'NumberFormat')
+    class PortableNumberFormat extends NativeNumberFormat {
+      constructor(locales?: Intl.LocalesArgument, options?: Intl.NumberFormatOptions) {
+        if ((options?.maximumFractionDigits ?? 0) > 20) {
+          throw new RangeError('maximumFractionDigits exceeds the portable limit')
+        }
+        super(locales, options)
+      }
+    }
+    Object.defineProperty(Intl, 'NumberFormat', { configurable: true, value: PortableNumberFormat })
+
+    try {
+      expect(formatGoalHistoryNumber(1e-28, 'en-US')).toBe('0.0000000000000000000000000001')
+      expect(formatGoalHistoryNumber(1e-28, 'pt-BR')).toBe('0,0000000000000000000000000001')
+    } finally {
+      Object.defineProperty(Intl, 'NumberFormat', nativeNumberFormatDescriptor!)
+    }
+  })
+
   it('rounds goal history deltas without exposing floating-point noise', () => {
     expect(formatGoalHistoryDelta(0.2, 0.3, 'en')).toBe('+0.1')
     expect(formatGoalHistoryDelta(1.1, 1.2, 'en')).toBe('+0.1')
     expect(formatGoalHistoryDelta(0.3, 0.2, 'en')).toBe('-0.1')
     expect(formatGoalHistoryDelta(0.1, 0.1, 'en')).toBe('0')
     expect(formatGoalHistoryDelta(0, 1e-7, 'en')).toBe('+0.0000001')
+    expect(formatGoalHistoryDelta(0, 1e-28, 'en')).toBe('+0.0000000000000000000000000001')
     expect(formatGoalHistoryDelta(0.2, 0.3, 'pt-BR')).toBe('+0,1')
     expect(formatGoalHistoryDelta(0.3, 0.2, 'pt-BR')).toBe('-0,1')
     expect(formatGoalHistoryDelta(0, 1e-7, 'pt-BR')).toBe('+0,0000001')
+    expect(formatGoalHistoryDelta(0, 1e-28, 'pt-BR')).toBe('+0,0000000000000000000000000001')
   })
 
   it('maps tracking statuses to labels and tones', () => {

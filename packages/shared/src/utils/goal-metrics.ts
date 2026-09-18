@@ -1,6 +1,7 @@
 import { getDateTimeFormat, getNumberFormat } from './intl-format-cache'
 
-const INTL_MAXIMUM_FRACTION_DIGITS = 100
+const TO_FIXED_MAXIMUM_FRACTION_DIGITS = 100
+const GOAL_HISTORY_MAXIMUM_SIGNIFICANT_DIGITS = 20
 
 function getDecimalScale(value: number): number {
   const valueText = Math.abs(value).toString().toLowerCase()
@@ -9,7 +10,7 @@ function getDecimalScale(value: number): number {
   const decimalPoint = coefficient.indexOf('.')
   const coefficientScale = decimalPoint === -1 ? 0 : coefficient.length - decimalPoint - 1
   const exponent = exponentMarker === -1 ? 0 : Number(valueText.slice(exponentMarker + 1))
-  return Math.min(Math.max(coefficientScale - exponent, 0), INTL_MAXIMUM_FRACTION_DIGITS)
+  return Math.min(Math.max(coefficientScale - exponent, 0), TO_FIXED_MAXIMUM_FRACTION_DIGITS)
 }
 
 type GoalMetricsStatusTone = 'success' | 'warning' | 'danger' | 'muted'
@@ -38,7 +39,7 @@ export function formatGoalHistoryNumber(
   locale: string,
 ): string {
   return getNumberFormat(locale, {
-    maximumFractionDigits: getDecimalScale(value),
+    maximumSignificantDigits: GOAL_HISTORY_MAXIMUM_SIGNIFICANT_DIGITS,
   }).format(value)
 }
 
@@ -50,7 +51,7 @@ export function formatGoalHistoryDelta(
   const scale = Math.max(getDecimalScale(previousValue), getDecimalScale(value))
   const roundedDelta = Number((value - previousValue).toFixed(scale))
   return getNumberFormat(locale, {
-    maximumFractionDigits: scale,
+    maximumSignificantDigits: GOAL_HISTORY_MAXIMUM_SIGNIFICANT_DIGITS,
     signDisplay: 'exceptZero',
   }).format(roundedDelta)
 }
