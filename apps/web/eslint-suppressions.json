@@ -1,27 +1,4 @@
 {
-  "components/charts/bar-chart.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/charts/chart-ring.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/charts/multi-month-heatmap.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/charts/trend-line.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/onboarding/onboarding-complete.tsx": {
     "local/icon-size-grid": {
       "count": 1
