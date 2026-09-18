@@ -123,6 +123,11 @@ These stay until he changes them. Keep his words.
   gate is setted, when the whole redesign is done, you build the internal build, i dont care how much
   screens are missing". So the count of remaining screens is never a reason to revisit the sequence,
   and neither is how much has landed.
+- **2026-09-18** **A killed worker is a relaunch, never an ending.** A session stopped after the host
+  reaped two workers for system memory and reported the night as externally over. His correction:
+  "wrong. the night doesnt end here. if you have any problem with the worker, just launch another
+  one." So a harness kill, a host kill, a ceiling and a provider capacity error are all the same
+  thing: launch another worker. The only endings remain the allowance running out and him saying stop.
 - **2026-09-18** **Astra's rendering is a COMPLETE refactor, not a scope decision.** "astra rendering
   needs to be COMPLETELY refactored, using the beautiful ui.dev components, almost EVERYTHING that
   she renders need to be something VISUAL and beautiful, the only exception are simple sentences,
@@ -217,7 +222,8 @@ Two rules for this batch, both from Thomas:
 
 ### Batch 0c, shipping now: the live Android defect
 
-`#573` (menu tap and search close, pull request 1011 against `main`), then `#574` (measure the habit
+**`#590`** (the three-dot tap and the search keyboard, pull request 1015 against `main`; `#573` was
+CANCELED as superseded, its premise false), then `#574` (measure the habit
 list's render counts, then cut them), then `#563` (three Android checklist defects), `#134` (the
 three-dot menu ticket only Thomas can close, on-device).
 
@@ -426,7 +432,9 @@ frontmatter, the tags and the backlinks that say which decision superseded which
   - `A written instruction is the authorization ship on it without asking again.md`
   - `A contract change needs its caller sweep in the same run.md`
 
-  **All eighteen were confirmed present on 2026-09-16 at 23:38.** The Obsidian MCP was still
+  **All nineteen were re-confirmed through the Obsidian MCP on 2026-09-18 at 00:30**, by listing
+  `2 Areas/20-29 Orbit Engineering/Decisions/` with `obsidian_list_notes` and copying the names that
+  came back. The MCP is UP; `obsidian_search_notes` needs `mode: "text"`. Historical note: The Obsidian MCP was still
   unreachable (`fetch failed`, Obsidian not running), so the listing came from the `vault-fs` MCP,
   which reads the same vault from disk AND returns frontmatter, so `status` and `superseded_by`
   were checked rather than guessed. None carries a `superseded_by`. What that path still misses is
@@ -947,54 +955,147 @@ Two rules for this work, both learned the hard way:
   tree and zero commits. The continuation order that worked says: focused tests, COMMIT, then full
   verification.
 
+## What the night of 2026-09-17 into 09-18 added, second pass
+
+- **A ticket body's SUMMARY of a review finding is not the finding.** Two separate misreads in one
+  night, both caught by opening the source. `#573`'s body said the three-dot menu failed "after a
+  search", which Thomas never said. And a P1 titled "Depend on the stable permission callback" was
+  judged unfixed from its title, when its body says the complaint is that the whole `push` OBJECT was
+  a dependency, which had already been fixed. **Read the thread body and the tree, never the title or
+  the paraphrase.**
+- **`hitSlop` is dead on Android whenever an ancestor's box does not contain it.**
+  `TouchTargetHelper.kt:186-208` descends into a child only when the point is inside the parent's
+  bounds or its overflow inset; `:251-259` reads `hitSlop` only from the view that DECLARES it; and
+  `SurfaceMountingManager.kt:920-927` derives the overflow inset from computed LAYOUT, so it never
+  carries slop. **A negative margin on a control inside an unstyled wrapper shrinks the wrapper below
+  the control and kills every pixel of its slop.** The fix is a real box, never more slop.
+- **A squash merge's arrival proof is the MERGE commit, never the pull request head.**
+  `git merge-base --is-ancestor <head> <base>` fails on every squash merge and looks like the merge
+  did not land. Use the `mergeCommit.oid` that `gh pr view` returns.
+- **`mergeStateStatus` reads `UNKNOWN` for about twenty seconds after a sibling merges**, while
+  GitHub recomputes mergeability. Re-read it; do not act on it.
+- **`list-bot-threads.mjs --re-review` still returns on an empty-bodied progress marker**, which is
+  `#541`'s defect and it fired again tonight. The authority is the LAST review of the exact head plus
+  the newest `pullfrog-approval` check run at that head. Both were read directly through
+  `gh api .../reviews` and `.../check-runs` before every merge.
+- **A red `pullfrog-approval` whose workflow run concluded `success` is a REVIEW verdict, not an
+  infrastructure failure.** On 1015 the run succeeded at 21:49:43Z and the check still failed,
+  because Pullfrog found a real P1. Read the run's conclusion before assuming provider overload.
+- **The orchestrator finishing a killed worker's commit now has a companion rule: check WHAT is
+  dirty, not just whether anything is.** Both reaped workers showed two modified files, and both were
+  `widget-header.test.ts.snap` and `theme.test.ts.snap`, which flip their own line endings. That is
+  the CLEAN case wearing the DIRTY case's clothes. Restore those two, then decide.
+- **A worker stopped by the HOST for system memory is not the Orbit harness and not Thomas.** It
+  leaves no `outcome` field, because the launcher itself is what died. Read the worktree; both had
+  committed.
+- **Splitting a round beats raising its ceiling.** `#67` round 4 carried five findings AND the step 6
+  sweep and died at 75 minutes with two findings unreached. Round 5 carried two findings and no sweep
+  and finished in 7m47s.
+- **A pull request may ship without its `## Review harness` block, and the gate going red is
+  correct.** 1017 and 1018 were delivered by the orchestrator after their workers were stopped before
+  step 6. Writing seven lines for a sweep nobody ran is forbidden, so the block was omitted and both
+  bodies say what is owed. The sweep is a separate round.
+- **The step 6 sweep finds real defects, again.** `#481`'s sweep fixed focus timing, toast alignment,
+  duplicate alerts and localized decimals, and checked all 14 input and 12 pressable production
+  callers of the two shared primitives the diff touched.
+
 ## State
 
-Read live 2026-09-18 at 05:30 UTC.
+Read live 2026-09-18 at 00:35 UTC.
 
-`redesign/main` is **`c0556a1a`**. `main` is **`7771c79a`**, and **Orbit 1.3.30 (89) is on the Play
-OPEN track** off it, run `35259661979`. `orbit-api` `main` is unchanged at `fd219126`.
+`redesign/main` is **`63e8774d`**. `main` is **`7771c79a`**, and **Orbit 1.3.30 (89) is on the Play
+OPEN track** off it, run `35259661979`, which carries pull request 1011. `orbit-api` `main` is
+unchanged at `fd219126`.
 
-**227 tickets open** across the three repositories. **16 open in the `539 Redesign` milestone**:
-`#67`, `#75`, `#78`, `#175`, `#217`, `#318`, `#320`, `#367`, `#460`, `#461`, `#475`, `#479`, `#481`,
-`#520`, `#543`, `#545`.
+**224 tickets open** across the three repositories, down from 227. **15 open in the `539 Redesign`
+milestone**: `#67`, `#75`, `#78`, `#175`, `#217`, `#318`, `#320`, `#367`, `#460`, `#475`, `#479`,
+`#481`, `#520`, `#543`, `#545`.
 
-### Merged this session, nine
+No stashes and no detached HEADs in any repository. `orbit-api` and `orbit-landing-page` checkouts
+are clean. Every `orbit-ui-mobile` worktree is clean; the only unpushed commit anywhere is
+`1890341c` in `ticket-58-achievements`, which is the pre-squash form of merged pull request 1014 and
+is therefore disposable.
 
-`1011` to `main` (`7771c79a`). To `redesign/main`: `1008` (`04ad126c`), `991` (`f470f4ce`), `994`
-(`ce5ad59a`), `1005` (`107ffa5f`), `1004` (`fbb8c52e`), `1003` (`75b1e99b`), `970` (`f8f05210`),
-`1013` (`c0556a1a`). Every one proven to have arrived with
-`git merge-base --is-ancestor <oid> origin/<base>`.
+### Merged this session, three
 
-### Closed this session, eight, each with a per-criterion table
+To `redesign/main`: `1012` (`23961de0`), `1014` (`38cca272`), `1010` (`63e8774d`). Each proven to
+have arrived by the MERGE commit being an ancestor of `origin/redesign/main`. **For a squash merge
+that is the only valid proof**: the pull request HEAD is never an ancestor, and checking the head
+fails misleadingly.
 
-`#57`, `#63`, `#73`, `#74`, `#336`, `#472`, `#473`, `#476`, `#477`. Each closing comment carries the
-evidence and names every divergence from the ticket body rather than ticking it.
+### Closed this session, four
 
-### Filed this session, four
+`#585`, `#570`, `#461` completed with a per-criterion table each. **`#573` CANCELED as superseded**,
+because its title and body quoted Thomas saying the three-dot menu failed "after a search" and he
+never said that. Its closing comment records what pull request 1011 did fix and what it did not.
 
-`#586` the widget deep link, `#587` the orphaned `settingsSection` keys and the D70 guard that must
-move first, `#588` the `orbit-api` bulk item dropping `IntervalWeeks`, `#589` its blocked UI consumer.
+### Filed this session, one
+
+**`#590`**, the three-dot tap and the search keyboard, with the root cause proven from installed
+source. See `### The three-dot defect, solved` below.
 
 ### Open pull requests, every one
 
-| PR | base | disposition |
-|---|---|---|
-| 1014 | `redesign/main` | `#461`. APPROVED at head, zero reds, waiting on CI. `parity:exempt` applied with its reason: web already pins those actions, so this removes a divergence. |
-| 1012 | `redesign/main` | `#585`. Its one thread is resolved. **The parallelism measurement it was missing now exists, below.** Needs a fresh review that can approve. |
-| 1010 | `redesign/main` | `#570`. A worker is on it now; 16 commits unpushed in its worktree. |
-| 1007 | `redesign/main` | `#67`. A worker is on it now, round 4, five P1s. |
-| 1002 | `redesign/main` | `#545`. Both threads resolved, pushed `60cd943d`. Suppressions 63 to 20 web, 81 to 16 mobile. |
-| 1001 | `redesign/main` | `#562`. **Has uncommitted work, see below.** |
-| 992 | `redesign/main` | `#543`. Threads resolved, pushed `e818a478`. Its `Unit Tests` red is the 96 percent coverage floor, which 1001's merge fixes for it. |
-| api 528 | `main` | `#529`. Order written, needs a worker. |
-| api 521 | `main` | `#526`. Order written, needs a worker. Its `Dash Ban` red is cleared. |
+| PR | base | ticket | disposition |
+|---|---|---|---|
+| **1015** | `main` | `#590` | **BLOCKED on one real P1.** `Keyboard.dismiss()` is reachable during React render, because `useTodayViewSync` calls `closeSearch` while rendering active-view and pinned-date changes. Thread `PRRT_kwDOR5Siws6ji8aZ`, `use-today-search.ts:22`. Move it to a committed lifecycle or event path. `Cross-Platform Parity` is also red and needs a fresh `pull_request` event after the `parity:exempt` label. |
+| 1018 | `redesign/main` | `#481` | Sweep DONE and in the body; head `3da49c08`. Awaiting review. |
+| 1017 | `redesign/main` | `#475` | A worker is on its step 6 sweep now. Head `99d74996` until it pushes. |
+| 1016 | `redesign/main` | `#520` | Acceptance verified independently: `check-surface-scope.mjs` navigation findings 12 to 0. Needs its step 6 sweep and a review. |
+| 1007 | `redesign/main` | `#67` | Head `8e297420`. All five P1 threads answered. Needs a fresh review. |
+| 1002 | `redesign/main` | `#545` | Threads resolved at `60cd943d`. Awaiting a review that can approve. |
+| 1001 | `redesign/main` | `#562` | Head `954c6279`, its one P1 replied and resolved. Coverage now 96.36 percent against the 96 floor, so **merging it also clears 992's red**. |
+| 992 | `redesign/main` | `#543` | Head `e818a478`. Its `Unit Tests` red is that coverage floor; order it after 1001. |
+| api 528, 521 | `main` | `#529`, `#526` | Untouched this session. Orders must be re-derived from the threads. 521's `Dash Ban` is already cleared. |
+| Dependabot | both repos | | Leave. Not this effort. |
+| `orbit-landing-page` | 5 open | | Leave. Batch 3 owns that repository. |
 
-`orbit-landing-page` has 5 open, untouched by this effort; batch 3 owns that repository.
+### The three-dot defect, solved
 
-### The parallelism decision, measured
+**This is the answer to the bug Thomas has reported since `#134` and nobody found.** It is NOT
+related to search, and pull request 1011's `keyboardShouldPersistTaps` theory was refuted by his own
+test on 1.3.30, the build that carries it.
 
-`#585` asks for a decision on a measurement. It exists now, taken on this machine under the same
-two-worker load as the serial baseline:
+Proven from installed source, every claim read rather than remembered:
+
+- `habit-row-styles.ts` gave `menuButton` `width: 34, height: 34, margin: -3`.
+- `MenuAnchorHost` in `anchored-menu.tsx` rendered `<View ref={anchorRef} collapsable={false}>` with
+  **no style**, so the host sized to the child's MARGIN box: **28x28** around a 34x34 button.
+- `habit-row-trailing.tsx` declared `hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}`.
+- `TouchTargetHelper.kt:186-208` descends into a child only when the point is inside the parent's
+  bounds or the parent's overflow inset. `:251-259` reads `hitSlop` ONLY from the view that declares
+  it. `SurfaceMountingManager.kt:920-927` derives the overflow inset from Fabric's computed layout,
+  never from hitSlop.
+
+**So the declared hitSlop was entirely dead on Android** and the live target was 34dp, under
+`DESIGN.md:688`'s floor of 44 minimum. `resolveTrailingLayout` put `cardPaddingRight: 16` of
+handler-free card to its right, so a near miss landed on nothing. Deterministic by thumb position,
+which is why it read as intermittent.
+
+`redesign/main` already carried 44x44 with no margin and no hitSlop, which is the control for the
+diagnosis, and 1015 converges `main` onto it. The 16dp gained is paid back exactly:
+`cardPaddingRight` 16 to 8 and `trailing.gap` 10 to 8, so the glyph's right edge stays at 21dp.
+
+**Ruled out, so nobody re-chases them:** `removeClippedSubviews={true}` on the All-view FlatList is
+not the cause, because `ReactViewGroup.kt:540-544` recurses clipping only into a child that itself
+sets it, and the date-group Views do not, so the clip unit is a whole off-screen cell. A drag gesture
+is not the cause either: the All branch renders a plain `FlatList`.
+
+**The search half, corrected.** Pull request 1011 DID fix the mobile X, verified by reading the
+merged diff at `7771c79a`: the old handler was
+`if (draft.length > 0) { setDraft(""); return } onCancel()` and 1011 replaced it with
+`onPress={onCancel}`. What is still broken is the **soft keyboard**, which no path dismisses:
+`ReactEditText.kt:864` `hideSoftKeyboard()` has exactly two callers, neither of them an unmount, and
+`ReactTextInputManager.kt` declares no `onDropViewInstance` that hides it.
+
+**`#134` stays open by design** and only Thomas closes it, by tapping the control on a device. Its
+root cause is now recorded on it, replacing `apps/mobile/CLAUDE.md:32`'s wrong one, which blames a
+react-native-screens patch that touches only iOS files on an Android-only product.
+
+### The parallelism decision, measured and SHIPPED
+
+Recorded here because `#585` is closed and the numbers must survive it. Taken on this machine under
+the same two-worker load as the serial baseline:
 
 | variant | elapsed | result |
 |---|---|---|
@@ -1002,45 +1103,38 @@ two-worker load as the serial baseline:
 | parallel, 4-process pool from `7bbbb796` | **373s** | 0 FAIL |
 | parallel, same code, next run | **454s** | **5 FAIL** |
 
-**Materially faster and NOT deterministic**, which is exactly the case the ticket says to refuse. The
-flaky cases are in `create-worktree.mjs`, which stages temporary directories. Serial ships.
+Materially faster and NOT deterministic, so serial ships. The flaky cases are in
+`create-worktree.mjs`, which stages temporary directories. Two earlier runs at 325s and 390s both
+exited 1 for CONTAMINATION, not flakiness: staging `7bbbb796`'s harness into today's tree leaves
+`lib/integration-branch.mjs` and `lib/review-harness.mjs` unregistered. Do not cite them.
 
-Two earlier runs, 325s and 390s, both exited 1 for a different and invalid reason: staging
-`7bbbb796`'s harness into today's tree leaves `lib/integration-branch.mjs` and `lib/review-harness.mjs`
-unregistered. That is contamination, not flakiness, and it is recorded so nobody cites it.
-
-### Uncommitted work that must not be lost
-
-- **`ticket-562-weekday-import` (1001) is DIRTY with 4 files and about 100 insertions.** It is the
-  answer to 1001's newest P1: `COUNT` and `UNTIL` fall through as importable and the builder emits an
-  UNBOUNDED habit, so a finite Google series keeps firing in Orbit forever. The work adds
-  `resolveCalendarSyncEndDate`, exports it, emits `endDate` from the import builder, and adds four
-  cases. **Verified green, 24 of 24, and proven red first at 7 failures.** It was interrupted before
-  its coverage and type-check pass. Finish that, commit, reply to `PRRT_kwDOR5Siws6jiJD6`, resolve,
-  push.
-- `ticket-570-harness-gate` holds **16 unpushed commits**, `ticket-58-achievements` holds 1. Both are
-  live workers' work; read the worktree before assuming.
+**`node tools/test-tools.mjs --only <name>` now exists**, so re-checking one module costs about 5
+seconds instead of roughly sixteen minutes.
 
 ### The redesign gate, measured
 
 `node tools/redesign-coverage.mjs` reports **`redesign coverage valid: 184 manifest surfaces
-accounted for, 14 deleted, 3 excluded`** at `c0556a1a`. That half of batch 1's exit condition is MET
+accounted for, 14 deleted, 3 excluded`** at `63e8774d`. That half of batch 1's exit condition is MET
 and was re-run on the current tree.
 
-The other half is the 16 milestone tickets. **Five were verified this session as genuinely unbuilt,
-with the evidence on each ticket**: `#460`, `#475`, `#479`, `#481`, `#520`. Two are blocked on other
-work: `#175` on the suppressions reaching zero, `#217` on `#67`. One needs Thomas: `#318`.
+The other half is the 15 milestone tickets. Of the five verified unbuilt on 2026-09-17, **three are
+now built and in review** (`#520` as 1016, `#475` as 1017, `#481` as 1018) and **two remain**:
+`#460` and `#479`. `#460` has a worktree with dependencies installed at
+`ticket-460-notify-announce`, branch `fix/ticket-460-notify-announce`, and no commits yet.
+`#175` is blocked on the suppressions reaching zero, `#217` on `#67`, and `#318` needs Thomas.
 
 ### Tickets
 
-Re-derive:
+Re-derive, never trust a list:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
+    gh issue list --repo thomasluizon/orbit-tickets --state open --milestone "539 Redesign" --limit 400
 
 ### The suppressed lint violations
 
-`redesign/main` reads 63 web and 81 mobile. 1002 takes them to 20 and 16.
-
+`redesign/main` reads 26 files on web and 20 on mobile. 1002 takes the entry counts to 20 and 16.
+Reproduce with a read of both `eslint-suppressions.json` files; never trust this number, it moves
+every merge.
 
 ## Open questions
 

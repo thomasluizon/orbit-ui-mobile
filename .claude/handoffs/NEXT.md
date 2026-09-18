@@ -1,71 +1,22 @@
-# Fix the three-dot menu, then finish the prod release spec
+# Finish the prod release spec
 
 Read `.claude/specs/orbit-prod-release.md` first, all of it. It is the living record: the standing
 instructions in his words, the decisions, the constraints, the full state and every answer he has
-given. Read `## The order` before anything else, and `## State` for where the work stands.
+given. Read `## The order` before anything else, then `## State`.
 
 `.claude/specs/beta-release.md` is the record for work that ships off `main`. Read its constraints
-once; they bite on any `main` work, and step 1 below is `main` work.
+once; they bite on anything targeting `main`, which pull request 1015 does.
 
-Read the brain notes the spec names, through the Obsidian MCP: `mcp__obsidian__obsidian_list_notes`,
+Read the brain notes the spec names through the Obsidian MCP: `mcp__obsidian__obsidian_list_notes`,
 then `mcp__obsidian__obsidian_get_note`. List `2 Areas/20-29 Orbit Engineering/Decisions/` and copy
-the filenames that come back rather than the ones you remember. The MCP was UP on 2026-09-18 and
-`obsidian_search_notes` needs `mode: "text"`.
+the filenames that come back rather than the ones you remember. **The MCP was UP on 2026-09-18 at
+00:30** and all nineteen notes the spec names were confirmed present; `obsidian_search_notes` needs
+`mode: "text"`.
 
 ## Entry point
 
 `/sleep`. It enters `/orchestrate --sleep` itself. Do not treat them as two choices and do not
 restate what either does.
-
-## STEP 1, before anything else: the three-dot menu and the search input
-
-**This is Thomas's own instruction, 2026-09-18, and it comes first.** His words:
-
-> i want you to put as the first step on the handoff prompt, to research and understand this fucking
-> bug of the three dot menu not opening, and the search input to behave correctly, forever.
-> i literalaly just tested on the new mobile version, clicking the 3 dots on a habit, it doesnt open
-> and sometimes it open, sometimes not
-
-**Read this before you form a theory, because the last session got it wrong.** `#573`'s body quotes
-him as saying the menu failed "after a search". **He never said that.** His correction, verbatim:
-
-> 1. in some habits, for example, in the all habits tab, the 3 dots in the habit is simply not
-> working, nothing happens, and it has nothing to do with the search
->
-> 2. when clicking to search a habit, switching tabs (like from all to today) doenst close (and
-> clear) the search, and clicking on the X doenst close the search input, i want both of these fixed
->
-> why are you saying the dead three-dot tap is related to the search? i literally never said that
-
-So there are **two separate defects**, and pull request 1011 fixed neither of them as he described.
-1011 shipped a keyboard-tap theory, `keyboardShouldPersistTaps`, plus a `useTodaySearch` refactor.
-That theory came from the ticket's misquote.
-
-What is true on `main` right now, verified 2026-09-18:
-
-- **The three-dot menu is still broken and it is INTERMITTENT.** "sometimes it open, sometimes not",
-  on All habits, with no search involved. Intermittent is the most important word in this prompt: a
-  fix that works once is not a fix, and a test that passes once has proven nothing.
-- **Switching tabs DOES now close search.** `closeSearch()` fires on tab change in
-  `apps/mobile/app/(tabs)/use-today-search.ts`. That half landed.
-- **The X still does not close the search input.** Not fixed.
-
-**One ticket for both**, by his instruction: "i want both, fixed in one ticket". He also said not to
-file it during that session because it was bloated, so **filing it is step 1 of this one**.
-
-How to run it:
-
-1. **Research first, and do not guess.** Reproduce the intermittency or explain precisely why it
-   cannot be reproduced in Vitest. Read `habit-row-trailing.tsx`, the row's press targets, the
-   `Pressable` hit areas, anything that re-renders the row mid-press, and whether the menu's own
-   open state is racing a list re-render. "Sometimes" usually means a race or a remount, not a
-   missing prop.
-2. **Never boot the emulator.** It is his visual testing surface. If the only honest answer is that
-   a device is needed to confirm, build the correct fix, say so plainly in the pull request body,
-   and move on. Device verification is not a gate on building something.
-3. File ONE ticket covering both defects, with `/ticket`, then run it. It targets `main` under D99,
-   because a person hits it in the shipped build today.
-4. After it merges, `/android-release` to the open track on his standing permission.
 
 ## The goal
 
@@ -73,12 +24,81 @@ Finish `.claude/specs/orbit-prod-release.md`: an empty board and a production re
 in that spec and it is not negotiable. Re-derive what is left rather than trusting any list:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
+    gh issue list --repo thomasluizon/orbit-tickets --state open --milestone "539 Redesign" --limit 400
     gh pr list --repo thomasluizon/orbit-ui-mobile --state open
     gh pr list --repo thomasluizon/orbit-api --state open
     gh pr list --repo thomasluizon/orbit-landing-page --state open
 
-**A blocker is the next piece of work, not an ending.** The only honest early ending is external:
-the allowance runs out, the machine stops, or he says stop. Say which.
+**A blocker is the next piece of work, not an ending.**
+
+## A killed worker is a relaunch, never an ending
+
+**Thomas, 2026-09-18, after a session reported the night over because the host reaped two workers for
+system memory:**
+
+> wrong. the night doesnt end here. if you have any problem with the worker, just launch another one.
+
+A harness kill, a host kill, a hard ceiling and `ERROR: Selected model is at capacity` are all the
+same thing: launch another worker. Read the worktree first, because a killed worker has usually
+COMMITTED, and check WHAT is dirty rather than whether anything is: two modified files that turn out
+to be `widget-header.test.ts.snap` and `theme.test.ts.snap` are the CLEAN case, because both flip
+their own line endings. The only endings are the allowance running out and him saying stop.
+
+## First: pull request 1015, the live Android defect
+
+`#590`, against `main` under D99, and it is the fix for the three-dot menu he has reported since
+`#134`. The root cause is proven from installed source and written up in the spec under
+`### The three-dot defect, solved`. **Read that before forming any theory**, and do not re-chase
+`removeClippedSubviews` or a drag gesture; both are ruled out there with the source that rules them
+out.
+
+It is BLOCKED on one real P1, and Pullfrog is right:
+
+- Thread `PRRT_kwDOR5Siws6ji8aZ`, `apps/mobile/app/(tabs)/use-today-search.ts:22`. The new
+  `Keyboard.dismiss()` is reachable **during React render**, because `useTodayViewSync` calls
+  `closeSearch` while rendering active-view and pinned-date changes. Move it to a committed
+  lifecycle or event path.
+- `Cross-Platform Parity` is red. `parity:exempt` is applied but the failing run predates the label,
+  so fire a fresh `pull_request` event with a body edit. That red is the trap, not a finding.
+
+**After it merges, `/android-release` to the OPEN track on his standing permission.** He wrote it and
+that is the authorization; do not ask again.
+
+## In flight, with a disposition on every row
+
+No stashes, no detached HEADs, no dirty worktrees, in any repository. `orbit-api` and
+`orbit-landing-page` are clean. One unpushed commit exists, `1890341c` in `ticket-58-achievements`,
+and it is the pre-squash form of merged pull request 1014, so it is disposable.
+
+| what | where | disposition |
+|---|---|---|
+| worker `#475` | `ticket-475-goal-grant`, log `orbit-workers\#475-1789689547628.log` | ALIVE at handoff, running the step 6 sweep for 1017. Outcome unknown. Read the worktree. |
+| 1015 | `#590`, base `main` | The P1 above. **Do this first.** |
+| 1018 | `#481` | Sweep DONE, head `3da49c08`. Needs a review. |
+| 1017 | `#475` | The live worker's. |
+| 1016 | `#520` | Acceptance verified: navigation findings 12 to 0. **Owes its step 6 sweep**, then a review. |
+| 1007 | `#67` | Head `8e297420`, all five P1s answered. Needs a fresh review. |
+| 1002 | `#545` | Threads resolved at `60cd943d`. Needs a review that can approve. |
+| 1001 | `#562` | Head `954c6279`, its P1 resolved, coverage 96.36 percent. **Merge it before 992**, because that clears 992's red. |
+| 992 | `#543` | Head `e818a478`. Its `Unit Tests` red IS 1001's coverage floor. |
+| api 528, 521 | `orbit-api` | Orders lost with an earlier scratchpad. Re-derive from the threads. 521's `Dash Ban` is cleared. |
+| `#460`, `#479` | tickets | The last two verified-unbuilt redesign tickets. `#460` already has a worktree with dependencies installed at `ticket-460-notify-announce`, branch `fix/ticket-460-notify-announce`, no commits. |
+| Dependabot | both repos | Leave. Not this effort. |
+| `orbit-landing-page` | 5 open | Leave. Batch 3 owns that repository. |
+
+**1017 and 1018 deliberately shipped without a `## Review harness` block**, because their workers
+were stopped before step 6 and a line claiming a review nobody ran is forbidden. 1018's sweep has
+since run; 1016 and 1017 still owe theirs. A red `Redesign Review Harness` on those is the gate
+working.
+
+## Then: the order
+
+1. 1015, above.
+2. Merge 1001, then 992. Drive 1002, 1007, 1016, 1017, 1018 to approved and merge them.
+3. `#460` and `#479`, the last two unbuilt redesign tickets.
+4. `#545` and `#543` close out the suppressions; `#175` unblocks when they reach zero, `#217` when
+   `#67` lands.
+5. Then the redesign gate below.
 
 ## THE REDESIGN GATE, and never ask about it again
 
@@ -89,55 +109,17 @@ legitimate ending under `/sleep`, reported as blocked on his approval.
 
 **2026-09-18, asked and answered for the last time:** "never ask me again about this. the gate is
 setted, when the whole redesign is done, you build the internal build, i dont care how much screens
-are missing". The number of remaining screens is never a reason to revisit the sequence.
+are missing."
 
-Coverage is already GREEN at `c0556a1a`: `184 manifest surfaces accounted for, 14 deleted, 3
-excluded`. The distance is the 16 open milestone tickets.
+Coverage is already GREEN at `63e8774d`: `184 manifest surfaces accounted for, 14 deleted, 3
+excluded`. The distance is the 15 open milestone tickets.
 
-## The Astra rendering brainstorm, which he deferred to this session
+## The Astra rendering brainstorm, still owed
 
-`#318`. He answered its scope question and asked for the brainstorm here rather than in that session:
-
-> astra rendering needs to be COMPLETELY refactored, using the beautiful ui.dev components, almost
-> EVERYTHING that she renders need to be something VISUAL and beautiful, the only exception are
-> simple sentences, idk, but everything else should be blockes, graphics, images, i dont know, we
-> need to brainstorm this. NOT ON THIS SESSION THOUGH, ON THE HANDOFF.
-
-The inventory is already on `#318`: about **60 chat capabilities, 3 of which render as a block**. The
-component source is **`beautifului.dev`**; the `beautifui.dev` spelling in that body does not
-resolve. `#318`'s `blockedBy` edge on `#36` is dead, because `#36` is closed. This is a conversation
-with him, so under `--sleep` it waits; do the research that makes it cheap and put the options to
-him when he is there.
-
-## In flight, with a disposition on every row
-
-Two Codex workers were ALIVE at handoff. **Read every worktree before assuming anything**: a finished
-worker leaves commits, a dirty tree, or nothing, and each means something different.
-
-| what | where | disposition |
-|---|---|---|
-| worker `#570` | `ticket-570-harness-gate`, log `orbit-workers\#570-1789677889900.log` | ALIVE. 16 unpushed commits, latest `1685c35c fix: reject untouched review evidence templates`. Outcome unknown. |
-| worker `#67` | `ticket-67-onboarding`, log `orbit-workers\ORB-61-1789678195730.log` | ALIVE. 15 unpushed, 9 dirty. Round 4, five P1s. Outcome unknown. |
-| **1001 uncommitted** | `ticket-562-weekday-import`, 4 files, ~100 insertions | **FINISH THIS FIRST among the pull requests.** `resolveCalendarSyncEndDate` maps `UNTIL` and `COUNT` to `endDate`, so a finite Google series stops instead of running forever. Green at 24 of 24, red-proven at 7. Interrupted before coverage and type-check. Commit, reply to `PRRT_kwDOR5Siws6jiJD6`, resolve, push. |
-| 1014 | `#461` | APPROVED, zero reds, CI finishing. Merge when green. |
-| 1012 | `#585` | Thread resolved. The parallelism measurement it lacked is now in the spec's State; put it in the body and request a review that can APPROVE. |
-| 1010 | `#570` | Worker's. Base is already `redesign/main`; do not retarget it back. |
-| 1007 | `#67` | Worker's. |
-| 1002 | `#545` | Both threads resolved, pushed `60cd943d`. Awaiting review. |
-| 992 | `#543` | Threads resolved. Its `Unit Tests` red is the 96 percent coverage floor; **merging 1001 fixes it**, so order those two. |
-| api 528, 521 | `orbit-api` | Orders written this session but lost with the scratchpad. Re-derive from the threads. 521's `Dash Ban` is already cleared. |
-| Dependabot | both repos | Leave. Not this effort. |
-| `orbit-landing-page` | 5 open | Leave. Batch 3 owns that repository. |
-
-No stashes, no detached HEADs, in any repository. `orbit-api` and `orbit-landing-page` checkouts are
-clean.
-
-## Five tickets verified UNBUILT, with the evidence already on each
-
-Do not re-derive these; the measurements are on the tickets. `#460`, `#475`, `#479`, `#481`, `#520`.
-`#520`'s finish line is machine-checkable: `node tools/check-surface-scope.mjs` stops naming the
-navigation sites. `#475` carries a granted-canvas violation, the completed goal-detail ring drawn at
-44 and built at 60.
+`#318`. His words are in the spec's standing instructions. The inventory is on the ticket: about
+**60 chat capabilities, 3 of which render as a block**. The component source is **`beautifului.dev`**;
+the `beautifui.dev` spelling does not resolve. This is a conversation with him, so under `--sleep` it
+waits; do the research that makes it cheap and put the options to him when he is there.
 
 ## `--sleep`
 
@@ -150,7 +132,7 @@ Take every decision yourself, always the best approach and never the easiest, an
 
 ## One more thing
 
-Every identifier here came from a previous session. Treat each as a lead to verify, not a fact. The
-last two sessions each had at least one confident claim that was wrong: a ticket that quoted Thomas
-saying something he never said, and a merge refused because a sha was typed from memory instead of
-copied from `gh pr view --json headRefOid`.
+Every identifier here came from a previous session. Treat each as a lead to verify, not a fact. Two
+misreads happened in one night and both were summaries rather than sources: a ticket body that quoted
+Thomas saying something he never said, and a review finding judged from its one-line title when its
+body said something else. **Open the thread body and the tree, never the paraphrase.**
