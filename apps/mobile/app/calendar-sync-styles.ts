@@ -122,6 +122,10 @@ export function createStyles() {
       fontFamily: 'Geist_400Regular',
       fontSize: 13,
     },
+    importIssue: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 13,
+    },
     dismissButton: {
       width: 40,
       height: 40,
