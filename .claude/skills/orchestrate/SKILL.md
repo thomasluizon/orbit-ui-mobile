@@ -1137,8 +1137,10 @@ It is `ci.checks.pass` true beside `ci.green` false. `ci.checks` is the delivery
 with `requiredChecksFromResponse` and no injected axis. The receipt's own `ci.green` at
 `record-readiness.mjs:213` is `ci.pass && liveCiGreen`, and `liveCiGreen` at `:180` runs
 `readinessCiIsGreen` against the checks `reviewChecksFor` supplied. So delivery saw every check pass
-while the recorder saw one required check never publish, and that one is the review. Any other
-unsatisfied check fails delivery's `pass` too, so both read false and the signature does not appear.
+while the recorder saw one required check never publish, and on an unprotected base that one is the
+review, because it is the only required check there. A check that ran and failed lands in
+`rollup.failing` and a running one in `rollup.pending`, so either drops delivery's `pass` to false
+and the signature never appears. Only a check ABSENT from the rollup entirely reads this way.
 
 **A merge admitted here does NOT end the night on its own. Record the merge sha.** The Stop hook
 reads the receipt and never the pull request state: `require-wake-source.mjs:30-37` takes READY only
