@@ -84,7 +84,8 @@ describe('TimeField', () => {
 
   it('uses one tab stop and wraps arrow selection within each time column', () => {
     uses24HourClock = true
-    render(<TimeField value="14:30" onChange={vi.fn()} />)
+    const onChange = vi.fn()
+    render(<TimeField value="14:30" onChange={onChange} />)
 
     openPicker()
     const hours = screen.getByRole('listbox', { name: 'common.hours' })
@@ -94,9 +95,17 @@ describe('TimeField', () => {
     expect(options.filter((option) => option.tabIndex === 0)).toEqual([selected])
     selected.focus()
     fireEvent.keyDown(selected, { key: 'End' })
-    expect(within(hours).getByRole('option', { name: '23' })).toHaveFocus()
+    const lastHour = within(hours).getByRole('option', { name: '23' })
+    expect(lastHour).toHaveFocus()
+    expect(lastHour).toHaveAttribute('aria-selected', 'true')
 
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' })
-    expect(within(hours).getByRole('option', { name: '00' })).toHaveFocus()
+    const firstHour = within(hours).getByRole('option', { name: '00' })
+    expect(firstHour).toHaveFocus()
+    expect(firstHour).toHaveAttribute('aria-selected', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.done' }))
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(onChange).toHaveBeenCalledWith('00:30')
   })
 })
