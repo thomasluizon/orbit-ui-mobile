@@ -22,7 +22,11 @@ function makeOption(overrides: Partial<MoveParentOption>): MoveParentOption {
   }
 }
 
-function renderOverlay(options: MoveParentOption[], onSelectOption = vi.fn()) {
+function renderOverlay(
+  options: MoveParentOption[],
+  onSelectOption = vi.fn(),
+  selectedMoveParentId: string | null = null,
+) {
   render(
     <MoveParentOverlay
       t={(key) => key}
@@ -31,7 +35,7 @@ function renderOverlay(options: MoveParentOption[], onSelectOption = vi.fn()) {
       movingHabitTitle="Exercise"
       movingHabitParentId={null}
       options={options}
-      selectedMoveParentId={null}
+      selectedMoveParentId={selectedMoveParentId}
       canSubmit={false}
       onClose={vi.fn()}
       onConfirm={vi.fn()}
@@ -43,12 +47,19 @@ function renderOverlay(options: MoveParentOption[], onSelectOption = vi.fn()) {
 
 describe('MoveParentOverlay', () => {
   it('renders a selectable root row and the destinations eyebrow', () => {
-    const { onSelectOption } = renderOverlay([
-      makeOption({ id: null, label: 'habits.moveParent.toRoot' }),
-      makeOption({ id: 'parent', label: 'Parent' }),
-    ])
+    const { onSelectOption } = renderOverlay(
+      [
+        makeOption({ id: null, label: 'habits.moveParent.toRoot' }),
+        makeOption({ id: 'parent', label: 'Parent' }),
+      ],
+      vi.fn(),
+      'parent',
+    )
 
     expect(screen.getByText('habits.moveParent.destinations')).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', {
+      name: 'habits.moveParent.destinations',
+    })).toBeInTheDocument()
 
     const rootRow = screen.getByText('habits.moveParent.toRoot').closest('button')
     if (!rootRow) throw new Error('Expected the root row button')
@@ -125,5 +136,40 @@ describe('MoveParentOverlay', () => {
 
     expect(zetaFive).toHaveFocus()
     expect(onSelectOption).toHaveBeenLastCalledWith('zeta5')
+  })
+
+  it('skips a disabled destination and never gives it a tab stop', () => {
+    const { onSelectOption } = renderOverlay([
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha', disabled: true, reason: 'Too deep' }),
+      makeOption({ id: 'bravo', label: 'Bravo' }),
+    ])
+    const root = screen.getByRole('radio', { name: /Top level/ })
+    const blocked = screen.getByRole('radio', { name: /Alpha/ })
+    const bravo = screen.getByRole('radio', { name: /Bravo/ })
+
+    expect([root.tabIndex, blocked.tabIndex, bravo.tabIndex]).toEqual([0, -1, -1])
+    root.focus()
+    fireEvent.keyDown(root, { key: 'ArrowDown' })
+
+    expect(bravo).toHaveFocus()
+    expect(onSelectOption).toHaveBeenCalledExactlyOnceWith('bravo')
+  })
+
+  it('wraps arrow navigation between Top level and the first destination', () => {
+    const { onSelectOption } = renderOverlay([
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha' }),
+    ])
+    const root = screen.getByRole('radio', { name: /Top level/ })
+    const firstDestination = screen.getByRole('radio', { name: /Alpha/ })
+
+    root.focus()
+    fireEvent.keyDown(root, { key: 'ArrowDown' })
+    expect(firstDestination).toHaveFocus()
+    expect(onSelectOption).toHaveBeenLastCalledWith('alpha')
+
+    fireEvent.keyDown(firstDestination, { key: 'ArrowDown' })
+    expect(root).toHaveFocus()
   })
 })

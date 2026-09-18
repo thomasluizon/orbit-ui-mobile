@@ -34,7 +34,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REVIEW_APP_CONTEXT, REVIEW_APP_ID, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, resolveReviewVerdict, reviewChecksFor, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --ticket <file>
 
@@ -145,10 +145,9 @@ try {
     fail(`required checks for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
   }
   if (requiredChecks === null) fail(`required checks for PR ${prNumber} returned no { context, app_id } checks array`)
-  /** Preserve the recorder's independent review contract when protection supplies no inventory
-   * (#429). The Pullfrog context/app pair was reconfirmed against main protection on 2026-09-05.
-   * Delivery owns registration observation; this single live snapshot revalidates its evidence. */
-  const reviewChecks = requiredChecks.length === 0 ? [{ context: REVIEW_APP_CONTEXT, appId: REVIEW_APP_ID }] : requiredChecks
+  /** Delivery owns registration observation; this single live snapshot revalidates its evidence.
+   * `reviewChecksFor` supplies the review axis when protection names no required check (#429). */
+  const reviewChecks = reviewChecksFor(requiredChecks)
   const matchesDelivery = ci.registrationFingerprint === registrationFingerprint(live, newestChecks(live.statusCheckRollup))
   /**
    * The published `pullfrog-approval` check run stopped appearing during the night of 2026-09-06

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
-import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
+import { parseShowGeneralOnTodayPreference, resolveSystemLocale } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
@@ -36,7 +36,9 @@ export function usePreferenceControls() {
   }, [])
 
   const locale = useLocale()
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(locale)
+  const [selectedLanguage, setSelectedLanguage] = useState<SupportedLocale>(() =>
+    resolveSystemLocale(locale),
+  )
 
   const handleLanguageChange = useCallback(
     async (nextLocale: SupportedLocale) => {

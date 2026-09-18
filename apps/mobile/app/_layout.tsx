@@ -71,6 +71,7 @@ import { OfflineNotice } from '@/components/offline-notice'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
+import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
 import { AstraConversation } from '@/components/chat/conversation'
 import { Composer } from '@/components/shell/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
@@ -537,7 +538,7 @@ function RootLayoutContent() {
 
   return (
     <NavigationThemeProvider value={navigationTheme}>
-      <View
+      <FocusProvenanceView
         style={[
           styles.shellRoot,
           { backgroundColor: surfaces.screen.backgroundColor },
@@ -546,7 +547,7 @@ function RootLayoutContent() {
         <RootLayoutNav />
         <ThrottleScreen />
         <UpgradeRequiredScreen />
-      </View>
+      </FocusProvenanceView>
     </NavigationThemeProvider>
   )
 }

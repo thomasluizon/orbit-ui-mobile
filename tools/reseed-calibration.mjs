@@ -103,7 +103,7 @@ const VERDICTS = {
   ".claude/skills/merge-prs/SKILL.md":
     "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth.",
   ".claude/skills/orchestrate/SKILL.md":
-    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review.",
+    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review. Reseeded 2026-09-18 a fifth time, when the third ending a pull request can reach became a CHECKED one. A run says which of READY, BLOCKED and merged each pull request landed on, and merged now carries a shape-checked merge commit sha: the measured failure was copying the skill's own template and leaving the placeholder unfilled, which read as a finished night in silence. So the call this file asks for is not only which disposition applies, it is which self-asserted fact stays honest, and the answer is the one a reader can check. The same caution now reaches its own red-gate arithmetic: four FAILs are the engine switch, a fifth may be the load-sensitive CPU test rather than a defect, and telling those apart is what a lower effort skips. That sits on top of the calls the earlier stamps named: deriving which required check failed from delivery's ci.checks.pass beside the receipt's ci.green, holding a CI_STALE receipt as expected even after a successful merge, judging when an exhausted allowance justifies a transient worker switch and naming it while it is live, judging whether a substitute reviewer is named openly or promoted quietly, and telling an instructed contract apart from one a run granted itself. Merge authority is the most expensive rule here to get wrong.",
   ".claude/skills/prod-readiness/SKILL.md":
     "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
   ".claude/skills/progress/SKILL.md":
@@ -162,7 +162,7 @@ const extra = Object.keys(VERDICTS).filter((file) => !files.includes(file))
 if (extra.length > 0) throw new Error(`verdict written for a file that is not in the tree: ${extra.join(", ")}`)
 
 const config = JSON.parse(readFileSync(join(root, ".claude", "orchestrator.json"), "utf8"))
-// The ENGINE comes from config.worker, the same key launch-worker.mjs:115 reads. The invocation comes
+// The ENGINE comes from config.worker, the same key launch-worker.mjs:129 reads. The invocation comes
 // from resolveWorkerInvocation itself rather than being rebuilt here, so the stamp records the WHOLE
 // vector that launches: engine args, then the selected profile args, then the model.
 /**

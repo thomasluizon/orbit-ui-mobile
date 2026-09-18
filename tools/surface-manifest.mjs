@@ -79,8 +79,8 @@ const SHARED_ALIAS = ["@orbit/shared/", "packages/shared/src/"]
 // which is how a first cut of this file produced 15 false overlays and lost all
 // 24 real ones. These module names were read out of the codebase, not guessed.
 // R1 (#42) collapsed the five web bases and the two mobile ones into a single
-// `Sheet` per platform, so both lists are now identical: the same five modules
-// exist under `components/ui/` on web and on mobile. `sheet` is the base; the
+// `Sheet` per platform, so one list serves both: the same five modules exist
+// under `components/ui/` on web and on mobile. `sheet` is the base; the
 // other four are the wrappers a caller actually imports, and each one presents
 // through `sheet` rather than beside it. A caller that imports `confirm-sheet`
 // never imports `sheet`, and this check is deliberately direct-import only, so
@@ -96,11 +96,6 @@ const OVERLAY_BASES = [
   "components/ui/date-field",
   "components/ui/time-field",
 ]
-const WEB_OVERLAY_BASES = OVERLAY_BASES
-// `selection-field` is a mobile-only wrapper in the same shape: it presents its options through
-// `Sheet`, and its callers import the wrapper rather than `sheet`, so it has to be listed here or
-// every one of them drops out of the inventory. Web has no twin, so the web list stays as it is.
-const MOBILE_OVERLAY_BASES = [...OVERLAY_BASES, "components/ui/selection-field"]
 
 // The command palette mounts its own portal and imports no overlay base, so a
 // base-import check alone misses it entirely - that miss is one of the named
@@ -299,8 +294,11 @@ function chatBlockEntries(platform, routeSurfaceId, hostSourceFile) {
   const hostClosure = closureOf(join(REPO_ROOT, hostSourceFile))
   const componentsRoot = join(REPO_ROOT, "apps", platform, "components")
   // Sorted AFTER the conversion, never before it. An absolute path carries the platform separator,
-  // and `\` (0x5C) sorts after `/` (0x2F), so sorting absolute paths orders a Windows run and a
-  // Linux run differently whenever a directory name is a prefix of a sibling file name.
+  // and `\` (0x5C) sorts after `/` (0x2F), so a Windows run and a Linux run can order two absolute
+  // paths differently. The condition is narrower than "a directory name prefixes a sibling file
+  // name": the character right after the shared prefix has to sort BETWEEN those two bytes. A
+  // sibling `chat2.tsx` flips, because `2` is 0x32; a sibling `chat-header.tsx` never flips,
+  // because `-` is 0x2D and sorts before both separators.
   const candidates = walk(join(componentsRoot, "chat"))
     .concat(join(componentsRoot, "shell", "composer.tsx"))
     .concat(platform === "mobile" ? [join(REPO_ROOT, "apps", "mobile", "components", "message-bubble.tsx")] : [])
@@ -378,7 +376,7 @@ function webEntries() {
 
   for (const sourceFile of candidates) {
     if (routeSourceFiles.has(sourceFile)) continue
-    if (!isOverlaySource(sourceFile, WEB_OVERLAY_BASES, WEB_SELF_MOUNTED_OVERLAY)) continue
+    if (!isOverlaySource(sourceFile, OVERLAY_BASES, WEB_SELF_MOUNTED_OVERLAY)) continue
     surfaces.push({ surfaceId: `overlay-${slug(overlayName(sourceFile))}`, platform: "web", kind: "overlay", sourceFile, href: null })
   }
   return surfaces
@@ -445,7 +443,7 @@ function mobileEntries() {
   )
   for (const sourceFile of candidates) {
     if (screenSet.has(sourceFile)) continue
-    if (!globalOverlaySources.has(sourceFile) && !isOverlaySource(sourceFile, MOBILE_OVERLAY_BASES, MOBILE_SELF_MOUNTED_OVERLAY)) continue
+    if (!globalOverlaySources.has(sourceFile) && !isOverlaySource(sourceFile, OVERLAY_BASES, MOBILE_SELF_MOUNTED_OVERLAY)) continue
     surfaces.push({ surfaceId: `m-overlay-${slug(overlayName(sourceFile))}`, platform: "mobile", kind: "overlay", sourceFile, href: null })
   }
 
@@ -457,6 +455,9 @@ function mobileEntries() {
   // opened the Android project would then disagree with the CI one over an untracked file, and
   // Surface Manifest Drift would go red on a pull request whose author cannot reproduce it.
   // check-copy.mjs and check-dashes.mjs already enumerate the tree through `git ls-files`.
+  // The build-tree exclusion below can no longer fire against this repository: .gitignore ignores
+  // apps/mobile/modules/*/android/{build,.gradle,.cxx}, so `git ls-files` never lists one. It stays
+  // as the guard for the one way such a path could still arrive, a `git add -f` on a build artifact.
   const widgetFiles = trackedFiles("apps/mobile/modules/orbit-widget")
     .filter(
       (path) =>
@@ -522,16 +523,19 @@ function attachOwnershipAndStates(surfaces) {
 /**
  * Every tracked path under a directory, repository-relative and posix-separated. `-z` is what
  * keeps it faithful: without it git C-quotes any path outside plain ASCII, and the quoted string
- * would not match the tree it names.
+ * would not match the tree it names. The Set is for an unresolved merge: `git ls-files` prints an
+ * unmerged path once per index stage, so a regeneration during a widget conflict would otherwise
+ * write the same path two or three times into ownedFiles.
  */
 function trackedFiles(pathspec) {
-  return execFileSync("git", ["ls-files", "-z", "--", pathspec], {
+  const listed = execFileSync("git", ["ls-files", "-z", "--", pathspec], {
     cwd: REPO_ROOT,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   })
     .split("\0")
     .filter(Boolean)
+  return [...new Set(listed)]
 }
 
 function gitSha(ref) {

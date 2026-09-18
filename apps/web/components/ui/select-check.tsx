@@ -2,6 +2,7 @@
 
 import type { MouseEvent } from 'react'
 import { useTranslations } from 'next-intl'
+import { useRadioGroupItem } from '@/components/ui/radio-row'
 
 /** Kit Radio glyph (visual only) — for rows that manage their own press target. */
 export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; size: number }>) {
@@ -71,7 +72,7 @@ export function SelectCheck({
   )
 }
 
-/** Kit RadioRow: radio · Rubik 17 label · optional 12px color dot, hairline divider. */
+/** Kit RadioRow: radio · Geist Sans 17 label · optional 12px color dot, hairline divider. */
 interface RadioRowProps {
   label: string
   selected: boolean
@@ -88,13 +89,17 @@ export function RadioRow({
   onClick,
   divider = true,
 }: Readonly<RadioRowProps>) {
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect: onClick, selected })
   return (
     <button
+      ref={elementRef}
       type="button"
       role="radio"
       aria-checked={selected}
-      onClick={onClick}
-      className="w-full appearance-none bg-transparent cursor-pointer flex items-center text-left"
+      tabIndex={tabIndex}
+      onClick={onActivate}
+      onKeyDown={onKeyDown}
+      className="w-full appearance-none bg-transparent cursor-pointer flex items-center text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
       style={{
         gap: 16,
         padding: '16px 4px',
