@@ -6,6 +6,7 @@ import type { LoginResponse } from '@orbit/shared/types/auth'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
+import { SUPPORT_DRAFT_STORAGE_KEY } from '@/lib/support-draft-storage'
 import {
   getFailedNotificationDeleteIdsSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
@@ -16,6 +17,7 @@ import {
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+
 
 describe('auth store', () => {
   beforeEach(() => {
@@ -37,6 +39,7 @@ describe('auth store', () => {
 
   afterEach(() => {
     globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
+    globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     useChatStore.setState({
       messages: [],
       isTyping: false,
@@ -65,6 +68,11 @@ describe('auth store', () => {
       timestamp: new Date('2025-01-01T12:00:00Z'),
     }
   }
+
+  const accountASupportDraft = JSON.stringify({
+    subject: 'billing',
+    message: 'you charged me twice on the 14th, refund the second one',
+  })
 
   const accountANotificationList = {
     items: [{ id: 'account-a-notification', title: 'Account A reminder' }],
@@ -180,6 +188,15 @@ describe('auth store', () => {
       resetPendingNotificationDeletesForTests()
       vi.useRealTimers()
     }
+  })
+
+  it('does not carry the support draft into a replacement account', async () => {
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+    globalThis.localStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, accountASupportDraft)
+
+    await useAuthStore.getState().logout()
+
+    expect(globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)).toBeNull()
   })
 
   it('updates expiresAt from the session response', async () => {
@@ -466,6 +483,16 @@ describe('auth store', () => {
       expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
     })
 
+    it('empties the support draft the replaced account left', async () => {
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      globalThis.localStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, accountASupportDraft)
+      respondWithAccount('user-2')
+
+      await useAuthStore.getState().checkSession()
+
+      expect(globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)).toBeNull()
+    })
+
     it('drops a previous account pending delete when a login follows no teardown', async () => {
       const staleDelete = vi.fn(() => Promise.resolve())
       queuePendingNotificationDelete('account-a-notification', staleDelete)
@@ -546,6 +573,23 @@ describe('auth store', () => {
 
       expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(accountANotificationList)
       expect(useAuthStore.getState().user?.userId).toBe('user-1')
+    })
+
+    it('keeps the support draft when the same account recovers from a rejected refresh', async () => {
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      globalThis.localStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, accountASupportDraft)
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ refreshFailed: true }),
+      })
+
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+      expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+      respondWithAccount('user-1')
+      await useAuthStore.getState().recoverSessionRefreshFailure()
+
+      expect(globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)).toBe(accountASupportDraft)
     })
 
     it('keeps the Astra draft when the same account recovers from a rejected refresh', async () => {

@@ -28,7 +28,8 @@ import {
 import { setRuntimeTheme } from '@/lib/theme'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
-import { advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
+import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
+import { advanceAccountGeneration, advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
@@ -198,6 +199,21 @@ async function clearSessionCredentials(
   })
 }
 
+/**
+ * Drops every unsent thing the previous account left on this device. Both drafts live under one key
+ * with no account in it, so one of them left behind is the next person reading, and sending, text
+ * that is not theirs. They reset together rather than at two call sites, because a reset added to
+ * one and forgotten at the other is how the support draft outlived the Astra one.
+ *
+ * The account generation rises here rather than beside it, so the composer state no store can
+ * reach, a pasted image and an armed retry, drops on exactly the transitions that drop a draft.
+ */
+async function forgetPreviousAccountContent(): Promise<void> {
+  await useChatStore.getState().resetAccountScopedChat()
+  await forgetStoredSupportDraft()
+  advanceAccountGeneration()
+}
+
 async function runSessionTeardownStep(
   epoch: number,
   step: () => void | Promise<void>,
@@ -223,7 +239,7 @@ async function runSessionTeardown(
   cancelScheduledFlush()
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
-  if (!(await runSessionTeardownStep(epoch, () => useChatStore.getState().resetAccountScopedChat()))) return null
+  if (!(await runSessionTeardownStep(epoch, forgetPreviousAccountContent))) return null
   useReviewReminderStore.getState().setAccountScope(null)
   resetOnboardingDraftForSignOut()
   if (!isCurrentSessionTeardown(epoch)) return null
@@ -481,7 +497,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       offlineQueue.retainAccount(user.userId)
       await clearOfflineState()
       if (!isCurrentSessionEpoch(ownership.epoch)) return
-      await useChatStore.getState().resetAccountScopedChat()
+      await forgetPreviousAccountContent()
       if (!isCurrentSessionEpoch(ownership.epoch)) return
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user

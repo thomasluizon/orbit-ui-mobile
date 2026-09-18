@@ -18,13 +18,16 @@ import {
 } from '@orbit/shared/utils'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { sendSupportMessage } from '@/lib/actions/support'
+import {
+  forgetStoredSupportDraft,
+  readStoredSupportDraft,
+  writeStoredSupportDraft,
+} from '@/lib/support-draft-storage'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
 import packageJson from '@/package.json'
-
-const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
 interface SupportDraft {
   subject: SupportSubjectId | null
@@ -32,8 +35,7 @@ interface SupportDraft {
 }
 
 function readSupportDraft(): SupportDraft {
-  if (typeof localStorage === 'undefined') return { subject: null, message: '' }
-  const stored = localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
+  const stored = readStoredSupportDraft()
   if (!stored) return { subject: null, message: '' }
   try {
     const draft = JSON.parse(stored) as Record<string, unknown>
@@ -42,7 +44,7 @@ function readSupportDraft(): SupportDraft {
       message: typeof draft.message === 'string' ? draft.message : '',
     }
   } catch {
-    localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+    forgetStoredSupportDraft()
     return { subject: null, message: '' }
   }
 }
@@ -96,10 +98,7 @@ export default function SupportPage() {
 
   const persistDraft = useCallback((change: Partial<typeof initialDraft>) => {
     draftRef.current = { ...draftRef.current, ...change }
-    globalThis.localStorage.setItem(
-      SUPPORT_DRAFT_STORAGE_KEY,
-      JSON.stringify(draftRef.current),
-    )
+    writeStoredSupportDraft(JSON.stringify(draftRef.current))
   }, [])
 
   const validateFields = useCallback(() => {
@@ -143,7 +142,7 @@ export default function SupportPage() {
       draftRef.current = { subject: null, message: '' }
       setSubject(null)
       setMessage('')
-      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+      forgetStoredSupportDraft()
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {

@@ -45,7 +45,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { usePendingOperationExecution } from "@/hooks/use-pending-operation-execution";
 import { useChatStore } from "@/stores/chat-store";
-import { useResetOnSessionChange } from "@/hooks/use-session-reset";
+import { useResetOnAccountChange } from "@/hooks/use-session-reset";
 
 interface AttemptedSend {
   content: string;
@@ -169,7 +169,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
    * next account's token. The store reset cannot reach React state, so it follows the session
    * itself, and every field added here is covered by the same subscription.
    */
-  useResetOnSessionChange(() => {
+  useResetOnAccountChange(() => {
     setLastFailedSend(null);
     setSelectedImage(null);
     setImagePreview(null);

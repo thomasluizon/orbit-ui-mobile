@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   queryClient: {
     invalidateQueries: vi.fn(async () => {}),
     setQueryData: vi.fn(),
+    clear: vi.fn(),
   },
 }))
 
@@ -37,6 +38,10 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => mocks.queryClient,
+}))
+
+vi.mock('@/lib/query-client', () => ({
+  getQueryClient: () => mocks.queryClient,
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -63,7 +68,7 @@ vi.mock('@/app/actions/chat', () => ({
 }))
 
 import { useChatComposer } from '@/hooks/use-chat-composer'
-import { advanceSessionEpoch } from '@/lib/session-epoch'
+import { useAuthStore } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
@@ -78,6 +83,26 @@ function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
 }
 
 const frame = (json: string) => `data: ${json}\n\n`
+
+function signInAs(userId: string) {
+  useAuthStore.getState().setAuth({ userId, name: 'Thomas', email: 'thomas@example.com' })
+}
+
+function answerSessionWith(session: { expiresAt: number; userId: string }) {
+  mocks.fetch.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ ...session, refreshFailed: false }),
+  })
+}
+
+function refuseSessionRefresh() {
+  mocks.fetch.mockResolvedValue({
+    ok: false,
+    status: 401,
+    json: () => Promise.resolve({ refreshFailed: true }),
+  })
+}
 
 function sseResponse(...frames: string[]): Response {
   const encoder = new TextEncoder()
@@ -933,7 +958,8 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
-  it('disarms the previous account retry when the session moves on', async () => {
+  it('disarms the previous account retry when another account replaces it', async () => {
+    signInAs('user-1')
     mocks.fetch.mockRejectedValue(new Error('network unavailable'))
     const { result } = renderHook(() => useChatComposer())
 
@@ -943,13 +969,41 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(true)
     expect(result.current.composerProps.onRetry).toBeTypeOf('function')
 
-    act(() => advanceSessionEpoch())
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
+      await useAuthStore.getState().checkSession()
+    })
 
     expect(result.current.canRetryLastSend).toBe(false)
     expect(result.current.composerProps.onRetry).toBeUndefined()
   })
 
-  it('drops the previous account text file when the session moves on', async () => {
+  it('keeps the retry armed when the same account recovers from a rejected refresh', async () => {
+    signInAs('user-1')
+    mocks.fetch.mockRejectedValue(new Error('network unavailable'))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.sendMessage('cancel my 9pm meds reminder')
+    })
+    expect(result.current.canRetryLastSend).toBe(true)
+
+    await act(async () => {
+      refuseSessionRefresh()
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+    })
+    expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
+      await useAuthStore.getState().recoverSessionRefreshFailure()
+    })
+
+    expect(result.current.canRetryLastSend).toBe(true)
+    expect(result.current.composerProps.onRetry).toBeTypeOf('function')
+  })
+
+  it('drops the previous account text file when another account replaces it', async () => {
+    signInAs('user-1')
     const { result } = renderHook(() => useChatComposer())
 
     await act(async () => {
@@ -957,9 +1011,33 @@ describe('web useChatComposer streaming send', () => {
     })
     expect(result.current.selectedTextFile?.name).toBe('notes.txt')
 
-    act(() => advanceSessionEpoch())
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
+      await useAuthStore.getState().checkSession()
+    })
 
     expect(result.current.selectedTextFile).toBeNull()
+  })
+
+  it('keeps the text file when the same account recovers from a rejected refresh', async () => {
+    signInAs('user-1')
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', 'Walk')))
+    })
+    expect(result.current.selectedTextFile?.name).toBe('notes.txt')
+
+    await act(async () => {
+      refuseSessionRefresh()
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+    })
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
+      await useAuthStore.getState().recoverSessionRefreshFailure()
+    })
+
+    expect(result.current.selectedTextFile?.name).toBe('notes.txt')
   })
 
   it('sends a live suggestion label in the transport payload', async () => {

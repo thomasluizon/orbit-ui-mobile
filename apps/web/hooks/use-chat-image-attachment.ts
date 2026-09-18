@@ -3,7 +3,7 @@
 import { useRef, useState, type ChangeEvent, type ClipboardEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { getChatImageValidationError } from '@orbit/shared/chat'
-import { useResetOnSessionChange } from '@/hooks/use-session-reset'
+import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 
 /**
  * Manages the chat composer's image attachment: file picker, paste capture,
@@ -75,7 +75,7 @@ export function useChatImageAttachment(setSendError: (message: string | null) =>
     setImagePreview(null)
   }
 
-  useResetOnSessionChange(removeImage)
+  useResetOnAccountChange(removeImage)
 
   function clearImage() {
     setSelectedImage(null)

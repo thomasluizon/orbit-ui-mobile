@@ -1,28 +1,32 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react'
-import { getSessionEpoch, subscribeToSessionEpoch } from '@/lib/session-epoch'
+import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 
 /**
- * Drops account-scoped state the moment the device moves to another session. The root layout never
+ * Drops account-scoped state the moment the device moves to another account. The root layout never
  * unmounts, so a hook keeps its own state across an account change and no store reset can reach it.
  * The caller passes the reset it owns; the callback may be rebuilt on every render, because the
- * latest one is read at the moment the session changes rather than captured in a dependency.
+ * latest one is read at the moment the account changes rather than captured in a dependency.
+ *
+ * It follows the ACCOUNT rather than the session epoch, which rises on every credential change: a
+ * rejected refresh that recovers as the same account would otherwise revoke a pasted image the
+ * person is still looking at behind the expiry banner.
  */
-export function useResetOnSessionChange(reset: () => void): void {
-  const sessionEpoch = useSyncExternalStore(
-    subscribeToSessionEpoch,
-    getSessionEpoch,
-    getSessionEpoch,
+export function useResetOnAccountChange(reset: () => void): void {
+  const accountGeneration = useSyncExternalStore(
+    subscribeToAccountGeneration,
+    getAccountGeneration,
+    getAccountGeneration,
   )
   const latestReset = useRef(reset)
-  const resetSessionEpoch = useRef(sessionEpoch)
+  const resetAccountGeneration = useRef(accountGeneration)
 
   useEffect(() => {
     latestReset.current = reset
   })
 
   useEffect(() => {
-    if (resetSessionEpoch.current === sessionEpoch) return
-    resetSessionEpoch.current = sessionEpoch
+    if (resetAccountGeneration.current === accountGeneration) return
+    resetAccountGeneration.current = accountGeneration
     latestReset.current()
-  }, [sessionEpoch])
+  }, [accountGeneration])
 }

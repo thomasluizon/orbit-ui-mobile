@@ -3,7 +3,8 @@ import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
 import { getQueryClient } from '@/lib/query-client'
-import { advanceSessionEpoch } from '@/lib/session-epoch'
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
+import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
 import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 
@@ -30,12 +31,13 @@ let lastObservedAccountId: string | null = null
  * The query cache empties only on a real account change, since a rejected refresh that recovers must
  * not blank a tab full of habits, goals and profile rows.
  *
- * The Astra chat and its stored draft empty whenever a session STARTS under an account, which is the
- * point where the person at the keyboard can differ and `lastObservedAccountId` cannot prove it did
- * not: a hard navigation or a closed tab destroys that variable, so a sign out followed by somebody
- * else signing in arrives here with no previous account to compare. A teardown names no account and
- * resets nothing here, so a same-account recovery keeps the half-written message, while `logout`
- * calls the reset itself because a sign out is a definite end rather than a wobble.
+ * The content the previous account typed, which is the Astra chat with its stored draft and the
+ * stored support draft, empties whenever a session STARTS under an account. That is the point where
+ * the person at the keyboard can differ and `lastObservedAccountId` cannot prove it did not: a hard
+ * navigation or a closed tab destroys that variable, so a sign out followed by somebody else signing
+ * in arrives here with no previous account to compare. A teardown names no account and resets
+ * nothing here, so a same-account recovery keeps the half-written message, while `logout` calls the
+ * reset itself because a sign out is a definite end rather than a wobble.
  */
 function startAccountScopedSession(nextAccountId: string | null): void {
   const previousAccountId = lastObservedAccountId
@@ -46,8 +48,23 @@ function startAccountScopedSession(nextAccountId: string | null): void {
   advanceSessionEpoch()
   if (nextAccountId !== null) lastObservedAccountId = nextAccountId
   clearPendingNotificationDeletes()
-  if (nextAccountId !== null) useChatStore.getState().resetAccountScopedChat()
+  if (nextAccountId !== null) forgetPreviousAccountContent()
   if (accountChanged) getQueryClient().clear()
+}
+
+/**
+ * Drops every unsent thing the previous account left in this tab. Both drafts live under one key
+ * with no account in it, so one of them left behind is the next person reading, and sending, text
+ * that is not theirs. They reset together rather than at two call sites, because a reset added to
+ * one and forgotten at the other is how the support draft outlived the Astra one.
+ *
+ * The account generation rises here rather than beside it, so the composer state no store can
+ * reach, a pasted image and an armed retry, drops on exactly the transitions that drop a draft.
+ */
+function forgetPreviousAccountContent(): void {
+  useChatStore.getState().resetAccountScopedChat()
+  forgetStoredSupportDraft()
+  advanceAccountGeneration()
 }
 
 function clearAccountScopedSessionState(): void {
@@ -253,7 +270,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     clearAccountScopedSessionState()
-    useChatStore.getState().resetAccountScopedChat()
+    forgetPreviousAccountContent()
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {

@@ -47,7 +47,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
 import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
-import { useResetOnSessionChange } from '@/hooks/use-session-reset'
+import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 
 interface AttemptedSend {
   content: string
@@ -177,7 +177,7 @@ export function useChatComposer() {
    * attempted send would otherwise stay armed behind Retry and post its text under the next
    * account's cookie. The store reset cannot reach React state, so it follows the session itself.
    */
-  useResetOnSessionChange(() => setLastFailedSend(null))
+  useResetOnAccountChange(() => setLastFailedSend(null))
 
   const isOnline = useSyncExternalStore(
     subscribeToNetworkStatus,
