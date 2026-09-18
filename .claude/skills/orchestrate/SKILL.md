@@ -94,8 +94,9 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      REPLY AND RESOLVE every thread you filed, with resolve-bot-thread.mjs
                      resolve FIRST, then push. The push re-reviews both together.
                      bound: caps.reviewFixAttempts commits
- 9  READINESS LOOP   wait CI, `pullfrog-approval` included · fix genuine failures · merge main
-                     into branch when behind · rerun invalidated receipts · synchronize the ticket
+ 9  READINESS LOOP   wait CI, the review verdict admissible on that base included · fix genuine
+                     failures · merge main into branch when behind · rerun invalidated receipts
+                     · synchronize the ticket
                      READY only when every receipt names the same current head and base SHA
 10  Hand over        PR URL, advisory diff size, receipt and READY verdict.
                      PRINT manual steps from THREE sources: the ticket (complete-ticket.mjs
@@ -1129,11 +1130,29 @@ names the substitution with its evidence exactly as Hard prohibitions requires. 
 carries the same evidence a READY one would, so it permits the same merge and nothing weaker does.
 Any second verdict beside `CI_STALE` is an unrelated blocker and the exception does not reach it.
 `tools/__tests__/readiness-receipt.mjs` pins that verdict string, so read it rather than describe it.
-A merge admitted here closes the pull request exactly as a READY one does, so the night ends on the
-merge and not on the receipt. When the exception does not apply and the merge does not happen,
-record the machine-readable `blocker` string on that pull request's ledger entry:
-`.claude/hooks/_lib/rules-sleep.mjs:61-90` then lets the run end as BLOCKED, reported as blocked
-rather than as finished. A blocked ending is a legitimate ending; a dishonest one is not.
+
+**The receipt names no field saying WHICH required check failed, so read the signature instead.**
+It is `ci.checks.pass` true beside `ci.green` false. `ci.checks` is the delivery artifact verbatim
+(`record-readiness.mjs:100`) and `verify-delivery.mjs:506` sets its `pass` from the rollup alone,
+with `requiredChecksFromResponse` and no injected axis. The receipt's own `ci.green` at
+`record-readiness.mjs:213` is `ci.pass && liveCiGreen`, and `liveCiGreen` at `:180` runs
+`readinessCiIsGreen` against the checks `reviewChecksFor` supplied. So delivery saw every check pass
+while the recorder saw one required check never publish, and that one is the review. Any other
+unsatisfied check fails delivery's `pass` too, so both read false and the signature does not appear.
+
+**A merge admitted here does NOT end the night on its own. Record the merge sha.** The Stop hook
+reads the receipt and never the pull request state: `require-wake-source.mjs:30-37` takes READY only
+from `readinessReport(receipt).verdict`, which stays `CI_STALE` forever because the check will never
+publish, and the ledger row is append only. Measured 2026-09-18 by driving `checkSleepStop`: a run
+that merged under this exception with nothing left to launch got `block: true` and exit 2, the
+2026-08-08 deadlock reached after a successful merge. So write the merge commit sha as the
+machine-readable `merged` string on that pull request's ledger entry. `rules-sleep.mjs:75-79` then
+takes that row out of the pending set for good, because a merge cannot be undone and no later write
+clears it (`run-state.mjs:184-188`). When the exception does not apply and the merge does not
+happen, record the machine-readable `blocker` string on the same entry instead:
+`.claude/hooks/_lib/rules-sleep.mjs:88-108` then lets the run end as BLOCKED, reported as blocked
+rather than as finished. A blocked ending is a legitimate ending; a dishonest one is not. Both bars
+are the same bar: a fact this run writes down, never a verdict it asserts about its own work.
 
 **A night when Pullfrog cannot run ends on that receipt, and it is the expected result rather than
 a fault.** The recorder reads checks and reviews, never a claim in a comment, so it cannot verify a
@@ -1142,7 +1161,9 @@ recorder trust evidence it cannot check, which is worse than a written exception
 it would undo the reason `reviewChecksFor` supplies the check at all (#429). So on such a
 night expect exactly one `CI_STALE`, confirm the rest of the rollup is green at the exact head,
 confirm the comment names the substitution and its evidence, and record that reasoning in the run
-record. An operator who meets an unexplained blocked receipt at 03:00 has no way back to it.
+record. An operator who meets an unexplained blocked receipt at 03:00 has no way back to it. The
+receipt stays `CI_STALE` after the merge, so what ends the night is the ledger row, carrying either
+the `merged` sha or the `blocker` string. Nothing else clears it.
 
 ## Step 10. Hand over
 
@@ -1266,7 +1287,7 @@ names the engine that produced its commits.**
 
 **While that edit is live it exists in one checkout and in no file, so the run names it in its
 handoff inventory and in its step 11 report, beside the engine that produced its commits.** Every
-session in that checkout meets two FAILs from `node tools/test-tools.mjs` and `exit 1` from
+session in that checkout meets four FAILs from `node tools/test-tools.mjs` and `exit 1` from
 `node tools/check-calibration.mjs` while it stands, and a session that finds no record of why reads
 a live switch as a broken harness. The revert is worse unrecorded: run it in a checkout whose
 `origin/redesign/main` predates the `claude` block and it restores a config with no such block at
@@ -1308,15 +1329,26 @@ a fresh stamp exits 1, so `node tools/check-calibration.mjs` reports the engine 
 per-entry age backstop `check-calibration.mjs:336-349` exists to hold. Say the gate is red for this
 reason, and let the revert clear it.
 
-**`node tools/test-tools.mjs` goes red for the same duration, and those two FAILs are the only ones
+**`node tools/test-tools.mjs` goes red for the same duration, and those FOUR FAILs are the only ones
 the switch explains.** `tools/__tests__/_harness.mjs:127` reads the live config at test time, so with
-`worker` set to `claude` the engine under test is the claude block and exactly two assertions in
-`tools/__tests__/orchestrator-config.mjs` fail: `:98-102`, the shipped-default pin, which asserts
-`gpt-5.6-sol` at high reasoning effort; and `:103-108`, which asserts the mechanical tier keeps the
-default tier's model, false because the two claude tiers name different models. Expect both, by name.
-**Neither is a licence to edit a test.** Hard prohibitions forbids editing a gate to change what this
-run is judged by, a third unexplained FAIL is a real defect rather than the switch, and the revert
-clears both.
+`worker` set to `claude` the engine under test is the claude block and exactly four assertions fail,
+two in each of two files:
+
+- `tools/__tests__/orchestrator-config.mjs:98-102`, the shipped-default pin, which asserts
+  `gpt-5.6-sol` at high reasoning effort.
+- `tools/__tests__/orchestrator-config.mjs:103-108`, which asserts the mechanical tier keeps the
+  default tier's model, false because the two claude tiers name different models.
+- `tools/__tests__/launch-worker.mjs:274-277`, which pins `gpt-5.6-sol` and
+  `model_reasoning_effort="high"` through `--dry-run` against the real config.
+- `tools/__tests__/launch-worker.mjs:279-286`, which pins `model_reasoning_effort="medium"` on the
+  mechanical tier the same way.
+
+Expect all four, by name. The whole gate reads `ORBIT TOOLS GATE FAILED (4)`. An earlier revision of
+this paragraph said two, because it was verified with `--only orchestrator-config`, which
+structurally cannot see the launch-worker pair; run both, or run the whole gate.
+**None of the four is a licence to edit a test.** Hard prohibitions forbids editing a gate to change
+what this run is judged by, a FIFTH unexplained FAIL is a real defect rather than the switch, and the
+revert clears all four.
 
 Nothing else changes. The order generator, `§5.7`'s queue, the readiness loop, the caps and every
 hard prohibition apply identically, because the engine is the only variable.
@@ -1401,7 +1433,9 @@ from:
     {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>"}
   ],
   "readinessLedger": [
-    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>"}
+    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>",
+     "blocker":"<what made READY unreachable, or absent>",
+     "merged":"<merge commit sha once it is merged, or absent>"}
   ]
 }
 ```
@@ -1411,7 +1445,11 @@ run opened. Within one exact `sessionId`, `writeRunState` mechanically unions th
 the append-only `readinessLedger`; later writes cannot erase them by setting `pullRequests: []`.
 A new session starts with a fresh ledger and cannot inherit yesterday's completed PRs. A bare number is
 invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
-matches its repository and PR identity, and allows completion only when that receipt reports READY.
+matches its repository and PR identity, and allows completion only when that receipt reports READY,
+or the row carries a `merged` sha or a `blocker` string. Those two are the other dispositions, and
+each is a fact the run writes down rather than a verdict it asserts: a merge sha is checkable
+against GitHub, and a blocker names what made READY unreachable. `merged` is sticky, because a merge
+cannot be undone, while a resolved `blocker` clears.
 It reads disk alone and never calls GitHub: an earlier revision revalidated every ledger row against
 live GitHub on every `Stop` of every session, and on 2026-08-09 that alone spent the whole
 5,000-point per-user GraphQL budget and stalled all work. Whether a receipt is stale against live

@@ -59,12 +59,29 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
    * blocked" from becoming a cheaper synonym for "finished".
    */
   const hasRecordedBlocker = (entry) => typeof entry.blocker === "string" && entry.blocker !== ""
-  const notReady = uniquePullRequests.filter((entry) => receiptVerdict(entry) !== "READY")
+  /**
+   * A MERGED pull request is finished, and neither READY nor BLOCKED describes it.
+   *
+   * Measured 2026-09-18 by driving this function: a run that merged a pull request under the step 9
+   * exception, with nothing left to launch, got `block: true` here. The receipt stays `CI_STALE`
+   * forever, because the check it waits on will never publish, and the ledger row is append only, so
+   * the merge could not clear it. That is the 2026-08-08 deadlock reached after a SUCCESSFUL merge,
+   * and the two exits it left were the forbidden ones.
+   *
+   * The bar is the same as a blocker's: a fact the run writes down, here the merge commit sha, which
+   * a reader can check against GitHub. A merge is not reversible, so a merged row leaves the pending
+   * set for good rather than waiting on a receipt that cannot change.
+   */
+  const hasRecordedMerge = (entry) => typeof entry.merged === "string" && entry.merged !== ""
+  const openPullRequests = uniquePullRequests.filter((entry) => !hasRecordedMerge(entry))
+  const notReady = openPullRequests.filter((entry) => receiptVerdict(entry) !== "READY")
   const blockedPullRequests = notReady.filter(hasRecordedBlocker)
   const pendingPullRequests = notReady.filter((entry) => !hasRecordedBlocker(entry))
   /** A ledger row whose receipt file was never written is an invalid identity too. It used to read
-   * as "unreadable receipt", which is quieter and easier to mistake for a transient fault. */
-  const unwrittenReceipts = uniquePullRequests.filter((entry) => entry.receiptWritten === false)
+   * as "unreadable receipt", which is quieter and easier to mistake for a transient fault. A merged
+   * row is exempt: its receipt debt is moot once the pull request is closed by a merge, and the sha
+   * is stronger evidence than the receipt it would have replaced. */
+  const unwrittenReceipts = openPullRequests.filter((entry) => entry.receiptWritten === false)
   const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length + unwrittenReceipts.length
   const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isWakeSourceAlive(source))
 
@@ -121,6 +138,9 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
       "state for it. Record a machine-readable `blocker` string on that pull request's ledger entry\n" +
       "and the run may end as BLOCKED, reported as blocked rather than as finished. Writing the\n" +
       "blocker down is the whole bar: a blocker is a fact this run records, never a verdict it\n" +
-      "asserts about its own work.",
+      "asserts about its own work.\n\n" +
+      "If the pull request was MERGED, it is finished and neither state above describes it. Record\n" +
+      "its merge commit sha as the `merged` string on that ledger entry. A merge closes the row for\n" +
+      "good, which is what a receipt waiting on a check that will never publish cannot do.",
   }
 }

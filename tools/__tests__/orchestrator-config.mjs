@@ -150,15 +150,36 @@ export const cases = async () => {
    * asserting it alone leaves a green test beside a real change, so the absence is asserted too.
    * `--output-format stream-json` is what keeps the launcher's log-growth progress signal live, and
    * `--verbose` is not decoration: the binary refuses stream-json without it.
+   *
+   * It is asserted on the RESOLVED vector, per tier, not on `workers.claude.args`. The worker's real
+   * argv is `[...engine.args, ...(entry.args ?? []), "--model", entry.model]` at
+   * `tools/lib/orchestrator-config.mjs:177`, so the engine array is only the first of three pieces.
+   * Driven 2026-09-18: `--mcp-config` in the engine array failed the old predicate, and the same flag
+   * in a TIER's array passed it while the worker would have received
+   * `[..., "--strict-mcp-config", "--permission-mode", "bypassPermissions", "--mcp-config", "<path>", ...]`.
+   * A per-tier MCP set is exactly where a later change would put it, so the absence is checked where
+   * the worker reads it.
    */
-  const fallbackArgs = real.workers.claude?.args ?? []
+  const claudeEngine = real.workers.claude ?? { args: [], models: {} }
+  const claudeTiers = Object.keys(claudeEngine.models ?? {})
+  const isolationFailures = claudeTiers.length === 0 ? ["the claude engine declares no model tiers"] : []
+  for (const tier of claudeTiers) {
+    const message = thrown(() => {
+      const { args } = resolveWorkerInvocation("claude", claudeEngine, tier)
+      const detail = JSON.stringify(args)
+      if (!args.includes("--strict-mcp-config")) throw new Error(`no --strict-mcp-config in ${detail}`)
+      if (args.some((argument) => argument === "--mcp-config" || argument.startsWith("--mcp-config="))) {
+        throw new Error(`--mcp-config is present, so the server set is not empty: ${detail}`)
+      }
+      if (!args.includes("--verbose")) throw new Error(`no --verbose, which stream-json requires: ${detail}`)
+      if (!args.join(" ").includes("--output-format stream-json")) throw new Error(`output is not stream-json: ${detail}`)
+    })
+    if (message !== null) isolationFailures.push(`${tier}: ${message}`)
+  }
   T(
-    `${NAME}: the claude fallback engine loads no MCP server and streams its output`,
-    fallbackArgs.includes("--strict-mcp-config") &&
-      !fallbackArgs.some((argument) => argument === "--mcp-config" || argument.startsWith("--mcp-config=")) &&
-      fallbackArgs.includes("--verbose") &&
-      fallbackArgs.join(" ").includes("--output-format stream-json"),
-    JSON.stringify(fallbackArgs),
+    `${NAME}: every claude tier resolves an argv that loads no MCP server and streams its output`,
+    isolationFailures.length === 0,
+    isolationFailures.join("; "),
   )
 
   /**

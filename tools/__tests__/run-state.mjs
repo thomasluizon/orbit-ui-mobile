@@ -147,6 +147,38 @@ export const cases = async () => {
     JSON.stringify(readRunState(late)?.readinessLedger),
   )
 
+  /**
+   * `merged` is the third disposition beside READY and BLOCKED, and it is STICKY where a blocker is
+   * not. A blocker can be resolved, so a later write that omits it is a real transition; a merge
+   * cannot be undone, so a later write that omits the sha is silence. Letting silence clear it would
+   * put a merged pull request back into the Stop hook's pending set at the very next write.
+   */
+  const mergeSha = "0123456789abcdef0123456789abcdef01234567"
+  const merges = stageCheckout("merged-row")
+  writeFileSync(runStatePath(merges), JSON.stringify({ sessionId: "s1", sleep: true, remaining: [] }))
+  const mergeBase = readRunState(merges)
+  writeRunState({ ...mergeBase, pullRequests: [{ repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/r.json" }] }, merges)
+  writeRunState({ ...mergeBase, pullRequests: [{ repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/r.json", merged: mergeSha }] }, merges)
+  T(
+    `${TOOL}: a merge sha recorded after the pull request is already in the ledger is preserved`,
+    (readRunState(merges)?.readinessLedger ?? [])[0]?.merged === mergeSha,
+    JSON.stringify(readRunState(merges)?.readinessLedger),
+  )
+  writeRunState({ ...mergeBase, pullRequests: [{ repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/r.json" }] }, merges)
+  T(
+    `${TOOL}: a later write that omits the merge sha does not un-merge the row`,
+    (readRunState(merges)?.readinessLedger ?? [])[0]?.merged === mergeSha,
+    JSON.stringify(readRunState(merges)?.readinessLedger),
+  )
+  const unmerged = stageCheckout("unmerged-row")
+  writeFileSync(runStatePath(unmerged), JSON.stringify({ sessionId: "s1", sleep: true, remaining: [] }))
+  writeRunState({ ...mergeBase, pullRequests: [{ repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/r.json", merged: "" }] }, unmerged)
+  T(
+    `${TOOL}: an empty merge sha is recorded as no merge at all`,
+    (readRunState(unmerged)?.readinessLedger ?? [])[0]?.merged === null,
+    JSON.stringify(readRunState(unmerged)?.readinessLedger),
+  )
+
   writeRunState({ sessionId: "s2", sleep: true, remaining: ["ORB-9"], pullRequests: [] }, repoRoot)
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 

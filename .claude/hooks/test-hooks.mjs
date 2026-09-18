@@ -422,6 +422,44 @@ T(
   null,
 )
 
+/**
+ * A MERGED pull request is the third disposition, and until 2026-09-18 it had no state at all.
+ * Driven against this function at pull request 1023's head: a run that merged under the step 9
+ * exception, with nothing left to launch, returned `{block:true, terminal:null}`. Its receipt stays
+ * `CI_STALE` forever, because `pullfrog-approval` never publishes on that base, and the ledger row
+ * is append only, so the merge itself could not clear it. The run deadlocked AFTER succeeding.
+ *
+ * The bar is the merge commit sha, recorded the way a blocker is recorded: a fact, checkable
+ * against GitHub, never a verdict the run asserts about its own work.
+ */
+const mergedEntry = { repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/receipt.json", receiptWritten: true, merged: "0123456789abcdef0123456789abcdef01234567" }
+const mergedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [mergedEntry] }
+T("sleep-stop: a pull request merged under the exception ends the run rather than deadlocking it", stop({ state: mergedRun }), null)
+T("sleep-stop: the same row with NO recorded merge sha still blocks the stop", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: null }] } })), true)
+T("sleep-stop: an empty merged string is not a merge", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: "" }] } })), true)
+// A merge settles its OWN row and no other, or one merged pull request would end a night with work left.
+T(
+  "sleep-stop: a merged pull request beside a pending one still blocks",
+  blocks(stop({ state: { ...mergedRun, readinessLedger: [mergedEntry, { repositoryKey: "ui", prNumber: 1024, receiptPath: "C:/receipt.json", receiptWritten: true }] } })),
+  true,
+)
+// A merged row must not launder a blocked one into a silent finish: the banner still names the blocker.
+T(
+  "sleep-stop: a merged pull request beside a blocked one still reports BLOCKED, naming only the blocked one",
+  ((verdict) => verdict?.terminal === "BLOCKED" && verdict.message.includes("ui#698") && !verdict.message.includes("ui#1023"))(
+    stop({ state: { ...mergedRun, readinessLedger: [mergedEntry, blockedEntry] } }),
+  ),
+  true,
+)
+// The refusal has to name the way out, or an operator meeting it at 03:00 has no path back.
+T("sleep-stop: the refusal names the merged disposition beside the blocker one", stop({ state: salvaged })?.message.includes("`merged` string"), true)
+// A merged row's receipt debt is moot: the pull request is closed and the sha is the stronger evidence.
+T(
+  "sleep-stop: a merged row whose receipt was never written still ends the run",
+  stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, receiptWritten: false }] } }),
+  null,
+)
+
 /** The ledger accepted four rows on 2026-08-08 whose receipt files were never written, and the hook
  * read them as unreadable rather than as absent, which is quieter and easier to mistake for a fault. */
 const unwritten = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [{ repositoryKey: "ui", prNumber: 699, receiptPath: "C:/never-written.json", receiptWritten: false }] }
