@@ -155,6 +155,7 @@ export function OnboardingFlow() {
   const [reminderState, setReminderState] = useState<ReminderState>(resolvingDeferredPush ? 'failed' : 'ask')
   const [remindersOff, setRemindersOff] = useState(false)
   const [createdDueToday, setCreatedDueToday] = useState(true)
+  const [createdGeneral, setCreatedGeneral] = useState(false)
   const [skipped, setSkipped] = useState(false)
   const [suggestionPending, setSuggestionPending] = useState(false)
   const [reminderDecision, setReminderDecision] = useState<ReminderDecision>('idle')
@@ -217,6 +218,7 @@ export function OnboardingFlow() {
       }
       setCreatedTitle(input.title)
       setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date()))
+      setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState())
       setStep(ONBOARDING_REMIND_STEP)
     } catch {
@@ -333,7 +335,7 @@ export function OnboardingFlow() {
   }
 
   const overlay = step === ONBOARDING_DONE_STEP ? (
-    <DoneShell><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} onFinish={() => void actions.finishOnboarding()} /></DoneShell>
+    <DoneShell><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void actions.finishOnboarding()} /></DoneShell>
   ) : (
     <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
   )

@@ -446,8 +446,13 @@ describe('isOnboardingHabitDueToday', () => {
     expect(isOnboardingHabitDueToday({ ...weekdaySchedule, days: ['Wednesday'] }, wednesday)).toBe(true)
   })
 
+  it('reports a general schedule as absent from today, whatever the weekday', () => {
+    const general = { ...weekdaySchedule, days: [], isGeneral: true, frequencyUnit: null, frequencyQuantity: null }
+    expect(isOnboardingHabitDueToday(general, wednesday)).toBe(false)
+    expect(isOnboardingHabitDueToday(general, new Date(2026, 8, 14))).toBe(false)
+  })
+
   it.each([
-    ['general', { days: [], isGeneral: true, frequencyUnit: null, frequencyQuantity: null }],
     ['one time', { days: [], isGeneral: false, frequencyUnit: null, frequencyQuantity: null }],
     ['flexible', { days: [], isGeneral: false, isFlexible: true, frequencyUnit: 'Week' as const, frequencyQuantity: 3 }],
     ['interval', { days: [], isGeneral: false, frequencyUnit: 'Week' as const, frequencyQuantity: 2 }],
@@ -457,12 +462,20 @@ describe('isOnboardingHabitDueToday', () => {
 })
 
 describe('getOnboardingCompleteCopy', () => {
-  const resting = { skipped: false, signedOut: false, remindersOff: false, dueToday: true }
+  const resting = { skipped: false, signedOut: false, remindersOff: false, dueToday: true, general: false }
 
   it('says the habit is in the day only when it is due today', () => {
-    expect(getOnboardingCompleteCopy(resting)).toEqual({ titleKey: 'title', bodyKey: 'body', pendingKey: 'pending' })
+    expect(getOnboardingCompleteCopy(resting)).toEqual({
+      titleKey: 'title', bodyKey: 'body', pendingKey: 'pending', actionKey: 'seeDay',
+    })
     expect(getOnboardingCompleteCopy({ ...resting, dueToday: false })).toEqual({
-      titleKey: 'notTodayTitle', bodyKey: 'notTodayBody', pendingKey: 'notTodayPending',
+      titleKey: 'notTodayTitle', bodyKey: 'notTodayBody', pendingKey: 'notTodayPending', actionKey: 'seeDay',
+    })
+  })
+
+  it('never offers a reminder or a day to a general habit', () => {
+    expect(getOnboardingCompleteCopy({ ...resting, general: true, dueToday: false, remindersOff: true })).toMatchObject({
+      titleKey: 'generalTitle', bodyKey: 'generalBody',
     })
   })
 
@@ -473,10 +486,18 @@ describe('getOnboardingCompleteCopy', () => {
 
   it('reports a skip as a skip even when the person is signed out', () => {
     expect(getOnboardingCompleteCopy({ ...resting, skipped: true, signedOut: true })).toMatchObject({
-      titleKey: 'skippedTitle', bodyKey: 'skippedBody',
+      titleKey: 'skippedTitle', bodyKey: 'skippedSignedOutBody',
     })
     expect(getOnboardingCompleteCopy({ ...resting, signedOut: true })).toMatchObject({
       titleKey: 'signedOutTitle', bodyKey: 'signedOutBody',
     })
+  })
+
+  it('points the body and the button at the same destination', () => {
+    for (const skipped of [false, true]) {
+      expect(getOnboardingCompleteCopy({ ...resting, skipped, signedOut: true }).actionKey).toBe('signIn')
+      expect(getOnboardingCompleteCopy({ ...resting, skipped }).actionKey).toBe('seeDay')
+    }
+    expect(getOnboardingCompleteCopy({ ...resting, skipped: true }).bodyKey).toBe('skippedBody')
   })
 })

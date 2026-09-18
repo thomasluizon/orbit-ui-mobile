@@ -117,6 +117,7 @@ export function OnboardingFlow() {
   const [reminderState, setReminderState] = useState<ReminderState>(resolvingDeferredPush ? 'failed' : 'ask')
   const [remindersOff, setRemindersOff] = useState(false)
   const [createdDueToday, setCreatedDueToday] = useState(true)
+  const [createdGeneral, setCreatedGeneral] = useState(false)
   const [skipped, setSkipped] = useState(false)
   const [suggestionPending, setSuggestionPending] = useState(false)
   const [reminderDecision, setReminderDecision] = useState<ReminderDecision>('idle')
@@ -161,6 +162,7 @@ export function OnboardingFlow() {
       else { const result = await actions.createHabit(input); setCreatedId(result.id) }
       setCreatedTitle(input.title)
       setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date()))
+      setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState()); setStep(ONBOARDING_REMIND_STEP)
     } catch { setCreateFailed(true) } finally { setCreating(false) }
   }
@@ -228,7 +230,7 @@ export function OnboardingFlow() {
   }
 
   if (astraConversationOpen) return null
-  if (step === ONBOARDING_DONE_STEP) return <Modal visible animationType="none"><Shell412 tabBar={<DestinationTabBar pathname="/" />}><View style={styles.done}><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} onFinish={() => void actions.finishOnboarding()} /></View></Shell412></Modal>
+  if (step === ONBOARDING_DONE_STEP) return <Modal visible animationType="none"><Shell412 tabBar={<DestinationTabBar pathname="/" />}><View style={styles.done}><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void actions.finishOnboarding()} /></View></Shell412></Modal>
 
   const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => router.replace('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
   return <Modal visible animationType="none" onRequestClose={() => runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) })}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><DecisionContent {...decisionProps} /></View></FlowShell></Modal>

@@ -58,7 +58,7 @@ vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
   OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => <div data-testid="schedule" data-proposed={proposed} data-can-save-repeat-weeks={String(canSaveRepeatWeeks)} data-interval-weeks={String(schedule.intervalWeeks)}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>,
 }))
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => <div data-testid="reminder-state">{state}</div> }))
-vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday }: { dueToday: boolean }) => <div data-testid="done" data-due-today={String(dueToday)} /> }))
+vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday, general }: { dueToday: boolean; general: boolean }) => <div data-testid="done" data-due-today={String(dueToday)} data-general={String(general)} /> }))
 
 function actions(): OnboardingActions {
   return {
@@ -89,6 +89,7 @@ async function reachReminder(isLive: boolean) {
 describe('OnboardingFlow state model', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useRealTimers()
     mocks.profile.aiMessagesUsed = 0
     mocks.push.supported = true
     mocks.push.permission = 'default'
@@ -140,7 +141,19 @@ describe('OnboardingFlow state model', () => {
     await screen.findByTestId('reminder-state')
     fireEvent.click(screen.getByRole('button', { name: 'remind.deny' }))
     await waitFor(() => expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', 'false'))
-    vi.useRealTimers()
+    expect(screen.getByTestId('done')).toHaveAttribute('data-general', 'false')
+  })
+
+  it('never tells the done screen a habit with no day is in the day', async () => {
+    mount(false)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Meditate at 07:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    expect(await screen.findByTestId('reminder-state')).toHaveTextContent('no-day')
+    fireEvent.click(screen.getByRole('button', { name: 'remind.continue' }))
+    await waitFor(() => expect(screen.getByTestId('done')).toBeInTheDocument())
+    expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', 'false')
+    expect(screen.getByTestId('done')).toHaveAttribute('data-general', 'true')
   })
 
   it('dismisses the overlay directly with Escape', async () => {

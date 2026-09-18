@@ -91,7 +91,7 @@ vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
   OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => React.createElement('Schedule', { proposed, intervalWeeks: schedule.intervalWeeks, canSaveRepeatWeeks, onToggleDay, onTimeChange }),
 }))
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => React.createElement('ReminderState', { state }) }))
-vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday }: { dueToday: boolean }) => React.createElement('Done', { dueToday }) }))
+vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday, general }: { dueToday: boolean; general: boolean }) => React.createElement('Done', { dueToday, general }) }))
 
 async function mount(isLive: boolean) {
   mocks.isLive = isLive
@@ -143,6 +143,7 @@ async function reachReminder(isLive: boolean) {
 describe('OnboardingFlow state model', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useRealTimers()
     mocks.profile.aiMessagesUsed = 0
     mocks.push.isSupported = true
     mocks.push.permissionStatus = 'undetermined'
@@ -205,7 +206,18 @@ describe('OnboardingFlow state model', () => {
     await click(tree, 'onboarding.flow.create')
     await pressTextAction(tree, 'onboarding.flow.remind.deny')
     expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
-    vi.useRealTimers()
+    expect(prop<boolean>(oneByType(tree.root, 'Done'), 'general')).toBe(false)
+  })
+
+  it('never tells the done screen a habit with no day is in the day', async () => {
+    const tree = await mount(false)
+    await enterSentence(tree, 'Meditate at 07:00')
+    await click(tree, 'onboarding.flow.continue')
+    await click(tree, 'onboarding.flow.create')
+    expect(prop<string>(oneByType(tree.root, 'ReminderState'), 'state')).toBe('no-day')
+    await click(tree, 'onboarding.flow.remind.continue')
+    expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
+    expect(prop<boolean>(oneByType(tree.root, 'Done'), 'general')).toBe(true)
   })
 
   it('keeps quiet actions neutral', async () => {

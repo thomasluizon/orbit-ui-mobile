@@ -84,6 +84,29 @@ vi.mock('@/components/ui/verified-badge', () => ({
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
+async function renderText(
+  props: Readonly<{ createdHabit: string; remindersOff: boolean; dueToday: boolean; general: boolean }>,
+): Promise<unknown[]> {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => {
+    tree = TestRenderer.create(
+      <OnboardingComplete
+        createdHabit={props.createdHabit}
+        emoji="◎"
+        remindersOff={props.remindersOff}
+        skipped={false}
+        signedOut={false}
+        dueToday={props.dueToday}
+        general={props.general}
+        onFinish={vi.fn()}
+      />,
+    )
+  })
+  return tree.root
+    .findAll((node: { type: unknown }) => node.type === 'Text')
+    .map((node: { props: { children?: unknown } }) => node.props.children)
+}
+
 describe('OnboardingComplete', () => {
   beforeAll(async () => {
     await i18n.changeLanguage('en')
@@ -93,12 +116,18 @@ describe('OnboardingComplete', () => {
       'onboarding.flow.done.pending',
       'onboarding.flow.done.notTodayTitle',
       'onboarding.flow.done.notTodayBody',
+      'onboarding.flow.done.notTodayRemindersOffBody',
       'onboarding.flow.done.notTodayPending',
+      'onboarding.flow.done.generalTitle',
+      'onboarding.flow.done.generalBody',
       'onboarding.flow.done.skippedTitle',
       'onboarding.flow.done.skippedBody',
+      'onboarding.flow.done.skippedSignedOutBody',
       'onboarding.flow.done.signedOutTitle',
       'onboarding.flow.done.seeDay',
+      'onboarding.flow.done.signIn',
     ]) {
+      expect(i18n.exists(key), `${key} resolves to itself when absent, which makes every assertion below vacuous`).toBe(true)
       mocks.translations.set(key, i18n.t(key))
     }
   })
@@ -114,6 +143,7 @@ describe('OnboardingComplete', () => {
           skipped={false}
           signedOut={false}
           dueToday
+          general={false}
           onFinish={vi.fn()}
         />,
       )
@@ -139,6 +169,7 @@ describe('OnboardingComplete', () => {
           skipped
           signedOut
           dueToday
+          general={false}
           onFinish={vi.fn()}
         />,
       )
@@ -146,9 +177,14 @@ describe('OnboardingComplete', () => {
     const renderedText = tree.root
       .findAll((node: { type: unknown }) => node.type === 'Text')
       .map((node: { props: { children?: unknown } }) => node.props.children)
+    const buttonLabels = tree.root
+      .findAll((node: { type: unknown }) => node.type === 'PillButton')
+      .map((node: { props: { children?: unknown } }) => node.props.children)
     expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedTitle'))
-    expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedBody'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedSignedOutBody'))
+    expect(buttonLabels).toContain(i18n.t('onboarding.flow.done.signIn'))
     expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.signedOutTitle'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.skippedBody'))
   })
 
   it('never claims a habit is in the day when it is not due today', async () => {
@@ -162,6 +198,7 @@ describe('OnboardingComplete', () => {
           skipped={false}
           signedOut={false}
           dueToday={false}
+          general={false}
           onFinish={vi.fn()}
         />,
       )
@@ -173,6 +210,19 @@ describe('OnboardingComplete', () => {
     expect(renderedText).toContain(i18n.t('onboarding.flow.done.notTodayBody'))
     expect(renderedText).toContain(i18n.t('onboarding.flow.done.notTodayPending'))
     expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.title'))
+  })
+
+  it('names the reminders-off outcome for a habit that waits for another day', async () => {
+    const renderedText = await renderText({ createdHabit: 'Walk', remindersOff: true, dueToday: false, general: false })
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.notTodayRemindersOffBody'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.notTodayBody'))
+  })
+
+  it('never offers a reminder to a habit with no set days', async () => {
+    const renderedText = await renderText({ createdHabit: 'Meditate', remindersOff: true, dueToday: false, general: true })
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.generalTitle'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.generalBody'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.notTodayRemindersOffBody'))
   })
 
   it('clears the landing ring when the accent length never measures', async () => {
@@ -188,6 +238,7 @@ describe('OnboardingComplete', () => {
           skipped={false}
           signedOut={false}
           dueToday
+          general={false}
           onFinish={vi.fn()}
         />,
       )

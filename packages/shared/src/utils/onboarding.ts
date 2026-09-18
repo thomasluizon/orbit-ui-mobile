@@ -176,13 +176,19 @@ const EVERY_DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
 const WEEKDAY_BY_INDEX = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 /**
- * Whether the habit onboarding just created lands in today's list. The API moves a weekday habit's
+ * Whether the habit onboarding just created lands in today's list. A general habit never does:
+ * `GetHabitScheduleQuery` loads the day with `!h.IsGeneral` and appends general habits only when
+ * `IncludeGeneral` is set, and both clients default that preference to false, so a new account never
+ * sees one on Today. A weekday habit lands there only on a day it names, because the API moves its
  * `DueDate` forward to the first matching weekday (`CreateHabitCommand.HandleLockedAsync`) and then
  * reports every earlier date as not scheduled (`HabitScheduleService.IsHabitDueOnDate`, `if (target
- * < anchor) return false`), so a fixed-day schedule that skips today is absent from today. Every
- * other shape anchors on today and matches it, so the done screen may say the habit is in the day.
+ * < anchor) return false`). A signed-out draft flushes through
+ * `ApplyOnboardingCommand.CreateHabitsAsync`, which anchors on today rather than advancing, and the
+ * same absence falls out of `HabitScheduleService.MatchesFrequency` rejecting a target whose weekday
+ * is not in `habit.Days`. Every other shape anchors on today and matches it.
  */
 export function isOnboardingHabitDueToday(schedule: OnboardingSchedule, today: Date): boolean {
+  if (schedule.isGeneral) return false
   if (schedule.days.length === 0) return true
   return schedule.days.includes(WEEKDAY_BY_INDEX[today.getDay()]!)
 }
@@ -274,32 +280,42 @@ export interface OnboardingCompleteState {
   signedOut: boolean
   remindersOff: boolean
   dueToday: boolean
+  general: boolean
 }
 
 export interface OnboardingCompleteCopy {
   titleKey: string
   bodyKey: string
   pendingKey: string
+  actionKey: string
 }
 
 function getOnboardingCompleteBodyKey(state: OnboardingCompleteState): string {
-  if (state.skipped) return 'skippedBody'
+  if (state.skipped) return state.signedOut ? 'skippedSignedOutBody' : 'skippedBody'
   if (state.signedOut) return 'signedOutBody'
+  if (state.general) return 'generalBody'
   if (!state.dueToday) return state.remindersOff ? 'notTodayRemindersOffBody' : 'notTodayBody'
   return state.remindersOff ? 'remindersOffBody' : 'body'
 }
 
 /**
- * Which `onboarding.flow.done` strings the last screen may truthfully show. Skip outranks signing
- * out, because a run can only skip before a habit exists, so a skipped run has no plan to report.
+ * Which `onboarding.flow.done` strings the last screen may truthfully show, button included, so the
+ * copy can never name a destination the button does not go to. Skip outranks signing out for the
+ * title, because a run can only skip before a habit exists, so a skipped run has no plan to report;
+ * the body and the button still split on it, because a signed-out run leaves for the login screen
+ * and a signed-in one lands on Today. A general habit gets its own pair: it is due on no day, it
+ * reaches neither Today nor the reminder scheduler, and no other body may offer it a reminder.
  * "It is in your day" holds only when the habit is due today (see {@link isOnboardingHabitDueToday}),
  * and so does the pending ring beside it.
  */
 export function getOnboardingCompleteCopy(state: OnboardingCompleteState): OnboardingCompleteCopy {
   return {
-    titleKey: state.skipped ? 'skippedTitle' : state.signedOut ? 'signedOutTitle' : state.dueToday ? 'title' : 'notTodayTitle',
+    titleKey: state.skipped
+      ? 'skippedTitle'
+      : state.signedOut ? 'signedOutTitle' : state.general ? 'generalTitle' : state.dueToday ? 'title' : 'notTodayTitle',
     bodyKey: getOnboardingCompleteBodyKey(state),
     pendingKey: state.dueToday ? 'pending' : 'notTodayPending',
+    actionKey: state.signedOut ? 'signIn' : 'seeDay',
   }
 }
 
