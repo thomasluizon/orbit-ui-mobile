@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ListRow } from '@/components/ui/list-row'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
-import { formatGoalHistoryNumber } from '@orbit/shared/utils'
+import { formatGoalHistoryDelta, formatGoalHistoryNumber } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useTranslation } from 'react-i18next'
@@ -26,10 +26,9 @@ interface GoalProgressHistorySectionProps {
 }
 
 function getDeltaPresentation(entry: GoalProgressHistoryEntry) {
-  const delta = entry.value - entry.previousValue
-  if (delta > 0) return { testID: 'history-delta-positive', value: delta }
-  if (delta < 0) return { testID: 'history-delta-negative', value: delta }
-  return { testID: 'history-delta-zero', value: delta }
+  if (entry.value > entry.previousValue) return 'history-delta-positive'
+  if (entry.value < entry.previousValue) return 'history-delta-negative'
+  return 'history-delta-zero'
 }
 
 export function GoalProgressHistorySection({
@@ -56,9 +55,9 @@ export function GoalProgressHistorySection({
   return (
     <View accessibilityRole="list">
       {visibleEntries.map((entry) => {
-        const delta = getDeltaPresentation(entry)
+        const deltaTestId = getDeltaPresentation(entry)
         const date = formatDate(entry.createdAtUtc)
-        const formattedDelta = formatGoalHistoryNumber(delta.value, i18n.language, true)
+        const formattedDelta = formatGoalHistoryDelta(entry.previousValue, entry.value, i18n.language)
         const current = formatGoalHistoryNumber(entry.value, i18n.language)
         const formattedTarget = formatGoalHistoryNumber(target, i18n.language)
         const accessibilityLabel = [
@@ -78,7 +77,7 @@ export function GoalProgressHistorySection({
               <Text testID="history-date" style={styles.historyDate}>
                 {date}
               </Text>
-              <Text testID={delta.testID} style={styles.historyDelta}>{formattedDelta}</Text>
+              <Text testID={deltaTestId} style={styles.historyDelta}>{formattedDelta}</Text>
               <Text testID="history-progress" style={styles.historyProgress}>{current} / {formattedTarget}</Text>
             </View>
             {entry.note ? (

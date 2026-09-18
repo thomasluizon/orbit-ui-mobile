@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatGoalHistoryDelta,
   formatGoalHistoryNumber,
   formatGoalMetricsDate,
   getGoalMetricsStatusPresentation,
@@ -14,10 +15,22 @@ describe('goal metrics utils', () => {
 
   it('preserves small goal history values in both locales', () => {
     expect(formatGoalHistoryNumber(0.0001, 'en')).toBe('0.0001')
-    expect(formatGoalHistoryNumber(0.0002, 'pt-BR')).toBe('0,0002')
-    expect(formatGoalHistoryNumber(0.0001, 'en', true)).toBe('+0.0001')
-    expect(formatGoalHistoryNumber(-0.0001, 'pt-BR', true)).toBe('-0,0001')
-    expect(formatGoalHistoryNumber(Number.MIN_VALUE, 'en')).not.toBe('0')
+    expect(formatGoalHistoryNumber(-0.0001, 'en')).toBe('-0.0001')
+    expect(formatGoalHistoryNumber(0.0001, 'pt-BR')).toBe('0,0001')
+    expect(formatGoalHistoryNumber(-0.0001, 'pt-BR')).toBe('-0,0001')
+    expect(formatGoalHistoryNumber(1e-7, 'en')).toBe('0.0000001')
+    expect(formatGoalHistoryNumber(1e-7, 'pt-BR')).toBe('0,0000001')
+  })
+
+  it('rounds goal history deltas without exposing floating-point noise', () => {
+    expect(formatGoalHistoryDelta(0.2, 0.3, 'en')).toBe('+0.1')
+    expect(formatGoalHistoryDelta(1.1, 1.2, 'en')).toBe('+0.1')
+    expect(formatGoalHistoryDelta(0.3, 0.2, 'en')).toBe('-0.1')
+    expect(formatGoalHistoryDelta(0.1, 0.1, 'en')).toBe('0')
+    expect(formatGoalHistoryDelta(0, 1e-7, 'en')).toBe('+0.0000001')
+    expect(formatGoalHistoryDelta(0.2, 0.3, 'pt-BR')).toBe('+0,1')
+    expect(formatGoalHistoryDelta(0.3, 0.2, 'pt-BR')).toBe('-0,1')
+    expect(formatGoalHistoryDelta(0, 1e-7, 'pt-BR')).toBe('+0,0000001')
   })
 
   it('maps tracking statuses to labels and tones', () => {

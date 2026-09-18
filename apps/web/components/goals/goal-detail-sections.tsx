@@ -4,7 +4,7 @@ import { useId, useMemo, useState, type MouseEvent, type ReactNode } from 'react
 import { useLocale, useTranslations } from 'next-intl'
 import { ListRow } from '@/components/ui/list-row'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
-import { formatGoalHistoryNumber } from '@orbit/shared/utils'
+import { formatGoalHistoryDelta, formatGoalHistoryNumber } from '@orbit/shared/utils'
 
 interface GoalProgressHistoryEntry {
   createdAtUtc: string
@@ -55,7 +55,7 @@ export function GoalProgressHistorySection({
       <ul id={historyId} className="list-none" style={{ margin: 0, padding: 0 }}>
         {visibleEntries.map((entry) => {
           const date = formatDate(entry.createdAtUtc)
-          const delta = formatGoalHistoryNumber(entry.value - entry.previousValue, locale, true)
+          const delta = formatGoalHistoryDelta(entry.previousValue, entry.value, locale)
           const current = formatGoalHistoryNumber(entry.value, locale)
           const formattedTarget = formatGoalHistoryNumber(target, locale)
 

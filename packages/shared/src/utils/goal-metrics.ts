@@ -1,12 +1,15 @@
 import { getDateTimeFormat, getNumberFormat } from './intl-format-cache'
 
-const GOAL_HISTORY_NUMBER_OPTIONS: Intl.NumberFormatOptions = {
-  maximumSignificantDigits: 20,
-}
+const INTL_MAXIMUM_FRACTION_DIGITS = 100
 
-const GOAL_HISTORY_SIGNED_NUMBER_OPTIONS: Intl.NumberFormatOptions = {
-  ...GOAL_HISTORY_NUMBER_OPTIONS,
-  signDisplay: 'exceptZero',
+function getDecimalScale(value: number): number {
+  const valueText = Math.abs(value).toString().toLowerCase()
+  const exponentMarker = valueText.indexOf('e')
+  const coefficient = exponentMarker === -1 ? valueText : valueText.slice(0, exponentMarker)
+  const decimalPoint = coefficient.indexOf('.')
+  const coefficientScale = decimalPoint === -1 ? 0 : coefficient.length - decimalPoint - 1
+  const exponent = exponentMarker === -1 ? 0 : Number(valueText.slice(exponentMarker + 1))
+  return Math.min(Math.max(coefficientScale - exponent, 0), INTL_MAXIMUM_FRACTION_DIGITS)
 }
 
 type GoalMetricsStatusTone = 'success' | 'warning' | 'danger' | 'muted'
@@ -33,12 +36,23 @@ export function formatGoalMetricsDate(dateStr: string, locale: string): string {
 export function formatGoalHistoryNumber(
   value: number,
   locale: string,
-  signed = false,
 ): string {
-  return getNumberFormat(
-    locale,
-    signed ? GOAL_HISTORY_SIGNED_NUMBER_OPTIONS : GOAL_HISTORY_NUMBER_OPTIONS,
-  ).format(value)
+  return getNumberFormat(locale, {
+    maximumFractionDigits: getDecimalScale(value),
+  }).format(value)
+}
+
+export function formatGoalHistoryDelta(
+  previousValue: number,
+  value: number,
+  locale: string,
+): string {
+  const scale = Math.max(getDecimalScale(previousValue), getDecimalScale(value))
+  const roundedDelta = Number((value - previousValue).toFixed(scale))
+  return getNumberFormat(locale, {
+    maximumFractionDigits: scale,
+    signDisplay: 'exceptZero',
+  }).format(roundedDelta)
 }
 
 export function getGoalMetricsStatusPresentation(

@@ -744,6 +744,24 @@ describe('GoalDetailDrawer', () => {
     }
   })
 
+  it('rounds decimal history deltas without exposing floating-point noise', () => {
+    detailGoal = {
+      ...listGoal,
+      targetValue: 1.2,
+      progressHistory: [
+        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0.2, value: 0.3, note: null },
+        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 1.1, value: 1.2, note: null },
+      ],
+    }
+
+    const tree = renderDrawer()
+    const deltas = tree.root
+      .findAll((node: any) => node.type === 'Text' && node.props.testID === 'history-delta-positive')
+      .map(flattenText)
+
+    expect(deltas).toEqual(['+0.1', '+0.1'])
+  })
+
   it('stage 5 names the goal in deletion confirmation before any write', () => {
     const tree = renderDrawer()
     const label = 'goals.detail.delete'
