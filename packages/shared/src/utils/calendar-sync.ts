@@ -195,25 +195,61 @@ function parsePositiveInteger(value: string | undefined): number | null {
   return Number.isFinite(parsed) && parsed >= 1 ? parsed : null
 }
 
+interface FiniteDateWalkResult {
+  endDate: string
+  skippedCandidate: boolean
+}
+
+function walkMonthlyOrYearlyDates(
+  parts: Record<string, string>,
+  start: Date,
+  count: number | null,
+  inclusiveEnd: Date | null = null,
+): FiniteDateWalkResult {
+  const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
+  const startMonth = start.getUTCFullYear() * 12 + start.getUTCMonth()
+  const startDay = start.getUTCDate()
+  let endDate = start
+  let seen = 1
+  let skippedCandidate = false
+
+  for (let step = 1; count === null || seen < count; step += 1) {
+    const monthNumber = parts.FREQ === 'MONTHLY'
+      ? startMonth + step * interval
+      : startMonth + step * interval * 12
+    const year = Math.floor(monthNumber / 12)
+    const month = monthNumber % 12
+    const candidate = new Date(Date.UTC(year, month, startDay))
+    const isValid = candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month
+    const comparisonDate = isValid ? candidate : new Date(Date.UTC(year, month + 1, 0))
+    if (inclusiveEnd && comparisonDate > inclusiveEnd) break
+
+    if (!isValid) {
+      skippedCandidate = true
+      continue
+    }
+
+    endDate = candidate
+    seen += 1
+  }
+
+  return { endDate: formatUtcDate(endDate), skippedCandidate }
+}
+
 function resolveUnfilteredCountEndDate(
   parts: Record<string, string>,
   start: Date,
   count: number,
-): string {
-  const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
-  const cursor = new Date(start)
-  if (parts.FREQ === 'MONTHLY') {
-    cursor.setUTCMonth(cursor.getUTCMonth() + (count - 1) * interval)
-    return formatUtcDate(cursor)
-  }
-  if (parts.FREQ === 'YEARLY') {
-    cursor.setUTCFullYear(cursor.getUTCFullYear() + (count - 1) * interval)
-    return formatUtcDate(cursor)
+): FiniteDateWalkResult {
+  if (parts.FREQ === 'MONTHLY' || parts.FREQ === 'YEARLY') {
+    return walkMonthlyOrYearlyDates(parts, start, count)
   }
 
+  const interval = parsePositiveInteger(parts.INTERVAL) ?? 1
+  const cursor = new Date(start)
   const frequencyDays = parts.FREQ === 'WEEKLY' ? DAYS_IN_WEEK : 1
   cursor.setUTCDate(cursor.getUTCDate() + (count - 1) * interval * frequencyDays)
-  return formatUtcDate(cursor)
+  return { endDate: formatUtcDate(cursor), skippedCandidate: false }
 }
 
 function parseUtcUntil(value: string): Date | null {
@@ -321,7 +357,7 @@ export function resolveCalendarSyncEndDate(
   if (Number.isNaN(start.getTime())) return null
 
   if (weekdays.length === 0) {
-    return resolveUnfilteredCountEndDate(parts, start, count)
+    return resolveUnfilteredCountEndDate(parts, start, count).endDate
   }
 
   const cursor = new Date(start)
@@ -340,14 +376,26 @@ export function resolveCalendarSyncEndDate(
 function hasFiniteDateClamp(
   parts: Record<string, string>,
   startDate: string | null,
+  startTime: string | null,
+  startUtc: string | null | undefined,
 ): boolean {
   if ((!parts.COUNT && !parts.UNTIL) || !startDate) return false
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(startDate)
-  if (!match) return false
-  const month = Number(match[2])
-  const day = Number(match[3])
-  return (parts.FREQ === 'MONTHLY' && day >= 29)
-    || (parts.FREQ === 'YEARLY' && month === 2 && day === 29)
+  if (parts.FREQ !== 'MONTHLY' && parts.FREQ !== 'YEARLY') return false
+
+  const start = new Date(`${startDate.slice(0, ISO_DATE_LENGTH)}T00:00:00Z`)
+  if (Number.isNaN(start.getTime())) return false
+
+  if (parts.UNTIL) {
+    const endDate = resolveUtcUntilDate(parts.UNTIL, startDate, startTime, startUtc)
+    if (!endDate) return false
+    const inclusiveEnd = new Date(`${endDate}T00:00:00Z`)
+    return walkMonthlyOrYearlyDates(parts, start, null, inclusiveEnd).skippedCandidate
+  }
+
+  const count = parsePositiveInteger(parts.COUNT)
+  return count
+    ? resolveUnfilteredCountEndDate(parts, start, count).skippedCandidate
+    : false
 }
 
 function hasUncertainUtcUntilDate(
@@ -389,7 +437,7 @@ export function getCalendarSyncImportIssue(
     return 'weekday-interval'
   }
 
-  if (hasFiniteDateClamp(parts, startDate)) {
+  if (hasFiniteDateClamp(parts, startDate, startTime, startUtc)) {
     return 'finite-date-clamp'
   }
 

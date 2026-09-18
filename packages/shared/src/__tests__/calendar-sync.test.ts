@@ -354,6 +354,75 @@ describe('calendar-sync utils', () => {
     expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('2026-03-28')
   })
 
+  it.each([
+    {
+      name: 'leap-day yearly interval',
+      id: 'event-leap-day-interval',
+      title: 'Leap day review',
+      startDate: '2024-02-29',
+      recurrenceRule: 'RRULE:FREQ=YEARLY;INTERVAL=4;COUNT=3',
+      frequencyUnit: 'Year',
+      frequencyQuantity: 4,
+      endDate: '2032-02-29',
+    },
+    {
+      name: 'month-end yearly interval',
+      id: 'event-month-end-interval',
+      title: 'Annual close',
+      startDate: '2026-03-31',
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;INTERVAL=12;COUNT=3',
+      frequencyUnit: 'Month',
+      frequencyQuantity: 12,
+      endDate: '2028-03-31',
+    },
+    {
+      name: 'single month-end occurrence',
+      id: 'event-month-end-once',
+      title: 'One month-end close',
+      startDate: '2026-01-31',
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=1',
+      frequencyUnit: 'Month',
+      frequencyQuantity: 1,
+      endDate: '2026-01-31',
+    },
+  ])('imports a safe finite $name without refusing its anchor', ({
+    id,
+    title,
+    startDate,
+    recurrenceRule,
+    frequencyUnit,
+    frequencyQuantity,
+    endDate,
+  }) => {
+    expect(buildCalendarSyncImportRequest([{
+      id,
+      title,
+      description: null,
+      startDate,
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule,
+      reminders: [],
+    }])).toEqual({
+      habits: [{
+        title,
+        description: null,
+        dueDate: startDate,
+        dueTime: null,
+        dueEndTime: null,
+        frequencyUnit,
+        frequencyQuantity,
+        days: null,
+        endDate,
+        reminderEnabled: false,
+        reminderTimes: null,
+        googleEventId: id,
+      }],
+      fromSyncReview: true,
+    })
+  })
+
   it('bounds an UNTIL series at the date the rule names', () => {
     expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261019T235959Z', '2026-09-14')).toBe('2026-10-19')
   })
