@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ListRow } from '@/components/ui/list-row'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
+import { formatGoalHistoryNumber } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useTranslation } from 'react-i18next'
@@ -44,11 +45,6 @@ export function GoalProgressHistorySection({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [showAllHistory, setShowAllHistory] = useState(false)
-  const numberFormatter = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language])
-  const signedNumberFormatter = useMemo(
-    () => new Intl.NumberFormat(i18n.language, { signDisplay: 'exceptZero' }),
-    [i18n.language],
-  )
 
   const visibleEntries = useMemo(
     () => (showAllHistory ? entries : entries.slice(0, HISTORY_PREVIEW_COUNT)),
@@ -62,20 +58,28 @@ export function GoalProgressHistorySection({
       {visibleEntries.map((entry) => {
         const delta = getDeltaPresentation(entry)
         const date = formatDate(entry.createdAtUtc)
-        const formattedDelta = signedNumberFormatter.format(delta.value)
-        const current = numberFormatter.format(entry.value)
-        const formattedTarget = numberFormatter.format(target)
+        const formattedDelta = formatGoalHistoryNumber(delta.value, i18n.language, true)
+        const current = formatGoalHistoryNumber(entry.value, i18n.language)
+        const formattedTarget = formatGoalHistoryNumber(target, i18n.language)
+        const accessibilityLabel = [
+          t('goals.detail.historyDate', { date }),
+          t('goals.detail.historyDelta', { delta: formattedDelta, unit }),
+          t('goals.detail.historyProgress', { current, target: formattedTarget, unit }),
+          entry.note,
+        ].filter(Boolean).join('. ')
         return (
           <View
             key={`${entry.createdAtUtc}-${entry.value}`}
+            accessible
+            accessibilityLabel={accessibilityLabel}
             style={styles.historyEntry}
           >
             <View style={styles.historyEntryHeader}>
-              <Text testID="history-date" accessibilityLabel={t('goals.detail.historyDate', { date })} style={styles.historyDate}>
+              <Text testID="history-date" style={styles.historyDate}>
                 {date}
               </Text>
-              <Text testID={delta.testID} accessibilityLabel={t('goals.detail.historyDelta', { delta: formattedDelta, unit })} style={styles.historyDelta}>{formattedDelta}</Text>
-              <Text testID="history-progress" accessibilityLabel={t('goals.detail.historyProgress', { current, target: formattedTarget, unit })} style={styles.historyProgress}>{current} / {formattedTarget}</Text>
+              <Text testID={delta.testID} style={styles.historyDelta}>{formattedDelta}</Text>
+              <Text testID="history-progress" style={styles.historyProgress}>{current} / {formattedTarget}</Text>
             </View>
             {entry.note ? (
               <Text style={styles.historyNote}>{entry.note}</Text>

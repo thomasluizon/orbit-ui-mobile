@@ -406,6 +406,7 @@ export {
   updateGoalStatusItem,
 } from './goal-mutations'
 export {
+  formatGoalHistoryNumber,
   formatGoalMetricsDate,
   getGoalMetricsStatusPresentation,
 } from './goal-metrics'

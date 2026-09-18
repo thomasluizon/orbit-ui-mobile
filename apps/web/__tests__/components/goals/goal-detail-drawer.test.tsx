@@ -462,19 +462,20 @@ describe('GoalDetailDrawer', () => {
   it('stage 5 renders localized history dates, signed deltas, and current over target in three columns', () => {
     detailGoal = {
       ...listGoal,
+      targetValue: 0.0002,
       progressHistory: [
-        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0, value: 2, note: 'positive' },
-        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 3, value: 2, note: 'negative' },
-        { createdAtUtc: '2026-09-02T12:34:00Z', previousValue: 2, value: 2, note: 'zero' },
+        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0, value: 0.0001, note: 'positive' },
+        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 0.0002, value: 0.0001, note: 'negative' },
+        { createdAtUtc: '2026-09-02T12:34:00Z', previousValue: 0.0001, value: 0.0001, note: 'zero' },
       ],
     }
 
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 
-    expect(screen.getByText('+2')).toBeInTheDocument()
-    expect(screen.getByText('-1')).toBeInTheDocument()
+    expect(screen.getByText('+0.0001')).toBeInTheDocument()
+    expect(screen.getByText('-0.0001')).toBeInTheDocument()
     expect(screen.getByText('0')).toBeInTheDocument()
-    expect(screen.getAllByText('2 / 12')).toHaveLength(3)
+    expect(screen.getAllByText('0.0001 / 0.0002')).toHaveLength(3)
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
     expect(document.querySelectorAll('[data-history-date]')).toHaveLength(3)
     for (const date of document.querySelectorAll('[data-history-date]')) {

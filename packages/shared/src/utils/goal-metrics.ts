@@ -1,4 +1,13 @@
-import { getDateTimeFormat } from './intl-format-cache'
+import { getDateTimeFormat, getNumberFormat } from './intl-format-cache'
+
+const GOAL_HISTORY_NUMBER_OPTIONS: Intl.NumberFormatOptions = {
+  maximumSignificantDigits: 20,
+}
+
+const GOAL_HISTORY_SIGNED_NUMBER_OPTIONS: Intl.NumberFormatOptions = {
+  ...GOAL_HISTORY_NUMBER_OPTIONS,
+  signDisplay: 'exceptZero',
+}
 
 type GoalMetricsStatusTone = 'success' | 'warning' | 'danger' | 'muted'
 
@@ -19,6 +28,17 @@ export function formatGoalMetricsDate(dateStr: string, locale: string): string {
     month: 'short',
     year: 'numeric',
   }).format(date)
+}
+
+export function formatGoalHistoryNumber(
+  value: number,
+  locale: string,
+  signed = false,
+): string {
+  return getNumberFormat(
+    locale,
+    signed ? GOAL_HISTORY_SIGNED_NUMBER_OPTIONS : GOAL_HISTORY_NUMBER_OPTIONS,
+  ).format(value)
 }
 
 export function getGoalMetricsStatusPresentation(

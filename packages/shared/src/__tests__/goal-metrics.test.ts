@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatGoalHistoryNumber,
   formatGoalMetricsDate,
   getGoalMetricsStatusPresentation,
 } from '../utils/goal-metrics'
@@ -9,6 +10,14 @@ describe('goal metrics utils', () => {
     expect(formatGoalMetricsDate('2025-04-11', 'en')).toContain('2025')
     expect(formatGoalMetricsDate('2025-04-11T10:00:00Z', 'pt-BR')).toContain('2025')
     expect(formatGoalMetricsDate('not-a-date', 'en')).toBe('not-a-date')
+  })
+
+  it('preserves small goal history values in both locales', () => {
+    expect(formatGoalHistoryNumber(0.0001, 'en')).toBe('0.0001')
+    expect(formatGoalHistoryNumber(0.0002, 'pt-BR')).toBe('0,0002')
+    expect(formatGoalHistoryNumber(0.0001, 'en', true)).toBe('+0.0001')
+    expect(formatGoalHistoryNumber(-0.0001, 'pt-BR', true)).toBe('-0,0001')
+    expect(formatGoalHistoryNumber(Number.MIN_VALUE, 'en')).not.toBe('0')
   })
 
   it('maps tracking statuses to labels and tones', () => {

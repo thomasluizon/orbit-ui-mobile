@@ -717,22 +717,28 @@ describe('GoalDetailDrawer', () => {
   it('stage 5 renders localized history dates, signed deltas, and current over target in three columns', () => {
     detailGoal = {
       ...listGoal,
+      targetValue: 0.0002,
       progressHistory: [
-        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0, value: 2, note: 'positive' },
-        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 3, value: 2, note: 'negative' },
-        { createdAtUtc: '2026-09-02T12:34:00Z', previousValue: 2, value: 2, note: 'zero' },
+        { createdAtUtc: '2026-09-04T12:34:00Z', previousValue: 0, value: 0.0001, note: 'positive' },
+        { createdAtUtc: '2026-09-03T12:34:00Z', previousValue: 0.0002, value: 0.0001, note: 'negative' },
+        { createdAtUtc: '2026-09-02T12:34:00Z', previousValue: 0.0001, value: 0.0001, note: 'zero' },
       ],
     }
 
     const tree = renderDrawer()
 
     const historyText = (testID: string) => tree.root.findAll((node: any) => node.type === 'Text' && node.props.testID === testID).map(flattenText)
-    expect(historyText('history-delta-positive')).toEqual(['+2'])
-    expect(historyText('history-delta-negative')).toEqual(['-1'])
+    expect(historyText('history-delta-positive')).toEqual(['+0.0001'])
+    expect(historyText('history-delta-negative')).toEqual(['-0.0001'])
     expect(historyText('history-delta-zero')).toEqual(['0'])
-    expect(historyText('history-progress')).toEqual(['2 / 12', '2 / 12', '2 / 12'])
+    expect(historyText('history-progress')).toEqual([
+      '0.0001 / 0.0002',
+      '0.0001 / 0.0002',
+      '0.0001 / 0.0002',
+    ])
     expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.accessibilityRole === 'list').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.role === 'listitem')).toHaveLength(0)
+    expect(tree.root.findAll((node: any) => node.type === 'View' && node.props.accessible && node.props.accessibilityLabel?.includes('goals.detail.historyDate'))).toHaveLength(3)
     for (const date of tree.root.findAll((node: any) => node.type === 'Text' && node.props.testID === 'history-date')) {
       expect(flattenText(date)).not.toMatch(/\d:\d/)
     }
