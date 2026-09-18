@@ -182,7 +182,7 @@ export function MultiMonthHeatmap({
         </svg>
       </div>
       {legend ? (
-        <div className="mt-3 flex items-center" style={{ gap: 6 }}>
+        <div className="mt-3 flex items-center" style={{ gap: 4 }}>
           <span className="t-meta">{legend.less}</span>
           <span
             className="inline-block rounded-[3px]"

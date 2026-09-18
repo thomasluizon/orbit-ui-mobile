@@ -57,7 +57,7 @@ export function ChartRing({ value, max, label, size = 120, ariaLabel }: Readonly
       </svg>
       <div
         className="absolute inset-0 flex flex-col items-center justify-center"
-        style={{ gap: 2 }}
+        style={{ gap: 4 }}
       >
         <span className="t-num" style={{ fontSize: Math.round(size * 0.26), lineHeight: 1 }}>
           {value}

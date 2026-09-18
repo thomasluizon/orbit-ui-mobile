@@ -23,7 +23,7 @@ export function BarChart({
   const max = bars.reduce((peak, bar) => Math.max(peak, bar.value), 0)
 
   return (
-    <ul aria-label={ariaLabel} className="flex flex-col" style={{ gap: 11 }}>
+    <ul aria-label={ariaLabel} className="flex flex-col" style={{ gap: 12 }}>
       {bars.map((bar) => {
         const ratio = max > 0 ? bar.value / max : 0
         return (
@@ -37,11 +37,11 @@ export function BarChart({
             </span>
             <span
               aria-hidden
-              className="relative flex-1 overflow-hidden rounded-full"
+              className="relative flex-1 overflow-hidden rounded-lg"
               style={{ height: 10, background: 'var(--bg-sunk)' }}
             >
               <span
-                className="absolute inset-y-0 left-0 rounded-full"
+                className="absolute inset-y-0 left-0 rounded-lg"
                 style={{
                   width: `${Math.max(ratio * 100, bar.value > 0 ? 3 : 0)}%`,
                   background: 'var(--primary)',
