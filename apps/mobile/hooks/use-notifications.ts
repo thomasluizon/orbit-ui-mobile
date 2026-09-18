@@ -32,6 +32,7 @@ import {
   queueOrExecute,
 } from '@/lib/offline-mutations'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { getSessionGeneration } from '@/stores/auth-store'
 
 export function useNotifications() {
   const queryClient = useQueryClient()
@@ -182,6 +183,7 @@ export function useDeleteNotification() {
     },
 
     onMutate: async (notificationId) => {
+      const { epoch: sessionEpoch } = getSessionGeneration()
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
       const previous = snapshotNotificationList(queryClient)
@@ -191,16 +193,18 @@ export function useDeleteNotification() {
         return deleteNotificationFromList(old, notificationId)
       })
 
-      return { previous }
+      return { previous, sessionEpoch }
     },
 
     onError: (_err, _id, context) => {
-      if (context?.previous) {
+      if (!context || context.sessionEpoch !== getSessionGeneration().epoch) return
+      if (context.previous) {
         restoreNotificationList(queryClient, context.previous)
       }
     },
 
-    onSettled: (data) => {
+    onSettled: (data, _error, _notificationId, context) => {
+      if (!context || context.sessionEpoch !== getSessionGeneration().epoch) return
       if (isQueuedResult(data)) return
       void invalidateNotificationList(queryClient)
     },

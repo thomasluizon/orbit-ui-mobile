@@ -7,8 +7,14 @@ import { useOnboardingDraftStore } from './onboarding-draft-store'
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+let sessionGeneration = 0
+
+export function getSessionGeneration(): number {
+  return sessionGeneration
+}
 
 function clearAccountScopedSessionState(): void {
+  sessionGeneration += 1
   clearPendingNotificationDeletes()
   clearStepUpState()
 }
@@ -72,6 +78,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setAuth: (loginResponse: LoginResponse) => {
     sessionRecoveryUser = null
+    sessionGeneration += 1
     bindStepUpStateToAccount(loginResponse.userId)
     set({
       isAuthenticated: true,

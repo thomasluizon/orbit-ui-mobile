@@ -15,6 +15,7 @@ import {
 
 const TestRenderer = require('react-test-renderer')
 const feedback = vi.hoisted(() => ({ showError: vi.fn() }))
+const session = vi.hoisted(() => ({ epoch: 1 }))
 const translation = vi.hoisted(() => ({
   t: (key: string, _values?: Record<string, unknown>) => key,
 }))
@@ -25,6 +26,9 @@ vi.mock('react-i18next', async () => {
 })
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: feedback.showError }),
+}))
+vi.mock('@/stores/auth-store', () => ({
+  getSessionGeneration: () => ({ epoch: session.epoch, credentialVersion: 1 }),
 }))
 
 const mocks = vi.hoisted(() => {
@@ -151,6 +155,7 @@ describe('mobile notification hooks', () => {
   beforeEach(() => {
     translation.t = i18n.t.bind(i18n)
     feedback.showError.mockReset()
+    session.epoch = 1
     mocks.state.notifications = createNotificationsResponse()
     focusManager.setFocused(true)
     mocks.queryClient.cancelQueries.mockClear()
@@ -211,6 +216,39 @@ describe('mobile notification hooks', () => {
       notificationKeys.lists(),
       initial,
     )
+  })
+
+  it('ignores a delete rejection from a replaced session', async () => {
+    const mutation = useDeleteNotification() as unknown as MutationConfig<
+      unknown,
+      string,
+      { previous: NotificationsResponse | undefined; sessionEpoch: number }
+    >
+    const context = await mutation.onMutate?.('n-1')
+    const replacementAccountNotifications: NotificationsResponse = {
+      items: [{
+        id: 'account-b-notification',
+        title: 'Account B',
+        body: 'Account B body',
+        url: null,
+        habitId: null,
+        isRead: false,
+        createdAtUtc: '2025-01-02T00:00:00Z',
+      }],
+      unreadCount: 1,
+    }
+
+    session.epoch = 2
+    mocks.state.notifications = replacementAccountNotifications
+    mocks.queryClient.setQueryData.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
+
+    mutation.onError?.(new Error('Late delete failure'), 'n-1', context)
+    mutation.onSettled?.(undefined, new Error('Late delete failure'), 'n-1', context)
+
+    expect(mocks.state.notifications).toEqual(replacementAccountNotifications)
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
   })
 
   it('derives the unread badge and item list from the query cache', () => {

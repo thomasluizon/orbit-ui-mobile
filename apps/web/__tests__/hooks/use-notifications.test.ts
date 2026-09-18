@@ -11,6 +11,7 @@ import {
 } from '@/hooks/use-notifications'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
+import { useAuthStore } from '@/stores/auth-store'
 
 const feedback = vi.hoisted(() => ({ showError: vi.fn() }))
 
@@ -293,6 +294,12 @@ describe('useMarkAllNotificationsRead optimistic update', () => {
 describe('useDeleteNotification', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    useAuthStore.setState({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+      sessionRefreshFailed: false,
+    })
   })
 
   it('calls deleteNotification action', async () => {
@@ -399,6 +406,66 @@ describe('useDeleteNotification', () => {
     expect(cached?.items).toHaveLength(1)
     expect(cached?.items.find((n) => n.id === 'n-1')).toBeUndefined()
     expect(cached?.unreadCount).toBe(0)
+  })
+
+  it('ignores a delete rejection from a replaced session', async () => {
+    const { deleteNotification } = await import('@/lib/actions/notifications')
+    const mockedAction = vi.mocked(deleteNotification)
+    let rejectDelete!: (error: Error) => void
+    mockedAction.mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectDelete = reject
+    }))
+    useAuthStore.getState().setAuth({
+      userId: 'account-a',
+      name: 'Account A',
+      email: 'account-a@example.com',
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const accountANotifications: NotificationsResponse = {
+      items: [createMockNotification({ id: 'account-a-notification', isRead: false })],
+      unreadCount: 1,
+    }
+    const accountBNotifications: NotificationsResponse = {
+      items: [createMockNotification({ id: 'account-b-notification', isRead: false })],
+      unreadCount: 1,
+    }
+    const { notificationKeys } = await import('@orbit/shared/query')
+    queryClient.setQueryData(notificationKeys.lists(), accountANotifications)
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+
+    function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(QueryClientProvider, { client: queryClient }, children)
+    }
+
+    const { result } = renderHook(() => useDeleteNotification(), { wrapper: Wrapper })
+    let deletePromise!: Promise<unknown>
+    await act(async () => {
+      deletePromise = result.current.mutateAsync('account-a-notification')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    await useAuthStore.getState().logout()
+    useAuthStore.getState().setAuth({
+      userId: 'account-b',
+      name: 'Account B',
+      email: 'account-b@example.com',
+    })
+    queryClient.setQueryData(notificationKeys.lists(), accountBNotifications)
+    invalidateQueries.mockClear()
+
+    await act(async () => {
+      rejectDelete(new Error('Late delete failure'))
+      await deletePromise.catch(() => undefined)
+    })
+
+    expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(accountBNotifications)
+    expect(invalidateQueries).not.toHaveBeenCalled()
   })
 })
 

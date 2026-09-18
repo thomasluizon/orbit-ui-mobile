@@ -14,6 +14,9 @@ import {
 import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
 import { shouldExposeOnboardingRoute } from '@/lib/capture-mode'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { useDeleteNotification } from '@/hooks/use-notifications'
+import { notificationKeys } from '@orbit/shared/query'
+import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import {
   getFailedNotificationDeleteIdsSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
@@ -47,6 +50,10 @@ const {
   cancelScheduledFlushMock,
   resumeOfflineReplayMock,
   cancelPersistentReminderMock,
+  cancelQueriesMock,
+  getQueryDataMock,
+  invalidateQueriesMock,
+  queryCache,
 } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
   getTokenMock: vi.fn(),
@@ -72,6 +79,10 @@ const {
   cancelScheduledFlushMock: vi.fn(),
   resumeOfflineReplayMock: vi.fn(),
   cancelPersistentReminderMock: vi.fn(),
+  cancelQueriesMock: vi.fn(async () => {}),
+  getQueryDataMock: vi.fn((queryKey: readonly unknown[]) => queryCache.get(JSON.stringify(queryKey))),
+  invalidateQueriesMock: vi.fn(async () => {}),
+  queryCache: new Map<string, unknown>(),
 }))
 
 vi.mock('expo-router', () => ({
@@ -108,6 +119,10 @@ vi.mock('@/lib/offline-queue', () => ({
 }))
 
 vi.mock('@/lib/offline-mutations', () => ({
+  buildQueuedMutation: vi.fn((options) => ({ id: 'mutation-1', ...options })),
+  createQueuedAck: vi.fn((mutationId: string) => ({ queued: true, queuedMutationId: mutationId })),
+  isQueuedResult: vi.fn(() => false),
+  queueOrExecute: vi.fn(({ execute }) => execute()),
   cancelScheduledFlush: cancelScheduledFlushMock,
   resumeOfflineReplay: resumeOfflineReplayMock,
 }))
@@ -123,10 +138,33 @@ vi.mock('@/hooks/use-push-notifications', () => ({
 vi.mock('@/lib/query-client', () => ({
   queryClient: {
     clear: queryClientClearMock,
+    cancelQueries: cancelQueriesMock,
+    getQueryData: getQueryDataMock,
+    invalidateQueries: invalidateQueriesMock,
     setQueryData: setQueryDataMock,
   },
   clearPersistedQueryCache: clearPersistedQueryCacheMock,
   setQueryCacheScope: setQueryCacheScopeMock,
+}))
+
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({
+    cancelQueries: cancelQueriesMock,
+    getQueryData: getQueryDataMock,
+    invalidateQueries: invalidateQueriesMock,
+    setQueryData: setQueryDataMock,
+  }),
+  useMutation: (config: unknown) => config,
+  useQuery: vi.fn(),
+}))
+
+vi.mock('react-i18next', async () => {
+  const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next')
+  return { ...actual, useTranslation: () => ({ t: (key: string) => key }) }
+})
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: vi.fn() }),
 }))
 
 vi.mock('@/lib/auth-flow', () => ({
@@ -189,6 +227,19 @@ describe('mobile auth store security paths', () => {
     cancelScheduledFlushMock.mockReset()
     resumeOfflineReplayMock.mockReset()
     cancelPersistentReminderMock.mockReset()
+    cancelQueriesMock.mockClear()
+    getQueryDataMock.mockClear()
+    invalidateQueriesMock.mockClear()
+    queryCache.clear()
+    queryClientClearMock.mockImplementation(() => queryCache.clear())
+    setQueryDataMock.mockImplementation((
+      queryKey: readonly unknown[],
+      updater: unknown,
+    ) => {
+      const cacheKey = JSON.stringify(queryKey)
+      const current = queryCache.get(cacheKey)
+      queryCache.set(cacheKey, typeof updater === 'function' ? updater(current) : updater)
+    })
     cancelPersistentReminderMock.mockResolvedValue(undefined)
     setQueryCacheScopeMock.mockResolvedValue(undefined)
 
@@ -1689,28 +1740,85 @@ describe('mobile auth store security paths', () => {
     const activeDeleteRequest = new Promise<never>((_resolve, reject) => {
       rejectActiveDelete = reject
     })
+    const deleteMutation = useDeleteNotification() as unknown as {
+      mutationFn: (notificationId: string) => Promise<unknown>
+      onMutate: (notificationId: string) => Promise<{
+        previous: NotificationsResponse | undefined
+        sessionEpoch: number
+      }>
+      onError: (error: Error, notificationId: string, context: {
+        previous: NotificationsResponse | undefined
+        sessionEpoch: number
+      }) => void
+      onSettled: (
+        data: unknown,
+        error: Error | null,
+        notificationId: string,
+        context: { previous: NotificationsResponse | undefined; sessionEpoch: number },
+      ) => void
+    }
+    const executeActiveDelete = async () => {
+      const context = await deleteMutation.onMutate('active-notification')
+      try {
+        const result = await activeDeleteRequest
+        deleteMutation.onSettled(result, null, 'active-notification', context)
+      } catch (error: unknown) {
+        deleteMutation.onError(error as Error, 'active-notification', context)
+        deleteMutation.onSettled(undefined, error as Error, 'active-notification', context)
+        throw error
+      }
+    }
     const pendingDelete = vi.fn()
+    const accountANotifications: NotificationsResponse = {
+      items: [{
+        id: 'active-notification',
+        title: 'Account A',
+        body: 'Account A body',
+        url: null,
+        habitId: null,
+        isRead: false,
+        createdAtUtc: '2025-01-01T00:00:00Z',
+      }],
+      unreadCount: 1,
+    }
+    const accountBNotifications: NotificationsResponse = {
+      items: [{
+        id: 'account-b-notification',
+        title: 'Account B',
+        body: 'Account B body',
+        url: null,
+        habitId: null,
+        isRead: false,
+        createdAtUtc: '2025-01-02T00:00:00Z',
+      }],
+      unreadCount: 1,
+    }
     try {
       await useAuthStore.getState().login('account-a-token', null, {
         userId: 'account-a',
         email: 'account-a@example.com',
         name: 'Account A',
       })
+      setQueryDataMock(notificationKeys.lists(), accountANotifications)
       queuePendingNotificationDelete('failed-notification', failedDelete)
-      queuePendingNotificationDelete('active-notification', () => activeDeleteRequest)
+      queuePendingNotificationDelete('active-notification', executeActiveDelete)
       await vi.advanceTimersByTimeAsync(5000)
       queuePendingNotificationDelete('pending-notification', pendingDelete)
       expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['failed-notification'])
 
       await useAuthStore.getState().logout()
-      rejectActiveDelete(new Error('Late server error'))
-      await Promise.resolve()
-      await vi.advanceTimersByTimeAsync(5000)
       await useAuthStore.getState().login('account-b-token', null, {
         userId: 'account-b',
         email: 'account-b@example.com',
         name: 'Account B',
       })
+      setQueryDataMock(notificationKeys.lists(), accountBNotifications)
+      setQueryDataMock.mockClear()
+      invalidateQueriesMock.mockClear()
+      rejectActiveDelete(new Error('Late server error'))
+      await Promise.resolve()
+      await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(5000)
 
       expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
       expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
@@ -1718,6 +1826,9 @@ describe('mobile auth store security paths', () => {
       expect(retryFailedNotificationDelete('active-notification')).toBe(false)
       expect(failedDelete).toHaveBeenCalledTimes(1)
       expect(pendingDelete).not.toHaveBeenCalled()
+      expect(getQueryDataMock(notificationKeys.lists())).toEqual(accountBNotifications)
+      expect(setQueryDataMock).not.toHaveBeenCalled()
+      expect(invalidateQueriesMock).not.toHaveBeenCalled()
     } finally {
       resetPendingNotificationDeletesForTests()
       vi.useRealTimers()

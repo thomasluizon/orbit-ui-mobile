@@ -34,6 +34,7 @@ import {
 } from '@/lib/actions/notifications'
 import { fetchJson } from '@/lib/api-fetch'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { getSessionGeneration } from '@/stores/auth-store'
 
 export function useNotifications() {
   const queryClient = useQueryClient()
@@ -127,6 +128,7 @@ export function useDeleteNotification() {
     mutationFn: (notificationId: string) => deleteNotificationAction(notificationId),
 
     onMutate: async (notificationId) => {
+      const sessionGeneration = getSessionGeneration()
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
       const previous = snapshotNotificationList(queryClient)
@@ -136,14 +138,16 @@ export function useDeleteNotification() {
         return deleteNotificationFromList(old, notificationId)
       })
 
-      return { previous }
+      return { previous, sessionGeneration }
     },
 
     onError: (_err, _id, context) => {
-      restoreNotificationList(queryClient, context?.previous)
+      if (!context || context.sessionGeneration !== getSessionGeneration()) return
+      restoreNotificationList(queryClient, context.previous)
     },
 
-    onSettled: () => {
+    onSettled: (_data, _error, _notificationId, context) => {
+      if (!context || context.sessionGeneration !== getSessionGeneration()) return
       void invalidateNotificationList(queryClient)
     },
   })
