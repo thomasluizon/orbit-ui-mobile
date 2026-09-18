@@ -6,7 +6,7 @@ import type { NotificationItem } from '@orbit/shared/types/notification'
 import { useNotificationInbox } from '@/hooks/use-notification-inbox'
 import { useMarkNotificationRead, useMarkAllNotificationsRead, useDeleteNotification, useDeleteAllNotifications } from '@/hooks/use-notifications'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { cancelPendingNotificationDelete, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
+import { cancelPendingNotificationDelete, clearFailedNotificationDeletes, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
 import { ArrowLeft } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -27,7 +27,7 @@ export function NotificationInbox() {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   function requestDeleteNotification(item: NotificationItem) {
-    queuePendingNotificationDelete(item.id, () => deleteNotification.mutate(item.id))
+    queuePendingNotificationDelete(item.id, () => deleteNotification.mutateAsync(item.id))
   }
 
   return (
@@ -63,6 +63,7 @@ export function NotificationInbox() {
         onConfirm={() => {
           setConfirmOpen(false)
           inbox.pendingDeleteIds.forEach(cancelPendingNotificationDelete)
+          clearFailedNotificationDeletes()
           deleteAll.mutate()
         }} />
     </section>

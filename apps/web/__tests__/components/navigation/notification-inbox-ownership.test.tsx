@@ -1,52 +1,138 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query'
 import { NOTIFICATIONS_REFETCH_INTERVAL, notificationKeys } from '@orbit/shared/query'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { fetchJson } from '@/lib/api-fetch'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
+
+const actionMocks = vi.hoisted(() => ({
+  markNotificationRead: vi.fn(),
+  markAllNotificationsRead: vi.fn(),
+  deleteNotification: vi.fn(),
+  deleteAllNotifications: vi.fn(),
+  subscribePush: vi.fn(),
+  unsubscribePush: vi.fn(),
+}))
+const feedback = vi.hoisted(() => ({ showError: vi.fn() }))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }), usePathname: () => '/notifications',
 }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', async () => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  return { useTranslations: () => createTranslator({ locale: 'en', messages }) }
+})
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: vi.fn() }))
-vi.mock('@/lib/actions/notifications', () => ({
-  markNotificationRead: vi.fn(), markAllNotificationsRead: vi.fn(),
-  deleteNotification: vi.fn(), deleteAllNotifications: vi.fn(),
+vi.mock('@/app/actions/notifications', () => actionMocks)
+vi.mock('sonner', () => ({
+  toast: Object.assign(vi.fn(), {
+    dismiss: vi.fn(), error: feedback.showError, info: vi.fn(), success: vi.fn(),
+  }),
 }))
 
 let queryClient: QueryClient
 
 function shell(inbox: boolean) {
   return <QueryClientProvider client={queryClient}>
-    <NotificationBell />{inbox ? <NotificationInbox /> : null}
+    <NotificationBell />{inbox ? <NotificationInbox /> : null}<NotificationDeleteNotice />
   </QueryClientProvider>
+}
+
+function deferredResult() {
+  let resolve!: (value: { ok: false; error: string; status: number; sessionRefreshFailed: false }) => void
+  const promise = new Promise<{ ok: false; error: string; status: number; sessionRefreshFailed: false }>(
+    (resolvePromise) => { resolve = resolvePromise },
+  )
+  return { promise, reject: () => resolve({ ok: false, error: 'Server error', status: 500, sessionRefreshFailed: false }) }
 }
 
 async function advance(milliseconds: number) {
   await act(async () => { await vi.advanceTimersByTimeAsync(milliseconds) })
 }
 
+async function flushPromises() {
+  await act(async () => { await Promise.resolve(); await Promise.resolve() })
+}
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
+  resetPendingNotificationDeletesForTests()
   focusManager.setFocused(true)
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   const response = { items: [createMockNotification({ isRead: false })], unreadCount: 1 }
   queryClient.setQueryData(notificationKeys.lists(), response)
   vi.mocked(fetchJson).mockResolvedValue(response)
+  const success = { ok: true as const, data: undefined }
+  actionMocks.markNotificationRead.mockResolvedValue(success)
+  actionMocks.markAllNotificationsRead.mockResolvedValue(success)
+  actionMocks.deleteNotification.mockResolvedValue(success)
+  actionMocks.deleteAllNotifications.mockResolvedValue(success)
 })
 
 afterEach(() => {
   cleanup()
+  resetPendingNotificationDeletesForTests()
   queryClient.clear()
   focusManager.setFocused(undefined)
   vi.restoreAllMocks()
   vi.useRealTimers()
+})
+
+it.each([
+  ['mark one read', 'markNotificationRead', "Couldn't mark that alert read. Try again."],
+  ['mark all read', 'markAllNotificationsRead', "Couldn't mark the alerts read. Try again."],
+  ['clear all', 'deleteAllNotifications', "Couldn't clear the alerts. Try again."],
+] as const)('announces a rejected %s action and restores the unread cache', async (_label, actionName, message) => {
+  const deferred = deferredResult()
+  actionMocks[actionName].mockReturnValueOnce(deferred.promise)
+  render(shell(true))
+
+  if (actionName === 'markNotificationRead') {
+    fireEvent.click(screen.getByRole('button', { name: /unread/ }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark read' }))
+  } else if (actionName === 'markAllNotificationsRead') {
+    fireEvent.click(screen.getByRole('button', { name: 'Mark all' }))
+  } else {
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+  }
+
+  deferred.reject()
+  await flushPromises()
+  expect(feedback.showError).toHaveBeenCalledWith(message, { duration: 5000 })
+  expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
+})
+
+it('announces a delayed delete rejection after the inbox unmounts and keeps undo silent', async () => {
+  const deferred = deferredResult()
+  actionMocks.deleteNotification.mockReturnValueOnce(deferred.promise)
+  const view = render(shell(true))
+
+  fireEvent.click(screen.getByRole('button', { name: /Delete:/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+  await advance(5000)
+  expect(actionMocks.deleteNotification).not.toHaveBeenCalled()
+  expect(feedback.showError).not.toHaveBeenCalled()
+
+  fireEvent.click(screen.getByRole('button', { name: /Delete:/ }))
+  await advance(5000)
+  view.rerender(shell(false))
+  deferred.reject()
+
+  await flushPromises()
+  await advance(0)
+  expect(screen.getByText("Couldn't delete that alert. Try again.")).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+  expect(feedback.showError).not.toHaveBeenCalled()
+  expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
 })
 
 it('shares one poll between the shell bell and inbox until the last consumer unmounts', async () => {

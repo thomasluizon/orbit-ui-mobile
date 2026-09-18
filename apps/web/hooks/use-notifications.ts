@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   useQuery,
   useMutation,
@@ -32,6 +33,7 @@ import {
   deleteAllNotifications as deleteAllNotificationsAction,
 } from '@/lib/actions/notifications'
 import { fetchJson } from '@/lib/api-fetch'
+import { useAppToast } from '@/hooks/use-app-toast'
 
 export function useNotifications() {
   const queryClient = useQueryClient()
@@ -56,6 +58,8 @@ export function useNotifications() {
 
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
 
   return useMutation({
     mutationFn: (notificationId: string) => markNotificationRead(notificationId),
@@ -75,6 +79,7 @@ export function useMarkNotificationRead() {
 
     onError: (_err, _id, context) => {
       restoreNotificationList(queryClient, context?.previous)
+      showError(t('notifications.markReadError'))
     },
 
     onSettled: () => {
@@ -85,6 +90,8 @@ export function useMarkNotificationRead() {
 
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
 
   return useMutation({
     mutationFn: () => markAllNotificationsRead(),
@@ -104,6 +111,7 @@ export function useMarkAllNotificationsRead() {
 
     onError: (_err, _vars, context) => {
       restoreNotificationList(queryClient, context?.previous)
+      showError(t('notifications.markAllReadError'))
     },
 
     onSettled: () => {
@@ -143,6 +151,8 @@ export function useDeleteNotification() {
 
 export function useDeleteAllNotifications() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showError } = useAppToast()
 
   return useMutation({
     mutationFn: () => deleteAllNotificationsAction(),
@@ -162,6 +172,7 @@ export function useDeleteAllNotifications() {
 
     onError: (_err, _vars, context) => {
       restoreNotificationList(queryClient, context?.previous)
+      showError(t('notifications.deleteAllError'))
     },
 
     onSettled: () => {

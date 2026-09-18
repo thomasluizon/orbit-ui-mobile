@@ -6,9 +6,20 @@ import { NOTIFICATIONS_REFETCH_INTERVAL, notificationKeys } from '@orbit/shared/
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { apiClient } from '@/lib/api-client'
+import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { i18n } from '@/lib/i18n'
 
 const TestRenderer = require('react-test-renderer')
+const translation = vi.hoisted(() => ({
+  t: (key: string, _values?: Record<string, unknown>) => key,
+}))
+vi.mock('react-i18next', async () => {
+  const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next')
+  return { ...actual, useTranslation: () => ({ t: translation.t }) }
+})
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: vi.fn() }), usePathname: () => '/notifications',
@@ -19,9 +30,13 @@ vi.mock('react-native-safe-area-context', async () => {
   return { SafeAreaView: View }
 })
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
-vi.mock('@/lib/offline-mutations', () => ({
-  buildQueuedMutation: vi.fn(), createQueuedAck: vi.fn(), isQueuedResult: vi.fn(), queueOrExecute: vi.fn(),
+const offlineMocks = vi.hoisted(() => ({
+  buildQueuedMutation: vi.fn((options) => ({ id: 'mutation-1', ...options })),
+  createQueuedAck: vi.fn((id: string) => ({ queued: true, queuedMutationId: id })),
+  isQueuedResult: vi.fn(() => false),
+  queueOrExecute: vi.fn(({ execute }: { execute: () => Promise<unknown> }) => execute()),
 }))
+vi.mock('@/lib/offline-mutations', () => offlineMocks)
 vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 
 let tree: { unmount: () => void; update: (element: React.ReactElement) => void } | undefined
@@ -30,8 +45,35 @@ const listeners = new Set<(status: AppStateStatus) => void>()
 
 function retainedStack(inbox: boolean) {
   return <QueryClientProvider client={queryClient}>
-    <NotificationBell />{inbox ? <NotificationInbox /> : null}
+    <NotificationBell />{inbox ? <NotificationInbox /> : null}<NotificationDeleteNotice />
   </QueryClientProvider>
+}
+
+function deferredFailure() {
+  let reject!: (error: Error) => void
+  const promise = new Promise<never>((_resolve, rejectPromise) => { reject = rejectPromise })
+  return { promise, reject: () => reject(new Error('Server error')) }
+}
+
+function press(label: string) {
+  const button = (tree as unknown as { root: { findAll: (predicate: (node: { type: unknown; props: Record<string, unknown>; findAll: (predicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: { onPress?: () => void } }[] } }).root.findAll(
+    (node) => typeof node.props.onPress === 'function' && (
+      node.props.accessibilityLabel === label
+      || node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0
+    ),
+  )[0]
+  expect(button, label).toBeDefined()
+  TestRenderer.act(() => button?.props.onPress?.())
+}
+
+function pressStarting(prefix: string) {
+  const button = (tree as unknown as { root: { findAll: (predicate: (node: { props: Record<string, unknown> }) => boolean) => { props: { accessibilityLabel?: string; onPress?: () => void } }[] } }).root.findAll(
+    (node) => typeof node.props.onPress === 'function'
+      && typeof node.props.accessibilityLabel === 'string'
+      && node.props.accessibilityLabel.startsWith(prefix),
+  )[0]
+  expect(button, prefix).toBeDefined()
+  TestRenderer.act(() => button?.props.onPress?.())
 }
 
 async function advance(milliseconds: number) {
@@ -41,6 +83,10 @@ async function advance(milliseconds: number) {
 beforeEach(async () => {
   vi.useFakeTimers()
   vi.clearAllMocks()
+  resetPendingNotificationDeletesForTests()
+  useAppToastStore.setState({ currentToast: null, queue: [] })
+  await i18n.changeLanguage('en')
+  translation.t = i18n.t.bind(i18n)
   focusManager.setFocused(true)
   vi.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
     listeners.add(listener)
@@ -51,16 +97,75 @@ beforeEach(async () => {
   const response = { items: [createMockNotification({ isRead: false })], unreadCount: 1 }
   queryClient.setQueryData(notificationKeys.lists(), response)
   vi.mocked(apiClient).mockResolvedValue(response)
+  offlineMocks.queueOrExecute.mockImplementation(({ execute }: { execute: () => Promise<unknown> }) => execute())
 })
 
 afterEach(() => {
   TestRenderer.act(() => tree?.unmount())
   tree = undefined
+  resetPendingNotificationDeletesForTests()
+  useAppToastStore.setState({ currentToast: null, queue: [] })
   queryClient.clear()
   listeners.clear()
   focusManager.setFocused(undefined)
   vi.restoreAllMocks()
   vi.useRealTimers()
+})
+
+it.each([
+  ['mark one read', 'Mark read', "Couldn't mark that alert read. Try again."],
+  ['mark all read', 'Mark all', "Couldn't mark the alerts read. Try again."],
+  ['clear all', 'Clear all', "Couldn't clear the alerts. Try again."],
+] as const)('announces a rejected %s action and restores the unread cache', async (_name, label, message) => {
+  const deferred = deferredFailure()
+  const response = queryClient.getQueryData(notificationKeys.lists())
+  vi.mocked(apiClient).mockImplementation((_path, options) => (
+    options?.method ? deferred.promise : Promise.resolve(response)
+  ))
+  TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
+
+  if (label === 'Mark read') {
+    pressStarting('Reminder.')
+    press(label)
+  } else if (label === 'Clear all') {
+    press(label)
+    press('Delete')
+  } else {
+    press(label)
+  }
+
+  deferred.reject()
+  await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
+  expect(useAppToastStore.getState().currentToast?.toast.message).toBe(message)
+  expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
+})
+
+it('announces a delayed delete rejection after the inbox unmounts and keeps undo silent', async () => {
+  const deferred = deferredFailure()
+  const response = queryClient.getQueryData(notificationKeys.lists())
+  vi.mocked(apiClient).mockImplementation((_path, options) => (
+    options?.method ? deferred.promise : Promise.resolve(response)
+  ))
+  TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
+
+  press('Delete: Reminder')
+  press('Undo')
+  await advance(5000)
+  expect(useAppToastStore.getState().currentToast).toBeNull()
+
+  press('Delete: Reminder')
+  await advance(5000)
+  TestRenderer.act(() => tree?.update(retainedStack(false)))
+  deferred.reject()
+  await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
+  await advance(0)
+
+  const failureCopy = (tree as unknown as { root: { findAll: (predicate: (node: { type: unknown; props: Record<string, unknown> }) => boolean) => { props: Record<string, unknown> }[] } }).root.findAll(
+    (node) => node.type === 'Text' && node.props.children === "Couldn't delete that alert. Try again.",
+  )
+  expect(failureCopy).toHaveLength(1)
+  expect(useAppToastStore.getState().currentToast).toBeNull()
+  expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
 })
 
 it('shares one poll and the app AppState bridge between the retained bell and pushed inbox until the last unmount', async () => {

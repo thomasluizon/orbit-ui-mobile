@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   useQuery,
   useMutation,
@@ -30,6 +31,7 @@ import {
   isQueuedResult,
   queueOrExecute,
 } from '@/lib/offline-mutations'
+import { useAppToast } from '@/hooks/use-app-toast'
 
 export function useNotifications() {
   const queryClient = useQueryClient()
@@ -53,6 +55,8 @@ export function useNotifications() {
 
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const { showError } = useAppToast()
 
   return useMutation({
     mutationFn: async (notificationId: string) => {
@@ -93,6 +97,7 @@ export function useMarkNotificationRead() {
       if (context?.previous) {
         restoreNotificationList(queryClient, context.previous)
       }
+      showError(t('notifications.markReadError'))
     },
 
     onSettled: (data) => {
@@ -104,6 +109,8 @@ export function useMarkNotificationRead() {
 
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const { showError } = useAppToast()
 
   return useMutation({
     mutationFn: async () => {
@@ -140,6 +147,7 @@ export function useMarkAllNotificationsRead() {
       if (context?.previous) {
         restoreNotificationList(queryClient, context.previous)
       }
+      showError(t('notifications.markAllReadError'))
     },
 
     onSettled: (data) => {
@@ -201,6 +209,8 @@ export function useDeleteNotification() {
 
 export function useDeleteAllNotifications() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const { showError } = useAppToast()
 
   return useMutation({
     mutationFn: async () => {
@@ -237,6 +247,7 @@ export function useDeleteAllNotifications() {
       if (context?.previous) {
         restoreNotificationList(queryClient, context.previous)
       }
+      showError(t('notifications.deleteAllError'))
     },
 
     onSettled: (data) => {

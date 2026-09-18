@@ -41,7 +41,7 @@ vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ ...state }),
   useMarkNotificationRead: () => ({ mutate: state.mark }),
   useMarkAllNotificationsRead: () => ({ mutate: state.markAll }),
-  useDeleteNotification: () => ({ mutate: state.remove }),
+  useDeleteNotification: () => ({ mutate: state.remove, mutateAsync: async (id: string) => state.remove(id) }),
   useDeleteAllNotifications: () => ({ mutate: state.clear }),
 }))
 

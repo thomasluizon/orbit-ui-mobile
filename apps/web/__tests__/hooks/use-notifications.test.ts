@@ -12,6 +12,17 @@ import {
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 
+const feedback = vi.hoisted(() => ({ showError: vi.fn() }))
+
+vi.mock('next-intl', async () => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  return { useTranslations: () => createTranslator({ locale: 'en', messages }) }
+})
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: feedback.showError }),
+}))
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
@@ -48,6 +59,7 @@ function mockNotificationsResponse(response: NotificationsResponse) {
 describe('useNotifications', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    feedback.showError.mockReset()
   })
 
   it('fetches and returns notifications', async () => {
@@ -99,6 +111,7 @@ describe('useNotifications', () => {
 describe('useMarkNotificationRead', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    feedback.showError.mockReset()
   })
 
   it('calls markNotificationRead action', async () => {

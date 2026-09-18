@@ -3,6 +3,7 @@ import { focusManager } from '@tanstack/query-core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NOTIFICATIONS_REFETCH_INTERVAL, notificationKeys } from '@orbit/shared/query'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
+import { i18n } from '@/lib/i18n'
 
 import {
   useDeleteAllNotifications,
@@ -13,6 +14,18 @@ import {
 } from '@/hooks/use-notifications'
 
 const TestRenderer = require('react-test-renderer')
+const feedback = vi.hoisted(() => ({ showError: vi.fn() }))
+const translation = vi.hoisted(() => ({
+  t: (key: string, _values?: Record<string, unknown>) => key,
+}))
+
+vi.mock('react-i18next', async () => {
+  const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next')
+  return { ...actual, useTranslation: () => ({ t: translation.t }) }
+})
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: feedback.showError }),
+}))
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -136,6 +149,8 @@ function renderHook(hook: () => unknown): { unmount: () => void } {
 
 describe('mobile notification hooks', () => {
   beforeEach(() => {
+    translation.t = i18n.t.bind(i18n)
+    feedback.showError.mockReset()
     mocks.state.notifications = createNotificationsResponse()
     focusManager.setFocused(true)
     mocks.queryClient.cancelQueries.mockClear()
