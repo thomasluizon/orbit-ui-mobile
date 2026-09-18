@@ -37,11 +37,11 @@ export function BarChart({
             </span>
             <span
               aria-hidden
-              className="relative flex-1 overflow-hidden rounded-lg"
+              className="relative flex-1 overflow-hidden rounded-sm"
               style={{ height: 10, background: 'var(--bg-sunk)' }}
             >
               <span
-                className="absolute inset-y-0 left-0 rounded-lg"
+                className="absolute inset-y-0 left-0 rounded-sm"
                 style={{
                   width: `${Math.max(ratio * 100, bar.value > 0 ? 3 : 0)}%`,
                   background: 'var(--primary)',
