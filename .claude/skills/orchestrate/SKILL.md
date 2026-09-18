@@ -1202,12 +1202,44 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 | Role | Model |
 |---|---|
 | Orchestrator | Opus 5 @ high, or Sol @ high |
-| Implementer | `codex exec` at the order's `default` or `mechanical` tier, resolved from `.claude/orchestrator.json` |
+| Implementer | the engine named by `worker` in `.claude/orchestrator.json`, at the order's `default` or `mechanical` tier |
 
 The reviewer is absent from this table because this harness launches none. Pullfrog reviews in
 GitHub Actions, and its model and effort are set in the Pullfrog console rather than in any file
 here. `launch-worker.mjs` resolves the requested worker tier; tier selection routes the resulting
 order, never the Pullfrog review itself.
+
+### §5.4.1 When Codex is out of usage, Claude is the worker
+
+**An exhausted Codex allowance is not an ending. Switch the engine and keep going.**
+
+`.claude/orchestrator.json` declares two engines under `workers`, and the top-level `worker` key
+chooses one. `codex` is the default. `claude` runs Claude Code headless through the same launcher,
+the same order file, the same worktree, the same timeouts and the same wake source.
+
+```bash
+node -e "const f='.claude/orchestrator.json',c=require('./'+f);c.worker='claude';require('fs').writeFileSync(f,JSON.stringify(c,null,2)+'\n')"
+node tools/launch-worker.mjs --issue '#N' --worktree <path> --prompt <file> --dry-run
+```
+
+Run the `--dry-run` before the first real launch and read the resolved `args` back. Switch `worker`
+to `codex` again when the allowance resets.
+
+Nothing else changes. The order generator, `§5.7`'s queue, the readiness loop, the caps and every
+hard prohibition apply identically, because the engine is the only variable.
+
+**Never substitute a Claude SUBAGENT for a worker.** A subagent lives inside the orchestrating
+session, so it dies with that session and a handoff inherits nothing: its edits sit uncommitted in a
+worktree with no record of what they were, and the next session cannot resume or even find them.
+A subagent also registers no wake source, so `.claude/hooks/require-wake-source.mjs` correctly reads
+an unattended run as having no continuation, and the night ends silently. Measured 2026-09-18: five
+subagents ran as workers, the Stop hook objected on every turn, and each one had to be told to commit
+and push before a handoff could be written at all. A headless engine through `launch-worker.mjs` has
+none of those problems, because the process is external, its pid is the wake source, and its output
+is a commit rather than a conversation.
+
+The same rule binds the reviewer. When Pullfrog cannot run, say so and record the blocker; do not
+quietly promote a subagent into the reviewer seat and merge on its word.
 
 ## §5.7 The queue
 
