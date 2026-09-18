@@ -532,9 +532,9 @@ function createStyles(bottomInset: number) {
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-      gap: 20,
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+      gap: 24,
     },
     fieldsPending: {
       opacity: 0.6,
@@ -545,7 +545,7 @@ function createStyles(bottomInset: number) {
       justifyContent: 'flex-end',
       gap: 12,
       paddingTop: 16,
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingBottom: Math.max(bottomInset + 12, 28),
     },
   })

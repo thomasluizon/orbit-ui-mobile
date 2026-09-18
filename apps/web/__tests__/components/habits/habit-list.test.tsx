@@ -268,10 +268,6 @@ vi.mock('@dnd-kit/utilities', () => ({
   },
 }))
 
-vi.mock('@/components/ui/highlight-text', () => ({
-  HighlightText: ({ text }: { text: string }) => <span>{text}</span>,
-}))
-
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 

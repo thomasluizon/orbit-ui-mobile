@@ -62,6 +62,22 @@ describe('NotificationDetailModal', () => {
     expect(screen.getByText('You earned a badge!')).toBeInTheDocument()
   })
 
+  it('keeps actions outside the scrolling body for long notifications', () => {
+    const longBody = Array.from({ length: 80 }, (_, index) => `Line ${index + 1}`).join('\n')
+    const { container } = render(
+      <NotificationDetailModal
+        {...defaultProps}
+        notification={{ ...mockNotification, body: longBody }}
+      />,
+    )
+    const body = container.querySelector('[data-slot="sheet-body"]')!
+    const actions = container.querySelector('[data-slot="sheet-actions"]')!
+
+    expect(body.querySelector('.whitespace-pre-wrap')?.textContent).toBe(longBody)
+    expect(body.querySelectorAll('button')).toHaveLength(0)
+    expect(actions.querySelectorAll('button')).toHaveLength(3)
+  })
+
   it('shows mark as read button for unread notifications', () => {
     render(<NotificationDetailModal {...defaultProps} />)
     expect(screen.getByText('notifications.markAsRead')).toBeInTheDocument()

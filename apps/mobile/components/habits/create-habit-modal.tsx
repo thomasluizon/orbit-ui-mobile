@@ -610,9 +610,9 @@ function createStyles(
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: 20,
-      paddingBottom: 20,
-      gap: 22,
+      paddingHorizontal: 16,
+      paddingBottom: 16,
+      gap: 24,
     },
     fieldLabel: {
       fontFamily: 'Geist_500Medium',
@@ -620,7 +620,7 @@ function createStyles(
       color: tokens.fg2,
     },
     subHabitsSection: {
-      gap: 10,
+      gap: 8,
     },
     subHabitsHeader: {
       flexDirection: 'row',
@@ -633,14 +633,14 @@ function createStyles(
     subHabitRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
       minHeight: 54,
       borderRadius: 14,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      paddingLeft: 14,
-      paddingRight: 6,
+      paddingLeft: 12,
+      paddingRight: 4,
     },
     subHabitIndex: {
       width: 16,
@@ -660,7 +660,7 @@ function createStyles(
       fontSize: 15,
       borderWidth: 0,
       borderRadius: 0,
-      paddingVertical: 10,
+      paddingVertical: 8,
       paddingHorizontal: 0,
     },
     subHabitRemoveButton: {
@@ -674,7 +674,7 @@ function createStyles(
       alignItems: 'center',
       alignSelf: 'flex-start',
       gap: 8,
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: 999,
       borderWidth: 1,
@@ -692,7 +692,7 @@ function createStyles(
       justifyContent: 'flex-end',
       gap: 12,
       paddingTop: 16,
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingBottom: Math.max(bottomInset + 12, 28),
     },
   })

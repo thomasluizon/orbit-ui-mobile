@@ -3,6 +3,7 @@ import {
   UI_REVIEW_SWEEP_CONTRACT,
   composedOrderNeedsUiReview,
   isUiReviewPath,
+  reviewEvidenceRequirements,
   renderUiReviewSweepContract,
 } from "../lib/review-harness.mjs"
 
@@ -41,5 +42,16 @@ export const cases = () => {
     "lib/review-harness.mjs: the canonical sweep closes with both repository agents",
     ["design-reviewer", "completeness-critic"].every((agent) => rendered.includes(agent)),
     rendered,
+  )
+  const contractWithAddedLane = {
+    ...UI_REVIEW_SWEEP_CONTRACT,
+    lanes: [
+      ...UI_REVIEW_SWEEP_CONTRACT.lanes,
+      { name: "contrast", applicability: "mandatory", skills: [] },
+    ],
+  }
+  T(
+    "lib/review-harness.mjs: adding a lane automatically adds its evidence requirement",
+    reviewEvidenceRequirements(contractWithAddedLane).some(({ name }) => name === "contrast lane"),
   )
 }

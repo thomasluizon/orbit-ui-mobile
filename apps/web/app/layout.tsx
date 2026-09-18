@@ -169,9 +169,9 @@ export default async function RootLayout({
             theme="dark"
             position="top-center"
             icons={{
-              success: <Check size={17} strokeWidth={2.4} />,
-              error: <X size={17} strokeWidth={2.4} />,
-              info: <Bell size={17} strokeWidth={2.4} />,
+              success: <Check size={16} strokeWidth={2.4} />,
+              error: <X size={16} strokeWidth={2.4} />,
+              info: <Bell size={16} strokeWidth={2.4} />,
             }}
             toastOptions={{
               style: {

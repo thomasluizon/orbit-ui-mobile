@@ -33,14 +33,23 @@
 
 import { existsSync, readdirSync } from "node:fs"
 import { dirname, join } from "node:path"
+import { performance } from "node:perf_hooks"
 import { fileURLToPath } from "node:url"
+
+const startedAt = performance.now()
+let assertionCount = () => 0
+process.on("exit", () => {
+  const elapsedSeconds = (performance.now() - startedAt) / 1000
+  console.log(`Assertions: ${assertionCount()} | Elapsed: ${elapsedSeconds.toFixed(3)}s`)
+})
 
 const USAGE = `usage: test-tools.mjs
 
-  Executes every script in tools/ and asserts its CLI contract and decision paths.
-  Takes no arguments; hermetic (no network, no worktree, no ticket system).
+  Executes scripts in tools/ and asserts their CLI contract and decision paths.
+  With no --only flags, runs the complete gate. Hermetic: no network, worktree, or ticket system.
 
-  --help, -h  print this usage and exit 0
+  --only <name>  run one registered case module; repeat to select more
+  --help, -h     print this usage and exit 0
 
 exit codes: 0 every check passed, 1 a failing check, 2 usage error`
 
@@ -49,21 +58,9 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
   process.exit(0)
 }
 
-if (process.argv.length > 2) {
-  console.error(`test-tools: takes no arguments, got: ${process.argv.slice(2).join(" ")}\n`)
-  console.error(USAGE)
-  process.exit(2)
-}
-
 const TOOLS_DIR = dirname(fileURLToPath(import.meta.url))
 const SELF = "test-tools.mjs"
 const LIB_DIR = join(TOOLS_DIR, "lib")
-
-// Loaded after the CLI contract, so --help and a bad argument stage no fixture root.
-const { BASH, T, assertionTally, beginToolScope, check, configure, endToolScope, failureCount, orphanCaseKeys, stage, toolPath } =
-  await import("./__tests__/_harness.mjs")
-
-configure({ toolsDir: TOOLS_DIR, self: SELF })
 
 /**
  * Each covered unit's decision-path module: [path under tools/, module under tools/__tests__/].
@@ -131,14 +128,53 @@ const CASE_MODULES = [
   ["teardown-worktree.mjs", "teardown-worktree"],
   ["update-ticket.mjs", "update-ticket"],
   ["verify-delivery.mjs", "verify-delivery"],
+  ["test-tools.mjs", "test-tools"],
 ]
 
 const REPOSITORY_CASE_MODULES = [
   [".maestro/protected-route-redirect.yaml", "protected-route-redirect"],
 ]
 
+const requestedModules = []
+for (let index = 2; index < process.argv.length; index++) {
+  const argument = process.argv[index]
+  if (argument !== "--only") {
+    console.error(`test-tools: unknown option: ${argument}\n`)
+    console.error(USAGE)
+    process.exit(2)
+  }
+  const name = process.argv[++index]
+  if (!name || name.startsWith("-")) {
+    console.error("test-tools: --only requires a case-module name\n")
+    console.error(USAGE)
+    process.exit(2)
+  }
+  requestedModules.push(name)
+}
+
+const validModules = CASE_MODULES.map(([, module]) => module)
+const unknownModules = [...new Set(requestedModules.filter((name) => !validModules.includes(name)))]
+if (unknownModules.length > 0) {
+  console.error(`test-tools: unknown case module(s): ${unknownModules.join(", ")}`)
+  console.error(`Valid case modules: ${validModules.join(", ")}`)
+  process.exit(2)
+}
+
+const requestedSet = new Set(requestedModules)
+const selectedCaseModules = requestedSet.size === 0
+  ? CASE_MODULES
+  : CASE_MODULES.filter(([, module]) => requestedSet.has(module))
+const selectedFiles = new Set(selectedCaseModules.map(([file]) => file))
+
+// Loaded after CLI validation, so --help and a bad argument stage no fixture root.
+const { BASH, T, assertionTally, beginToolScope, check, configure, endToolScope, failureCount, orphanCaseKeys, stage, toolPath } =
+  await import("./__tests__/_harness.mjs")
+
+configure({ toolsDir: TOOLS_DIR, self: SELF })
+assertionCount = () => Object.values(assertionTally()).reduce((total, count) => total + count, 0)
+
 const gateCases = {}
-for (const [file, module] of CASE_MODULES) {
+for (const [file, module] of selectedCaseModules) {
   const loaded = await import(`./__tests__/${module}.mjs`)
   if (typeof loaded.cases !== "function") {
     console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
@@ -148,7 +184,7 @@ for (const [file, module] of CASE_MODULES) {
 }
 
 const repositoryCases = {}
-for (const [file, module] of REPOSITORY_CASE_MODULES) {
+for (const [file, module] of requestedSet.size === 0 ? REPOSITORY_CASE_MODULES : []) {
   const loaded = await import(`./__tests__/${module}.mjs`)
   if (typeof loaded.cases !== "function") {
     console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
@@ -207,10 +243,13 @@ const INVALID_INPUT = {
   "verify-delivery.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
 }
 
-console.log("# structural coverage")
 const scripts = readdirSync(TOOLS_DIR)
   .filter((file) => /\.(mjs|sh|ps1)$/.test(file) && file !== SELF)
   .sort()
+const libraries = existsSync(LIB_DIR) ? readdirSync(LIB_DIR).filter((file) => file.endsWith(".mjs")).sort() : []
+const registeredCaseFiles = new Set(CASE_MODULES.map(([file]) => file))
+const contractScripts = requestedSet.size === 0 ? scripts : scripts.filter((file) => selectedFiles.has(file))
+console.log("# structural coverage")
 const uncovered = scripts.filter((file) => !INVALID_INPUT[file])
 T(
   `every tools/ script has coverage (${scripts.length} scripts)`,
@@ -218,20 +257,13 @@ T(
   `no COVERAGE entry for: ${uncovered.join(", ")}\n     Add one to INVALID_INPUT (and a CASE_MODULES row plus a tools/__tests__ module if it has decision paths) in tools/${SELF}.`,
 )
 T("the coverage guard actually enumerated scripts", scripts.length > 0, "tools/ resolved to zero scripts, so this gate proved nothing")
-/**
- * The reverse direction, and the one a deletion breaks: a row naming a script that no longer
- * exists is dead weight that reads as coverage. The harness rebuild deleted 29 tools at once and
- * every one of their rows stayed behind, so this fails rather than printing a note.
- */
 const staleRows = Object.keys(INVALID_INPUT).filter((file) => !scripts.includes(file))
 T(
   "every COVERAGE entry names a tools/ script that exists",
   staleRows.length === 0,
   `INVALID_INPUT rows with no tools/ script: ${staleRows.join(", ")}\n     Delete the row, or restore the script it claims to cover.`,
 )
-
-const libraries = existsSync(LIB_DIR) ? readdirSync(LIB_DIR).filter((file) => file.endsWith(".mjs")).sort() : []
-const uncoveredLibraries = libraries.filter((file) => !gateCases[`lib/${file}`])
+const uncoveredLibraries = libraries.filter((file) => !registeredCaseFiles.has(`lib/${file}`))
 T(
   `every tools/lib/ module has a case module (${libraries.length} modules)`,
   uncoveredLibraries.length === 0,
@@ -239,8 +271,8 @@ T(
 )
 
 console.log("\n# universal contract (tools/CONVENTIONS.md)")
-T("a real bash is resolvable", Boolean(BASH) || !scripts.some((file) => file.endsWith(".sh")), "no working bash found; set ORBIT_BASH to one (the PATH bash on Windows is the WSL stub)")
-for (const file of scripts) {
+T("a real bash is resolvable", Boolean(BASH) || !contractScripts.some((file) => file.endsWith(".sh")), "no working bash found; set ORBIT_BASH to one (the PATH bash on Windows is the WSL stub)")
+for (const file of contractScripts) {
   if (file.endsWith(".sh") && !BASH) continue
   check(file, "--help exits 0 with usage on stdout", ["--help"], { status: 0, stdout: /usage|Usage/ })
   const invalid = INVALID_INPUT[file]
@@ -264,12 +296,13 @@ T(
   orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(",") === "absent.mjs",
   `orphanCaseKeys reported ${orphanCaseKeys(["present.mjs", "absent.mjs"], caseKeyProbe).join(", ")} instead of absent.mjs`,
 )
-const orphanedCaseKeys = orphanCaseKeys(Object.keys(gateCases), TOOLS_DIR)
+const orphanedCaseKeys = orphanCaseKeys(CASE_MODULES.map(([file]) => file), TOOLS_DIR)
 T(
   "every registered case key names a real tools/ file",
   orphanedCaseKeys.length === 0,
   `CASE_MODULES rows with no tools/ file: ${orphanedCaseKeys.join(", ")}\n     A skipped key exits 0 while its cases never run. Delete the row or restore the file.`,
 )
+
 for (const [file, cases] of Object.entries(gateCases)) {
   if (orphanedCaseKeys.includes(file)) continue
   beginToolScope(file)
@@ -297,20 +330,20 @@ for (const [file, cases] of Object.entries(repositoryCases)) {
  * `return`. A case module that contributes NOTHING is the shape that reaches zero cost silently,
  * so it fails here by name rather than passing quietly.
  */
-console.log("\n# assertion coverage")
 const tally = assertionTally()
-for (const [tool, count] of Object.entries(tally).sort(([left], [right]) => left.localeCompare(right))) {
-  console.log(`${String(count).padStart(4)}  ${tool}`)
-}
-const silent = [...Object.keys(gateCases), ...Object.keys(repositoryCases)].filter(
-  (file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0),
-)
+const expectedCaseFiles = [...Object.keys(gateCases), ...Object.keys(repositoryCases)]
+const silent = expectedCaseFiles.filter((file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0))
 T(
   "every registered case module ran at least one assertion",
   silent.length === 0,
   `case modules that asserted nothing: ${silent.join(", ")}\n     An assertion that stops running prints nothing at all. Restore the cases.`,
 )
 
+const printedTally = assertionTally()
 const failures = failureCount()
+console.log("\n# assertion coverage")
+for (const [tool, count] of Object.entries(printedTally).sort(([left], [right]) => left.localeCompare(right))) {
+  console.log(`${String(count).padStart(4)}  ${tool}`)
+}
 console.log(`\n${failures === 0 ? "ORBIT TOOLS GATE OK" : `ORBIT TOOLS GATE FAILED (${failures})`}`)
 process.exit(failures === 0 ? 0 : 1)

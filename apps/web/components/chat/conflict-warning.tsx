@@ -51,12 +51,12 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
       className={`rounded-[16px] px-4 py-3 text-xs mt-2 ${severity.className}`}
       style={{ boxShadow: `inset 0 0 0 1px ${severity.ring}` }}
     >
-      <p className="font-semibold mb-1 flex items-center gap-1.5">
-        <AlertTriangle className={`size-3.5 ${severity.graphicClassName}`} />
+      <p className="font-semibold mb-1 flex items-center gap-1">
+        <AlertTriangle className={`size-4 ${severity.graphicClassName}`} />
         {t('chat.conflict.title')}
       </p>
       {warning.conflictingHabits.length > 0 && (
-        <ul className="space-y-0.5 mb-1.5">
+        <ul className="mb-1 flex flex-col gap-1">
           {warning.conflictingHabits.map((habit) => (
             <li key={habit.habitId}>
               <span className="font-semibold">{habit.habitTitle}</span>:{' '}
