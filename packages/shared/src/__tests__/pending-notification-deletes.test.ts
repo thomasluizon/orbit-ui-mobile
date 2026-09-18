@@ -98,6 +98,25 @@ describe('pending notification deletes', () => {
     expect(execute).toHaveBeenCalledTimes(2)
   })
 
+  it('never publishes a snapshot holding one delete as pending and failed at once', () => {
+    const snapshots: Array<[string[], string[]]> = []
+    const unsubscribe = subscribePendingNotificationDeleteIds(() => {
+      snapshots.push([getPendingNotificationDeleteIdsSnapshot(), getFailedNotificationDeleteIdsSnapshot()])
+    })
+    queuePendingNotificationDelete('notif-1', () => {
+      throw new Error('boom')
+    })
+
+    vi.advanceTimersByTime(5000)
+    unsubscribe()
+
+    expect(snapshots).toEqual([
+      [['notif-1'], []],
+      [[], []],
+      [[], ['notif-1']],
+    ])
+  })
+
   it('captures an asynchronous rejection without leaking it', async () => {
     queuePendingNotificationDelete('notif-1', () => Promise.reject(new Error('boom')))
 

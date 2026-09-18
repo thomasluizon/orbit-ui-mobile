@@ -100,6 +100,9 @@ export function queuePendingNotificationDelete(notificationId: string, execute: 
 
     const attempt = Symbol(notificationId)
     activeDeleteAttempts.set(notificationId, attempt)
+    pendingDeleteEntries.delete(notificationId)
+    syncPendingDeleteSnapshot()
+    emitPendingDeleteChange()
 
     try {
       const result = entry.execute()
@@ -109,10 +112,6 @@ export function queuePendingNotificationDelete(notificationId: string, execute: 
       )
     } catch {
       finishDeleteAttempt(notificationId, attempt, execute, true)
-    } finally {
-      pendingDeleteEntries.delete(notificationId)
-      syncPendingDeleteSnapshot()
-      emitPendingDeleteChange()
     }
   }, PENDING_DELETE_DELAY_MS)
 

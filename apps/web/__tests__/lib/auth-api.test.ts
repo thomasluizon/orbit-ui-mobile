@@ -18,11 +18,32 @@ vi.mock('next/headers', () => ({
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
+function encodeJwtSegment(value: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
+}
+
 function makeJwt(expirySeconds: number): string {
-  const encode = (value: Record<string, unknown>) =>
-    Buffer.from(JSON.stringify(value), 'utf8')
-      .toString('base64url')
-  return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ exp: expirySeconds })}.`
+  return `${encodeJwtSegment({ alg: 'none', typ: 'JWT' })}.${encodeJwtSegment({ exp: expirySeconds })}.`
+}
+
+const ACCOUNT_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+
+function makeIssuedJwt(userId: string): string {
+  const issuedAtSeconds = Math.floor(FIXED_NOW / 1000)
+  return [
+    encodeJwtSegment({ alg: 'HS256', typ: 'JWT' }),
+    encodeJwtSegment({
+      aud: 'orbit-client',
+      iss: 'orbit-api',
+      exp: issuedAtSeconds + 3600,
+      [ACCOUNT_CLAIM]: userId,
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress': 'ada@example.com',
+      jti: '8c7d6e5f-4a3b-2c1d-0e9f-8a7b6c5d4e3f',
+      iat: issuedAtSeconds,
+      nbf: issuedAtSeconds,
+    }),
+    'ZmFrZS1zaWduYXR1cmU',
+  ].join('.')
 }
 
 const FIXED_NOW = Date.UTC(2026, 3, 22, 12, 0, 0)
@@ -454,5 +475,30 @@ describe('auth-api session helpers', () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(first).toEqual(second)
+  })
+
+  it('decodes the account id out of a token shaped like the one the API issues', async () => {
+    const { getAccountIdFromToken } = await import('@/lib/auth-api')
+    const userId = '3f1d2c4b-8a67-4b2e-9d0f-5c6a7b8e9f01'
+
+    expect(getAccountIdFromToken(makeIssuedJwt(userId))).toBe(userId)
+  })
+
+  it('reports no account when the token carries only the claim names the API never emits', async () => {
+    const { getAccountIdFromToken } = await import('@/lib/auth-api')
+    const token = [
+      encodeJwtSegment({ alg: 'HS256', typ: 'JWT' }),
+      encodeJwtSegment({ sub: 'user-1', nameid: 'user-1' }),
+      'ZmFrZS1zaWduYXR1cmU',
+    ].join('.')
+
+    expect(getAccountIdFromToken(token)).toBeNull()
+  })
+
+  it('reports no account for a token with no readable payload', async () => {
+    const { getAccountIdFromToken } = await import('@/lib/auth-api')
+
+    expect(getAccountIdFromToken('not-a-token')).toBeNull()
+    expect(getAccountIdFromToken(`${encodeJwtSegment({ alg: 'HS256' })}.%%%.signature`)).toBeNull()
   })
 })
