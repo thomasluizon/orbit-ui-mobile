@@ -23,15 +23,17 @@ describe('OnboardingComplete', () => {
 
   it('sends a skipped signed-out run to sign in, and says so', () => {
     render(<OnboardingComplete createdHabit="" emoji="◎" remindersOff={false} skipped signedOut dueToday general={false} onFinish={vi.fn()} />)
-    expect(screen.getByText('skippedTitle')).toBeInTheDocument()
+    expect(screen.getByText('skippedSignedOutTitle')).toBeInTheDocument()
     expect(screen.getByText('skippedSignedOutBody')).toBeInTheDocument()
     expect(screen.getByText('signIn')).toBeInTheDocument()
     expect(screen.queryByText('signedOutTitle')).not.toBeInTheDocument()
+    expect(screen.queryByText('skippedTitle')).not.toBeInTheDocument()
     expect(screen.queryByText('skippedBody')).not.toBeInTheDocument()
   })
 
   it('sends a skipped signed-in run to the day, and says so', () => {
     render(<OnboardingComplete createdHabit="" emoji="◎" remindersOff={false} skipped signedOut={false} dueToday general={false} onFinish={vi.fn()} />)
+    expect(screen.getByText('skippedTitle')).toBeInTheDocument()
     expect(screen.getByText('skippedBody')).toBeInTheDocument()
     expect(screen.getByText('seeDay')).toBeInTheDocument()
   })
@@ -54,8 +56,18 @@ describe('OnboardingComplete', () => {
     render(<OnboardingComplete createdHabit="Meditate" emoji="🧘" remindersOff skipped={false} signedOut={false} dueToday={false} general onFinish={vi.fn()} />)
     expect(screen.getByText('generalTitle')).toBeInTheDocument()
     expect(screen.getByText('generalBody')).toBeInTheDocument()
+    expect(screen.getAllByText('generalPending').length).toBeGreaterThan(0)
+    expect(screen.queryByText('notTodayPending')).not.toBeInTheDocument()
     expect(screen.queryByText('notTodayRemindersOffBody')).not.toBeInTheDocument()
     expect(screen.queryByText('remindersOffBody')).not.toBeInTheDocument()
+  })
+
+  it('reports the local draft first when a general habit is built signed out', () => {
+    render(<OnboardingComplete createdHabit="Meditate" emoji="🧘" remindersOff skipped={false} signedOut dueToday={false} general onFinish={vi.fn()} />)
+    expect(screen.getByText('signedOutTitle')).toBeInTheDocument()
+    expect(screen.getByText('signedOutBody')).toBeInTheDocument()
+    expect(screen.getByText('signIn')).toBeInTheDocument()
+    expect(screen.queryByText('generalBody')).not.toBeInTheDocument()
   })
 
   it('names the no-reminders outcome without plan copy', () => {

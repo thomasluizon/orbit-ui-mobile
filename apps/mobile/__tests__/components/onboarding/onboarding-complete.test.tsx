@@ -84,9 +84,16 @@ vi.mock('@/components/ui/verified-badge', () => ({
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
-async function renderText(
-  props: Readonly<{ createdHabit: string; remindersOff: boolean; dueToday: boolean; general: boolean }>,
-): Promise<unknown[]> {
+interface RenderCase {
+  createdHabit: string
+  remindersOff: boolean
+  dueToday: boolean
+  general: boolean
+  skipped?: boolean
+  signedOut?: boolean
+}
+
+async function renderText(props: Readonly<RenderCase>): Promise<unknown[]> {
   let tree!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(() => {
     tree = TestRenderer.create(
@@ -94,8 +101,8 @@ async function renderText(
         createdHabit={props.createdHabit}
         emoji="◎"
         remindersOff={props.remindersOff}
-        skipped={false}
-        signedOut={false}
+        skipped={props.skipped ?? false}
+        signedOut={props.signedOut ?? false}
         dueToday={props.dueToday}
         general={props.general}
         onFinish={vi.fn()}
@@ -117,13 +124,17 @@ describe('OnboardingComplete', () => {
       'onboarding.flow.done.notTodayTitle',
       'onboarding.flow.done.notTodayBody',
       'onboarding.flow.done.notTodayRemindersOffBody',
+      'onboarding.flow.done.remindersOffBody',
       'onboarding.flow.done.notTodayPending',
+      'onboarding.flow.done.generalPending',
       'onboarding.flow.done.generalTitle',
       'onboarding.flow.done.generalBody',
       'onboarding.flow.done.skippedTitle',
       'onboarding.flow.done.skippedBody',
+      'onboarding.flow.done.skippedSignedOutTitle',
       'onboarding.flow.done.skippedSignedOutBody',
       'onboarding.flow.done.signedOutTitle',
+      'onboarding.flow.done.signedOutBody',
       'onboarding.flow.done.seeDay',
       'onboarding.flow.done.signIn',
     ]) {
@@ -180,8 +191,9 @@ describe('OnboardingComplete', () => {
     const buttonLabels = tree.root
       .findAll((node: { type: unknown }) => node.type === 'PillButton')
       .map((node: { props: { children?: unknown } }) => node.props.children)
-    expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedTitle'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedSignedOutTitle'))
     expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedSignedOutBody'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.skippedTitle'))
     expect(buttonLabels).toContain(i18n.t('onboarding.flow.done.signIn'))
     expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.signedOutTitle'))
     expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.skippedBody'))
@@ -222,7 +234,30 @@ describe('OnboardingComplete', () => {
     const renderedText = await renderText({ createdHabit: 'Meditate', remindersOff: true, dueToday: false, general: true })
     expect(renderedText).toContain(i18n.t('onboarding.flow.done.generalTitle'))
     expect(renderedText).toContain(i18n.t('onboarding.flow.done.generalBody'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.generalPending'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.notTodayPending'))
     expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.notTodayRemindersOffBody'))
+  })
+
+  it('reports the local draft first when a general habit is built signed out', async () => {
+    const renderedText = await renderText({ createdHabit: 'Meditate', remindersOff: true, dueToday: false, general: true, signedOut: true })
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.signedOutTitle'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.signedOutBody'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.generalBody'))
+  })
+
+  it('names the no-reminders outcome for a habit that is in the day', async () => {
+    const renderedText = await renderText({ createdHabit: 'Read', remindersOff: true, dueToday: true, general: false })
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.remindersOffBody'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.pending'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.body'))
+  })
+
+  it('sends a skipped signed-in run to the day, and says so', async () => {
+    const renderedText = await renderText({ createdHabit: '', remindersOff: false, dueToday: true, general: false, skipped: true })
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedTitle'))
+    expect(renderedText).toContain(i18n.t('onboarding.flow.done.skippedBody'))
+    expect(renderedText).not.toContain(i18n.t('onboarding.flow.done.skippedSignedOutBody'))
   })
 
   it('clears the landing ring when the accent length never measures', async () => {

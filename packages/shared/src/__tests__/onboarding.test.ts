@@ -475,7 +475,13 @@ describe('getOnboardingCompleteCopy', () => {
 
   it('never offers a reminder or a day to a general habit', () => {
     expect(getOnboardingCompleteCopy({ ...resting, general: true, dueToday: false, remindersOff: true })).toMatchObject({
-      titleKey: 'generalTitle', bodyKey: 'generalBody',
+      titleKey: 'generalTitle', bodyKey: 'generalBody', pendingKey: 'generalPending',
+    })
+  })
+
+  it('reports the local draft first when a general habit is built signed out', () => {
+    expect(getOnboardingCompleteCopy({ ...resting, general: true, signedOut: true, dueToday: false, remindersOff: true })).toEqual({
+      titleKey: 'signedOutTitle', bodyKey: 'signedOutBody', pendingKey: 'generalPending', actionKey: 'signIn',
     })
   })
 
@@ -486,7 +492,10 @@ describe('getOnboardingCompleteCopy', () => {
 
   it('reports a skip as a skip even when the person is signed out', () => {
     expect(getOnboardingCompleteCopy({ ...resting, skipped: true, signedOut: true })).toMatchObject({
-      titleKey: 'skippedTitle', bodyKey: 'skippedSignedOutBody',
+      titleKey: 'skippedSignedOutTitle', bodyKey: 'skippedSignedOutBody',
+    })
+    expect(getOnboardingCompleteCopy({ ...resting, skipped: true })).toMatchObject({
+      titleKey: 'skippedTitle', bodyKey: 'skippedBody',
     })
     expect(getOnboardingCompleteCopy({ ...resting, signedOut: true })).toMatchObject({
       titleKey: 'signedOutTitle', bodyKey: 'signedOutBody',

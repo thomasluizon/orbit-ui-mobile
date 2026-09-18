@@ -1904,14 +1904,16 @@
         "notTodayRemindersOffBody": "Ele não é de hoje. Ele aparece no Hoje nos dias que você escolheu. Você pode ligar os lembretes no hábito.",
         "generalTitle": "Pronto. Ele não tem dias definidos.",
         "generalBody": "Registre quando acontecer. Defina os dias no hábito para ele entrar no Hoje e enviar lembretes.",
-        "skippedTitle": "Você pode começar quando quiser.",
-        "skippedBody": "Crie o primeiro hábito pelo Hoje, escrevendo uma frase.",
+        "skippedTitle": "Você pode começar pelo Hoje.",
+        "skippedBody": "Crie o primeiro hábito quando quiser, escrevendo uma frase.",
+        "skippedSignedOutTitle": "Você pode começar depois de entrar.",
         "skippedSignedOutBody": "Entre na conta e crie o primeiro hábito escrevendo uma frase.",
         "signedOutTitle": "O seu plano está pronto.",
         "signedOutBody": "Ele fica guardado neste aparelho e entra na sua conta quando você entrar.",
         "seeDay": "Ver dia",
         "signIn": "Entrar",
         "notTodayPending": "hoje não",
+        "generalPending": "quando quiser",
         "pending": "pendente"
       },
       "meetAstra": {

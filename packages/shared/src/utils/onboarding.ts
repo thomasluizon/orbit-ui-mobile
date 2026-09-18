@@ -298,23 +298,40 @@ function getOnboardingCompleteBodyKey(state: OnboardingCompleteState): string {
   return state.remindersOff ? 'remindersOffBody' : 'body'
 }
 
+function getOnboardingCompleteTitleKey(state: OnboardingCompleteState): string {
+  if (state.skipped) return state.signedOut ? 'skippedSignedOutTitle' : 'skippedTitle'
+  if (state.signedOut) return 'signedOutTitle'
+  if (state.general) return 'generalTitle'
+  return state.dueToday ? 'title' : 'notTodayTitle'
+}
+
 /**
  * Which `onboarding.flow.done` strings the last screen may truthfully show, button included, so the
- * copy can never name a destination the button does not go to. Skip outranks signing out for the
- * title, because a run can only skip before a habit exists, so a skipped run has no plan to report;
- * the body and the button still split on it, because a signed-out run leaves for the login screen
- * and a signed-in one lands on Today. A general habit gets its own pair: it is due on no day, it
- * reaches neither Today nor the reminder scheduler, and no other body may offer it a reminder.
- * "It is in your day" holds only when the habit is due today (see {@link isOnboardingHabitDueToday}),
- * and so does the pending ring beside it.
+ * copy can never name a destination the button does not go to. The order of the four states is what
+ * keeps every sentence true.
+ *
+ * Skip outranks everything, because a run can only skip before a habit exists, so a skipped run has
+ * no plan to report; a skipped signed-out run then takes its own pair, because the button leaves for
+ * the login screen rather than Today, which is the only place the canvas-drawn skip copy can send
+ * anyone.
+ *
+ * Signing out outranks the general shape on purpose. A signed-out run holds a local draft rather
+ * than a saved habit, so the fact that matters is that nothing joins an account until the person
+ * signs in, and `generalBody`'s instruction to add days from the habit names a habit that does not
+ * exist yet. The general body may not offer a reminder, and `signedOutBody` offers none either, so
+ * the precedence costs detail rather than truth.
+ *
+ * A signed-in general habit then takes its own pair, because it is due on no day, it reaches neither
+ * Today nor the reminder scheduler, and no other body may offer it a reminder. Its badge takes
+ * `generalPending` rather than `notTodayPending`, which would claim a day it does not have.
+ *
+ * "It is in your day" holds only when the habit is due today, see {@link isOnboardingHabitDueToday}.
  */
 export function getOnboardingCompleteCopy(state: OnboardingCompleteState): OnboardingCompleteCopy {
   return {
-    titleKey: state.skipped
-      ? 'skippedTitle'
-      : state.signedOut ? 'signedOutTitle' : state.general ? 'generalTitle' : state.dueToday ? 'title' : 'notTodayTitle',
+    titleKey: getOnboardingCompleteTitleKey(state),
     bodyKey: getOnboardingCompleteBodyKey(state),
-    pendingKey: state.dueToday ? 'pending' : 'notTodayPending',
+    pendingKey: state.general ? 'generalPending' : state.dueToday ? 'pending' : 'notTodayPending',
     actionKey: state.signedOut ? 'signIn' : 'seeDay',
   }
 }
