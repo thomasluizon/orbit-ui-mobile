@@ -70,11 +70,42 @@ jobs:
         continue-on-error: true
         with:
           prompt: ${{ inputs.prompt }}
+      # The Pullfrog app sends its model INSIDE the JSON prompt payload, and
+      # that beats the action's model input. Rewrite the payload so the
+      # fallback below actually reaches Claude. A plain-text prompt has no
+      # payload and passes through untouched.
+      - name: Repoint the prompt at Claude
+        id: claude_prompt
+        if: steps.codex.outcome == 'failure'
+        env:
+          PULLFROG_PROMPT: ${{ inputs.prompt }}
+          FALLBACK_MODEL: anthropic/claude-opus-5
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const raw = process.env.PULLFROG_PROMPT ?? '';
+          const model = process.env.FALLBACK_MODEL;
+          let out = raw;
+          try {
+            const payload = JSON.parse(raw);
+            if (payload && typeof payload === 'object' && payload['~pullfrog']) {
+              payload.model = model;
+              payload.modelExplicit = true;
+              out = JSON.stringify(payload);
+              console.error(`repointed payload model to ${model}`);
+            } else {
+              console.error('prompt is JSON but not a pullfrog payload; passing through');
+            }
+          } catch {
+            console.error('prompt is not JSON; passing through');
+          }
+          const end = `PF_EOF_${Math.random().toString(36).slice(2)}`;
+          process.stdout.write(`prompt<<${end}\n${out}\n${end}\n`);
+          NODE
       # Claude reviews ONLY when the Codex step fails, which is what an
       # exhausted OpenAI allowance looks like. Green runs never reach this.
       - name: Run agent (Claude fallback)
         if: steps.codex.outcome == 'failure'
         uses: pullfrog/pullfrog@v0
         with:
-          prompt: ${{ inputs.prompt }}
+          prompt: ${{ steps.claude_prompt.outputs.prompt }}
           model: anthropic/claude-opus-5
