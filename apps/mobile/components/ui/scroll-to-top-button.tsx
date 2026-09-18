@@ -3,6 +3,7 @@ import { useEffect, useMemo } from 'react'
 import { Animated, Pressable, StyleSheet } from 'react-native'
 import { ArrowUp } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
+import { zLayers } from '@orbit/shared/theme'
 import { createTokensV2, easings, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
     right: 16,
-    zIndex: 30,
+    zIndex: zLayers.sticky,
   },
   button: {
     width: 48,

@@ -169,13 +169,13 @@ const BAD_GRAPHIC_SOURCE_SITES = [
     name: 'web conflict warning glyph',
     path: 'apps/web/components/chat/conflict-warning.tsx',
     rolePattern: /case 'HIGH':[\s\S]*?graphicClassName: 'text-\[var\(--status-bad\)\]'/,
-    applicationPattern: /<AlertTriangle className=\{`size-3\.5 \$\{severity\.graphicClassName\}`\} \/>/,
+    applicationPattern: /<AlertTriangle className=\{`size-4 \$\{severity\.graphicClassName\}`\} \/>/,
   },
   {
     name: 'mobile conflict warning glyph',
     path: 'apps/mobile/components/chat/conflict-warning.tsx',
     rolePattern: /case "HIGH":[\s\S]*?graphic: tokens\.statusBad/,
-    applicationPattern: /<AlertTriangle size=\{14\} color=\{sColors\.graphic\} \/>/,
+    applicationPattern: /<AlertTriangle size=\{16\} color=\{sColors\.graphic\} \/>/,
   },
 ] as const
 

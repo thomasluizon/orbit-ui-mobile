@@ -28,13 +28,16 @@ vi.mock('next-intl', () => ({
 vi.mock('motion/react', () => {
   const React = require('react')
   const motion = {
-      div: React.forwardRef(function MockMotionComponent(
-          props: Record<string, unknown> & { children?: React.ReactNode },
-          ref: React.ForwardedRef<unknown>,
-        ) {
-          const { children, ...rest } = props
-          return React.createElement('div', { ...rest, ref }, children)
-        }),
+      div: function MockMotionComponent({
+        children,
+        ref,
+        ...rest
+      }: Record<string, unknown> & {
+        children?: React.ReactNode
+        ref?: React.Ref<unknown>
+      }) {
+        return React.createElement('div', { ...rest, ref }, children)
+      },
   }
 
   return {

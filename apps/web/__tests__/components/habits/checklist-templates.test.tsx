@@ -63,6 +63,21 @@ describe('ChecklistTemplates', () => {
     expect(screen.getByPlaceholderText('habits.form.templateNamePlaceholder')).toBeInTheDocument()
   })
 
+  it('limits the custom focus ring to keyboard focus', () => {
+    const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
+    render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
+    openTemplates()
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
+
+    const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
+    const classNames = input.className.split(' ')
+
+    expect(classNames).toContain('focus-visible:outline-none')
+    expect(classNames).toContain('focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]')
+    expect(classNames).not.toContain('focus:outline-none')
+    expect(classNames).not.toContain('focus:shadow-[inset_0_0_0_2px_var(--primary)]')
+  })
+
   it('calls createTemplate mutation with the typed name and items', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
