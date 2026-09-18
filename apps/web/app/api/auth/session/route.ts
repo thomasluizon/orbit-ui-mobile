@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { resolveServerSession } from '@/lib/auth-api'
+import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 
 /**
  * BFF: GET /api/auth/session
@@ -11,15 +11,19 @@ export async function GET() {
     const session = await resolveServerSession()
     if (!session.token || !session.expiresAt) {
       return NextResponse.json(
-        { expiresAt: null, refreshFailed: session.refreshFailed === true },
+        { expiresAt: null, userId: null, refreshFailed: session.refreshFailed === true },
         { status: 401 },
       )
     }
 
-    return NextResponse.json({ expiresAt: session.expiresAt, refreshFailed: false })
+    return NextResponse.json({
+      expiresAt: session.expiresAt,
+      userId: getAccountIdFromToken(session.token),
+      refreshFailed: false,
+    })
   } catch {
     return NextResponse.json(
-      { expiresAt: null, refreshFailed: false },
+      { expiresAt: null, userId: null, refreshFailed: false },
       { status: 500 },
     )
   }

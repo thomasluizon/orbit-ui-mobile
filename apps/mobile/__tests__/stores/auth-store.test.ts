@@ -1835,6 +1835,28 @@ describe('mobile auth store security paths', () => {
     }
   })
 
+  it('drops a previous account pending delete when a login follows no teardown', async () => {
+    vi.useFakeTimers()
+    const staleDelete = vi.fn(() => Promise.resolve())
+    try {
+      queuePendingNotificationDelete('account-a-notification', staleDelete)
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+
+      await useAuthStore.getState().login('account-b-token', null, {
+        userId: 'account-b',
+        email: 'account-b@example.com',
+        name: 'Account B',
+      })
+
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(staleDelete).not.toHaveBeenCalled()
+    } finally {
+      resetPendingNotificationDeletesForTests()
+      vi.useRealTimers()
+    }
+  })
+
   it('applies the profile language and theme during login hydration', async () => {
     apiClientMock.mockResolvedValue({
       name: 'Login Name',

@@ -31,16 +31,11 @@ import {
   isQueuedResult,
   queueOrExecute,
 } from '@/lib/offline-mutations'
+import { createSessionScopedRunner } from '@orbit/shared/utils/session-scope'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { getSessionGeneration } from '@/stores/auth-store'
+import { getSessionEpoch } from '@/stores/auth-store'
 
-function runForNotificationDeleteSession<TResult>(
-  sessionEpoch: number,
-  operation: () => TResult,
-): TResult | undefined {
-  if (sessionEpoch !== getSessionGeneration().epoch) return undefined
-  return operation()
-}
+const runForNotificationSession = createSessionScopedRunner(getSessionEpoch)
 
 export function useNotifications() {
   const queryClient = useQueryClient()
@@ -90,28 +85,37 @@ export function useMarkNotificationRead() {
     },
 
     onMutate: async (notificationId) => {
+      const sessionEpoch = getSessionEpoch()
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = snapshotNotificationList(queryClient)
-
-      queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
-        if (!old) return old
-        return markNotificationReadInList(old, notificationId)
+      const previous = runForNotificationSession(sessionEpoch, () => {
+        const snapshot = snapshotNotificationList(queryClient)
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
+          if (!old) return old
+          return markNotificationReadInList(old, notificationId)
+        })
+        return snapshot
       })
 
-      return { previous }
+      return { previous, sessionEpoch }
     },
 
     onError: (_err, _id, context) => {
-      if (context?.previous) {
-        restoreNotificationList(queryClient, context.previous)
-      }
-      showError(t('notifications.markReadError'))
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        if (context.previous) {
+          restoreNotificationList(queryClient, context.previous)
+        }
+        showError(t('notifications.markReadError'))
+      })
     },
 
-    onSettled: (data) => {
-      if (isQueuedResult(data)) return
-      void invalidateNotificationList(queryClient)
+    onSettled: (data, _error, _id, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        if (isQueuedResult(data)) return
+        void invalidateNotificationList(queryClient)
+      })
     },
   })
 }
@@ -140,28 +144,37 @@ export function useMarkAllNotificationsRead() {
     },
 
     onMutate: async () => {
+      const sessionEpoch = getSessionEpoch()
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = snapshotNotificationList(queryClient)
-
-      queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
-        if (!old) return old
-        return markAllNotificationsReadInList(old)
+      const previous = runForNotificationSession(sessionEpoch, () => {
+        const snapshot = snapshotNotificationList(queryClient)
+        queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
+          if (!old) return old
+          return markAllNotificationsReadInList(old)
+        })
+        return snapshot
       })
 
-      return { previous }
+      return { previous, sessionEpoch }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        restoreNotificationList(queryClient, context.previous)
-      }
-      showError(t('notifications.markAllReadError'))
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        if (context.previous) {
+          restoreNotificationList(queryClient, context.previous)
+        }
+        showError(t('notifications.markAllReadError'))
+      })
     },
 
-    onSettled: (data) => {
-      if (isQueuedResult(data)) return
-      void invalidateNotificationList(queryClient)
+    onSettled: (data, _error, _vars, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        if (isQueuedResult(data)) return
+        void invalidateNotificationList(queryClient)
+      })
     },
   })
 }
@@ -174,7 +187,7 @@ export function useDeleteNotification() {
       notificationId: string
       sessionEpoch: number
     }) => {
-      return runForNotificationDeleteSession(sessionEpoch, () => {
+      return runForNotificationSession(sessionEpoch, () => {
         const queuedMutation = buildQueuedMutation({
           type: 'deleteNotification',
           scope: 'notifications',
@@ -196,7 +209,7 @@ export function useDeleteNotification() {
     },
 
     onMutate: async ({ notificationId, sessionEpoch }) => {
-      const cancellation = runForNotificationDeleteSession(
+      const cancellation = runForNotificationSession(
         sessionEpoch,
         () => queryClient.cancelQueries({ queryKey: notificationKeys.lists() }),
       )
@@ -205,13 +218,13 @@ export function useDeleteNotification() {
       }
       await cancellation
 
-      if (sessionEpoch !== getSessionGeneration().epoch) {
+      if (sessionEpoch !== getSessionEpoch()) {
         return { previous: undefined, sessionEpoch }
       }
 
       const previous = snapshotNotificationList(queryClient)
 
-      const cacheChanged = runForNotificationDeleteSession(sessionEpoch, () => {
+      const cacheChanged = runForNotificationSession(sessionEpoch, () => {
         queryClient.setQueryData<NotificationsResponse>(notificationKeys.lists(), (old) => {
           if (!old) return old
           return deleteNotificationFromList(old, notificationId)
@@ -224,14 +237,14 @@ export function useDeleteNotification() {
 
     onError: (_err, _operation, context) => {
       if (!context?.previous) return
-      runForNotificationDeleteSession(context.sessionEpoch, () => {
+      runForNotificationSession(context.sessionEpoch, () => {
         restoreNotificationList(queryClient, context.previous)
       })
     },
 
     onSettled: (data, _error, _operation, context) => {
       if (!context) return
-      runForNotificationDeleteSession(context.sessionEpoch, () => {
+      runForNotificationSession(context.sessionEpoch, () => {
         if (isQueuedResult(data)) return
         void invalidateNotificationList(queryClient)
       })
@@ -242,11 +255,11 @@ export function useDeleteNotification() {
     ...mutation,
     mutate: (notificationId: string) => mutation.mutate({
       notificationId,
-      sessionEpoch: getSessionGeneration().epoch,
+      sessionEpoch: getSessionEpoch(),
     }),
     mutateAsync: (notificationId: string) => mutation.mutateAsync({
       notificationId,
-      sessionEpoch: getSessionGeneration().epoch,
+      sessionEpoch: getSessionEpoch(),
     }),
   }
 }
@@ -275,28 +288,37 @@ export function useDeleteAllNotifications() {
     },
 
     onMutate: async () => {
+      const sessionEpoch = getSessionEpoch()
       await queryClient.cancelQueries({ queryKey: notificationKeys.lists() })
 
-      const previous = snapshotNotificationList(queryClient)
+      const previous = runForNotificationSession(sessionEpoch, () => {
+        const snapshot = snapshotNotificationList(queryClient)
+        queryClient.setQueryData<NotificationsResponse>(
+          notificationKeys.lists(),
+          () => createEmptyNotificationsResponse(),
+        )
+        return snapshot
+      })
 
-      queryClient.setQueryData<NotificationsResponse>(
-        notificationKeys.lists(),
-        () => createEmptyNotificationsResponse(),
-      )
-
-      return { previous }
+      return { previous, sessionEpoch }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        restoreNotificationList(queryClient, context.previous)
-      }
-      showError(t('notifications.deleteAllError'))
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        if (context.previous) {
+          restoreNotificationList(queryClient, context.previous)
+        }
+        showError(t('notifications.deleteAllError'))
+      })
     },
 
-    onSettled: (data) => {
-      if (isQueuedResult(data)) return
-      void invalidateNotificationList(queryClient)
+    onSettled: (data, _error, _vars, context) => {
+      if (!context) return
+      runForNotificationSession(context.sessionEpoch, () => {
+        if (isQueuedResult(data)) return
+        void invalidateNotificationList(queryClient)
+      })
     },
   })
 }

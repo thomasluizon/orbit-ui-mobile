@@ -74,6 +74,15 @@ export function getSessionGeneration(): SessionSnapshot {
 }
 
 /**
+ * The one session identity both platforms share. Web counts sessions in a bare number and mobile
+ * pairs an epoch with a credential version, so account-scoped work reads this instead of either
+ * store's own shape.
+ */
+export function getSessionEpoch(): number {
+  return sessionEpoch
+}
+
+/**
  * Resolves once the background profile hydration started by initialize() has
  * settled (name/theme/language applied, or session cleared on Unauthorized).
  * initialize() returns before this completes so first paint isn't blocked on
@@ -459,6 +468,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         await saveWidgetToken(token).catch(() => {})
         bindStepUpStateToAccount(user.userId)
+        clearPendingNotificationDeletes()
         sessionEpoch += 1
         credentialVersion += 1
         set({

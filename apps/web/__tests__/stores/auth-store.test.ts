@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAuthStore } from '@/stores/auth-store'
+import { getSessionEpoch, useAuthStore } from '@/stores/auth-store'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
 import {
   getFailedNotificationDeleteIdsSnapshot,
+  getPendingNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
   resetPendingNotificationDeletesForTests,
   retryFailedNotificationDelete,
@@ -318,6 +319,68 @@ describe('auth store', () => {
 
       expect(mockFetch).not.toHaveBeenCalled()
       cleanup()
+    })
+  })
+
+  describe('an account switch under a running tab', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    function respondWithAccount(userId: string) {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          expiresAt: Date.now() + 3600000,
+          userId,
+          refreshFailed: false,
+        }),
+      })
+    }
+
+    it('drops what the replaced account left behind', async () => {
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      const generationBeforeSwitch = getSessionEpoch()
+      queuePendingNotificationDelete('account-a-notification', () => Promise.resolve())
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+      respondWithAccount('user-2')
+
+      await useAuthStore.getState().checkSession()
+
+      expect(getSessionEpoch()).toBeGreaterThan(generationBeforeSwitch)
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(useAuthStore.getState().user).toBeNull()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    })
+
+    it('drops a previous account pending delete when a login follows no teardown', async () => {
+      const staleDelete = vi.fn(() => Promise.resolve())
+      queuePendingNotificationDelete('account-a-notification', staleDelete)
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+
+      useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'user-2' }))
+
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(staleDelete).not.toHaveBeenCalled()
+    })
+
+    it('leaves a tab alone while the cookie still holds its own account', async () => {
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      const generationBeforeCheck = getSessionEpoch()
+      queuePendingNotificationDelete('account-a-notification', () => Promise.resolve())
+      respondWithAccount('user-1')
+
+      await useAuthStore.getState().checkSession()
+
+      expect(getSessionEpoch()).toBe(generationBeforeCheck)
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+      expect(useAuthStore.getState().user?.userId).toBe('user-1')
     })
   })
 })

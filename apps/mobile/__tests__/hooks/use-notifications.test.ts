@@ -29,6 +29,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
 }))
 vi.mock('@/stores/auth-store', () => ({
   getSessionGeneration: () => ({ epoch: session.epoch, credentialVersion: 1 }),
+  getSessionEpoch: () => session.epoch,
 }))
 
 const mocks = vi.hoisted(() => {
@@ -136,6 +137,27 @@ type MutationConfig<TResult, TVariables, TContext> = {
     variables: TVariables,
     context: TContext | undefined,
   ) => void
+}
+
+type LateFailureMutation = {
+  onMutate?: (variables: unknown) => unknown
+  onError?: (error: Error, variables: unknown, context: unknown) => void
+  onSettled?: (data: unknown, error: Error | null, variables: unknown, context: unknown) => void
+}
+
+function replacementAccountNotificationsFixture(): NotificationsResponse {
+  return {
+    items: [{
+      id: 'account-b-notification',
+      title: 'Account B',
+      body: 'Account B body',
+      url: null,
+      habitId: null,
+      isRead: false,
+      createdAtUtc: '2025-01-02T00:00:00Z',
+    }],
+    unreadCount: 1,
+  }
 }
 
 function createNotificationsResponse(): NotificationsResponse {
@@ -270,6 +292,30 @@ describe('mobile notification hooks', () => {
     expect(mocks.state.notifications).toEqual(replacementAccountNotifications)
     expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['mark one read', () => useMarkNotificationRead(), 'n-1'],
+    ['mark all read', () => useMarkAllNotificationsRead(), undefined],
+    ['clear all', () => useDeleteAllNotifications(), undefined],
+  ] as const)('ignores a %s rejection from a replaced session', async (_name, createMutation, variables) => {
+    const mutation = createMutation() as unknown as LateFailureMutation
+    const context = await mutation.onMutate?.(variables)
+
+    session.epoch = 2
+    mocks.state.notifications = replacementAccountNotificationsFixture()
+    mocks.queryClient.setQueryData.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
+    feedback.showError.mockClear()
+
+    const failure = new Error('Late failure from the replaced session')
+    mutation.onError?.(failure, variables, context)
+    mutation.onSettled?.(undefined, failure, variables, context)
+
+    expect(mocks.state.notifications).toEqual(replacementAccountNotificationsFixture())
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(feedback.showError).not.toHaveBeenCalled()
   })
 
   it('does not start a delete after the session changes while query cancellation is pending', async () => {

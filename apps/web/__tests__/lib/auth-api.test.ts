@@ -292,6 +292,7 @@ describe('auth-api session helpers', () => {
     expect(lateLosingResponse.status).toBe(401)
     expect(await lateLosingResponse.json()).toEqual({
       expiresAt: null,
+      userId: null,
       refreshFailed: true,
     })
     expect(winningCookieStore.set).toHaveBeenCalledTimes(2)
