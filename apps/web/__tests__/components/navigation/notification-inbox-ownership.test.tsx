@@ -135,6 +135,29 @@ it('announces a delayed delete rejection after the inbox unmounts and keeps undo
   expect(queryClient.getQueryData<{ unreadCount: number }>(notificationKeys.lists())?.unreadCount).toBe(1)
 })
 
+it('runs out the delayed delete failure and holds it while the pointer rests on it', async () => {
+  const deferred = deferredResult()
+  actionMocks.deleteNotification.mockReturnValueOnce(deferred.promise)
+  render(shell(true))
+
+  fireEvent.click(screen.getByRole('button', { name: /Delete:/ }))
+  await advance(5000)
+  deferred.reject()
+  await flushPromises()
+  await advance(0)
+  const notice = screen.getByText("Couldn't delete that alert. Try again.").closest('[role="status"]')
+  if (!notice) throw new Error('Expected the failed delete notice')
+
+  fireEvent.pointerEnter(notice)
+  await advance(30000)
+  expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+
+  fireEvent.pointerLeave(notice)
+  await advance(10000)
+
+  expect(screen.queryByText("Couldn't delete that alert. Try again.")).not.toBeInTheDocument()
+})
+
 it('shares one poll between the shell bell and inbox until the last consumer unmounts', async () => {
   const interval = vi.spyOn(globalThis, 'setInterval')
   const clear = vi.spyOn(globalThis, 'clearInterval')

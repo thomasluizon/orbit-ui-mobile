@@ -78,6 +78,61 @@ describe('Toast', () => {
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
+  it('runs a neutral life that pauses while the pointer rests on it', () => {
+    const onDone = vi.fn()
+    render(
+      <Toast
+        kind="neutral"
+        message="Couldn't delete that alert. Try again."
+        actionLabel="Retry"
+        onAction={vi.fn()}
+        doneAfterMs={10000}
+        onDone={onDone}
+      />,
+    )
+    const region = screen.getByRole('status')
+
+    void act(() => vi.advanceTimersByTime(1000))
+    fireEvent.pointerEnter(region)
+    void act(() => vi.advanceTimersByTime(30000))
+    expect(onDone).not.toHaveBeenCalled()
+    fireEvent.pointerLeave(region)
+    void act(() => vi.advanceTimersByTime(8999))
+    expect(onDone).not.toHaveBeenCalled()
+    void act(() => vi.advanceTimersByTime(1))
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+
+  it('holds a neutral life while focus sits inside it', () => {
+    const onDone = vi.fn()
+    render(
+      <Toast
+        kind="neutral"
+        message="Couldn't delete that alert. Try again."
+        actionLabel="Retry"
+        onAction={vi.fn()}
+        doneAfterMs={10000}
+        onDone={onDone}
+      />,
+    )
+    const region = screen.getByRole('status')
+
+    fireEvent.focus(region)
+    void act(() => vi.advanceTimersByTime(30000))
+    expect(onDone).not.toHaveBeenCalled()
+    fireEvent.blur(region)
+    void act(() => vi.advanceTimersByTime(10000))
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves a neutral toast with no life on screen', () => {
+    render(<Toast kind="neutral" message="Deleting" />)
+
+    void act(() => vi.advanceTimersByTime(60000))
+
+    expect(screen.getByRole('status')).toHaveTextContent('Deleting')
+  })
+
   it('keeps lost feedback mounted and calls its action once per press', () => {
     const onAction = vi.fn()
     render(

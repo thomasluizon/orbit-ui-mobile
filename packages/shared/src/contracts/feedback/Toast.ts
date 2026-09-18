@@ -10,8 +10,8 @@ export type ToastProps =
       message: string
       icon?: ReactElement
       detail?: never
-      doneAfterMs?: never
-      onDone?: never
+      doneAfterMs?: number
+      onDone?: () => void
     } & ToastNeutralAction)
   | {
       kind: 'working'

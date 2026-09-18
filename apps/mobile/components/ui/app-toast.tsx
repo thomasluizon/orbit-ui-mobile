@@ -15,25 +15,25 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { resolveCenteredOverlayFrame } from './centered-overlay-frame'
 
-const MINIMUM_DONE_LIFE_MS = 5000
+const MINIMUM_TOAST_LIFE_MS = 5000
 
-function useDoneTimer(
+function useToastLife(
   kind: ToastProps['kind'],
   message: string,
   doneAfterMs: number | undefined,
   onDone: (() => void) | undefined,
   paused: boolean,
 ) {
-  const remainingMs = useRef(MINIMUM_DONE_LIFE_MS)
+  const remainingMs = useRef(MINIMUM_TOAST_LIFE_MS)
   const completed = useRef(false)
 
   useEffect(() => {
-    remainingMs.current = Math.max(MINIMUM_DONE_LIFE_MS, doneAfterMs ?? MINIMUM_DONE_LIFE_MS)
+    remainingMs.current = Math.max(MINIMUM_TOAST_LIFE_MS, doneAfterMs ?? MINIMUM_TOAST_LIFE_MS)
     completed.current = false
   }, [doneAfterMs, kind, message, onDone])
 
   useEffect(() => {
-    if (kind !== 'done' || paused || completed.current || !onDone) return
+    if (!onDone || paused || completed.current) return
 
     const startedAt = Date.now()
     const timer = setTimeout(() => {
@@ -72,13 +72,13 @@ export function Toast(props: Readonly<ToastProps>) {
   const [announcedMessage, setAnnouncedMessage] = useState('')
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
-  const onDone = props.kind === 'done' ? props.onDone : undefined
-  const doneAfterMs = props.kind === 'done' ? props.doneAfterMs : undefined
+  const onDone = props.kind === 'done' || props.kind === 'neutral' ? props.onDone : undefined
+  const doneAfterMs = props.kind === 'done' || props.kind === 'neutral' ? props.doneAfterMs : undefined
   const lossColors = { background: tokens.bg, action: tokens.primarySoft }
   const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
   const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
-  useDoneTimer(props.kind, props.message, doneAfterMs, onDone, hovered || focused)
+  useToastLife(props.kind, props.message, doneAfterMs, onDone, hovered || focused)
 
   useEffect(() => {
     const timer = setTimeout(() => setAnnouncedMessage(props.message), 0)

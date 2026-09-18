@@ -13,11 +13,15 @@ const PENDING_DELETE_DELAY_MS = 5000
  * authenticated shell: an entry with no life stacks one more line onto every route the person visits
  * for as long as the tab runs. When the life ends the notification is already back in the inbox, so
  * deleting it again is the same one action the retry was.
+ *
+ * The toast runs the clock rather than this module, because only the toast can see a pointer resting
+ * on it or focus sitting inside it, and a timer that keeps running under either takes the retry away
+ * from the person who is reaching for it.
  */
-const FAILED_DELETE_NOTICE_LIFE_MS = 10000
+export const FAILED_DELETE_NOTICE_LIFE_MS = 10000
 
 const pendingDeleteEntries = new Map<string, DelayedDeleteEntry>()
-const failedDeleteEntries = new Map<string, DelayedDeleteEntry>()
+const failedDeleteEntries = new Map<string, PendingDeleteExecutor>()
 const activeDeleteAttempts = new Map<string, symbol>()
 const subscribers = new Set<() => void>()
 let pendingDeleteSnapshot: string[] = []
@@ -54,24 +58,15 @@ export function getFailedNotificationDeleteIdsSnapshot(): string[] {
 }
 
 function takeFailedDelete(notificationId: string): PendingDeleteExecutor | null {
-  const entry = failedDeleteEntries.get(notificationId)
-  if (!entry) return null
+  const execute = failedDeleteEntries.get(notificationId)
+  if (!execute) return null
 
-  clearTimeout(entry.timer)
   failedDeleteEntries.delete(notificationId)
-  return entry.execute
+  return execute
 }
 
 function reportFailedDelete(notificationId: string, execute: PendingDeleteExecutor): void {
-  takeFailedDelete(notificationId)
-
-  const timer = setTimeout(() => {
-    if (!takeFailedDelete(notificationId)) return
-    syncPendingDeleteSnapshot()
-    emitPendingDeleteChange()
-  }, FAILED_DELETE_NOTICE_LIFE_MS)
-
-  failedDeleteEntries.set(notificationId, { execute, timer })
+  failedDeleteEntries.set(notificationId, execute)
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
 }
@@ -127,6 +122,15 @@ export function queuePendingNotificationDelete(notificationId: string, execute: 
   return true
 }
 
+/** Drops a failed delayed delete once its notice has run out its life. */
+export function dismissFailedNotificationDelete(notificationId: string): boolean {
+  if (!takeFailedDelete(notificationId)) return false
+
+  syncPendingDeleteSnapshot()
+  emitPendingDeleteChange()
+  return true
+}
+
 /** Requeues a failed delayed delete and starts a fresh undo window. */
 export function retryFailedNotificationDelete(notificationId: string): boolean {
   const execute = takeFailedDelete(notificationId)
@@ -137,18 +141,10 @@ export function retryFailedNotificationDelete(notificationId: string): boolean {
   return queuePendingNotificationDelete(notificationId, execute)
 }
 
-function clearFailedDeleteTimers(): void {
-  for (const entry of failedDeleteEntries.values()) {
-    clearTimeout(entry.timer)
-  }
-
-  failedDeleteEntries.clear()
-}
-
 /** Supersedes delayed-delete failures and active attempts before a bulk clear. */
 export function clearFailedNotificationDeletes(): void {
   if (failedDeleteEntries.size === 0 && activeDeleteAttempts.size === 0) return
-  clearFailedDeleteTimers()
+  failedDeleteEntries.clear()
   activeDeleteAttempts.clear()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()
@@ -177,7 +173,7 @@ function clearPendingNotificationDeleteState(): void {
   }
 
   pendingDeleteEntries.clear()
-  clearFailedDeleteTimers()
+  failedDeleteEntries.clear()
   activeDeleteAttempts.clear()
   syncPendingDeleteSnapshot()
   emitPendingDeleteChange()

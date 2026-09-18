@@ -8,7 +8,7 @@ import { NotificationBell } from '@/components/navigation/notification-bell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { apiClient } from '@/lib/api-client'
-import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
+import { getFailedNotificationDeleteIdsSnapshot, resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { i18n } from '@/lib/i18n'
 
@@ -149,6 +149,31 @@ it('keeps an undone delayed delete silent', async () => {
   press('Undo')
   await advance(5000)
   expect(useAppToastStore.getState().currentToast).toBeNull()
+})
+
+it('runs out the delayed delete failure and holds it while a pointer rests on it', async () => {
+  const deferred = deferredFailure()
+  const response = queryClient.getQueryData(notificationKeys.lists())
+  vi.mocked(apiClient).mockImplementation((_path, options) => (
+    options?.method ? deferred.promise : Promise.resolve(response)
+  ))
+  TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
+
+  press('Delete: Reminder')
+  await advance(5000)
+  deferred.reject()
+  await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
+  expect(getFailedNotificationDeleteIdsSnapshot()).toHaveLength(1)
+  const notice = (tree as unknown as { root: { findByProps: (props: Record<string, unknown>) => { props: { onHoverIn: () => void; onHoverOut: () => void } } } }).root.findByProps({ testID: 'toast-neutral' })
+
+  TestRenderer.act(() => notice.props.onHoverIn())
+  await advance(30000)
+  expect(getFailedNotificationDeleteIdsSnapshot()).toHaveLength(1)
+
+  TestRenderer.act(() => notice.props.onHoverOut())
+  await advance(10000)
+
+  expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
 })
 
 it('shares one poll and the app AppState bridge between the retained bell and pushed inbox until the last unmount', async () => {

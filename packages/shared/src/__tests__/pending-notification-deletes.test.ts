@@ -3,6 +3,7 @@ import {
   cancelPendingNotificationDelete,
   clearPendingNotificationDeletes,
   clearFailedNotificationDeletes,
+  dismissFailedNotificationDelete,
   getFailedNotificationDeleteIdsSnapshot,
   getPendingNotificationDeleteIdsSnapshot,
   queuePendingNotificationDelete,
@@ -147,7 +148,7 @@ describe('pending notification deletes', () => {
     expect(retryFailedNotificationDelete('notif-1')).toBe(true)
   })
 
-  it('drops a failed delete once its notice life ends', async () => {
+  it('keeps a failed delete until its notice dismisses it', async () => {
     const subscriber = vi.fn()
     queuePendingNotificationDelete('notif-1', () => Promise.reject(new Error('boom')))
 
@@ -155,12 +156,19 @@ describe('pending notification deletes', () => {
     expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['notif-1'])
     const unsubscribe = subscribePendingNotificationDeleteIds(subscriber)
 
-    await vi.advanceTimersByTimeAsync(10000)
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(getFailedNotificationDeleteIdsSnapshot()).toEqual(['notif-1'])
+
+    expect(dismissFailedNotificationDelete('notif-1')).toBe(true)
     unsubscribe()
 
     expect(getFailedNotificationDeleteIdsSnapshot()).toEqual([])
     expect(subscriber).toHaveBeenCalledTimes(1)
     expect(retryFailedNotificationDelete('notif-1')).toBe(false)
+  })
+
+  it('reports nothing dismissed when the notice names an unknown delete', () => {
+    expect(dismissFailedNotificationDelete('notif-unknown')).toBe(false)
   })
 
   it('cancels pending work and invalidates active and failed attempts when a session ends', async () => {
