@@ -1378,12 +1378,12 @@ runs `a worker burning CPU while writing nothing anywhere is NOT killed as stall
 clocks: a 0.15 minute no-progress ceiling against a 60 second busy loop, measured against the 1.5
 percent CPU floor at `tools/launch-worker.mjs:565`. On a machine already running another worker that
 floor is missed and the assertion fails on its own, with `worker` set either way. Measured
-2026-09-18 in the `chore/claude-worker-engine` worktree, which carries the committed
-`"worker": "codex"`: `ORBIT TOOLS GATE FAILED (1)`, that one test, while the previous round recorded
-`ORBIT TOOLS GATE OK, Assertions: 1812` on the same tree. So check that name FIRST when the count
-does not match, and rerun it on a quiet machine before treating it as a defect. **Do not change that
-test**: it belongs to no pull request that switches the engine, and D95 forbids a run editing the
-gate it is judged by.
+2026-09-18 at head `4d590110` in the `chore/claude-worker-engine` worktree, which carries the
+committed `"worker": "codex"`: `ORBIT TOOLS GATE FAILED (1)`, that one test, while a run on the same
+tree minutes apart recorded `ORBIT TOOLS GATE OK`. So check that name FIRST when the count does not
+match, and rerun it on a quiet machine before treating it as a defect. **Do not change that test**:
+it belongs to no pull request that switches the engine, and D95 forbids a run editing the gate it is
+judged by.
 
 Nothing else changes. The order generator, `§5.7`'s queue, the readiness loop, the caps and every
 hard prohibition apply identically, because the engine is the only variable.

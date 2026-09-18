@@ -60,10 +60,11 @@ cannot see the launch-worker pair, which is how the count was read as two.
 One further FAIL is LOAD-SENSITIVE and is not the switch: `tools/__tests__/launch-worker.mjs` runs
 `a worker burning CPU while writing nothing anywhere is NOT killed as stalled` against real clocks,
 a 0.15 minute ceiling and the 1.5 percent CPU floor at `tools/launch-worker.mjs:565`. With another
-worker on the machine it misses that floor and fails on its own. Measured 2026-09-18 in the
-`ticket-598-claude-engine` worktree, which carries the committed `"worker": "codex"`:
-`ORBIT TOOLS GATE FAILED (1)`, that one test alone. Check that name first, rerun it on a quiet
-machine, and do not change it: it belongs to no engine-switch pull request and D95 applies.
+worker on the machine it misses that floor and fails on its own. Measured 2026-09-18 at head
+`4d590110` in the `ticket-598-claude-engine` worktree, which carries the committed
+`"worker": "codex"`: `ORBIT TOOLS GATE FAILED (1)`, that one test alone, while a run on the same
+tree minutes apart read OK. Check that name first, rerun it on a quiet machine, and do not change
+it: it belongs to no engine-switch pull request and D95 applies.
 
 **Never use a Claude subagent as a worker.** `node tools/launch-worker.mjs` is the only path and its
 LAUNCHER pid is the wake source, not the worker's. **Two concurrent workers is the cap**, his words:
