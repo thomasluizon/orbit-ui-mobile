@@ -395,6 +395,98 @@ describe('CalendarSyncPage', () => {
     expect(screen.getAllByRole('button').some((button) => button.getAttribute('aria-pressed') === 'true')).toBe(true)
   })
 
+  it('explains and disables an ordinal weekday suggestion before import', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [
+        {
+          id: 'suggestion-second-monday',
+          event: {
+            id: 'event-second-monday',
+            title: 'Second Monday review',
+            description: null,
+            startDate: '2026-09-14',
+            startTime: null,
+            endTime: null,
+            isRecurring: true,
+            recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO',
+            reminders: [],
+          },
+        },
+      ],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    const issue = await screen.findByText('calendar.importIssue.ordinalWeekday')
+    expect(screen.getByText('Second Monday review').closest('button')).toBeDisabled()
+    expect(issue).toBeVisible()
+    expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
+    expect(screen.getByText(/calendar.importButton/).closest('button')).toBeDisabled()
+
+    const row = screen.getByText('Second Monday review').closest('button')?.parentElement
+    expect(row?.className).not.toContain('hover:bg-[var(--bg-elev)]')
+    expect(row).toHaveStyle({ background: 'var(--bg-elev)' })
+  })
+
+  it('explains and disables a finite month-end suggestion before import', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [
+        {
+          id: 'suggestion-month-end',
+          event: {
+            id: 'event-month-end',
+            title: 'Month end close',
+            description: null,
+            startDate: '2026-01-31',
+            startTime: null,
+            endTime: null,
+            isRecurring: true,
+            recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3',
+            reminders: [],
+          },
+        },
+      ],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    expect(await screen.findByText('calendar.importIssue.finiteDateClamp')).toBeVisible()
+    expect(screen.getByText('Month end close').closest('button')).toBeDisabled()
+  })
+
+  it('keeps the actionable hover treatment on a row that can still be imported', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [
+        {
+          id: 'suggestion-weekly',
+          event: {
+            id: 'event-weekly',
+            title: 'Weekly review',
+            description: null,
+            startDate: '2026-09-14',
+            startTime: null,
+            endTime: null,
+            isRecurring: true,
+            recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=MO',
+            reminders: [],
+          },
+        },
+      ],
+      isLoading: false,
+    }
+
+    renderPage()
+
+    const button = await screen.findByText('Weekly review')
+    expect(button.closest('button')).not.toBeDisabled()
+    expect(button.closest('button')?.parentElement?.className).toContain('hover:bg-[var(--bg-elev)]')
+  })
+
   it('shows select all / deselect all toggle', async () => {
     const events = [
       { id: 'e1', title: 'Event 1', description: null, startDate: null, startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] },

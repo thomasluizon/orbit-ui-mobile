@@ -4,6 +4,8 @@ import { Bell, X } from '@/components/ui/icons'
 import type { TFunction } from 'i18next'
 import {
   formatCalendarSyncRecurrenceLabel,
+  getCalendarSyncImportIssue,
+  getCalendarSyncImportIssueMessageKey,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
@@ -16,6 +18,21 @@ function rowEntrance(index: number) {
   return FadeInDown.duration(280)
     .delay(Math.min(index, 8) * 40)
     .reduceMotion(ReduceMotion.System)
+}
+
+function importIssueVisuals(hasImportIssue: boolean, tokens: AppTokensV2) {
+  return hasImportIssue
+    ? { titleColor: tokens.fg3, selectorOpacity: 0.5 }
+    : { titleColor: tokens.fg1, selectorOpacity: 1 }
+}
+
+function eventRowBackground(
+  hasImportIssue: boolean,
+  pressed: boolean,
+  selectedBackground: string,
+  elevatedBackground: string,
+) {
+  return hasImportIssue || pressed ? elevatedBackground : selectedBackground
 }
 
 interface CalendarSyncEventRowProps {
@@ -45,6 +62,15 @@ export function CalendarSyncEventRow({
   onToggle,
   onDismiss,
 }: Readonly<CalendarSyncEventRowProps>) {
+  const importIssue = getCalendarSyncImportIssue(
+    event.recurrenceRule,
+    event.startDate,
+    event.startTime,
+    event.startUtc,
+  )
+  const importIssueLabel = importIssue
+    ? t(getCalendarSyncImportIssueMessageKey(importIssue))
+    : null
   const recurrenceLabel = formatCalendarSyncRecurrenceLabel(
     event.recurrenceRule,
     {
@@ -55,23 +81,35 @@ export function CalendarSyncEventRow({
   const endTimeSuffix = event.endTime ? ` - ${event.endTime}` : ''
   const timeLabel = event.startTime ? `${event.startTime}${endTimeSuffix}` : ''
   const selectedBackground = selected ? tintFromPrimary(tokens, 0.06) : 'transparent'
+  const hasImportIssue = importIssue !== null
+  const issueVisuals = importIssueVisuals(hasImportIssue, tokens)
 
   return (
     <Animated.View entering={rowEntrance(index)}>
       <Pressable
         onPress={() => onToggle(event.id)}
+        disabled={importIssue !== null}
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: selected }}
+        accessibilityState={{ checked: selected, disabled: importIssue !== null }}
+        accessibilityHint={importIssueLabel ?? undefined}
         style={({ pressed }) => [
           styles.eventRow,
           {
             borderBottomColor: tokens.hairline,
-            backgroundColor: pressed ? tokens.bgElev : selectedBackground,
+            backgroundColor: eventRowBackground(
+              hasImportIssue,
+              pressed,
+              selectedBackground,
+              tokens.bgElev,
+            ),
           },
         ]}
       >
         <View style={styles.eventBody}>
-          <Text style={[styles.eventTitle, { color: tokens.fg1 }]} numberOfLines={1}>
+          <Text
+            style={[styles.eventTitle, { color: issueVisuals.titleColor }]}
+            numberOfLines={1}
+          >
             {event.title}
           </Text>
           <View style={styles.eventMetaRow}>
@@ -115,8 +153,15 @@ export function CalendarSyncEventRow({
               {event.description}
             </Text>
           ) : null}
+          {importIssueLabel ? (
+            <Text style={[styles.importIssue, { color: tokens.statusBadText }]}>
+              {importIssueLabel}
+            </Text>
+          ) : null}
         </View>
-        <RadioGlyph selected={selected} size={24} tokens={tokens} />
+        <View style={{ opacity: issueVisuals.selectorOpacity }}>
+          <RadioGlyph selected={selected} size={24} tokens={tokens} />
+        </View>
         {isReviewMode && suggestionId ? (
           <Pressable
             onPress={() => onDismiss(suggestionId)}

@@ -116,14 +116,20 @@ export {
   formatCalendarSyncRecurrenceLabel,
   filterCalendarSyncEventsByDate,
   getCalendarSyncClockValue,
+  getCalendarSyncImportIssue,
+  getCalendarSyncImportIssueMessageKey,
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncConnectionActive,
+  isCalendarSyncEventImportable,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  resolveCalendarSyncEndDate,
   reconcileCalendarAutoSyncGrantRevocation,
 } from './calendar-sync'
 export type {
   CalendarSyncEvent,
+  CalendarSyncImportIssue,
+  CalendarSyncImportIssueMessageKey,
   CalendarSyncParsedRecurrence,
   CalendarSyncTranslationAdapter,
 } from './calendar-sync'
