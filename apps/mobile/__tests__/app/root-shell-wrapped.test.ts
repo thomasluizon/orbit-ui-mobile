@@ -268,7 +268,7 @@ describe('Wrapped root shell', () => {
     await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
 
     const failureCopy = tree.root.findAll(
-      (node) => node.type === 'Text'
+      (node) => (node.type as unknown) === 'Text'
         && node.props.children === "Couldn't delete that alert. Try again.",
     )
     expect(failureCopy).toHaveLength(1)
