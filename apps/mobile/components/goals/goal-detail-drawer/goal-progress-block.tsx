@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import type { Goal } from '@orbit/shared/types/goal'
-import { getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
+import { formatGoalHistoryNumber, getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'
@@ -34,10 +34,11 @@ interface GoalProgressBlockProps {
   isUpdatingStatus: boolean
   onComplete: () => void
   refetchDetail: () => Promise<unknown>
+  headingRef: Ref<Text>
 }
 
-export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchDetail }: Readonly<GoalProgressBlockProps>) {
-  const { t } = useTranslation()
+export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchDetail, headingRef }: Readonly<GoalProgressBlockProps>) {
+  const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { width } = useWindowDimensions()
@@ -45,6 +46,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
   const pending = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [announcement, setAnnouncement] = useState('')
   const abandoned = goal.status === 'Abandoned'
   const active = goal.status === 'Active'
   const derived = goal.isProgressDerived === true
@@ -59,6 +61,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
     pending.current = true
     setBusy(true)
     setError('')
+    setAnnouncement('')
     try {
       await update.mutateAsync({
         goalId: goal.id,
@@ -67,6 +70,11 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         goalCount: goal.targetValue,
         goalUnit: goal.unit,
       })
+      setAnnouncement(t('goals.detail.progressUpdated', {
+        current: formatGoalHistoryNumber(value, i18n.language),
+        target: formatGoalHistoryNumber(goal.targetValue, i18n.language),
+        unit: goal.unit,
+      }))
       await refetchDetail()
     } catch (failure: unknown) {
       setError(getFriendlyErrorMessage(failure, t, 'goals.errors.progress', 'goalProgress'))
@@ -80,7 +88,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
     <View style={styles.section}>
       <View style={styles.header}>
         <View style={styles.heading}>
-          <Text accessibilityRole="header" style={[styles.title, { fontSize: width >= 768 ? 28 : 22, color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
+          <Text ref={headingRef} testID="goal-detail-heading" accessibilityRole="header" style={[styles.title, { fontSize: width >= 768 ? 28 : 22, color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
           <View style={styles.meta}>
             {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
             {!abandoned ? <Text style={[styles.figure, { color: tokens.fg3 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
@@ -99,6 +107,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         </View>
       </View> : null}
       <Text accessibilityLiveRegion="polite" style={error ? [styles.body, { color: tokens.fg2 }] : styles.screenReader}>{error}</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.screenReader}>{announcement}</Text>
       {active && done ? <View style={styles.completion}>
         <PillButton variant="secondary" size="sm" accessibleName={t('goals.detail.markCompleted')} disabled={busy || isUpdatingStatus} onClick={onComplete}>{t('goals.detail.markCompleted')}</PillButton>
         <Text style={[styles.body, { color: tokens.fg2 }]}>{t('goals.detail.completeWhy')}</Text>

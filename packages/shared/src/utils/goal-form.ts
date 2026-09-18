@@ -1,8 +1,23 @@
 import { formatAPIDate } from './dates'
 import {
+  MAX_GOAL_TITLE_LENGTH,
+  MAX_GOAL_UNIT_LENGTH,
+} from '../validation/constants'
+import {
   validateGoalForm,
   validateGoalProgressValue,
 } from '../validation/goal-form'
+
+export interface GoalDraftFieldErrorKeys {
+  description?: string
+  targetValue?: string
+  unit?: string
+}
+
+export interface GoalDraftFieldError {
+  field: keyof GoalDraftFieldErrorKeys
+  key: string
+}
 
 export function parseGoalTargetValue(value: string): number | null {
   const trimmedValue = value.trim()
@@ -38,6 +53,37 @@ export function validateGoalDraftInput(
   const title = buildGoalTitle(description, targetValue ?? '', unit)
 
   return validateGoalForm(title, parsedTargetValue, unit)
+}
+
+export function getGoalDraftFieldErrorKeys(
+  description: string,
+  targetValue: string | number | null | undefined,
+  unit: string,
+): GoalDraftFieldErrorKeys {
+  const errors: GoalDraftFieldErrorKeys = {}
+  const parsedTargetValue = typeof targetValue === 'number'
+    ? targetValue
+    : parseGoalTargetValue(targetValue ?? '')
+  const trimmedDescription = description.trim()
+  const trimmedUnit = unit.trim()
+  const title = buildGoalTitle(description, targetValue ?? '', unit)
+
+  if (trimmedDescription.length > MAX_GOAL_TITLE_LENGTH) errors.description = 'goals.form.titleTooLong'
+
+  if (!parsedTargetValue || parsedTargetValue <= 0) errors.targetValue = 'goals.form.targetValueRequired'
+  else if (!trimmedDescription && title.length > MAX_GOAL_TITLE_LENGTH) errors.targetValue = 'goals.form.titleTooLong'
+
+  if (!trimmedUnit) errors.unit = 'goals.form.unitRequired'
+  else if (trimmedUnit.length > MAX_GOAL_UNIT_LENGTH) errors.unit = 'goals.form.unitTooLong'
+
+  return errors
+}
+
+export function getFirstGoalDraftFieldError(
+  errors: GoalDraftFieldErrorKeys,
+): GoalDraftFieldError | null {
+  const firstError = Object.entries(errors)[0] as [keyof GoalDraftFieldErrorKeys, string] | undefined
+  return firstError ? { field: firstError[0], key: firstError[1] } : null
 }
 
 export function validateGoalProgressInput(
