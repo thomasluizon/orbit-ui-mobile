@@ -466,6 +466,63 @@ describe('calendar-sync utils', () => {
     expect(buildCalendarSyncImportRequest([event]).habits[0]?.endDate).toBe('9998-01-15')
   })
 
+  it.each([
+    {
+      name: 'monthly weekday rule',
+      id: 'event-monthly-weekdays-9999',
+      title: 'December review',
+      recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR,SA,SU;COUNT=2',
+      days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    },
+    {
+      name: 'yearly weekday rule',
+      id: 'event-yearly-weekdays-9999',
+      title: 'Year-end review',
+      recurrenceRule: 'RRULE:FREQ=YEARLY;BYDAY=WE,TH;COUNT=2',
+      days: ['Wednesday', 'Thursday'],
+    },
+  ])('imports an in-range $name using the emitted daily schedule', ({
+    id,
+    title,
+    recurrenceRule,
+    days,
+  }) => {
+    expect(buildCalendarSyncImportRequest([{
+      id,
+      title,
+      description: null,
+      startDate: '9999-12-01',
+      startTime: null,
+      endTime: null,
+      isRecurring: true,
+      recurrenceRule,
+      reminders: [],
+    }])).toEqual({
+      habits: [{
+        title,
+        description: null,
+        dueDate: '9999-12-01',
+        dueTime: null,
+        dueEndTime: null,
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days,
+        endDate: '9999-12-02',
+        reminderEnabled: false,
+        reminderTimes: null,
+        googleEventId: id,
+      }],
+      fromSyncReview: true,
+    })
+  })
+
+  it('refuses a weekday count whose emitted daily schedule leaves year 9999', () => {
+    expect(getCalendarSyncImportIssue(
+      'RRULE:FREQ=MONTHLY;BYDAY=FR;COUNT=2',
+      '9999-12-31',
+    )).toBe('finite-date-range')
+  })
+
   it('bounds an UNTIL series at the date the rule names', () => {
     expect(resolveCalendarSyncEndDate('RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261019T235959Z', '2026-09-14')).toBe('2026-10-19')
   })
