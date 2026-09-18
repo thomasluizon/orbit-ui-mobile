@@ -841,7 +841,7 @@ button {
    ═══════════════════════════════════════════════════════ */
 
 .skeleton-pulse {
-  animation: skeleton-pulse 1.1s ease-in-out infinite;
+  animation: skeleton-pulse 1.1s ease-in-out var(--skeleton-pulse-iterations);
 }
 
 .loading-bar {
