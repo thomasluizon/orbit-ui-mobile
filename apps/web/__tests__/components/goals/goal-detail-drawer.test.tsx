@@ -9,12 +9,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
+const nextIntl = vi.hoisted(() => ({ locale: 'en' }))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
     if (params) return `${key}:${JSON.stringify(params)}`
     return key
   },
-  useLocale: () => 'en',
+  useLocale: () => nextIntl.locale,
 }))
 
 vi.mock('dompurify', () => ({
@@ -68,6 +70,7 @@ describe('GoalDetailDrawer', () => {
     refetchDetail.mockClear()
     updateStatusMutateAsync.mockClear()
     updateProgressMutateAsync.mockClear()
+    nextIntl.locale = 'en'
     deleteMutateAsync.mockClear()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
@@ -92,19 +95,22 @@ describe('GoalDetailDrawer', () => {
       locale: 'en',
       messages: en,
       manual: 'Update progress. Reaching the target completes the goal.',
+      updated: 'Progress updated to 4 of 12 books.',
       open: 'This goal reached its target but is still open. Complete it when you are ready.',
     },
     {
       locale: 'pt-BR',
       messages: ptBR,
       manual: 'Atualize o progresso. Ao alcançar o alvo, a meta é concluída.',
+      updated: 'Progresso atualizado para 4 de 12 livros.',
       open: 'Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.',
     },
-  ])('keeps manual completion copy truthful in $locale', async ({ locale, messages, manual, open }) => {
+  ])('keeps manual completion copy truthful in $locale', async ({ locale, messages, manual, updated, open }) => {
     const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
     const translate = createTranslator({ locale, messages })
 
     expect(translate('goals.detail.manualProgress')).toBe(manual)
+    expect(translate('goals.detail.progressUpdated', { current: 4, target: 12, unit: locale === 'en' ? 'books' : 'livros' })).toBe(updated)
     expect(translate('goals.detail.completeWhy')).toBe(open)
   })
 
@@ -322,6 +328,20 @@ describe('GoalDetailDrawer', () => {
       goalCount: listGoal.targetValue,
       goalUnit: listGoal.unit,
     })
+  })
+
+  it('announces one successful progress update with the resulting value', async () => {
+    nextIntl.locale = 'pt-BR'
+    detailGoal = { ...listGoal, currentValue: 0.23456, targetValue: 2.34567, progressPercentage: 10, progressHistory: [] }
+    updateProgressMutateAsync.mockResolvedValueOnce(undefined)
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(
+      'goals.detail.progressUpdated:{"current":"1,23456","target":"2,34567","unit":"books"}',
+    ))
+    expect(screen.getAllByRole('status')).toHaveLength(1)
   })
 
   it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {

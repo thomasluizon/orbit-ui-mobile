@@ -12,6 +12,18 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
+const nativeMocks = vi.hoisted(() => ({ sendAccessibilityEvent: vi.fn() }))
+
+vi.mock('react-native', async () => {
+  const native = await vi.importActual<typeof import('react-native')>('react-native')
+  return {
+    ...native,
+    AccessibilityInfo: {
+      ...native.AccessibilityInfo,
+      sendAccessibilityEvent: nativeMocks.sendAccessibilityEvent,
+    },
+  }
+})
 
 function flattenText(node: unknown): string {
   if (node == null) return ''
@@ -41,6 +53,7 @@ const mockDeleteMutateAsync = vi.fn()
 const mockStatusMutateAsync = vi.fn()
 const mockPush = vi.fn()
 const translation = vi.hoisted(() => ({
+  language: 'en-US',
   current: (key: string, params?: Record<string, unknown>) =>
     params ? `${key}:${JSON.stringify(params)}` : key,
 }))
@@ -50,7 +63,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
       translation.current(key, params),
-    i18n: { language: 'en-US' },
+    i18n: { language: translation.language },
   }),
 }))
 
@@ -180,7 +193,9 @@ describe('GoalDetailDrawer', () => {
     sheetTestControls.defer(false)
     translation.current = (key: string, params?: Record<string, unknown>) =>
       params ? `${key}:${JSON.stringify(params)}` : key
+    translation.language = 'en-US'
     updateProgressMutateAsync.mockReset()
+    nativeMocks.sendAccessibilityEvent.mockReset()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
   })
@@ -577,6 +592,21 @@ describe('GoalDetailDrawer', () => {
     })
   })
 
+  it('announces one successful progress update with the resulting value', async () => {
+    translation.language = 'pt-BR'
+    detailGoal = { ...listGoal, currentValue: 0.23456, targetValue: 2.34567, progressPercentage: 10, progressHistory: [] }
+    updateProgressMutateAsync.mockResolvedValueOnce(undefined)
+    const tree = renderDrawer()
+
+    await TestRenderer.act(async () => { press(tree, 'goals.detail.increase'); await Promise.resolve() })
+
+    const statuses = tree.root.findAll((node: any) =>
+      node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite' &&
+      flattenText(node) === 'goals.detail.progressUpdated:{"current":"1,23456","target":"2,34567","unit":"books"}',
+    )
+    expect(statuses).toHaveLength(1)
+  })
+
   it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
     detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: true, progressHistory: [] }
     const tree = renderDrawer()
@@ -803,6 +833,24 @@ describe('GoalDetailDrawer', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={onClose} goalId="1" />) })
     TestRenderer.act(() => { (BackHandler as typeof BackHandler & { emitBackPress: () => boolean }).emitBackPress() })
     expect(onClose).toHaveBeenCalledTimes(1)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('moves accessibility focus to the inline detail heading on entry', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />,
+        {
+          createNodeMock: () => null,
+        },
+      )
+    })
+
+    expect(tree.root.findAll((node: any) => node.props.testID === 'goal-detail-heading').length).toBeGreaterThan(0)
+    expect(nativeMocks.sendAccessibilityEvent).toHaveBeenCalledWith(expect.any(Object), 'focus')
+    expect(nativeMocks.sendAccessibilityEvent).toHaveBeenCalledTimes(1)
     TestRenderer.act(() => tree.unmount())
   })
 
