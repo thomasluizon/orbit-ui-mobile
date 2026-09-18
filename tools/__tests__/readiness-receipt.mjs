@@ -187,9 +187,15 @@ export const cases = async () => {
     readinessCiIsGreen([greenRun], unprotected) === true,
   )
   const unprotectedReview = reviewChecksFor(unprotected)
+  /**
+   * The expected side names the context LITERALLY, the way `PULLFROG_APP` above already does.
+   * Importing `REVIEW_APP_CONTEXT` from the module under test and comparing it against itself is
+   * true by construction, so renaming the context string in the library would keep this green while
+   * the recorder waited on a check GitHub never publishes under that name.
+   */
   T(
     `${TOOL}: the supplied review axis is pullfrog-approval pinned to the Pullfrog app`,
-    JSON.stringify(unprotectedReview) === JSON.stringify([{ context: REVIEW_APP_CONTEXT, appId: PULLFROG_APP }]),
+    JSON.stringify(unprotectedReview) === JSON.stringify([{ context: "pullfrog-approval", appId: PULLFROG_APP }]),
     JSON.stringify(unprotectedReview),
   )
   T(

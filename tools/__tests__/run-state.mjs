@@ -178,6 +178,22 @@ export const cases = async () => {
     (readRunState(unmerged)?.readinessLedger ?? [])[0]?.merged === null,
     JSON.stringify(readRunState(unmerged)?.readinessLedger),
   )
+  /**
+   * `orchestrate/SKILL.md` hands the run a jsonc template whose `merged` value is the literal
+   * below. Copying the template and leaving the placeholder unfilled is a non-empty string, so a
+   * lenient predicate records an UNMERGED pull request as merged and the Stop hook then allows the
+   * night to end printing nothing. The safety argument for this field is that it is a checkable
+   * sha, so the predicate has to be the one that checks it. Kept in step with the Stop hook's copy
+   * in `.claude/hooks/_lib/rules-sleep.mjs`: the same rule written twice must not drift.
+   */
+  const placeholder = stageCheckout("placeholder-merge")
+  writeFileSync(runStatePath(placeholder), JSON.stringify({ sessionId: "s1", sleep: true, remaining: [] }))
+  writeRunState({ ...mergeBase, pullRequests: [{ repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/r.json", merged: "<merge commit sha once it is merged, or absent>" }] }, placeholder)
+  T(
+    `${TOOL}: the skill's own unfilled merge-sha placeholder is recorded as no merge at all`,
+    (readRunState(placeholder)?.readinessLedger ?? [])[0]?.merged === null,
+    JSON.stringify(readRunState(placeholder)?.readinessLedger),
+  )
 
   writeRunState({ sessionId: "s2", sleep: true, remaining: ["ORB-9"], pullRequests: [] }, repoRoot)
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))

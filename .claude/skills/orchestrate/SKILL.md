@@ -1148,13 +1148,29 @@ from `readinessReport(receipt).verdict`, which stays `CI_STALE` forever because 
 publish, and the ledger row is append only. Measured 2026-09-18 by driving `checkSleepStop`: a run
 that merged under this exception with nothing left to launch got `block: true` and exit 2, the
 2026-08-08 deadlock reached after a successful merge. So write the merge commit sha as the
-machine-readable `merged` string on that pull request's ledger entry. `rules-sleep.mjs:75-79` then
+machine-readable `merged` string on that pull request's ledger entry. `rules-sleep.mjs:84-87` then
 takes that row out of the pending set for good, because a merge cannot be undone and no later write
-clears it (`run-state.mjs:184-188`). When the exception does not apply and the merge does not
-happen, record the machine-readable `blocker` string on the same entry instead:
-`.claude/hooks/_lib/rules-sleep.mjs:88-108` then lets the run end as BLOCKED, reported as blocked
-rather than as finished. A blocked ending is a legitimate ending; a dishonest one is not. Both bars
-are the same bar: a fact this run writes down, never a verdict it asserts about its own work.
+clears it (`run-state.mjs:184-198`).
+
+**It must be a real sha, and an unfilled placeholder is refused.** Both
+`.claude/hooks/_lib/rules-sleep.mjs:84` and `tools/lib/run-state.mjs:46` test the value against
+`/^[0-9a-f]{7,40}$/`. Measured 2026-09-18 by driving `checkSleepStop` with a non-empty-string test:
+the template value below, left unfilled, and the bare word "yes" each ended the night returning
+null, so an UNMERGED pull request read as a finished night in silence. `blocker` may be any
+non-empty string because a false one prints a loud BLOCKED banner naming the pull request; a false
+`merged` printed nothing, and that asymmetry is what the sha test closes.
+
+**The merged ending is announced, not silent.** `rules-sleep.mjs:135` returns
+`terminal: "MERGED"` with a banner naming every merged pull request and its sha, and
+`require-wake-source.mjs` writes it to stderr beside the BLOCKED one. Step 11's report carries the
+same shas, and the two must agree. A run that produced both endings gets the BLOCKED banner, because
+that is the row still needing a reader.
+
+When the exception does not apply and the merge does not happen, record the machine-readable
+`blocker` string on the same entry instead: `.claude/hooks/_lib/rules-sleep.mjs:115-124` then lets
+the run end as BLOCKED, reported as blocked rather than as finished. A blocked ending is a
+legitimate ending; a dishonest one is not. Both bars are the same bar: a fact this run writes down,
+never a verdict it asserts about its own work.
 
 **A night when Pullfrog cannot run ends on that receipt, and it is the expected result rather than
 a fault.** The recorder reads checks and reviews, never a claim in a comment, so it cannot verify a
@@ -1225,6 +1241,11 @@ Once the queue is exhausted, print one summary and stop:
 
 - Every pull request opened, with repository, number, current base/head SHAs, advisory diff size,
   behind count and receipt verdict.
+- **Which of the three dispositions each pull request landed on: READY, BLOCKED or merged**, beside
+  that receipt verdict, and the merge commit sha for every merged one. The receipt verdict alone no
+  longer says how a row left the queue: a pull request merged under the step 9 exception carries a
+  receipt that can never read READY, and its ledger row is settled by the sha instead. The Stop hook
+  prints a MERGED banner naming each sha, so this bullet and that banner must agree.
 - **The stack layout**, so the merge order is stated rather than worked out at 08:00.
 - Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker. For a
   `NEEDS_CONVERSATION` deferral, print its open questions too, so the night ends in a decision list.
@@ -1352,6 +1373,18 @@ structurally cannot see the launch-worker pair; run both, or run the whole gate.
 what this run is judged by, a FIFTH unexplained FAIL is a real defect rather than the switch, and the
 revert clears all four.
 
+**One further FAIL is load-sensitive, and it is not the switch.** `tools/__tests__/launch-worker.mjs`
+runs `a worker burning CPU while writing nothing anywhere is NOT killed as stalled` against real
+clocks: a 0.15 minute no-progress ceiling against a 60 second busy loop, measured against the 1.5
+percent CPU floor at `tools/launch-worker.mjs:565`. On a machine already running another worker that
+floor is missed and the assertion fails on its own, with `worker` set either way. Measured
+2026-09-18 in the `chore/claude-worker-engine` worktree, which carries the committed
+`"worker": "codex"`: `ORBIT TOOLS GATE FAILED (1)`, that one test, while the previous round recorded
+`ORBIT TOOLS GATE OK, Assertions: 1812` on the same tree. So check that name FIRST when the count
+does not match, and rerun it on a quiet machine before treating it as a defect. **Do not change that
+test**: it belongs to no pull request that switches the engine, and D95 forbids a run editing the
+gate it is judged by.
+
 Nothing else changes. The order generator, `§5.7`'s queue, the readiness loop, the caps and every
 hard prohibition apply identically, because the engine is the only variable.
 
@@ -1437,7 +1470,7 @@ from:
   "readinessLedger": [
     {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>",
      "blocker":"<what made READY unreachable, or absent>",
-     "merged":"<merge commit sha once it is merged, or absent>"}
+     "merged":"<the real merge commit sha once it is merged, or absent; a left-in placeholder is refused>"}
   ]
 }
 ```
@@ -1451,7 +1484,11 @@ matches its repository and PR identity, and allows completion only when that rec
 or the row carries a `merged` sha or a `blocker` string. Those two are the other dispositions, and
 each is a fact the run writes down rather than a verdict it asserts: a merge sha is checkable
 against GitHub, and a blocker names what made READY unreachable. `merged` is sticky, because a merge
-cannot be undone, while a resolved `blocker` clears.
+cannot be undone, while a resolved `blocker` clears. The sha is checked in SHAPE, against
+`/^[0-9a-f]{7,40}$/`, by the recorder at `tools/lib/run-state.mjs:46` and by the hook at
+`.claude/hooks/_lib/rules-sleep.mjs:84`, so the template value above left unfilled records no merge
+at all and the row keeps blocking. A merged row also gets a terminal MERGED banner, the way a
+blocked row gets a BLOCKED one, so the ending reaches a reader.
 It reads disk alone and never calls GitHub: an earlier revision revalidated every ledger row against
 live GitHub on every `Stop` of every session, and on 2026-08-09 that alone spent the whole
 5,000-point per-user GraphQL budget and stalled all work. Whether a receipt is stale against live

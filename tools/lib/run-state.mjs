@@ -34,6 +34,16 @@ const GITDIR_LINE = /^gitdir:[ \t]*(.+?)[ \t]*$/m
 // Linux proc_pid_stat(5): Z is zombie; x is the historical spelling of dead state X.
 const LINUX_DEAD_PROCESS_STATES = new Set(["Z", "X", "x"])
 export const PENDING_WAKE_SOURCE_MAX_AGE_MS = 45_000
+/**
+ * A ledger row's `merged` value must LOOK like a merge commit sha, because the whole safety
+ * argument for that field is that a reader can check it against GitHub. A `blocker` may be any
+ * non-empty string, since a false one prints a loud BLOCKED banner; a false `merged` ends an
+ * unattended night in silence. `orchestrate/SKILL.md` hands the run a template whose value is the
+ * literal "<merge commit sha once it is merged, or absent>", which a non-empty-string test accepts.
+ * `.claude/hooks/_lib/rules-sleep.mjs` carries the same rule for the Stop hook; the two must not
+ * drift, and `.claude/hooks/test-hooks.mjs` asserts that they have not.
+ */
+const MERGE_SHA = /^[0-9a-f]{7,40}$/
 
 /**
  * The directory git itself keeps state in. An ordinary checkout carries a `.git` DIRECTORY; a linked
@@ -171,7 +181,7 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     if (typeof entry?.repositoryKey !== "string" || !Number.isInteger(entry?.prNumber) || typeof entry?.receiptPath !== "string") continue
     const key = `${entry.repositoryKey}#${entry.prNumber}`
     const blocker = typeof entry.blocker === "string" && entry.blocker !== "" ? entry.blocker : null
-    const merged = typeof entry.merged === "string" && entry.merged !== "" ? entry.merged : null
+    const merged = typeof entry.merged === "string" && MERGE_SHA.test(entry.merged) ? entry.merged : null
     const existing = rows.get(key)
     if (!existing) {
       rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker, merged })
