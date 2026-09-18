@@ -126,13 +126,14 @@ export function changeOnboardingScheduleMode(
     return { ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: false }
   }
   if (mode === 'flexible') {
-    return { ...schedule, frequencyUnit: 'Week', frequencyQuantity: schedule.isFlexible ? schedule.frequencyQuantity ?? 3 : 3, days: [], isGeneral: false, isFlexible: true }
+    return { ...schedule, frequencyUnit: 'Week', frequencyQuantity: schedule.isFlexible ? schedule.frequencyQuantity ?? 3 : 3, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: true }
   }
   if (mode === 'interval') {
     const alreadyInterval = schedule.frequencyUnit !== null && schedule.days.length === 0 && !schedule.isFlexible && !(schedule.frequencyUnit === 'Day' && schedule.frequencyQuantity === 1)
     return { ...schedule, frequencyUnit: alreadyInterval ? schedule.frequencyUnit : 'Week', frequencyQuantity: alreadyInterval ? schedule.frequencyQuantity ?? 1 : 2, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: false }
   }
-  return { ...schedule, frequencyUnit: 'Day', frequencyQuantity: 1, isGeneral: schedule.days.length === 0, isFlexible: false }
+  const isGeneral = schedule.days.length === 0
+  return { ...schedule, frequencyUnit: isGeneral ? null : 'Day', frequencyQuantity: isGeneral ? null : 1, isGeneral, isFlexible: false }
 }
 
 const EVERY_DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -197,8 +198,8 @@ export function buildOnboardingHabitInput(input: {
   return {
     title: getOnboardingHabitTitle(input.sentence, input.locale),
     emoji: input.emoji || null,
-    ...(schedule.frequencyUnit ? { frequencyUnit: schedule.frequencyUnit } : {}),
-    ...(schedule.frequencyQuantity ? { frequencyQuantity: schedule.frequencyQuantity } : {}),
+    ...(!schedule.isGeneral && schedule.frequencyUnit ? { frequencyUnit: schedule.frequencyUnit } : {}),
+    ...(!schedule.isGeneral && schedule.frequencyQuantity ? { frequencyQuantity: schedule.frequencyQuantity } : {}),
     ...(schedule.isFlexible || schedule.frequencyUnit ? { intervalWeeks: schedule.intervalWeeks } : {}),
     ...(schedule.days.length > 0 ? { days: schedule.days } : {}),
     ...(schedule.isGeneral ? { isGeneral: true } : {}),

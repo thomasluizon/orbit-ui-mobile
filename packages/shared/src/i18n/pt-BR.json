@@ -1811,7 +1811,12 @@
         },
         "quantityLess": "Menos vezes",
         "quantityMore": "Mais vezes",
-        "quantityUnit": "{count, plural, one {vez por semana} other {vezes por semana}}",
+        "quantityUnit": {
+          "day": "{count, plural, one {vez por dia} other {vezes por dia}}",
+          "week": "{count, plural, one {vez por semana} other {vezes por semana}}",
+          "month": "{count, plural, one {vez por mês} other {vezes por mês}}",
+          "year": "{count, plural, one {vez por ano} other {vezes por ano}}"
+        },
         "intervalLess": "Repetir com menos frequência",
         "intervalMore": "Repetir com mais frequência",
         "interval": "{count, plural, one {Toda semana} other {A cada # semanas}}",

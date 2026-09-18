@@ -1811,7 +1811,12 @@
         },
         "quantityLess": "Fewer times",
         "quantityMore": "More times",
-        "quantityUnit": "{count, plural, one {time a week} other {times a week}}",
+        "quantityUnit": {
+          "day": "{count, plural, one {time a day} other {times a day}}",
+          "week": "{count, plural, one {time a week} other {times a week}}",
+          "month": "{count, plural, one {time a month} other {times a month}}",
+          "year": "{count, plural, one {time a year} other {times a year}}"
+        },
         "intervalLess": "Repeat less often",
         "intervalMore": "Repeat more often",
         "interval": "{count, plural, one {Every week} other {Every # weeks}}",

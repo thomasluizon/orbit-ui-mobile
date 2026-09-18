@@ -126,6 +126,30 @@ describe('OnboardingCreateHabit data', () => {
     expect(onQuantityChange).toHaveBeenCalledWith(3)
   })
 
+  it.each([
+    ['Day', 'times a day'],
+    ['Week', 'times a week'],
+    ['Month', 'times a month'],
+    ['Year', 'times a year'],
+  ] as const)('describes a flexible quantity using the selected %s unit', async (frequencyUnit, description) => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingCreateHabit
+          {...base}
+          proposed={false}
+          correcting
+          schedule={{ ...schedule, frequencyUnit }}
+        />,
+      )
+    })
+    const renderedText = tree.root
+      .findAll((node) => (node.type as unknown) === Text)
+      .map((node) => flattenText(node.props.children))
+      .join('')
+    expect(renderedText).toContain(description)
+  })
+
   it('shows a one-time proposal as the selected correction mode', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {

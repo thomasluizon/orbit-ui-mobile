@@ -122,6 +122,77 @@ describe('onboarding helpers', () => {
     })).toMatchObject(expected)
   })
 
+  it('keeps every schedule mode transition valid for the API', () => {
+    const schedules = {
+      fixed: {
+        frequencyUnit: 'Day' as const,
+        frequencyQuantity: 1,
+        intervalWeeks: 3,
+        days: ['Monday'],
+        isGeneral: false,
+        isFlexible: false,
+        dueTime: '',
+      },
+      flexible: {
+        frequencyUnit: 'Week' as const,
+        frequencyQuantity: 3,
+        intervalWeeks: 4,
+        days: [],
+        isGeneral: false,
+        isFlexible: true,
+        dueTime: '',
+      },
+      interval: {
+        frequencyUnit: 'Month' as const,
+        frequencyQuantity: 2,
+        intervalWeeks: 5,
+        days: [],
+        isGeneral: false,
+        isFlexible: false,
+        dueTime: '',
+      },
+      oneTime: {
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        intervalWeeks: 1,
+        days: [],
+        isGeneral: false,
+        isFlexible: false,
+        dueTime: '',
+      },
+    }
+    const modes = ['fixed', 'flexible', 'interval', 'oneTime'] as const
+    const violations: string[] = []
+
+    for (const sourceMode of modes) {
+      for (const targetMode of modes) {
+        const schedule = changeOnboardingScheduleMode(schedules[sourceMode], targetMode)
+        const request = buildOnboardingHabitInput({
+          sentence: 'Read',
+          locale: 'en',
+          emoji: '',
+          days: schedule.days,
+          dueTime: schedule.dueTime,
+          reminderEnabled: false,
+          schedule,
+        })
+
+        expect(getOnboardingScheduleMode(schedule), `${sourceMode} to ${targetMode}`).toBe(targetMode)
+        if (request.isGeneral && request.frequencyUnit !== undefined) {
+          violations.push(`${sourceMode} to ${targetMode} emitted frequencyUnit with isGeneral`)
+        }
+        if (request.isGeneral && request.frequencyQuantity !== undefined) {
+          violations.push(`${sourceMode} to ${targetMode} emitted frequencyQuantity with isGeneral`)
+        }
+        if (targetMode === 'flexible' && request.intervalWeeks !== 1) {
+          violations.push(`${sourceMode} to flexible retained intervalWeeks ${request.intervalWeeks}`)
+        }
+      }
+    }
+
+    expect(violations).toEqual([])
+  })
+
   it('previews the notification fifteen minutes before the due time', () => {
     expect(getOnboardingReminderPreviewTime('18:00')).toBe('17:45')
     expect(getOnboardingReminderPreviewTime('00:10')).toBe('23:55')

@@ -91,6 +91,21 @@ describe('OnboardingCreateHabit', () => {
     expect(onQuantityChange).toHaveBeenCalledWith(3)
   })
 
+  it.each([
+    ['Day', 'times a day'],
+    ['Week', 'times a week'],
+    ['Month', 'times a month'],
+    ['Year', 'times a year'],
+  ] as const)('describes a flexible quantity using the selected %s unit', (frequencyUnit, description) => {
+    render(
+      <OnboardingCreateHabit
+        {...base}
+        schedule={{ ...schedule, frequencyUnit }}
+      />,
+    )
+    expect(screen.getByText(description)).toBeInTheDocument()
+  })
+
   it('shows a one-time proposal as the selected correction mode', () => {
     render(
       <OnboardingCreateHabit
