@@ -250,6 +250,21 @@ describe('OnboardingFlow state model', () => {
     expect(await screen.findByTestId('done')).toBeInTheDocument()
   })
 
+  it('keeps header Back inside the pending reminder decision', async () => {
+    let resolveSubscription!: (value: { supported: true; subscribed: true; permission: 'granted'; status: 'registered' }) => void
+    mocks.subscribe.mockReturnValue(new Promise((resolve) => { resolveSubscription = resolve }))
+    await reachReminder(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'remind.allow' }))
+    fireEvent.click(screen.getByRole('button', { name: 'back' }))
+
+    expect(screen.getByTestId('reminder-state')).toBeInTheDocument()
+    expect(screen.queryByTestId('schedule')).toBeNull()
+
+    resolveSubscription({ supported: true, subscribed: true, permission: 'granted', status: 'registered' })
+    expect(await screen.findByTestId('done')).toBeInTheDocument()
+  })
+
   it('clears deferred push recovery before Escape finishes onboarding', async () => {
     useOnboardingDraftStore.setState({
       habits: [{ title: 'Walk', dueTime: '18:00' }],

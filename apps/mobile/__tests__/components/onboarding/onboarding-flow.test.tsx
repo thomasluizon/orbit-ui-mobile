@@ -298,6 +298,21 @@ describe('OnboardingFlow state model', () => {
     expect(oneByType(tree.root, 'Done')).toBeDefined()
   })
 
+  it('keeps header Back inside the pending reminder decision', async () => {
+    let resolvePermission!: (value: 'granted') => void
+    mocks.requestPermissionOutcome.mockReturnValue(new Promise((resolve) => { resolvePermission = resolve }))
+    const tree = await reachReminder(true)
+
+    await click(tree, 'onboarding.flow.remind.allow')
+    await pressTextAction(tree, 'onboarding.flow.back')
+
+    expect(oneByType(tree.root, 'ReminderState')).toBeDefined()
+    expect(byType(tree.root, 'Schedule')).toHaveLength(0)
+
+    await TestRenderer.act(() => resolvePermission('granted'))
+    expect(oneByType(tree.root, 'Done')).toBeDefined()
+  })
+
   it('clears deferred push recovery before hardware Back finishes onboarding', async () => {
     useOnboardingDraftStore.setState({
       habits: [{ title: 'Walk', dueTime: '18:00' }],
