@@ -92,8 +92,8 @@ export function RadioGroup({ children, onCommit, ...props }: Readonly<
   }, [])
   const onFocus = useCallback((id: string, onSelect?: () => void) => {
     const focusedItem = items.find((item) => item.id === id && !item.disabled)
-    if (!focusedItem) return
-    const previousTarget = getPreviousFocusTarget?.() ?? null
+    if (!focusedItem || !getPreviousFocusTarget) return
+    const previousTarget = getPreviousFocusTarget()
     const armedRedirect = armedRedirectRef.current
     armedRedirectRef.current = null
     const landedFromRedirect = armedRedirect?.id === id
@@ -120,6 +120,12 @@ export function RadioGroup({ children, onCommit, ...props }: Readonly<
     setElement,
     update,
   }), [commit, onFocus, register, setElement, update])
+
+  /** Without the provider every focus reads a null previous target, which reads as entry, so the group would redirect focus on every move. */
+  if (!getPreviousFocusTarget) {
+    throw new Error('RadioGroup requires a FocusProvenanceView ancestor')
+  }
+
   return (
     <RadioGroupContext.Provider value={contextValue}>
       <View {...props} accessibilityRole="radiogroup">{children}</View>

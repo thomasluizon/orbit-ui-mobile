@@ -1,13 +1,6 @@
 'use client'
 
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type KeyboardEvent,
-} from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Time24, TimeFieldProps } from '@orbit/shared/contracts/forms'
 import {
@@ -16,7 +9,6 @@ import {
   formatTimeParts,
   formatTimeFieldInput,
   from12Hour,
-  getRadioNavigationIndex,
   HOURS_12,
   HOURS_24,
   MINUTES,
@@ -27,6 +19,7 @@ import {
 } from '@orbit/shared/utils'
 import { Clock3, X } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -57,67 +50,64 @@ function parseTypedTime(value: string, hourCycle: 'h23' | 'h12'): Time24 | null 
   return `${String(hour24).padStart(2, '0')}:${match[2]}` as Time24
 }
 
+function TimeOption({
+  formattedValue,
+  selected,
+  onSelect,
+}: Readonly<{
+  formattedValue: string
+  selected: boolean
+  onSelect: () => void
+}>) {
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({
+    disabled: false,
+    onSelect,
+    selected,
+  })
+
+  return (
+    <button
+      ref={elementRef}
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      tabIndex={tabIndex}
+      onClick={onActivate}
+      onKeyDown={onKeyDown}
+      className={`w-full min-h-[44px] snap-center rounded-[10px] py-2 text-center text-base transition-colors ${
+        selected
+          ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
+          : 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
+      }`}
+      style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
+    >
+      {formattedValue}
+    </button>
+  )
+}
+
 function TimeColumn({ values, selected, formatValue, label, onSelect }: Readonly<TimeColumnProps>) {
   const listRef = useRef<HTMLDivElement>(null)
-  const selectedRef = useRef<HTMLButtonElement>(null)
-  const optionRefs = useRef(new Map<string, HTMLButtonElement>())
 
   useEffect(() => {
     const list = listRef.current
-    const option = selectedRef.current
+    const option = list?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
     if (!list || !option) return
     list.scrollTop = option.offsetTop - list.clientHeight / 2 + option.clientHeight / 2
   }, [])
 
-  function moveSelection(
-    event: KeyboardEvent<HTMLButtonElement>,
-    currentIndex: number,
-  ) {
-    const nextIndex = getRadioNavigationIndex(event.key, currentIndex, values.length)
-    if (nextIndex === null) return
-    const nextValue = values[nextIndex]
-    if (nextValue === undefined) return
-
-    event.preventDefault()
-    optionRefs.current.get(String(nextValue))?.focus()
-    if (nextValue !== selected) onSelect(nextValue)
-  }
-
   return (
-    <div
-      ref={listRef}
-      role="listbox"
-      aria-label={label}
-      className="h-full flex-1 snap-y overflow-y-auto px-1 [scrollbar-width:thin]"
-    >
-      {values.map((option, index) => {
-        const isSelected = option === selected
-        const optionKey = String(option)
-        return (
-          <button
-            key={optionKey}
-            ref={(element) => {
-              if (element) optionRefs.current.set(optionKey, element)
-              else optionRefs.current.delete(optionKey)
-              if (isSelected) selectedRef.current = element
-            }}
-            type="button"
-            role="option"
-            aria-selected={isSelected}
-            tabIndex={isSelected ? 0 : -1}
-            onClick={() => onSelect(option)}
-            onKeyDown={(event) => moveSelection(event, index)}
-            className={`w-full min-h-[44px] snap-center rounded-[10px] py-2 text-center text-base transition-colors ${
-              isSelected
-                ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
-                : 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
-            }`}
-            style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}
-          >
-            {formatValue(option)}
-          </button>
-        )
-      })}
+    <div ref={listRef} className="h-full flex-1 snap-y overflow-y-auto px-1 [scrollbar-width:thin]">
+      <RadioGroup aria-label={label}>
+        {values.map((option) => (
+          <TimeOption
+            key={String(option)}
+            formattedValue={formatValue(option)}
+            selected={option === selected}
+            onSelect={() => onSelect(option)}
+          />
+        ))}
+      </RadioGroup>
     </div>
   )
 }

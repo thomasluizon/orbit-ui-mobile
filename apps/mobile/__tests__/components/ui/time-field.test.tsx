@@ -162,8 +162,8 @@ await Promise.resolve()
 
     await openPicker(tree)
 
-    expect(radioOption(tree, 'common.hours', '07').props.accessibilityState.selected).toBe(true)
-    expect(radioOption(tree, 'common.minutes', '15').props.accessibilityState.selected).toBe(true)
+    expect(radioOption(tree, 'common.hours', '07').props.accessibilityState).toEqual({ checked: true })
+    expect(radioOption(tree, 'common.minutes', '15').props.accessibilityState).toEqual({ checked: true })
   })
 
   it('coordinates nested picker scrolling and reaches a late selected hour', async () => {
@@ -270,15 +270,25 @@ await Promise.resolve()
       )
     })
     await openPicker(tree)
-    const hours = column(tree, 'common.hours').findAll(
+    const radiosIn = (columnLabel: string) => column(tree, columnLabel).findAll(
       (node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'radio',
     )
-    const hourHandles = new Set(hours.map((hour: any) => hour.props.__nativeTag))
+    const hours = radiosIn('common.hours')
+    const minutes = radiosIn('common.minutes')
 
     expect(hours.length).toBeGreaterThan(1)
+    expect(minutes.length).toBeGreaterThan(1)
     expect(hours.every((hour: any) => hour.props.focusable === true)).toBe(true)
-    for (const direction of ['nextFocusDown', 'nextFocusLeft', 'nextFocusRight', 'nextFocusUp']) {
-      expect(hours.filter((hour: any) => hourHandles.has(hour.props[direction]))).toEqual([])
+    expect(minutes.every((minute: any) => minute.props.focusable === true)).toBe(true)
+    for (const direction of [
+      'nextFocusDown',
+      'nextFocusForward',
+      'nextFocusLeft',
+      'nextFocusRight',
+      'nextFocusUp',
+    ]) {
+      expect(hours.every((hour: any) => hour.props[direction] === undefined)).toBe(true)
+      expect(minutes.every((minute: any) => minute.props[direction] === undefined)).toBe(true)
     }
   })
 

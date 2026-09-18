@@ -121,7 +121,7 @@ function TimeZoneOptions({
 interface PreferencePickerSheetProps {
   activePicker: PreferencePicker | null
   mounted: boolean
-  selectedLanguage: string
+  selectedLanguage: SupportedLocale
   currentTheme: ThemeMode
   timeZone?: string | null
   weekStartDay?: number
@@ -164,9 +164,6 @@ export function PreferencePickerSheet({
     onClose()
     apply()
   })
-  const selectedLocale = LANGUAGE_OPTIONS
-    .find((option) => option.value === selectedLanguage)?.value ?? null
-
   if (activePicker === null) return null
 
   return (
@@ -183,7 +180,7 @@ export function PreferencePickerSheet({
         <PickerOptions
           label={pickerTitles.language}
           options={LANGUAGE_OPTIONS}
-          selected={mounted ? selectedLocale : null}
+          selected={mounted ? selectedLanguage : null}
           onCommit={(locale) => commitSelection(() => onLanguageChange(locale))}
         />
       ) : null}

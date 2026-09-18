@@ -23,7 +23,7 @@ function baseProps() {
   return {
     activePicker: null as PreferencePicker | null,
     mounted: true,
-    selectedLanguage: 'en',
+    selectedLanguage: 'en' as const,
     currentTheme: 'dark' as const,
     timeZone: 'America/Sao_Paulo',
     weekStartDay: 1,

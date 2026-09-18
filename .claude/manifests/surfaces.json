@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "7992853f1a6f0b89b460ebe224aab4c1dcede87c",
+  "generatedFrom": "24b2f7f6f187080a3071da5d085a10b5dd60a70e",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -4606,7 +4606,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 176,
+      "closureSize": 184,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4620,7 +4620,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 176,
+      "closureSize": 184,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4634,7 +4634,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 176,
+      "closureSize": 184,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4648,7 +4648,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 176,
+      "closureSize": 184,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -5782,7 +5782,7 @@
       "ownedFiles": [
         "apps/web/components/ui/time-field.tsx"
       ],
-      "closureSize": 174,
+      "closureSize": 182,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -5796,7 +5796,7 @@
       "ownedFiles": [
         "apps/web/components/ui/time-field.tsx"
       ],
-      "closureSize": 174,
+      "closureSize": 182,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -5810,7 +5810,7 @@
       "ownedFiles": [
         "apps/web/components/ui/time-field.tsx"
       ],
-      "closureSize": 174,
+      "closureSize": 182,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -5824,7 +5824,7 @@
       "ownedFiles": [
         "apps/web/components/ui/time-field.tsx"
       ],
-      "closureSize": 174,
+      "closureSize": 182,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"

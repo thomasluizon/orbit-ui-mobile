@@ -76,7 +76,7 @@ function TimeOption({
       ref={elementRef}
       accessibilityLabel={formattedValue}
       accessibilityRole="radio"
-      accessibilityState={{ checked: selected, selected }}
+      accessibilityState={{ checked: selected }}
       onPress={onActivate}
       style={[
         styles.option,
