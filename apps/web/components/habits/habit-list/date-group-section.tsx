@@ -25,7 +25,7 @@ export function HabitListDateGroupSection({
       <div
         className="flex items-center"
         style={{
-          padding: '16px 20px 8px',
+          padding: '16px 16px 8px',
           gap: 8,
         }}
       >

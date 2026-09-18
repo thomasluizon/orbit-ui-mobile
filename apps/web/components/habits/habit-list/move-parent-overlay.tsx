@@ -71,7 +71,7 @@ function MoveTargetRow({
       meta={option.childCount > 0 ? String(option.childCount) : undefined}
       tag={isCurrentParent ? currentLabel : undefined}
       leading={option.id === null
-        ? <Home size={18} strokeWidth={1.8} color="var(--fg-2)" />
+        ? <Home size={20} strokeWidth={1.8} color="var(--fg-2)" />
         : <span style={{ fontSize: 16, lineHeight: 1 }}>{option.emoji ?? '·'}</span>}
       onSelect={() => onSelect(option.id)}
     />
@@ -139,7 +139,7 @@ export function MoveParentOverlay({
         </div>
       }
     >
-      <div className="flex flex-col" style={{ gap: 10 }}>
+      <div className="flex flex-col" style={{ gap: 8 }}>
         {movingHabitTitle ? (
           <p className="text-sm text-[var(--fg-3)]">
             {t('habits.moveParent.description', { name: movingHabitTitle })}
@@ -151,7 +151,7 @@ export function MoveParentOverlay({
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder={t('habits.moveParent.searchPlaceholder')}
-            trailing={<Search size={18} strokeWidth={1.8} color="var(--fg-3)" />}
+            trailing={<Search size={20} strokeWidth={1.8} color="var(--fg-3)" />}
           />
         )}
 
@@ -169,7 +169,7 @@ export function MoveParentOverlay({
           <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
         )}
 
-        <RadioGroup className="flex flex-col" style={{ gap: 6 }}>
+        <RadioGroup className="flex flex-col" style={{ gap: 4 }}>
           {treeRows.map((option) => (
             <MoveTargetRow
               key={option.id}

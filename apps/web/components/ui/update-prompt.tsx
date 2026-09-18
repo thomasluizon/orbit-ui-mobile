@@ -54,7 +54,7 @@ export function UpdatePrompt({
           padding: '20px 22px calc(20px + var(--safe-bottom))',
           background: 'var(--bg-sheet)',
           boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
-          gap: 10,
+          gap: 8,
         }}
       >
         <div className="flex items-center justify-between">
@@ -66,7 +66,7 @@ export function UpdatePrompt({
             aria-label={t('common.dismiss')}
             onClick={handleDismiss}
           >
-            <X size={18} strokeWidth={1.8} />
+            <X size={16} strokeWidth={1.8} />
           </button>
         </div>
         <div
@@ -91,7 +91,7 @@ export function UpdatePrompt({
         >
           {t('updatePrompt.description')}
         </p>
-        <div className="flex flex-col" style={{ gap: 10, paddingTop: 10 }}>
+        <div className="flex flex-col" style={{ gap: 8, paddingTop: 8 }}>
           <PillButton
 
             onClick={onUpdate}

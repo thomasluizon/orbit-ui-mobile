@@ -67,6 +67,27 @@ describe('ShellWide', () => {
     expect(onSelect).toHaveBeenCalledWith('calendario')
   })
 
+  it.each(['dark', 'light'])('keeps navigation colors valid in %s mode', (mode) => {
+    document.documentElement.dataset.theme = mode
+    render(
+      <ShellWide
+        items={items}
+        activeId="calendario"
+        navLabel="Main navigation"
+        onSelect={() => {}}
+      />,
+    )
+
+    const active = screen.getByRole('button', { name: 'Calendário' })
+    const inactive = screen.getByRole('button', { name: 'Hoje' })
+    expect(active).toHaveClass('text-[var(--primary-soft)]')
+    expect(active).toHaveClass('hover:text-[var(--primary-text)]')
+    expect(active.querySelector('svg')).toHaveAttribute('stroke', 'var(--primary)')
+    expect(inactive).toHaveClass('text-[var(--fg-3)]')
+    expect(inactive.querySelector('svg')).toHaveAttribute('stroke', 'var(--fg-3)')
+    delete document.documentElement.dataset.theme
+  })
+
   it('renders the account name as a profile chip with an initial well', () => {
     render(
       <ShellWide

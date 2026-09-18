@@ -2265,7 +2265,6 @@
     "updateProgress": "Update Progress",
     "progressNote": "Note (optional)",
     "progressHistory": "History",
-    "progressEntry": "{previous} -> {value} {unit}",
     "status": {
       "active": "Active",
       "completed": "Completed",
@@ -2292,6 +2291,9 @@
       "loadError": "Could not load full details. Showing cached data.",
       "showAllHistory": "Show all ({count})",
       "showLessHistory": "Show less",
+      "historyDate": "Date: {date}",
+      "historyDelta": "Change: {delta} {unit}",
+      "historyProgress": "Progress: {current} of {target} {unit}",
       "askAstraDefault": "Want a weekly check-in plan for this?",
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
       "statusLabel": "Status"

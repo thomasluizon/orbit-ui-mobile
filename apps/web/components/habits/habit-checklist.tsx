@@ -302,7 +302,7 @@ function SortableChecklistItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-1.5 group py-0.5"
+      className="flex items-center gap-1 group py-1"
       {...attributes}
     >
       <div
@@ -390,7 +390,7 @@ function InteractiveChecklistItem({
 
   if (!interactive) {
     return (
-      <div className="flex items-center gap-[14px]" style={rowStyle}>
+      <div className="flex items-center gap-3" style={rowStyle}>
         {itemText}
       </div>
     )
@@ -449,7 +449,7 @@ function ChecklistAddRow({
         disabled={disabled || !value.trim()}
         onClick={onAdd}
       >
-        <Plus size={18} strokeWidth={1.8} aria-hidden="true" />
+        <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
     </div>
   )

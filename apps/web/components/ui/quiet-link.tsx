@@ -25,7 +25,7 @@ export function QuietLink({
       className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)] enabled:active:scale-[0.96]"
       style={{
         minHeight: 44,
-        padding: '6px 12px',
+        padding: '4px 12px',
         fontFamily: 'var(--font-sans)',
         fontSize: emphasized ? 14 : 13,
         fontWeight: emphasized ? 500 : 400,

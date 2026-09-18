@@ -15,7 +15,7 @@ import { useUpdateGoalProgress } from '@/hooks/use-goals'
 
 function GoalDetailIndicator({ goal, label }: Readonly<{ goal: Goal; label: string }>) {
   if (goal.status === 'Abandoned') return null
-  if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={60} label={label} />
+  if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={44} label={label} />
   return <ProgressRing value={goal.progressPercentage} size={60} label={label} />
 }
 

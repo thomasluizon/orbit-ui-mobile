@@ -119,6 +119,21 @@ describe('DateField', () => {
     expect(screen.getByRole('button', { name: '2030' })).toBeInTheDocument()
   })
 
+  it('gives every compact year pill a 44px target on a 48px row pitch', () => {
+    render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByLabelText('common.selectYear'))
+
+    const year = screen.getByRole('button', { name: '2030' })
+    expect(year.style.height).toBe('32px')
+    expect(year.className).toContain('touch-target')
+    expect(year.firstElementChild).toHaveStyle({ height: '32px' })
+
+    const grid = year.parentElement
+    expect(grid?.style.gridAutoRows).toBe('44px')
+    expect(grid?.style.rowGap).toBe('4px')
+  })
+
   it('jumps to a chosen year from the year picker', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))

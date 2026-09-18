@@ -266,10 +266,10 @@ function DestinationShellContent({
           <BottomTabBar
             activeId={destination ?? ''}
             items={[
-              { id: 'hoje', label: labels.hoje, icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-4)'} aria-hidden="true" /> },
-              { id: 'calendario', label: labels.calendario, icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-4)'} aria-hidden="true" /> },
-              { id: 'progresso', label: labels.progresso, icon: ({ active }) => <ChartLine size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-4)'} aria-hidden="true" /> },
-              { id: 'perfil', label: labels.perfil, icon: ({ active }) => <User size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-4)'} aria-hidden="true" /> },
+              { id: 'hoje', label: labels.hoje, icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
+              { id: 'calendario', label: labels.calendario, icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
+              { id: 'progresso', label: labels.progresso, icon: ({ active }) => <ChartLine size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
+              { id: 'perfil', label: labels.perfil, icon: ({ active }) => <User size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
             ]}
             label={t('nav.mainNavigation')}
             onSelect={(id) => navigate(id as BottomTab)}

@@ -73,7 +73,7 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
       ]}
     >
       <View style={styles.titleRow}>
-        <AlertTriangle size={14} color={sColors.graphic} />
+        <AlertTriangle size={16} color={sColors.graphic} />
         <Text style={[styles.title, { color: sColors.text }]}>
           {t("chat.conflict.title")}
         </Text>
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
     marginBottom: 4,
   },
   title: {
@@ -122,8 +122,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   habitsList: {
-    gap: 2,
-    marginBottom: 6,
+    gap: 4,
+    marginBottom: 4,
   },
   habitText: {
     fontFamily: 'Geist_400Regular',

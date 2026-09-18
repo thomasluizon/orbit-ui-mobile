@@ -242,5 +242,5 @@ const styles = StyleSheet.create({
   listBand: { flex: 1 },
   header: { gap: 24, paddingBottom: 24 },
   notice: { paddingHorizontal: 0 },
-  selectionTray: { paddingHorizontal: 20, paddingVertical: 12 },
+  selectionTray: { paddingHorizontal: 16, paddingVertical: 12 },
 })
