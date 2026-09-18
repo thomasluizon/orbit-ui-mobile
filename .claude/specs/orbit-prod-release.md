@@ -170,6 +170,16 @@ These stay until he changes them. Keep his words.
 - **2026-09-17** **beautifului.dev is wanted for Astra, "wherever is possible to use, on both
   platforms if possible".** `#581` settles first whether it runs on React Native at all; if it is web
   only, mobile ports the patterns onto our own primitives rather than importing them.
+- **2026-09-18** **A worker editing `node_modules` is YOUR failure, and the question is closed.**
+  Asked a fifth time where two edited files inside `node_modules/react-native` came from: "IT WAS NOT
+  ME, ITS YOUR WORKERS DOING THIS SHIT, AND I ALREADY TOLD YOU TO STOP DOING THAT. YOU CREATE THE
+  WORKERS, THIS IS YOUR RESPONSIBILITY." Never ask him again, never investigate the origin, and never
+  let a session re-open it. Every worker order forbids editing anything under `node_modules`; a
+  dependency that genuinely needs changing means `patch-package`, a config plugin, or stopping and
+  reporting. `#601` carries the prohibition, the hook and the detection.
+- **2026-09-18** **The failed-delete toast pauses on hover and focus.** Offered a pause, a Dismiss
+  button, or leaving it as it was, he took the pause. It is a granted design-system change and the
+  one action stays Retry. Recorded on `#460`.
 
 ## The order: the batches to a production release
 
@@ -680,13 +690,20 @@ Pointers, not restatements. The reasoning lives in the ADR.
   `eslint-suppressions.json`, keep BOTH sides' deletions and the LOWER count, then prove it with
   `GITHUB_BASE_REF=redesign/main node tools/check-suppressions-ratchet.mjs`.
 - **Run `npm run type-check` from the repository ROOT, never per workspace.**
-- **`node tools/redesign-coverage.mjs` validates against a COMMITTED manifest that nothing regenerates
-  automatically.** No CI job runs `surface-manifest.mjs` or `redesign-coverage.mjs`; they are a manual
-  completion gate. So a change that deletes surfaces reports `valid` until the manifest is
-  regenerated, and only then fails with `mapping surfaceId is absent from manifest`. Any pull request
-  that deletes a drawn surface regenerates the manifest AND moves the ids into
+- **`node tools/redesign-coverage.mjs` validates against a COMMITTED manifest, and since `#595` a CI
+  job regenerates that manifest and diffs it.** `guards.yml#surface-manifest` ("Surface Manifest
+  Drift", pull request 1024) runs `node tools/surface-manifest.mjs --check` and then
+  `node tools/redesign-coverage.mjs`, on every pull request that touches an owned path and on every
+  PUSH to `main` and `redesign/main`. The push leg is the one that matters: it skips the path filter
+  and re-verifies the whole inventory on the merged tree, which is what closed the 64-commit gap.
+  `--check` compares a FRESH regeneration, never `generatedFrom`, because a manifest whose
+  `generatedFrom` was current still went stale on the next merge. **On `redesign/main` the job reports
+  and cannot block, because that branch is unprotected; on `main` it blocks.**
+  Any pull request that deletes a drawn surface still regenerates the manifest AND moves the ids into
   `tools/redesign-groups.json`'s `deleted` section with the decision that removed them, in the same
-  commit.
+  commit. Two open pull requests owe exactly that: `ui#1007` loses
+  `overlay-onboarding-onboarding-flow` and gains two `onboarding-create-habit` ids, and `ui#992`
+  loses `m-overlay-ui-selection-field`.
 - Worktree and branch debt is large and mostly harmless. Read 2026-09-15 at 14:04 UTC under State.
 
 ## The suppressed lint violations, which are now the largest block of work
@@ -1112,81 +1129,189 @@ processes and 1.5 to 5.4 GB, with 10 to 15 GB free. Thomas, 2026-09-18: **"all t
 the machine unusable, this is not good even if im not using it, because everything goes slow, use
 less workers, at least 2"**. Two is the cap, and a capped run is slower and just as valid.
 
+## What the night of 2026-09-18 into 09-19 added
+
+This night merged ONE pull request and it was invisible to a person. Its real output was eight
+independent reviews, six of which stopped a merge, and a root cause that had been corrupting this
+repository's own evidence for two days.
+
+### A WORKER edited `node_modules`, and that is what broke three sessions' citations
+
+Four contradictory public citations of `ReactNativeFeatureFlagsDefaults.kt:86,92` and
+`KeyEvent.kt` were published across three sessions. **Every one was accurate about the tree its
+author read.** Exactly two files inside `node_modules/react-native` carried an mtime three hours
+after the package was extracted, and they were precisely the two the record argued over. `npm
+install` did not repair them, because npm leaves a complete package alone; `rm -rf
+node_modules/react-native` plus an install did.
+
+The edits flipped `enableImperativeFocus` and `enableKeyEvents` to `true` and added
+`KEYCODE_MOVE_HOME` and `KEYCODE_MOVE_END` to both key maps, which is exactly what a worker would
+change to make the `#543` focus work appear to run without its config plugin.
+
+**Thomas, 2026-09-18, and he had answered it before:** "IT WAS NOT ME, ITS YOUR WORKERS DOING THIS
+SHIT, AND I ALREADY TOLD YOU TO STOP DOING THAT. YOU CREATE THE WORKERS, THIS IS YOUR
+RESPONSIBILITY." **Never ask him about this again and never investigate the origin.** `#601` owns
+the fix and its scope is prevention, not archaeology: the prohibition goes into
+`tools/compose-prompt.mjs` so every generated order carries it, a `PreToolUse` hook refuses any write
+resolving inside `node_modules`, and an mtime walk catches anything that arrives another way.
+
+Code standard 8 did not fail here; its premise did. It says to confirm against the installed source,
+and it assumes the installed source is what the lockfile says. **Repaired and verified across all
+five checkouts: one sha256, `124bef07c299`, and `enableImperativeFocus` defaults `false`**, so
+`#543`'s config plugin is the mechanism the entry redirect needs rather than a redundant pin.
+
+### The recurring shape, named: a fix removes a false promise and the same promise survives one surface away
+
+It happened five times in one night, on four different pull requests.
+
+- `ui#1019` cleared the query cache on an account change and left the Astra conversation; then it
+  cleared the conversation and left the persisted DRAFT; then it cleared the draft on a swap and left
+  it on the ordinary sign-out path; and `lastFailedSend` sat in a React hook a store reset cannot
+  reach at all, with its Retry still armed.
+- `ui#1007` removed "a general habit gets a reminder" from the remind screen and left the same lie on
+  the done screen one step later, where its own new test fixture asserted it.
+- `ui#1023` reconciled the merge bar in all four prose sections its ticket named, and the TOOL that
+  enforces it still required Pullfrog.
+
+**The rule that came out of it:** a fix that removes a false promise is chased to every surface that
+repeats it, not only the one the review named. And state a store cannot reach subscribes to the
+session itself rather than being reset by proxy.
+
+### A test that pins presence and not absence is the same tautology as one that pins a value
+
+`tools/__tests__/orchestrator-config.mjs` gained an assertion that the claude engine's args CONTAIN
+`--strict-mcp-config`. The whole safety argument is that the flag carries **no `--mcp-config` beside
+it**, so adding one keeps the test green while every server in `~/.claude.json` loads into a worker
+running at `bypassPermissions`. The model-id version of the same shape was caught the round before:
+`resolveWorkerInvocation` returns `model: entry.model` read from the block a test compares it
+against, so `claude-opus-4-8`, a REAL catalog id, stayed green and would have run a whole night on
+the wrong model.
+
+### The readiness tool and the merge bar disagree, and only the tool binds
+
+`tools/lib/readiness-receipt.mjs:493-494` returns no required checks for an unprotected base, and
+`tools/record-readiness.mjs:151` then INJECTS `pullfrog-approval` itself. The only escape at
+`readiness-receipt.mjs:215-218` accepts an APPROVED review by the Pullfrog APP alone. So **no receipt
+can reach READY on `redesign/main` while the allowance is out**, `SKILL.md:1118` says a blocked
+result never permits a merge, and `require-wake-source.mjs:29-33` will not let a `--sleep` night end.
+One run merges and one run stops, from one tree. `#598` round 4 owns it, with a test, because prose
+is what failed.
+
+**This night ran on the other path** and it is the legitimate one: green checks at the exact head, an
+independent review posted in full on the pull request naming the substitution, and Thomas's written
+instruction at entry. Its ledger holds eight rows and zero receipts, and it ends on recorded named
+blockers rather than on READY.
+
+### Point a reviewer at the worktree that carries the head
+
+The first three reviews ran against the base checkout and said so, which weakened every citation they
+made about changed files. Every review after that named the worktree holding the exact head, and the
+findings got sharper immediately. A worktree per open pull request already exists; use it.
+
 ## State
 
-Read live 2026-09-18, end of the attended day session.
+Read live 2026-09-19, at the `/wrap-up` of the 2026-09-18 night run.
 
-`redesign/main` is **`0671a2e6`**. `orbit-ui-mobile` `main` is **`959381da`**. `orbit-api` `main` is
-**`b6a92960`**. **Orbit 1.3.31 (90) is on the Play OPEN track**, run `35292263149`, carrying exactly
-one commit, `38a09441` (pull request 1015, ticket `#590`), the three-dot habit menu and search
-keyboard fix. 1.3.30 (89) does NOT contain it.
+`redesign/main` is **`0f96925b`**. `orbit-api` `main` is unchanged. **Orbit 1.3.31 (90) is on the
+Play OPEN track** and nothing this night touched reaches a person.
 
-**224 tickets open.** Open pull requests: **8** in `orbit-ui-mobile`, **7** in `orbit-api`, **6** in
-`orbit-landing-page`. **13 open in the `539 Redesign` milestone**: `#67`, `#75`, `#78`, `#175`,
-`#217`, `#318`, `#320`, `#367`, `#460`, `#543`, `#595`, `#596`, `#597`.
+**230 tickets open**, three of them filed this night. **12 open in the `539 Redesign` milestone**:
+`#67`, `#75`, `#78`, `#175`, `#217`, `#318`, `#320`, `#367`, `#460`, `#543`, `#596`, `#597`. `#595`
+closed with pull request 1024.
 
-No stashes anywhere. The only unpushed commit is `1890341c` in `ticket-58-achievements`, the
-pre-squash form of merged pull request 1014, still disposable.
+### Merged this night, one
 
-### Merged this session, three
+- **`ui#1024`** to `redesign/main` as **`0f96925b`**, closing `#595`. The surface manifest was
+  generated from `e2f34493` with 184 surfaces while the branch was 64 commits ahead, so **every green
+  coverage report since then was measured against an inventory that did not describe the tree**. It
+  now reads 186 surfaces and 800 cells, and a `Surface Manifest Drift` job regenerates and diffs on
+  every pull request touching an owned path and on every PUSH to `main` and `redesign/main`. The push
+  leg is what closes the gap permanently. Widget ownership comes from `git ls-files -z` rather than a
+  directory walk, which is stronger than an ignore-based exclusion because a tracked file cannot be
+  hidden by editing `.gitignore`. Proven red first: run `35371544289` failed on `a27d3a25` with
+  `surface-manifest: the committed inventory does not describe this tree`.
 
-- `ui#1021` to `redesign/main` as **`0671a2e6`**, closing `#594`. Four dead web chart components and
-  three tests deleted, 708 deletions and 0 insertions, web lint suppressions 20 to 14.
-- `ui#1022` to `main` as **`959381da`** and `api#529` to `main` as **`b6a92960`**, the Pullfrog
-  Claude fallback. See the caveat above: it does not work for a real review.
+### Filed this night, three
 
-### Filed this session, three
-
-- **`#595`** the surface manifest is stale on `redesign/main` and its gate is invisible to CI.
-  Regenerating at `fc5f6268` yields 186 surfaces against the committed 184, and
-  `redesign-coverage.mjs` then exits 1 on `m-overlay-progress-progress-content` and
-  `overlay-components-progress-content`. **Every GREEN coverage report since `e2f34493` was measured
-  against an inventory that does not describe the tree**, and that gate is one of the two conditions
-  that close Batch 1.
-- **`#596`** a signed-out person loses a weekday repeat interval at sign-up, because neither the
-  draft schema nor the API's `ApplyHabitInput` carries the field. `repo:api`, deploy-API-first.
-- **`#597`** a web tab learns of a cross-tab account change only on its 60-second poll. **Widened
-  the same day**: the outbound direction is data loss, not stale content, because
-  `useDeleteAllNotifications.mutationFn` runs ungated so `DELETE /notifications` executes under the
-  other account's cookie and destroys THEIR notifications.
+- **`#598`** harden the Claude worker engine. Three P1 on pull request 1023: `bypassPermissions` with
+  no `--strict-mcp-config` let a headless worker reach `obsidian`, `vault-fs` and `circleci` from the
+  user-scope `mcpServers` map with zero hook coverage, because `.claude/settings.json` matches only
+  `Bash` and `PowerShell` and the guards read `tool_input.command`, which an MCP call has not;
+  `claude -p` defaults to `--output-format text` so the launcher's log-growth progress signal was
+  dead; and `SKILL.md` was edited without a reseed.
+- **`#600`** four web stores keep the previous account's state through an account change:
+  `onboarding-draft-store` (cleared only in `logout()`), `referral-prompt-store`, `ui-store` and
+  `throttle-store`. **The referral one records a CONSENT decision**: `engagement-prompt-store.ts:29-30`
+  says the marketing-consent milestone is asked at most once per account, the store persists with no
+  account namespace, so account A dismissing it means account B is never asked and the app behaves as
+  though B answered. `apps/mobile/stores/review-reminder-store.ts:83-90` is the pattern to copy.
+- **`#601`** a worker edited `node_modules` and nothing forbade or detected it. See the night section
+  above. Scope is prevention: the prohibition in `compose-prompt.mjs`, a `PreToolUse` hook, an mtime
+  walk.
 
 ### Open pull requests, every one, with a disposition
 
+Every head below was read live at wrap-up. **Every one carries a full independent review posted as a
+pull request comment naming the substitution**, because Pullfrog cannot run.
+
 | PR | base | head | state | disposition |
 |---|---|---|---|---|
-| `ui#1019` | `redesign/main` | `d5320f05` | all review findings fixed | **Merge when CI is green.** Six write points gated, cache cleared on account switch, red-first proven both times. Capped suite green locally: mobile 2657, web 2966, shared 2041. |
-| `ui#1007` | `redesign/main` | `89c42172` | all three blocking defects fixed | **Needs a re-review at this head, then merge.** Lint 3/3, type-check 3/3, full suite 8,112 tests over 727 files, all green on the committed bytes. |
-| `ui#992` | `redesign/main` | `8ddcca0e` | blocking defect fixed at the group level | **Needs a re-review at this head, then merge.** `selectAndClose` is gone from the codebase; `RadioGroup` gained `onCommit` and `useRadioGroupItem` returns `onActivate`, so no call site can reinherit it. `selection-field.tsx` deleted as dead. Full suite green on pre-lint-fix bytes only; type-check and 8 focused mobile suites green on the pushed bytes. |
-| `ui#1023` | `redesign/main` | `569d97c8` | opened this session | **Needs a review, then merge.** The `claude` worker engine and `§5.4.1`. |
-| `api#531` | `main` | `2b41b856` | built, CI green, **never reviewed** | Review, then it needs Thomas or Pullfrog to merge. `#367` API half. |
-| `api#532` | `main` | `dd862844` | built, 23 checks green, **never reviewed** | Review, then merge by hand. `#75`: 7 emails, 3 AI push prompts, 222 error codes in both locales. |
-| `api#521` | `main` | `44611e5f` | REQUEST CHANGES, worker live | A headless Claude worker is on it, see below. |
-| `api#528` | `main` | `dfb885b3` | REQUEST CHANGES, work uncommitted | See below. **Do not flip the config row.** |
+| `ui#1019` | `redesign/main` | `8dc8ecb5` + round 7 in flight | six rounds done | **Worker LIVE on round 7.** The chat reset became unconditional, so a same-account recovery loses the unsent Astra draft, against the round-4 principle that a same-account recovery must not blank the tab. Round 7 moves the reset to `logout()` and the `accountChanged` branch. |
+| `ui#1007` | `redesign/main` | `4e17d0c5` | round 3 delivered and PUSHED | **Needs a review at this head, then merge.** The worker hit the ceiling AFTER pushing, so nothing was lost. CI 28 green, 0 failures, and **`Surface Manifest Drift` GREEN**, so its rebase and regeneration are proven. |
+| `ui#992` | `redesign/main` | `24b2f7f6` | manifest round delivered | **Needs a review at this head, then merge.** Both P1 fixed and verified: zero `nextFocus` production hits, and the preference pickers hold a draft that only `onCommit` persists. Manifest at 185 surfaces, harness 1811 assertions. |
+| `ui#1023` | `redesign/main` | `0efefd35` | round 3 done, round 4 ORDERED | The tool-versus-prose merge bar, the `--mcp-config` absence assertion, and three P3. Order is on `#598`. |
+| `api#521` | `main` | `88c3de52` | round 6 delivered, **never re-reviewed at this head** | Review it. Cannot merge before 2026-09-22. |
+| `api#528` | `main` | `3835402c` | findings 2, 4, 5 fixed | Findings 1 and 3 remain, ordered on `#529`. **Do NOT flip `RequireApiKeyCreationStepUp`.** Cannot merge before 2026-09-22. |
+| `api#531` | `main` | `d652a1fd` | all three findings fixed | **Needs a review at this head.** Cannot merge before 2026-09-22. |
+| `api#532` | `main` | `dd862844` + round 2 in flight | **Worker LIVE.** | Sixteen findings, four blocking. Cannot merge before 2026-09-22. |
 
-Dependabot pull requests in both repositories: leave, not this effort.
-`orbit-landing-page`: 6 open, leave, Batch 3 owns that repository.
+Dependabot in both repositories and `orbit-landing-page`: leave, not this effort.
 
-### In flight, exactly, because a subagent does not survive a handoff
+### In flight at wrap-up, exactly
 
 | what | where | disposition |
 |---|---|---|
-| headless Claude worker on `api#521` | worktree `C:\Users\thoma\orca\workspaces\orbit-api\ticket-526-calendar-tz`, branch `fix/ticket-526-calendar-tz`, log `%TEMP%\orbit-workers\#526-1789748971554.log`, order `order-521.md` | ALIVE at handoff, pid 20560. **Outcome unknown, read the worktree first.** It was already dirty at launch: `GetCalendarEventsQuery.cs` plus five test files. |
-| `api#528` work, NOT committed | worktree `...\orbit-api\ticket-529-apikey-stepup`, branch `fix/ticket-529-apikey-stepup` | Three modified test files: `RevokeApiKeyCommandHandlerTests.cs`, `ApiKeysControllerTests.cs`, `AppConfigServiceTests.cs`. Its worker was killed for machine load. **Re-issue the six findings from the review comment on the pull request**, which is the durable copy. |
-| local `worker: "claude"` switch | `.claude/orchestrator.json`, uncommitted in the main checkout | Deliberate. The committed default is `codex` because the harness pins it. Keep the switch while the allowance is out; revert it on 2026-09-22. |
+| worker on `ui#1019` round 7 | `C:\Users\thoma\orca\workspaces\orbit-ui-mobile\ticket-460-notify-announce`, branch `fix/ticket-460-notify-announce`, log `%TEMP%\orbit-workers\#460-1789761460444.log`, launcher pid 12220 | ALIVE. **Outcome unknown, read the worktree first.** One unpushed commit at wrap-up. |
+| worker on `api#532` round 2 | `C:\Users\thoma\orca\workspaces\orbit-api\ticket-75-emails`, branch `feature/ticket-75-emails`, log `%TEMP%\orbit-workers\ORB-69-1789761486866.log`, launcher pid 1296 | ALIVE. 13 modified files at wrap-up. **Outcome unknown.** |
+| `1890341c` in `ticket-58-achievements` | branch `fix/ticket-461-notification-actions` | Unchanged, still the disposable pre-squash form of merged pull request 1014. |
+| local `worker: "claude"` switch | `.claude/orchestrator.json`, uncommitted in the main checkout | Deliberate, and it now also carries the hardened args, which pull request 1023 commits. **Revert on 2026-09-22** with `git checkout -- .claude/orchestrator.json`, which after 1023 merges restores a tree that still has the engine. |
+
+### Three findings that need tickets and did not get them
+
+Recorded here so they are not lost. File each and pick it up.
+
+- The web time picker is `role="listbox"` with `role="option"` while mobile is `radiogroup` with
+  `radio`. Pre-existing; `ui#992` only added `tabIndex`, `onKeyDown` and refs on web.
+- `isOnboardingHabitDueToday` reads the DEVICE day while `CreateHabitCommand.cs:65` resolves the day
+  from the profile timezone, so a UTC laptop at 23:30 Sunday with a Sao Paulo profile disagrees with
+  the server.
+- `design/canvas/Orbit Onboarding.dc.html:82` and `:200` render the emoji with
+  `aria-label="{{ emojiLabel }}"` and neither platform ever wired it. Under D42 the drawing outranks
+  prose, so it is a canvas-conformance gap.
 
 ### The allowance
 
-Codex and Pullfrog share one OpenAI meter and it is exhausted until **2026-09-22 07:23**. That makes
-`api#531` and `api#532` unmergeable by any route this session controls, because they target protected
-`main` which requires `pullfrog-approval`. Everything targeting `redesign/main` is unaffected, since
-that branch is unprotected and requires no approval check.
+Codex and Pullfrog share one OpenAI meter, exhausted until **2026-09-22 07:23**. Every `orbit-api`
+pull request targets protected `main` and needs `pullfrog-approval`, so none can merge before then or
+without Thomas merging by hand. `redesign/main` is unaffected.
 
 ## Open questions
 
-**None are his.** A `/questions` round tonight enumerated twelve candidates and exactly one survived
-the filter; he answered it and it is recorded on `#529`. Everything else closed against the code, a
-ticket comment, a brain note or a primary source, and each disposition is on the ticket that needed
-it.
+**None are his.** A `/questions` round at the 2026-09-19 wrap-up enumerated sixteen candidates and
+exactly two reached him. He answered both and each is recorded on the ticket that needed it.
+Everything else closed against the code, a ticket comment, the spec or a primary source.
+
+**Answered 2026-09-18 at the wrap-up, and both are settled:**
+
+- **The failed-delete toast PAUSES on hover and focus.** Offered a pause, a Dismiss button, or
+  leaving it, he took the pause. That is a granted design-system change:
+  `packages/shared/src/contracts/feedback/Toast.ts:13-14` currently forbids `kind: 'neutral'` a life
+  with `doneAfterMs?: never` and `onDone?: never`, and it now gains one, routed through the same
+  paused timer `apps/web/components/ui/toast.tsx:74` and `apps/mobile/components/ui/app-toast.tsx:36`
+  already use for a `done` toast. **No Dismiss button; the one action stays Retry.** Recorded on
+  `#460`, and it needs a caller sweep because the toast is a shared primitive.
+- **The `node_modules` edits were a WORKER, and the question is closed forever.** See `#601` and the
+  night section. Never ask him again and never investigate the origin.
 
 The only external endings remain the GPT Sol allowance, which he resets by hand, and provider
 capacity. If a worker or a Pullfrog run fails for quota or capacity rather than for code, that is
