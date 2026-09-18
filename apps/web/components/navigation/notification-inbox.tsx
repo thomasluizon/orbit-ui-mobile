@@ -6,6 +6,7 @@ import type { NotificationItem } from '@orbit/shared/types/notification'
 import { useNotificationInbox } from '@/hooks/use-notification-inbox'
 import { useMarkNotificationRead, useMarkAllNotificationsRead, useDeleteNotification, useDeleteAllNotifications } from '@/hooks/use-notifications'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { cancelPendingNotificationDelete, clearFailedNotificationDeletes, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
 import { ArrowLeft } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
@@ -25,6 +26,12 @@ export function NotificationInbox() {
   const [selected, setSelected] = useState<NotificationItem | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+
+  useResetOnAccountChange(() => {
+    setSelected(null)
+    setDetailOpen(false)
+    setConfirmOpen(false)
+  })
 
   function requestDeleteNotification(item: NotificationItem) {
     queuePendingNotificationDelete(item.id, () => deleteNotification.mutateAsync(item.id))

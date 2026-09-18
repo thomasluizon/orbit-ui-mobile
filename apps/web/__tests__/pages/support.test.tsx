@@ -62,6 +62,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 import SupportPage from '@/app/(app)/support/page'
+import { useAuthStore } from '@/stores/auth-store'
 
 const DRAFT_KEY = 'orbit-support-draft'
 
@@ -455,5 +456,86 @@ describe('SupportPage', () => {
     })
 
     expect(mockSendSupportMessage).not.toHaveBeenCalled()
+  })
+
+  describe('an account replacement under a running tab', () => {
+    const mockFetch = vi.fn()
+
+    beforeEach(() => {
+      mockFetch.mockReset()
+      vi.stubGlobal('fetch', mockFetch)
+    })
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    function respondWithAccount(userId: string) {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId, refreshFailed: false }),
+      })
+    }
+
+    function signInAndType(text: string) {
+      useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
+      render(<SupportPage />)
+      fireEvent.click(screen.getByText('profile.support.subjects.billing.label'))
+      fireEvent.change(messageField(), { target: { value: text } })
+    }
+
+    async function replaceAccount(userId: string) {
+      respondWithAccount(userId)
+      await act(async () => {
+        await useAuthStore.getState().checkSession()
+      })
+    }
+
+    it('takes the replaced account typed text off the screen, not only out of storage', async () => {
+      signInAndType('you charged me twice on the 14th, card ending 4242')
+
+      await replaceAccount('user-2')
+
+      expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
+      expect(messageField()).toHaveValue('')
+      expect(
+        screen.getAllByRole('radio').every((radio) => radio.getAttribute('aria-checked') === 'false'),
+      ).toBe(true)
+    })
+
+    it('writes only the next account text back to storage on the next keystroke', async () => {
+      signInAndType('you charged me twice on the 14th, card ending 4242')
+
+      await replaceAccount('user-2')
+      fireEvent.change(messageField(), { target: { value: 'my streak reset overnight' } })
+
+      expect(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? '{}')).toEqual({
+        subject: null,
+        message: 'my streak reset overnight',
+      })
+    })
+
+    it('keeps the typed text when the same account recovers from a rejected refresh', async () => {
+      signInAndType('my streak reset overnight')
+
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ refreshFailed: true }),
+      })
+      await act(async () => {
+        await useAuthStore.getState().confirmSessionRefreshFailure()
+      })
+      respondWithAccount('user-1')
+      await act(async () => {
+        await useAuthStore.getState().recoverSessionRefreshFailure()
+      })
+
+      expect(messageField()).toHaveValue('my streak reset overnight')
+      expect(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? '{}')).toMatchObject({
+        message: 'my streak reset overnight',
+      })
+    })
   })
 })

@@ -8,6 +8,7 @@ import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { fetchJson } from '@/lib/api-fetch'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
+import { useAuthStore } from '@/stores/auth-store'
 
 const actionMocks = vi.hoisted(() => ({
   markNotificationRead: vi.fn(),
@@ -156,6 +157,54 @@ it('runs out the delayed delete failure and holds it while the pointer rests on 
   await advance(10000)
 
   expect(screen.queryByText("Couldn't delete that alert. Try again.")).not.toBeInTheDocument()
+})
+
+function respondWithAccount(userId: string) {
+  vi.mocked(globalThis.fetch).mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId, refreshFailed: false }),
+  } as unknown as Response)
+}
+
+async function openDetailForUnreadNotification() {
+  useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
+  render(shell(true))
+  fireEvent.click(screen.getByRole('button', { name: /unread/ }))
+  expect(within(screen.getByRole('dialog')).getByText('Time to complete your habit!')).toBeInTheDocument()
+}
+
+it('takes the replaced account notification off the screen instead of holding it open', async () => {
+  vi.stubGlobal('fetch', vi.fn())
+  await openDetailForUnreadNotification()
+
+  respondWithAccount('user-2')
+  await act(async () => { await useAuthStore.getState().checkSession() })
+
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Mark read' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  respondWithAccount('user-3')
+  await act(async () => { await useAuthStore.getState().checkSession() })
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(actionMocks.markNotificationRead).not.toHaveBeenCalled()
+  vi.unstubAllGlobals()
+})
+
+it('keeps the open notification when the same account recovers from a rejected refresh', async () => {
+  vi.stubGlobal('fetch', vi.fn())
+  await openDetailForUnreadNotification()
+
+  vi.mocked(globalThis.fetch).mockResolvedValue({
+    ok: false, status: 401, json: () => Promise.resolve({ refreshFailed: true }),
+  } as unknown as Response)
+  await act(async () => { await useAuthStore.getState().confirmSessionRefreshFailure() })
+  respondWithAccount('user-1')
+  await act(async () => { await useAuthStore.getState().recoverSessionRefreshFailure() })
+
+  expect(within(screen.getByRole('dialog')).getByText('Time to complete your habit!')).toBeInTheDocument()
+  vi.unstubAllGlobals()
 })
 
 it('shares one poll between the shell bell and inbox until the last consumer unmounts', async () => {

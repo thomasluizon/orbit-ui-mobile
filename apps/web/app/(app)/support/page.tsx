@@ -25,6 +25,7 @@ import {
 } from '@/lib/support-draft-storage'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
 import packageJson from '@/package.json'
@@ -72,6 +73,21 @@ export default function SupportPage() {
   const [nameFocusRequest, setNameFocusRequest] = useState(0)
   const [emailFocusRequest, setEmailFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
+
+  useResetOnAccountChange(() => {
+    draftRef.current = { subject: null, message: '' }
+    setSubject(null)
+    setMessage('')
+    setName('')
+    setEmail('')
+    setSuccess(false)
+    setError(null)
+    setNameError(null)
+    setEmailError(null)
+    setSubjectError(null)
+    setMessageError(null)
+  })
+
   const resolvedEmail = profile?.email || email
   const displayedName = name || profile?.name || ''
   const displayedNameError = displayedName.trim() ? null : nameError
