@@ -88,4 +88,53 @@ export async function cases() {
     ["route-explore", "route-insights"].every((surfaceId) => surfaces.find((surface) => surface.surfaceId === surfaceId)?.counterpart?.status === "web-only"),
   )
   T("the fixture commit remains the generated manifest source", manifest.generatedFrom === spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim())
+
+  const manifestPath = join(repository.path, ".claude", "manifests", "surfaces.json")
+  const checkOptions = { cwd: repository.path, env: { ORBIT_SURFACE_ROOT: repository.path } }
+  // A pinned baseline, not "HEAD": the real repository pins 7d7c42c3, so baselineSha is a constant
+  // there. A fixture that kept the symbolic ref would move its own baseline on the next commit and
+  // report that as drift.
+  const baseline = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim()
+  const checkArgs = ["--baseline", baseline, "--check"]
+  run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+
+  const fresh = run("surface-manifest.mjs", checkArgs, checkOptions)
+  T("--check accepts a manifest generated from the same tree", fresh.status === 0, fresh.stderr)
+
+  // The exclusion this mode is built on: a manifest can never name the commit that carries it,
+  // so a moved HEAD alone is not drift. Without this, every correct manifest would fail.
+  write(join(repository.path, "notes.md"), "no surface changes here\n")
+  repository.git(["add", "notes.md"])
+  repository.git(["commit", "-q", "-m", "a commit that moves no surface"])
+  const movedHead = run("surface-manifest.mjs", checkArgs, checkOptions)
+  const staleGeneratedFrom = JSON.parse(readFileSync(manifestPath, "utf8")).generatedFrom
+  T(
+    "--check ignores a generatedFrom that the carrying commit could not have known",
+    movedHead.status === 0 && staleGeneratedFrom !== spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim(),
+    movedHead.stderr,
+  )
+
+  write(join(repository.path, "apps/web/app/(app)/progress/page.tsx"), "export default function Progress() { return null }\n")
+  const before = readFileSync(manifestPath, "utf8")
+  const added = run("surface-manifest.mjs", checkArgs, checkOptions)
+  T(
+    "--check exits 1 and names a surface the tree gained after generation",
+    added.status === 1 && added.stderr.includes("route-progress"),
+    added.stderr,
+  )
+  T("a failing --check repairs nothing it was asked to report", readFileSync(manifestPath, "utf8") === before)
+
+  const drifted = JSON.parse(before)
+  const ownershipCell = drifted.cells.find((cell) => cell.surfaceId === "route-root")
+  ownershipCell.ownedFiles = [...ownershipCell.ownedFiles, "apps/web/app/(app)/invented.tsx"]
+  writeFileSync(manifestPath, `${JSON.stringify(drifted, null, 2)}\n`)
+  const ownershipDrift = run("surface-manifest.mjs", checkArgs, checkOptions)
+  T(
+    "--check exits 1 when frozen ownership no longer matches the tree",
+    ownershipDrift.status === 1 && ownershipDrift.stderr.includes("route-root"),
+    ownershipDrift.stderr,
+  )
+
+  const rejected = run("surface-manifest.mjs", ["--check", "--json"], checkOptions)
+  T("--check and --json are refused rather than silently ordered", rejected.status === 2, rejected.stderr)
 }

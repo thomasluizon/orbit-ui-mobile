@@ -114,7 +114,7 @@ const EMPTY_STATE_MARKERS = ["empty-state", "empty-view", "no-results"]
 const USAGE = `surface-manifest - derive the visual-surface inventory for web AND mobile.
 
 Usage:
-  node tools/surface-manifest.mjs [--baseline <ref>] [--json] [--help]
+  node tools/surface-manifest.mjs [--baseline <ref>] [--json | --check] [--help]
 
 Writes .claude/manifests/surfaces.json (committed). Each cell is
 { surfaceId, platform, kind, state, sourceFile, theme, locale, href }.
@@ -124,11 +124,12 @@ reaches - frozen at generation time.
 Flags:
   --baseline  the pre-redesign ref surfaces are compared against (default ${DEFAULT_BASELINE_REF})
   --json      print the manifest to stdout instead of a human summary
+  --check     write nothing; compare the committed manifest against this tree and exit 1 on drift
   --help      this text
 
 Exit codes:
-  0  manifest written
-  1  inventory could not be derived (missing tree, duplicate surface id)
+  0  manifest written, or --check found no drift
+  1  inventory could not be derived (missing tree, duplicate surface id), or --check found drift
   2  usage error
 `
 
@@ -552,6 +553,77 @@ function buildManifest(baselineRef) {
   }
 }
 
+// What --check compares, and what it deliberately drops.
+//
+// `generatedFrom` is the one field a correct manifest can never agree with. The generator
+// records the sha of HEAD at generation time, and the commit that CARRIES the manifest does
+// not exist yet when it runs, so a committed manifest always names its own parent. On a pull
+// request the head under test is an ephemeral merge commit that no committed file can name.
+// Comparing that field would therefore fail on every correct manifest, and #595 also proved
+// the inverse: a manifest whose `generatedFrom` was current went stale on the next merge, so
+// the field says nothing about whether the inventory still describes the tree.
+//
+// Drift lives in the inventory, so the inventory is what is compared: every surface, its
+// sourceFile, its frozen ownedFiles, its closure size and the derived counts.
+const inventoryOf = ({ generatedFrom, ...inventory }) => inventory
+
+function cellsBySurfaceId(manifest) {
+  const bySurfaceId = new Map()
+  for (const cell of Array.isArray(manifest.cells) ? manifest.cells : []) {
+    const records = bySurfaceId.get(cell?.surfaceId) ?? []
+    records.push(cell)
+    bySurfaceId.set(cell?.surfaceId, records)
+  }
+  return bySurfaceId
+}
+
+/** Every way the committed inventory disagrees with one derived from the tree, named precisely. */
+export function inventoryDifferences(committed, current) {
+  const differences = []
+  for (const field of [...new Set([...Object.keys(committed), ...Object.keys(current)])].sort()) {
+    if (field === "cells") continue
+    const before = JSON.stringify(committed[field])
+    const after = JSON.stringify(current[field])
+    if (before !== after) differences.push(`${field}: committed ${before}, derived from this tree ${after}`)
+  }
+  const committedCells = cellsBySurfaceId(committed)
+  const currentCells = cellsBySurfaceId(current)
+  for (const surfaceId of [...currentCells.keys()].sort()) {
+    if (!committedCells.has(surfaceId)) differences.push(`surface missing from the committed manifest: ${surfaceId}`)
+  }
+  for (const surfaceId of [...committedCells.keys()].sort()) {
+    if (!currentCells.has(surfaceId)) differences.push(`committed surface no longer exists in the tree: ${surfaceId}`)
+  }
+  for (const surfaceId of [...currentCells.keys()].sort()) {
+    if (!committedCells.has(surfaceId)) continue
+    if (JSON.stringify(committedCells.get(surfaceId)) !== JSON.stringify(currentCells.get(surfaceId))) {
+      differences.push(`committed surface record no longer matches the tree: ${surfaceId}`)
+    }
+  }
+  return differences
+}
+
+function checkCommittedManifest(manifest) {
+  let committed
+  try {
+    committed = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"))
+  } catch (error) {
+    process.stderr.write(`surface-manifest: the committed manifest could not be read: ${error.message}\n`)
+    return 1
+  }
+  const differences = inventoryDifferences(inventoryOf(committed), inventoryOf(manifest))
+  if (differences.length > 0) {
+    process.stderr.write(`surface-manifest: the committed inventory does not describe this tree\n`)
+    for (const difference of differences) process.stderr.write(`  - ${difference}\n`)
+    process.stderr.write(`Regenerate it with: node tools/surface-manifest.mjs\n`)
+    return 1
+  }
+  process.stdout.write(
+    `surface-manifest: the committed inventory matches this tree (${manifest.surfaceCount} surfaces, ${manifest.cellCount} cells).\n`,
+  )
+  return 0
+}
+
 function main() {
   const args = process.argv.slice(2)
   if (args.includes("--help") || args.includes("-h")) {
@@ -561,11 +633,15 @@ function main() {
   const baselineIndex = args.indexOf("--baseline")
   const baselineRef = baselineIndex !== -1 ? args[baselineIndex + 1] : DEFAULT_BASELINE_REF
 
-  const known = new Set(["--baseline", "--json"])
+  const known = new Set(["--baseline", "--json", "--check"])
   const baselineValueIndex = baselineIndex === -1 ? -1 : baselineIndex + 1
   const unknown = args.find((argument, index) => index !== baselineValueIndex && !known.has(argument))
   if (unknown) {
     process.stderr.write(`surface-manifest: unknown argument: ${unknown}\n\n${USAGE}`)
+    return 2
+  }
+  if (args.includes("--check") && args.includes("--json")) {
+    process.stderr.write(`surface-manifest: --check and --json cannot be combined\n\n${USAGE}`)
     return 2
   }
 
@@ -576,6 +652,9 @@ function main() {
     process.stderr.write(`surface-manifest: ${error.message}\n`)
     return 1
   }
+
+  // Before the first write, so a check can never repair the drift it exists to report.
+  if (args.includes("--check")) return checkCommittedManifest(manifest)
 
   mkdirSync(dirname(MANIFEST_PATH), { recursive: true })
   writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + "\n", "utf8")

@@ -21,6 +21,9 @@ CLAUDE.md text eol=lf
 # construction. Same reason CLAUDE.md and the rules files above are pinned.
 .claude/skills/**/*.md text eol=lf
 *.mjs text eol=lf
+# surface-manifest.mjs writes LF, so an unpinned CRLF checkout made every local
+# regeneration read as a whole-file rewrite and buried the real inventory drift (#595).
+.claude/manifests/*.json text eol=lf
 # The arch-map artifacts are no longer committed (#470): storing a whole-file
 # regeneration and gating on its exact bytes made them conflict on every pair of
 # parallel branches. They are gitignored and generated on demand. The eol=lf

@@ -167,7 +167,9 @@
       "m-overlay-edit-goal-modal-edit-goal-deadline-field",
       "m-overlay-goals-edit-goal-modal",
       "m-overlay-goals-goal-detail-drawer",
+      "m-overlay-progress-progress-content",
       "m-route-tabs-progress",
+      "overlay-components-progress-content",
       "overlay-edit-goal-modal-edit-goal-deadline-field",
       "overlay-goals-edit-goal-modal",
       "overlay-goals-goal-detail-drawer",
@@ -295,6 +297,8 @@
     }
   ],
   "notes": {
+    "m-overlay-progress-progress-content": "apps/mobile/components/progress/progress-content.tsx is the live body of the Progresso tab, reached from apps/mobile/app/(tabs)/progress.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
+    "overlay-components-progress-content": "apps/web/app/(app)/progress/_components/progress-content.tsx is the live body of the /progress route, reached from apps/web/app/(app)/progress/page.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
     "m-overlay-habits-goal-linking-field": "Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
     "m-widget-orbit-widget": "D66 added the Android widget to the manifest; the 2026-08-24 decision assigns it to its canvas document instead of excluding it.",
     "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md."
