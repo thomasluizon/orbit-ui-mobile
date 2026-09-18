@@ -3,6 +3,7 @@ import { getSessionEpoch, useAuthStore } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 import type { ChatMessage } from '@orbit/shared/types/chat'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
 import {
   getFailedNotificationDeleteIdsSnapshot,
@@ -42,13 +43,12 @@ describe('auth store', () => {
     }
   }
 
-  function makeChatMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
+  function makeChatMessage(): ChatMessage {
     return {
       id: 'message-1',
       role: 'user',
       content: 'Remind me about the gym tonight',
       timestamp: new Date('2025-01-01T12:00:00Z'),
-      ...overrides,
     }
   }
 
@@ -344,8 +344,20 @@ describe('auth store', () => {
       vi.useFakeTimers()
     })
 
-    afterEach(() => {
+    afterEach(async () => {
       vi.useRealTimers()
+      const { getQueryClient } = await import('@/lib/query-client')
+      getQueryClient().clear()
+      globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
+      useChatStore.setState({
+        messages: [],
+        isTyping: false,
+        streamingMessageId: null,
+        draft: '',
+        draftRevision: 0,
+        draftHydrated: false,
+        contextualSuggestion: null,
+      })
     })
 
     function respondWithAccount(userId: string) {
@@ -400,6 +412,27 @@ describe('auth store', () => {
       expect(useChatStore.getState().messages).toEqual([])
       expect(useChatStore.getState().isTyping).toBe(false)
       expect(useChatStore.getState().streamingMessageId).toBeNull()
+    })
+
+    it('empties the Astra composer the replaced account left', async () => {
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      useChatStore.getState().setDraft('cancel my 9pm meds reminder')
+      useChatStore.getState().hydrateDraft('cancel my 9pm meds reminder')
+      useChatStore.getState().setContextualSuggestion({
+        id: 'habit-1',
+        label: 'Ask about Morning walk',
+        prompt: 'How is Morning walk going?',
+      })
+      globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'cancel my 9pm meds reminder')
+      respondWithAccount('user-2')
+
+      await useAuthStore.getState().checkSession()
+
+      expect(useChatStore.getState().draft).toBe('')
+      expect(useChatStore.getState().draftRevision).toBe(0)
+      expect(useChatStore.getState().draftHydrated).toBe(false)
+      expect(useChatStore.getState().contextualSuggestion).toBeNull()
+      expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
     })
 
     it('drops a previous account pending delete when a login follows no teardown', async () => {
@@ -482,7 +515,6 @@ describe('auth store', () => {
 
       expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(accountANotificationList)
       expect(useAuthStore.getState().user?.userId).toBe('user-1')
-      queryClient.clear()
     })
   })
 })

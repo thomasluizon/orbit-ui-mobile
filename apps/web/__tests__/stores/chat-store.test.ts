@@ -1,13 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useChatStore } from '@/stores/chat-store'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 
 describe('chat store', () => {
   beforeEach(() => {
+    globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
     useChatStore.setState({
       messages: [],
       isTyping: false,
       streamingMessageId: null,
+      draft: '',
+      draftRevision: 0,
+      draftHydrated: false,
+      contextualSuggestion: null,
     })
   })
 
@@ -130,6 +136,22 @@ describe('chat store', () => {
       clearMessages()
       expect(useChatStore.getState().isTyping).toBe(false)
       expect(useChatStore.getState().streamingMessageId).toBeNull()
+    })
+
+    it('resets the composer draft and its stored copy', () => {
+      const { clearMessages, hydrateDraft, setContextualSuggestion, setDraft } = useChatStore.getState()
+      setDraft('cancel my 9pm meds reminder')
+      hydrateDraft('cancel my 9pm meds reminder')
+      setContextualSuggestion({ id: 'habit-1', label: 'Ask about Morning walk', prompt: 'How is Morning walk going?' })
+      globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'cancel my 9pm meds reminder')
+
+      clearMessages()
+
+      expect(useChatStore.getState().draft).toBe('')
+      expect(useChatStore.getState().draftRevision).toBe(0)
+      expect(useChatStore.getState().draftHydrated).toBe(false)
+      expect(useChatStore.getState().contextualSuggestion).toBeNull()
+      expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
     })
   })
 })

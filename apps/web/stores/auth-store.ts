@@ -36,7 +36,7 @@ let lastObservedAccountId: string | null = null
  * observed account outlives that teardown, so the session after it can tell a return from a
  * replacement.
  */
-function startAccountScopedSession(nextAccountId: string | null): boolean {
+function startAccountScopedSession(nextAccountId: string | null): void {
   const previousAccountId = lastObservedAccountId
   const accountChanged = nextAccountId !== null
     && previousAccountId !== null
@@ -49,8 +49,6 @@ function startAccountScopedSession(nextAccountId: string | null): boolean {
     getQueryClient().clear()
     useChatStore.getState().clearMessages()
   }
-
-  return accountChanged
 }
 
 function clearAccountScopedSessionState(): void {
