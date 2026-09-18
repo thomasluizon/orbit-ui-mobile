@@ -21,8 +21,8 @@ type ExpectedNeutralBase = {
   message: string
   icon?: ReactElement
   detail?: never
-  doneAfterMs?: never
-  onDone?: never
+  doneAfterMs?: number
+  onDone?: () => void
 }
 type ExpectedNeutralActionVariant = ExpectedNeutralBase & {
   actionLabel: string
@@ -96,10 +96,7 @@ export type ToastTypeContract = [
   Assert<IsExact<{ kind: 'lost'; message: 'Lost'; detail: 'Try again'; actionLabel: 'Retry' }, ToastProps>>,
   // @ts-expect-error neutral rejects detail
   Assert<IsExact<{ kind: 'neutral'; message: 'Saved'; detail: 'No detail' }, ToastProps>>,
-  // @ts-expect-error neutral rejects doneAfterMs
-  Assert<IsExact<{ kind: 'neutral'; message: 'Saved'; doneAfterMs: 5000 }, ToastProps>>,
-  // @ts-expect-error neutral rejects onDone
-  Assert<IsExact<{ kind: 'neutral'; message: 'Saved'; onDone: () => void }, ToastProps>>,
+  Assert<IsExact<{ kind: 'neutral'; message: 'Saved'; doneAfterMs: 5000; onDone: () => void }, ToastProps>>,
   // @ts-expect-error neutral action label requires its handler
   Assert<IsExact<{ kind: 'neutral'; message: 'Saved'; actionLabel: 'Undo' }, ToastProps>>,
   // @ts-expect-error neutral action handler requires its label
