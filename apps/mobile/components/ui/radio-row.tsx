@@ -26,17 +26,8 @@ import { usePreviousFocusTarget } from '@/components/ui/focus-provenance-view'
 interface RadioItemState {
   disabled: boolean
   id: string
-  index: number
   nativeHandle: number | null
   selected: boolean
-}
-
-interface RadioNavigationProps {
-  focusable: boolean
-  nextFocusDown?: number
-  nextFocusLeft?: number
-  nextFocusRight?: number
-  nextFocusUp?: number
 }
 
 interface ArmedRedirect {
@@ -46,7 +37,6 @@ interface ArmedRedirect {
 
 interface RadioGroupContextValue {
   commit: () => void
-  getNavigationProps: (id: string) => RadioNavigationProps
   onFocus: (id: string, onSelect?: () => void) => void
   register: (id: string, nativeHandle: number | null) => () => void
   setElement: (id: string, element: View, nativeHandle: number | null) => void
@@ -54,27 +44,6 @@ interface RadioGroupContextValue {
 }
 
 const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
-
-function navigationProps(
-  id: string,
-  enabledItems: readonly RadioItemState[],
-): RadioNavigationProps {
-  const itemIndex = enabledItems.findIndex((item) => item.id === id)
-  if (itemIndex < 0) return { focusable: false }
-
-  const previousIndex = (itemIndex - 1 + enabledItems.length) % enabledItems.length
-  const nextIndex = (itemIndex + 1) % enabledItems.length
-  const previousHandle = enabledItems[previousIndex]?.nativeHandle ?? undefined
-  const nextHandle = enabledItems[nextIndex]?.nativeHandle ?? undefined
-
-  return {
-    focusable: true,
-    nextFocusDown: nextHandle,
-    nextFocusLeft: previousHandle,
-    nextFocusRight: nextHandle,
-    nextFocusUp: previousHandle,
-  }
-}
 
 export function RadioGroup({ children, onCommit, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & {
@@ -96,7 +65,6 @@ export function RadioGroup({ children, onCommit, ...props }: Readonly<
     setItems((current) => [...current.filter((item) => item.id !== id), {
       disabled: false,
       id,
-      index: 0,
       nativeHandle,
       selected: false,
     }])
@@ -122,15 +90,8 @@ export function RadioGroup({ children, onCommit, ...props }: Readonly<
         : candidate)
     })
   }, [])
-  const enabledItems = useMemo(() => [...items]
-    .sort((first, second) => first.index - second.index)
-    .filter((item) => !item.disabled), [items])
-  const getNavigationProps = useCallback(
-    (id: string) => navigationProps(id, enabledItems),
-    [enabledItems],
-  )
   const onFocus = useCallback((id: string, onSelect?: () => void) => {
-    const focusedItem = enabledItems.find((item) => item.id === id)
+    const focusedItem = items.find((item) => item.id === id && !item.disabled)
     if (!focusedItem) return
     const previousTarget = getPreviousFocusTarget?.() ?? null
     const armedRedirect = armedRedirectRef.current
@@ -142,24 +103,23 @@ export function RadioGroup({ children, onCommit, ...props }: Readonly<
     const movedWithinGroup = previousTarget !== null
       && items.some((item) => item.nativeHandle === previousTarget)
     if (!movedWithinGroup) {
-      const entryItem = enabledItems.find((item) => item.selected) ?? enabledItems[0]
-      if (entryItem && entryItem.id !== id) {
-        armedRedirectRef.current = { fromTarget: focusedItem.nativeHandle, id: entryItem.id }
-        elementsRef.current.get(entryItem.id)?.focus()
+      const checkedItem = items.find((item) => item.selected && !item.disabled)
+      if (checkedItem && checkedItem.id !== id) {
+        armedRedirectRef.current = { fromTarget: focusedItem.nativeHandle, id: checkedItem.id }
+        elementsRef.current.get(checkedItem.id)?.focus()
       }
       return
     }
 
     if (!focusedItem.selected) onSelect?.()
-  }, [enabledItems, getPreviousFocusTarget, items])
+  }, [getPreviousFocusTarget, items])
   const contextValue = useMemo(() => ({
     commit,
-    getNavigationProps,
     onFocus,
     register,
     setElement,
     update,
-  }), [commit, getNavigationProps, onFocus, register, setElement, update])
+  }), [commit, onFocus, register, setElement, update])
   return (
     <RadioGroupContext.Provider value={contextValue}>
       <View {...props} accessibilityRole="radiogroup">{children}</View>
@@ -169,12 +129,10 @@ export function RadioGroup({ children, onCommit, ...props }: Readonly<
 
 export function useRadioGroupItem({
   disabled,
-  index,
   onSelect,
   selected,
 }: Readonly<{
   disabled: boolean
-  index: number
   onSelect?: () => void
   selected: boolean
 }>) {
@@ -192,8 +150,8 @@ export function useRadioGroupItem({
     [id, registerWithGroup],
   )
   useLayoutEffect(() => {
-    updateGroup?.({ disabled, id, index, selected })
-  }, [disabled, id, index, selected, updateGroup])
+    updateGroup?.({ disabled, id, selected })
+  }, [disabled, id, selected, updateGroup])
 
   const elementRef = useCallback((element: View | null) => {
     if (!element) return
@@ -208,31 +166,25 @@ export function useRadioGroupItem({
     }
     if (!disabled && !selected) onSelect?.()
   }, [disabled, handleGroupFocus, id, onSelect, selected])
-  /** The press is the only commit path, so native focus movement can change the value without closing a host. */
+  /** The press is the only commit path, and a D-pad centre press on the focused row already selected it. */
   const onActivate = useCallback(() => {
-    onSelect?.()
+    if (!selected) onSelect?.()
     commitGroup?.()
-  }, [commitGroup, onSelect])
-  const groupNavigationProps = group?.getNavigationProps(id)
+  }, [commitGroup, onSelect, selected])
 
   return {
     elementRef,
-    focusable: groupNavigationProps?.focusable ?? !disabled,
-    nextFocusDown: groupNavigationProps?.nextFocusDown,
-    nextFocusLeft: groupNavigationProps?.nextFocusLeft,
-    nextFocusRight: groupNavigationProps?.nextFocusRight,
-    nextFocusUp: groupNavigationProps?.nextFocusUp,
+    focusable: !disabled,
     onActivate,
     onFocus,
   }
 }
 
-export function RadioRow({ index, label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps & { index: number }>) {
+export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
     disabled,
-    index,
     onSelect,
     selected,
   })

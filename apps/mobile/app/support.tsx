@@ -185,11 +185,10 @@ function SupportForm({
           onBlur={onSubjectBlur}
         >
           <RowList>
-            {SUPPORT_SUBJECT_OPTIONS.map((option, index) => (
+            {SUPPORT_SUBJECT_OPTIONS.map((option) => (
               sending ? (
                 <RadioRow
                   key={option.id}
-                  index={index}
                   label={t(option.labelKey)}
                   description={t(option.descriptionKey)}
                   selected={subject === option.id}
@@ -199,7 +198,6 @@ function SupportForm({
               ) : (
                 <RadioRow
                   key={option.id}
-                  index={index}
                   label={t(option.labelKey)}
                   description={t(option.descriptionKey)}
                   selected={subject === option.id}

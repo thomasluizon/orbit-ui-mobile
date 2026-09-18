@@ -47,7 +47,6 @@ function MoveDialogDescription({
 }
 
 function MoveTargetRow({
-  index,
   option,
   selected,
   isCurrentParent,
@@ -56,7 +55,6 @@ function MoveTargetRow({
   styles,
   onSelect,
 }: Readonly<{
-  index: number
   option: MoveParentOption
   selected: boolean
   isCurrentParent: boolean
@@ -71,7 +69,6 @@ function MoveTargetRow({
 
   return (
     <RadioRow
-      index={index}
       label={option.label}
       selected={selected}
       {...availability}
@@ -159,7 +156,6 @@ export function MoveParentDialog({
         <RadioGroup accessibilityLabel={t('habits.moveParent.destinations')}>
           {rootOption ? (
             <MoveTargetRow
-              index={0}
               option={rootOption}
               selected={rootOption.id === selectedMoveParentId}
               isCurrentParent={rootOption.id === movingHabitParentId}
@@ -175,10 +171,9 @@ export function MoveParentDialog({
           ) : null}
 
           <View style={styles.moveOptionsContent}>
-            {treeRows.map((option, index) => (
+            {treeRows.map((option) => (
               <MoveTargetRow
                 key={option.id}
-                index={index + 1}
                 option={option}
                 selected={option.id === selectedMoveParentId}
                 isCurrentParent={option.id === movingHabitParentId}

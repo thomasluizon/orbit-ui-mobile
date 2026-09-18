@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import type { PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 
 vi.mock('next-intl', () => ({
@@ -98,7 +97,7 @@ describe('PreferencePickerSheet', () => {
     expect(checked).toHaveTextContent('English')
   })
 
-  it('enters the language group once and selects the next option with ArrowDown', () => {
+  it('enters the language group once and drafts the next option with ArrowDown', () => {
     const props = { ...baseProps(), activePicker: 'language' as const }
     render(<PreferencePickerSheet {...props} />)
     const english = screen.getByRole('radio', { name: 'English' })
@@ -108,7 +107,8 @@ describe('PreferencePickerSheet', () => {
     const focus = vi.spyOn(portuguese, 'focus')
     english.focus()
     fireEvent.keyDown(english, { key: 'ArrowDown' })
-    expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
+    expect(portuguese).toHaveAttribute('aria-checked', 'true')
+    expect(props.onLanguageChange).not.toHaveBeenCalled()
     expect(focus).toHaveBeenCalledOnce()
   })
 
@@ -124,8 +124,7 @@ describe('PreferencePickerSheet', () => {
     expect(screen.getByRole('radio', { name: 'Português' })).toBeInTheDocument()
   })
 
-  it('closes the language sheet only once Enter commits the moved selection', async () => {
-    const user = userEvent.setup()
+  it('closes the language sheet only once an activation commits the moved selection', () => {
     const props = { ...baseProps(), activePicker: 'language' as const }
     render(<PreferencePickerSheet {...props} />)
     const english = screen.getByRole('radio', { name: 'English' })
@@ -133,11 +132,33 @@ describe('PreferencePickerSheet', () => {
     english.focus()
     fireEvent.keyDown(english, { key: 'ArrowDown' })
     expect(props.onClose).not.toHaveBeenCalled()
+    expect(props.onLanguageChange).not.toHaveBeenCalled()
 
-    await user.keyboard('{Enter}')
+    fireEvent.click(screen.getByRole('radio', { name: 'Português' }))
 
-    expect(props.onLanguageChange).toHaveBeenCalledWith('pt-BR')
+    expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
     expect(props.onClose).toHaveBeenCalled()
+  })
+
+  it('writes the timezone once, after three arrow moves and the activation that commits', () => {
+    const props = { ...baseProps(), activePicker: 'timeZone' as const }
+    render(<PreferencePickerSheet {...props} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search timezones' }), {
+      target: { value: 'Europe/' },
+    })
+    const options = screen.getAllByRole('radio')
+    expect(options.length).toBeGreaterThan(3)
+
+    options[0]!.focus()
+    fireEvent.keyDown(options[0]!, { key: 'ArrowDown' })
+    fireEvent.keyDown(options[1]!, { key: 'ArrowDown' })
+    fireEvent.keyDown(options[2]!, { key: 'ArrowDown' })
+    expect(options[3]!).toHaveAttribute('aria-checked', 'true')
+    expect(props.onTimeZoneChange).not.toHaveBeenCalled()
+
+    fireEvent.click(options[3]!)
+
+    expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(options[3]!.textContent)
   })
 
   it('keeps the timezone sheet open when ArrowDown moves the selection', () => {
@@ -152,9 +173,8 @@ describe('PreferencePickerSheet', () => {
     options[0]!.focus()
     fireEvent.keyDown(options[0]!, { key: 'ArrowDown' })
 
-    expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(
-      options[1]!.textContent,
-    )
+    expect(options[1]!).toHaveAttribute('aria-checked', 'true')
+    expect(props.onTimeZoneChange).not.toHaveBeenCalled()
     expect(props.onClose).not.toHaveBeenCalled()
     expect(screen.getAllByRole('radio').length).toBe(options.length)
   })

@@ -147,7 +147,7 @@ describe('MoveParentDialog', () => {
   })
 
   it('selects an option when its row is pressed and exposes disabled rows', () => {
-    const { tree, props } = renderDialog()
+    const { tree, props } = renderDialog({ selectedMoveParentId: 'elsewhere' })
 
     const rows = findOptionRows(tree)
     expect(rows.length).toBeGreaterThan(0)
@@ -195,6 +195,7 @@ describe('MoveParentDialog', () => {
   it('renders a selectable root row even with no destinations', () => {
     const { tree, props } = renderDialog({
       options: [makeOption({ id: null, label: 'Top level' })],
+      selectedMoveParentId: 'elsewhere',
     })
 
     const rows = findOptionRows(tree)
@@ -328,20 +329,27 @@ describe('MoveParentDialog', () => {
     expect(props.onSelectOption).toHaveBeenCalledExactlyOnceWith('alpha')
   })
 
-  it('wraps native focus between Top level and the first destination', () => {
+  it('leaves directional focus to the platform between Top level and the first destination', () => {
     const options = [
       makeOption({ id: null, label: 'Top level' }),
       makeOption({ id: 'alpha', label: 'Alpha' }),
     ]
-    const { tree } = renderDialog({ options, selectedMoveParentId: null })
+    const { tree, props } = renderDialog({ options, selectedMoveParentId: null })
     const [root, firstDestination] = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
 
-    expect(root!.props.nextFocusDown).toBe(firstDestination!.props.__nativeTag)
-    expect(firstDestination!.props.nextFocusDown).toBe(root!.props.__nativeTag)
-    expect(root!.props.nextFocusUp).toBe(firstDestination!.props.__nativeTag)
-    expect(firstDestination!.props.nextFocusUp).toBe(root!.props.__nativeTag)
+    expect([root!.props.focusable, firstDestination!.props.focusable]).toEqual([true, true])
+    for (const direction of ['nextFocusDown', 'nextFocusLeft', 'nextFocusRight', 'nextFocusUp']) {
+      expect(root!.props[direction]).toBeUndefined()
+      expect(firstDestination!.props[direction]).toBeUndefined()
+    }
+
+    void TestRenderer.act(() => {
+      focusHost(tree, root as never)
+      focusHost(tree, firstDestination as never)
+    })
+    expect(props.onSelectOption).toHaveBeenCalledExactlyOnceWith('alpha')
   })
 
   it('locks the sheet and swaps to the moving label while pending', () => {

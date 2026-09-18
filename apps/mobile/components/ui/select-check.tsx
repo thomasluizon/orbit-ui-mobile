@@ -82,7 +82,6 @@ export function SelectCheck({
 
 /** Kit RadioRow: radio · Geist Sans 17 label · optional 12px color dot, hairline divider. */
 interface RadioRowProps {
-  index: number
   label: string
   selected: boolean
   /** Optional trailing 12px color dot. */
@@ -93,7 +92,6 @@ interface RadioRowProps {
 }
 
 export function RadioRow({
-  index,
   label,
   selected,
   dot,
@@ -105,7 +103,6 @@ export function RadioRow({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
     disabled,
-    index,
     onSelect: onPress,
     selected,
   })

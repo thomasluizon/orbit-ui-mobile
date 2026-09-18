@@ -260,6 +260,28 @@ await Promise.resolve()
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('leaves directional focus to the platform so arrows reach the other columns', async () => {
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        withFocusProvenance(<TimeField value="14:30" onChange={vi.fn()} placeholder="HH:MM" />),
+      )
+    })
+    await openPicker(tree)
+    const hours = column(tree, 'common.hours').findAll(
+      (node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'radio',
+    )
+    const hourHandles = new Set(hours.map((hour: any) => hour.props.__nativeTag))
+
+    expect(hours.length).toBeGreaterThan(1)
+    expect(hours.every((hour: any) => hour.props.focusable === true)).toBe(true)
+    for (const direction of ['nextFocusDown', 'nextFocusLeft', 'nextFocusRight', 'nextFocusUp']) {
+      expect(hours.filter((hour: any) => hourHandles.has(hour.props[direction]))).toEqual([])
+    }
+  })
+
   it('selects a time option when native focus moves inside its column', async () => {
     let tree: any
 

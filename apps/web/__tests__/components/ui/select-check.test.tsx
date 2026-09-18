@@ -76,8 +76,7 @@ describe('select-check RadioRow group', () => {
     render(<RadioRows onChange={onChange} />)
     fireEvent.click(screen.getByRole('radio', { name: 'Third' }))
     expect(onChange).toHaveBeenCalledExactlyOnceWith('third')
-    fireEvent.click(screen.getByRole('radio', { name: 'Disabled' }))
-    expect(onChange).toHaveBeenCalledOnce()
+    expect(screen.getByRole('radio', { name: 'Disabled' })).toBeDisabled()
   })
 
   it('changes the value on an arrow key without committing the group', () => {
@@ -91,6 +90,20 @@ describe('select-check RadioRow group', () => {
 
     expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
     expect(onCommit).not.toHaveBeenCalled()
+  })
+
+  it('commits without selecting again when a press lands on the focused row', () => {
+    const onChange = vi.fn()
+    const onCommit = vi.fn()
+    render(<CommitRows onChange={onChange} onCommit={onCommit} />)
+    const first = screen.getByRole('radio', { name: 'First' })
+
+    first.focus()
+    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('radio', { name: 'Second' }))
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
+    expect(onCommit).toHaveBeenCalledOnce()
   })
 
   it('commits the group on Enter, Space and a pointer press alike', async () => {

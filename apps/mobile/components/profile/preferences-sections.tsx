@@ -1,4 +1,4 @@
-import { useMemo, useState, type Ref } from 'react'
+import { useMemo, useRef, useState, type Ref } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { Calendar, Languages, Moon } from '@/components/ui/icons'
@@ -27,6 +27,44 @@ export type PreferencePicker = 'language' | 'theme' | 'timeZone' | 'weekStart'
 const TIME_ZONE_OPTIONS = getTimezoneList()
 const TIME_ZONE_PAGE_SIZE = 20
 
+/** Focus moves the draft and only a press commits it, so arrow keys never write a preference per keypress. */
+function PickerOptions<Value extends string | number>({
+  label,
+  options,
+  selected,
+  onCommit,
+}: Readonly<{
+  label: string
+  options: readonly { value: Value; label: string }[]
+  selected: Value | null
+  onCommit: (value: Value) => void
+}>) {
+  const [draft, setDraft] = useState<Value | null>(selected)
+  const draftRef = useRef<Value | null>(selected)
+  const selectDraft = (next: Value) => {
+    draftRef.current = next
+    setDraft(next)
+  }
+  const commitDraft = () => {
+    const pending = draftRef.current
+    if (pending !== null) onCommit(pending)
+  }
+
+  return (
+    <RadioGroup accessibilityLabel={label} onCommit={commitDraft}>
+      {options.map((option, index) => (
+        <RadioRow
+          key={String(option.value)}
+          label={option.label}
+          selected={draft === option.value}
+          divider={index < options.length - 1}
+          onPress={() => selectDraft(option.value)}
+        />
+      ))}
+    </RadioGroup>
+  )
+}
+
 function TimeZoneOptions({
   tokens,
   selected,
@@ -34,15 +72,13 @@ function TimeZoneOptions({
   noResultsLabel,
   showMoreLabel,
   onCommit,
-  onSelect,
 }: Readonly<{
   tokens: Tokens
   selected?: string | null
   searchLabel: string
   noResultsLabel: string
   showMoreLabel: string
-  onCommit: () => void
-  onSelect: (timeZone: string) => void
+  onCommit: (timeZone: string) => void
 }>) {
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
@@ -72,18 +108,12 @@ function TimeZoneOptions({
         placeholder={searchLabel}
         style={styles.timeZoneSearch}
       />
-      <RadioGroup accessibilityLabel={searchLabel} onCommit={onCommit}>
-        {visible.map((option, index) => (
-          <RadioRow
-            key={option}
-            index={index}
-            label={option}
-            selected={selected === option}
-            divider={index < visible.length - 1}
-            onPress={() => onSelect(option)}
-          />
-        ))}
-      </RadioGroup>
+      <PickerOptions
+        label={searchLabel}
+        options={visible.map((option) => ({ label: option, value: option }))}
+        selected={selected ?? null}
+        onCommit={onCommit}
+      />
       {visible.length === 0 ? (
         <Text style={[styles.timeZoneEmpty, { color: tokens.fg3 }]}>{noResultsLabel}</Text>
       ) : null}
@@ -448,7 +478,10 @@ export function PreferencePickerSheet({
   onTimeZoneChange,
   onWeekStartChange,
 }: Readonly<PreferencePickerSheetProps>) {
-  const commitSelection = () => closePicker(onHidden)
+  const commitSelection = (apply: () => void) => closePicker(() => {
+    onHidden()
+    apply()
+  })
 
   return (
     activePicker !== null ? (<Sheet
@@ -465,32 +498,20 @@ export function PreferencePickerSheet({
           </Text>
         ) : null}
         {activePicker === 'language' ? (
-          <RadioGroup accessibilityLabel={pickerTitles.language} onCommit={commitSelection}>
-            {LANGUAGE_OPTIONS.map((lang, index) => (
-            <RadioRow
-              key={lang.value}
-              index={index}
-              label={lang.label}
-              selected={selectedLanguage === lang.value}
-              divider={index < LANGUAGE_OPTIONS.length - 1}
-              onPress={() => onLanguageChange(lang.value)}
-            />
-            ))}
-          </RadioGroup>
+          <PickerOptions
+            label={pickerTitles.language}
+            options={LANGUAGE_OPTIONS}
+            selected={selectedLanguage}
+            onCommit={(locale) => commitSelection(() => onLanguageChange(locale))}
+          />
         ) : null}
         {activePicker === 'theme' ? (
-          <RadioGroup accessibilityLabel={pickerTitles.theme} onCommit={commitSelection}>
-            {themeModeOptions.map((mode, index) => (
-            <RadioRow
-              key={mode.value}
-              index={index}
-              label={mode.label}
-              selected={currentTheme === mode.value}
-              divider={index < themeModeOptions.length - 1}
-              onPress={() => onThemeModeChange(mode.value)}
-            />
-            ))}
-          </RadioGroup>
+          <PickerOptions
+            label={pickerTitles.theme}
+            options={themeModeOptions}
+            selected={currentTheme}
+            onCommit={(mode) => commitSelection(() => onThemeModeChange(mode))}
+          />
         ) : null}
         {activePicker === 'timeZone' ? (
           <TimeZoneOptions
@@ -499,23 +520,16 @@ export function PreferencePickerSheet({
             searchLabel={timeZoneSearchLabel}
             noResultsLabel={timeZoneNoResultsLabel}
             showMoreLabel={timeZoneShowMoreLabel}
-            onCommit={commitSelection}
-            onSelect={onTimeZoneChange}
+            onCommit={(nextTimeZone) => commitSelection(() => onTimeZoneChange(nextTimeZone))}
           />
         ) : null}
         {activePicker === 'weekStart' ? (
-          <RadioGroup accessibilityLabel={pickerTitles.weekStart} onCommit={commitSelection}>
-            {weekStartOptions.map((option, index) => (
-            <RadioRow
-              key={option.value}
-              index={index}
-              label={option.label}
-              selected={weekStartDay === option.value}
-              divider={index < weekStartOptions.length - 1}
-              onPress={() => onWeekStartChange(option.value)}
-            />
-            ))}
-          </RadioGroup>
+          <PickerOptions
+            label={pickerTitles.weekStart}
+            options={weekStartOptions}
+            selected={weekStartDay === 0 || weekStartDay === 1 ? weekStartDay : null}
+            onCommit={(day) => commitSelection(() => onWeekStartChange(day))}
+          />
         ) : null}
       </View>
     </Sheet>) : null

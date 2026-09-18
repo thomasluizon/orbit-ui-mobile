@@ -68,19 +68,21 @@ describe('PreferencePickerSheet', () => {
     __resetTestHostConfig()
   })
 
-  it('selects the language reached by native focus', () => {
+  it('drafts the language reached by native focus without writing it', () => {
     const props = baseProps()
     let tree: any
     void act(() => {
       tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />))
     })
-    const radios = tree.root.findAll(
+    const radios = () => tree.root.findAll(
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )
-    expect(radios.map((option: any) => option.props.focusable)).toEqual([true, true])
-    void act(() => focusHost(tree, radios[0]))
-    void act(() => focusHost(tree, radios[1]))
-    expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
+    expect(radios().map((option: any) => option.props.focusable)).toEqual([true, true])
+    void act(() => focusHost(tree, radios()[0]))
+    void act(() => focusHost(tree, radios()[1]))
+    expect(radios().map((option: any) => option.props.accessibilityState.checked))
+      .toEqual([false, true])
+    expect(props.onLanguageChange).not.toHaveBeenCalled()
     expect(props.closePicker).not.toHaveBeenCalled()
     expect(props.onHidden).not.toHaveBeenCalled()
   })
@@ -104,6 +106,59 @@ describe('PreferencePickerSheet', () => {
     expect(props.onLanguageChange).toHaveBeenCalledWith('pt-BR')
     expect(props.closePicker).toHaveBeenCalledOnce()
     expect(props.onHidden).toHaveBeenCalledOnce()
+  })
+
+  it('writes the timezone once, after three focus moves and the press that commits', () => {
+    const props = {
+      ...baseProps(),
+      activePicker: 'timeZone' as const,
+      timeZone: null,
+    }
+    let tree: any
+    void act(() => {
+      tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />))
+    })
+    const radios = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+
+    void act(() => focusHost(tree, radios[0]))
+    void act(() => focusHost(tree, radios[1]))
+    void act(() => focusHost(tree, radios[2]))
+    expect(props.onTimeZoneChange).not.toHaveBeenCalled()
+
+    void act(() => radios[2]!.props.onPress())
+
+    expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(
+      radios[2]!.props.accessibilityLabel,
+    )
+  })
+
+  it('applies the language only after the sheet has finished closing', () => {
+    const exitActions: (() => void)[] = []
+    const props = {
+      ...baseProps(),
+      closePicker: vi.fn((exitAction?: () => void) => {
+        if (exitAction) exitActions.push(exitAction)
+      }),
+    }
+    let tree: any
+    void act(() => {
+      tree = create(withFocusProvenance(<PreferencePickerSheet {...props} />))
+    })
+    const radios = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+
+    void act(() => radios[1]!.props.onPress())
+
+    expect(props.closePicker).toHaveBeenCalledOnce()
+    expect(props.onLanguageChange).not.toHaveBeenCalled()
+
+    void act(() => exitActions.forEach((exitAction) => exitAction()))
+
+    expect(props.onHidden).toHaveBeenCalledOnce()
+    expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
   })
 
   it('uses rendered timezone order after filtered options remount', () => {
@@ -139,12 +194,11 @@ describe('PreferencePickerSheet', () => {
     const adjacentLabel = adjacentOption.props.accessibilityLabel
     const retainedOption = restoredRadios[retainedIndex]!
 
-    expect(retainedOption.props.nextFocusDown).toBe(adjacentOption.props.__nativeTag)
     void act(() => focusHost(tree, retainedOption))
     void act(() => focusHost(tree, adjacentOption))
+    void act(() => adjacentOption.props.onPress())
 
     expect(props.onTimeZoneChange).toHaveBeenCalledExactlyOnceWith(adjacentLabel)
-    expect(props.closePicker).not.toHaveBeenCalled()
-    expect(props.onHidden).not.toHaveBeenCalled()
+    expect(props.closePicker).toHaveBeenCalledOnce()
   })
 })

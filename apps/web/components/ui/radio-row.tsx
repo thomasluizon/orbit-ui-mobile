@@ -68,9 +68,9 @@ export function useRadioGroupItem({
   }, [id, moveGroupSelection])
   /** A native button raises click for a pointer press, Enter and Space alike, so this is the only commit path. */
   const onActivate = useCallback(() => {
-    onSelect?.()
+    if (!selected) onSelect?.()
     commitGroup?.()
-  }, [commitGroup, onSelect])
+  }, [commitGroup, onSelect, selected])
   const elementRef = useCallback((element: HTMLButtonElement | null) => {
     setGroupElement?.(id, element)
   }, [id, setGroupElement])

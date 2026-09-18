@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Pressable, TextInput, View } from 'react-native'
+import { useState } from 'react'
+import { Pressable, View } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
@@ -21,10 +21,10 @@ function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>
   return (
     <FocusProvenanceView>
       <RadioGroup accessibilityLabel="Cadence">
-        <RadioRow index={0} label="First" selected={value === 'first'} onPress={() => select('first')} />
-        <RadioRow index={1} label="Disabled" selected={false} disabled onPress={() => select('disabled')} />
-        <RadioRow index={2} label="Third" selected={value === 'third'} onPress={() => select('third')} />
-        <RadioRow index={3} label="Last" selected={value === 'last'} onPress={() => select('last')} />
+        <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
+        <RadioRow label="Disabled" selected={false} disabled onPress={() => select('disabled')} />
+        <RadioRow label="Third" selected={value === 'third'} onPress={() => select('third')} />
+        <RadioRow label="Last" selected={value === 'last'} onPress={() => select('last')} />
       </RadioGroup>
     </FocusProvenanceView>
   )
@@ -43,8 +43,8 @@ function CommitRows({
   return (
     <FocusProvenanceView>
       <RadioGroup accessibilityLabel="Cadence" onCommit={onCommit}>
-        <RadioRow index={0} label="First" selected={value === 'first'} onPress={() => select('first')} />
-        <RadioRow index={1} label="Second" selected={value === 'second'} onPress={() => select('second')} />
+        <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
+        <RadioRow label="Second" selected={value === 'second'} onPress={() => select('second')} />
       </RadioGroup>
     </FocusProvenanceView>
   )
@@ -66,9 +66,9 @@ function FocusEntryRows({
   return (
     <FocusProvenanceView>
       <RadioGroup accessibilityLabel="Entry">
-        <RadioRow index={0} label="First" selected={value === 'first'} onPress={() => select('first')} />
-        <RadioRow index={1} label="Second" selected={value === 'second'} onPress={() => select('second')} />
-        <RadioRow index={2} label="Third" selected={value === 'third'} onPress={() => select('third')} />
+        <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
+        <RadioRow label="Second" selected={value === 'second'} onPress={() => select('second')} />
+        <RadioRow label="Third" selected={value === 'third'} onPress={() => select('third')} />
       </RadioGroup>
       <View focusable accessibilityLabel="Outside" />
     </FocusProvenanceView>
@@ -150,32 +150,6 @@ describe('select-check RadioRow group', () => {
     )
   })
 
-  it('models imperative focus for TextInput and focusable views', () => {
-    const focus = vi.fn()
-    __setFocusImpl(focus)
-    const viewRef = React.createRef<React.ElementRef<typeof View>>()
-    const inputRef = React.createRef<React.ElementRef<typeof TextInput>>()
-
-    void act(() => {
-      create(
-        <>
-          <View ref={viewRef} focusable accessibilityLabel="View" />
-          <TextInput ref={inputRef} accessibilityLabel="Input" />
-        </>,
-      )
-    })
-    viewRef.current?.focus()
-    expect(focus).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ accessibilityLabel: 'View' }),
-    )
-
-    inputRef.current?.focus()
-    expect(focus).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ accessibilityLabel: 'Input' }),
-    )
-  })
-
   it('selects a new row when focus moves inside the group', () => {
     const onChange = vi.fn()
     const { tree, radios: [first, second] } = renderEntryRows(onChange)
@@ -212,22 +186,21 @@ describe('select-check RadioRow group', () => {
     expect(focus).not.toHaveBeenCalled()
   })
 
-  it('redirects initial entry to the first row without changing selection when none is checked', () => {
+  it('selects the next row reached after an entry that found nothing checked', () => {
     const onChange = vi.fn()
     const focus = vi.fn()
     __setFocusImpl(focus)
     const { tree, radios: [first, , third] } = renderEntryRows(onChange, null)
 
     void act(() => focusHost(tree, third))
+    expect(focus).not.toHaveBeenCalled()
+
     void act(() => focusHost(tree, first))
 
-    expect(onChange).not.toHaveBeenCalled()
-    expect(focus).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ accessibilityLabel: 'First' }),
-    )
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('first')
   })
 
-  it('routes native focus around enabled rows, wraps, and selects the focused row', () => {
+  it('keeps enabled rows focusable, leaves traversal to the platform, and selects on focus', () => {
     const onChange = vi.fn()
     let tree: any
     void act(() => {
@@ -239,18 +212,18 @@ describe('select-check RadioRow group', () => {
 
     const options = radios()
     const handles = options.map((option: any) => option.props.__nativeTag)
-    const [first, , third, last] = options
+    const [first, , third] = options
     expect(options.map((option: any) => option.props.focusable)).toEqual([true, false, true, true])
     expect(handles.every((handle: unknown) => typeof handle === 'number')).toBe(true)
-    expect(first.props.nextFocusUp).toBe(handles[3])
-    expect(first.props.nextFocusDown).toBe(handles[2])
-    expect(first.props.nextFocusLeft).toBe(handles[3])
-    expect(first.props.nextFocusRight).toBe(handles[2])
-    expect(third.props.nextFocusUp).toBe(handles[0])
-    expect(third.props.nextFocusDown).toBe(handles[3])
-    expect(last.props.nextFocusUp).toBe(handles[2])
-    expect(last.props.nextFocusDown).toBe(handles[0])
-    expect(options.every((option: any) => option.props.nextFocusForward === undefined)).toBe(true)
+    for (const direction of [
+      'nextFocusDown',
+      'nextFocusForward',
+      'nextFocusLeft',
+      'nextFocusRight',
+      'nextFocusUp',
+    ]) {
+      expect(options.every((option: any) => option.props[direction] === undefined)).toBe(true)
+    }
     expect(options.every((option: any) => option.props.onKeyDown === undefined)).toBe(true)
     void act(() => focusHost(tree, first))
     void act(() => focusHost(tree, third))
@@ -270,6 +243,25 @@ describe('select-check RadioRow group', () => {
     )
 
     expect(emptyFocusableHosts).toEqual([])
+  })
+
+  it('commits without selecting again when a press lands on the focused row', () => {
+    const onChange = vi.fn()
+    const onCommit = vi.fn()
+    let tree: any
+    void act(() => {
+      tree = create(<CommitRows onChange={onChange} onCommit={onCommit} />)
+    })
+    const radios = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )
+
+    void act(() => focusHost(tree, radios[0]))
+    void act(() => focusHost(tree, radios[1]))
+    void act(() => radios[1]!.props.onPress())
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
+    expect(onCommit).toHaveBeenCalledOnce()
   })
 
   it('keeps touch selection unchanged and blocks disabled rows', () => {
