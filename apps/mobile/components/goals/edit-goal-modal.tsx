@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react'
-import { Text, View } from 'react-native'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -16,9 +16,10 @@ import {
 } from '@orbit/shared/utils'
 import {
   buildGoalTitle,
+  getFirstGoalDraftFieldError,
+  getGoalDraftFieldErrorKeys,
   isStreakGoal,
   parseGoalTargetValue,
-  validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -71,6 +72,10 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [focusRequest, setFocusRequest] = useState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
+  const descriptionRef = useRef<TextInput>(null)
+  const targetRef = useRef<TextInput>(null)
+  const unitRef = useRef<TextInput>(null)
 
   const isSubmitting = updateGoal.isPending
   const isDirty =
@@ -85,28 +90,22 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
 
   const fieldErrors = useMemo(() => {
     if (!submitted) return {}
+    const keys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
     const errs: Record<string, string> = {}
-    const errorKey = validateGoalDraftInput(description, targetValue, unit)
-    if (errorKey) {
-      const translated = translateErrorKey(translate, errorKey)
-      if (translated) {
-        if (errorKey === 'goals.form.targetValueRequired')
-          errs.targetValue = translated
-        else if (
-          errorKey === 'goals.form.unitRequired' ||
-          errorKey === 'goals.form.unitTooLong'
-        )
-          errs.unit = translated
-        else if (
-          errorKey === 'goals.form.titleRequired' ||
-          errorKey === 'goals.form.titleTooLong'
-        )
-          errs.description = translated
-        else errs._form = translated
-      }
+    for (const field of ['description', 'targetValue', 'unit'] as const) {
+      const key = keys[field]
+      if (!key) continue
+      const translated = translateErrorKey(translate, key)
+      if (translated) errs[field] = translated
     }
     return errs
   }, [submitted, description, targetValue, unit, translate])
+
+  useEffect(() => {
+    if (focusRequest?.field === 'description') descriptionRef.current?.focus()
+    else if (focusRequest?.field === 'targetValue') targetRef.current?.focus()
+    else if (focusRequest?.field === 'unit') unitRef.current?.focus()
+  }, [focusRequest])
 
   const [prevResetKey, setPrevResetKey] = useState<string | null>(null)
   const resetKey = open
@@ -125,12 +124,12 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
 
   const onSubmit = useCallback(async () => {
     setSubmitted(true)
-    const err = translateErrorKey(
-      translate,
-      validateGoalDraftInput(description, targetValue, unit),
-    )
+    const errorKeys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
+    const firstError = getFirstGoalDraftFieldError(errorKeys)
+    const err = translateErrorKey(translate, firstError?.key ?? null)
     if (err) {
       showError(err)
+      if (firstError) setFocusRequest({ field: firstError.field })
       return
     }
 
@@ -184,17 +183,20 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
           <Text style={styles.eyebrow}>{eyebrowLabel}</Text>
 
           <View>
-            <Text style={styles.fieldLabel}>{t('goals.form.description')}</Text>
+            <Text nativeID="edit-goal-description-label" style={styles.fieldLabel}>{t('goals.form.description')}</Text>
             <BottomSheetAppTextInput
+              ref={descriptionRef}
               value={description}
               onChangeText={setDescription}
               placeholder={t('goals.form.descriptionPlaceholder')}
               placeholderTextColor={tokens.fg3}
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
               accessibilityLabel={t('goals.form.description')}
+              accessibilityLabelledBy="edit-goal-description-label"
+              accessibilityHint={fieldErrors.description}
             />
             {fieldErrors.description ? (
-              <Text style={styles.fieldError} accessibilityRole="alert">
+              <Text nativeID="edit-goal-description-error" style={styles.fieldError}>
                 {fieldErrors.description}
               </Text>
             ) : null}
@@ -206,6 +208,8 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
             targetValue={targetValue}
             unit={unit}
             fieldErrors={fieldErrors}
+            targetRef={targetRef}
+            unitRef={unitRef}
             onChangeTarget={setTargetValue}
             onChangeUnit={setUnit}
           />

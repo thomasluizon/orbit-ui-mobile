@@ -119,6 +119,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".github/workflows/guards.yml#surface-manifest": {
+    "scope": "changed-files",
+    "snapshot": "node tools/surface-manifest.mjs",
+    "constants": "none"
+  },
   "eslint-rules/animate-presence-exit.cjs": {
     "scope": "changed-files",
     "snapshot": "none",

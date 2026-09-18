@@ -44,6 +44,7 @@ import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   getFriendlyErrorMessage,
+  isCalendarSyncEventImportable,
 } from '@orbit/shared/utils'
 import { toast } from 'sonner'
 
@@ -113,11 +114,21 @@ function CalendarSyncPageContent() {
     setEvents(incomingEvents)
     setVisibleCount(EVENTS_PAGE_SIZE)
     setSelectedIds(
-      resolveSyncedSelection(selectedIds, incomingEvents, isReviewMode, previousEventsKey),
+      resolveSyncedSelection(
+        selectedIds,
+        incomingEvents.filter(isCalendarSyncEventImportable),
+        isReviewMode,
+        previousEventsKey,
+      ),
     )
   }
 
-  const allSelected = events.length > 0 && selectedIds.size === events.length
+  const importableEvents = useMemo(
+    () => events.filter(isCalendarSyncEventImportable),
+    [events],
+  )
+  const allSelected =
+    importableEvents.length > 0 && selectedIds.size === importableEvents.length
 
   const activeQuery = isReviewMode ? suggestionsQuery : eventsQuery
   const step = resolveCalendarSyncStep({
@@ -150,7 +161,7 @@ function CalendarSyncPageContent() {
     if (allSelected) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(events.map((e) => e.id)))
+      setSelectedIds(new Set(importableEvents.map((event) => event.id)))
     }
   }
 
@@ -394,6 +405,7 @@ function CalendarSyncPageContent() {
                     onToggle={toggleAll}
                     selectAllLabel={t('calendar.selectAll')}
                     deselectAllLabel={t('calendar.deselectAll')}
+                    disabled={importableEvents.length === 0}
                   />
                 </div>
               </div>

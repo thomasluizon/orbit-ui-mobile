@@ -973,6 +973,13 @@
     "importDone": "Importação concluída",
     "importedCount": "{count} evento importado como hábito | {count} eventos importados como hábitos",
     "importPartialFailure": "{count} evento não pôde ser importado | {count} eventos não puderam ser importados",
+    "importIssue": {
+      "weekdayInterval": "O Orbit não consegue preservar este intervalo entre dias da semana. Altere o evento para repetir toda semana e importe novamente.",
+      "ordinalWeekday": "O Orbit não consegue importar agendas como a segunda segunda-feira de cada mês. Altere para repetição semanal e importe novamente.",
+      "finiteDateClamp": "Alguns meses ou anos não incluem esta data inicial. Altere para o dia 28 ou anterior e importe novamente.",
+      "finiteDateRange": "O Orbit não consegue importar uma agenda que continua após o ano 9999. Encurte a agenda e importe novamente.",
+      "utcUntilOffsetShift": "O Orbit não consegue definir a última ocorrência após uma mudança de horário. Remova a data final do evento e importe novamente."
+    },
     "goToHabits": "Abrir hábitos",
     "errorTitle": "Algo deu errado",
     "fetchError": "Não foi possível buscar os eventos. Tente de novo.",
@@ -2353,7 +2360,6 @@
     "updateProgress": "Atualizar progresso",
     "progressNote": "Nota (opcional)",
     "progressHistory": "Histórico",
-    "progressEntry": "{previous} -> {value} {unit}",
     "status": {
       "active": "Ativa",
       "completed": "Concluída",
@@ -2364,6 +2370,7 @@
       "manualProgress": "Atualize o progresso. Ao alcançar o alvo, a meta é concluída.",
       "increase": "Aumentar progresso",
       "decrease": "Diminuir progresso",
+      "progressUpdated": "Progresso atualizado para {current} de {target} {unit}.",
       "derivedStreak": "O progresso da sequência é calculado automaticamente, então não pode ser editado aqui. | Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui. | Vem da menor sequência atual entre os {count} hábitos ligados a esta meta, então não pode ser editado aqui.",
       "derivedHabits": "O progresso vem dos registros dos hábitos ligados a esta meta, então não é editável aqui.",
       "completeWhy": "Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.",
@@ -2379,6 +2386,9 @@
       "loadError": "Não foi possível carregar todos os detalhes. Mostrando dados em cache.",
       "showAllHistory": "Ver tudo ({count})",
       "showLessHistory": "Ver menos",
+      "historyDate": "Data: {date}",
+      "historyDelta": "Mudança: {delta} {unit}",
+      "historyProgress": "Progresso: {current} de {target} {unit}",
       "askAstraDefault": "Quer um plano de check-in semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de check-in semanal para a meta \"{title}\".",
       "statusLabel": "Status"

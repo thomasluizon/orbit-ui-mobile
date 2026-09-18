@@ -8,6 +8,7 @@ interface SelectAllToggleProps {
   onToggle: () => void
   selectAllLabel: string
   deselectAllLabel: string
+  disabled?: boolean
   tokens: ReturnType<typeof createTokensV2>
   tintStyle: StyleProp<ViewStyle>
 }
@@ -18,21 +19,26 @@ export function SelectAllToggle({
   onToggle,
   selectAllLabel,
   deselectAllLabel,
+  disabled = false,
   tokens,
   tintStyle,
 }: Readonly<SelectAllToggleProps>) {
   const styles = createStyles()
+  const accessibilityState = disabled
+    ? { selected: allSelected, disabled: true }
+    : { selected: allSelected }
   return (
     <Pressable
       onPress={onToggle}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={allSelected ? deselectAllLabel : selectAllLabel}
-      accessibilityState={{ selected: allSelected }}
+      accessibilityState={accessibilityState}
       hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
       style={({ pressed }) => [
         styles.quietActionIcon,
         tintStyle,
-        pressed && styles.quietActionDim,
+        (pressed || disabled) && styles.quietActionDim,
       ]}
     >
       {allSelected ? (

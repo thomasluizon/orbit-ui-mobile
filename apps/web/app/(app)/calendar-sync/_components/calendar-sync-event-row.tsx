@@ -5,7 +5,11 @@ import { useTranslations } from 'next-intl'
 import { RadioGlyph } from '@/components/ui/select-check'
 import { Badge } from '@/components/ui/badge'
 import { plural } from '@/lib/plural'
-import { formatCalendarSyncRecurrenceLabel } from '@orbit/shared/utils'
+import {
+  formatCalendarSyncRecurrenceLabel,
+  getCalendarSyncImportIssue,
+  getCalendarSyncImportIssueMessageKey,
+} from '@orbit/shared/utils'
 import type { CalendarSyncEvent } from '@orbit/shared'
 
 interface CalendarSyncEventRowProps {
@@ -29,26 +33,44 @@ export function CalendarSyncEventRow({
   onDismiss,
   t,
 }: Readonly<CalendarSyncEventRowProps>) {
+  const importIssue = getCalendarSyncImportIssue(
+    event.recurrenceRule,
+    event.startDate,
+    event.startTime,
+    event.startUtc,
+  )
+  const importIssueLabel = importIssue
+    ? t(getCalendarSyncImportIssueMessageKey(importIssue))
+    : null
+  const importIssueId = importIssue ? `calendar-import-issue-${event.id}` : undefined
+
   return (
     <div
-      className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+      className={`flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]${importIssue === null ? ' hover:bg-[var(--bg-elev)]' : ''}`}
       style={{
         gap: 12,
         padding: '0 16px',
         borderBottom: '1px solid var(--hairline)',
-        background: selected
-          ? 'rgba(var(--primary-rgb), 0.06)'
-          : undefined,
+        background: importIssue
+          ? 'var(--bg-elev)'
+          : selected
+            ? 'rgba(var(--primary-rgb), 0.06)'
+            : undefined,
       }}
     >
       <button
         type="button"
         onClick={() => onToggle(event.id)}
+        disabled={importIssue !== null}
         aria-pressed={selected}
-        className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer"
+        aria-describedby={importIssueId}
+        className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer disabled:cursor-not-allowed"
         style={{ gap: 12, padding: '12px 0' }}
       >
-        <span className="shrink-0" style={{ marginTop: 0 }}>
+        <span
+          className="shrink-0"
+          style={{ marginTop: 0, opacity: importIssue ? 0.5 : 1 }}
+        >
           <RadioGlyph selected={selected} size={24} />
         </span>
         <span className="flex-1 min-w-0 block">
@@ -58,7 +80,7 @@ export function CalendarSyncEventRow({
               fontFamily: 'var(--font-sans)',
               fontSize: 15,
               fontWeight: 500,
-              color: 'var(--fg-1)',
+              color: importIssue ? 'var(--fg-3)' : 'var(--fg-1)',
             }}
           >
             {event.title}
@@ -141,6 +163,20 @@ export function CalendarSyncEventRow({
               {event.description}
             </span>
           )}
+          {importIssueLabel ? (
+            <span
+              id={importIssueId}
+              className="block"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'var(--status-bad-text)',
+                marginTop: 4,
+              }}
+            >
+              {importIssueLabel}
+            </span>
+          ) : null}
         </span>
       </button>
 

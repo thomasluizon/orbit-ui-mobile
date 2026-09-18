@@ -116,14 +116,20 @@ export {
   formatCalendarSyncRecurrenceLabel,
   filterCalendarSyncEventsByDate,
   getCalendarSyncClockValue,
+  getCalendarSyncImportIssue,
+  getCalendarSyncImportIssueMessageKey,
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncConnectionActive,
+  isCalendarSyncEventImportable,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  resolveCalendarSyncEndDate,
   reconcileCalendarAutoSyncGrantRevocation,
 } from './calendar-sync'
 export type {
   CalendarSyncEvent,
+  CalendarSyncImportIssue,
+  CalendarSyncImportIssueMessageKey,
   CalendarSyncParsedRecurrence,
   CalendarSyncTranslationAdapter,
 } from './calendar-sync'
@@ -382,11 +388,14 @@ export type {
 } from './habit-list-progress'
 export {
   buildGoalTitle,
+  getFirstGoalDraftFieldError,
+  getGoalDraftFieldErrorKeys,
   isGoalDeadlinePast,
   parseGoalTargetValue,
   validateGoalDraftInput,
   validateGoalProgressInput,
 } from './goal-form'
+export type { GoalDraftFieldError, GoalDraftFieldErrorKeys } from './goal-form'
 export {
   createEmptyNotificationsResponse,
   deleteNotificationFromList,
@@ -419,6 +428,8 @@ export {
   updateGoalStatusItem,
 } from './goal-mutations'
 export {
+  formatGoalHistoryDelta,
+  formatGoalHistoryNumber,
   formatGoalMetricsDate,
   getGoalMetricsStatusPresentation,
 } from './goal-metrics'
