@@ -22,7 +22,11 @@ function makeOption(overrides: Partial<MoveParentOption>): MoveParentOption {
   }
 }
 
-function renderOverlay(options: MoveParentOption[], onSelectOption = vi.fn()) {
+function renderOverlay(
+  options: MoveParentOption[],
+  onSelectOption = vi.fn(),
+  selectedMoveParentId: string | null = null,
+) {
   render(
     <MoveParentOverlay
       t={(key) => key}
@@ -31,7 +35,7 @@ function renderOverlay(options: MoveParentOption[], onSelectOption = vi.fn()) {
       movingHabitTitle="Exercise"
       movingHabitParentId={null}
       options={options}
-      selectedMoveParentId={null}
+      selectedMoveParentId={selectedMoveParentId}
       canSubmit={false}
       onClose={vi.fn()}
       onConfirm={vi.fn()}
@@ -43,10 +47,14 @@ function renderOverlay(options: MoveParentOption[], onSelectOption = vi.fn()) {
 
 describe('MoveParentOverlay', () => {
   it('renders a selectable root row and the destinations eyebrow', () => {
-    const { onSelectOption } = renderOverlay([
-      makeOption({ id: null, label: 'habits.moveParent.toRoot' }),
-      makeOption({ id: 'parent', label: 'Parent' }),
-    ])
+    const { onSelectOption } = renderOverlay(
+      [
+        makeOption({ id: null, label: 'habits.moveParent.toRoot' }),
+        makeOption({ id: 'parent', label: 'Parent' }),
+      ],
+      vi.fn(),
+      'parent',
+    )
 
     expect(screen.getByText('habits.moveParent.destinations')).toBeInTheDocument()
     expect(screen.getByRole('radiogroup', {
