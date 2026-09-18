@@ -25,7 +25,9 @@ jobs:
     env:
       # add at least one provider API key
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      # Deliberately NOT injected: the repo secret dates from 2026-05-12 and
+      # shadows the credential Pullfrog stores for the org.
+      # CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -109,3 +111,4 @@ jobs:
         with:
           prompt: ${{ steps.claude_prompt.outputs.prompt }}
           model: anthropic/claude-opus-5
+          debug: enabled
