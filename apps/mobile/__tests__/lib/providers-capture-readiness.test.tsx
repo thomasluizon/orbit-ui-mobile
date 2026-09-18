@@ -27,13 +27,6 @@ vi.mock('expo-router', () => ({
   useGlobalSearchParams: () => searchParameters,
 }))
 
-/** Reached transitively through the auth storage wrapper; the native module has no test binding. */
-vi.mock('expo-secure-store', () => ({
-  getItemAsync: vi.fn(() => Promise.resolve(null)),
-  setItemAsync: vi.fn(() => Promise.resolve()),
-  deleteItemAsync: vi.fn(() => Promise.resolve()),
-}))
-
 vi.mock('expo-application', () => ({ nativeApplicationVersion: '1.0.0', nativeBuildVersion: '1' }))
 
 vi.mock('@/lib/i18n', () => ({

@@ -203,12 +203,6 @@ vi.mock('expo-router', () => ({
   usePathname: () => '/',
 }))
 
-vi.mock('expo-secure-store', () => ({
-  getItemAsync: vi.fn(),
-  setItemAsync: vi.fn(),
-  deleteItemAsync: vi.fn(),
-}))
-
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({
     data: mockHabitsData,
