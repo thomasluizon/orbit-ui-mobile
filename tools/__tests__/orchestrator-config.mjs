@@ -110,9 +110,11 @@ export const cases = async () => {
   /**
    * EVERY declared engine, not only the one `worker` names. `readOrchestratorConfig` validates
    * `config.workers[config.worker]` alone, so a typo in a fallback engine nobody runs today stays
-   * invisible until the first real launch, and by then `reserveWorkerLaunch` has already spent one
-   * of the two launches `caps.workerLaunchesPerBranch` allows. The fallback exists for the night the
-   * primary allowance is exhausted, which is the worst moment to find out it does not resolve.
+   * invisible until the first real launch. The cost is the night, not a launch: `launch-worker.mjs`
+   * resolves the invocation at `:135` and a bad `command` fails at `:239`, both before
+   * `reserveWorkerLaunch` at `:288`, so every failure mode here exits having spent zero of the two
+   * launches `caps.workerLaunchesPerBranch` allows. The fallback exists for the night the primary
+   * allowance is exhausted, which is the worst moment to find out it does not resolve.
    */
   const engineFailures = []
   for (const [declaredName, declaredEngine] of Object.entries(real.workers)) {
@@ -152,6 +154,26 @@ export const cases = async () => {
       fallbackArgs.includes("--verbose") &&
       fallbackArgs.join(" ").includes("--output-format stream-json"),
     JSON.stringify(fallbackArgs),
+  )
+
+  /**
+   * The fallback's executable and both model ids, pinned literally the way the shipped default is
+   * above. The loop over every declared engine cannot catch either: `resolveWorkerInvocation` never
+   * reads `command`, and it reads `entry.model` from the same block the loop compares against, so
+   * `resolved.model === expectedModel` is true by construction. Nothing else reads a model against a
+   * catalog. A typo that is not a real id fails loudly at the first launch, but `claude-opus-4-8` IS
+   * a real id, so that one runs a whole night on the wrong model in silence. It matters more for
+   * this engine than for codex: `reseed-calibration.mjs:178-182` builds `workerTiers` from the
+   * ACTIVE engine alone, so the calibration gate gives the claude block no drift coverage at all,
+   * for exactly the period `SKILL.md` §5.4.1 tells the operator to read that gate as expected-red.
+   */
+  const fallback = real.workers.claude ?? {}
+  T(
+    `${NAME}: the claude fallback engine runs claude, opus 5 by default and sonnet 5 mechanically`,
+    fallback.command === "claude" &&
+      fallback.models?.default?.model === "claude-opus-5" &&
+      fallback.models?.mechanical?.model === "claude-sonnet-5",
+    `.claude/orchestrator.json declares command ${JSON.stringify(fallback.command)} with ${JSON.stringify(fallback.models)}`,
   )
 
   const readAndFail = (label, config) => thrown(() => readOrchestratorConfig(configUrl(label, JSON.stringify(config))))

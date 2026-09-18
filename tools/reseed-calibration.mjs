@@ -103,7 +103,7 @@ const VERDICTS = {
   ".claude/skills/merge-prs/SKILL.md":
     "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth.",
   ".claude/skills/orchestrate/SKILL.md":
-    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review. Reseeded 2026-09-18 when 5.4.1 gained the engine-fallback contract, which raises the demand rather than lowering it: the skill now decides when an exhausted allowance justifies a transient worker switch, holds the revert, reads a deliberately red calibration gate as expected rather than as a defect, and judges whether a substitute reviewer is named openly or promoted quietly. Each of those is the kind of call a lower effort rounds to the easy answer.",
+    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review. Reseeded 2026-09-18 a second time, when the engine-fallback contract in 5.4.1 was reconciled with step 8 and Hard prohibitions so all three state one branch-dependent merge bar. That raises the demand again rather than lowering it: the skill now decides when an exhausted allowance justifies a transient worker switch, holds the revert, reads two deliberately red gates as expected while treating any third failure as a real defect, judges whether a substitute reviewer is named openly or promoted quietly, and tells an instructed contract apart from one a run granted itself. Each of those is the kind of call a lower effort rounds to the easy answer, and the last one decides merge authority, which is the most expensive rule here to get wrong.",
   ".claude/skills/prod-readiness/SKILL.md":
     "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
   ".claude/skills/progress/SKILL.md":
@@ -162,7 +162,7 @@ const extra = Object.keys(VERDICTS).filter((file) => !files.includes(file))
 if (extra.length > 0) throw new Error(`verdict written for a file that is not in the tree: ${extra.join(", ")}`)
 
 const config = JSON.parse(readFileSync(join(root, ".claude", "orchestrator.json"), "utf8"))
-// The ENGINE comes from config.worker, the same key launch-worker.mjs:115 reads. The invocation comes
+// The ENGINE comes from config.worker, the same key launch-worker.mjs:129 reads. The invocation comes
 // from resolveWorkerInvocation itself rather than being rebuilt here, so the stamp records the WHOLE
 // vector that launches: engine args, then the selected profile args, then the model.
 /**
