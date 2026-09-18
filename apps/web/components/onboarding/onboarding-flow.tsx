@@ -23,6 +23,7 @@ import {
   readHabitPhrase,
   shouldRequestOnboardingSuggestion,
   toggleOnboardingScheduleDay,
+  type OnboardingRemindState,
   type OnboardingSchedule,
   type OnboardingScheduleMode,
 } from '@orbit/shared/utils'
@@ -41,7 +42,7 @@ import { requestWebPushPermission, subscribeToPushNotifications, usePushNotifica
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
-import { OnboardingRemind, type ReminderState } from './onboarding-remind'
+import { OnboardingRemind } from './onboarding-remind'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { useOnboardingActions, useOnboardingIsLive } from './onboarding-actions-context'
 
@@ -51,9 +52,10 @@ function ActionStack({ primary, secondary }: Readonly<{ primary: ReactNode; seco
   return <div className="flex flex-col gap-3">{primary}{secondary ? <div className="flex justify-center">{secondary}</div> : null}</div>
 }
 
-function DoneShell({ children }: Readonly<{ children: ReactNode }>) {
+const DONE_TAB_ROUTES: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
+
+function DoneShell({ onSelect, children }: Readonly<{ onSelect: (id: string) => void; children: ReactNode }>) {
   const t = useTranslations()
-  const router = useRouter()
   const wide = useIsWideDesktop()
   const items = useMemo(() => [
     { id: 'hoje', label: t('nav.today'), icon: 'home' },
@@ -61,8 +63,6 @@ function DoneShell({ children }: Readonly<{ children: ReactNode }>) {
     { id: 'progresso', label: t('nav.progress'), icon: 'chart-line' },
     { id: 'perfil', label: t('nav.profile'), icon: 'user' },
   ] satisfies ShellWideItem[], [t])
-  const routes: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
-  const onSelect = (id: string) => router.push(routes[id] ?? '/')
   if (wide) return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect}><div className="mx-auto flex min-h-full w-full max-w-[560px] items-center">{children}</div></ShellWide>
   return <Shell412 tabBar={<BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={items.map((item) => ({ ...item, icon: ({ active }) => {
     const Icon = { hoje: Home, calendario: CalendarDays, progresso: ChartLine, perfil: User }[item.id] ?? Home
@@ -87,7 +87,7 @@ interface DecisionProps {
   creating: boolean
   suggestionPending: boolean
   reminderDecision: ReminderDecision
-  reminderState: ReminderState
+  reminderState: OnboardingRemindState
   createdTitle: string
   onAccount: () => void
   onSentence: (value: string) => void
@@ -108,7 +108,7 @@ interface DecisionProps {
 function DecisionContent(props: Readonly<DecisionProps>) {
   if (props.step === ONBOARDING_WHAT_STEP) return <OnboardingWelcome sentence={props.sentence} marks={props.marks} onChange={props.onSentence} onHaveAccount={!props.isLive ? props.onAccount : undefined} />
   if (props.step === ONBOARDING_WHEN_STEP) return <OnboardingCreateHabit title={getOnboardingHabitTitle(props.sentence, props.locale)} emoji={props.emoji} schedule={props.schedule} proposed={props.proposed} correcting={props.correcting} canSaveRepeatWeeks={props.isLive} atLimit={props.atLimit} allowance={props.allowance} onCorrect={props.onCorrect} onToggleDay={props.onToggleDay} onTimeChange={props.onTime} onModeChange={props.onMode} onFrequencyUnitChange={props.onFrequencyUnit} onQuantityChange={props.onQuantity} onIntervalWeeksChange={props.onIntervalWeeks} />
-  return <OnboardingRemind state={props.reminderState} title={props.createdTitle} dueTime={props.dueTime} />
+  return <OnboardingRemind state={props.reminderState} title={props.createdTitle} dueTime={props.dueTime} isLive={props.isLive} />
 }
 
 function DecisionAction(props: Readonly<DecisionProps>) {
@@ -152,7 +152,7 @@ export function OnboardingFlow() {
   const [createdTitle, setCreatedTitle] = useState(deferredHabit?.title ?? '')
   const [creating, setCreating] = useState(false)
   const [createFailed, setCreateFailed] = useState(false)
-  const [reminderState, setReminderState] = useState<ReminderState>(resolvingDeferredPush ? 'failed' : 'ask')
+  const [reminderState, setReminderState] = useState<OnboardingRemindState>(resolvingDeferredPush ? 'failed' : 'ask')
   const [remindersOff, setRemindersOff] = useState(false)
   const [createdDueToday, setCreatedDueToday] = useState(true)
   const [createdGeneral, setCreatedGeneral] = useState(false)
@@ -198,7 +198,7 @@ export function OnboardingFlow() {
     }
   }
 
-  function resolveReminderState(): ReminderState {
+  function resolveReminderState(): OnboardingRemindState {
     if (schedule.isGeneral) return 'no-day'
     if (!dueTime) return 'no-time'
     if (!push.supported) return 'unsupported'
@@ -217,6 +217,10 @@ export function OnboardingFlow() {
         setCreatedId(result.id)
       }
       setCreatedTitle(input.title)
+      /**
+       * The device clock decides today here while the API resolves it from the profile time zone, so a
+       * person straddling midnight in another zone can read one day wrong until #602 lands.
+       */
       setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date()))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState())
@@ -240,7 +244,7 @@ export function OnboardingFlow() {
     }
   }
 
-  async function setReminderFailure(outcome: ReminderState) {
+  async function setReminderFailure(outcome: OnboardingRemindState) {
     if (await persistReminderDecision(false)) setReminderState(outcome)
   }
 
@@ -326,16 +330,23 @@ export function OnboardingFlow() {
 
   const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
 
+  /**
+   * The one exit for the done button, the done tab bar and Escape: the overlay has to close first,
+   * because the persistent app layout mounts this flow and it would otherwise cover the destination.
+   */
+  async function completeAndLeave(destination?: string) {
+    setOverlayOpen(false)
+    if (resolvingDeferredPush) await finishDeferredPushRecovery()
+    else await actions.finishOnboarding()
+    if (destination) router.push(destination)
+  }
+
   function closeOverlay() {
-    runStepTransition(() => {
-      setOverlayOpen(false)
-      if (resolvingDeferredPush) void finishDeferredPushRecovery()
-      else void actions.finishOnboarding()
-    })
+    runStepTransition(() => void completeAndLeave())
   }
 
   const overlay = step === ONBOARDING_DONE_STEP ? (
-    <DoneShell><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void actions.finishOnboarding()} /></DoneShell>
+    <DoneShell onSelect={(id) => void completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></DoneShell>
   ) : (
     <FlowShell nav={false} mode="onboarding" header={<OnboardingHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('createFailed')} /> : undefined}><DecisionContent {...decisionProps} /></FlowShell>
   )

@@ -2,14 +2,6 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
-import {
-  getOnboardingDisplayStep,
-  getOnboardingDisplayTotal,
-  getOnboardingNextStep,
-  ONBOARDING_DONE_STEP,
-  ONBOARDING_REMIND_STEP,
-  shouldHideOnboardingFooter,
-} from '@orbit/shared/utils'
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
@@ -21,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   suggest: vi.fn(),
   subscribe: vi.fn(),
   requestPermissionOnly: vi.fn(),
+  navigate: vi.fn(),
   profile: { aiMessagesLimit: 5, aiMessagesUsed: 0 },
   push: { supported: true, permission: 'default', status: 'not-registered' },
 }))
@@ -29,7 +22,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.navigate }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
@@ -43,9 +36,9 @@ vi.mock('@/hooks/use-push-notification-preferences', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ header, action, notice, children }: { header: React.ReactNode; action: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) => <div>{header}{notice}{children}{action}</div>,
 }))
-vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
+vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ tabBar, children }: { tabBar?: React.ReactNode; children: React.ReactNode }) => <div>{children}{tabBar}</div> }))
 vi.mock('@/components/shell/shell-wide', () => ({ ShellWide: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }))
-vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: () => null }))
+vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: ({ items, onSelect }: { items: { id: string; label: string }[]; onSelect: (id: string) => void }) => <nav>{items.map((item) => <button key={item.id} type="button" onClick={() => onSelect(item.id)}>{item.label}</button>)}</nav> }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, onClick, disabled, loading }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean }) => <button type="button" disabled={disabled || loading} onClick={onClick}>{children}</button>,
 }))
@@ -58,7 +51,7 @@ vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
   OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => <div data-testid="schedule" data-proposed={proposed} data-can-save-repeat-weeks={String(canSaveRepeatWeeks)} data-interval-weeks={String(schedule.intervalWeeks)}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>,
 }))
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => <div data-testid="reminder-state">{state}</div> }))
-vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday, general }: { dueToday: boolean; general: boolean }) => <div data-testid="done" data-due-today={String(dueToday)} data-general={String(general)} /> }))
+vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday, general, onFinish }: { dueToday: boolean; general: boolean; onFinish: () => void }) => <div data-testid="done" data-due-today={String(dueToday)} data-general={String(general)}><button type="button" onClick={onFinish}>finish</button></div> }))
 
 function actions(): OnboardingActions {
   return {
@@ -84,6 +77,22 @@ async function reachReminder(isLive: boolean) {
   fireEvent.click(screen.getByRole('button', { name: 'continue' }))
   fireEvent.click(await screen.findByRole('button', { name: 'create' }))
   await screen.findByTestId('reminder-state')
+}
+
+const COUNTER_PATTERN = /^Orbit \d{2} \/ \d{2}$/
+
+function isCounter(element: Element | null): boolean {
+  return element?.tagName === 'SPAN' && COUNTER_PATTERN.test(String(element.textContent))
+}
+
+function headerCounter(): string {
+  return String(screen.getByText((_, element) => isCounter(element)).textContent)
+}
+
+async function reachDone(isLive: boolean) {
+  await reachReminder(isLive)
+  fireEvent.click(screen.getByRole('button', { name: 'remind.deny' }))
+  await screen.findByTestId('done')
 }
 
 describe('OnboardingFlow state model', () => {
@@ -163,13 +172,52 @@ describe('OnboardingFlow state model', () => {
     expect(screen.queryByLabelText('sentence')).not.toBeInTheDocument()
   })
 
-  it('keeps one counter across three decisions and the done state', () => {
-    expect(getOnboardingDisplayTotal()).toBe(3)
-    expect(getOnboardingDisplayStep(0)).toBe(1)
-    expect(getOnboardingDisplayStep(ONBOARDING_DONE_STEP)).toBe(3)
-    expect(getOnboardingNextStep(ONBOARDING_REMIND_STEP)).toBe(ONBOARDING_DONE_STEP)
-    expect(shouldHideOnboardingFooter(ONBOARDING_REMIND_STEP)).toBe(false)
-    expect(shouldHideOnboardingFooter(ONBOARDING_DONE_STEP)).toBe(true)
+  it('counts each rendered decision once and drops the counter on the done screen', async () => {
+    mount(false)
+    expect(headerCounter()).toBe('Orbit 01 / 03')
+    expect(screen.getByLabelText('sentence')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Meditate at 07:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'continue' }))
+    expect(headerCounter()).toBe('Orbit 02 / 03')
+    expect(screen.getByTestId('schedule')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    await screen.findByTestId('reminder-state')
+    expect(headerCounter()).toBe('Orbit 03 / 03')
+
+    fireEvent.click(screen.getByRole('button', { name: 'remind.continue' }))
+    await screen.findByTestId('done')
+    expect(screen.queryByText((_, element) => isCounter(element))).toBeNull()
+  })
+
+  it.each([
+    ['calendario', 'nav.calendar', '/calendar'],
+    ['hoje', 'nav.today', '/'],
+  ])('finishes onboarding and closes the overlay before the %s tab navigates', async (_id, label, route) => {
+    await reachDone(true)
+    fireEvent.click(screen.getByRole('button', { name: label }))
+
+    await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+    expect(mocks.navigate).toHaveBeenCalledWith(route)
+    await waitFor(() => expect(screen.queryByTestId('done')).toBeNull())
+  })
+
+  it('sends a signed-out tab through the sign-in handoff rather than a protected route', async () => {
+    await reachDone(false)
+    fireEvent.click(screen.getByRole('button', { name: 'nav.calendar' }))
+
+    await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByTestId('done')).toBeNull())
+  })
+
+  it('finishes onboarding and closes the overlay from the done button', async () => {
+    await reachDone(true)
+    fireEvent.click(screen.getByRole('button', { name: 'finish' }))
+
+    await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+    await waitFor(() => expect(screen.queryByTestId('done')).toBeNull())
   })
 
   it('waits for Astra before exposing schedule actions and persists its flexible cadence', async () => {

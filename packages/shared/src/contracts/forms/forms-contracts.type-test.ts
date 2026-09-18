@@ -28,6 +28,7 @@ type ExpectedMinute = `${'0' | '1' | '2' | '3' | '4' | '5'}${ExpectedDigit}`
 type ExpectedTime24 = `${ExpectedHour24}:${ExpectedMinute}`
 
 type SingleLineVariant = Extract<InputProps, { multiline?: never }>
+type MultilineVariant = Extract<InputProps, { multiline: true; marks?: never }>
 type MarkedVariant = Extract<InputProps, { marks: readonly { start: number; end: number }[] }>
 type ExpectedSingleLineVariant = {
   label: string
@@ -50,6 +51,18 @@ type ExpectedSingleLineVariant = {
   trailing?: ReactNode
   multiline?: never
   rows?: never
+}
+type ExpectedMultilineBase = Omit<ExpectedSingleLineVariant, 'multiline' | 'rows'> & {
+  multiline: true
+  rows?: number
+}
+type ExpectedMultilineVariant = ExpectedMultilineBase & {
+  marks?: never
+  marksLabel?: never
+}
+type ExpectedMarkedVariant = ExpectedMultilineBase & {
+  marks: readonly { start: number; end: number }[]
+  marksLabel: string
 }
 type InputBase = { label: 'Name'; value: ''; onChange: (value: string) => void }
 type SingleInput = Exact<InputBase & { maxLength: 60 }, InputProps>
@@ -143,8 +156,8 @@ type DateObjectRow = Exact<{ label: 'Started'; value: Date }, DateRowProps>
 
 export type FormContractAssertionsWidthAssertions = [
   Assert<IsExactWidth<Fields<SingleLineVariant>, ExpectedSingleLineVariant>>,
-  Assert<IsExactWidth<MarkedVariant['marks'], readonly { start: number; end: number }[]>>,
-  Assert<IsExactWidth<MarkedVariant['marksLabel'], string>>,
+  Assert<IsExactWidth<Fields<MultilineVariant>, Fields<ExpectedMultilineVariant>>>,
+  Assert<IsExactWidth<Fields<MarkedVariant>, Fields<ExpectedMarkedVariant>>>,
   Assert<IsExactWidth<InputProps['label'], string>>,
   Assert<IsExactWidth<InputProps['value'], string>>,
   Assert<IsExactWidth<InputProps['onChange'], (value: string) => void>>,

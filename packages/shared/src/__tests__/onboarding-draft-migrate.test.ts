@@ -25,16 +25,14 @@ describe('migrateOnboardingDraft habit sanitization', () => {
   })
 })
 
-describe('onboarding draft store step and snapshot', () => {
-  it('updates the step and clones the buffered first log into the snapshot', () => {
+describe('onboarding draft snapshot', () => {
+  it('clones the buffered first log into the snapshot', () => {
     const store = makeStore()
 
-    store.getState().setStep(4)
     store.getState().bufferFirstLog(1, '2026-07-05')
 
     const snapshot = getPersistedOnboardingDraft(store.getState())
 
-    expect(snapshot.step).toBe(4)
     expect(snapshot.firstLog).toEqual({ habitIndex: 1, date: '2026-07-05' })
     expect(snapshot.firstLog).not.toBe(store.getState().firstLog)
   })

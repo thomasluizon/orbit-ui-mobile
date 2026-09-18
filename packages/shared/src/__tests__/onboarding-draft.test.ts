@@ -107,7 +107,6 @@ describe('onboarding draft store', () => {
 
   it('migrates unknown persisted shapes to a clean draft', () => {
     expect(migrateOnboardingDraft(null)).toEqual({
-      step: 0,
       habits: [],
       firstLog: null,
       goal: null,
@@ -118,15 +117,13 @@ describe('onboarding draft store', () => {
       pushRegistrationFailed: false,
     })
 
-    const partial = migrateOnboardingDraft({ step: 3, onboardingLocallyDone: true })
-    expect(partial.step).toBe(3)
+    const partial = migrateOnboardingDraft({ onboardingLocallyDone: true })
     expect(partial.onboardingLocallyDone).toBe(true)
     expect(partial.habits).toEqual([])
   })
 
   it('round-trips a payload through the pure builder', () => {
     const payload = buildApplyOnboardingPayload({
-      step: 6,
       habits: [{ title: 'Stretch' }],
       firstLog: null,
       goal: null,

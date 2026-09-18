@@ -15,15 +15,13 @@ import {
   getOnboardingReminderPreviewTime,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
-  getOnboardingNextStep,
-  getOnboardingPreviousStep,
+  getOnboardingRemindCopy,
   getOnboardingScheduleMode,
   ONBOARDING_DONE_STEP,
   ONBOARDING_REMIND_STEP,
   ONBOARDING_STARTERS,
   shouldRequestOnboardingSuggestion,
   resolveRetainedOnboarding,
-  shouldHideOnboardingFooter,
 } from '../utils/onboarding'
 
 /** Every rule a saved onboarding schedule owes the API, named so a failure reads as the transition. */
@@ -67,9 +65,7 @@ describe('onboarding helpers', () => {
     expect(getOnboardingDisplayTotal()).toBe(3)
     expect(getOnboardingDisplayStep(0)).toBe(1)
     expect(getOnboardingDisplayStep(ONBOARDING_DONE_STEP)).toBe(3)
-    expect(getOnboardingNextStep(ONBOARDING_REMIND_STEP)).toBe(ONBOARDING_DONE_STEP)
-    expect(getOnboardingPreviousStep(ONBOARDING_DONE_STEP)).toBe(ONBOARDING_REMIND_STEP)
-    expect(shouldHideOnboardingFooter(ONBOARDING_DONE_STEP)).toBe(true)
+    expect(getOnboardingDisplayStep(ONBOARDING_REMIND_STEP)).toBe(3)
   })
 
   it('removes schedule words from the habit title', () => {
@@ -508,5 +504,26 @@ describe('getOnboardingCompleteCopy', () => {
       expect(getOnboardingCompleteCopy({ ...resting, skipped }).actionKey).toBe('seeDay')
     }
     expect(getOnboardingCompleteCopy({ ...resting, skipped: true }).bodyKey).toBe('skippedBody')
+  })
+})
+
+describe('getOnboardingRemindCopy', () => {
+  it.each([
+    ['ask', 'title', 'body', 'signedOutBody'],
+    ['denied', 'deniedTitle', 'deniedBody', 'deniedSignedOutBody'],
+    ['refused', 'refusedTitle', 'refusedBody', 'refusedSignedOutBody'],
+    ['unsupported', 'unsupportedTitle', 'unsupportedBody', 'unsupportedSignedOutBody'],
+    ['failed', 'failedTitle', 'failedBody', 'failedSignedOutBody'],
+  ] as const)('never tells a signed-out run the %s habit is saved', (state, titleKey, liveBodyKey, signedOutBodyKey) => {
+    expect(getOnboardingRemindCopy(state, true)).toEqual({ titleKey, bodyKey: liveBodyKey })
+    expect(getOnboardingRemindCopy(state, false)).toEqual({ titleKey, bodyKey: signedOutBodyKey })
+  })
+
+  it.each([
+    ['no-time', 'noTimeTitle', 'noTimeBody'],
+    ['no-day', 'noDayTitle', 'noDayBody'],
+  ] as const)('keeps one %s body, because it claims nothing about storage', (state, titleKey, bodyKey) => {
+    expect(getOnboardingRemindCopy(state, true)).toEqual({ titleKey, bodyKey })
+    expect(getOnboardingRemindCopy(state, false)).toEqual({ titleKey, bodyKey })
   })
 })

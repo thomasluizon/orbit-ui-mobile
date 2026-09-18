@@ -234,10 +234,6 @@ export default defineConfig({
       },
       { find: '@', replacement: path.resolve(__dirname) },
       {
-        find: '@orbit/shared/utils/onboarding',
-        replacement: path.resolve(__dirname, './test-mocks/onboarding-utils.ts'),
-      },
-      {
         find: '@orbit/shared/utils/error-utils',
         replacement: path.resolve(__dirname, './test-mocks/error-utils.ts'),
       },

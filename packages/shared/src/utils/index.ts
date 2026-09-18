@@ -332,8 +332,7 @@ export {
   getOnboardingCompleteCopy,
   getOnboardingScheduleMode,
   getOnboardingReminderPreviewTime,
-  getOnboardingNextStep,
-  getOnboardingPreviousStep,
+  getOnboardingRemindCopy,
   isOnboardingHabitDueToday,
   ONBOARDING_DONE_STEP,
   ONBOARDING_REMIND_STEP,
@@ -343,10 +342,9 @@ export {
   ONBOARDING_TOTAL_STEPS,
   ONBOARDING_REMINDER_MINUTES,
   resolveRetainedOnboarding,
-  shouldHideOnboardingFooter,
   shouldRequestOnboardingSuggestion,
 } from './onboarding'
-export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingSchedule, OnboardingScheduleMode, RetainedOnboardingAction } from './onboarding'
+export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode, RetainedOnboardingAction } from './onboarding'
 export {
   isMissingBillingError,
   isMissingBillingStatus,

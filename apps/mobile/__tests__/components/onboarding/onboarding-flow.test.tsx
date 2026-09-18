@@ -1,15 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
-import {
-  getOnboardingDisplayStep,
-  getOnboardingDisplayTotal,
-  getOnboardingNextStep,
-  getOnboardingPreviousStep,
-  ONBOARDING_DONE_STEP,
-  ONBOARDING_REMIND_STEP,
-  shouldHideOnboardingFooter,
-} from '@orbit/shared/utils'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { createTokensV2 } from '@/lib/theme'
@@ -39,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   suggest: vi.fn(),
   requestPermission: vi.fn(),
   requestPermissionOutcome: vi.fn(),
+  navigate: vi.fn(),
   isLive: true,
   profile: { aiMessagesLimit: 5, aiMessagesUsed: 0 },
   push: {
@@ -54,7 +46,7 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ replace: vi.fn() }) }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: mocks.navigate, replace: vi.fn() }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 vi.mock('@/stores/ui-store', () => ({ useUIStore: (selector: (state: { astraConversationOpen: boolean }) => unknown) => selector({ astraConversationOpen: false }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
@@ -78,8 +70,8 @@ vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ header, action, notice, children }: { header: React.ReactNode; action: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) => React.createElement('FlowShell', null, header, notice, children, action),
 }))
-vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ children }: { children: React.ReactNode }) => React.createElement('Shell412', null, children) }))
-vi.mock('@/components/navigation/destination-tab-bar', () => ({ DestinationTabBar: () => null }))
+vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ tabBar, children }: { tabBar?: React.ReactNode; children: React.ReactNode }) => React.createElement('Shell412', null, children, tabBar) }))
+vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: ({ items, activeId, onSelect }: { items: { id: string; label: string }[]; activeId: string; onSelect: (id: string) => void }) => React.createElement('TabBar', { items, activeId, onSelect }) }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, onClick, disabled, loading }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean }) => React.createElement('PillButton', { onClick, disabled: disabled || loading }, children),
 }))
@@ -91,7 +83,7 @@ vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
   OnboardingCreateHabit: ({ proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange }: { proposed: boolean; schedule: { intervalWeeks: number }; canSaveRepeatWeeks: boolean; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void }) => React.createElement('Schedule', { proposed, intervalWeeks: schedule.intervalWeeks, canSaveRepeatWeeks, onToggleDay, onTimeChange }),
 }))
 vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => React.createElement('ReminderState', { state }) }))
-vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday, general }: { dueToday: boolean; general: boolean }) => React.createElement('Done', { dueToday, general }) }))
+vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: ({ dueToday, general, onFinish }: { dueToday: boolean; general: boolean; onFinish: () => void }) => React.createElement('Done', { dueToday, general, onFinish }) }))
 
 async function mount(isLive: boolean) {
   mocks.isLive = isLive
@@ -140,6 +132,29 @@ async function reachReminder(isLive: boolean) {
   return tree
 }
 
+function isCounterText(node: TestNode): boolean {
+  const children = Reflect.get(node.props, 'children')
+  return Array.isArray(children) && children[0] === 'Orbit '
+}
+
+function headerCounter(tree: ReturnType<typeof TestRenderer.create>): string {
+  const counters = byType(tree.root, 'Text').filter(isCounterText)
+  expect(counters).toHaveLength(1)
+  const children = Reflect.get(counters[0]!.props, 'children') as [string, TestNode, string, string]
+  return `${prop<string>(children[1], 'children')}${children[2]}${children[3]}`
+}
+
+async function reachDone(isLive: boolean) {
+  const tree = await reachReminder(isLive)
+  await pressTextAction(tree, 'onboarding.flow.remind.deny')
+  expect(oneByType(tree.root, 'Done')).toBeDefined()
+  return tree
+}
+
+async function selectTab(tree: ReturnType<typeof TestRenderer.create>, id: string) {
+  await TestRenderer.act(() => prop<(value: string) => void>(oneByType(tree.root, 'TabBar'), 'onSelect')(id))
+}
+
 describe('OnboardingFlow state model', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -155,14 +170,52 @@ describe('OnboardingFlow state model', () => {
     useOnboardingDraftStore.getState().reset()
   })
 
-  it('shows three decisions and a separate done state', () => {
-    expect(getOnboardingDisplayTotal()).toBe(3)
-    expect(getOnboardingDisplayStep(0)).toBe(1)
-    expect(getOnboardingDisplayStep(ONBOARDING_DONE_STEP)).toBe(3)
-    expect(getOnboardingNextStep(ONBOARDING_REMIND_STEP)).toBe(ONBOARDING_DONE_STEP)
-    expect(getOnboardingPreviousStep(ONBOARDING_DONE_STEP)).toBe(ONBOARDING_REMIND_STEP)
-    expect(shouldHideOnboardingFooter(1)).toBe(false)
-    expect(shouldHideOnboardingFooter(ONBOARDING_DONE_STEP)).toBe(true)
+  it('counts each rendered decision once and drops the counter on the done screen', async () => {
+    const tree = await mount(false)
+    expect(headerCounter(tree)).toBe('01 / 03')
+    expect(oneByType(tree.root, 'SentenceInput')).toBeDefined()
+
+    await enterSentence(tree, 'Meditate at 07:00')
+    await click(tree, 'onboarding.flow.continue')
+    expect(headerCounter(tree)).toBe('02 / 03')
+    expect(oneByType(tree.root, 'Schedule')).toBeDefined()
+
+    await click(tree, 'onboarding.flow.create')
+    expect(headerCounter(tree)).toBe('03 / 03')
+    expect(oneByType(tree.root, 'ReminderState')).toBeDefined()
+
+    await click(tree, 'onboarding.flow.remind.continue')
+    expect(oneByType(tree.root, 'Done')).toBeDefined()
+    expect(byType(tree.root, 'Text').filter(isCounterText)).toHaveLength(0)
+  })
+
+  it.each([
+    ['calendario', '/calendar'],
+    ['hoje', '/'],
+  ])('finishes onboarding and closes the overlay before the %s tab navigates', async (id, route) => {
+    const tree = await reachDone(true)
+    await selectTab(tree, id)
+
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    expect(mocks.navigate).toHaveBeenCalledWith(route)
+    expect(prop<boolean>(oneByType(tree.root, 'Modal'), 'visible')).toBe(false)
+  })
+
+  it('sends a signed-out tab through the sign-in handoff rather than a protected route', async () => {
+    const tree = await reachDone(false)
+    await selectTab(tree, 'calendario')
+
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    expect(prop<boolean>(oneByType(tree.root, 'Modal'), 'visible')).toBe(false)
+  })
+
+  it('finishes onboarding and closes the overlay from the done button', async () => {
+    const tree = await reachDone(true)
+    await TestRenderer.act(() => prop<() => void>(oneByType(tree.root, 'Done'), 'onFinish')())
+
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    expect(prop<boolean>(oneByType(tree.root, 'Modal'), 'visible')).toBe(false)
   })
 
   it('never shows or saves a repeat interval a signed-out draft cannot carry', async () => {

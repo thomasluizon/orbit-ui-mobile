@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "ffbb776d3e033811cee4f15f6e33749ce37e0776",
+  "generatedFrom": "ef4549e4f90c23fbb5a713720f206ca6c07e06af",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -5894,7 +5894,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 284,
+      "closureSize": 283,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -5908,7 +5908,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 284,
+      "closureSize": 283,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -5922,7 +5922,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 284,
+      "closureSize": 283,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -5936,7 +5936,7 @@
       "ownedFiles": [
         "apps/mobile/app/(onboarding)/index.tsx"
       ],
-      "closureSize": 284,
+      "closureSize": 283,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -10786,7 +10786,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 283,
+      "closureSize": 282,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10800,7 +10800,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 283,
+      "closureSize": 282,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10814,7 +10814,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 283,
+      "closureSize": 282,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10828,7 +10828,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-flow.tsx"
       ],
-      "closureSize": 283,
+      "closureSize": 282,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"

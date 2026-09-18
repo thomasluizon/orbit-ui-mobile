@@ -39,7 +39,8 @@ function joinDays(days: string[], label: (day: string) => string, conjunction: s
 }
 
 function EmphasizedCadence({ text, emphasis }: Readonly<{ text: string; emphasis: string }>) {
-  const start = text.indexOf(emphasis)
+  /** An empty emphasis is a habit with no due time, and ''.indexOf returns 0, which would mark nothing. */
+  const start = emphasis ? text.indexOf(emphasis) : -1
   if (start < 0) return <p className="text-[17px] leading-[1.4] text-[var(--fg-2)]">{text}</p>
   return <p className="text-[17px] leading-[1.4] text-[var(--fg-2)]">{text.slice(0, start)}<strong className="font-medium text-[var(--fg-1)]">{emphasis}</strong>{text.slice(start + emphasis.length)}</p>
 }

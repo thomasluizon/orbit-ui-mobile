@@ -20,12 +20,14 @@ import {
   readHabitPhrase,
   shouldRequestOnboardingSuggestion,
   toggleOnboardingScheduleDay,
+  type OnboardingRemindState,
   type OnboardingSchedule,
   type OnboardingScheduleMode,
 } from '@orbit/shared/utils'
-import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { Shell412 } from '@/components/shell/shell-412'
+import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { Toast } from '@/components/ui/app-toast'
 import { PillButton } from '@/components/ui/pill-button'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
@@ -37,7 +39,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
-import { OnboardingRemind, type ReminderState } from './onboarding-remind'
+import { OnboardingRemind } from './onboarding-remind'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { useOnboardingActions, useOnboardingIsLive } from './onboarding-actions-context'
 
@@ -51,11 +53,27 @@ function QuietAction({ label, onPress, disabled = false, loading = false }: Read
 }
 function ActionStack({ primary, secondary }: Readonly<{ primary: ReactNode; secondary?: ReactNode }>) { return <View style={styles.actions}>{primary}{secondary}</View> }
 
+const DONE_TAB_ROUTES = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' } as const
+type DoneTabRoute = (typeof DONE_TAB_ROUTES)[keyof typeof DONE_TAB_ROUTES]
+
+function DoneTabBar({ onSelect }: Readonly<{ onSelect: (id: string) => void }>) {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} onSelect={onSelect}
+    items={[
+      { id: 'hoje', label: t('nav.today'), icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
+      { id: 'calendario', label: t('nav.calendar'), icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
+      { id: 'progresso', label: t('nav.progress'), icon: ({ active }) => <ChartLine size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
+      { id: 'perfil', label: t('nav.profile'), icon: ({ active }) => <User size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
+    ]} />
+}
+
 interface DecisionProps {
   step: number; sentence: string; locale: 'en' | 'pt-BR'; marks: ReturnType<typeof readHabitPhrase>['consumed']; isLive: boolean
   emoji: string; schedule: OnboardingSchedule; dueTime: string; proposed: boolean; correcting: boolean
   atLimit: boolean; allowance: number; createFailed: boolean; creating: boolean
-  suggestionPending: boolean; reminderDecision: ReminderDecision; reminderState: ReminderState; createdTitle: string
+  suggestionPending: boolean; reminderDecision: ReminderDecision; reminderState: OnboardingRemindState; createdTitle: string
   onAccount: () => void; onSentence: (value: string) => void; onContinueWhat: () => void
   onCorrect: () => void; onToggleDay: (day: string) => void
   onTime: (value: string) => void; onMode: (mode: OnboardingScheduleMode) => void; onFrequencyUnit: (unit: FrequencyUnit) => void
@@ -67,7 +85,7 @@ interface DecisionProps {
 function DecisionContent(props: Readonly<DecisionProps>) {
   if (props.step === ONBOARDING_WHAT_STEP) return <OnboardingWelcome sentence={props.sentence} marks={props.marks} onChange={props.onSentence} onHaveAccount={!props.isLive ? props.onAccount : undefined} />
   if (props.step === ONBOARDING_WHEN_STEP) return <OnboardingCreateHabit title={getOnboardingHabitTitle(props.sentence, props.locale)} emoji={props.emoji} schedule={props.schedule} proposed={props.proposed} correcting={props.correcting} canSaveRepeatWeeks={props.isLive} atLimit={props.atLimit} allowance={props.allowance} onCorrect={props.onCorrect} onToggleDay={props.onToggleDay} onTimeChange={props.onTime} onModeChange={props.onMode} onFrequencyUnitChange={props.onFrequencyUnit} onQuantityChange={props.onQuantity} onIntervalWeeksChange={props.onIntervalWeeks} />
-  return <OnboardingRemind state={props.reminderState} title={props.createdTitle} dueTime={props.dueTime} />
+  return <OnboardingRemind state={props.reminderState} title={props.createdTitle} dueTime={props.dueTime} isLive={props.isLive} />
 }
 
 function DecisionAction(props: Readonly<DecisionProps>) {
@@ -114,13 +132,14 @@ export function OnboardingFlow() {
   const [createdTitle, setCreatedTitle] = useState(deferredHabit?.title ?? '')
   const [creating, setCreating] = useState(false)
   const [createFailed, setCreateFailed] = useState(false)
-  const [reminderState, setReminderState] = useState<ReminderState>(resolvingDeferredPush ? 'failed' : 'ask')
+  const [reminderState, setReminderState] = useState<OnboardingRemindState>(resolvingDeferredPush ? 'failed' : 'ask')
   const [remindersOff, setRemindersOff] = useState(false)
   const [createdDueToday, setCreatedDueToday] = useState(true)
   const [createdGeneral, setCreatedGeneral] = useState(false)
   const [skipped, setSkipped] = useState(false)
   const [suggestionPending, setSuggestionPending] = useState(false)
   const [reminderDecision, setReminderDecision] = useState<ReminderDecision>('idle')
+  const [overlayOpen, setOverlayOpen] = useState(true)
   const suggestionRevision = useRef(0)
   const read = useMemo(() => readHabitPhrase(sentence, locale), [locale, sentence])
   const { dueTime } = schedule
@@ -146,7 +165,7 @@ export function OnboardingFlow() {
     }
   }
 
-  function resolveReminderState(): ReminderState {
+  function resolveReminderState(): OnboardingRemindState {
     if (schedule.isGeneral) return 'no-day'
     if (!dueTime) return 'no-time'
     if (!push.isSupported) return 'unsupported'
@@ -161,6 +180,10 @@ export function OnboardingFlow() {
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else { const result = await actions.createHabit(input); setCreatedId(result.id) }
       setCreatedTitle(input.title)
+      /**
+       * The device clock decides today here while the API resolves it from the profile time zone, so a
+       * person straddling midnight in another zone can read one day wrong until #602 lands.
+       */
       setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date()))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState()); setStep(ONBOARDING_REMIND_STEP)
@@ -220,6 +243,17 @@ export function OnboardingFlow() {
   }
   function skip() { suggestionRevision.current += 1; setSuggestionPending(false); setSkipped(true); setCreatedTitle(''); setStep(ONBOARDING_DONE_STEP) }
 
+  /**
+   * The one exit for the done button, the done tab bar and the Android back gesture: the modal has to
+   * close first, because this flow is mounted globally and would otherwise cover the destination.
+   */
+  async function completeAndLeave(destination?: DoneTabRoute) {
+    setOverlayOpen(false)
+    if (resolvingDeferredPush) await finishDeferredPushRecovery()
+    else await actions.finishOnboarding()
+    if (destination) router.navigate(destination)
+  }
+
   function runStepTransition(transition: () => void) {
     if (step === ONBOARDING_REMIND_STEP && reminderDecision !== 'idle') return
     transition()
@@ -230,7 +264,7 @@ export function OnboardingFlow() {
   }
 
   if (astraConversationOpen) return null
-  if (step === ONBOARDING_DONE_STEP) return <Modal visible animationType="none"><Shell412 tabBar={<DestinationTabBar pathname="/" />}><View style={styles.done}><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void actions.finishOnboarding()} /></View></Shell412></Modal>
+  if (step === ONBOARDING_DONE_STEP) return <Modal visible={overlayOpen} animationType="none" onRequestClose={() => void completeAndLeave()}><Shell412 tabBar={<DoneTabBar onSelect={(id) => void completeAndLeave(isLive ? DONE_TAB_ROUTES[id as keyof typeof DONE_TAB_ROUTES] : undefined)} />}><View style={styles.done}><OnboardingComplete createdHabit={createdTitle} emoji={emoji} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} dueToday={createdDueToday} general={createdGeneral} onFinish={() => void completeAndLeave()} /></View></Shell412></Modal>
 
   const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => router.replace('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
   return <Modal visible animationType="none" onRequestClose={() => runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) })}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><DecisionContent {...decisionProps} /></View></FlowShell></Modal>

@@ -22,7 +22,6 @@ type OnboardingDraftGet = () => OnboardingDraftState
 export type OnboardingWeekStartDay = 0 | 1
 
 export interface PersistedOnboardingDraft {
-  step: number
   habits: ApplyOnboardingHabit[]
   firstLog: ApplyOnboardingFirstLog | null
   goal: CreateGoalRequest | null
@@ -34,7 +33,6 @@ export interface PersistedOnboardingDraft {
 }
 
 export interface OnboardingDraftState extends PersistedOnboardingDraft {
-  setStep: (step: number) => void
   bufferHabit: (habit: ApplyOnboardingHabit) => number
   replaceHabit: (habitIndex: number, habit: ApplyOnboardingHabit) => void
   bufferFirstLog: (habitIndex: number, date: string) => void
@@ -51,7 +49,6 @@ export interface OnboardingDraftState extends PersistedOnboardingDraft {
 
 function createInitialDraft(): PersistedOnboardingDraft {
   return {
-    step: 0,
     habits: [],
     firstLog: null,
     goal: null,
@@ -67,7 +64,6 @@ export function getPersistedOnboardingDraft(
   state: OnboardingDraftState,
 ): PersistedOnboardingDraft {
   return {
-    step: state.step,
     habits: state.habits.map((habit) => ({ ...habit })),
     firstLog: state.firstLog ? { ...state.firstLog } : null,
     goal: state.goal ? { ...state.goal } : null,
@@ -95,7 +91,6 @@ export function migrateOnboardingDraft(
   const goalResult = createGoalRequestSchema.safeParse(persistedState.goal)
 
   return {
-    step: typeof persistedState.step === 'number' ? persistedState.step : 0,
     habits,
     firstLog: firstLogResult.success ? firstLogResult.data : null,
     goal: goalResult.success ? goalResult.data : null,
@@ -131,8 +126,6 @@ export function createOnboardingDraftState(
 ): OnboardingDraftState {
   return {
     ...createInitialDraft(),
-
-    setStep: (step) => set({ step }),
 
     bufferHabit: (habit) => {
       const index = get().habits.length

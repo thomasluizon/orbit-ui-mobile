@@ -25,7 +25,8 @@ function joinDays(days: string[], label: (day: string) => string, conjunction: s
 }
 
 function EmphasizedCadence({ text, emphasis, color, strongColor }: Readonly<{ text: string; emphasis: string; color: string; strongColor: string }>) {
-  const start = text.indexOf(emphasis)
+  /** An empty emphasis is a habit with no due time, and ''.indexOf returns 0, which would mark nothing. */
+  const start = emphasis ? text.indexOf(emphasis) : -1
   if (start < 0) return <Text style={[styles.sentence, { color }]}>{text}</Text>
   return <Text style={[styles.sentence, { color }]}>{text.slice(0, start)}<Text style={[styles.emphasis, { color: strongColor }]}>{emphasis}</Text>{text.slice(start + emphasis.length)}</Text>
 }

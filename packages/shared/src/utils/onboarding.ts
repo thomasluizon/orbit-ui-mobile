@@ -22,26 +22,6 @@ export function getOnboardingDisplayStep(currentStep: number): number {
   return Math.min(Math.max(currentStep + 1, 1), ONBOARDING_TOTAL_STEPS)
 }
 
-export function getOnboardingNextStep(currentStep: number): number {
-  if (currentStep >= ONBOARDING_DONE_STEP) {
-    return ONBOARDING_DONE_STEP
-  }
-
-  return currentStep + 1
-}
-
-export function getOnboardingPreviousStep(currentStep: number): number {
-  if (currentStep <= 0) {
-    return 0
-  }
-
-  return currentStep - 1
-}
-
-export function shouldHideOnboardingFooter(currentStep: number): boolean {
-  return currentStep === ONBOARDING_DONE_STEP
-}
-
 export function getOnboardingHabitTitle(sentence: string, locale: SupportedLocale): string {
   const read = readHabitPhrase(sentence, locale)
   if (read.consumed.length === 0) return sentence.trim()
@@ -272,6 +252,65 @@ export function buildOnboardingHabitInput(input: {
     ...(schedule.dueTime ? { dueTime: schedule.dueTime } : {}),
     reminderEnabled,
     reminderTimes: reminderEnabled ? [ONBOARDING_REMINDER_MINUTES] : [],
+  }
+}
+
+export type OnboardingRemindState =
+  | 'ask'
+  | 'denied'
+  | 'refused'
+  | 'unsupported'
+  | 'failed'
+  | 'no-time'
+  | 'no-day'
+
+export interface OnboardingRemindCopy {
+  titleKey: string
+  bodyKey: string
+}
+
+const ONBOARDING_REMIND_TITLE_KEY: Record<OnboardingRemindState, string> = {
+  ask: 'title',
+  denied: 'deniedTitle',
+  refused: 'refusedTitle',
+  unsupported: 'unsupportedTitle',
+  failed: 'failedTitle',
+  'no-time': 'noTimeTitle',
+  'no-day': 'noDayTitle',
+}
+
+const ONBOARDING_REMIND_BODY_KEY: Record<OnboardingRemindState, string> = {
+  ask: 'body',
+  denied: 'deniedBody',
+  refused: 'refusedBody',
+  unsupported: 'unsupportedBody',
+  failed: 'failedBody',
+  'no-time': 'noTimeBody',
+  'no-day': 'noDayBody',
+}
+
+const ONBOARDING_REMIND_SIGNED_OUT_BODY_KEY: Partial<Record<OnboardingRemindState, string>> = {
+  ask: 'signedOutBody',
+  denied: 'deniedSignedOutBody',
+  refused: 'refusedSignedOutBody',
+  unsupported: 'unsupportedSignedOutBody',
+  failed: 'failedSignedOutBody',
+}
+
+/**
+ * Which `onboarding.flow.remind` strings the permission screen may truthfully show. Every body that
+ * reassures the person about the habit takes a signed-out pair, because a signed-out run buffers the
+ * habit into local storage rather than saving it to an account, and the next screen says exactly that
+ * in `signedOutBody`. The two schedule bodies claim nothing about storage, so they take one form.
+ */
+export function getOnboardingRemindCopy(
+  state: OnboardingRemindState,
+  isLive: boolean,
+): OnboardingRemindCopy {
+  const signedOutBodyKey = isLive ? undefined : ONBOARDING_REMIND_SIGNED_OUT_BODY_KEY[state]
+  return {
+    titleKey: ONBOARDING_REMIND_TITLE_KEY[state],
+    bodyKey: signedOutBodyKey ?? ONBOARDING_REMIND_BODY_KEY[state],
   }
 }
 
