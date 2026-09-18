@@ -839,6 +839,7 @@ describe('mobile auth store security paths', () => {
     expect(outcome).toEqual({ status: 'network-error' })
     expect(clearAllTokensMock).not.toHaveBeenCalled()
     expect(queryClientClearMock).not.toHaveBeenCalled()
+    expect(resetAccountScopedChatMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
       user: { userId: 'user-1' },
@@ -859,6 +860,8 @@ describe('mobile auth store security paths', () => {
 
     expect(outcome).toEqual({ status: 'network-error' })
     expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(queryClientClearMock).not.toHaveBeenCalled()
+    expect(resetAccountScopedChatMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
       user: { userId: 'user-1' },

@@ -120,6 +120,19 @@ describe('auth store', () => {
     expect(useChatStore.getState().draftHydrated).toBe(false)
   })
 
+  it('removes the stored Astra draft when any account signs in', async () => {
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    useChatStore.getState().setDraft('cancel my 9pm meds reminder')
+    useChatStore.getState().hydrateDraft('cancel my 9pm meds reminder')
+    globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'cancel my 9pm meds reminder')
+
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBeNull()
+    expect(useChatStore.getState().draft).toBe('')
+    expect(useChatStore.getState().draftHydrated).toBe(false)
+  })
+
   it('marks the session as signed out after confirming a refresh rejection', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
@@ -533,6 +546,31 @@ describe('auth store', () => {
 
       expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(accountANotificationList)
       expect(useAuthStore.getState().user?.userId).toBe('user-1')
+    })
+
+    it('keeps the Astra draft when the same account recovers from a rejected refresh', async () => {
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      useChatStore.getState().addMessage(makeChatMessage())
+      useChatStore.getState().setDraft('cancel my 9pm meds reminder')
+      useChatStore.getState().hydrateDraft('cancel my 9pm meds reminder')
+      globalThis.localStorage.setItem(CHAT_DRAFT_STORAGE_KEY, 'cancel my 9pm meds reminder')
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ refreshFailed: true }),
+      })
+
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+      expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+      respondWithAccount('user-1')
+      await useAuthStore.getState().recoverSessionRefreshFailure()
+
+      expect(useChatStore.getState().draft).toBe('cancel my 9pm meds reminder')
+      expect(useChatStore.getState().draftHydrated).toBe(true)
+      expect(useChatStore.getState().messages).toHaveLength(1)
+      expect(globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY)).toBe(
+        'cancel my 9pm meds reminder',
+      )
     })
   })
 })

@@ -19,19 +19,23 @@ let lastObservedAccountId: string | null = null
  * caller routes through it, because a writer left outside it is how each of the previous rounds left
  * one more hole.
  *
- * Three resets run on EVERY transition, a sign out included, because an account change that crosses
- * a page load cannot be recognised: the hard navigation destroys `lastObservedAccountId`, so the
- * next sign in sees no previous account to compare against. Raising the session epoch stops an
- * in-flight callback the previous account started from writing into the next account's cache, and
- * tells the hooks whose state no store holds to drop it. Dropping the pending notification deletes
- * stops their timers sending a DELETE for the previous account's ids under the next cookie.
- * Resetting the Astra chat removes the conversation, the composer draft and the stored copy of that
- * draft, which outlive a sign out on a shared computer.
+ * Two resets run on EVERY transition, a teardown included, because both are cheap to redo and unsafe
+ * to keep. Raising the session epoch stops an in-flight callback the previous account started from
+ * writing into the next account's cache, and tells the hooks whose state no store holds to drop it.
+ * Dropping the pending notification deletes stops their timers sending a DELETE for the previous
+ * account's ids under the next cookie.
  *
- * The query cache alone stays gated on a real account change, because it is the one reset whose
- * cost lands on the SAME account: a rejected refresh that recovers must not blank a tab full of
- * habits, goals and profile rows. A teardown names no account, and the last observed account
- * outlives it, so the session after a teardown can still tell a return from a replacement.
+ * The other two are gated, on different conditions, because they cost different things:
+ *
+ * The query cache empties only on a real account change, since a rejected refresh that recovers must
+ * not blank a tab full of habits, goals and profile rows.
+ *
+ * The Astra chat and its stored draft empty whenever a session STARTS under an account, which is the
+ * point where the person at the keyboard can differ and `lastObservedAccountId` cannot prove it did
+ * not: a hard navigation or a closed tab destroys that variable, so a sign out followed by somebody
+ * else signing in arrives here with no previous account to compare. A teardown names no account and
+ * resets nothing here, so a same-account recovery keeps the half-written message, while `logout`
+ * calls the reset itself because a sign out is a definite end rather than a wobble.
  */
 function startAccountScopedSession(nextAccountId: string | null): void {
   const previousAccountId = lastObservedAccountId
@@ -42,7 +46,7 @@ function startAccountScopedSession(nextAccountId: string | null): void {
   advanceSessionEpoch()
   if (nextAccountId !== null) lastObservedAccountId = nextAccountId
   clearPendingNotificationDeletes()
-  useChatStore.getState().resetAccountScopedChat()
+  if (nextAccountId !== null) useChatStore.getState().resetAccountScopedChat()
   if (accountChanged) getQueryClient().clear()
 }
 
@@ -249,6 +253,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     clearAccountScopedSessionState()
+    useChatStore.getState().resetAccountScopedChat()
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {
