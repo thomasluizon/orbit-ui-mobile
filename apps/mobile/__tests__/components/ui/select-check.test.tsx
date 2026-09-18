@@ -147,6 +147,21 @@ describe('select-check RadioRow group', () => {
     expect(focus).not.toHaveBeenCalled()
   })
 
+  it('redirects initial entry to the first row without changing selection when none is checked', () => {
+    const onChange = vi.fn()
+    const focus = vi.fn()
+    __setFocusImpl(focus)
+    const [first, , third] = renderEntryRows(onChange, null)
+
+    void act(() => third.props.onFocus())
+    void act(() => first.props.onFocus())
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(focus).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ accessibilityLabel: 'First' }),
+    )
+  })
+
   it('routes native focus around enabled rows, wraps, and selects the focused row', () => {
     const onChange = vi.fn()
     let tree: any

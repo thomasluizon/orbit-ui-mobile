@@ -127,17 +127,19 @@ export function RadioGroup({ children, ...props }: Readonly<
     }
 
     const previouslyFocusedId = focusedItemIdRef.current
-    focusedItemIdRef.current = id
     const focusedItem = enabledItems.find((item) => item.id === id)
     if (!focusedItem) return
 
     if (previouslyFocusedId === null) {
       const entryItem = enabledItems.find((item) => item.selected) ?? enabledItems[0]
+      focusedItemIdRef.current = entryItem?.id ?? id
       if (entryItem && entryItem.id !== id) elementsRef.current.get(entryItem.id)?.focus()
-      return
+    } else {
+      focusedItemIdRef.current = id
     }
 
-    if (previouslyFocusedId !== id
+    if (previouslyFocusedId !== null
+      && previouslyFocusedId !== id
       && !focusedItem.selected) onSelect?.()
   }, [enabledItems])
   useLayoutEffect(() => () => {
