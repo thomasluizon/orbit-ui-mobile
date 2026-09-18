@@ -14,6 +14,7 @@ import TodayScreen, {
 } from "@/app/(tabs)/index";
 import {
   BackHandler,
+  Keyboard,
   __setWindowDimensions,
 } from "@/test-mocks/react-native";
 
@@ -498,6 +499,7 @@ describe("TodayScreen", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("passes the shared habits header through the habit list and removes the nestable scroll container", async () => {
@@ -785,6 +787,7 @@ describe("TodayScreen", () => {
   });
 
   it("clears the search query when the active view changes", async () => {
+    const dismissSpy = vi.spyOn(Keyboard, "dismiss");
     const tree = await renderTodayScreen();
     const header = getHabitsHeader(tree);
     await TestRenderer.act(() => {
@@ -805,9 +808,11 @@ describe("TodayScreen", () => {
 
     expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
     expect(getHabitsHeader(tree).props.isSearchOpen).toBe(false);
+    expect(dismissSpy).toHaveBeenCalledOnce();
   });
 
   it("closes a typed search when the selected day changes", async () => {
+    const dismissSpy = vi.spyOn(Keyboard, "dismiss");
     const tree = await renderTodayScreen();
     const header = getHabitsHeader(tree);
     await TestRenderer.act(() => {
@@ -823,9 +828,11 @@ describe("TodayScreen", () => {
 
     expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
     expect(getHabitsHeader(tree).props.isSearchOpen).toBe(false);
+    expect(dismissSpy).toHaveBeenCalledOnce();
   });
 
   it("closes and clears a typed search with one press on the X", async () => {
+    const dismissSpy = vi.spyOn(Keyboard, "dismiss");
     const tree = await renderTodayScreen();
     const header = getHabitsHeader(tree);
     await TestRenderer.act(() => {
@@ -856,6 +863,7 @@ describe("TodayScreen", () => {
 
     expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
     expect(getHabitsHeader(tree).props.isSearchOpen).toBe(false);
+    expect(dismissSpy).toHaveBeenCalledOnce();
   });
 
   it("locks the edit modal General toggle to the parent isGeneral when editing a sub-habit", async () => {
