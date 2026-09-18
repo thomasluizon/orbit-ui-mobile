@@ -20,12 +20,14 @@ describe('BottomTabBar', () => {
       />,
     )
 
-    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
+    const buttons = screen.getAllByRole('button')
+    expect(buttons.map((button) => button.textContent)).toEqual([
       'Hoje',
       'Calendário',
       'Progresso',
       'Perfil',
     ])
+    expect(buttons.every((button) => button.children.length === 2)).toBe(true)
     expect(screen.queryByText('Astra')).not.toBeInTheDocument()
   })
 
