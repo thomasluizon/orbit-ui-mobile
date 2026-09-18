@@ -41,10 +41,16 @@ export async function cases() {
     "apps/mobile/modules/orbit-widget/android/build/generated/widget.xml": "<Generated />\n",
     "apps/mobile/modules/orbit-widget/android/.gradle/cache.bin": "generated\n",
     "apps/mobile/modules/orbit-widget/android/.cxx/debug/generated.ninja": "generated\n",
+    ".gitignore": "apps/mobile/modules/*/android/local.properties\n",
   }
   for (const [relativePath, body] of Object.entries(files)) write(join(repository.path, relativePath), body)
   repository.git(["add", ...Object.keys(files)])
   repository.git(["commit", "-q", "-m", "surface fixture"])
+
+  // Android Studio writes this file on first open and .gitignore ignores it, so it exists only on
+  // a developer machine. A manifest that counts it disagrees with the CI regeneration over a file
+  // that is not in git, and the drift gate then goes red on a change nobody can reproduce.
+  write(join(repository.path, "apps/mobile/modules/orbit-widget/android/local.properties"), "sdk.dir=/opt/android-sdk\n")
 
   const result = run("surface-manifest.mjs", ["--baseline", "HEAD", "--json"], {
     cwd: repository.path,
@@ -70,6 +76,11 @@ export async function cases() {
   T("the Android widget is an authoritative surface", ids.has("m-widget-orbit-widget"))
   const widget = surfaces.find((surface) => surface.surfaceId === "m-widget-orbit-widget")
   T("Android widget ownership excludes generated build trees", widget?.ownedFiles.every((path) => !/\/android\/(?:build|\.gradle|\.cxx)\//.test(path)), JSON.stringify(widget?.ownedFiles))
+  T(
+    "Android widget ownership excludes an untracked file git ignores",
+    widget?.ownedFiles.every((path) => !path.endsWith("/local.properties")),
+    JSON.stringify(widget?.ownedFiles),
+  )
   T("web layout-hosted chat blocks remain visible under the redirect route", surfaces.some((surface) => surface.surfaceId === "block-chat-pending-operation-card" && surface.parentSurfaceId === "route-chat"))
   T("mobile layout-hosted chat blocks remain visible under the redirect route", surfaces.some((surface) => surface.surfaceId === "m-block-chat-pending-operation-card" && surface.parentSurfaceId === "m-route-chat"))
   for (const platform of ["web", "mobile"]) {
@@ -88,4 +99,60 @@ export async function cases() {
     ["route-explore", "route-insights"].every((surfaceId) => surfaces.find((surface) => surface.surfaceId === surfaceId)?.counterpart?.status === "web-only"),
   )
   T("the fixture commit remains the generated manifest source", manifest.generatedFrom === spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim())
+
+  const manifestPath = join(repository.path, ".claude", "manifests", "surfaces.json")
+  const checkOptions = { cwd: repository.path, env: { ORBIT_SURFACE_ROOT: repository.path } }
+  // A pinned baseline, not "HEAD": the real repository pins 7d7c42c3, so baselineSha is a constant
+  // there. A fixture that kept the symbolic ref would move its own baseline on the next commit and
+  // report that as drift.
+  const baseline = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim()
+  const checkArgs = ["--baseline", baseline, "--check"]
+  run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+
+  // The property every drift assertion below rests on: the generator is a function of the tree
+  // alone. A generator that answers differently twice over one unchanged tree turns the gate into
+  // a coin toss, and no amount of drift coverage would show it.
+  const firstWrite = readFileSync(manifestPath, "utf8")
+  run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  T("two runs over one unchanged tree write the same bytes", readFileSync(manifestPath, "utf8") === firstWrite)
+
+  const fresh = run("surface-manifest.mjs", checkArgs, checkOptions)
+  T("--check accepts a manifest generated from the same tree", fresh.status === 0, fresh.stderr)
+
+  // The exclusion this mode is built on: a manifest can never name the commit that carries it,
+  // so a moved HEAD alone is not drift. Without this, every correct manifest would fail.
+  write(join(repository.path, "notes.md"), "no surface changes here\n")
+  repository.git(["add", "notes.md"])
+  repository.git(["commit", "-q", "-m", "a commit that moves no surface"])
+  const movedHead = run("surface-manifest.mjs", checkArgs, checkOptions)
+  const staleGeneratedFrom = JSON.parse(readFileSync(manifestPath, "utf8")).generatedFrom
+  T(
+    "--check ignores a generatedFrom that the carrying commit could not have known",
+    movedHead.status === 0 && staleGeneratedFrom !== spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim(),
+    movedHead.stderr,
+  )
+
+  write(join(repository.path, "apps/web/app/(app)/progress/page.tsx"), "export default function Progress() { return null }\n")
+  const before = readFileSync(manifestPath, "utf8")
+  const added = run("surface-manifest.mjs", checkArgs, checkOptions)
+  T(
+    "--check exits 1 and names a surface the tree gained after generation",
+    added.status === 1 && added.stderr.includes("route-progress"),
+    added.stderr,
+  )
+  T("a failing --check repairs nothing it was asked to report", readFileSync(manifestPath, "utf8") === before)
+
+  const drifted = JSON.parse(before)
+  const ownershipCell = drifted.cells.find((cell) => cell.surfaceId === "route-root")
+  ownershipCell.ownedFiles = [...ownershipCell.ownedFiles, "apps/web/app/(app)/invented.tsx"]
+  writeFileSync(manifestPath, `${JSON.stringify(drifted, null, 2)}\n`)
+  const ownershipDrift = run("surface-manifest.mjs", checkArgs, checkOptions)
+  T(
+    "--check exits 1 when frozen ownership no longer matches the tree",
+    ownershipDrift.status === 1 && ownershipDrift.stderr.includes("route-root"),
+    ownershipDrift.stderr,
+  )
+
+  const rejected = run("surface-manifest.mjs", ["--check", "--json"], checkOptions)
+  T("--check and --json are refused rather than silently ordered", rejected.status === 2, rejected.stderr)
 }
