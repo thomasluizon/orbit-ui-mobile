@@ -396,5 +396,59 @@ describe('useSpeechToText', () => {
       await act(async () => { result.current.stopRecording() })
       await waitFor(() => expect(result.current.transcript).toBe('log water'))
     })
+
+    it('stops the duration timer so it cannot double count the next account recording', async () => {
+      vi.useFakeTimers()
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({ text: 'log water' }, { status: 200 })))
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+      expect(result.current.recordingDuration).toBe(3)
+
+      await replaceAccountWith('user-2')
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+
+      expect(result.current.recordingDuration).toBe(3)
+    })
+
+    it('closes the silence monitor so it cannot poll under the next account', async () => {
+      vi.useFakeTimers()
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({ text: 'log water' }, { status: 200 })))
+      let analyserReads = 0
+      const contexts: { close: ReturnType<typeof vi.fn> }[] = []
+      class MockAudioContext {
+        close = vi.fn(async () => {})
+        constructor() {
+          contexts.push(this)
+        }
+        createMediaStreamSource() {
+          return { connect: vi.fn() }
+        }
+        createAnalyser() {
+          return {
+            fftSize: 2048,
+            getByteTimeDomainData: (buffer: Uint8Array) => {
+              analyserReads += 1
+              buffer.fill(200)
+            },
+          }
+        }
+      }
+      vi.stubGlobal('AudioContext', MockAudioContext)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { await vi.advanceTimersByTimeAsync(VOICE_LEVEL_POLL_MS) })
+      expect(analyserReads).toBeGreaterThan(0)
+
+      await replaceAccountWith('user-2')
+      const readsAtReplacement = analyserReads
+      await act(async () => { await vi.advanceTimersByTimeAsync(VOICE_LEVEL_POLL_MS * 3) })
+
+      expect(contexts.at(-1)!.close).toHaveBeenCalled()
+      expect(analyserReads).toBe(readsAtReplacement)
+    })
   })
 })
