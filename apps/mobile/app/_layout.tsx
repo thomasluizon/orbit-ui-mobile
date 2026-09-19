@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import {
@@ -54,6 +54,11 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import {
+  getFailedNotificationDeleteIdsSnapshot,
+  getPendingNotificationDeleteIdsSnapshot,
+  subscribePendingNotificationDeleteIds,
+} from '@/lib/pending-notification-deletes'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { SearchHeader } from '@/components/search/search-header-action'
 import { Shell412 } from '@/components/shell/shell-412'
@@ -183,9 +188,11 @@ function RootStackScreens({
 function getNoNavigationNotice(
   isAuthenticated: boolean,
   topSegment: string | undefined,
+  notificationDeleteNotice: ReactNode,
 ) {
-  if (!isAuthenticated || topSegment === 'wrapped') return undefined
-  return <OfflineNotice />
+  if (!isAuthenticated) return undefined
+  if (topSegment === 'wrapped' && notificationDeleteNotice === null) return undefined
+  return <>{notificationDeleteNotice}{topSegment === 'wrapped' ? null : <OfflineNotice />}</>
 }
 
 function RootLayoutNav() {
@@ -232,6 +239,20 @@ function RootLayoutNav() {
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
+  const pendingNotificationDeleteIds = useSyncExternalStore(
+    subscribePendingNotificationDeleteIds,
+    getPendingNotificationDeleteIdsSnapshot,
+    getPendingNotificationDeleteIdsSnapshot,
+  )
+  const failedNotificationDeleteIds = useSyncExternalStore(
+    subscribePendingNotificationDeleteIds,
+    getFailedNotificationDeleteIdsSnapshot,
+    getFailedNotificationDeleteIdsSnapshot,
+  )
+  const notificationDeleteNotice = pendingNotificationDeleteIds.length > 0
+    || failedNotificationDeleteIds.length > 0
+    ? <NotificationDeleteNotice />
+    : null
   const conversation = {
     conversation: <AstraConversation chat={chat} />,
     conversationOpen: astraConversationOpen,
@@ -316,7 +337,7 @@ function RootLayoutNav() {
             )}
             notice={<>
               <CelebrationPanel />
-              <NotificationDeleteNotice />
+              {notificationDeleteNotice}
               <OfflineNotice />
             </>}
             tabBar={<DestinationTabBar pathname={pathname} />}
@@ -332,7 +353,11 @@ function RootLayoutNav() {
           <Shell412
             nav={false}
             safeAreaTop={pathname === '/search'}
-            notice={getNoNavigationNotice(isAuthenticated, topSegment)}
+            notice={getNoNavigationNotice(
+              isAuthenticated,
+              topSegment,
+              notificationDeleteNotice,
+            )}
           >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}

@@ -48,7 +48,7 @@ vi.mock('@/lib/query-client', () => ({
   clearPersistedQueryCache: async () => {}, setQueryCacheScope: async () => {}, persistQueryCache: async () => {},
 }))
 vi.mock('@/lib/offline-runtime', () => ({ getCurrentConnectivity: () => Promise.resolve(true) }))
-vi.mock('@/stores/chat-store', () => ({ useChatStore: { getState: () => ({ clearMessages: vi.fn() }) } }))
+vi.mock('@/stores/chat-store', () => ({ useChatStore: { getState: () => ({ resetAccountScopedChat: vi.fn(async () => {}) }) } }))
 vi.mock('expo-router', () => ({ router: { replace: vi.fn() } }))
 
 const account = { userId: 'account-a', email: 'person@example.com', name: 'Person' }

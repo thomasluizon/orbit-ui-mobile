@@ -79,6 +79,25 @@ function getTokenExpiry(token: string): number | null {
   }
 }
 
+/**
+ * The auth cookie is shared by every tab, so a sign in elsewhere replaces the account under a tab
+ * that is still running. The browser store cannot see that from `expiresAt` alone, so the session
+ * route reports who the cookie now belongs to. The claim literal is the one the API emits, pinned by
+ * `JwtTokenServiceTests` in the orbit-api repository; it issues no `sub` and no `nameid`.
+ */
+export function getAccountIdFromToken(token: string): string | null {
+  try {
+    const payloadSegment = token.split('.')[1]
+    if (!payloadSegment) return null
+    const payload = JSON.parse(decodeBase64Url(payloadSegment)) as {
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'?: string
+    }
+    return payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ?? null
+  } catch {
+    return null
+  }
+}
+
 function getAccessCookieMaxAge(token: string): number {
   const expiresAt = getTokenExpiry(token)
   if (!expiresAt) return DEFAULT_ACCESS_COOKIE_MAX_AGE

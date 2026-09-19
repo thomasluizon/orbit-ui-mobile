@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    setupFiles: ['./test-setup.ts'],
+    setupFiles: ['./test-setup-expo-runtime.ts', './test-setup.ts'],
     include: ['__tests__/**/*.test.{ts,tsx}'],
     /**
      * `turbo run test` runs the four workspace suites at once and vitest defaults its pool to
@@ -163,6 +163,14 @@ export default defineConfig({
       {
         find: 'react-native-worklets',
         replacement: path.resolve(__dirname, './test-mocks/react-native-worklets.ts'),
+      },
+      {
+        find: /^expo$/,
+        replacement: path.resolve(__dirname, './test-mocks/expo.ts'),
+      },
+      {
+        find: /^expo-sqlite$/,
+        replacement: path.resolve(__dirname, './test-mocks/expo-sqlite.ts'),
       },
       {
         find: 'expo-blur',

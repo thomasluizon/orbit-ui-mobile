@@ -1,6 +1,13 @@
-import React, { type ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import React, { useSyncExternalStore, type ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { Text } from 'react-native'
 import RootLayout from '@/app/_layout'
+import {
+  getFailedNotificationDeleteIdsSnapshot,
+  queuePendingNotificationDelete,
+  resetPendingNotificationDeletesForTests,
+  subscribePendingNotificationDeleteIds,
+} from '@/lib/pending-notification-deletes'
 
 const routeState = vi.hoisted(() => ({
   pathname: '/wrapped',
@@ -132,7 +139,18 @@ vi.mock('@/hooks/use-retained-onboarding-guard', () => ({
 }))
 
 vi.mock('@/components/navigation/notification-delete-notice', () => ({
-  NotificationDeleteNotice: () => null,
+  NotificationDeleteNotice: () => {
+    const failedIds = useSyncExternalStore(
+      subscribePendingNotificationDeleteIds,
+      getFailedNotificationDeleteIdsSnapshot,
+      getFailedNotificationDeleteIdsSnapshot,
+    )
+    return failedIds.map((id) => React.createElement(
+      Text,
+      { key: id },
+      "Couldn't delete that alert. Try again.",
+    ))
+  },
 }))
 vi.mock('@/components/navigation/destination-tab-bar', () => ({
   DestinationTabBar: () => null,
@@ -190,6 +208,12 @@ describe('Wrapped root shell', () => {
     authState.isAuthenticated = true
     routeState.pathname = '/wrapped'
     routeState.segments = ['wrapped']
+    resetPendingNotificationDeletesForTests()
+  })
+
+  afterEach(() => {
+    resetPendingNotificationDeletesForTests()
+    vi.useRealTimers()
   })
 
   it('renders Wrapped without bottom chrome or notices', async () => {
@@ -225,5 +249,28 @@ describe('Wrapped root shell', () => {
 
     expect(findByTestId(tree, 'shell-bottom')).toHaveLength(0)
     expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
+  })
+
+  it('keeps a delayed delete failure available after switching to an authenticated no-navigation shell', async () => {
+    vi.useFakeTimers()
+    routeState.pathname = '/notifications'
+    routeState.segments = ['notifications']
+    let rejectDelete!: (error: Error) => void
+    const deleteRequest = new Promise<never>((_resolve, reject) => { rejectDelete = reject })
+    const tree = await renderRoot()
+    queuePendingNotificationDelete('notif-1', () => deleteRequest)
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+
+    routeState.pathname = '/chat'
+    routeState.segments = ['chat']
+    await TestRenderer.act(() => { tree.update(React.createElement(RootLayout)) })
+    rejectDelete(new Error('Server error'))
+    await TestRenderer.act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    const failureCopy = tree.root.findAll(
+      (node) => (node.type as unknown) === 'Text'
+        && node.props.children === "Couldn't delete that alert. Try again.",
+    )
+    expect(failureCopy).toHaveLength(1)
   })
 })

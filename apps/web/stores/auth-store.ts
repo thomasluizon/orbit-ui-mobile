@@ -1,11 +1,94 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
+import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
+import { getQueryClient } from '@/lib/query-client'
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
+import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
+import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+
+let lastObservedAccountId: string | null = null
+
+/**
+ * The auth cookie belongs to every tab at once, so a sign in elsewhere replaces the account under a
+ * tab that keeps running. This is the one path that changes which account the tab holds, and every
+ * caller routes through it, because a writer left outside it is how each of the previous rounds left
+ * one more hole.
+ *
+ * Two resets run on EVERY transition, a teardown included, because both are cheap to redo and unsafe
+ * to keep. Raising the session epoch stops an in-flight callback the previous account started from
+ * writing into the next account's cache, and tells the hooks whose state no store holds to drop it.
+ * Dropping the pending notification deletes stops their timers sending a DELETE for the previous
+ * account's ids under the next cookie.
+ *
+ * The other two are gated, on different conditions, because they cost different things:
+ *
+ * The query cache empties only on a real account change, since a rejected refresh that recovers must
+ * not blank a tab full of habits, goals and profile rows.
+ *
+ * The content the previous account typed, which is the Astra chat with its stored draft and the
+ * stored support draft, empties whenever a session STARTS under an account. That is the point where
+ * the person at the keyboard can differ and `lastObservedAccountId` cannot prove it did not: a hard
+ * navigation or a closed tab destroys that variable, so a sign out followed by somebody else signing
+ * in arrives here with no previous account to compare. A teardown names no account and resets
+ * nothing here, so a same-account recovery keeps the half-written message, while `logout` calls the
+ * reset itself because a sign out is a definite end rather than a wobble.
+ */
+function startAccountScopedSession(nextAccountId: string | null): void {
+  const previousAccountId = lastObservedAccountId
+  const accountChanged = nextAccountId !== null
+    && previousAccountId !== null
+    && previousAccountId !== nextAccountId
+
+  advanceSessionEpoch()
+  if (nextAccountId !== null) lastObservedAccountId = nextAccountId
+  clearPendingNotificationDeletes()
+  if (nextAccountId !== null) forgetPreviousAccountContent()
+  if (accountChanged) getQueryClient().clear()
+}
+
+/**
+ * Drops every unsent thing the previous account left in this tab. Both drafts live under one key
+ * with no account in it, so one of them left behind is the next person reading, and sending, text
+ * that is not theirs. They reset together rather than at two call sites, because a reset added to
+ * one and forgotten at the other is how the support draft outlived the Astra one.
+ *
+ * The account generation rises here rather than beside it, so the composer state no store can
+ * reach, a pasted image and an armed retry, drops on exactly the transitions that drop a draft.
+ */
+function forgetPreviousAccountContent(): void {
+  useChatStore.getState().resetAccountScopedChat()
+  forgetStoredSupportDraft()
+  advanceAccountGeneration()
+}
+
+function clearAccountScopedSessionState(): void {
+  startAccountScopedSession(null)
+  clearStepUpState()
+}
+
+/**
+ * Reads the account the cookie now names. A tab that has not yet learned an account only records it,
+ * which leaves a reload of the same account untouched, and a replacement also drops the remembered
+ * user because this tab cannot prove the new account's name.
+ */
+function adoptSessionAccount(userId: string | null): boolean {
+  if (userId === null) return false
+  if (lastObservedAccountId === userId) return false
+  if (lastObservedAccountId === null) {
+    lastObservedAccountId = userId
+    return false
+  }
+
+  startAccountScopedSession(userId)
+  bindStepUpStateToAccount(userId)
+  return true
+}
 
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
   const next = sessionRevalidationQueue.then(task, task)
@@ -28,7 +111,7 @@ interface AuthState {
 }
 
 type SessionSnapshot =
-  | { kind: 'active'; expiresAt: number }
+  | { kind: 'active'; expiresAt: number; userId: string | null }
   | { kind: 'inactive' }
   | { kind: 'rejected' }
   | { kind: 'retryable' }
@@ -52,9 +135,9 @@ async function readCurrentSession(): Promise<SessionSnapshot> {
 
   if (!response.ok) return { kind: 'retryable' }
 
-  const session = (await response.json()) as { expiresAt: number | null }
+  const session = (await response.json()) as { expiresAt: number | null; userId?: string | null }
   return typeof session.expiresAt === 'number'
-    ? { kind: 'active', expiresAt: session.expiresAt }
+    ? { kind: 'active', expiresAt: session.expiresAt, userId: session.userId ?? null }
     : { kind: 'inactive' }
 }
 
@@ -66,6 +149,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setAuth: (loginResponse: LoginResponse) => {
     sessionRecoveryUser = null
+    startAccountScopedSession(loginResponse.userId)
     bindStepUpStateToAccount(loginResponse.userId)
     set({
       isAuthenticated: true,
@@ -81,7 +165,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
     const session = await readCurrentSession()
     if (session.kind === 'active') {
-      const user = get().user ?? sessionRecoveryUser
+      const accountChanged = adoptSessionAccount(session.userId)
+      const user = accountChanged ? null : get().user ?? sessionRecoveryUser
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
@@ -93,7 +178,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     if (session.kind === 'inactive') {
       sessionRecoveryUser = null
-      clearStepUpState()
+      clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
         user: null,
@@ -104,7 +189,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     if (session.kind === 'rejected') {
       sessionRecoveryUser ??= get().user
-      clearStepUpState()
+      clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
         user: null,
@@ -119,7 +204,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const session = await readCurrentSession()
     if (session.kind === 'active') {
-      const user = get().user ?? sessionRecoveryUser
+      const accountChanged = adoptSessionAccount(session.userId)
+      const user = accountChanged ? null : get().user ?? sessionRecoveryUser
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
@@ -129,7 +215,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })
     } else if (session.kind === 'inactive') {
       sessionRecoveryUser = null
-      clearStepUpState()
+      clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
         user: null,
@@ -146,7 +232,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'active') {
-      const user = get().user ?? sessionRecoveryUser
+      const accountChanged = adoptSessionAccount(session.userId)
+      const user = accountChanged ? null : get().user ?? sessionRecoveryUser
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
@@ -156,7 +243,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })
     } else if (session.kind === 'inactive') {
       sessionRecoveryUser = null
-      clearStepUpState()
+      clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
         user: null,
@@ -182,7 +269,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    clearStepUpState()
+    clearAccountScopedSessionState()
+    forgetPreviousAccountContent()
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {

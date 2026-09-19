@@ -545,6 +545,7 @@ export {
   resetPendingNotificationDeletesForTests,
   subscribePendingNotificationDeleteIds,
 } from './pending-notification-deletes'
+export { createSessionScopedRunner } from './session-scope'
 export {
   createHabitVisibilityHelpers,
   filterMoveTargetsBySearch,

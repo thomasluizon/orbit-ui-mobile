@@ -27,6 +27,9 @@ import {
 } from '@/lib/jwt-session'
 import { setRuntimeTheme } from '@/lib/theme'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
+import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
+import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
+import { advanceAccountGeneration, advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
@@ -34,7 +37,6 @@ import { useThrottleStore } from './throttle-store'
 
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
-let sessionEpoch = 0
 let credentialVersion = 0
 let credentialMutationTail = Promise.resolve()
 
@@ -69,7 +71,7 @@ export function isAuthTransitionInFlight(): boolean {
 }
 
 export function getSessionGeneration(): SessionSnapshot {
-  return { epoch: sessionEpoch, credentialVersion }
+  return { epoch: getSessionEpoch(), credentialVersion }
 }
 
 /**
@@ -132,7 +134,7 @@ function isTokenExpired(token: string): boolean {
 }
 
 function isCurrentSessionEpoch(epoch: number): boolean {
-  return sessionEpoch === epoch
+  return getSessionEpoch() === epoch
 }
 
 function isCurrentCredentialObservation(observation: SessionSnapshot): boolean {
@@ -182,8 +184,9 @@ async function clearSessionCredentials(
       return null
     }
     const refreshToken = captureRefreshToken ? await getRefreshToken() : null
+    clearPendingNotificationDeletes()
     clearStepUpState()
-    sessionEpoch += 1
+    advanceSessionEpoch()
     credentialVersion += 1
     useAuthStore.setState({
       ...deriveSessionPhase('signed-out'),
@@ -192,8 +195,23 @@ async function clearSessionCredentials(
     })
     await clearAllTokens()
     await clearWidgetToken().catch(() => {})
-    return { epoch: sessionEpoch, refreshToken }
+    return { epoch: getSessionEpoch(), refreshToken }
   })
+}
+
+/**
+ * Drops every unsent thing the previous account left on this device. Both drafts live under one key
+ * with no account in it, so one of them left behind is the next person reading, and sending, text
+ * that is not theirs. They reset together rather than at two call sites, because a reset added to
+ * one and forgotten at the other is how the support draft outlived the Astra one.
+ *
+ * The account generation rises here rather than beside it, so the composer state no store can
+ * reach, a pasted image and an armed retry, drops on exactly the transitions that drop a draft.
+ */
+async function forgetPreviousAccountContent(): Promise<void> {
+  await useChatStore.getState().resetAccountScopedChat()
+  await forgetStoredSupportDraft()
+  advanceAccountGeneration()
 }
 
 async function runSessionTeardownStep(
@@ -221,7 +239,7 @@ async function runSessionTeardown(
   cancelScheduledFlush()
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
-  useChatStore.getState().clearMessages()
+  if (!(await runSessionTeardownStep(epoch, forgetPreviousAccountContent))) return null
   useReviewReminderStore.getState().setAccountScope(null)
   resetOnboardingDraftForSignOut()
   if (!isCurrentSessionTeardown(epoch)) return null
@@ -457,7 +475,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         await saveWidgetToken(token).catch(() => {})
         bindStepUpStateToAccount(user.userId)
-        sessionEpoch += 1
+        clearPendingNotificationDeletes()
+        advanceSessionEpoch()
         credentialVersion += 1
         set({
           ...deriveSessionPhase('establishing'),
@@ -478,7 +497,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       offlineQueue.retainAccount(user.userId)
       await clearOfflineState()
       if (!isCurrentSessionEpoch(ownership.epoch)) return
-      useChatStore.getState().clearMessages()
+      await forgetPreviousAccountContent()
+      if (!isCurrentSessionEpoch(ownership.epoch)) return
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
 

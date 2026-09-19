@@ -3,6 +3,7 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { getChatTextFileValidationError } from '@orbit/shared/chat'
+import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 
 export interface SelectedChatTextFile {
   name: string
@@ -48,6 +49,8 @@ export function useChatTextFileAttachment(setSendError: (message: string | null)
   function removeTextFile() {
     setSelectedTextFile(null)
   }
+
+  useResetOnAccountChange(removeTextFile)
 
   return {
     textFileInputRef,
