@@ -11,7 +11,8 @@ const replace = vi.fn()
 const queryClientClear = vi.fn()
 const storage = vi.hoisted(() => new Map<string, string>())
 
-vi.mock('react-i18next', () => ({
+vi.mock('react-i18next', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-i18next')>()),
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: { language: 'en' },

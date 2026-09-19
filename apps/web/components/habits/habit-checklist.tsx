@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useId } from 'react'
+import { useCallback, useId } from 'react'
 import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
@@ -26,6 +26,7 @@ import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { CheckRow } from '@/components/ui/check-row'
 import { Proposed } from '@/components/ui/proposed'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -53,7 +54,7 @@ export function HabitChecklist({
   const t = useTranslations()
   const newItemInputId = useId()
   const dndContextId = useId()
-  const [newItemText, setNewItemText] = useState('')
+  const [newItemText, setNewItemText] = useAccountScopedState('')
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
@@ -84,7 +85,7 @@ export function HabitChecklist({
     const next = [...items, { text, isChecked: false }]
     onItemsChange?.(next)
     setNewItemText('')
-  }, [atItemLimit, items, newItemText, onItemsChange])
+  }, [atItemLimit, items, newItemText, onItemsChange, setNewItemText])
 
   const removeItem = useCallback(
     (index: number) => {

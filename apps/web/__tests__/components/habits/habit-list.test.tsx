@@ -228,16 +228,19 @@ vi.mock('@/components/habits/reschedule-sheet', () => ({
 vi.mock('@/components/habits/edit-habit-modal', () => ({
   EditHabitModal: ({
     open,
+    habit,
     onSaved,
     lockedGeneral,
   }: {
     open: boolean
+    habit?: NormalizedHabit | null
     onSaved?: () => void | Promise<void>
     lockedGeneral?: boolean | null
   }) =>
     open ? (
       <>
         <button data-testid="edit-habit-modal-save" onClick={() => void onSaved?.()}>save</button>
+        <span data-testid="edit-habit-modal-title">{habit?.title ?? ''}</span>
         <span data-testid="edit-habit-modal-locked-general">{String(lockedGeneral)}</span>
       </>
     ) : null,
@@ -270,6 +273,11 @@ vi.mock('@dnd-kit/utilities', () => ({
 
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -2726,5 +2734,58 @@ describe('HabitList', () => {
 
     fireEvent.click(screen.getByTestId('detail-future-1'))
     expect(routerPush).toHaveBeenCalledWith(`/habits/future-1?date=${TOMORROW}&from=today`)
+  })
+})
+
+describe('HabitList across an account change', () => {
+  const ACCOUNT_A_TITLE = 'Account A morning run'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    sheetTestControls.defer(false)
+    mockHabitsData.habitsById = new Map()
+    mockHabitsData.childrenByParent = new Map()
+    mockHabitsData.topLevelHabits = []
+    const habit = createMockHabit({ id: 'habit-a', title: ACCOUNT_A_TITLE, dueDate: TODAY })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  async function openAccountAEditModal() {
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    fireEvent.click(screen.getByTestId('edit-habit-a'))
+    expect(await screen.findByTestId('edit-habit-modal-title')).toHaveTextContent(ACCOUNT_A_TITLE)
+  }
+
+  it('takes an open edit modal off the screen when another account replaces the tab', async () => {
+    await openAccountAEditModal()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByTestId('edit-habit-modal-title')).not.toBeInTheDocument()
+  })
+
+  it('keeps the edit modal when the same account recovers from a rejected refresh', async () => {
+    await openAccountAEditModal()
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByTestId('edit-habit-modal-title')).toHaveTextContent(ACCOUNT_A_TITLE)
+  })
+
+  it('takes a duplicate confirmation for the previous account off the screen', async () => {
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+    fireEvent.click(screen.getByTestId('duplicate-habit-a'))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

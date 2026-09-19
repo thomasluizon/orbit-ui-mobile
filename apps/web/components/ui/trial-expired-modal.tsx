@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { buildAccountScopedStorageKey, readAccountScopedFlag } from '@orbit/shared/utils'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getHeldAccountId } from '@/stores/auth-store'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { PillButton } from '@/components/ui/pill-button'
@@ -25,16 +28,31 @@ export function TrialExpiredModal() {
   const router = useRouter()
   const pathname = usePathname()
   const trialExpired = useTrialExpired()
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useAccountScopedState(false)
   const mounted = useIsClient()
+  const accountId = getHeldAccountId()
+  const scopedKey = accountId === null ? null : buildAccountScopedStorageKey(STORAGE_KEY, accountId)
+
+  /**
+   * Moves a notice dismissed before this key carried an account on to the account signed in now,
+   * then consumes the old key. Left in place it would answer for every later account too, which
+   * is the defect rather than a milder version of it.
+   */
+  useEffect(() => {
+    if (scopedKey === null) return
+    if (!readAccountScopedFlag(localStorage.getItem(scopedKey), localStorage.getItem(STORAGE_KEY)).adoptsLegacy) return
+    localStorage.setItem(scopedKey, '1')
+    localStorage.removeItem(STORAGE_KEY)
+  }, [scopedKey])
 
   const isOpen =
     mounted &&
+    scopedKey !== null &&
     pathname !== '/upgrade' &&
     !dismissed &&
     trialExpired &&
     // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `mounted` (useIsClient) short-circuit at the head of this expression; localStorage is only read on the client, never during SSR https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    !localStorage.getItem(STORAGE_KEY)
+    !readAccountScopedFlag(localStorage.getItem(scopedKey), localStorage.getItem(STORAGE_KEY)).seen
   const { plans } = useSubscriptionPlans({
     enabled: isOpen,
     handlesError: true,
@@ -42,7 +60,7 @@ export function TrialExpiredModal() {
 
   function hide() {
     setDismissed(true)
-    localStorage.setItem(STORAGE_KEY, '1')
+    if (scopedKey !== null) localStorage.setItem(scopedKey, '1')
   }
 
   if (!isOpen) return null

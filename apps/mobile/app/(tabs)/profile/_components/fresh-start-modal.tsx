@@ -7,12 +7,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Check, RotateCcw, X } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
 import {
+  buildAccountScopedStorageKey,
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
+import { useAuthStore } from '@/stores/auth-store'
 import {
   buildQueuedMutation,
   createQueuedAck,
@@ -27,6 +29,17 @@ import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
+
+const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
+
+/** Lets the trial notice appear again for this account alone, since the key now names one. */
+async function removeScopedTrialExpiredFlag(): Promise<void> {
+  const accountId = useAuthStore.getState().user?.userId ?? null
+  if (accountId === null) return
+  await AsyncStorage.removeItem(
+    buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId),
+  )
+}
 
 function AmberPillButton({
   label,
@@ -154,7 +167,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
       await Promise.all([
         clearChecklistTemplates(),
-        AsyncStorage.removeItem('orbit_trial_expired_seen'),
+        removeScopedTrialExpiredFlag(),
       ])
       queryClient.clear()
       await clearPersistedQueryCache()

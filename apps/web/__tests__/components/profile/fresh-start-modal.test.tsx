@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 
@@ -19,7 +19,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 const mockQueryClientClear = vi.fn()
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => ({
     clear: mockQueryClientClear,
   }),
@@ -35,6 +36,11 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 
 import { FreshStartModal } from '@/app/(app)/profile/_components/fresh-start-modal'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 
 describe('FreshStartModal', () => {
@@ -239,5 +245,43 @@ describe('FreshStartModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
 
     expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
+  })
+})
+
+describe('FreshStartModal across an account change', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    mockResetAccount.mockResolvedValue(undefined)
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function armTheErasure() {
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('common.continue'))
+    const field = screen.getByLabelText('profile.freshStart.confirmLabel')
+    fireEvent.change(field, { target: { value: 'ORBIT' } })
+    expect(field).toHaveValue('ORBIT')
+  }
+
+  it('disarms the typed confirmation when another account replaces the tab', async () => {
+    armTheErasure()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
+    expect(screen.queryByLabelText('profile.freshStart.confirmLabel')).not.toBeInTheDocument()
+  })
+
+  it('keeps the typed confirmation when the same account recovers from a rejected refresh', async () => {
+    armTheErasure()
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toHaveValue('ORBIT')
   })
 })
