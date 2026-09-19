@@ -690,7 +690,7 @@ describe('Android widget header', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
 
     expect(provider).toMatch(
-      /fun applyOpenAppActions\(context: Context, views: RemoteViews\)[\s\S]*?setEmptyView\(R\.id\.widget_list, R\.id\.widget_empty\)[\s\S]*?setPendingIntentTemplate\(R\.id\.widget_list, openApp\)[\s\S]*?for \(target in OPEN_APP_TARGETS\) views\.setOnClickPendingIntent\(target, openApp\)/,
+      /fun applyOpenAppActions\(context: Context, views: RemoteViews\)[\s\S]*?setEmptyView\(R\.id\.widget_list, R\.id\.widget_empty\)[\s\S]*?setPendingIntentTemplate\(R\.id\.widget_list, rowTemplate\(context, openAppIntent\)\)[\s\S]*?for \(target in OPEN_APP_TARGETS\) views\.setOnClickPendingIntent\(target, openApp\)/,
     )
     for (const target of ['widget_root', 'widget_header_container', 'widget_header', 'widget_empty', 'widget_loading']) {
       expect(provider).toContain(`R.id.${target},`)
@@ -700,6 +700,45 @@ describe('Android widget header', () => {
     )
     expect(provider).toContain('applyOpenAppActions(context, views)')
     expect(provider).toContain('views.setViewVisibility(R.id.widget_empty, View.VISIBLE)')
+  })
+
+  /**
+   * A row's tap has to reach the habit and the day the row shows. Two properties of the framework
+   * decide whether it can, both read from the installed android-36 sources: FLAG_IMMUTABLE makes
+   * the send ignore the fill-in Intent outright (PendingIntent.java), and Intent.fillIn copies the
+   * sender's data only while the base carries neither data nor type (Intent.java). A template that
+   * regained either property would silently send every row back to the launch destination, which is
+   * the defect #586 fixed.
+   */
+  it('leaves the rows a mutable, data-free template to fill in', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const template = kotlinFunctionBody(provider, 'rowTemplate')
+
+    expect(template).toContain('Intent(Intent.ACTION_VIEW).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)')
+    expect(template).not.toMatch(/\.setData\(|\.setType\(|Intent\(Intent\.ACTION_VIEW, /)
+    expect(template).toContain('PendingIntent.FLAG_MUTABLE')
+    expect(template).not.toContain('PendingIntent.FLAG_IMMUTABLE')
+    expect(template).toMatch(
+      /if \(Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.S\) \{\s*PendingIntent\.FLAG_MUTABLE\s*\} else \{\s*0\s*\}/,
+    )
+  })
+
+  /**
+   * The row supplies the destination. An empty fill-in Intent was the whole #586 defect: it merged
+   * nothing into the template, so a row that read "Run, 07:00" opened Orbit's launch destination,
+   * and a row on the tomorrow fallback opened today. The day is committed when the payload loads,
+   * from its own dayOffset, rather than recomputed when the app opens.
+   */
+  it('fills each row in with the habit it shows and the day it shows', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+
+    expect(kotlinFunctionBody(service, 'buildItemView')).toContain(
+      'views.setOnClickFillInIntent(R.id.widget_item_container, rowFillInIntent(habit.id, rowDate))',
+    )
+    expect(kotlinFunctionBody(service, 'rowFillInIntent')).toMatch(
+      /val link = widgetRowLink\(habitId, date\) \?: return Intent\(\)\s*return Intent\(\)\.setData\(Uri\.parse\(link\)\)/,
+    )
+    expect(service).toContain('rowDate = widgetRowDate(widgetData.dayOffset, Calendar.getInstance())')
   })
 
   /**
