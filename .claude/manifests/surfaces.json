@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "8f3ceffee4559811d932c0707628bc7d33162bed",
+  "generatedFrom": "db9d0a9f037a3d0b555ca996909cf7e34835b365",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -139,7 +139,7 @@
         "apps/web/app/(app)/ai-settings/_components/ai-feature-toggles.tsx",
         "apps/web/app/(app)/ai-settings/page.tsx"
       ],
-      "closureSize": 220,
+      "closureSize": 221,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -154,7 +154,7 @@
         "apps/web/app/(app)/ai-settings/_components/ai-feature-toggles.tsx",
         "apps/web/app/(app)/ai-settings/page.tsx"
       ],
-      "closureSize": 220,
+      "closureSize": 221,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -169,7 +169,7 @@
         "apps/web/app/(app)/ai-settings/_components/ai-feature-toggles.tsx",
         "apps/web/app/(app)/ai-settings/page.tsx"
       ],
-      "closureSize": 220,
+      "closureSize": 221,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -184,7 +184,7 @@
         "apps/web/app/(app)/ai-settings/_components/ai-feature-toggles.tsx",
         "apps/web/app/(app)/ai-settings/page.tsx"
       ],
-      "closureSize": 220,
+      "closureSize": 221,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -206,7 +206,7 @@
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 272,
+      "closureSize": 273,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -228,7 +228,7 @@
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 272,
+      "closureSize": 273,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -250,7 +250,7 @@
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 272,
+      "closureSize": 273,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -272,7 +272,7 @@
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 272,
+      "closureSize": 273,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -294,7 +294,7 @@
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 272,
+      "closureSize": 273,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -316,7 +316,7 @@
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 272,
+      "closureSize": 273,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -338,7 +338,7 @@
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 272,
+      "closureSize": 273,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -360,7 +360,7 @@
         "apps/web/hooks/use-calendars.ts",
         "apps/web/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 272,
+      "closureSize": 273,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -386,7 +386,7 @@
         "apps/web/components/dates/event-row.tsx",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 285,
+      "closureSize": 286,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -412,7 +412,7 @@
         "apps/web/components/dates/event-row.tsx",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 285,
+      "closureSize": 286,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -438,7 +438,7 @@
         "apps/web/components/dates/event-row.tsx",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 285,
+      "closureSize": 286,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -464,7 +464,7 @@
         "apps/web/components/dates/event-row.tsx",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 285,
+      "closureSize": 286,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -478,7 +478,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 340,
+      "closureSize": 341,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -492,7 +492,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 340,
+      "closureSize": 341,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -506,7 +506,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 340,
+      "closureSize": 341,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -520,7 +520,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 340,
+      "closureSize": 341,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -592,7 +592,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 388,
+      "closureSize": 389,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -608,7 +608,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 388,
+      "closureSize": 389,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -624,7 +624,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 388,
+      "closureSize": 389,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -640,7 +640,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 388,
+      "closureSize": 389,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -656,7 +656,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 388,
+      "closureSize": 389,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -672,7 +672,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 388,
+      "closureSize": 389,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -688,7 +688,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 388,
+      "closureSize": 389,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -704,7 +704,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 388,
+      "closureSize": 389,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -721,7 +721,7 @@
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/page.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 239,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -738,7 +738,7 @@
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/page.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 239,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -755,7 +755,7 @@
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/page.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 239,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -772,7 +772,7 @@
         "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
         "apps/web/app/(app)/preferences/page.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 239,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -792,7 +792,7 @@
         "apps/web/components/profile/profile-settings-frame.tsx",
         "apps/web/components/share/share-card-entry-button.tsx"
       ],
-      "closureSize": 285,
+      "closureSize": 286,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -812,7 +812,7 @@
         "apps/web/components/profile/profile-settings-frame.tsx",
         "apps/web/components/share/share-card-entry-button.tsx"
       ],
-      "closureSize": 285,
+      "closureSize": 286,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -832,7 +832,7 @@
         "apps/web/components/profile/profile-settings-frame.tsx",
         "apps/web/components/share/share-card-entry-button.tsx"
       ],
-      "closureSize": 285,
+      "closureSize": 286,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -852,7 +852,7 @@
         "apps/web/components/profile/profile-settings-frame.tsx",
         "apps/web/components/share/share-card-entry-button.tsx"
       ],
-      "closureSize": 285,
+      "closureSize": 286,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -866,7 +866,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/progress/page.tsx"
       ],
-      "closureSize": 282,
+      "closureSize": 283,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -880,7 +880,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/progress/page.tsx"
       ],
-      "closureSize": 282,
+      "closureSize": 283,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -894,7 +894,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/progress/page.tsx"
       ],
-      "closureSize": 282,
+      "closureSize": 283,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -908,7 +908,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/progress/page.tsx"
       ],
-      "closureSize": 282,
+      "closureSize": 283,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -922,7 +922,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/progress/page.tsx"
       ],
-      "closureSize": 282,
+      "closureSize": 283,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -936,7 +936,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/progress/page.tsx"
       ],
-      "closureSize": 282,
+      "closureSize": 283,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -950,7 +950,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/progress/page.tsx"
       ],
-      "closureSize": 282,
+      "closureSize": 283,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -964,7 +964,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/progress/page.tsx"
       ],
-      "closureSize": 282,
+      "closureSize": 283,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -978,7 +978,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/search/page.tsx"
       ],
-      "closureSize": 327,
+      "closureSize": 328,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -992,7 +992,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/search/page.tsx"
       ],
-      "closureSize": 327,
+      "closureSize": 328,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -1006,7 +1006,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/search/page.tsx"
       ],
-      "closureSize": 327,
+      "closureSize": 328,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -1020,7 +1020,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/search/page.tsx"
       ],
-      "closureSize": 327,
+      "closureSize": 328,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -1217,7 +1217,7 @@
         "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
-      "closureSize": 233,
+      "closureSize": 234,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -1238,7 +1238,7 @@
         "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
-      "closureSize": 233,
+      "closureSize": 234,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -1259,7 +1259,7 @@
         "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
-      "closureSize": 233,
+      "closureSize": 234,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -1280,7 +1280,7 @@
         "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
-      "closureSize": 233,
+      "closureSize": 234,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -1406,7 +1406,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 279,
+      "closureSize": 280,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -1420,7 +1420,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 279,
+      "closureSize": 280,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -1434,7 +1434,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 279,
+      "closureSize": 280,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -1448,7 +1448,7 @@
       "ownedFiles": [
         "apps/web/app/(onboarding)/onboarding/page.tsx"
       ],
-      "closureSize": 279,
+      "closureSize": 280,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -2087,7 +2087,7 @@
       "ownedFiles": [
         "apps/web/components/chat/breakdown-suggestion.tsx"
       ],
-      "closureSize": 207,
+      "closureSize": 208,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -2102,7 +2102,7 @@
       "ownedFiles": [
         "apps/web/components/chat/breakdown-suggestion.tsx"
       ],
-      "closureSize": 207,
+      "closureSize": 208,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -2117,7 +2117,7 @@
       "ownedFiles": [
         "apps/web/components/chat/breakdown-suggestion.tsx"
       ],
-      "closureSize": 207,
+      "closureSize": 208,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -2132,2920 +2132,2920 @@
       "ownedFiles": [
         "apps/web/components/chat/breakdown-suggestion.tsx"
       ],
+      "closureSize": 208,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-chat-empty-state",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/chat-empty-state.tsx"
+      ],
+      "closureSize": 10,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-chat-empty-state",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/chat-empty-state.tsx"
+      ],
+      "closureSize": 10,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-chat-empty-state",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/chat-empty-state.tsx"
+      ],
+      "closureSize": 10,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-chat-empty-state",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/chat-empty-state.tsx"
+      ],
+      "closureSize": 10,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-chat-empty-state",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/chat-empty-state.tsx"
+      ],
+      "closureSize": 10,
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-chat-empty-state",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/chat-empty-state.tsx"
+      ],
+      "closureSize": 10,
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-chat-empty-state",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/chat-empty-state.tsx"
+      ],
+      "closureSize": 10,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-chat-empty-state",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/chat-empty-state.tsx"
+      ],
+      "closureSize": 10,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-clarification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/clarification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/clarification-card.tsx"
+      ],
+      "closureSize": 190,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-clarification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/clarification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/clarification-card.tsx"
+      ],
+      "closureSize": 190,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-clarification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/clarification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/clarification-card.tsx"
+      ],
+      "closureSize": 190,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-clarification-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/clarification-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/clarification-card.tsx"
+      ],
+      "closureSize": 190,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-conflict-warning",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conflict-warning.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conflict-warning.tsx"
+      ],
+      "closureSize": 6,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conflict-warning",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conflict-warning.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conflict-warning.tsx"
+      ],
+      "closureSize": 6,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-conflict-warning",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conflict-warning.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conflict-warning.tsx"
+      ],
+      "closureSize": 6,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conflict-warning",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conflict-warning.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conflict-warning.tsx"
+      ],
+      "closureSize": 6,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-conversation",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation.tsx"
+      ],
+      "closureSize": 322,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conversation",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation.tsx"
+      ],
+      "closureSize": 322,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-conversation",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation.tsx"
+      ],
+      "closureSize": 322,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conversation",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation.tsx"
+      ],
+      "closureSize": 322,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-conversation",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation.tsx"
+      ],
+      "closureSize": 322,
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conversation",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation.tsx"
+      ],
+      "closureSize": 322,
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-conversation",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation.tsx"
+      ],
+      "closureSize": 322,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-conversation",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/conversation.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/conversation.tsx"
+      ],
+      "closureSize": 322,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-goal-list-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/goal-list-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/goal-list-card.tsx"
+      ],
+      "closureSize": 152,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-goal-list-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/goal-list-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/goal-list-card.tsx"
+      ],
+      "closureSize": 152,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-goal-list-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/goal-list-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/goal-list-card.tsx"
+      ],
+      "closureSize": 152,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-goal-list-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/goal-list-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/goal-list-card.tsx"
+      ],
+      "closureSize": 152,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-list-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-list-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-list-card.tsx"
+      ],
+      "closureSize": 209,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-list-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-list-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-list-card.tsx"
+      ],
+      "closureSize": 209,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-habit-list-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-list-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-list-card.tsx"
+      ],
+      "closureSize": 209,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-habit-list-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/habit-list-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/habit-list-card.tsx"
+      ],
+      "closureSize": 209,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-message-bubble",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/message-bubble.tsx"
+      ],
+      "closureSize": 264,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-message-bubble",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/message-bubble.tsx"
+      ],
+      "closureSize": 264,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-message-bubble",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/message-bubble.tsx"
+      ],
+      "closureSize": 264,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-message-bubble",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/message-bubble.tsx"
+      ],
+      "closureSize": 264,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-operation-outcomes",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/operation-outcomes.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/operation-outcomes.tsx"
+      ],
+      "closureSize": 144,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-operation-outcomes",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/operation-outcomes.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/operation-outcomes.tsx"
+      ],
+      "closureSize": 144,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-operation-outcomes",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/operation-outcomes.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/operation-outcomes.tsx"
+      ],
+      "closureSize": 144,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-operation-outcomes",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/operation-outcomes.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/operation-outcomes.tsx"
+      ],
+      "closureSize": 144,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-pending-operation-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/pending-operation-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/pending-operation-card.tsx"
+      ],
+      "closureSize": 193,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-pending-operation-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/pending-operation-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/pending-operation-card.tsx"
+      ],
+      "closureSize": 193,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-pending-operation-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/pending-operation-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/pending-operation-card.tsx"
+      ],
+      "closureSize": 193,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-pending-operation-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/pending-operation-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/pending-operation-card.tsx"
+      ],
+      "closureSize": 193,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-suggestion-chips",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/suggestion-chips.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-suggestion-chips",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/suggestion-chips.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-suggestion-chips",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/suggestion-chips.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-suggestion-chips",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/suggestion-chips.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-composer",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/shell/composer.tsx"
+      ],
+      "closureSize": 11,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-composer",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/shell/composer.tsx"
+      ],
+      "closureSize": 11,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-composer",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/shell/composer.tsx"
+      ],
+      "closureSize": 11,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-composer",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/shell/composer.tsx"
+      ],
+      "closureSize": 11,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-calendar-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
+      ],
+      "closureSize": 133,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-calendar-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
+      ],
+      "closureSize": 133,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-calendar-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
+      ],
+      "closureSize": 133,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-calendar-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
+      ],
+      "closureSize": 133,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-layout",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/layout.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/layout.tsx",
+        "apps/web/app/(app)/onboarding-overlay-state.ts",
+        "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/motion/route-transition-shell.tsx",
+        "apps/web/components/navigation/notification-delete-notice.tsx",
+        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
+        "apps/web/components/ui/back-to-top.tsx",
+        "apps/web/components/ui/expiry-warning.tsx",
+        "apps/web/components/ui/update-available-banner.tsx",
+        "apps/web/hooks/use-onboarding-flush.ts",
+        "apps/web/hooks/use-retained-onboarding-guard.ts",
+        "apps/web/hooks/use-timezone-auto-sync.ts",
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/api-fetch-i18n-provider.tsx"
+      ],
+      "closureSize": 442,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-layout",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/layout.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/layout.tsx",
+        "apps/web/app/(app)/onboarding-overlay-state.ts",
+        "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/motion/route-transition-shell.tsx",
+        "apps/web/components/navigation/notification-delete-notice.tsx",
+        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
+        "apps/web/components/ui/back-to-top.tsx",
+        "apps/web/components/ui/expiry-warning.tsx",
+        "apps/web/components/ui/update-available-banner.tsx",
+        "apps/web/hooks/use-onboarding-flush.ts",
+        "apps/web/hooks/use-retained-onboarding-guard.ts",
+        "apps/web/hooks/use-timezone-auto-sync.ts",
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/api-fetch-i18n-provider.tsx"
+      ],
+      "closureSize": 442,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-layout",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/layout.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/layout.tsx",
+        "apps/web/app/(app)/onboarding-overlay-state.ts",
+        "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/motion/route-transition-shell.tsx",
+        "apps/web/components/navigation/notification-delete-notice.tsx",
+        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
+        "apps/web/components/ui/back-to-top.tsx",
+        "apps/web/components/ui/expiry-warning.tsx",
+        "apps/web/components/ui/update-available-banner.tsx",
+        "apps/web/hooks/use-onboarding-flush.ts",
+        "apps/web/hooks/use-retained-onboarding-guard.ts",
+        "apps/web/hooks/use-timezone-auto-sync.ts",
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/api-fetch-i18n-provider.tsx"
+      ],
+      "closureSize": 442,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-layout",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/layout.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/layout.tsx",
+        "apps/web/app/(app)/onboarding-overlay-state.ts",
+        "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/motion/route-transition-shell.tsx",
+        "apps/web/components/navigation/notification-delete-notice.tsx",
+        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
+        "apps/web/components/ui/back-to-top.tsx",
+        "apps/web/components/ui/expiry-warning.tsx",
+        "apps/web/components/ui/update-available-banner.tsx",
+        "apps/web/hooks/use-onboarding-flush.ts",
+        "apps/web/hooks/use-retained-onboarding-guard.ts",
+        "apps/web/hooks/use-timezone-auto-sync.ts",
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/api-fetch-i18n-provider.tsx"
+      ],
+      "closureSize": 442,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-layout",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/layout.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/layout.tsx",
+        "apps/web/app/(app)/onboarding-overlay-state.ts",
+        "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/motion/route-transition-shell.tsx",
+        "apps/web/components/navigation/notification-delete-notice.tsx",
+        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
+        "apps/web/components/ui/back-to-top.tsx",
+        "apps/web/components/ui/expiry-warning.tsx",
+        "apps/web/components/ui/update-available-banner.tsx",
+        "apps/web/hooks/use-onboarding-flush.ts",
+        "apps/web/hooks/use-retained-onboarding-guard.ts",
+        "apps/web/hooks/use-timezone-auto-sync.ts",
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/api-fetch-i18n-provider.tsx"
+      ],
+      "closureSize": 442,
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-layout",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/layout.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/layout.tsx",
+        "apps/web/app/(app)/onboarding-overlay-state.ts",
+        "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/motion/route-transition-shell.tsx",
+        "apps/web/components/navigation/notification-delete-notice.tsx",
+        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
+        "apps/web/components/ui/back-to-top.tsx",
+        "apps/web/components/ui/expiry-warning.tsx",
+        "apps/web/components/ui/update-available-banner.tsx",
+        "apps/web/hooks/use-onboarding-flush.ts",
+        "apps/web/hooks/use-retained-onboarding-guard.ts",
+        "apps/web/hooks/use-timezone-auto-sync.ts",
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/api-fetch-i18n-provider.tsx"
+      ],
+      "closureSize": 442,
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-layout",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/layout.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/layout.tsx",
+        "apps/web/app/(app)/onboarding-overlay-state.ts",
+        "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/motion/route-transition-shell.tsx",
+        "apps/web/components/navigation/notification-delete-notice.tsx",
+        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
+        "apps/web/components/ui/back-to-top.tsx",
+        "apps/web/components/ui/expiry-warning.tsx",
+        "apps/web/components/ui/update-available-banner.tsx",
+        "apps/web/hooks/use-onboarding-flush.ts",
+        "apps/web/hooks/use-retained-onboarding-guard.ts",
+        "apps/web/hooks/use-timezone-auto-sync.ts",
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/api-fetch-i18n-provider.tsx"
+      ],
+      "closureSize": 442,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-layout",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/layout.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/layout.tsx",
+        "apps/web/app/(app)/onboarding-overlay-state.ts",
+        "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
+        "apps/web/components/motion/route-transition-shell.tsx",
+        "apps/web/components/navigation/notification-delete-notice.tsx",
+        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
+        "apps/web/components/ui/back-to-top.tsx",
+        "apps/web/components/ui/expiry-warning.tsx",
+        "apps/web/components/ui/update-available-banner.tsx",
+        "apps/web/hooks/use-onboarding-flush.ts",
+        "apps/web/hooks/use-retained-onboarding-guard.ts",
+        "apps/web/hooks/use-timezone-auto-sync.ts",
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/api-fetch-i18n-provider.tsx"
+      ],
+      "closureSize": 442,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-preference-picker-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
+      ],
+      "closureSize": 145,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-preference-picker-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
+      ],
+      "closureSize": 145,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-preference-picker-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
+      ],
+      "closureSize": 145,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-preference-picker-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
+      ],
+      "closureSize": 145,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-delete-account-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
+      ],
+      "closureSize": 186,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-delete-account-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
+      ],
+      "closureSize": 186,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-delete-account-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
+      ],
+      "closureSize": 186,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-delete-account-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
+      ],
+      "closureSize": 186,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-edit-name-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
+      ],
+      "closureSize": 206,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-edit-name-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
+      ],
+      "closureSize": 206,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-edit-name-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
+      ],
+      "closureSize": 206,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-edit-name-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
+      ],
+      "closureSize": 206,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-fresh-start-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-fresh-start-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-fresh-start-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-fresh-start-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-progress-content",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+      ],
+      "closureSize": 282,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-progress-content",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+      ],
+      "closureSize": 282,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-progress-content",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+      ],
+      "closureSize": 282,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-progress-content",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+      ],
+      "closureSize": 282,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-progress-content",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+      ],
+      "closureSize": 282,
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-progress-content",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+      ],
+      "closureSize": 282,
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-progress-content",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+      ],
+      "closureSize": 282,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-progress-content",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/progress/_components/progress-content.tsx"
+      ],
+      "closureSize": 282,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-today-page-view",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-page-view.tsx"
+      ],
+      "closureSize": 382,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-today-page-view",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-page-view.tsx"
+      ],
+      "closureSize": 382,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-today-page-view",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-page-view.tsx"
+      ],
+      "closureSize": 382,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-today-page-view",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-page-view.tsx"
+      ],
+      "closureSize": 382,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-today-page-view",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-page-view.tsx"
+      ],
+      "closureSize": 382,
+      "state": "empty",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-today-page-view",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-page-view.tsx"
+      ],
+      "closureSize": 382,
+      "state": "empty",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-today-page-view",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-page-view.tsx"
+      ],
+      "closureSize": 382,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-today-page-view",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-page-view.tsx"
+      ],
+      "closureSize": 382,
+      "state": "empty",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-today-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-shell.tsx"
+      ],
+      "closureSize": 27,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-today-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-shell.tsx"
+      ],
+      "closureSize": 27,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-app-today-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-shell.tsx"
+      ],
+      "closureSize": 27,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-app-today-shell",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/today-shell.tsx"
+      ],
+      "closureSize": 27,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-advanced-advanced-sections",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/advanced/advanced-sections.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/advanced/advanced-sections.tsx"
+      ],
+      "closureSize": 9,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-advanced-advanced-sections",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/advanced/advanced-sections.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/advanced/advanced-sections.tsx"
+      ],
+      "closureSize": 9,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-advanced-advanced-sections",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/advanced/advanced-sections.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/advanced/advanced-sections.tsx"
+      ],
+      "closureSize": 9,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-advanced-advanced-sections",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/advanced/advanced-sections.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/advanced/advanced-sections.tsx"
+      ],
+      "closureSize": 9,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-command-command-palette",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/command/command-palette.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/command/command-palette.tsx"
+      ],
+      "closureSize": 221,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-command-command-palette",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/command/command-palette.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/command/command-palette.tsx"
+      ],
+      "closureSize": 221,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-command-command-palette",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/command/command-palette.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/command/command-palette.tsx"
+      ],
+      "closureSize": 221,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-command-command-palette",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/command/command-palette.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/command/command-palette.tsx"
+      ],
+      "closureSize": 221,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goals-edit-goal-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/edit-goal-modal.tsx"
+      ],
+      "closureSize": 213,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goals-edit-goal-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/edit-goal-modal.tsx"
+      ],
+      "closureSize": 213,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goals-edit-goal-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/edit-goal-modal.tsx"
+      ],
+      "closureSize": 213,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goals-edit-goal-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/edit-goal-modal.tsx"
+      ],
+      "closureSize": 213,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-goal-modal-edit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-goal-modal-edit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-goal-modal-edit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-goal-modal-edit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goals-goal-detail-drawer",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer.tsx"
+      ],
+      "closureSize": 264,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goals-goal-detail-drawer",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer.tsx"
+      ],
+      "closureSize": 264,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goals-goal-detail-drawer",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer.tsx"
+      ],
+      "closureSize": 264,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goals-goal-detail-drawer",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/goals/goal-detail-drawer.tsx"
+      ],
+      "closureSize": 264,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-checklist-templates",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/checklist-templates.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/checklist-templates.tsx"
+      ],
+      "closureSize": 203,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-checklist-templates",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/checklist-templates.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/checklist-templates.tsx"
+      ],
+      "closureSize": 203,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-checklist-templates",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/checklist-templates.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/checklist-templates.tsx"
+      ],
+      "closureSize": 203,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-checklist-templates",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/checklist-templates.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/checklist-templates.tsx"
+      ],
+      "closureSize": 203,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 222,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 222,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 222,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 222,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 195,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-create-habit-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-habit-modal.tsx"
+      ],
+      "closureSize": 310,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-create-habit-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-habit-modal.tsx"
+      ],
+      "closureSize": 310,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-create-habit-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-habit-modal.tsx"
+      ],
+      "closureSize": 310,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-create-habit-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-habit-modal.tsx"
+      ],
+      "closureSize": 310,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-description-viewer",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/description-viewer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/description-viewer.tsx"
+      ],
+      "closureSize": 133,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-description-viewer",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/description-viewer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/description-viewer.tsx"
+      ],
+      "closureSize": 133,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-description-viewer",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/description-viewer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/description-viewer.tsx"
+      ],
+      "closureSize": 133,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-description-viewer",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/description-viewer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/description-viewer.tsx"
+      ],
+      "closureSize": 133,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-edit-habit-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/edit-habit-modal.tsx"
+      ],
+      "closureSize": 309,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-edit-habit-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/edit-habit-modal.tsx"
+      ],
+      "closureSize": 309,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-edit-habit-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/edit-habit-modal.tsx"
+      ],
+      "closureSize": 309,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-edit-habit-modal",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/edit-habit-modal.tsx"
+      ],
+      "closureSize": 309,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-goal-linking-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/goal-linking-field.tsx"
+      ],
+      "closureSize": 231,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-goal-linking-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/goal-linking-field.tsx"
+      ],
+      "closureSize": 231,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-goal-linking-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/goal-linking-field.tsx"
+      ],
+      "closureSize": 231,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-goal-linking-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/goal-linking-field.tsx"
+      ],
+      "closureSize": 231,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-fields.tsx"
+      ],
+      "closureSize": 245,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-fields.tsx"
+      ],
+      "closureSize": 245,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-fields.tsx"
+      ],
+      "closureSize": 245,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-fields.tsx"
+      ],
+      "closureSize": 245,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-screen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-screen.tsx"
+      ],
+      "closureSize": 340,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-screen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-screen.tsx"
+      ],
+      "closureSize": 340,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-screen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-screen.tsx"
+      ],
+      "closureSize": 340,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-screen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-screen.tsx"
+      ],
+      "closureSize": 340,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-form-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
+      "closureSize": 299,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-form-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
+      "closureSize": 299,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-form-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
+      "closureSize": 299,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-form-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
+      "closureSize": 299,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-emoji-selector",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
+      ],
+      "closureSize": 139,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-emoji-selector",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
+      ],
+      "closureSize": 139,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-emoji-selector",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
+      ],
+      "closureSize": 139,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-habit-emoji-selector",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
+      ],
+      "closureSize": 139,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
+      ],
+      "closureSize": 214,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
+      ],
+      "closureSize": 214,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
+      ],
+      "closureSize": 214,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
+      ],
+      "closureSize": 214,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-tag-picker-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
+      ],
+      "closureSize": 25,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-tag-picker-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
+      ],
+      "closureSize": 25,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-tag-picker-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
+      ],
+      "closureSize": 25,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-form-fields-tag-picker-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
+      ],
+      "closureSize": 25,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-list-confirm-dialogs",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-list/confirm-dialogs.tsx"
+      ],
+      "closureSize": 23,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-list-confirm-dialogs",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-list/confirm-dialogs.tsx"
+      ],
+      "closureSize": 23,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-list-confirm-dialogs",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-list/confirm-dialogs.tsx"
+      ],
+      "closureSize": 23,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-list-confirm-dialogs",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-list/confirm-dialogs.tsx"
+      ],
+      "closureSize": 23,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-list-move-parent-overlay",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/move-parent-overlay.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
+      ],
+      "closureSize": 153,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-list-move-parent-overlay",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/move-parent-overlay.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
+      ],
+      "closureSize": 153,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-list-move-parent-overlay",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/move-parent-overlay.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
+      ],
+      "closureSize": 153,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-list-move-parent-overlay",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/move-parent-overlay.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
+      ],
+      "closureSize": 153,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-row-trailing",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-row-trailing.tsx"
+      ],
+      "closureSize": 165,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-row-trailing",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-row-trailing.tsx"
+      ],
+      "closureSize": 165,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-row-trailing",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-row-trailing.tsx"
+      ],
+      "closureSize": 165,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-row-trailing",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-row-trailing.tsx"
+      ],
+      "closureSize": 165,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-reschedule-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/reschedule-sheet.tsx"
+      ],
+      "closureSize": 240,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-reschedule-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/reschedule-sheet.tsx"
+      ],
+      "closureSize": 240,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-reschedule-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/reschedule-sheet.tsx"
+      ],
+      "closureSize": 240,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-reschedule-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/reschedule-sheet.tsx"
+      ],
+      "closureSize": 240,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-marketing-consent-marketing-consent-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/marketing-consent/marketing-consent-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
+      ],
+      "closureSize": 199,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-marketing-consent-marketing-consent-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/marketing-consent/marketing-consent-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
+      ],
+      "closureSize": 199,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-marketing-consent-marketing-consent-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/marketing-consent/marketing-consent-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
+      ],
+      "closureSize": 199,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-marketing-consent-marketing-consent-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/marketing-consent/marketing-consent-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
+      ],
+      "closureSize": 199,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
+      "closureSize": 207,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
+      "closureSize": 207,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
+      "closureSize": 207,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
+      ],
       "closureSize": 207,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "block-chat-chat-empty-state",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-empty-state.tsx"
-      ],
-      "closureSize": 10,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-chat-empty-state",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-empty-state.tsx"
-      ],
-      "closureSize": 10,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-chat-empty-state",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-empty-state.tsx"
-      ],
-      "closureSize": 10,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-chat-empty-state",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-empty-state.tsx"
-      ],
-      "closureSize": 10,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-chat-empty-state",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-empty-state.tsx"
-      ],
-      "closureSize": 10,
-      "state": "empty",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-chat-empty-state",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-empty-state.tsx"
-      ],
-      "closureSize": 10,
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-chat-empty-state",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-empty-state.tsx"
-      ],
-      "closureSize": 10,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-chat-empty-state",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/chat-empty-state.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/chat-empty-state.tsx"
-      ],
-      "closureSize": 10,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-clarification-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/clarification-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/clarification-card.tsx"
-      ],
-      "closureSize": 189,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-clarification-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/clarification-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/clarification-card.tsx"
-      ],
-      "closureSize": 189,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-clarification-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/clarification-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/clarification-card.tsx"
-      ],
-      "closureSize": 189,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-clarification-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/clarification-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/clarification-card.tsx"
-      ],
-      "closureSize": 189,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-conflict-warning",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conflict-warning.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conflict-warning.tsx"
-      ],
-      "closureSize": 6,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-conflict-warning",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conflict-warning.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conflict-warning.tsx"
-      ],
-      "closureSize": 6,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-conflict-warning",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conflict-warning.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conflict-warning.tsx"
-      ],
-      "closureSize": 6,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-conflict-warning",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conflict-warning.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conflict-warning.tsx"
-      ],
-      "closureSize": 6,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-conversation",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conversation.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conversation.tsx"
-      ],
-      "closureSize": 321,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-conversation",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conversation.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conversation.tsx"
-      ],
-      "closureSize": 321,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-conversation",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conversation.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conversation.tsx"
-      ],
-      "closureSize": 321,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-conversation",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conversation.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conversation.tsx"
-      ],
-      "closureSize": 321,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-conversation",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conversation.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conversation.tsx"
-      ],
-      "closureSize": 321,
-      "state": "empty",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-conversation",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conversation.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conversation.tsx"
-      ],
-      "closureSize": 321,
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-conversation",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conversation.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conversation.tsx"
-      ],
-      "closureSize": 321,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-conversation",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/conversation.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/conversation.tsx"
-      ],
-      "closureSize": 321,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-goal-list-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/goal-list-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/goal-list-card.tsx"
-      ],
-      "closureSize": 152,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-goal-list-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/goal-list-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/goal-list-card.tsx"
-      ],
-      "closureSize": 152,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-goal-list-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/goal-list-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/goal-list-card.tsx"
-      ],
-      "closureSize": 152,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-goal-list-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/goal-list-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/goal-list-card.tsx"
-      ],
-      "closureSize": 152,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-habit-list-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/habit-list-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/habit-list-card.tsx"
-      ],
-      "closureSize": 208,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-habit-list-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/habit-list-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/habit-list-card.tsx"
-      ],
-      "closureSize": 208,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-habit-list-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/habit-list-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/habit-list-card.tsx"
-      ],
-      "closureSize": 208,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-habit-list-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/habit-list-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/habit-list-card.tsx"
-      ],
-      "closureSize": 208,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-message-bubble",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/message-bubble.tsx"
-      ],
-      "closureSize": 263,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-message-bubble",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/message-bubble.tsx"
-      ],
-      "closureSize": 263,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-message-bubble",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/message-bubble.tsx"
-      ],
-      "closureSize": 263,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-message-bubble",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/message-bubble.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/message-bubble.tsx"
-      ],
-      "closureSize": 263,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-operation-outcomes",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/operation-outcomes.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/operation-outcomes.tsx"
-      ],
-      "closureSize": 144,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-operation-outcomes",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/operation-outcomes.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/operation-outcomes.tsx"
-      ],
-      "closureSize": 144,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-operation-outcomes",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/operation-outcomes.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/operation-outcomes.tsx"
-      ],
-      "closureSize": 144,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-operation-outcomes",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/operation-outcomes.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/operation-outcomes.tsx"
-      ],
-      "closureSize": 144,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-pending-operation-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/pending-operation-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/pending-operation-card.tsx"
-      ],
-      "closureSize": 193,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-pending-operation-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/pending-operation-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/pending-operation-card.tsx"
-      ],
-      "closureSize": 193,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-pending-operation-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/pending-operation-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/pending-operation-card.tsx"
-      ],
-      "closureSize": 193,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-pending-operation-card",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/pending-operation-card.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/pending-operation-card.tsx"
-      ],
-      "closureSize": 193,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-suggestion-chips",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/suggestion-chips.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-suggestion-chips",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/suggestion-chips.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-suggestion-chips",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/suggestion-chips.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-suggestion-chips",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/suggestion-chips.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-composer",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/shell/composer.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/shell/composer.tsx"
-      ],
-      "closureSize": 11,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-composer",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/shell/composer.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/shell/composer.tsx"
-      ],
-      "closureSize": 11,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-composer",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/shell/composer.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/shell/composer.tsx"
-      ],
-      "closureSize": 11,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-composer",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/shell/composer.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/shell/composer.tsx"
-      ],
-      "closureSize": 11,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-calendar-shell",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-shell.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
-      ],
-      "closureSize": 133,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-calendar-shell",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-shell.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
-      ],
-      "closureSize": 133,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-calendar-shell",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-shell.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
-      ],
-      "closureSize": 133,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-calendar-shell",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-shell.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
-      ],
-      "closureSize": 133,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-layout",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/layout.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/layout.tsx",
-        "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
-        "apps/web/components/gamification/celebration-panel.tsx",
-        "apps/web/components/motion/route-transition-shell.tsx",
-        "apps/web/components/navigation/notification-delete-notice.tsx",
-        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
-        "apps/web/components/ui/expiry-warning.tsx",
-        "apps/web/components/ui/update-available-banner.tsx",
-        "apps/web/hooks/use-onboarding-flush.ts",
-        "apps/web/hooks/use-retained-onboarding-guard.ts",
-        "apps/web/hooks/use-timezone-auto-sync.ts",
-        "apps/web/lib/actions/onboarding.ts",
-        "apps/web/lib/api-fetch-i18n-provider.tsx"
-      ],
-      "closureSize": 441,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-layout",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/layout.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/layout.tsx",
-        "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
-        "apps/web/components/gamification/celebration-panel.tsx",
-        "apps/web/components/motion/route-transition-shell.tsx",
-        "apps/web/components/navigation/notification-delete-notice.tsx",
-        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
-        "apps/web/components/ui/expiry-warning.tsx",
-        "apps/web/components/ui/update-available-banner.tsx",
-        "apps/web/hooks/use-onboarding-flush.ts",
-        "apps/web/hooks/use-retained-onboarding-guard.ts",
-        "apps/web/hooks/use-timezone-auto-sync.ts",
-        "apps/web/lib/actions/onboarding.ts",
-        "apps/web/lib/api-fetch-i18n-provider.tsx"
-      ],
-      "closureSize": 441,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-layout",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/layout.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/layout.tsx",
-        "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
-        "apps/web/components/gamification/celebration-panel.tsx",
-        "apps/web/components/motion/route-transition-shell.tsx",
-        "apps/web/components/navigation/notification-delete-notice.tsx",
-        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
-        "apps/web/components/ui/expiry-warning.tsx",
-        "apps/web/components/ui/update-available-banner.tsx",
-        "apps/web/hooks/use-onboarding-flush.ts",
-        "apps/web/hooks/use-retained-onboarding-guard.ts",
-        "apps/web/hooks/use-timezone-auto-sync.ts",
-        "apps/web/lib/actions/onboarding.ts",
-        "apps/web/lib/api-fetch-i18n-provider.tsx"
-      ],
-      "closureSize": 441,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-layout",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/layout.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/layout.tsx",
-        "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
-        "apps/web/components/gamification/celebration-panel.tsx",
-        "apps/web/components/motion/route-transition-shell.tsx",
-        "apps/web/components/navigation/notification-delete-notice.tsx",
-        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
-        "apps/web/components/ui/expiry-warning.tsx",
-        "apps/web/components/ui/update-available-banner.tsx",
-        "apps/web/hooks/use-onboarding-flush.ts",
-        "apps/web/hooks/use-retained-onboarding-guard.ts",
-        "apps/web/hooks/use-timezone-auto-sync.ts",
-        "apps/web/lib/actions/onboarding.ts",
-        "apps/web/lib/api-fetch-i18n-provider.tsx"
-      ],
-      "closureSize": 441,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-layout",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/layout.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/layout.tsx",
-        "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
-        "apps/web/components/gamification/celebration-panel.tsx",
-        "apps/web/components/motion/route-transition-shell.tsx",
-        "apps/web/components/navigation/notification-delete-notice.tsx",
-        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
-        "apps/web/components/ui/expiry-warning.tsx",
-        "apps/web/components/ui/update-available-banner.tsx",
-        "apps/web/hooks/use-onboarding-flush.ts",
-        "apps/web/hooks/use-retained-onboarding-guard.ts",
-        "apps/web/hooks/use-timezone-auto-sync.ts",
-        "apps/web/lib/actions/onboarding.ts",
-        "apps/web/lib/api-fetch-i18n-provider.tsx"
-      ],
-      "closureSize": 441,
-      "state": "empty",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-layout",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/layout.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/layout.tsx",
-        "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
-        "apps/web/components/gamification/celebration-panel.tsx",
-        "apps/web/components/motion/route-transition-shell.tsx",
-        "apps/web/components/navigation/notification-delete-notice.tsx",
-        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
-        "apps/web/components/ui/expiry-warning.tsx",
-        "apps/web/components/ui/update-available-banner.tsx",
-        "apps/web/hooks/use-onboarding-flush.ts",
-        "apps/web/hooks/use-retained-onboarding-guard.ts",
-        "apps/web/hooks/use-timezone-auto-sync.ts",
-        "apps/web/lib/actions/onboarding.ts",
-        "apps/web/lib/api-fetch-i18n-provider.tsx"
-      ],
-      "closureSize": 441,
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-layout",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/layout.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/layout.tsx",
-        "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
-        "apps/web/components/gamification/celebration-panel.tsx",
-        "apps/web/components/motion/route-transition-shell.tsx",
-        "apps/web/components/navigation/notification-delete-notice.tsx",
-        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
-        "apps/web/components/ui/expiry-warning.tsx",
-        "apps/web/components/ui/update-available-banner.tsx",
-        "apps/web/hooks/use-onboarding-flush.ts",
-        "apps/web/hooks/use-retained-onboarding-guard.ts",
-        "apps/web/hooks/use-timezone-auto-sync.ts",
-        "apps/web/lib/actions/onboarding.ts",
-        "apps/web/lib/api-fetch-i18n-provider.tsx"
-      ],
-      "closureSize": 441,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-layout",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/layout.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/layout.tsx",
-        "apps/web/app/(app)/onboarding-overlay-state.ts",
-        "apps/web/app/actions/onboarding.ts",
-        "apps/web/components/gamification/celebration-panel.tsx",
-        "apps/web/components/motion/route-transition-shell.tsx",
-        "apps/web/components/navigation/notification-delete-notice.tsx",
-        "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
-        "apps/web/components/ui/back-to-top.tsx",
-        "apps/web/components/ui/expiry-warning.tsx",
-        "apps/web/components/ui/update-available-banner.tsx",
-        "apps/web/hooks/use-onboarding-flush.ts",
-        "apps/web/hooks/use-retained-onboarding-guard.ts",
-        "apps/web/hooks/use-timezone-auto-sync.ts",
-        "apps/web/lib/actions/onboarding.ts",
-        "apps/web/lib/api-fetch-i18n-provider.tsx"
-      ],
-      "closureSize": 441,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-preference-picker-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
-      ],
-      "closureSize": 145,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-preference-picker-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
-      ],
-      "closureSize": 145,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-preference-picker-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
-      ],
-      "closureSize": 145,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-preference-picker-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx"
-      ],
-      "closureSize": 145,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-delete-account-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
-      ],
-      "closureSize": 186,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-delete-account-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
-      ],
-      "closureSize": 186,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-delete-account-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
-      ],
-      "closureSize": 186,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-delete-account-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
-      ],
-      "closureSize": 186,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-edit-name-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
-      ],
-      "closureSize": 205,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-edit-name-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
-      ],
-      "closureSize": 205,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-edit-name-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
-      ],
-      "closureSize": 205,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-edit-name-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
-      ],
-      "closureSize": 205,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-fresh-start-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-fresh-start-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-fresh-start-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-fresh-start-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-progress-content",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
-      ],
-      "closureSize": 281,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-progress-content",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
-      ],
-      "closureSize": 281,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-progress-content",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
-      ],
-      "closureSize": 281,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-progress-content",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
-      ],
-      "closureSize": 281,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-progress-content",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
-      ],
-      "closureSize": 281,
-      "state": "empty",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-progress-content",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
-      ],
-      "closureSize": 281,
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-progress-content",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
-      ],
-      "closureSize": 281,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-progress-content",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/progress/_components/progress-content.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/progress/_components/progress-content.tsx"
-      ],
-      "closureSize": 281,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-today-page-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-page-view.tsx"
-      ],
-      "closureSize": 381,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-today-page-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-page-view.tsx"
-      ],
-      "closureSize": 381,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-today-page-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-page-view.tsx"
-      ],
-      "closureSize": 381,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-today-page-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-page-view.tsx"
-      ],
-      "closureSize": 381,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-today-page-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-page-view.tsx"
-      ],
-      "closureSize": 381,
-      "state": "empty",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-today-page-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-page-view.tsx"
-      ],
-      "closureSize": 381,
-      "state": "empty",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-today-page-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-page-view.tsx"
-      ],
-      "closureSize": 381,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-today-page-view",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-page-view.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-page-view.tsx"
-      ],
-      "closureSize": 381,
-      "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-today-shell",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-shell.tsx"
-      ],
-      "closureSize": 27,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-today-shell",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-shell.tsx"
-      ],
-      "closureSize": 27,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-app-today-shell",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-shell.tsx"
-      ],
-      "closureSize": 27,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-app-today-shell",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/today-shell.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/today-shell.tsx"
-      ],
-      "closureSize": 27,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-advanced-advanced-sections",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/advanced/advanced-sections.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/advanced/advanced-sections.tsx"
-      ],
-      "closureSize": 9,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-advanced-advanced-sections",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/advanced/advanced-sections.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/advanced/advanced-sections.tsx"
-      ],
-      "closureSize": 9,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-advanced-advanced-sections",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/advanced/advanced-sections.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/advanced/advanced-sections.tsx"
-      ],
-      "closureSize": 9,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-advanced-advanced-sections",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/advanced/advanced-sections.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/advanced/advanced-sections.tsx"
-      ],
-      "closureSize": 9,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-command-command-palette",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/command/command-palette.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/command/command-palette.tsx"
-      ],
-      "closureSize": 220,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-command-command-palette",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/command/command-palette.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/command/command-palette.tsx"
-      ],
-      "closureSize": 220,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-command-command-palette",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/command/command-palette.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/command/command-palette.tsx"
-      ],
-      "closureSize": 220,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-command-command-palette",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/command/command-palette.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/command/command-palette.tsx"
-      ],
-      "closureSize": 220,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-goals-edit-goal-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/edit-goal-modal.tsx"
-      ],
-      "closureSize": 212,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-goals-edit-goal-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/edit-goal-modal.tsx"
-      ],
-      "closureSize": 212,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-goals-edit-goal-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/edit-goal-modal.tsx"
-      ],
-      "closureSize": 212,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-goals-edit-goal-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/edit-goal-modal.tsx"
-      ],
-      "closureSize": 212,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-edit-goal-modal-edit-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-edit-goal-modal-edit-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-edit-goal-modal-edit-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-edit-goal-modal-edit-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-goals-goal-detail-drawer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/goal-detail-drawer.tsx"
-      ],
-      "closureSize": 263,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-goals-goal-detail-drawer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/goal-detail-drawer.tsx"
-      ],
-      "closureSize": 263,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-goals-goal-detail-drawer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/goal-detail-drawer.tsx"
-      ],
-      "closureSize": 263,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-goals-goal-detail-drawer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/goal-detail-drawer.tsx"
-      ],
-      "closureSize": 263,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-checklist-templates",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/checklist-templates.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/checklist-templates.tsx"
-      ],
-      "closureSize": 202,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-checklist-templates",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/checklist-templates.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/checklist-templates.tsx"
-      ],
-      "closureSize": 202,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-checklist-templates",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/checklist-templates.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/checklist-templates.tsx"
-      ],
-      "closureSize": 202,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-checklist-templates",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/checklist-templates.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/checklist-templates.tsx"
-      ],
-      "closureSize": 202,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
-      ],
-      "closureSize": 221,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
-      ],
-      "closureSize": 221,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
-      ],
-      "closureSize": 221,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
-      ],
-      "closureSize": 221,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
-      ],
-      "closureSize": 195,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-create-habit-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-habit-modal.tsx"
-      ],
-      "closureSize": 309,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-create-habit-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-habit-modal.tsx"
-      ],
-      "closureSize": 309,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-create-habit-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-habit-modal.tsx"
-      ],
-      "closureSize": 309,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-create-habit-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/create-habit-modal.tsx"
-      ],
-      "closureSize": 309,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-description-viewer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/description-viewer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/description-viewer.tsx"
-      ],
-      "closureSize": 133,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-description-viewer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/description-viewer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/description-viewer.tsx"
-      ],
-      "closureSize": 133,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-description-viewer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/description-viewer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/description-viewer.tsx"
-      ],
-      "closureSize": 133,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-description-viewer",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/description-viewer.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/description-viewer.tsx"
-      ],
-      "closureSize": 133,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-edit-habit-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/edit-habit-modal.tsx"
-      ],
-      "closureSize": 308,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-edit-habit-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/edit-habit-modal.tsx"
-      ],
-      "closureSize": 308,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-edit-habit-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/edit-habit-modal.tsx"
-      ],
-      "closureSize": 308,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-edit-habit-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/edit-habit-modal.tsx"
-      ],
-      "closureSize": 308,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-goal-linking-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/goal-linking-field.tsx"
-      ],
-      "closureSize": 230,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-goal-linking-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/goal-linking-field.tsx"
-      ],
-      "closureSize": 230,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-goal-linking-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/goal-linking-field.tsx"
-      ],
-      "closureSize": 230,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-goal-linking-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/goal-linking-field.tsx"
-      ],
-      "closureSize": 230,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-fields.tsx"
-      ],
-      "closureSize": 244,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-fields.tsx"
-      ],
-      "closureSize": 244,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-fields.tsx"
-      ],
-      "closureSize": 244,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-fields.tsx"
-      ],
-      "closureSize": 244,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-screen",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-screen.tsx"
-      ],
-      "closureSize": 339,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-screen",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-screen.tsx"
-      ],
-      "closureSize": 339,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-screen",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-screen.tsx"
-      ],
-      "closureSize": 339,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-screen",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-screen.tsx"
-      ],
-      "closureSize": 339,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "closureSize": 298,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "closureSize": 298,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "closureSize": 298,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "closureSize": 298,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-habit-emoji-selector",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
-      ],
-      "closureSize": 139,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-habit-emoji-selector",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
-      ],
-      "closureSize": 139,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-habit-emoji-selector",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
-      ],
-      "closureSize": 139,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-habit-emoji-selector",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx"
-      ],
-      "closureSize": 139,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
-      ],
-      "closureSize": 214,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
-      ],
-      "closureSize": 214,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
-      ],
-      "closureSize": 214,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-scheduled-reminder-section",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
-      ],
-      "closureSize": 214,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-tag-picker-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
-      ],
-      "closureSize": 25,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-tag-picker-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
-      ],
-      "closureSize": 25,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-tag-picker-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
-      ],
-      "closureSize": 25,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-form-fields-tag-picker-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx"
-      ],
-      "closureSize": 25,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-list-confirm-dialogs",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-list/confirm-dialogs.tsx"
-      ],
-      "closureSize": 23,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-list-confirm-dialogs",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-list/confirm-dialogs.tsx"
-      ],
-      "closureSize": 23,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-list-confirm-dialogs",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-list/confirm-dialogs.tsx"
-      ],
-      "closureSize": 23,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-list-confirm-dialogs",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-list/confirm-dialogs.tsx"
-      ],
-      "closureSize": 23,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-list-move-parent-overlay",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-list/move-parent-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
-      ],
-      "closureSize": 153,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-list-move-parent-overlay",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-list/move-parent-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
-      ],
-      "closureSize": 153,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habit-list-move-parent-overlay",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-list/move-parent-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
-      ],
-      "closureSize": 153,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habit-list-move-parent-overlay",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-list/move-parent-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
-      ],
-      "closureSize": 153,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-row-trailing",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-row-trailing.tsx"
-      ],
-      "closureSize": 165,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-row-trailing",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-row-trailing.tsx"
-      ],
-      "closureSize": 165,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-row-trailing",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-row-trailing.tsx"
-      ],
-      "closureSize": 165,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-row-trailing",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-row-trailing.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-row-trailing.tsx"
-      ],
-      "closureSize": 165,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-reschedule-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/reschedule-sheet.tsx"
-      ],
-      "closureSize": 239,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-reschedule-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/reschedule-sheet.tsx"
-      ],
-      "closureSize": 239,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-reschedule-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/reschedule-sheet.tsx"
-      ],
-      "closureSize": 239,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-reschedule-sheet",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/reschedule-sheet.tsx"
-      ],
-      "closureSize": 239,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-marketing-consent-marketing-consent-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/marketing-consent/marketing-consent-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
-      ],
-      "closureSize": 198,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-marketing-consent-marketing-consent-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/marketing-consent/marketing-consent-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
-      ],
-      "closureSize": 198,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-marketing-consent-marketing-consent-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/marketing-consent/marketing-consent-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
-      ],
-      "closureSize": 198,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-marketing-consent-marketing-consent-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/marketing-consent/marketing-consent-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/marketing-consent/marketing-consent-prompt.tsx"
-      ],
-      "closureSize": 198,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
-      ],
-      "closureSize": 206,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
-      ],
-      "closureSize": 206,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
-      ],
-      "closureSize": 206,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-milestone-share-milestone-share-prompt",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/milestone-share/milestone-share-prompt.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/milestone-share/milestone-share-prompt.tsx"
-      ],
-      "closureSize": 206,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "overlay-navigation-notification-detail-modal",
       "platform": "web",
       "kind": "overlay",
@@ -5278,7 +5278,7 @@
       "ownedFiles": [
         "apps/web/components/profile/profile-api-keys.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 239,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -5292,7 +5292,7 @@
       "ownedFiles": [
         "apps/web/components/profile/profile-api-keys.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 239,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -5306,7 +5306,7 @@
       "ownedFiles": [
         "apps/web/components/profile/profile-api-keys.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 239,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -5320,7 +5320,7 @@
       "ownedFiles": [
         "apps/web/components/profile/profile-api-keys.tsx"
       ],
-      "closureSize": 238,
+      "closureSize": 239,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -5446,7 +5446,7 @@
       "ownedFiles": [
         "apps/web/components/share/share-card-panel.tsx"
       ],
-      "closureSize": 205,
+      "closureSize": 206,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -5460,7 +5460,7 @@
       "ownedFiles": [
         "apps/web/components/share/share-card-panel.tsx"
       ],
-      "closureSize": 205,
+      "closureSize": 206,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -5474,7 +5474,7 @@
       "ownedFiles": [
         "apps/web/components/share/share-card-panel.tsx"
       ],
-      "closureSize": 205,
+      "closureSize": 206,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -5488,7 +5488,7 @@
       "ownedFiles": [
         "apps/web/components/share/share-card-panel.tsx"
       ],
-      "closureSize": 205,
+      "closureSize": 206,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"

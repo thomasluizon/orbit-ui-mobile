@@ -55,7 +55,7 @@ describe('goal server actions', () => {
         title: 'Learn TypeScript',
         targetValue: 100,
         unit: 'lessons',
-      })
+      }, null)
 
       expect(result).toEqual({ id: 'goal-1' })
       expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -71,7 +71,7 @@ describe('goal server actions', () => {
     it('includes auth headers', async () => {
       mockApiResponse({ id: 'goal-1' })
 
-      await createGoal({ title: 'Test Goal', targetValue: 100, unit: 'km' })
+      await createGoal({ title: 'Test Goal', targetValue: 100, unit: 'km' }, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
@@ -80,7 +80,7 @@ describe('goal server actions', () => {
     it('throws on non-OK response', async () => {
       mockApiResponse({ error: 'Title is required' }, 400)
 
-      await expect(createGoal({ title: '', targetValue: 0, unit: '' })).rejects.toThrow('Title is required')
+      await expect(createGoal({ title: '', targetValue: 0, unit: '' }, null)).rejects.toThrow('Title is required')
     })
   })
 
@@ -89,7 +89,7 @@ describe('goal server actions', () => {
     it('sends PUT to /api/goals/:id', async () => {
       mock204()
 
-      await updateGoal('goal-1', { title: 'Updated Goal', targetValue: 100, unit: 'km' })
+      await updateGoal('goal-1', { title: 'Updated Goal', targetValue: 100, unit: 'km' }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/goals/goal-1')
@@ -100,7 +100,7 @@ describe('goal server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Goal not found' }, 404)
 
-      await expect(updateGoal('nonexistent', { title: 'X', targetValue: 50, unit: 'km' })).rejects.toThrow(
+      await expect(updateGoal('nonexistent', { title: 'X', targetValue: 50, unit: 'km' }, null)).rejects.toThrow(
         'Goal not found',
       )
     })
@@ -111,7 +111,7 @@ describe('goal server actions', () => {
     it('sends DELETE to /api/goals/:id', async () => {
       mock204()
 
-      await deleteGoal('goal-1')
+      await deleteGoal('goal-1', null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/goals/goal-1')
@@ -121,7 +121,7 @@ describe('goal server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Not found' }, 404)
 
-      await expect(deleteGoal('nonexistent')).rejects.toThrow('Not found')
+      await expect(deleteGoal('nonexistent', null)).rejects.toThrow('Not found')
     })
   })
 
@@ -130,7 +130,7 @@ describe('goal server actions', () => {
     it('sends PUT to /api/goals/:id/progress', async () => {
       mock204()
 
-      await updateGoalProgress('goal-1', { currentValue: 50 })
+      await updateGoalProgress('goal-1', { currentValue: 50 }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/goals/goal-1/progress')
@@ -142,7 +142,7 @@ describe('goal server actions', () => {
       mockApiResponse({ error: 'Invalid value' }, 400)
 
       await expect(
-        updateGoalProgress('goal-1', { currentValue: -1 }),
+        updateGoalProgress('goal-1', { currentValue: -1 }, null),
       ).rejects.toThrow('Invalid value')
     })
   })
@@ -152,7 +152,7 @@ describe('goal server actions', () => {
     it('sends PUT to /api/goals/:id/status', async () => {
       mock204()
 
-      await updateGoalStatus('goal-1', { status: 'Completed' })
+      await updateGoalStatus('goal-1', { status: 'Completed' }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/goals/goal-1/status')
@@ -164,7 +164,7 @@ describe('goal server actions', () => {
       mockApiResponse({ error: 'Invalid status' }, 400)
 
       await expect(
-        updateGoalStatus('goal-1', { status: 'invalid' as never }),
+        updateGoalStatus('goal-1', { status: 'invalid' as never }, null),
       ).rejects.toThrow('Invalid status')
     })
   })
@@ -177,7 +177,7 @@ describe('goal server actions', () => {
       await reorderGoals([
         { id: 'goal-1', position: 1 },
         { id: 'goal-2', position: 0 },
-      ])
+      ], null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/goals/reorder')
@@ -193,7 +193,7 @@ describe('goal server actions', () => {
     it('handles empty positions array', async () => {
       mock204()
 
-      await reorderGoals([])
+      await reorderGoals([], null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ positions: [] })
@@ -205,7 +205,7 @@ describe('goal server actions', () => {
     it('sends PUT to /api/goals/:id/habits', async () => {
       mock204()
 
-      await linkHabitsToGoal('goal-1', ['h-1', 'h-2'])
+      await linkHabitsToGoal('goal-1', ['h-1', 'h-2'], null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/goals/goal-1/habits')
@@ -216,7 +216,7 @@ describe('goal server actions', () => {
     it('handles empty habit ids to unlink all', async () => {
       mock204()
 
-      await linkHabitsToGoal('goal-1', [])
+      await linkHabitsToGoal('goal-1', [], null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ habitIds: [] })
@@ -226,7 +226,7 @@ describe('goal server actions', () => {
       mockApiResponse({ error: 'Goal not found' }, 404)
 
       await expect(
-        linkHabitsToGoal('nonexistent', ['h-1']),
+        linkHabitsToGoal('nonexistent', ['h-1'], null),
       ).rejects.toThrow('Goal not found')
     })
   })
@@ -236,13 +236,13 @@ describe('goal server actions', () => {
     it('throws with error message from response body', async () => {
       mockApiResponse({ error: 'Goal not found' }, 404)
 
-      await expect(deleteGoal('nonexistent')).rejects.toThrow('Goal not found')
+      await expect(deleteGoal('nonexistent', null)).rejects.toThrow('Goal not found')
     })
 
     it('throws with message field from response body', async () => {
       mockApiResponse({ message: 'Validation failed' }, 400)
 
-      await expect(createGoal({ title: '', targetValue: 0, unit: '' })).rejects.toThrow('Validation failed')
+      await expect(createGoal({ title: '', targetValue: 0, unit: '' }, null)).rejects.toThrow('Validation failed')
     })
 
     it('throws with status code when no error body', async () => {
@@ -252,7 +252,7 @@ describe('goal server actions', () => {
         json: () => Promise.reject(new Error('No JSON')),
       })
 
-      await expect(deleteGoal('goal-1')).rejects.toThrow('500')
+      await expect(deleteGoal('goal-1', null)).rejects.toThrow('500')
     })
   })
 })

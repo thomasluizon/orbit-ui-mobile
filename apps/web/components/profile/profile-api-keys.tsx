@@ -19,6 +19,7 @@ import { StepUp } from '@/components/ui/step-up'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 interface ProfileApiKeysProps {
   profile: Profile | undefined
@@ -290,10 +291,11 @@ function useApiKeyStepUp() {
 
   async function start() {
     if (busy) return
+    const intendedAccountId = getHeldAccountId()
     setBusy(true)
     setError(false)
     try {
-      await requestApiKeyCreationChallenge()
+      await requestApiKeyCreationChallenge(intendedAccountId)
       beginStepUpChallenge('keys')
       router.push('/step-up?operation=keys')
     } catch {

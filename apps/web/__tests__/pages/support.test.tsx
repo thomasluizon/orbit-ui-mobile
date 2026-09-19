@@ -162,7 +162,7 @@ describe('SupportPage', () => {
       email: 'orbit@example.com',
       subject: problemLabel,
       message: 'The log disappeared\n\nOrbit 0.0.1',
-    }))
+    }, null))
   })
 
   it('uses the system inputs, including a six-row message and the disabled account email', () => {
@@ -246,7 +246,7 @@ describe('SupportPage', () => {
       email: 'orbit@example.com',
       subject: 'profile.support.subjects.problem.label',
       message: `${message}\n\nOrbit 0.0.1`,
-    }))
+    }, null))
   })
 
   it('keeps an oversized restored draft and refuses to send it', () => {
@@ -290,7 +290,7 @@ describe('SupportPage', () => {
       email: 'profile@example.com',
       subject: 'profile.support.subjects.problem.label',
       message: 'Message\n\nOrbit 0.0.1',
-    }))
+    }, null))
   })
 
   it('clears stale account errors when profile hydration supplies valid values', async () => {
@@ -344,7 +344,7 @@ describe('SupportPage', () => {
       email: 'orbit@example.com',
       subject: 'profile.support.subjects.account.label',
       message: 'Google button spins forever\n\nOrbit 0.0.1',
-    })
+    }, null)
     expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
     expect(announcer).toHaveTextContent('profile.support.success')
     expect(screen.getByRole('heading', { name: 'profile.support.success' })).toBeInTheDocument()

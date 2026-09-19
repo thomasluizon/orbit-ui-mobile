@@ -15,6 +15,7 @@ import {
   normalizeColorScheme,
   normalizeThemeMode,
 } from '@/lib/theme-dom'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
@@ -39,23 +40,25 @@ export function useColorScheme() {
   }, [currentScheme, currentTheme])
 
   const applyScheme = useCallback((scheme: ColorScheme, persistToDb = true) => {
+    const intendedAccountId = getHeldAccountId()
     setCookie('orbit_color_scheme', scheme)
     setCurrentScheme(scheme)
     applyThemeTokensToDOM(scheme, currentTheme, true)
 
     if (persistToDb) {
-      updateColorSchemeAction({ colorScheme: scheme }).catch(() => {})
+      updateColorSchemeAction({ colorScheme: scheme }, intendedAccountId).catch(() => {})
     }
   }, [currentTheme])
 
   const applyTheme = useCallback((theme: ThemeMode, persistToDb = true) => {
+    const intendedAccountId = getHeldAccountId()
     const prev = currentTheme
     setCookie('orbit_theme_mode', theme)
     setCurrentTheme(theme)
     applyThemeTokensToDOM(currentScheme, theme, true)
 
     if (persistToDb) {
-      updateThemePreferenceAction({ themePreference: theme }).catch((_err: unknown) => {
+      updateThemePreferenceAction({ themePreference: theme }, intendedAccountId).catch((_err: unknown) => {
         setCookie('orbit_theme_mode', prev)
         setCurrentTheme(prev)
         applyThemeTokensToDOM(currentScheme, prev, true)
@@ -92,7 +95,7 @@ export function useColorScheme() {
    */
   const detectAndSaveSchemeIfNeeded = useCallback((dbColorScheme: string | null) => {
     if (dbColorScheme !== null) return
-    updateColorSchemeAction({ colorScheme: currentScheme }).catch(() => {})
+    updateColorSchemeAction({ colorScheme: currentScheme }, getHeldAccountId()).catch(() => {})
   }, [currentScheme])
 
   /**
@@ -123,7 +126,7 @@ export function useColorScheme() {
     setCookie('orbit_theme_mode', detected)
     setCurrentTheme(detected)
     applyThemeTokensToDOM(currentScheme, detected)
-    updateThemePreferenceAction({ themePreference: detected }).catch(() => {})
+    updateThemePreferenceAction({ themePreference: detected }, getHeldAccountId()).catch(() => {})
   }, [currentScheme])
 
   return {

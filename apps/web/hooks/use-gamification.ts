@@ -1,11 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
@@ -24,6 +20,7 @@ import {
 } from '@orbit/shared/utils'
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
 import { fetchJson } from '@/lib/api-fetch'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { repairStreakGap, reportAchievementEvent } from '@/lib/actions/gamification'
 
 export function useGamificationProfile(enabled = true) {
@@ -139,8 +136,8 @@ export function useStreakFreeze(
 
 export function useRepairStreak(timeZone: string | null) {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (dates: string[]) => repairStreakGap(dates),
+  return useAccountScopedMutation({
+    mutationFn: (dates: string[], intendedAccountId) => repairStreakGap(dates, intendedAccountId),
     onSuccess: (streakInfo) => {
       queryClient.setQueryData(gamificationKeys.streak(timeZone), streakInfo)
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
@@ -166,8 +163,9 @@ export function useRepairStreak(timeZone: string | null) {
 export function useReportEvent() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: (eventKey: AchievementEventKey) => reportAchievementEvent(eventKey),
+  return useAccountScopedMutation({
+    mutationFn: (eventKey: AchievementEventKey, intendedAccountId) =>
+      reportAchievementEvent(eventKey, intendedAccountId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },

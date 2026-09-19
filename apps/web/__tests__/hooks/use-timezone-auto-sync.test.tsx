@@ -84,7 +84,7 @@ describe('web useTimezoneAutoSync', () => {
 
     const renderer = await renderHookHarness(mocks.state.profile)
 
-    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' }, null)
     expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(
       profileKeys.detail(),
       expect.any(Function),

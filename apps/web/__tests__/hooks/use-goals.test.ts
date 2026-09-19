@@ -210,7 +210,7 @@ describe('useCreateGoal', () => {
       title: 'New Goal',
       targetValue: 10,
       unit: 'items',
-    })
+    }, null)
   })
 })
 
@@ -238,7 +238,7 @@ describe('useUpdateGoal', () => {
       title: 'Updated',
       targetValue: 20,
       unit: 'books',
-    })
+    }, null)
   })
 })
 
@@ -259,7 +259,7 @@ describe('useDeleteGoal', () => {
       await result.current.mutateAsync('g-1')
     })
 
-    expect(mockedDeleteGoal).toHaveBeenCalledWith('g-1')
+    expect(mockedDeleteGoal).toHaveBeenCalledWith('g-1', null)
   })
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
@@ -286,7 +286,7 @@ describe('useDeleteGoal', () => {
       performUndo()
     })
 
-    await waitFor(() => expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1'))
+    await waitFor(() => expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', null))
   })
 })
 
@@ -314,7 +314,7 @@ describe('useRestoreGoal', () => {
       await result.current.mutateAsync('g-1')
     })
 
-    expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1')
+    expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', null)
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')
   })
@@ -363,7 +363,7 @@ describe('useUpdateGoalProgress', () => {
     expect(mockedUpdateProgress).toHaveBeenCalledWith('g-1', {
       currentValue: 5,
       note: 'Halfway',
-    })
+    }, null)
     expect(mockSetGoalCompleted).toHaveBeenCalledWith({
       name: 'Ship Orbit',
       count: 5,
@@ -440,7 +440,7 @@ describe('useUpdateGoalStatus', () => {
       })
     })
 
-    expect(mockedUpdateStatus).toHaveBeenCalledWith('g-1', { status: 'Completed' })
+    expect(mockedUpdateStatus).toHaveBeenCalledWith('g-1', { status: 'Completed' }, null)
     expect(mockSetGoalCompleted).toHaveBeenCalledWith({
       name: 'Ship Orbit',
       count: 12,
@@ -535,7 +535,7 @@ describe('useReorderGoals', () => {
       await result.current.mutateAsync(positions)
     })
 
-    expect(mockedReorder).toHaveBeenCalledWith(positions)
+    expect(mockedReorder).toHaveBeenCalledWith(positions, null)
   })
 
   it('rolls back on error', async () => {
@@ -579,6 +579,6 @@ describe('useLinkHabitsToGoal', () => {
       })
     })
 
-    expect(mockedLink).toHaveBeenCalledWith('g-1', ['h-1', 'h-2'])
+    expect(mockedLink).toHaveBeenCalledWith('g-1', ['h-1', 'h-2'], null)
   })
 })

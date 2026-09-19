@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, goalKeys, profileKeys, gamificationKeys } from '@orbit/shared/query'
 import { applyOnboarding } from '@/lib/actions/onboarding'
+import { getHeldAccountId } from '@/stores/auth-store'
 import { useProfile } from '@/hooks/use-profile'
 import { subscribeToPushNotifications } from '@/hooks/use-push-notification-preferences'
 import {
@@ -39,7 +40,7 @@ export function useOnboardingFlush(): void {
     const store = useOnboardingDraftStore.getState()
 
     let onboardingApplied = false
-    void applyOnboarding(store.buildApplyPayload())
+    void applyOnboarding(store.buildApplyPayload(), getHeldAccountId())
       .then(async () => {
         onboardingApplied = true
         if (pushPermissionGranted) {

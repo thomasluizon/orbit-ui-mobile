@@ -44,7 +44,7 @@ describe('auth server actions', () => {
     it('sends POST to /api/auth/request-deletion', async () => {
       mockApiResponse({ message: 'Deletion code sent' })
 
-      await requestDeletion()
+      await requestDeletion(null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/auth/request-deletion')
@@ -54,7 +54,7 @@ describe('auth server actions', () => {
     it('includes auth headers', async () => {
       mockApiResponse({ message: 'Deletion code sent' })
 
-      await requestDeletion()
+      await requestDeletion(null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
@@ -63,13 +63,13 @@ describe('auth server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Not authenticated' }, 401)
 
-      await expect(requestDeletion()).rejects.toThrow('Not authenticated')
+      await expect(requestDeletion(null)).rejects.toThrow('Not authenticated')
     })
 
     it('throws on rate limit', async () => {
       mockApiResponse({ error: 'Too many requests' }, 429)
 
-      await expect(requestDeletion()).rejects.toThrow('Too many requests')
+      await expect(requestDeletion(null)).rejects.toThrow('Too many requests')
     })
   })
 
@@ -81,7 +81,7 @@ describe('auth server actions', () => {
         scheduledDeletionAt: '2025-02-15T00:00:00Z',
       })
 
-      const result = await confirmDeletion('123456')
+      const result = await confirmDeletion('123456', null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/auth/confirm-deletion')
@@ -102,7 +102,7 @@ describe('auth server actions', () => {
         scheduledDeletionAt: '2025-02-15T00:00:00Z',
       })
 
-      await confirmDeletion('123456')
+      await confirmDeletion('123456', null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
@@ -115,7 +115,7 @@ describe('auth server actions', () => {
         json: () => Promise.reject(new Error('No body')),
       })
 
-      await expect(confirmDeletion('123456')).resolves.toEqual({
+      await expect(confirmDeletion('123456', null)).resolves.toEqual({
         success: false,
         errorCode: 'INVALID_RESPONSE_SCHEMA',
         remaining: null,
@@ -128,7 +128,7 @@ describe('auth server actions', () => {
         errorCode: 'INVALID_VERIFICATION_CODE',
       }, 400)
 
-      await expect(confirmDeletion('000000')).resolves.toEqual({
+      await expect(confirmDeletion('000000', null)).resolves.toEqual({
         success: false,
         errorCode: 'INVALID_VERIFICATION_CODE',
         remaining: null,
@@ -138,7 +138,7 @@ describe('auth server actions', () => {
     it('returns a generic serializable result on server error', async () => {
       mockApiResponse({ error: 'Internal error' }, 500)
 
-      await expect(confirmDeletion('123456')).resolves.toEqual({
+      await expect(confirmDeletion('123456', null)).resolves.toEqual({
         success: false,
         errorCode: null,
         remaining: null,
@@ -153,7 +153,7 @@ describe('auth server actions', () => {
         refreshFailed: true,
       })
 
-      await expect(confirmDeletionAction('123456')).resolves.toEqual({
+      await expect(confirmDeletionAction('123456', null)).resolves.toEqual({
         ok: false,
         error: 'Unauthorized',
         status: 401,
@@ -167,13 +167,13 @@ describe('auth server actions', () => {
     it('throws with error message from response body', async () => {
       mockApiResponse({ error: 'Forbidden' }, 403)
 
-      await expect(requestDeletion()).rejects.toThrow('Forbidden')
+      await expect(requestDeletion(null)).rejects.toThrow('Forbidden')
     })
 
     it('returns a generic result for a failure with only a message', async () => {
       mockApiResponse({ message: 'Validation failed' }, 400)
 
-      await expect(confirmDeletion('')).resolves.toEqual({
+      await expect(confirmDeletion('', null)).resolves.toEqual({
         success: false,
         errorCode: null,
         remaining: null,
@@ -187,7 +187,7 @@ describe('auth server actions', () => {
         json: () => Promise.reject(new Error('No JSON')),
       })
 
-      await expect(requestDeletion()).rejects.toThrow('500')
+      await expect(requestDeletion(null)).rejects.toThrow('500')
     })
   })
 })

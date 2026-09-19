@@ -155,7 +155,7 @@ describe('live onboarding actions', () => {
   it('optimistically patches the profile week-start day then persists and invalidates', async () => {
     const { result } = renderHook(() => useLiveOnboardingActions())
     await result.current.setWeekStartDay(0)
-    expect(mocks.updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 })
+    expect(mocks.updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 }, null)
     expect(mocks.invalidateQueries).toHaveBeenCalled()
     const updater = mocks.setQueryData.mock.calls[0]![1] as (old: unknown) => unknown
     expect(updater({ weekStartDay: 1 })).toMatchObject({ weekStartDay: 0 })

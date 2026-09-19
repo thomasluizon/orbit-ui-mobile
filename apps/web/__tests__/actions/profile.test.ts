@@ -52,7 +52,7 @@ describe('profile server actions', () => {
     it('sends PUT to /api/profile/timezone', async () => {
       mock204()
 
-      await updateTimezone({ timeZone: 'America/Sao_Paulo' })
+      await updateTimezone({ timeZone: 'America/Sao_Paulo' }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/profile/timezone')
@@ -63,7 +63,7 @@ describe('profile server actions', () => {
     it('includes auth headers', async () => {
       mock204()
 
-      await updateTimezone({ timeZone: 'UTC' })
+      await updateTimezone({ timeZone: 'UTC' }, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
@@ -73,7 +73,7 @@ describe('profile server actions', () => {
       mockApiResponse({ error: 'Invalid timezone' }, 400)
 
       await expect(
-        updateTimezone({ timeZone: 'Invalid/Zone' }),
+        updateTimezone({ timeZone: 'Invalid/Zone' }, null),
       ).rejects.toThrow('Invalid timezone')
     })
   })
@@ -83,7 +83,7 @@ describe('profile server actions', () => {
     it('sends PUT to /api/profile/language', async () => {
       mock204()
 
-      await updateLanguage({ language: 'pt-BR' })
+      await updateLanguage({ language: 'pt-BR' }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/profile/language')
@@ -95,7 +95,7 @@ describe('profile server actions', () => {
       mockApiResponse({ error: 'Unsupported language' }, 400)
 
       await expect(
-        updateLanguage({ language: 'xx' as never }),
+        updateLanguage({ language: 'xx' as never }, null),
       ).rejects.toThrow('Unsupported language')
     })
   })
@@ -106,7 +106,7 @@ describe('profile server actions', () => {
     it('sends PUT to /api/profile/ai-summary', async () => {
       mock204()
 
-      await updateAiSummary({ enabled: true })
+      await updateAiSummary({ enabled: true }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/profile/ai-summary')
@@ -117,7 +117,7 @@ describe('profile server actions', () => {
     it('sends false value', async () => {
       mock204()
 
-      await updateAiSummary({ enabled: false })
+      await updateAiSummary({ enabled: false }, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ enabled: false })
@@ -129,7 +129,7 @@ describe('profile server actions', () => {
     it('sends PUT to /api/profile/week-start-day', async () => {
       mock204()
 
-      await updateWeekStartDay({ weekStartDay: 1 })
+      await updateWeekStartDay({ weekStartDay: 1 }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/profile/week-start-day')
@@ -140,7 +140,7 @@ describe('profile server actions', () => {
     it('handles Sunday value', async () => {
       mock204()
 
-      await updateWeekStartDay({ weekStartDay: 0 })
+      await updateWeekStartDay({ weekStartDay: 0 }, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ weekStartDay: 0 })
@@ -150,7 +150,7 @@ describe('profile server actions', () => {
       mockApiResponse({ error: 'Invalid day' }, 400)
 
       await expect(
-        updateWeekStartDay({ weekStartDay: 'Invalid' as never }),
+        updateWeekStartDay({ weekStartDay: 'Invalid' as never }, null),
       ).rejects.toThrow('Invalid day')
     })
   })
@@ -160,7 +160,7 @@ describe('profile server actions', () => {
     it('sends PUT to /api/profile/theme-preference', async () => {
       mock204()
 
-      await updateThemePreference({ themePreference: 'dark' })
+      await updateThemePreference({ themePreference: 'dark' }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/profile/theme-preference')
@@ -171,7 +171,7 @@ describe('profile server actions', () => {
     it('handles light theme', async () => {
       mock204()
 
-      await updateThemePreference({ themePreference: 'light' })
+      await updateThemePreference({ themePreference: 'light' }, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ themePreference: 'light' })
@@ -183,7 +183,7 @@ describe('profile server actions', () => {
     it('sends PUT to /api/profile/color-scheme', async () => {
       mock204()
 
-      await updateColorScheme({ colorScheme: 'ocean' })
+      await updateColorScheme({ colorScheme: 'ocean' }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/profile/color-scheme')
@@ -195,7 +195,7 @@ describe('profile server actions', () => {
       mockApiResponse({ error: 'Invalid color scheme' }, 400)
 
       await expect(
-        updateColorScheme({ colorScheme: 'invalid' as never }),
+        updateColorScheme({ colorScheme: 'invalid' as never }, null),
       ).rejects.toThrow('Invalid color scheme')
     })
   })
@@ -205,7 +205,7 @@ describe('profile server actions', () => {
     it('sends PUT to /api/profile/onboarding with no body', async () => {
       mock204()
 
-      await completeOnboarding()
+      await completeOnboarding(null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/profile/onboarding')
@@ -215,7 +215,7 @@ describe('profile server actions', () => {
     it('includes auth headers', async () => {
       mock204()
 
-      await completeOnboarding()
+      await completeOnboarding(null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
@@ -224,7 +224,7 @@ describe('profile server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Not authenticated' }, 401)
 
-      await expect(completeOnboarding()).rejects.toThrow('Not authenticated')
+      await expect(completeOnboarding(null)).rejects.toThrow('Not authenticated')
     })
   })
 
@@ -233,7 +233,7 @@ describe('profile server actions', () => {
     it('sends POST to /api/profile/reset', async () => {
       mock204()
 
-      await resetAccount()
+      await resetAccount(null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/profile/reset')
@@ -243,7 +243,7 @@ describe('profile server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Forbidden' }, 403)
 
-      await expect(resetAccount()).rejects.toThrow('Forbidden')
+      await expect(resetAccount(null)).rejects.toThrow('Forbidden')
     })
   })
 
@@ -252,7 +252,7 @@ describe('profile server actions', () => {
     it('sends PUT to /api/calendar/dismiss', async () => {
       mock204()
 
-      await dismissCalendarImport()
+      await dismissCalendarImport(null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/calendar/dismiss')
@@ -262,7 +262,7 @@ describe('profile server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Server error' }, 500)
 
-      await expect(dismissCalendarImport()).rejects.toThrow('Server error')
+      await expect(dismissCalendarImport(null)).rejects.toThrow('Server error')
     })
   })
 
@@ -271,14 +271,14 @@ describe('profile server actions', () => {
     it('throws with error message from response body', async () => {
       mockApiResponse({ error: 'Not authenticated' }, 401)
 
-      await expect(resetAccount()).rejects.toThrow('Not authenticated')
+      await expect(resetAccount(null)).rejects.toThrow('Not authenticated')
     })
 
     it('throws with message field from response body', async () => {
       mockApiResponse({ message: 'Validation failed' }, 400)
 
       await expect(
-        updateTimezone({ timeZone: '' }),
+        updateTimezone({ timeZone: '' }, null),
       ).rejects.toThrow('Validation failed')
     })
 
@@ -289,7 +289,7 @@ describe('profile server actions', () => {
         json: () => Promise.reject(new Error('No JSON')),
       })
 
-      await expect(resetAccount()).rejects.toThrow('500')
+      await expect(resetAccount(null)).rejects.toThrow('500')
     })
   })
 })

@@ -276,7 +276,7 @@ describe('useColorScheme', () => {
       result.current.detectAndSaveThemeIfNeeded(null)
     })
 
-    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' })
+    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' }, null)
   })
 
   it('detectAndSaveThemeIfNeeded persists detected theme when DB is undefined', async () => {
@@ -290,7 +290,7 @@ describe('useColorScheme', () => {
       result.current.detectAndSaveThemeIfNeeded(undefined)
     })
 
-    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' })
+    expect(mock).toHaveBeenCalledWith({ themePreference: 'dark' }, null)
   })
 
   it('applyTheme persists to DB by default', async () => {
@@ -304,7 +304,7 @@ describe('useColorScheme', () => {
       result.current.applyTheme('light')
     })
 
-    expect(mock).toHaveBeenCalledWith({ themePreference: 'light' })
+    expect(mock).toHaveBeenCalledWith({ themePreference: 'light' }, null)
   })
 
   it('applyTheme skips persistence when persistToDb is false', async () => {

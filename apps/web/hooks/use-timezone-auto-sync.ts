@@ -5,10 +5,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { updateTimezone } from '@/lib/actions/profile'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 async function syncTimezoneIfNeeded(
   queryClient: ReturnType<typeof useQueryClient>,
 ): Promise<void> {
+  const intendedAccountId = getHeldAccountId()
   const current = queryClient.getQueryData<Profile>(profileKeys.detail())
   if (!current) return
 
@@ -16,7 +18,7 @@ async function syncTimezoneIfNeeded(
   if (!detected || detected === 'UTC' || current.timeZone != null) return
 
   try {
-    await updateTimezone({ timeZone: detected })
+    await updateTimezone({ timeZone: detected }, intendedAccountId)
     queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
       old ? { ...old, timeZone: detected } : old,
     )

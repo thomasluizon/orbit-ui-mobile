@@ -83,7 +83,7 @@ describe('AiSettingsPage', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'toggle-summary' }))
     expect(patchProfile).toHaveBeenCalledWith({ aiSummaryEnabled: true })
-    await waitFor(() => expect(updateAiSummary).toHaveBeenCalledWith({ enabled: true }))
+    await waitFor(() => expect(updateAiSummary).toHaveBeenCalledWith({ enabled: true }, null))
   })
 
   it('routes free users to upgrade from a locked surviving row', () => {

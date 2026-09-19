@@ -18,6 +18,7 @@ import {
   completeOnboarding,
   updateWeekStartDay as updateWeekStartDayAction,
 } from '@/lib/actions/profile'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 /** Canonical mode-blind action surface consumed by every onboarding step. */
 export interface OnboardingActions {
@@ -147,14 +148,16 @@ export function useLiveOnboardingActions(): OnboardingActions {
       logHabit: async (habitId) => { await logHabit.mutateAsync({ habitId, intent: 'log' }) },
       createGoal: async (input) => { await createGoal.mutateAsync(input) },
       setWeekStartDay: async (day) => {
+        const intendedAccountId = getHeldAccountId()
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) => old ? { ...old, weekStartDay: day } : old)
-        await updateWeekStartDayAction({ weekStartDay: day })
+        await updateWeekStartDayAction({ weekStartDay: day }, intendedAccountId)
         void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       },
       deferPushRegistration: () => undefined,
       finishOnboarding: async () => {
+        const intendedAccountId = getHeldAccountId()
         try {
-          await completeOnboarding()
+          await completeOnboarding(intendedAccountId)
         } catch {
           void 0
         }
