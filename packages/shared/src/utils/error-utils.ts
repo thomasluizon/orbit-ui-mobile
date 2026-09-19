@@ -278,7 +278,7 @@ const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: ['unit', '50'], key: 'goals.form.unitTooLong', contexts: GOAL_CONTEXTS },
   { includes: ['target value'], key: 'goals.form.targetValueRequired', contexts: GOAL_CONTEXTS },
   { includes: ['new value', 'greater than or equal to'], key: 'goals.form.progressValueInvalid', contexts: GOAL_CONTEXTS },
-  { includes: ['linked habits'], key: 'goals.form.habitLimit', contexts: GOAL_CONTEXTS },
+  { includes: ['at most', 'linked habits'], key: 'goals.form.habitLimit', contexts: GOAL_CONTEXTS },
 
   { includes: ['name', 'must not be empty'], key: 'habits.form.tagNameRequired', contexts: TAG_CONTEXTS },
   { includes: ['name', '50'], key: 'habits.form.tagNameTooLong', contexts: TAG_CONTEXTS },

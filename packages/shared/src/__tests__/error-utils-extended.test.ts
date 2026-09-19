@@ -485,6 +485,38 @@ describe('getFriendlyErrorKey resolves a rewritten form error by its code', () =
 })
 
 
+/**
+ * A rewrite can also make a sentence match a rule it was never meant for, and a contextual match
+ * wins over the error code. `ErrorCopy.cs:121` gives `GOAL_PROGRESS_DERIVED` a sentence carrying
+ * `linked habits`, which the goal habit-limit rule read as a limit failure. The only producer of
+ * the real limit sentence is `LinkHabitsToGoalCommandValidator.cs:15`, whose message also carries
+ * `at most`, so the rule keeps both substrings and the derived-progress sentence falls through.
+ */
+describe('a rewritten sentence does not borrow another rule', () => {
+  const GOAL_PROGRESS_DERIVED_SENTENCE =
+    'This goal counts progress from its linked habits, so it cannot be set by hand.'
+  const HABIT_LIMIT_SENTENCE = 'A goal can have at most 20 linked habits.'
+
+  it.each(['goal', 'goalProgress'] as const)(
+    'resolves GOAL_PROGRESS_DERIVED to the caller fallback in a %s context, never the habit limit',
+    (context) => {
+      const err = codedError('GOAL_PROGRESS_DERIVED', GOAL_PROGRESS_DERIVED_SENTENCE)
+      const key = getFriendlyErrorKey(err, 'goals.errors.progress', context)
+      expect(key).not.toBe('goals.form.habitLimit')
+      expect(key).toBe('goals.errors.progress')
+    },
+  )
+
+  it.each(['goal', 'goalProgress'] as const)(
+    'still resolves the real linked-habit limit sentence in a %s context',
+    (context) => {
+      const err = validationFailure('HabitIds', HABIT_LIMIT_SENTENCE)
+      expect(getFriendlyErrorKey(err, 'goals.errors.progress', context)).toBe('goals.form.habitLimit')
+    },
+  )
+})
+
+
 describe('getFriendlyErrorMessage (extended)', () => {
   const translate = (key: string) => `t:${key}`
 
