@@ -33,6 +33,8 @@ vi.mock('@/lib/actions/profile', () => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
+
 
 
 import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
@@ -230,6 +232,22 @@ describe('FreshStartModal', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(mockResetAccount).not.toHaveBeenCalled()
+  })
+
+  it('cancels through the exit transition rather than dropping the sheet', () => {
+    sheetTestControls.defer(true)
+    const onOpenChange = vi.fn()
+    render(<FreshStartModal open onOpenChange={onOpenChange} />)
+
+    fireEvent.click(screen.getByText('common.cancel'))
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    sheetTestControls.completeDismissal()
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    sheetTestControls.defer(false)
   })
 
   it('resets state when the sheet closes', () => {

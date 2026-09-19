@@ -152,7 +152,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
           <FreshStartInfoStep
             deletedItems={deletedItems}
             preservedItems={preservedItems}
-            onCancel={() => handleOpenChange(false)}
+            onCancel={() => closeSheet()}
             onContinue={() => setStep('confirm')}
           />
         ) : (
@@ -162,7 +162,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             isConfirmed={isConfirmed}
             loading={loading}
             error={error}
-            onCancel={() => handleOpenChange(false)}
+            onCancel={() => closeSheet()}
             onReset={() => void handleReset()}
           />
         )}
