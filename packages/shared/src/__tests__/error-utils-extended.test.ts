@@ -333,13 +333,13 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
   })
 
   it('maps sub-habit title required error', () => {
-    const err = validationFailure('SubHabits[0].Title', 'Sub-habit title must not be empty')
+    const err = validationFailure('SubHabits[0]', 'Sub-habit title must not be empty')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe('habits.form.subHabitTitleRequired')
   })
 
   it('maps a sub-habit title over its limit to the sub-habit key, not the habit one', () => {
     const err = validationFailure(
-      'SubHabits[0].Title',
+      'SubHabits[0]',
       'Sub-habit title must not exceed 200 characters',
     )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe(
@@ -349,7 +349,7 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
 
   it('maps a nested sub-habit title over its limit while the form is creating a habit', () => {
     const err = validationFailure(
-      'SubHabits[0].Title',
+      'SubHabits[0]',
       'Sub-habit title must not exceed 200 characters',
     )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe(
