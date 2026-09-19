@@ -193,7 +193,29 @@ describe('translateErrorKey (extended)', () => {
     expect(translateErrorKey(translate, '')).toBeNull()
   })
 })
+/**
+ * Builds the body `orbit-api` sends for a coded failure: `ErrorResponse` serializes exactly
+ * `error` and `errorCode`, and `LocalizedErrorResultFilter` swaps `error` for the localized copy
+ * selected by `errorCode`. The English sentences below are read from `ErrorCopy` on
+ * `thomasluizon/orbit-api` PR 532 (`feature/ticket-75-emails`).
+ */
+function codedError(errorCode: string, error: string) {
+  return createApiClientError(400, { error, errorCode }, 'Request failed')
+}
 
+/**
+ * Builds the body `ValidationExceptionHandler` sends for a FluentValidation failure. It carries
+ * no error code at all, so the English sentence is the only handle the client has. The messages
+ * below are the real `WithMessage` text, or FluentValidation 12.1.1's English default for the
+ * rule, read from the installed `FluentValidation.dll`.
+ */
+function validationFailure(property: string, message: string) {
+  return createApiClientError(
+    400,
+    { type: 'ValidationFailure', status: 400, requestId: 'req-1', errors: { [property]: [message] } },
+    'Validation failed',
+  )
+}
 
 describe('getFriendlyErrorKey (extended coverage)', () => {
   it('maps TOO_MANY_ATTEMPTS code', () => {
@@ -244,153 +266,161 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('toast.errors.notFound')
   })
 
-  it('maps title required for habit context', () => {
-    const err = createApiClientError(400, { error: 'Title is required' }, 'fallback')
+  it('maps an empty habit title from the validator', () => {
+    const err = validationFailure('Title', "'Title' must not be empty.")
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.titleRequired')
   })
 
-  it('maps title too long (200) for habit context', () => {
-    const err = createApiClientError(400, { error: 'Title must be at most 200 characters' }, 'fallback')
+  it('maps a habit title over 200 characters from the validator', () => {
+    const err = validationFailure(
+      'Title',
+      "The length of 'Title' must be 200 characters or fewer. You entered 201 characters.",
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.titleTooLong')
   })
 
-  it('maps description too long for habit context', () => {
-    const err = createApiClientError(400, { error: 'Description must be at most 2000 characters' }, 'fallback')
+  it('maps a habit description over 10000 characters from the validator', () => {
+    const err = validationFailure(
+      'Description',
+      "The length of 'Description' must be 10000 characters or fewer. You entered 10001 characters.",
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.descriptionTooLong')
   })
 
   it('maps frequency quantity required for habit context', () => {
-    const err = createApiClientError(400, { error: 'Frequency quantity is required' }, 'fallback')
+    const err = validationFailure(
+      'FrequencyQuantity',
+      'Frequency quantity is required when frequency unit is set',
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.frequencyRequired')
   })
 
   it('maps days only for daily habit context', () => {
-    const err = createApiClientError(400, { error: 'Days can only be specified for daily habits' }, 'fallback')
+    const err = validationFailure(
+      'Days',
+      'Days can only be specified for a daily habit (frequency unit Day, quantity 1)',
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.daysOnlyForDaily')
   })
 
-  it('maps general bad habit error', () => {
-    const err = createApiClientError(400, { error: 'General habits cannot be bad habits' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.generalBadHabit')
-  })
-
   it('maps checklist item text error', () => {
-    const err = createApiClientError(400, { error: 'Checklist item text is too long' }, 'fallback')
+    const err = validationFailure(
+      'ChecklistItems',
+      'Checklist item text must not exceed 500 characters',
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.checklistItemTooLong')
   })
 
-  it('maps duplicate scheduled reminders error', () => {
-    const err = createApiClientError(400, { error: 'Scheduled reminders must not contain duplicate times' }, 'fallback')
+  it('maps duplicate scheduled reminders from the validator', () => {
+    const err = validationFailure(
+      'ScheduledReminders',
+      'Scheduled reminders must not contain duplicate entries',
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.duplicateScheduledReminder')
   })
 
-  it('maps scheduled reminder duplicate alternative wording', () => {
-    const err = createApiClientError(400, { error: 'Scheduled reminder has duplicate entries' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.duplicateScheduledReminder')
-  })
-
-  it('maps scheduled reminder max error', () => {
-    const err = createApiClientError(400, { error: 'Scheduled reminder at most 5 allowed' }, 'fallback')
+  it('maps the scheduled reminder ceiling from the validator', () => {
+    const err = validationFailure(
+      'ScheduledReminders',
+      'A habit can have at most 5 scheduled reminders',
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.scheduledReminderMax')
   })
 
   it('maps sub-habit limit error', () => {
-    const err = createApiClientError(400, { error: 'A habit can have at most 20 sub-habit entries' }, 'fallback')
+    const err = validationFailure('SubHabits', 'A habit can have at most 20 sub-habits')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.subHabitLimit')
   })
 
   it('maps sub-habit title required error', () => {
-    const err = createApiClientError(400, { error: 'Sub-habit title cannot be empty' }, 'fallback')
+    const err = validationFailure('SubHabits[0].Title', 'Sub-habit title must not be empty')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe('habits.form.subHabitTitleRequired')
   })
 
   it('maps sub-habit title too long via title+200 check', () => {
-    const err = createApiClientError(400, { error: 'Sub-habit title must be at most 200 characters' }, 'fallback')
+    const err = validationFailure(
+      'SubHabits[0].Title',
+      'Sub-habit title must not exceed 200 characters',
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe('habits.form.titleTooLong')
   })
 
   it('maps linked goals limit for habit', () => {
-    const err = createApiClientError(400, { error: 'Too many linked goals' }, 'fallback')
+    const err = validationFailure('GoalIds', 'A habit can have at most 10 linked goals.')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.goalLimit')
   })
 
   it('maps at most 5 tags for habit', () => {
-    const err = createApiClientError(400, { error: 'A habit can have at most 5 tags' }, 'fallback')
+    const err = validationFailure('Tags', 'A habit can have at most 5 tags')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.tagLimit')
   })
 
   it('maps already logged error', () => {
-    const err = createApiClientError(400, { error: 'Habit already logged for this date' }, 'fallback')
+    const err = createApiClientError(400, { error: 'You already logged this habit on that day.' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habitLog')).toBe('habits.errors.alreadyLogged')
   })
 
-  it('maps max depth reached', () => {
-    const err = createApiClientError(400, { error: 'Max depth reached for nesting' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.errors.maxDepthReached')
-  })
-
-  it('maps circular reference', () => {
-    const err = createApiClientError(400, { error: 'Circular reference detected' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.errors.circularReference')
-  })
-
-  it('maps title required for goal context', () => {
-    const err = createApiClientError(400, { error: 'Title is required' }, 'fallback')
+  it('maps an empty goal title from the validator', () => {
+    const err = validationFailure('Title', "'Title' must not be empty.")
     expect(getFriendlyErrorKey(err, 'errors.generic', 'goal')).toBe('goals.form.titleRequired')
   })
 
-  it('maps title too long (200) for goal context', () => {
-    const err = createApiClientError(400, { error: 'Title must be at most 200 characters' }, 'fallback')
+  it('maps a goal title over 200 characters from the validator', () => {
+    const err = validationFailure(
+      'Title',
+      "The length of 'Title' must be 200 characters or fewer. You entered 201 characters.",
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'goal')).toBe('goals.form.titleTooLong')
   })
 
-  it('maps unit required for goal context', () => {
-    const err = createApiClientError(400, { error: 'Unit is required' }, 'fallback')
+  it('maps an empty goal unit from the validator', () => {
+    const err = validationFailure('Unit', "'Unit' must not be empty.")
     expect(getFriendlyErrorKey(err, 'errors.generic', 'goal')).toBe('goals.form.unitRequired')
   })
 
-  it('maps unit too long (50) for goal context', () => {
-    const err = createApiClientError(400, { error: 'Unit must be at most 50 characters' }, 'fallback')
+  it('maps a goal unit over 50 characters from the validator', () => {
+    const err = validationFailure(
+      'Unit',
+      "The length of 'Unit' must be 50 characters or fewer. You entered 51 characters.",
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'goal')).toBe('goals.form.unitTooLong')
   })
 
-  it('maps target value required for goal context', () => {
-    const err = createApiClientError(400, { error: 'Target value must be greater than 0' }, 'fallback')
+  it('maps a non-positive target value from the validator', () => {
+    const err = validationFailure('TargetValue', "'Target Value' must be greater than '0'.")
     expect(getFriendlyErrorKey(err, 'errors.generic', 'goal')).toBe('goals.form.targetValueRequired')
   })
 
-  it('maps progress value invalid for goalProgress', () => {
-    const err = createApiClientError(400, { error: 'New value must be greater than or equal to 0' }, 'fallback')
+  it('maps a negative progress value from the validator', () => {
+    const err = validationFailure('NewValue', "'New Value' must be greater than or equal to '0'.")
     expect(getFriendlyErrorKey(err, 'errors.generic', 'goalProgress')).toBe('goals.form.progressValueInvalid')
   })
 
   it('maps linked habits limit for goal context', () => {
-    const err = createApiClientError(400, { error: 'Too many linked habits' }, 'fallback')
+    const err = validationFailure('HabitIds', 'A goal can have at most 20 linked habits.')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'goal')).toBe('goals.form.habitLimit')
   })
 
-  it('maps name required for tag context', () => {
-    const err = createApiClientError(400, { error: 'Tag name is required' }, 'fallback')
+  it('maps an empty tag name from the validator', () => {
+    const err = validationFailure('Name', "'Name' must not be empty.")
     expect(getFriendlyErrorKey(err, 'errors.generic', 'tag')).toBe('habits.form.tagNameRequired')
   })
 
-  it('maps name too long (50) for tag context', () => {
-    const err = createApiClientError(400, { error: 'Tag name must be at most 50 characters' }, 'fallback')
+  it('maps a tag name over 50 characters from the validator', () => {
+    const err = validationFailure(
+      'Name',
+      "The length of 'Name' must be 50 characters or fewer. You entered 51 characters.",
+    )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'tag')).toBe('habits.form.tagNameTooLong')
   })
 
-  it('maps invalid verification code for auth context', () => {
-    const err = createApiClientError(400, { error: 'Invalid verification code' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'auth')).toBe('auth.errors.invalidCode')
-  })
-
-  it('maps invalid code (short) for auth context', () => {
-    const err = createApiClientError(400, { error: 'The invalid code was rejected' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'auth')).toBe('auth.errors.invalidCode')
+  it('maps an invalid tag colour from the validator', () => {
+    const err = validationFailure('Color', 'Color must be a valid hex color (e.g. #FF5733)')
+    expect(getFriendlyErrorKey(err, 'errors.generic', 'tag')).toBe('habits.form.tagColorInvalid')
   })
 
   it('maps expired code for auth context', () => {
-    const err = createApiClientError(400, { error: 'Code has expired' }, 'fallback')
+    const err = createApiClientError(400, { error: 'That code expired. Ask for a new one.' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'auth')).toBe('auth.errors.codeExpired')
   })
 
@@ -406,6 +436,55 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
 })
 
 
+/**
+ * orbit-api PR 532 rewrites the English sentence behind every error code, so a form error can no
+ * longer be recognised by its prose. Each case below sends the REWRITTEN sentence with its code
+ * and expects the specific key, never the caller's fallback. Remove the code entry and the case
+ * returns `errors.generic`, which is the defect this suite exists to catch.
+ */
+describe('getFriendlyErrorKey resolves a rewritten form error by its code', () => {
+  it('resolves TITLE_REQUIRED to the habit key in a habit context', () => {
+    const err = codedError('TITLE_REQUIRED', 'Give this a title.')
+    expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.titleRequired')
+  })
+
+  it('resolves TITLE_REQUIRED to the goal key in a goal context', () => {
+    const err = codedError('TITLE_REQUIRED', 'Give this a title.')
+    expect(getFriendlyErrorKey(err, 'errors.generic', 'goal')).toBe('goals.form.titleRequired')
+  })
+
+  it.each([
+    ['UNIT_REQUIRED', 'Name what you are counting, such as pages or minutes.', 'goal', 'goals.form.unitRequired'],
+    ['TARGET_VALUE_INVALID', 'Set the target above 0.', 'goal', 'goals.form.targetValueRequired'],
+    ['TAG_NAME_REQUIRED', 'Enter a tag name.', 'tag', 'habits.form.tagNameRequired'],
+    ['DUPLICATE_SCHEDULED_REMINDERS', 'Two reminders point at the same moment. Change one of them.', 'habit', 'habits.form.duplicateScheduledReminder'],
+    ['MAX_SCHEDULED_REMINDERS', 'A habit holds 5 scheduled reminders. Remove one to add another.', 'habit', 'habits.form.scheduledReminderMax'],
+    ['GENERAL_HABIT_IS_BAD', 'A general habit cannot be one you are quitting.', 'habit', 'habits.form.generalBadHabit'],
+  ] as const)('resolves %s to its own key', (errorCode, sentence, context, expected) => {
+    const err = codedError(errorCode, sentence)
+    expect(getFriendlyErrorKey(err, 'errors.generic', context)).toBe(expected)
+  })
+
+  it.each([
+    ['DAYS_REQUIRE_QUANTITY_ONE', 'Specific days work only when the habit repeats once a day. Set it to once a day, or clear the days.', 'habit', 'habits.form.daysOnlyForDaily'],
+    ['FREQUENCY_QUANTITY_INVALID', 'Set the frequency to 1 or more.', 'habit', 'habits.form.frequencyRequired'],
+    ['TAG_COLOR_REQUIRED', 'Pick a colour for the tag.', 'tag', 'habits.form.tagColorInvalid'],
+    ['PROGRESS_NEGATIVE', 'Progress cannot go below 0.', 'goalProgress', 'goals.form.progressValueInvalid'],
+  ] as const)('resolves %s, whose sentence rule also stopped matching', (errorCode, sentence, context, expected) => {
+    const err = codedError(errorCode, sentence)
+    expect(getFriendlyErrorKey(err, 'errors.generic', context)).toBe(expected)
+  })
+
+  it.each([
+    ['MAX_TAGS_PER_HABIT', 'A habit carries 5 tags. Remove one to add another.', 'habit', 'habits.form.tagLimit'],
+    ['MAX_HABITS_PER_GOAL', 'A goal links 20 habits. Unlink one to add another.', 'goal', 'goals.form.habitLimit'],
+  ] as const)('keeps %s resolving through the code it already had', (errorCode, sentence, context, expected) => {
+    const err = codedError(errorCode, sentence)
+    expect(getFriendlyErrorKey(err, 'errors.generic', context)).toBe(expected)
+  })
+})
+
+
 describe('getFriendlyErrorMessage (extended)', () => {
   const translate = (key: string) => `t:${key}`
 
@@ -417,7 +496,7 @@ describe('getFriendlyErrorMessage (extended)', () => {
   })
 
   it('translates habit title required key', () => {
-    const err = createApiClientError(400, { error: 'Title is required' }, 'fallback')
+    const err = codedError('TITLE_REQUIRED', 'Give this a title.')
     expect(getFriendlyErrorMessage(err, translate, 'errors.generic', 'habit')).toBe(
       't:habits.form.titleRequired',
     )
