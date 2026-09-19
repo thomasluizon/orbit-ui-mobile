@@ -59,6 +59,7 @@ export async function deleteAllNotifications(
  */
 export async function subscribePush(
   subscription: PushSubscriptionJSON,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthFetch(API.notifications.subscribe, {
     method: 'POST',
@@ -67,7 +68,7 @@ export async function subscribePush(
       p256dh: subscription.keys?.p256dh ?? '',
       auth: subscription.keys?.auth ?? '',
     }),
-  }))
+  }, undefined, intendedAccountId))
 }
 
 /**
@@ -76,6 +77,7 @@ export async function subscribePush(
  */
 export async function unsubscribePush(
   subscription: PushSubscriptionJSON,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthFetch(API.notifications.unsubscribe, {
     method: 'POST',
@@ -84,5 +86,5 @@ export async function unsubscribePush(
       p256dh: subscription.keys?.p256dh ?? '',
       auth: subscription.keys?.auth ?? '',
     }),
-  }))
+  }, undefined, intendedAccountId))
 }

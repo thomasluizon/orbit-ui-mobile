@@ -148,7 +148,7 @@ describe('notification server actions', () => {
         },
       }
 
-      await subscribePush(subscription)
+      await subscribePush(subscription, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/notifications/subscribe')
@@ -167,7 +167,7 @@ describe('notification server actions', () => {
         endpoint: 'https://push.example.com/abc',
       }
 
-      await subscribePush(subscription)
+      await subscribePush(subscription, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({
@@ -181,7 +181,7 @@ describe('notification server actions', () => {
       mockApiResponse({ error: 'Invalid subscription' }, 400)
 
       await expect(
-        subscribePush({ endpoint: '' }),
+        subscribePush({ endpoint: '' }, null),
       ).rejects.toThrow('Invalid subscription')
     })
   })
@@ -199,7 +199,7 @@ describe('notification server actions', () => {
         },
       }
 
-      await unsubscribePush(subscription)
+      await unsubscribePush(subscription, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/notifications/unsubscribe')
@@ -218,7 +218,7 @@ describe('notification server actions', () => {
         endpoint: 'https://push.example.com/abc',
       }
 
-      await unsubscribePush(subscription)
+      await unsubscribePush(subscription, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({
@@ -232,7 +232,7 @@ describe('notification server actions', () => {
       mockApiResponse({ error: 'Subscription not found' }, 404)
 
       await expect(
-        unsubscribePush({ endpoint: 'https://push.example.com/abc' }),
+        unsubscribePush({ endpoint: 'https://push.example.com/abc' }, null),
       ).rejects.toThrow('Subscription not found')
     })
   })

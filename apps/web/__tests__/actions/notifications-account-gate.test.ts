@@ -19,7 +19,14 @@ const {
   markAllNotificationsRead,
   deleteNotification,
   deleteAllNotifications,
+  subscribePush,
+  unsubscribePush,
 } = await import('@/lib/actions/notifications')
+
+const pushSubscription = {
+  endpoint: 'https://push.example.com/abc',
+  keys: { p256dh: 'p256dh-key', auth: 'auth-key' },
+}
 
 /**
  * The claim the API puts the account id under. It is the literal `auth-api.ts` reads and the one
@@ -68,6 +75,8 @@ describe('a notification write formed under a replaced account', () => {
     ['delete one', () => deleteNotification('n-1', 'account-a'), '/api/notifications/n-1'],
     ['mark all read', () => markAllNotificationsRead('account-a'), '/api/notifications/read-all'],
     ['mark one read', () => markNotificationRead('n-1', 'account-a'), '/api/notifications/n-1/read'],
+    ['push subscribe', () => subscribePush(pushSubscription, 'account-a'), '/api/notifications/subscribe'],
+    ['push unsubscribe', () => unsubscribePush(pushSubscription, 'account-a'), '/api/notifications/unsubscribe'],
   ] as const
 
   it.each(writes)(
