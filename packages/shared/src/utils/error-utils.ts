@@ -249,7 +249,6 @@ interface MessageRule {
 const HABIT_CONTEXTS: ContextSet = new Set(['habit', 'subHabit', 'habitLog'])
 const GOAL_CONTEXTS: ContextSet = new Set(['goal', 'goalProgress'])
 const TAG_CONTEXTS: ContextSet = new Set(['tag'])
-const AUTH_CONTEXTS: ContextSet = new Set(['auth'])
 
 /**
  * The last resort for a backend error that carries no error code: a FluentValidation failure,
@@ -271,7 +270,6 @@ const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: ['title', 'must not be empty'], key: 'habits.form.titleRequired', contexts: HABIT_CONTEXTS },
   { includes: ['linked goals'], key: 'habits.form.goalLimit', contexts: HABIT_CONTEXTS },
   { includes: ['at most 5 tags'], key: 'habits.form.tagLimit', contexts: HABIT_CONTEXTS },
-  { includes: ['already logged'], key: 'habits.errors.alreadyLogged', contexts: HABIT_CONTEXTS },
 
   { includes: ['title', 'must not be empty'], key: 'goals.form.titleRequired', contexts: GOAL_CONTEXTS },
   { includes: ['unit', 'must not be empty'], key: 'goals.form.unitRequired', contexts: GOAL_CONTEXTS },
@@ -283,8 +281,6 @@ const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: ['name', 'must not be empty'], key: 'habits.form.tagNameRequired', contexts: TAG_CONTEXTS },
   { includes: ['name', '50'], key: 'habits.form.tagNameTooLong', contexts: TAG_CONTEXTS },
   { includes: ['valid hex color'], key: 'habits.form.tagColorInvalid', contexts: TAG_CONTEXTS },
-
-  { includes: ['expired'], key: 'auth.errors.codeExpired', contexts: AUTH_CONTEXTS },
 ]
 
 function matchesIncludes(msg: string, includes: MessageRule['includes']): boolean {

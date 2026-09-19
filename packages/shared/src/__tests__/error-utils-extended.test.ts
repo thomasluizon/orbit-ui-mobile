@@ -355,8 +355,8 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.tagLimit')
   })
 
-  it('maps already logged error', () => {
-    const err = createApiClientError(400, { error: 'You already logged this habit on that day.' }, 'fallback')
+  it('maps an already-logged habit through its code, not its sentence', () => {
+    const err = codedError('ALREADY_LOGGED', 'You already logged this habit on that day.')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habitLog')).toBe('habits.errors.alreadyLogged')
   })
 
@@ -419,9 +419,17 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic', 'tag')).toBe('habits.form.tagColorInvalid')
   })
 
-  it('maps expired code for auth context', () => {
-    const err = createApiClientError(400, { error: 'That code expired. Ask for a new one.' }, 'fallback')
+  it('maps an expired code through its code, not its sentence', () => {
+    const err = codedError('CODE_EXPIRED', 'That code expired. Ask for a new one.')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'auth')).toBe('auth.errors.codeExpired')
+  })
+
+  it.each([
+    ['CALENDAR_RECONNECT_REQUIRED', 'Your Google Calendar connection expired. Connect it again.', 'errors.api.calendarReconnect'],
+    ['SUGGESTION_NOT_FOUND', 'That suggestion expired. Ask Astra again.', 'toast.errors.notFound'],
+  ] as const)('keeps %s off the expired-code message in an auth context', (errorCode, sentence, expected) => {
+    const err = codedError(errorCode, sentence)
+    expect(getFriendlyErrorKey(err, 'errors.generic', 'auth')).toBe(expected)
   })
 
   it('returns caller fallback when no matching context', () => {
