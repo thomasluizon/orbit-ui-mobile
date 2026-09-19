@@ -331,6 +331,11 @@ vi.mock('@/components/calendar/calendar-agenda-view', () => ({
 }))
 
 import CalendarPage from '@/app/(app)/calendar/page'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 function monthEntry(habitId: string, status: CalendarDayEntry['status']): CalendarDayEntry {
   return {
@@ -941,5 +946,41 @@ describe('CalendarPage view switcher', () => {
     drag(61)
     expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
       .toBe(initialMonth.getMonth())
+  })
+
+  /**
+   * The day panel's entries re-derive from the month query, which the account replacement empties,
+   * so those are the next account's already. The open flag and the chosen day were copies, and a
+   * replacement left the next account looking at a sheet the previous one opened.
+   */
+  describe('account replacement', () => {
+    beforeEach(() => {
+      vi.stubGlobal('fetch', vi.fn())
+      holdAccount('user-1')
+    })
+
+    afterEach(() => vi.unstubAllGlobals())
+
+    it('closes the day panel the previous account opened and returns to today', async () => {
+      render(<CalendarPage />)
+      fireEvent.click(screen.getByTestId('month-view'))
+      expect(screen.getByTestId('day-detail')).toBeInTheDocument()
+      expect(calendarGridProps.selectedDateStr).toBe('2026-01-05')
+
+      await replaceAccountWith('user-2')
+
+      expect(screen.queryByTestId('day-detail')).not.toBeInTheDocument()
+      expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
+    })
+
+    it('keeps the day panel when the same account recovers from a rejected refresh', async () => {
+      render(<CalendarPage />)
+      fireEvent.click(screen.getByTestId('month-view'))
+
+      await recoverSameAccount('user-1')
+
+      expect(screen.getByTestId('day-detail')).toBeInTheDocument()
+      expect(calendarGridProps.selectedDateStr).toBe('2026-01-05')
+    })
   })
 })

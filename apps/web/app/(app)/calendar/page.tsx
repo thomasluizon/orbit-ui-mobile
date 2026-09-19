@@ -44,6 +44,7 @@ import {
 } from '@orbit/shared/hooks'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   useCalendarAutoSyncState,
   useSetCalendarAutoSync,
@@ -346,10 +347,16 @@ function CalendarPageContent({
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
   const [rangeOffset, setRangeOffset] = useState(0)
-  const [selectedDay, setSelectedDay] = useState<string | null>(() =>
+  /**
+   * The day panel is the one thing on this route that an account replacement has to drop. Its
+   * entries re-derive from the month query, which the replacement empties, so they are the next
+   * account's already. The open flag and the chosen day are copies: left alone, the next account
+   * arrives with a sheet the previous one opened, over a day the previous one picked.
+   */
+  const [selectedDay, setSelectedDay] = useAccountScopedState<string | null>(() =>
     formatAPIDate(new Date()),
   )
-  const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
+  const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false)
   const [showRecurring, setShowRecurring] = useState(true)
   const {
     data: calendarEventsResult,
@@ -389,7 +396,7 @@ function CalendarPageContent({
       setIsDayDetailOpen(false)
       router.push('/upgrade')
     })
-  }, [closeSheet, router])
+  }, [closeSheet, router, setIsDayDetailOpen])
   const calendarEventsState = resolveCalendarEventsDisplayState({
     enabled: profile.hasProAccess,
     isPending: calendarEventsPending,
@@ -530,7 +537,7 @@ function CalendarPageContent({
       setSelectedDay(dateStr)
       if (!showInlineDayPanel) setIsDayDetailOpen(true)
     },
-    [showInlineDayPanel],
+    [setIsDayDetailOpen, setSelectedDay, showInlineDayPanel],
   )
 
   const previousRange = useCallback(() => {
