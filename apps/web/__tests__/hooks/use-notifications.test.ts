@@ -115,10 +115,15 @@ describe('useMarkNotificationRead', () => {
     feedback.showError.mockReset()
   })
 
-  it('calls markNotificationRead action', async () => {
+  it('calls markNotificationRead action under the account that asked for it', async () => {
     const { markNotificationRead } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(markNotificationRead)
     mockedAction.mockResolvedValue(undefined as any)
+    useAuthStore.getState().setAuth({
+      userId: 'account-a',
+      name: 'Account A',
+      email: 'account-a@example.com',
+    })
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useMarkNotificationRead(), { wrapper })
@@ -127,7 +132,7 @@ describe('useMarkNotificationRead', () => {
       await result.current.mutateAsync('n-1')
     })
 
-    expect(mockedAction).toHaveBeenCalledWith('n-1')
+    expect(mockedAction).toHaveBeenCalledWith('n-1', 'account-a')
   })
 })
 
@@ -302,9 +307,14 @@ describe('useDeleteNotification', () => {
     })
   })
 
-  it('calls deleteNotification action', async () => {
+  it('calls deleteNotification action under the account that asked for it', async () => {
     const { deleteNotification } = await import('@/lib/actions/notifications')
     const mockedAction = vi.mocked(deleteNotification)
+    useAuthStore.getState().setAuth({
+      userId: 'account-a',
+      name: 'Account A',
+      email: 'account-a@example.com',
+    })
     mockedAction.mockResolvedValue(undefined as any)
 
     const wrapper = createWrapper()
@@ -314,7 +324,7 @@ describe('useDeleteNotification', () => {
       await result.current.mutateAsync('n-1')
     })
 
-    expect(mockedAction).toHaveBeenCalledWith('n-1')
+    expect(mockedAction).toHaveBeenCalledWith('n-1', 'account-a')
   })
 
   it('rolls back on error', async () => {
@@ -657,9 +667,46 @@ describe('notification mutations across an account switch', () => {
 
   beforeEach(() => {
     mockFetch.mockReset()
-    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(accountBNotifications) })
+    respondToSessionCheckWith('account-a')
     feedback.showError.mockReset()
   })
+
+  function readRequestUrl(input: RequestInfo | URL): string {
+    if (typeof input === 'string') return input
+    return input instanceof URL ? input.href : input.url
+  }
+
+  /**
+   * Answers the session endpoint with one account and everything else with the notification list,
+   * so the tab's own session check cannot be what notices the replacement.
+   */
+  function respondToSessionCheckWith(accountId: string) {
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
+      if (readRequestUrl(input).includes('/api/auth/session')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            expiresAt: Date.now() + 3600000,
+            userId: accountId,
+            refreshFailed: false,
+          }),
+        })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(accountBNotifications) })
+    })
+  }
+
+  function settle(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0))
+  }
+
+  function announceAccountFromAnotherTab(accountId: string): Promise<void> {
+    const otherTab = new BroadcastChannel('orbit-account-signal')
+    otherTab.postMessage({ accountId })
+    otherTab.close()
+    return settle()
+  }
 
   async function startAccountASession(options: { stallCancellation?: boolean } = {}) {
     const { notificationKeys } = await import('@orbit/shared/query')
@@ -691,10 +738,17 @@ describe('notification mutations across an account switch', () => {
       return React.createElement(QueryClientProvider, { client: queryClient }, children)
     }
 
+    function seedReplacementAccount() {
+      queryClient.setQueryData(notificationKeys.lists(), accountBNotifications)
+      invalidateQueries.mockClear()
+      feedback.showError.mockClear()
+    }
+
     return {
       Wrapper,
       cancelQueries,
       releaseCancellation: () => releaseCancellation(),
+      seedReplacementAccount,
       replaceAccount: async () => {
         await useAuthStore.getState().logout()
         useAuthStore.getState().setAuth({
@@ -702,9 +756,7 @@ describe('notification mutations across an account switch', () => {
           name: 'Account B',
           email: 'account-b@example.com',
         })
-        queryClient.setQueryData(notificationKeys.lists(), accountBNotifications)
-        invalidateQueries.mockClear()
-        feedback.showError.mockClear()
+        seedReplacementAccount()
       },
       expectReplacementAccountUntouched: () => {
         expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(accountBNotifications)
@@ -858,6 +910,38 @@ describe('notification mutations across an account switch', () => {
     })
 
     expect(action).not.toHaveBeenCalled()
+    scenario.expectReplacementAccountUntouched()
+  })
+
+  it('ignores a clear all rejection from a session a cross-tab signal replaced', async () => {
+    const { deleteAllNotifications } = await import('@/lib/actions/notifications')
+    let rejectAction!: (error: Error) => void
+    vi.mocked(deleteAllNotifications).mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectAction = reject
+    }))
+    const scenario = await startAccountASession()
+    const stopMonitor = useAuthStore.getState().startExpiryMonitor()
+    await settle()
+    const { result } = renderHook(() => useDeleteAllNotifications(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    await act(async () => {
+      pending = result.current.mutateAsync()
+      await settle()
+    })
+
+    respondToSessionCheckWith('account-b')
+    await act(async () => {
+      await announceAccountFromAnotherTab('account-b')
+    })
+    stopMonitor()
+    scenario.seedReplacementAccount()
+
+    await act(async () => {
+      rejectAction(new Error('Late clear all failure'))
+      await pending.catch(() => undefined)
+    })
+
     scenario.expectReplacementAccountUntouched()
   })
 })

@@ -1,4 +1,4 @@
-import { resolveServerSession } from '@/lib/auth-api'
+import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { createApiClientError } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { APP_VERSION_HEADER, validateApiResponse } from '@orbit/shared/utils'
@@ -19,16 +19,49 @@ function parseResponseBody<T>(text: string, schema: ZodType<T> | undefined, path
 }
 
 /**
+ * Refuses a request whose intent one account formed and another account's cookie carries.
+ *
+ * The browser attaches the auth cookie when it sends, not when the person clicks, and every tab
+ * shares that one cookie. So a sign in elsewhere between the click and the send puts the next
+ * account's credential on the previous account's request, and `DELETE /notifications` then empties
+ * an inbox nobody asked about. No client-side counter can stop that, because the counter says what
+ * the tab believes and the cookie says what the server will act on. Only a check here, where both
+ * are in hand at once, can refuse it.
+ *
+ * A caller that names no account, and a token whose account cannot be read, both pass: neither one
+ * proves a mismatch, and refusing on an unread token would break every write on a token shape
+ * change rather than on a real account switch.
+ */
+function assertIntendedAccountStillHolds(
+  token: string,
+  intendedAccountId: string | null | undefined,
+): void {
+  if (!intendedAccountId) return
+
+  const cookieAccountId = getAccountIdFromToken(token)
+  if (cookieAccountId === null || cookieAccountId === intendedAccountId) return
+
+  throw createApiClientError(
+    409,
+    { error: 'The signed in account changed before this request ran', errorCode: 'ACCOUNT_CHANGED' },
+    'The signed in account changed before this request ran',
+  )
+}
+
+/**
  * Shared authenticated fetch for Server Actions.
  * Resolves the current session, forwards it as Bearer to the .NET API,
  * and throws a structured ApiClientError on failure. When a Zod `schema`
  * is supplied, the response body is validated at the trust boundary and a
  * typed ApiClientError (502) is thrown if it does not match the contract.
+ * Pass `intendedAccountId` to refuse the request when the cookie has moved
+ * to another account since the caller formed it.
  */
 export async function serverAuthFetch<T = unknown>(
   path: string,
   init: RequestInit = {},
   schema?: ZodType<T>,
+  intendedAccountId?: string | null,
 ): Promise<T> {
   const appVersion = process.env.APP_VERSION
   const buildHeaders = (token: string): Record<string, string> => ({
@@ -42,6 +75,7 @@ export async function serverAuthFetch<T = unknown>(
   if (!session.token) {
     throw unauthorizedError(session.refreshFailed)
   }
+  assertIntendedAccountStillHolds(session.token, intendedAccountId)
 
   let res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -51,6 +85,7 @@ export async function serverAuthFetch<T = unknown>(
   if (res.status === 401 && path !== API.auth.refresh) {
     session = await resolveServerSession({ forceRefresh: true })
     if (session.token) {
+      assertIntendedAccountStillHolds(session.token, intendedAccountId)
       res = await fetch(`${API_BASE}${path}`, {
         ...init,
         headers: buildHeaders(session.token),

@@ -617,4 +617,128 @@ describe('auth store', () => {
       )
     })
   })
+
+  describe('a cross-tab account signal', () => {
+    const ACCOUNT_SIGNAL_CHANNEL = 'orbit-account-signal'
+
+    afterEach(async () => {
+      vi.useRealTimers()
+      const { getQueryClient } = await import('@/lib/query-client')
+      getQueryClient().clear()
+    })
+
+    function respondWithAccount(userId: string) {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          expiresAt: Date.now() + 3600000,
+          userId,
+          refreshFailed: false,
+        }),
+      })
+    }
+
+    /** Settles the work a real browser task would settle, with the poll interval still frozen. */
+    function settle(): Promise<void> {
+      return new Promise((resolve) => setTimeout(resolve, 0))
+    }
+
+    function announceFromAnotherTab(accountId: string): Promise<void> {
+      const otherTab = new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
+      otherTab.postMessage({ accountId })
+      otherTab.close()
+      return settle()
+    }
+
+    /**
+     * Freezes `setInterval` and leaves `setTimeout` real, so the 60-second poll cannot fire while
+     * the signal is delivered. Anything the signal path achieves here is the signal's alone.
+     */
+    async function startTabHoldingAccountOne(): Promise<() => void> {
+      vi.useFakeTimers({ toFake: ['setInterval'] })
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      respondWithAccount('user-1')
+      const stopMonitor = useAuthStore.getState().startExpiryMonitor()
+      await settle()
+      return stopMonitor
+    }
+
+    it('adopts the account another tab signed in as, before the poll comes round', async () => {
+      const { getQueryClient } = await import('@/lib/query-client')
+      const { notificationKeys } = await import('@orbit/shared/query')
+      const queryClient = getQueryClient()
+      const stopMonitor = await startTabHoldingAccountOne()
+      queryClient.setQueryData(notificationKeys.lists(), accountANotificationList)
+      queuePendingNotificationDelete('account-a-notification', () => Promise.resolve())
+      const epochBeforeSignal = getSessionEpoch()
+      respondWithAccount('user-2')
+
+      await announceFromAnotherTab('user-2')
+
+      expect(getSessionEpoch()).toBeGreaterThan(epochBeforeSignal)
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(queryClient.getQueryData(notificationKeys.lists())).toBeUndefined()
+      expect(useAuthStore.getState().user).toBeNull()
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+      expect(vi.getTimerCount()).toBe(1)
+      stopMonitor()
+    })
+
+    it('binds the step-up state to the account another tab signed in as', async () => {
+      const stopMonitor = await startTabHoldingAccountOne()
+      markStepUpVerified('keys')
+      expect(isStepUpVerified('keys')).toBe(true)
+      respondWithAccount('user-2')
+
+      await announceFromAnotherTab('user-2')
+
+      expect(isStepUpVerified('keys')).toBe(false)
+      stopMonitor()
+    })
+
+    it('does nothing when the announced account is the one this tab already holds', async () => {
+      const stopMonitor = await startTabHoldingAccountOne()
+      queuePendingNotificationDelete('account-a-notification', () => Promise.resolve())
+      const epochBeforeSignal = getSessionEpoch()
+
+      await announceFromAnotherTab('user-1')
+
+      expect(getSessionEpoch()).toBe(epochBeforeSignal)
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual(['account-a-notification'])
+      expect(useAuthStore.getState().user?.userId).toBe('user-1')
+      stopMonitor()
+    })
+
+    it('stops taking signals once the monitor is torn down', async () => {
+      const stopMonitor = await startTabHoldingAccountOne()
+      const epochBeforeSignal = getSessionEpoch()
+      stopMonitor()
+      respondWithAccount('user-2')
+
+      await announceFromAnotherTab('user-2')
+
+      expect(getSessionEpoch()).toBe(epochBeforeSignal)
+      expect(useAuthStore.getState().user?.userId).toBe('user-1')
+    })
+
+    it('still detects the change on the poll where BroadcastChannel is missing', async () => {
+      vi.useFakeTimers()
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      respondWithAccount('user-1')
+      const realBroadcastChannel = globalThis.BroadcastChannel
+      Reflect.deleteProperty(globalThis, 'BroadcastChannel')
+      const stopMonitor = useAuthStore.getState().startExpiryMonitor()
+      globalThis.BroadcastChannel = realBroadcastChannel
+      await vi.runOnlyPendingTimersAsync()
+      const epochBeforePoll = getSessionEpoch()
+      respondWithAccount('user-2')
+
+      await vi.advanceTimersByTimeAsync(60000)
+
+      expect(getSessionEpoch()).toBeGreaterThan(epochBeforePoll)
+      expect(useAuthStore.getState().user).toBeNull()
+      stopMonitor()
+    })
+  })
 })
