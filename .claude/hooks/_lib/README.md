@@ -22,6 +22,7 @@ that have no CI equivalent.
 | `rules-orchestrator.mjs` | model spend routes through the launcher; no agent admin merge | orchestrator-guardrails (PreToolUse Bash, PowerShell) |
 | `rules-lessons.mjs` | count unreviewed date-headed entries before `## Graduated` | surface-pending-lessons (SessionStart) |
 | `rules-source.mjs` | idempotent raw index SQL in EF migrations | forbid-ef-migration-raw-index (PostToolUse Edit/Write) |
+| `rules-dependencies.mjs` | nothing writes inside `node_modules`, for any caller | forbid-node-modules-write (PreToolUse Write/Edit/MultiEdit, Bash, PowerShell) |
 | `repo-roots.mjs` | which repository owns a path, and the linked worktree that resolves to its main checkout | orchestrator-guardrails, forbid-worker-browser, forbid-invented-identifier |
 | `io.mjs` | payload normalizers | both |
 
@@ -29,6 +30,11 @@ that have no CI equivalent.
 it is bypassable through another tool, a shell wrapper, or script-file indirection,
 and its own header says so. The control for the admin merge is the prohibition in
 the worker contract, `AGENTS.md` and `CLAUDE.md`.
+
+`rules-dependencies.mjs` splits the same way, and its header names the split. The
+FILE path (Write, Edit, MultiEdit) is the one it really closes, because that is
+how an agent edits. The COMMAND path is defence in depth with disclosed bypasses.
+Detection for whatever still arrives is `node tools/check-dependency-edits.mjs`.
 
 `node .claude/hooks/test-hooks.mjs` proves it with `_lib` unit checks, real hook
 files run against stdin payloads, bidirectional wiring checks, and required

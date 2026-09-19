@@ -535,6 +535,18 @@ Pointers, not restatements. The reasoning lives in the ADR.
 
 ## Constraints that are not obvious from the code
 
+- **NOTHING writes inside `node_modules`, and a citation of installed source is checked before it
+  is published.** A worker edited two files inside `node_modules/react-native` on 2026-09-16 and
+  nothing detected it for two days, so four contradictory citations of those two files were
+  published across three sessions and **every one was accurate about the tree its author read**.
+  Code standard 8 did not fail, its premise did: it says to confirm an external interface against
+  the installed source, and it assumes the installed source is what the lockfile says. Three things
+  hold that premise up now, all landed by `#601`: every order `tools/compose-prompt.mjs` generates
+  carries the prohibition, `.claude/hooks/forbid-node-modules-write.mjs` refuses the write at act
+  time for every caller, and `node tools/check-dependency-edits.mjs` walks every installed tree in
+  about six seconds and names any file later than its own package's EARLIEST file. **A plain `npm
+  install` does not repair an edited package**, because npm leaves a complete package alone; the
+  repair is `rm -rf node_modules/<package>` plus an install.
 - **Mobile parses ICU now, and an apostrophe next to ICU syntax is the trap.** `#540` merged as 966
   on 2026-09-15: `apps/mobile/lib/i18n.ts` uses `i18next-icu/cjs`, so the eleven plural strings that
   rendered as garbage on Android now render. Two consequences that bind every new string:
