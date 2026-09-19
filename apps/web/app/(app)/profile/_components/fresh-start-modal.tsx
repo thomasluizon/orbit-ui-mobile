@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { Check, RotateCcw, X } from '@/components/ui/icons'
 import {
+  buildAccountScopedStorageKey,
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
@@ -14,6 +15,10 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/lib/actions/profile'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getHeldAccountId } from '@/stores/auth-store'
+
+const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
 
 function AmberPillButton({
   disabled = false,
@@ -81,10 +86,10 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   const queryClient = useQueryClient()
   const router = useRouter()
 
-  const [step, setStep] = useState<'info' | 'confirm'>('info')
-  const [confirmText, setConfirmText] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [step, setStep] = useAccountScopedState<'info' | 'confirm'>('info')
+  const [confirmText, setConfirmText] = useAccountScopedState('')
+  const [loading, setLoading] = useAccountScopedState(false)
+  const [error, setError] = useAccountScopedState('')
 
   const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
   const { sheetRef, closeSheet } = useSheetHost()
@@ -99,7 +104,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       }
       onOpenChange(value)
     },
-    [onOpenChange],
+    [onOpenChange, setConfirmText, setError, setLoading, setStep],
   )
 
   async function handleReset() {
@@ -110,7 +115,11 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       await resetAccount()
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
-      localStorage.removeItem('orbit_trial_expired_seen')
+      localStorage.removeItem(TRIAL_EXPIRED_SEEN_STORAGE_KEY)
+      const accountId = getHeldAccountId()
+      if (accountId !== null) {
+        localStorage.removeItem(buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId))
+      }
       closeSheet(() => {
         handleOpenChange(false)
         queryClient.clear()
@@ -143,7 +152,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
           <FreshStartInfoStep
             deletedItems={deletedItems}
             preservedItems={preservedItems}
-            onCancel={() => handleOpenChange(false)}
+            onCancel={() => closeSheet()}
             onContinue={() => setStep('confirm')}
           />
         ) : (
@@ -153,7 +162,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             isConfirmed={isConfirmed}
             loading={loading}
             error={error}
-            onCancel={() => handleOpenChange(false)}
+            onCancel={() => closeSheet()}
             onReset={() => void handleReset()}
           />
         )}
@@ -263,7 +272,7 @@ function FreshStartInfoStep({
         <AmberPillButton onClick={onContinue}>
           {t('common.continue')}
         </AmberPillButton>
-        <PillButton variant="ghost"  onClick={onCancel}>
+        <PillButton variant="ghost" onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
       </div>
@@ -332,7 +341,7 @@ function FreshStartConfirmStep({
         <AmberPillButton disabled={!isConfirmed || loading} onClick={onReset}>
           {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
         </AmberPillButton>
-        <PillButton variant="ghost"  disabled={loading} onClick={onCancel}>
+        <PillButton variant="ghost" disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
       </div>

@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
@@ -94,6 +95,12 @@ function endSessionLocally(): void {
  * Reads the account the cookie now names. A tab that has not yet learned an account only records it,
  * which leaves a reload of the same account untouched, and a replacement also drops the remembered
  * user because this tab cannot prove the new account's name.
+ *
+ * The step-up state is cleared BEFORE the account generation rises, because the rise is what tells
+ * every listener to re-read, and `use-api-key-management` re-reads the creation grant through a
+ * lazy initializer at exactly that moment. React happens to defer that render to a microtask, so
+ * the other order works, but a grant that lets the next account skip the emailed code should not
+ * rest on a flush order nothing states. `endSessionLocally` already clears first.
  */
 function adoptSessionAccount(userId: string | null): boolean {
   if (userId === null) return false
@@ -103,8 +110,8 @@ function adoptSessionAccount(userId: string | null): boolean {
     return false
   }
 
-  startAccountScopedSession(userId)
   bindStepUpStateToAccount(userId)
+  startAccountScopedSession(userId)
   return true
 }
 
@@ -117,6 +124,23 @@ function adoptSessionAccount(userId: string | null): boolean {
  */
 export function getHeldAccountId(): string | null {
   return lastObservedAccountId
+}
+
+/**
+ * Reports the held account to a component and re-renders it when that account arrives.
+ *
+ * The FIRST session check of a tab records the account and returns early, because there is no
+ * previous account to forget, so the account generation never rises on it. A component that keys
+ * anything on the account therefore cannot wait on the generation: it would render once with no
+ * account, and nothing would ever tell it otherwise.
+ *
+ * It cannot wait on `user` either, which that same check leaves null until a later one names the
+ * person. So it subscribes to the store itself and re-reads the held id on every write. Every
+ * writer sets the id before it calls `set`, so the notification already carries the new answer,
+ * and the id is a string, which `useSyncExternalStore` compares without a cached snapshot.
+ */
+export function useHeldAccountId(): string | null {
+  return useSyncExternalStore(useAuthStore.subscribe, getHeldAccountId, getHeldAccountId)
 }
 
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
@@ -179,8 +203,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setAuth: (loginResponse: LoginResponse) => {
     sessionRecoveryUser = null
-    startAccountScopedSession(loginResponse.userId)
     bindStepUpStateToAccount(loginResponse.userId)
+    startAccountScopedSession(loginResponse.userId)
     set({
       isAuthenticated: true,
       user: {

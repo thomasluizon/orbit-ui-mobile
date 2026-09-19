@@ -24,6 +24,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { useAuthStore } from '@/stores/auth-store'
 
 interface ProfileApiKeysProps {
   profile: Profile | undefined
@@ -298,6 +299,7 @@ function ApiKeyCreateControls({
 
 function useApiKeyStepUp() {
   const router = useRouter()
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
 
@@ -311,7 +313,7 @@ function useApiKeyStepUp() {
         { method: 'POST' },
         stepUpMessageResponseSchema,
       )
-      await beginStepUpChallenge('keys')
+      await beginStepUpChallenge('keys', accountId)
       router.push('/step-up?operation=keys')
     } catch {
       setError(true)

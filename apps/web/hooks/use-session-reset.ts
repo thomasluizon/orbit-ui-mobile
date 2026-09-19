@@ -1,6 +1,13 @@
 'use client'
 
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 
 /** Reads how many accounts this tab has held, and re-renders on the next one. State that must
@@ -37,4 +44,40 @@ export function useResetOnAccountChange(reset: () => void): void {
     resetAccountGeneration.current = accountGeneration
     latestReset.current()
   }, [accountGeneration])
+}
+
+/**
+ * A `useState` that returns to its initial value the moment the tab moves to another account.
+ *
+ * Every call site this replaces was the same three lines: the state, a reset that listed it, and a
+ * `useResetOnAccountChange` holding them together. Nine rounds of `#1019` each closed one surface
+ * and left the next one open, because the reset is a second thing to remember and the state is the
+ * first. Here the state IS the reset, so a surface that adopts this hook cannot forget it.
+ *
+ * The reset runs during the render the account change causes, not in an effect after it. React
+ * re-renders immediately and never paints the discarded state, which an effect cannot promise:
+ * `useAccountGeneration` subscribes through `useSyncExternalStore`, so the rise commits a render
+ * carrying the previous account's value and a passive effect clears it one commit later. That
+ * is a frame of exactly what this hook exists to prevent.
+ *
+ * The initial value is re-read at the account change rather than captured at mount, so a lazy
+ * initializer that reads a module-level grant returns the NEXT account's answer, not the previous
+ * account's: React reads a function handed to the setter as an updater, and an initializer takes no
+ * argument, so the same value runs the same way at the mount and at the reset. Pass a function
+ * wherever the initial value is a fresh object, for the reason React already documents: an eagerly
+ * built one is shared between the mount and every later reset.
+ */
+export function useAccountScopedState<S>(
+  initialState: S | (() => S),
+): [S, Dispatch<SetStateAction<S>>] {
+  const accountGeneration = useAccountGeneration()
+  const [value, setValue] = useState(initialState)
+  const [valueAccountGeneration, setValueAccountGeneration] = useState(accountGeneration)
+
+  if (valueAccountGeneration !== accountGeneration) {
+    setValueAccountGeneration(accountGeneration)
+    setValue(initialState)
+  }
+
+  return [value, setValue]
 }

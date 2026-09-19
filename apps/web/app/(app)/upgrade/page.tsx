@@ -1,7 +1,7 @@
 'use client'
 
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { API } from '@orbit/shared/api'
 import {
@@ -29,6 +29,8 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
@@ -63,11 +65,11 @@ export default function UpgradePage() {
     refetch: refetchBilling,
   } = useBilling(isStripeBilling)
 
-  const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
+  const [checkoutLoading, setCheckoutLoading] = useAccountScopedState<SubscriptionInterval | null>(null)
   const checkoutPendingRef = useRef(false)
-  const [checkoutError, setCheckoutError] = useState('')
-  const [showPitch, setShowPitch] = useState(false)
-  const [portalState, setPortalState] = useState<SubscriptionPortalState>('idle')
+  const [checkoutError, setCheckoutError] = useAccountScopedState('')
+  const [showPitch, setShowPitch] = useAccountScopedState(false)
+  const [portalState, setPortalState] = useAccountScopedState<SubscriptionPortalState>('idle')
 
   const model = resolveSubscriptionScreen({
     status,
@@ -108,7 +110,7 @@ export default function UpgradePage() {
       globalThis.removeEventListener('pageshow', handlePageShow)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [portalState, refetchBilling, refetchStatus, showSuccess, t])
+  }, [portalState, refetchBilling, refetchStatus, setPortalState, showSuccess, t])
 
   const handleCheckout = useCallback(
     async (interval: SubscriptionInterval) => {
@@ -116,6 +118,7 @@ export default function UpgradePage() {
       checkoutPendingRef.current = true
       setCheckoutLoading(interval)
       setCheckoutError('')
+      const checkoutAccount = getAccountGeneration()
       try {
         const timeZone = getClientTimeZone()
         const checkoutUrl = timeZone
@@ -135,15 +138,22 @@ export default function UpgradePage() {
           )
         }
         const data = (await response.json()) as { url?: string }
+        /**
+         * The tab may hold another account by now. A checkout session belongs to the account that
+         * opened it, so following its url would bill the wrong person, and reporting its failure
+         * would alarm someone who never pressed the button.
+         */
+        if (getAccountGeneration() !== checkoutAccount) return
         if (data.url) globalThis.location.href = data.url
       } catch (error: unknown) {
+        if (getAccountGeneration() !== checkoutAccount) return
         setCheckoutError(getFriendlyErrorMessage(error, t, 'auth.genericError', 'generic'))
       } finally {
         checkoutPendingRef.current = false
         setCheckoutLoading(null)
       }
     },
-    [isOnline, t],
+    [isOnline, setCheckoutError, setCheckoutLoading, t],
   )
 
   const handleOpenPortal = useCallback(async () => {
@@ -161,7 +171,7 @@ export default function UpgradePage() {
     } catch {
       setPortalState('failed')
     }
-  }, [isOnline, status])
+  }, [isOnline, setPortalState, status])
 
   const retryLoad = () => {
     void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])
@@ -181,7 +191,6 @@ export default function UpgradePage() {
       <ErrorState
         message={t('upgrade.billing.error')}
         action={
-          /* eslint-disable-next-line local/max-button-words -- ORB-66 owns this existing upgrade label. */
           <PillButton variant="ghost" onClick={retryLoad}>
             {t('upgrade.billing.retry')}
           </PillButton>

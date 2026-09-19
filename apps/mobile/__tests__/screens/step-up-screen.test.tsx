@@ -55,18 +55,23 @@ vi.mock('@/hooks/use-date-format', () => ({
 vi.mock('@/hooks/use-logout', () => ({ useLogout: () => mocks.logout }))
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector: (state: unknown) => unknown) =>
-    selector({ user: { email: 'session@example.com' } }),
+    selector({ user: { email: 'session@example.com', userId: 'user-1' } }),
 }))
 vi.mock('@/lib/api-client', () => ({
   apiClient: (...args: unknown[]) => mocks.apiClient(...args),
 }))
 vi.mock('@/lib/step-up-storage', () => ({
-  beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
-  clearStepUpTiming: (operation: string) => mocks.clearTiming(operation),
-  markStepUpAttemptFailed: (record: unknown) => mocks.markAttemptFailed(record),
-  markStepUpExhausted: (record: unknown) => mocks.markExhausted(record),
+  beginStepUpChallenge: (operation: string, accountId: string | null) =>
+    mocks.beginChallenge(operation, accountId),
+  clearStepUpTiming: (operation: string, accountId: string | null) =>
+    mocks.clearTiming(operation, accountId),
+  markStepUpAttemptFailed: (record: unknown, accountId: string | null) =>
+    mocks.markAttemptFailed(record, accountId),
+  markStepUpExhausted: (record: unknown, accountId: string | null) =>
+    mocks.markExhausted(record, accountId),
   markStepUpVerified: (operation: string) => mocks.markVerified(operation),
-  readStepUpTiming: (operation: string) => mocks.readTiming(operation),
+  readStepUpTiming: (operation: string, accountId: string | null) =>
+    mocks.readTiming(operation, accountId),
 }))
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, action }: Readonly<{ children: React.ReactNode; action?: React.ReactNode }>) =>
@@ -293,7 +298,7 @@ describe('mobile step up screen', () => {
       { method: 'POST' },
       expect.anything(),
     )
-    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
     expect(findText(tree.root, 'stepUp.cooldown').length).toBeGreaterThan(0)
     expect(queryButton(tree.root, 'stepUp.resend')).toBeUndefined()
   })
@@ -346,7 +351,7 @@ describe('mobile step up screen', () => {
       { method: 'POST', body: JSON.stringify({ code: '123456' }) },
       expect.anything(),
     )
-    expect(mocks.clearTiming).toHaveBeenCalledWith('keys')
+    expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'user-1')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
     expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
   })

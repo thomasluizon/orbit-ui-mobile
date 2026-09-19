@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { referralKeys } from '@orbit/shared/query'
@@ -13,6 +13,7 @@ import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
 
 const SETTLE_DELAY_MS = 500
@@ -35,9 +36,15 @@ export function ReferralPrompt() {
 
   const armedMilestoneKey =
     armedPrompt?.kind === 'referral' ? armedPrompt.milestoneKey : null
-  const [visibleKey, setVisibleKey] = useState<string | null>(null)
-  const [showDrawer, setShowDrawer] = useState(false)
+  const [visibleKey, setVisibleKey] = useAccountScopedState<string | null>(null)
+  const [showDrawer, setShowDrawer] = useAccountScopedState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  /**
+   * The settle timer is the one thing the state reset above cannot reach: with no prompt on
+   * screen its effect never re-runs, so a timer armed for the previous account would open this
+   * prompt under the next one.
+   */
+  useResetOnAccountChange(() => clearTimeout(settleTimerRef.current))
 
   useEffect(() => {
     if (visibleKey || !armedMilestoneKey || celebrationInFlight) return
@@ -67,6 +74,7 @@ export function ReferralPrompt() {
     visibleKey,
     markEngagementPrompted,
     clearArmedMilestone,
+    setVisibleKey,
   ])
 
   const milestone = visibleKey ? parseReferralMilestoneKey(visibleKey) : null

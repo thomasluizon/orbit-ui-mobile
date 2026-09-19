@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -9,6 +9,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   getFriendlyErrorMessage,
   translateErrorKey,
@@ -106,12 +107,12 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
   const createGoal = useCreateGoal()
   const { showError } = useAppToast()
 
-  const [goalType, setGoalType] = useState<GoalType>('Standard')
-  const [description, setDescription] = useState('')
-  const [targetValue, setTargetValue] = useState('')
-  const [unit, setUnit] = useState('')
-  const [deadline, setDeadline] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [goalType, setGoalType] = useAccountScopedState<GoalType>('Standard')
+  const [description, setDescription] = useAccountScopedState('')
+  const [targetValue, setTargetValue] = useAccountScopedState('')
+  const [unit, setUnit] = useAccountScopedState('')
+  const [deadline, setDeadline] = useAccountScopedState('')
+  const [submitted, setSubmitted] = useAccountScopedState(false)
 
   const isSubmitting = createGoal.isPending
   const isStreak = isStreakGoal(goalType)
@@ -129,7 +130,7 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
     setUnit('')
     setDeadline('')
     setSubmitted(false)
-  }, [])
+  }, [setDeadline, setDescription, setGoalType, setSubmitted, setTargetValue, setUnit])
 
   const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
@@ -162,7 +163,7 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         setUnit('')
       }
     },
-    [t],
+    [setGoalType, setUnit, t],
   )
 
   const onSubmit = useCallback(
@@ -201,7 +202,7 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
       }
     },
-    [closeSheet, createGoal, deadline, description, goalType, onClose, resetForm, showError, targetValue, translate, unit],
+    [closeSheet, createGoal, deadline, description, goalType, onClose, resetForm, setSubmitted, showError, targetValue, translate, unit],
   )
 
   return (

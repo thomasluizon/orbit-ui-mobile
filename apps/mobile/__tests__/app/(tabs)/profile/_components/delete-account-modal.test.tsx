@@ -36,8 +36,12 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (selector: (state: unknown) => unknown) => selector({ user: { userId: 'user-1' } }),
+}))
 vi.mock('@/lib/step-up-storage', () => ({
-  beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
+  beginStepUpChallenge: (operation: string, accountId: string | null) =>
+    mocks.beginChallenge(operation, accountId),
 }))
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mocks.isOnline.current }),
@@ -159,7 +163,7 @@ describe('DeleteAccountModal', () => {
       { method: 'POST' },
       expect.anything(),
     )
-    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(mocks.onClose).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()

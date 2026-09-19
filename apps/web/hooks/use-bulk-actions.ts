@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface UseBulkActionsOptions {
@@ -44,7 +45,12 @@ export function useBulkActions({
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
 
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  /**
+   * The confirmation asks the person to delete the habits they selected. Its owner clears it on a
+   * date change and on a read-only day, and neither of those is an account change, so an armed
+   * delete used to sit over the next account's Today with the previous account's count on it.
+   */
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useAccountScopedState(false)
 
   const applyBulkMutationSuccesses = useCallback((
     results: readonly { status: string; habitId: string }[],

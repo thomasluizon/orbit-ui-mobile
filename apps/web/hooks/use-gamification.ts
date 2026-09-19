@@ -25,13 +25,14 @@ import {
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
 import { fetchJson } from '@/lib/api-fetch'
 import { repairStreakGap, reportAchievementEvent } from '@/lib/actions/gamification'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
   const previousLevelRef = useRef<number | null>(null)
   const previousStreakRef = useRef<number | null>(null)
   const previousAchievementIdsRef = useRef<Set<string>>(new Set())
-  const [acknowledgedLevel, setAcknowledgedLevel] = useState<number | null>(null)
+  const [acknowledgedLevel, setAcknowledgedLevel] = useAccountScopedState<number | null>(null)
 
   const query = useQuery({
     queryKey: gamificationKeys.profile(),
@@ -85,7 +86,7 @@ export function useGamificationProfile(enabled = true) {
 
   const clearLevelUp = useCallback(() => {
     setAcknowledgedLevel(profile?.level ?? null)
-  }, [profile?.level])
+  }, [profile?.level, setAcknowledgedLevel])
 
   const invalidate = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })

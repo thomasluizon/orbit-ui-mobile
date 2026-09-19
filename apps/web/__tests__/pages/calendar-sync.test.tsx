@@ -229,6 +229,7 @@ const originalFetch = globalThis.fetch
 
 
 import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 function renderPage() {
   const queryClient = new QueryClient()
@@ -630,6 +631,45 @@ describe('CalendarSyncPage', () => {
     expect(screen.getByText('Morning Workout')).toBeInTheDocument()
     expect(screen.queryByText('Team Meeting')).not.toBeInTheDocument()
     expect(toast.error).toHaveBeenCalledWith('calendar.importPartialFailure:{"count":1}')
+  })
+
+  it('drops the import result when another account replaces the tab', async () => {
+    const events = [
+      { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(events),
+    }) as unknown as typeof fetch
+    holdAccount('user-1')
+    mockBulkMutate.mockImplementation(
+      (
+        _variables: unknown,
+        options: {
+          onSuccess: (result: {
+            results: { status: string; habitId: string | null; title: string | null; error: string | null }[]
+          }) => void
+        },
+      ) => {
+        options.onSuccess({
+          results: [{ status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null }],
+        })
+      },
+    )
+
+    renderPage()
+    await waitFor(() => {
+      expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText(/calendar\.importButton/))
+    await waitFor(() => {
+      expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
+    })
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
   })
 
   it('invalidates sync suggestions after a review-mode import', async () => {

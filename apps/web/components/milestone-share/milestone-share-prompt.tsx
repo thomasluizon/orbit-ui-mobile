@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys, referralKeys } from '@orbit/shared/query'
@@ -13,6 +13,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import {
   MilestoneShareCard,
   type MilestoneShareVariant,
@@ -53,8 +54,14 @@ export function MilestoneSharePrompt() {
 
   const armedKey = armedPrompt?.kind === 'milestone-share' ? armedPrompt.milestoneKey : null
 
-  const [visibleKey, setVisibleKey] = useState<string | null>(null)
+  const [visibleKey, setVisibleKey] = useAccountScopedState<string | null>(null)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  /**
+   * The settle timer is the one thing the state reset above cannot reach: with no prompt on
+   * screen its effect never re-runs, so a timer armed for the previous account would open this
+   * prompt under the next one.
+   */
+  useResetOnAccountChange(() => clearTimeout(settleTimerRef.current))
 
   useEffect(() => {
     if (visibleKey || !armedKey || celebrationInFlight) return
@@ -87,6 +94,7 @@ export function MilestoneSharePrompt() {
     queryClient,
     markEngagementPrompted,
     clearArmedMilestone,
+    setVisibleKey,
   ])
 
   const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())

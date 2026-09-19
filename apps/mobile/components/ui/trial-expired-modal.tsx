@@ -3,7 +3,9 @@ import { StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { buildAccountScopedStorageKey, readAccountScopedFlag } from '@orbit/shared/utils'
 import { useTrialExpired } from '@/hooks/use-profile'
+import { useAuthStore } from '@/stores/auth-store'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -34,20 +36,38 @@ export function TrialExpiredModal() {
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useState(false)
   const [alreadySeen, setAlreadySeen] = useState(true)
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
+  const scopedKey = accountId === null ? null : buildAccountScopedStorageKey(STORAGE_KEY, accountId)
 
+  /**
+   * Moves a notice dismissed before this key carried an account on to the account signed in now,
+   * then consumes the old key. Left in place it would answer for every later account too, which
+   * is the defect rather than a milder version of it.
+   */
   useEffect(() => {
-    void AsyncStorage.getItem(STORAGE_KEY).then((value) => {
-      setAlreadySeen(value === '1')
+    if (scopedKey === null) return
+    let cancelled = false
+    void AsyncStorage.multiGet([scopedKey, STORAGE_KEY]).then(([scoped, legacy]) => {
+      if (cancelled) return
+      const flag = readAccountScopedFlag(scoped?.[1] ?? null, legacy?.[1] ?? null)
+      if (flag.adoptsLegacy) {
+        void AsyncStorage.setItem(scopedKey, '1')
+        void AsyncStorage.removeItem(STORAGE_KEY)
+      }
+      setAlreadySeen(flag.seen)
     })
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [scopedKey])
 
   const isOpen =
     pathname !== '/upgrade' && !dismissed && trialExpired && !alreadySeen
 
   const hide = useCallback(() => {
     setDismissed(true)
-    void AsyncStorage.setItem(STORAGE_KEY, '1')
-  }, [])
+    if (scopedKey !== null) void AsyncStorage.setItem(scopedKey, '1')
+  }, [scopedKey])
 
   if (!isOpen) return null
 

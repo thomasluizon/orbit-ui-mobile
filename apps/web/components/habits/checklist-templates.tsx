@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
@@ -13,6 +13,7 @@ import {
 import { useAppToast } from '@/hooks/use-app-toast'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
@@ -25,10 +26,10 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
-  const [showSave, setShowSave] = useState(false)
-  const [templateName, setTemplateName] = useState('')
+  const [showSave, setShowSave] = useAccountScopedState(false)
+  const [templateName, setTemplateName] = useAccountScopedState('')
 
   const handleSave = useCallback(() => {
     const name = templateName.trim()
@@ -46,7 +47,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         },
       },
     )
-  }, [createTemplate, items, showError, t, templateName])
+  }, [createTemplate, items, setShowSave, setTemplateName, showError, t, templateName])
 
   const handleLoad = useCallback(
     (id: string) => {
@@ -58,7 +59,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         })
       }
     },
-    [closeSheet, onLoad, templates],
+    [closeSheet, onLoad, setOpen, templates],
   )
 
   const handleDelete = useCallback(

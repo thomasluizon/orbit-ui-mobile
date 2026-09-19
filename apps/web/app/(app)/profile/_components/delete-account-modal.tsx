@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestDeletion } from '@/lib/actions/auth'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useHeldAccountId } from '@/stores/auth-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { TriangleAlert } from '@/components/ui/icons'
@@ -25,8 +26,9 @@ export function DeleteAccountModal({
   const t = useTranslations()
   const router = useRouter()
   const { sheetRef, closeSheet } = useSheetHost()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const accountId = useHeldAccountId()
+  const [loading, setLoading] = useAccountScopedState(false)
+  const [error, setError] = useAccountScopedState('')
 
   const warningMessage = (() => {
     // WHY: Mirrors https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Application/Auth/Commands/ConfirmAccountDeletionCommand.cs#L31-L33.
@@ -53,7 +55,7 @@ export function DeleteAccountModal({
     setError('')
     try {
       await requestDeletion()
-      beginStepUpChallenge('delete')
+      beginStepUpChallenge('delete', accountId)
       closeSheet(() => {
         handleOpenChange(false)
         router.push('/step-up?operation=delete')
