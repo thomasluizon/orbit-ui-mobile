@@ -2092,7 +2092,7 @@
       "widgetSection": {
         "todayTitle": "Hoje ou amanhã",
         "todayDesc": "O widget do Android mostra os hábitos de hoje. Quando não há nada agendado para hoje, ele mostra os hábitos de amanhã.",
-        "opensTitle": "Abre o Orbit",
+        "opensTitle": "O que um toque abre",
         "opensDesc": "O widget nunca registra um hábito. Toque em um hábito para abri-lo no dia que o widget mostra. Toque em qualquer outro lugar para abrir o Orbit, e atualizar apenas renova o widget."
       }
     }

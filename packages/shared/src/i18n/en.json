@@ -2092,7 +2092,7 @@
       "widgetSection": {
         "todayTitle": "Today or tomorrow",
         "todayDesc": "The Android widget shows today's habits. When nothing is scheduled today, it shows tomorrow's habits instead.",
-        "opensTitle": "Opens Orbit",
+        "opensTitle": "What a tap opens",
         "opensDesc": "The widget never logs a habit. Tap a habit to open it on the day the widget shows. Tap anywhere else to open Orbit, and refresh only updates the widget."
       }
     }

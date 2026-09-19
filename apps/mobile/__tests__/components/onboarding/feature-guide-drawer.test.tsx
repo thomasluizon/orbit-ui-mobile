@@ -105,6 +105,8 @@ describe('FeatureGuideDrawer (mobile)', () => {
   })
 
   it('promises that a habit row opens that habit on the day the widget shows', () => {
+    expect(en.onboarding.featureGuide.widgetSection.opensTitle).toBe('What a tap opens')
+    expect(ptBR.onboarding.featureGuide.widgetSection.opensTitle).toBe('O que um toque abre')
     expect(en.onboarding.featureGuide.widgetSection.opensDesc).toBe(
       'The widget never logs a habit. Tap a habit to open it on the day the widget shows. Tap anywhere else to open Orbit, and refresh only updates the widget.',
     )
