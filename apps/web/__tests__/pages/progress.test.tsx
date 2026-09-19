@@ -157,6 +157,7 @@ vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }
 
 import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 function captureGoalCardRendering(card: HTMLElement) {
   const elements = [card, ...card.querySelectorAll<HTMLElement>('*')]
@@ -832,6 +833,32 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')).toBeInTheDocument()
     fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
+  })
+
+  it('drops the repair confirmation when another account replaces the tab', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-09-09'
+
+    render(<ProgressContent />)
+    fireEvent.click(
+      screen.getByText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}'),
+    )
+    expect(
+      screen.getByText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}'),
+    ).toBeInTheDocument()
+
+    await replaceAccountWith('user-2')
+
+    expect(
+      screen.queryByText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}'),
+    ).not.toBeInTheDocument()
+    expect(mocks.repair.mutate).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
   })
 
   it('shows the date and remaining bank after a freeze spend', () => {
