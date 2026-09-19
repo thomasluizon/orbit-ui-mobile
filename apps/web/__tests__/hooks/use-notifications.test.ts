@@ -12,6 +12,7 @@ import {
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import { useAuthStore } from '@/stores/auth-store'
+import { subscribeToAccountSignal } from '@/lib/cross-tab-account-signal'
 
 const feedback = vi.hoisted(() => ({ showError: vi.fn() }))
 
@@ -709,10 +710,20 @@ describe('notification mutations across an account switch', () => {
     otherTab = null
   })
 
-  function announceAccountFromAnotherTab(accountId: string): Promise<void> {
+  /**
+   * Posts the signal and waits for this tab to receive it, on the same channel the store listens
+   * on. Delivery runs on the event loop rather than on a timer, and both listeners run in one
+   * dispatch, so a signal this one has seen the store has seen too.
+   */
+  async function announceAccountFromAnotherTab(accountId: string): Promise<void> {
     otherTab ??= new BroadcastChannel('orbit-account-signal')
+    const delivered: string[] = []
+    const stopRecording = subscribeToAccountSignal((received) => {
+      if (received !== null) delivered.push(received)
+    })
     otherTab.postMessage({ accountId })
-    return settle()
+    await vi.waitFor(() => expect(delivered).toContain(accountId))
+    stopRecording()
   }
 
   async function startAccountASession(options: { stallCancellation?: boolean } = {}) {

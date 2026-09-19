@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSessionEpoch } from '@/lib/session-epoch'
+import { subscribeToAccountSignal } from '@/lib/cross-tab-account-signal'
 import { useChatStore } from '@/stores/chat-store'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 import type { ChatMessage } from '@orbit/shared/types/chat'
@@ -621,7 +622,21 @@ describe('auth store', () => {
   describe('a cross-tab account signal', () => {
     const ACCOUNT_SIGNAL_CHANNEL = 'orbit-account-signal'
 
+    /**
+     * Records every signal this tab receives, on the same channel the store listens on. Delivery
+     * runs on the event loop rather than on a timer, so a fixed wait proves nothing under load.
+     * Both listeners run in one dispatch, so a signal this one has seen the store has seen too.
+     */
+    let delivered: Array<string | null> = []
+    let stopRecording: () => void = () => {}
+
+    beforeEach(() => {
+      delivered = []
+      stopRecording = subscribeToAccountSignal((accountId) => delivered.push(accountId))
+    })
+
     afterEach(async () => {
+      stopRecording()
       vi.useRealTimers()
       otherTab?.close()
       otherTab = null
@@ -652,10 +667,11 @@ describe('auth store', () => {
      */
     let otherTab: BroadcastChannel | null = null
 
-    function announceFromAnotherTab(accountId: string | null): Promise<void> {
+    async function announceFromAnotherTab(accountId: string | null): Promise<void> {
       otherTab ??= new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
+      const deliveredBefore = delivered.length
       otherTab.postMessage({ accountId })
-      return settle()
+      await vi.waitFor(() => expect(delivered.length).toBeGreaterThan(deliveredBefore))
     }
 
     /**

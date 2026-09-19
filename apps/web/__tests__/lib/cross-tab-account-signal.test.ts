@@ -7,26 +7,24 @@ import {
 
 const ACCOUNT_SIGNAL_CHANNEL = 'orbit-account-signal'
 
-function settle(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0))
-}
+/**
+ * A message that must arrive. Channel delivery runs on the event loop rather than on a timer, so a
+ * fixed wait proves nothing under load. One channel delivers in order, so a test that waits for
+ * this and then finds nothing before it has proof that the message under test was dropped on
+ * purpose rather than merely late.
+ */
+const SENTINEL_ACCOUNT = 'sentinel-account'
 
 /**
- * Stands in for a second tab, holding its channel open for the whole file.
- *
- * A channel closed in the turn it posted delivers nothing, which is the defect the module itself
- * was carrying, so a helper that opens and closes one per message reproduces it here.
+ * Stands in for a second tab, holding its channel open for the whole file. A channel closed in the
+ * turn it posted delivers nothing, which is the defect the module itself was carrying, so a helper
+ * that opens and closes one per message would reproduce it here.
  */
 let otherTab: BroadcastChannel | null = null
 
 function getOtherTab(): BroadcastChannel {
   otherTab ??= new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
   return otherTab
-}
-
-async function postRawPayload(payload: unknown): Promise<void> {
-  getOtherTab().postMessage(payload)
-  await settle()
 }
 
 describe('the cross-tab account signal', () => {
@@ -45,30 +43,25 @@ describe('the cross-tab account signal', () => {
     return announced
   }
 
+  function waitForSentinel(announced: Array<string | null>): Promise<void> {
+    getOtherTab().postMessage({ accountId: SENTINEL_ACCOUNT })
+    return vi.waitFor(() => expect(announced).toContain(SENTINEL_ACCOUNT))
+  }
+
   it('carries an account from another tab', async () => {
     const announced = listen()
 
-    await postRawPayload({ accountId: 'account-b' })
+    getOtherTab().postMessage({ accountId: 'account-b' })
 
-    expect(announced).toEqual(['account-b'])
+    await vi.waitFor(() => expect(announced).toEqual(['account-b']))
   })
 
   it('carries a sign out from another tab', async () => {
     const announced = listen()
 
-    await postRawPayload({ accountId: null })
+    getOtherTab().postMessage({ accountId: null })
 
-    expect(announced).toEqual([null])
-  })
-
-  it('never hands a tab back its own announcement', async () => {
-    const announced = listen()
-
-    announceAccountToOtherTabs('account-b')
-    announceAccountToOtherTabs(null)
-    await settle()
-
-    expect(announced).toEqual([])
+    await vi.waitFor(() => expect(announced).toEqual([null]))
   })
 
   it('reaches another tab that is listening on the channel', async () => {
@@ -76,9 +69,8 @@ describe('the cross-tab account signal', () => {
     getOtherTab().addEventListener('message', (event) => received.push(event.data))
 
     announceAccountToOtherTabs('account-b')
-    await settle()
 
-    expect(received).toEqual([{ accountId: 'account-b' }])
+    await vi.waitFor(() => expect(received).toEqual([{ accountId: 'account-b' }]))
   })
 
   it.each([
@@ -90,17 +82,29 @@ describe('the cross-tab account signal', () => {
   ])('ignores %s rather than reading it as a sign out', async (_name, payload) => {
     const announced = listen()
 
-    await postRawPayload(payload)
+    getOtherTab().postMessage(payload)
+    await waitForSentinel(announced)
 
-    expect(announced).toEqual([])
+    expect(announced).toEqual([SENTINEL_ACCOUNT])
+  })
+
+  it('never hands a tab back its own announcement', async () => {
+    const announced = listen()
+
+    announceAccountToOtherTabs('account-b')
+    announceAccountToOtherTabs(null)
+    await waitForSentinel(announced)
+
+    expect(announced).toEqual([SENTINEL_ACCOUNT])
   })
 
   it('stops delivering once the listener is removed', async () => {
+    const stillListening = listen()
     const announced: Array<string | null> = []
     const stopListening = subscribeToAccountSignal((accountId) => announced.push(accountId))
 
     stopListening()
-    await postRawPayload({ accountId: 'account-b' })
+    await waitForSentinel(stillListening)
 
     expect(announced).toEqual([])
   })
