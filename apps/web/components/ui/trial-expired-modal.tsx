@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { buildAccountScopedStorageKey, readAccountScopedFlag } from '@orbit/shared/utils'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { getHeldAccountId } from '@/stores/auth-store'
+import { useHeldAccountId } from '@/stores/auth-store'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { PillButton } from '@/components/ui/pill-button'
@@ -30,7 +30,7 @@ export function TrialExpiredModal() {
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useAccountScopedState(false)
   const mounted = useIsClient()
-  const accountId = getHeldAccountId()
+  const accountId = useHeldAccountId()
   const scopedKey = accountId === null ? null : buildAccountScopedStorageKey(STORAGE_KEY, accountId)
 
   /**

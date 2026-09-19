@@ -32,13 +32,17 @@ import { createTokensV2 } from '@/lib/theme'
 
 const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
 
-/** Lets the trial notice appear again for this account alone, since the key now names one. */
+/**
+ * Lets the trial notice appear again for this account. The pre-rename key goes with it, because
+ * left behind it answers for every account and keeps suppressing the notice this reset restores.
+ */
 async function removeScopedTrialExpiredFlag(): Promise<void> {
   const accountId = useAuthStore.getState().user?.userId ?? null
-  if (accountId === null) return
-  await AsyncStorage.removeItem(
-    buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId),
-  )
+  const keys = [TRIAL_EXPIRED_SEEN_STORAGE_KEY]
+  if (accountId !== null) {
+    keys.push(buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId))
+  }
+  await AsyncStorage.multiRemove(keys)
 }
 
 function AmberPillButton({

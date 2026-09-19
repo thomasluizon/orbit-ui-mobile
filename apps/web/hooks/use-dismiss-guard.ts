@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { resolveDismissGuardAction } from '@orbit/shared/hooks'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface UseDismissGuardOptions {
   isDirty: boolean
@@ -9,7 +10,7 @@ interface UseDismissGuardOptions {
 }
 
 export function useDismissGuard({ isDirty, onDismiss }: Readonly<UseDismissGuardOptions>) {
-  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  const [showDiscardDialog, setShowDiscardDialog] = useAccountScopedState(false)
 
   const requestDismiss = useCallback(() => {
     const decision = resolveDismissGuardAction('request', isDirty)
@@ -17,7 +18,7 @@ export function useDismissGuard({ isDirty, onDismiss }: Readonly<UseDismissGuard
     if (decision.shouldDismiss) {
       onDismiss()
     }
-  }, [isDirty, onDismiss])
+  }, [isDirty, onDismiss, setShowDiscardDialog])
 
   const confirmDismiss = useCallback(() => {
     const decision = resolveDismissGuardAction('confirm', isDirty)
@@ -25,12 +26,12 @@ export function useDismissGuard({ isDirty, onDismiss }: Readonly<UseDismissGuard
     if (decision.shouldDismiss) {
       onDismiss()
     }
-  }, [isDirty, onDismiss])
+  }, [isDirty, onDismiss, setShowDiscardDialog])
 
   const cancelDismiss = useCallback(() => {
     const decision = resolveDismissGuardAction('cancel', isDirty)
     setShowDiscardDialog(decision.showDiscardDialog)
-  }, [isDirty])
+  }, [isDirty, setShowDiscardDialog])
 
   return useMemo(
     () => ({

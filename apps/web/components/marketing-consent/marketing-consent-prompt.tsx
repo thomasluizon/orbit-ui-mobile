@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useMutation } from '@tanstack/react-query'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
@@ -8,6 +8,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/lib/actions/profile'
 
@@ -32,9 +33,15 @@ export function MarketingConsentPrompt() {
   )
 
   const isArmed = armedPrompt?.kind === 'consent'
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  /**
+   * The settle timer is the one thing the state reset above cannot reach: with no prompt on
+   * screen its effect never re-runs, so a timer armed for the previous account would open this
+   * prompt under the next one.
+   */
+  useResetOnAccountChange(() => clearTimeout(settleTimerRef.current))
 
   const mutation = useMutation({
     mutationFn: (enabled: boolean) => updateMarketingConsent({ enabled }),
@@ -65,7 +72,7 @@ export function MarketingConsentPrompt() {
     return () => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
-  }, [isArmed, celebrationInFlight, visible, markEngagementPrompted])
+  }, [celebrationInFlight, isArmed, markEngagementPrompted, setVisible, visible])
 
   function answer(enabled: boolean) {
     closeSheet(() => {

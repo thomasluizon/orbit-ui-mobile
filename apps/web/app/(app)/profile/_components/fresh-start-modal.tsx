@@ -115,6 +115,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       await resetAccount()
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
+      localStorage.removeItem(TRIAL_EXPIRED_SEEN_STORAGE_KEY)
       const accountId = getHeldAccountId()
       if (accountId !== null) {
         localStorage.removeItem(buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId))
@@ -271,7 +272,7 @@ function FreshStartInfoStep({
         <AmberPillButton onClick={onContinue}>
           {t('common.continue')}
         </AmberPillButton>
-        <PillButton variant="ghost"  onClick={onCancel}>
+        <PillButton variant="ghost" onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
       </div>
@@ -340,7 +341,7 @@ function FreshStartConfirmStep({
         <AmberPillButton disabled={!isConfirmed || loading} onClick={onReset}>
           {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
         </AmberPillButton>
-        <PillButton variant="ghost"  disabled={loading} onClick={onCancel}>
+        <PillButton variant="ghost" disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
       </div>

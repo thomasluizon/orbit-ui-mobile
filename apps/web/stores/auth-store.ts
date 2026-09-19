@@ -119,6 +119,21 @@ export function getHeldAccountId(): string | null {
   return lastObservedAccountId
 }
 
+/**
+ * Reports the held account to a component and re-renders it when that account arrives.
+ *
+ * The FIRST session check of a tab records the account and returns early, because there is no
+ * previous account to forget, so the account generation never rises on it. A component that keys
+ * anything on the account therefore cannot wait on the generation: it would render once with no
+ * account, and nothing would ever tell it otherwise. It subscribes to the store write that every
+ * session check performs instead, and reads the held id for the window in which this tab knows
+ * the account but not yet the person behind it.
+ */
+export function useHeldAccountId(): string | null {
+  const signedInUserId = useAuthStore((state) => state.user?.userId ?? null)
+  return signedInUserId ?? getHeldAccountId()
+}
+
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
   const next = sessionRevalidationQueue.then(task, task)
   sessionRevalidationQueue = next.catch(() => {})

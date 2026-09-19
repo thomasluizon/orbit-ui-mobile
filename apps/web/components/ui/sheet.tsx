@@ -26,6 +26,11 @@ export interface SheetHandle {
  * has to run after that, so both platforms share one close path. Pass
  * `sheetRef` to the sheet, then call `closeSheet()`, or `closeSheet(action)`
  * when something has to run after the sheet is gone.
+ *
+ * One exception, and only one: an account replacement drops the open flag outright,
+ * through `useAccountScopedState`. The exit transition would hold the previous
+ * account's content on screen for its whole duration, which is the defect rather than
+ * a gentler version of it. Nothing else may flip the flag.
  */
 export function useSheetHost() {
   const sheetRef = useRef<SheetHandle>(null)

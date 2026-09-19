@@ -54,6 +54,12 @@ export function useResetOnAccountChange(reset: () => void): void {
  * and left the next one open, because the reset is a second thing to remember and the state is the
  * first. Here the state IS the reset, so a surface that adopts this hook cannot forget it.
  *
+ * The reset runs during the render the account change causes, not in an effect after it. React
+ * re-renders immediately and never paints the discarded state, which an effect cannot promise:
+ * `useAccountGeneration` subscribes through `useSyncExternalStore`, so the rise commits a render
+ * carrying the previous account's value and a passive effect clears it one commit later. That
+ * is a frame of exactly what this hook exists to prevent.
+ *
  * The initial value is re-read at the account change rather than captured at mount, so a lazy
  * initializer that reads a module-level grant returns the NEXT account's answer, not the previous
  * account's: React reads a function handed to the setter as an updater, and an initializer takes no
@@ -64,14 +70,14 @@ export function useResetOnAccountChange(reset: () => void): void {
 export function useAccountScopedState<S>(
   initialState: S | (() => S),
 ): [S, Dispatch<SetStateAction<S>>] {
+  const accountGeneration = useAccountGeneration()
   const [value, setValue] = useState(initialState)
-  const latestInitialState = useRef(initialState)
+  const [valueAccountGeneration, setValueAccountGeneration] = useState(accountGeneration)
 
-  useEffect(() => {
-    latestInitialState.current = initialState
-  })
-
-  useResetOnAccountChange(() => setValue(latestInitialState.current))
+  if (valueAccountGeneration !== accountGeneration) {
+    setValueAccountGeneration(accountGeneration)
+    setValue(initialState)
+  }
 
   return [value, setValue]
 }
