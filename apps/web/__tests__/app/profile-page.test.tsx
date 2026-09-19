@@ -118,6 +118,7 @@ vi.mock('@/hooks/use-gamification', () => ({
 }))
 
 vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => null,
   useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
     selector({ logout: vi.fn() }),
 }))
@@ -475,7 +476,7 @@ describe('ProfilePage', () => {
       expect(mockCreateApiKey).toHaveBeenCalledWith({
         name: 'profile.apiKeys.newKeyName',
         scopes: ['habits:read'],
-      })
+      }, null)
     })
   })
 
@@ -636,8 +637,8 @@ describe('ProfilePage', () => {
     const summarySwitch = astra.getByRole('switch', { name: 'profile.aiSummary.title' })
     fireEvent.click(proactiveSwitch)
     fireEvent.click(summarySwitch)
-    expect(mockUpdateProactiveAstra).toHaveBeenCalledWith({ enabled: true })
-    expect(mockUpdateAiSummary).toHaveBeenCalledWith({ enabled: false })
+    expect(mockUpdateProactiveAstra).toHaveBeenCalledWith({ enabled: true }, null)
+    expect(mockUpdateAiSummary).toHaveBeenCalledWith({ enabled: false }, null)
   })
 
   it('shows lifetime Pro without advertising a subscription management action', () => {

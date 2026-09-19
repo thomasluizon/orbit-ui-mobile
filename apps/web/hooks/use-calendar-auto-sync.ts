@@ -1,6 +1,6 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { calendarKeys, notificationKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
@@ -20,6 +20,7 @@ import {
   runCalendarSyncNow as runCalendarSyncNowAction,
   setCalendarAutoSync as setCalendarAutoSyncAction,
 } from '@/lib/actions/calendar'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 
 interface CalendarQueryOptions {
   enabled?: boolean
@@ -68,9 +69,14 @@ export function useCalendarSyncSuggestions(options?: CalendarQueryOptions) {
 export function useSetCalendarAutoSync() {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, { enabled: boolean }, { previous: CalendarAutoSyncState | undefined }>({
-    mutationFn: async ({ enabled }) => {
-      await setCalendarAutoSyncAction(enabled)
+  return useAccountScopedMutation<
+    void,
+    Error,
+    { enabled: boolean },
+    { previous: CalendarAutoSyncState | undefined }
+  >({
+    mutationFn: async ({ enabled }, intendedAccountId) => {
+      await setCalendarAutoSyncAction(enabled, intendedAccountId)
     },
 
     onMutate: async ({ enabled }) => {
@@ -109,9 +115,9 @@ export function useSetCalendarAutoSync() {
 export function useRunCalendarSyncNow() {
   const queryClient = useQueryClient()
 
-  return useMutation<CalendarAutoSyncResult, Error, void>({
-    mutationFn: async () => {
-      const raw = await runCalendarSyncNowAction()
+  return useAccountScopedMutation<CalendarAutoSyncResult, Error, void>({
+    mutationFn: async (_variables, intendedAccountId) => {
+      const raw = await runCalendarSyncNowAction(intendedAccountId)
       return calendarAutoSyncResultSchema.parse(raw)
     },
 
@@ -129,9 +135,14 @@ export function useRunCalendarSyncNow() {
 export function useDismissCalendarSuggestion() {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, { id: string }, { previous: CalendarSyncSuggestion[] | undefined }>({
-    mutationFn: async ({ id }) => {
-      await dismissCalendarSuggestionAction(id)
+  return useAccountScopedMutation<
+    void,
+    Error,
+    { id: string },
+    { previous: CalendarSyncSuggestion[] | undefined }
+  >({
+    mutationFn: async ({ id }, intendedAccountId) => {
+      await dismissCalendarSuggestionAction(id, intendedAccountId)
     },
 
     onMutate: async ({ id }) => {

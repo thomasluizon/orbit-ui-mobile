@@ -65,8 +65,8 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.confirmAndExecutePendingOperation('pending-1')
     })
 
-    expect(mocks.confirmPendingOperation).toHaveBeenCalledWith('pending-1')
-    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1')
+    expect(mocks.confirmPendingOperation).toHaveBeenCalledWith('pending-1', null)
+    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1', null)
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Created'))
     expect(outcome).toMatchObject({ ok: true })
   })
@@ -106,7 +106,7 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.prepareStepUpForBubble('pending-2')
     })
 
-    expect(mocks.issuePendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'pt-BR')
+    expect(mocks.issuePendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'pt-BR', null)
     expect(outcome).toEqual({
       ok: true,
       challengeId: 'challenge-2',
@@ -148,8 +148,13 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.verifyStepUpForBubble('pending-2', 'challenge-2', '123456', 'token-2')
     })
 
-    expect(mocks.verifyPendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'challenge-2', '123456')
-    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2')
+    expect(mocks.verifyPendingOperationStepUp).toHaveBeenCalledWith(
+      'pending-2',
+      'challenge-2',
+      '123456',
+      null,
+    )
+    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2', null)
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Done'))
     expect(outcome).toMatchObject({ ok: true })
   })

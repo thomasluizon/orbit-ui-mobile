@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useLocale } from 'next-intl'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference, resolveSystemLocale } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
@@ -14,6 +14,8 @@ import {
   updateLanguage,
   updateTimezone,
 } from '@/lib/actions/profile'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { getHeldAccountId } from '@/stores/auth-store'
 import type { PreferencePicker } from './preference-picker-sheet'
 
 function writeLocaleCookie(value: string) {
@@ -43,11 +45,12 @@ export function usePreferenceControls() {
   const handleLanguageChange = useCallback(
     async (nextLocale: SupportedLocale) => {
       const previousLocale = selectedLanguage
+      const intendedAccountId = getHeldAccountId()
       setSelectedLanguage(nextLocale)
       writeLocaleCookie(nextLocale)
       if (isAuthenticated) {
         try {
-          await updateLanguage({ language: nextLocale })
+          await updateLanguage({ language: nextLocale }, intendedAccountId)
         } catch {
           setSelectedLanguage(previousLocale)
           writeLocaleCookie(previousLocale)
@@ -59,8 +62,9 @@ export function usePreferenceControls() {
     [isAuthenticated, selectedLanguage],
   )
 
-  const weekStartMutation = useMutation({
-    mutationFn: (day: 0 | 1) => updateWeekStartDay({ weekStartDay: day }),
+  const weekStartMutation = useAccountScopedMutation({
+    mutationFn: (day: 0 | 1, intendedAccountId) =>
+      updateWeekStartDay({ weekStartDay: day }, intendedAccountId),
     onMutate: (day) => {
       const previous = profile?.weekStartDay
       patchProfile({ weekStartDay: day })
@@ -78,8 +82,9 @@ export function usePreferenceControls() {
     },
   })
 
-  const timeZoneMutation = useMutation({
-    mutationFn: (timeZone: string) => updateTimezone({ timeZone }),
+  const timeZoneMutation = useAccountScopedMutation({
+    mutationFn: (timeZone: string, intendedAccountId) =>
+      updateTimezone({ timeZone }, intendedAccountId),
     onMutate: (timeZone) => {
       const previous = profile?.timeZone ?? null
       patchProfile({ timeZone })

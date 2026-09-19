@@ -18,6 +18,7 @@ import {
 } from '@orbit/shared/utils'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { sendSupportMessage } from '@/lib/actions/support'
+import { getHeldAccountId } from '@/stores/auth-store'
 import {
   forgetStoredSupportDraft,
   readStoredSupportDraft,
@@ -142,6 +143,7 @@ export default function SupportPage() {
     const selectedSubject = SUPPORT_SUBJECT_OPTIONS.find((option) => option.id === subject)
     if (!selectedSubject) return
 
+    const intendedAccountId = getHeldAccountId()
     setIsSending(true)
     setError(null)
     setSuccess(false)
@@ -153,7 +155,7 @@ export default function SupportPage() {
         subject: t(selectedSubject.labelKey),
         message: attachSupportVersion(message, appVersion),
       })
-      await sendSupportMessage(payload)
+      await sendSupportMessage(payload, intendedAccountId)
       setSuccess(true)
       draftRef.current = { subject: null, message: '' }
       setSubject(null)

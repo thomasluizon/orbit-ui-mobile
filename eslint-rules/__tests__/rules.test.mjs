@@ -1075,3 +1075,37 @@ ruleTester.run('no-unjustified-disable', rule('no-unjustified-disable'), {
     },
   ],
 })
+
+ruleTester.run('no-mutating-server-auth-fetch', rule('no-mutating-server-auth-fetch'), {
+  valid: [
+    "serverAuthFetch(API.tags.list, { method: 'GET' })",
+    "serverAuthFetch(API.checklistTemplates.list)",
+    "serverAuthMutate(API.goals.delete(goalId), { method: 'DELETE' }, intendedAccountId)",
+    "serverAuthFetch(API.profile.export, init)",
+    "serverAuthFetch(API.profile.export, { method })",
+    "serverPublicFetch('/api/u/ada', { method: 'POST' })",
+    "client.serverAuthFetch(API.goals.create, { method: 'POST' })",
+  ],
+  invalid: [
+    {
+      code: "serverAuthFetch(API.goals.delete(goalId), { method: 'DELETE' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.create, { method: 'POST', body: JSON.stringify(data) })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'POST' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.reorder, { 'method': 'PUT' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'PUT' } }],
+    },
+    {
+      code: "serverAuthFetch(API.profile.name, { method: 'patch' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'PATCH' } }],
+    },
+    {
+      code: "serverAuthFetch<ApiKeyCreateResponse>(API.apiKeys.create, { method: 'POST' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'POST' } }],
+    },
+  ],
+})

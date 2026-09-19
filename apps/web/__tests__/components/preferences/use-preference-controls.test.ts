@@ -35,6 +35,7 @@ vi.mock('@/stores/auth-store', () => {
     recoverSessionRefreshFailure: vi.fn(),
   })
   return {
+    getHeldAccountId: () => null,
     useAuthStore: Object.assign(
       (selector: (state: { isAuthenticated: boolean }) => unknown) => selector(getState()),
       { getState },
@@ -113,7 +114,7 @@ describe('usePreferenceControls', () => {
       await result.current.handleLanguageChange('pt-BR')
     })
 
-    expect(updateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' })
+    expect(updateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' }, null)
     expect(document.cookie).toContain('i18n_locale=pt-BR')
     expect(reloadMock).toHaveBeenCalledTimes(1)
     expect(result.current.selectedLanguage).toBe('pt-BR')
@@ -155,7 +156,7 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenCalledWith({ weekStartDay: 1 })
-    expect(updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 1 })
+    expect(updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 1 }, null)
   })
 
   it('rolls the week-start day back on error', async () => {
@@ -180,7 +181,7 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
-    expect(updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' }, null)
   })
 
   it('refetches every calendar event timezone after the timezone write settles', async () => {

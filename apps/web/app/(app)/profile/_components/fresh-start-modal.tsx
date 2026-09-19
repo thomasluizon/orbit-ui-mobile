@@ -14,6 +14,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/lib/actions/profile'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 function AmberPillButton({
   disabled = false,
@@ -104,10 +105,11 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   async function handleReset() {
     if (!isConfirmed) return
+    const intendedAccountId = getHeldAccountId()
     setLoading(true)
     setError('')
     try {
-      await resetAccount()
+      await resetAccount(intendedAccountId)
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem('orbit_trial_expired_seen')

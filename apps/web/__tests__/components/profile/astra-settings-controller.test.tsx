@@ -70,7 +70,7 @@ describe('useAstraSettingsController', () => {
     act(() => result.current.onToggleProactive())
 
     await waitFor(() => {
-      expect(mocks.updateProactiveAstra).toHaveBeenCalledWith({ enabled: true })
+      expect(mocks.updateProactiveAstra).toHaveBeenCalledWith({ enabled: true }, null)
       expect(patchProfile).toHaveBeenLastCalledWith({ proactiveAstraEnabled: true })
       expect(result.current.proactivePending).toBe(true)
     })

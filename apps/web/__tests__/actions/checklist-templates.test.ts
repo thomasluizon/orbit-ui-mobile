@@ -71,7 +71,7 @@ describe('checklist template server actions', () => {
       const result = await createChecklistTemplateAction({
         name: 'Workout',
         items: ['Warmup', 'Main'],
-      })
+      }, null)
 
       expect(result).toEqual({ id: 'new-template' })
       const [url, init] = mockFetch.mock.calls[0]!
@@ -88,7 +88,7 @@ describe('checklist template server actions', () => {
     it('DELETEs /api/checklist-templates/:id', async () => {
       mock204()
 
-      await deleteChecklistTemplateAction('tmpl-1')
+      await deleteChecklistTemplateAction('tmpl-1', null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/checklist-templates/tmpl-1')
@@ -97,31 +97,31 @@ describe('checklist template server actions', () => {
 
     it('resolves without throwing on 204 No Content', async () => {
       mock204()
-      await expect(deleteChecklistTemplateAction('tmpl-1')).resolves.toBeUndefined()
+      await expect(deleteChecklistTemplateAction('tmpl-1', null)).resolves.toBeUndefined()
     })
 
     it('accepts GUID-shaped ids', async () => {
       mock204()
-      await deleteChecklistTemplateAction('abc12345-1234-4567-89ab-123456789abc')
+      await deleteChecklistTemplateAction('abc12345-1234-4567-89ab-123456789abc', null)
       const [url] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/checklist-templates/abc12345-1234-4567-89ab-123456789abc')
     })
 
     it('rejects ids that try to traverse the URL path', async () => {
       await expect(
-        deleteChecklistTemplateAction('abc/../../other-endpoint'),
+        deleteChecklistTemplateAction('abc/../../other-endpoint', null),
       ).rejects.toThrow('Invalid template id')
       expect(mockFetch).not.toHaveBeenCalled()
     })
 
     it('rejects empty ids', async () => {
-      await expect(deleteChecklistTemplateAction('')).rejects.toThrow('Invalid template id')
+      await expect(deleteChecklistTemplateAction('', null)).rejects.toThrow('Invalid template id')
       expect(mockFetch).not.toHaveBeenCalled()
     })
 
     it('rejects overly long ids', async () => {
       await expect(
-        deleteChecklistTemplateAction('a'.repeat(129)),
+        deleteChecklistTemplateAction('a'.repeat(129), null),
       ).rejects.toThrow('Invalid template id')
       expect(mockFetch).not.toHaveBeenCalled()
     })

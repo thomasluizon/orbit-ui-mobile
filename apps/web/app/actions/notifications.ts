@@ -1,7 +1,7 @@
 'use server'
 
 import { API } from '@orbit/shared/api'
-import { serverAuthFetch } from '@/lib/server-fetch'
+import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 /**
@@ -15,7 +15,7 @@ function writeNotificationsForAccount(
   method: 'PUT' | 'DELETE',
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(path, { method }, undefined, intendedAccountId))
+  return wrapServerAction(() => serverAuthMutate(path, { method }, intendedAccountId))
 }
 
 export async function markNotificationRead(
@@ -61,14 +61,14 @@ export async function subscribePush(
   subscription: PushSubscriptionJSON,
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.notifications.subscribe, {
+  return wrapServerAction(() => serverAuthMutate(API.notifications.subscribe, {
     method: 'POST',
     body: JSON.stringify({
       endpoint: subscription.endpoint,
       p256dh: subscription.keys?.p256dh ?? '',
       auth: subscription.keys?.auth ?? '',
     }),
-  }, undefined, intendedAccountId))
+  }, intendedAccountId))
 }
 
 /**
@@ -79,12 +79,12 @@ export async function unsubscribePush(
   subscription: PushSubscriptionJSON,
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.notifications.unsubscribe, {
+  return wrapServerAction(() => serverAuthMutate(API.notifications.unsubscribe, {
     method: 'POST',
     body: JSON.stringify({
       endpoint: subscription.endpoint,
       p256dh: subscription.keys?.p256dh ?? '',
       auth: subscription.keys?.auth ?? '',
     }),
-  }, undefined, intendedAccountId))
+  }, intendedAccountId))
 }

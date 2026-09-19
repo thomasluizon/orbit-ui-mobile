@@ -55,7 +55,7 @@ describe('habit server actions (extended)', () => {
         ],
       })
 
-      const result = await bulkLogHabits([{ habitId: 'h-1' }])
+      const result = await bulkLogHabits([{ habitId: 'h-1' }], null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/bulk/log')
@@ -76,7 +76,7 @@ describe('habit server actions (extended)', () => {
         { habitId: 'h-1' },
         { habitId: 'h-2', date: '2025-01-15' },
       ]
-      const result = await bulkLogHabits(items)
+      const result = await bulkLogHabits(items, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ items })
@@ -87,7 +87,7 @@ describe('habit server actions (extended)', () => {
       mockApiResponse({ error: 'Bulk log failed' }, 400)
 
       await expect(
-        bulkLogHabits([{ habitId: 'h-1' }]),
+        bulkLogHabits([{ habitId: 'h-1' }], null),
       ).rejects.toThrow('Bulk log failed')
     })
   })
@@ -99,7 +99,7 @@ describe('habit server actions (extended)', () => {
         results: [{ index: 0, habitId: 'h-1', status: 'Success', error: null }],
       })
 
-      const result = await bulkSkipHabits([{ habitId: 'h-1' }])
+      const result = await bulkSkipHabits([{ habitId: 'h-1' }], null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/bulk/skip')
@@ -113,7 +113,7 @@ describe('habit server actions (extended)', () => {
         results: [{ index: 0, habitId: 'h-1', status: 'Success', error: null }],
       })
 
-      await bulkSkipHabits([{ habitId: 'h-1', date: '2025-01-15' }])
+      await bulkSkipHabits([{ habitId: 'h-1', date: '2025-01-15' }], null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({
@@ -125,7 +125,7 @@ describe('habit server actions (extended)', () => {
       mockApiResponse({ error: 'Bulk skip failed' }, 400)
 
       await expect(
-        bulkSkipHabits([{ habitId: 'h-1' }]),
+        bulkSkipHabits([{ habitId: 'h-1' }], null),
       ).rejects.toThrow('Bulk skip failed')
     })
   })
@@ -135,7 +135,7 @@ describe('habit server actions (extended)', () => {
     it('sends POST to /api/habits/:parentId/sub-habits', async () => {
       mock204()
 
-      await createSubHabit('parent-1', { title: 'Sub Task' })
+      await createSubHabit('parent-1', { title: 'Sub Task' }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/parent-1/sub-habits')
@@ -146,7 +146,7 @@ describe('habit server actions (extended)', () => {
     it('includes auth headers', async () => {
       mock204()
 
-      await createSubHabit('parent-1', { title: 'Sub' })
+      await createSubHabit('parent-1', { title: 'Sub' }, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
@@ -156,7 +156,7 @@ describe('habit server actions (extended)', () => {
       mockApiResponse({ error: 'Parent not found' }, 404)
 
       await expect(
-        createSubHabit('nonexistent', { title: 'Sub' }),
+        createSubHabit('nonexistent', { title: 'Sub' }, null),
       ).rejects.toThrow('Parent not found')
     })
   })
@@ -166,7 +166,7 @@ describe('habit server actions (extended)', () => {
     it('sends PUT to /api/habits/:id/parent', async () => {
       mock204()
 
-      await moveHabitParent('h-1', { parentId: 'parent-2' })
+      await moveHabitParent('h-1', { parentId: 'parent-2' }, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/parent')
@@ -177,7 +177,7 @@ describe('habit server actions (extended)', () => {
     it('sends null parentId to make top-level', async () => {
       mock204()
 
-      await moveHabitParent('h-1', { parentId: null })
+      await moveHabitParent('h-1', { parentId: null }, null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ parentId: null })
@@ -187,7 +187,7 @@ describe('habit server actions (extended)', () => {
       mockApiResponse({ error: 'Circular reference' }, 400)
 
       await expect(
-        moveHabitParent('h-1', { parentId: 'h-1' }),
+        moveHabitParent('h-1', { parentId: 'h-1' }, null),
       ).rejects.toThrow('Circular reference')
     })
   })
@@ -202,7 +202,7 @@ describe('habit server actions (extended)', () => {
         { text: 'Step 2', isChecked: true },
       ]
 
-      await updateChecklist('h-1', items)
+      await updateChecklist('h-1', items, null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/checklist')
@@ -213,7 +213,7 @@ describe('habit server actions (extended)', () => {
     it('handles empty checklist', async () => {
       mock204()
 
-      await updateChecklist('h-1', [])
+      await updateChecklist('h-1', [], null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ checklistItems: [] })
@@ -223,7 +223,7 @@ describe('habit server actions (extended)', () => {
       mockApiResponse({ error: 'Habit not found' }, 404)
 
       await expect(
-        updateChecklist('nonexistent', []),
+        updateChecklist('nonexistent', [], null),
       ).rejects.toThrow('Habit not found')
     })
   })
@@ -233,7 +233,7 @@ describe('habit server actions (extended)', () => {
     it('sends PUT to /api/habits/:id/goals', async () => {
       mock204()
 
-      await linkGoalsToHabit('h-1', ['g-1', 'g-2'])
+      await linkGoalsToHabit('h-1', ['g-1', 'g-2'], null)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/goals')
@@ -244,7 +244,7 @@ describe('habit server actions (extended)', () => {
     it('handles empty goal ids to unlink all', async () => {
       mock204()
 
-      await linkGoalsToHabit('h-1', [])
+      await linkGoalsToHabit('h-1', [], null)
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ goalIds: [] })
@@ -254,7 +254,7 @@ describe('habit server actions (extended)', () => {
       mockApiResponse({ error: 'Goal not found' }, 404)
 
       await expect(
-        linkGoalsToHabit('h-1', ['nonexistent']),
+        linkGoalsToHabit('h-1', ['nonexistent'], null),
       ).rejects.toThrow('Goal not found')
     })
   })

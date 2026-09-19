@@ -2,7 +2,7 @@
 
 import type { HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
 import { snapshotHabitLists, restoreHabitLists } from '@/lib/habit-mutation-helpers'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { habitKeys, tagKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
@@ -15,6 +15,7 @@ import {
   updateTagInList,
 } from '@orbit/shared/utils'
 import { assignTags, createTag, deleteTag, getTags, restoreTag, suggestTags, updateTag } from '@/lib/actions/tags'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 
@@ -152,8 +153,9 @@ export function useTags() {
 export function useCreateTag() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: ({ name, color }: { name: string; color: string }) => createTag(name, color),
+  return useAccountScopedMutation({
+    mutationFn: ({ name, color }: { name: string; color: string }, intendedAccountId) =>
+      createTag(name, color, intendedAccountId),
 
     onMutate: async ({ name, color }) => {
       await queryClient.cancelQueries({ queryKey: tagKeys.all })
@@ -185,9 +187,11 @@ export function useCreateTag() {
 export function useUpdateTag() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: ({ tagId, name, color }: { tagId: string; name: string; color: string }) =>
-      updateTag(tagId, name, color),
+  return useAccountScopedMutation({
+    mutationFn: (
+      { tagId, name, color }: { tagId: string; name: string; color: string },
+      intendedAccountId,
+    ) => updateTag(tagId, name, color, intendedAccountId),
 
     onMutate: async ({ tagId, name, color }) => {
       await queryClient.cancelQueries({ queryKey: tagKeys.all })
@@ -217,8 +221,8 @@ export function useRestoreTag() {
   const t = useTranslations()
   const { showSuccess, showError } = useAppToast()
 
-  return useMutation({
-    mutationFn: (tagId: string) => restoreTag(tagId),
+  return useAccountScopedMutation({
+    mutationFn: (tagId: string, intendedAccountId) => restoreTag(tagId, intendedAccountId),
 
     onSuccess: () => {
       void invalidateTagMutationQueries(queryClient)
@@ -237,8 +241,8 @@ export function useDeleteTag() {
   const restoreTagMutation = useRestoreTag()
   const showUndoToast = useUndoToast()
 
-  return useMutation({
-    mutationFn: (tagId: string) => deleteTag(tagId),
+  return useAccountScopedMutation({
+    mutationFn: (tagId: string, intendedAccountId) => deleteTag(tagId, intendedAccountId),
 
     onSuccess: (_data, tagId) => {
       showUndoToast(t('undo.tagDeleted'), () => restoreTagMutation.mutate(tagId))
@@ -269,7 +273,7 @@ export function useDeleteTag() {
 
 export function useSuggestTags() {
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- on-demand AI tag suggestions are a query-shaped mutation that mutates no server or cached state, so there is nothing to invalidate; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       title,
       description,
@@ -278,16 +282,16 @@ export function useSuggestTags() {
       title: string
       description: string | null
       language: string
-    }) => suggestTags(title, description, language),
+    }, intendedAccountId) => suggestTags(title, description, language, intendedAccountId),
   })
 }
 
 export function useAssignTags() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: ({ habitId, tagIds }: { habitId: string; tagIds: string[] }) =>
-      assignTags(habitId, tagIds),
+  return useAccountScopedMutation({
+    mutationFn: ({ habitId, tagIds }: { habitId: string; tagIds: string[] }, intendedAccountId) =>
+      assignTags(habitId, tagIds, intendedAccountId),
 
     onMutate: async ({ habitId, tagIds }) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })

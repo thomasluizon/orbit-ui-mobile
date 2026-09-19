@@ -87,7 +87,7 @@ describe('EditNameSheet', () => {
     fireEvent.click(screen.getByText('common.save'))
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
-    expect(mockUpdateName).toHaveBeenCalledWith({ name: 'Ana Clara' })
+    expect(mockUpdateName).toHaveBeenCalledWith({ name: 'Ana Clara' }, null)
     expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Ana Clara' })
     expect(mockInvalidate).toHaveBeenCalled()
   })

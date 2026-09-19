@@ -28,27 +28,30 @@ import {
   bulkSkipResultSchema,
 } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
-import { serverAuthFetch } from '@/lib/server-fetch'
+import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export async function createHabit(
   data: CreateHabitRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<{ id: string }>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.create, {
+  return wrapServerAction(() => serverAuthMutate(API.habits.create, {
     method: 'POST',
     body: JSON.stringify(data),
-  }))
+  }, intendedAccountId))
 }
 
 export async function suggestHabitSetup(
   data: HabitSetupSuggestionRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<HabitSetupSuggestion>> {
-  return wrapServerAction(() => serverAuthFetch(
+  return wrapServerAction(() => serverAuthMutate(
     API.habits.suggestSetup,
     {
       method: 'POST',
       body: JSON.stringify(data),
     },
+    intendedAccountId,
     habitSetupSuggestionSchema,
   ))
 }
@@ -56,152 +59,178 @@ export async function suggestHabitSetup(
 export async function updateHabit(
   habitId: string,
   data: UpdateHabitRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.update(habitId), {
+  return wrapServerAction(() => serverAuthMutate(API.habits.update(habitId), {
     method: 'PUT',
     body: JSON.stringify(data),
-  }))
+  }, intendedAccountId))
 }
 
-export async function deleteHabit(habitId: string): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.delete(habitId), {
+export async function deleteHabit(
+  habitId: string,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.habits.delete(habitId), {
     method: 'DELETE',
-  }))
+  }, intendedAccountId))
 }
 
-export async function restoreHabit(habitId: string): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.restore(habitId), {
+export async function restoreHabit(
+  habitId: string,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.habits.restore(habitId), {
     method: 'POST',
-  }))
+  }, intendedAccountId))
 }
 
 export async function logHabit(
   habitId: string,
-  data?: LogHabitRequest,
+  data: LogHabitRequest | undefined,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<LogHabitResponse>> {
-  return wrapServerAction(() => serverAuthFetch(
+  return wrapServerAction(() => serverAuthMutate(
     API.habits.log(habitId),
     {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     },
+    intendedAccountId,
     logHabitResponseSchema,
   ))
 }
 
 export async function skipHabit(
   habitId: string,
-  date?: string,
+  date: string | undefined,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.skip(habitId), {
+  return wrapServerAction(() => serverAuthMutate(API.habits.skip(habitId), {
     method: 'POST',
     body: date ? JSON.stringify({ date }) : undefined,
-  }))
+  }, intendedAccountId))
 }
 
 export async function bulkCreateHabits(
   data: BulkCreateRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<BulkCreateResponse>> {
-  return wrapServerAction(() => serverAuthFetch(
+  return wrapServerAction(() => serverAuthMutate(
     API.habits.bulk,
     {
       method: 'POST',
       body: JSON.stringify(data),
     },
+    intendedAccountId,
     bulkCreateResponseSchema,
   ))
 }
 
 export async function bulkDeleteHabits(
   habitIds: string[],
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<BulkDeleteResponse>> {
-  return wrapServerAction(() => serverAuthFetch(
+  return wrapServerAction(() => serverAuthMutate(
     API.habits.bulk,
     {
       method: 'DELETE',
       body: JSON.stringify({ habitIds }),
     },
+    intendedAccountId,
     bulkDeleteResponseSchema,
   ))
 }
 
 export async function bulkLogHabits(
   items: BulkLogItemRequest[],
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<BulkLogResult>> {
-  return wrapServerAction(() => serverAuthFetch(
+  return wrapServerAction(() => serverAuthMutate(
     API.habits.bulkLog,
     {
       method: 'POST',
       body: JSON.stringify({ items }),
     },
+    intendedAccountId,
     bulkLogResultSchema,
   ))
 }
 
 export async function bulkSkipHabits(
   items: BulkSkipItemRequest[],
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<BulkSkipResult>> {
-  return wrapServerAction(() => serverAuthFetch(
+  return wrapServerAction(() => serverAuthMutate(
     API.habits.bulkSkip,
     {
       method: 'POST',
       body: JSON.stringify({ items }),
     },
+    intendedAccountId,
     bulkSkipResultSchema,
   ))
 }
 
 export async function reorderHabits(
   data: ReorderHabitsRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.reorder, {
+  return wrapServerAction(() => serverAuthMutate(API.habits.reorder, {
     method: 'PUT',
     body: JSON.stringify(data),
-  }))
+  }, intendedAccountId))
 }
 
 export async function createSubHabit(
   parentId: string,
   data: CreateSubHabitRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.subHabits(parentId), {
+  return wrapServerAction(() => serverAuthMutate(API.habits.subHabits(parentId), {
     method: 'POST',
     body: JSON.stringify(data),
-  }))
+  }, intendedAccountId))
 }
 
 export async function moveHabitParent(
   habitId: string,
   data: MoveHabitParentRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.parent(habitId), {
+  return wrapServerAction(() => serverAuthMutate(API.habits.parent(habitId), {
     method: 'PUT',
     body: JSON.stringify(data),
-  }))
+  }, intendedAccountId))
 }
 
-export async function duplicateHabit(habitId: string): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.duplicate(habitId), {
+export async function duplicateHabit(
+  habitId: string,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.habits.duplicate(habitId), {
     method: 'POST',
-  }))
+  }, intendedAccountId))
 }
 
 export async function updateChecklist(
   habitId: string,
   checklistItems: ChecklistItem[],
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.checklist(habitId), {
+  return wrapServerAction(() => serverAuthMutate(API.habits.checklist(habitId), {
     method: 'PUT',
     body: JSON.stringify({ checklistItems }),
-  }))
+  }, intendedAccountId))
 }
 
 export async function linkGoalsToHabit(
   habitId: string,
   goalIds: string[],
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.habits.goals(habitId), {
+  return wrapServerAction(() => serverAuthMutate(API.habits.goals(habitId), {
     method: 'PUT',
     body: JSON.stringify({ goalIds }),
-  }))
+  }, intendedAccountId))
 }

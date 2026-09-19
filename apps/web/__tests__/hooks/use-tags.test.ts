@@ -219,7 +219,7 @@ describe('web tag hooks', () => {
       })
     })
 
-    expect(suggestTags).toHaveBeenCalledWith('Morning run', null, 'en')
+    expect(suggestTags).toHaveBeenCalledWith('Morning run', null, 'en', null)
     expect(returned).toEqual(response)
   })
 
@@ -285,7 +285,7 @@ describe('web tag hooks', () => {
       performUndo()
     })
 
-    await waitFor(() => expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1'))
+    await waitFor(() => expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1', null))
   })
 
   it('restores a tag, invalidates tag and habit lists, and confirms', async () => {
@@ -305,7 +305,7 @@ describe('web tag hooks', () => {
       await result.current.mutateAsync('tag-1')
     })
 
-    expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1')
+    expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1', null)
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: tagKeys.all })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')

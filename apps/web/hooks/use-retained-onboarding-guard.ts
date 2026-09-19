@@ -7,6 +7,7 @@ import {
 } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { completeOnboarding } from '@/lib/actions/profile'
+import { getHeldAccountId } from '@/stores/auth-store'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useProfile } from '@/hooks/use-profile'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
@@ -60,7 +61,7 @@ export function useRetainedOnboardingGuard(
     if (forceShow || action !== 'autocomplete' || autoCompletedGeneration.current === accountGeneration)
       return
     autoCompletedGeneration.current = accountGeneration
-    void completeOnboarding()
+    void completeOnboarding(getHeldAccountId())
       .catch(() => {})
       .finally(() => patchProfile({ hasCompletedOnboarding: true }))
   }, [accountGeneration, action, forceShow, patchProfile])

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { useMutation } from '@tanstack/react-query'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -10,6 +9,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/lib/actions/profile'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 
 const SETTLE_DELAY_MS = 500
 
@@ -36,8 +36,9 @@ export function MarketingConsentPrompt() {
   const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  const mutation = useMutation({
-    mutationFn: (enabled: boolean) => updateMarketingConsent({ enabled }),
+  const mutation = useAccountScopedMutation({
+    mutationFn: (enabled: boolean, intendedAccountId) =>
+      updateMarketingConsent({ enabled }, intendedAccountId),
     onMutate: (enabled) => {
       const previous = profile?.marketingEmailConsent ?? null
       patchProfile({ marketingEmailConsent: enabled })

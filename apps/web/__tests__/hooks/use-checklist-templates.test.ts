@@ -87,7 +87,7 @@ describe('useCreateChecklistTemplate', () => {
     expect(createChecklistTemplateAction).toHaveBeenCalledWith({
       name: 'Workout',
       items: ['Warmup'],
-    })
+    }, null)
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: checklistTemplateKeys.lists(),
     })

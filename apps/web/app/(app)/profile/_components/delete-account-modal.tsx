@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestDeletion } from '@/lib/actions/auth'
+import { getHeldAccountId } from '@/stores/auth-store'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -49,10 +50,11 @@ export function DeleteAccountModal({
   }
 
   async function handleRequestDeletion() {
+    const intendedAccountId = getHeldAccountId()
     setLoading(true)
     setError('')
     try {
-      await requestDeletion()
+      await requestDeletion(intendedAccountId)
       beginStepUpChallenge('delete')
       closeSheet(() => {
         handleOpenChange(false)

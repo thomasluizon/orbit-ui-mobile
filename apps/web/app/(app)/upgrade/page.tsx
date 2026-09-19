@@ -23,6 +23,7 @@ import { PricingSection } from '@/components/upgrade/pricing-section'
 import { UsageStats } from '@/components/upgrade/usage-stats'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import { openCustomerPortal } from '@/lib/actions/subscription'
+import { getHeldAccountId } from '@/stores/auth-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBilling } from '@/hooks/use-billing'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -148,6 +149,7 @@ export default function UpgradePage() {
 
   const handleOpenPortal = useCallback(async () => {
     if (!isOnline) return
+    const intendedAccountId = getHeldAccountId()
     setPortalState('opening')
     try {
       if (status?.source === 'play') {
@@ -155,7 +157,7 @@ export default function UpgradePage() {
         globalThis.location.href = playManageSubscriptionUrl()
         return
       }
-      const data = await openCustomerPortal()
+      const data = await openCustomerPortal(intendedAccountId)
       globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
       globalThis.location.href = data.url
     } catch {
@@ -181,7 +183,6 @@ export default function UpgradePage() {
       <ErrorState
         message={t('upgrade.billing.error')}
         action={
-          /* eslint-disable-next-line local/max-button-words -- ORB-66 owns this existing upgrade label. */
           <PillButton variant="ghost" onClick={retryLoad}>
             {t('upgrade.billing.retry')}
           </PillButton>

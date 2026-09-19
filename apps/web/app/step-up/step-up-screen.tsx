@@ -15,7 +15,7 @@ import {
 } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import {
   confirmApiKeyCreationChallenge,
   requestApiKeyCreationChallenge,
@@ -99,11 +99,12 @@ export function StepUpScreen() {
 
   async function handleResend() {
     if (!operation || exhausted || requesting) return
+    const intendedAccountId = getHeldAccountId()
     setRequesting(true)
     setRequestError(null)
     try {
-      if (operation === 'delete') await requestDeletion()
-      else await requestApiKeyCreationChallenge()
+      if (operation === 'delete') await requestDeletion(intendedAccountId)
+      else await requestApiKeyCreationChallenge(intendedAccountId)
       const next = beginStepUpChallenge(operation)
       setRecord(next)
       setCode('')
@@ -120,12 +121,13 @@ export function StepUpScreen() {
 
   async function handleConfirm() {
     if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking) return
+    const intendedAccountId = getHeldAccountId()
     setPhase('checking')
     setFieldError(null)
     setRequestError(null)
     try {
       if (operation === 'keys') {
-        const result = await confirmApiKeyCreationChallenge(code)
+        const result = await confirmApiKeyCreationChallenge(code, intendedAccountId)
         if (!result.success) {
           handleConfirmationFailure(result.errorCode, result.remaining)
           return
@@ -135,7 +137,7 @@ export function StepUpScreen() {
         router.replace('/profile')
         return
       }
-      const result = await confirmDeletion(code)
+      const result = await confirmDeletion(code, intendedAccountId)
       if (!result.success) {
         handleConfirmationFailure(result.errorCode, result.remaining)
         return

@@ -1,11 +1,13 @@
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useState } from 'react'
-import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { ApiClientError } from '@orbit/shared/utils'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
+import { getHeldAccountId } from '@/stores/auth-store'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import {
   clearApiKeyCreationGrant,
   consumeApiKeyCreationGrant,
@@ -47,8 +49,8 @@ export function useApiKeyManagement({
   const [createGrantAvailable, setCreateGrantAvailable] = useState(hasApiKeyCreationGrant)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
-  const revokeKeyMutation = useMutation({
-    mutationFn: revokeApiKey,
+  const revokeKeyMutation = useAccountScopedMutation({
+    mutationFn: (keyId: string, intendedAccountId) => revokeApiKey(keyId, intendedAccountId),
     onSuccess: () => {
       setRevokingKeyId(null)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
@@ -59,13 +61,14 @@ export function useApiKeyManagement({
     request: ApiKeyCreateRequest,
     onCreateGrantRequired: () => Promise<void>,
   ): Promise<ApiKeyCreateResponse | null> {
+    const intendedAccountId = getHeldAccountId()
     setCreateKeyError(null)
     if (!createGrantAvailable) {
       await onCreateGrantRequired()
       return null
     }
     try {
-      const result = await createApiKey(request)
+      const result = await createApiKey(request, intendedAccountId)
       if (!result.success) {
         clearApiKeyCreationGrant()
         setCreateGrantAvailable(false)
