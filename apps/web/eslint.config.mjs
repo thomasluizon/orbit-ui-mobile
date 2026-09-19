@@ -183,11 +183,9 @@ export default [
       "local/no-pill-radius-on-static": "error",
       "local/max-button-words": ["error", { controls: maxButtonWordControls }],
 
-      // A RATCHET, not a backlog: `error`, with pre-existing violations carried in the
-      // committed eslint-suppressions.json baseline (regenerated against main, 2026-07-24),
-      // so only NEW or CHANGED code fails. A `warn` with hundreds of open violations is a
-      // migration backlog wearing a gate's clothes; this is the gate.
-      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+      // `error` with zero recorded violations. The baseline that once carried them is deleted,
+      // and tools/check-lint-severity.mjs fails if one ever returns.
+      // https://github.com/thomasluizon/orbit-ui-mobile/issues/175
       "local/spacing-scale": "error",
     },
   },

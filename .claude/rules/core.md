@@ -31,7 +31,7 @@ Gates: `.claude/hooks/forbid-invented-identifier.mjs`, `tools/lib/github-target.
 
 ### 4. Never re-flag what a gate already enforces
 
-If ESLint `local/*`, a `guards.yml` job (Dash Ban, Copy Register, Suppressions Ratchet, Expo SDK
+If ESLint `local/*`, a `guards.yml` job (Dash Ban, Copy Register, Lint Severity, Expo SDK
 Pin, Cross-Platform Parity), or Roslyn `ORBIT0001..0005` fails on it, saying it by hand is noise.
 
 A gate fails only on files the pull request changed. Whole-tree findings are advisory.

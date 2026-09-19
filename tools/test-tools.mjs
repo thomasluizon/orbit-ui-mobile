@@ -25,7 +25,7 @@
  * own location would resolve tools/__tests__ and silently break every join against it.
  *
  * Deliberately NOT re-asserted here: the verdicts of the tools guards.yml already executes (dash
- * ban, copy register, suppressions ratchet). Those have their own jobs; this gate proves their
+ * ban, copy register, lint severity). Those have their own jobs; this gate proves their
  * CLI contract, not their findings.
  *
  * Run: node tools/test-tools.mjs   (exits non-zero on any failure)
@@ -84,7 +84,6 @@ const CASE_MODULES = [
   ["check-push-target.mjs", "check-push-target"],
   ["check-review-harness.mjs", "check-review-harness"],
   ["check-root-allowlist.mjs", "check-root-allowlist"],
-  ["check-suppressions-ratchet.mjs", "check-suppressions-ratchet"],
   ["check-workspace-overrides.mjs", "check-workspace-overrides"],
   ["materialize-cloud-result.mjs", "materialize-cloud-result"],
   ["comment-ticket.mjs", "comment-ticket"],
@@ -214,7 +213,6 @@ const INVALID_INPUT = {
   "check-review-harness.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-root-allowlist.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-workspace-overrides.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "comment-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "compose-prompt.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "collect-session-evidence.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

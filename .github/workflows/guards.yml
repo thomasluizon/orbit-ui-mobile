@@ -8,8 +8,7 @@ name: Guards
 #   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
 #   mobile-fonts - Rubik cannot re-enter the mobile source tree
 #   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
-#   lint-severity - local rules stay blocking; suppression baselines report until #175 reaches zero
-#   ratchet - the eslint-suppressions.json baselines may only shrink
+#   lint-severity - local rules stay blocking and no lint-suppression baseline exists
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
 #   performance-workflow - generated measured-performance logic matches its canonical module
@@ -21,8 +20,8 @@ name: Guards
 on:
   pull_request:
     branches: [main, redesign/main]
-    # `labeled` and `unlabeled` are load-bearing, not tidiness. Three of these jobs carry a
-    # label escape hatch (ratchet:reseed, parity:exempt, calibration:reseed),
+    # `labeled` and `unlabeled` are load-bearing, not tidiness. Two of these jobs carry a
+    # label escape hatch (parity:exempt, calibration:reseed),
     # and `edited` covers title, body and base but NOT labels. Without these
     # two the sequence "the check fails, apply the label, merge" fires no new run, the failing
     # check run stands, and every escape hatch is decorative unless the label was predicted and
@@ -215,29 +214,9 @@ jobs:
           if [ '${{ github.event_name }}' != 'pull_request' ] || \
              git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
                | grep -Eq '(^|/)eslint\.config\.(cjs|cts|js|mjs|mts|ts)$|(^|/)eslint-suppressions\.json$|(^|/)package\.json$|^package-lock\.json$|^\.github/workflows/.*\.ya?ml$|^tools/check-lint-severity\.mjs$'; then
-            node tools/check-lint-severity.mjs --report-suppressions
+            node tools/check-lint-severity.mjs
           else
             echo "Lint severity skipped: no owned path changed."
-          fi
-
-  ratchet:
-    name: Suppressions Ratchet
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ratchet:reseed')
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-      - name: Changed suppression baselines only shrink
-        run: |
-          if git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
-               | grep -Eq '^apps/(web|mobile)/eslint-suppressions\.json$|^tools/check-suppressions-ratchet\.mjs$'; then
-            node tools/check-suppressions-ratchet.mjs
-          else
-            echo "Suppressions ratchet skipped: no owned path changed."
           fi
 
   calibration:

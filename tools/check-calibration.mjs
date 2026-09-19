@@ -30,7 +30,7 @@
  * green while the tuning underneath it decays. The 90-day max-age assertion is the backstop for
  * exactly that. It is not decoration, and the event trigger is not complete on its own.
  *
- * The escape hatch is the `calibration:reseed` GitHub label, mirroring `ratchet:reseed`. It lives in
+ * The escape hatch is the `calibration:reseed` GitHub label, mirroring `parity:exempt`. It lives in
  * the `guards.yml` job condition, never here: a tool that can be told to pass is the report-only
  * failure wearing a different hat.
  */
