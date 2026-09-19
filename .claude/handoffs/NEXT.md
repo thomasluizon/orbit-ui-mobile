@@ -48,6 +48,25 @@ Take every decision yourself, always the best approach and never the easiest, an
 | `api#531`, `api#533` | open | Reviews owed at their exact heads. |
 | `.claude/orchestrator.json` | one uncommitted line | **Revert on 2026-09-22**, worker back to `codex`. |
 
+## The tools gate has four known reds, and they are not defects
+
+`node tools/test-tools.mjs` reports `FAILED (4)`, 1823 assertions, about nine minutes:
+
+```
+launch-worker.mjs: the default tier resolves gpt-5.6-sol at high reasoning effort
+launch-worker.mjs: each tier reports itself and resolves a different argument vector
+orchestrator-config.mjs: the shipped default implementer is gpt-5.6-sol at high reasoning effort
+orchestrator-config.mjs: the shipped mechanical implementer keeps the model and lowers reasoning effort
+```
+
+All four pin `gpt-5.6-sol` as the shipped worker, and all four are red only because of the
+uncommitted `"worker": "claude"` line in `.claude/orchestrator.json`, which exists while Codex is
+out. **Reverting that line on 2026-09-22 should clear all four.** That was not driven to proof, so
+confirm it rather than assuming it, and do not chase them as defects before you do.
+
+Separately, `#627`'s `create-worktree` flake can add two more reds under load. It passes 9 of 9 under
+`--only create-worktree`.
+
 ## Start here
 
 1. **`#627`**, first in batch 0b. Two `create-worktree` cases use one number as both the kill
