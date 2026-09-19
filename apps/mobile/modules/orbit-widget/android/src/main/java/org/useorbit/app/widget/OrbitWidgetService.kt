@@ -9,6 +9,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.widget.RemoteViews
@@ -18,6 +19,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Calendar
 import java.util.Locale
 import kotlin.math.floor
 
@@ -255,6 +257,7 @@ class OrbitWidgetFactory(
 ) : RemoteViewsService.RemoteViewsFactory {
 
     private var habits: List<HabitItem> = emptyList()
+    private var rowDate: String = widgetRowDate(0, Calendar.getInstance())
     private var headerLabel: String = "Today"
     private var lang: String = "en"
     private var colorModes: WidgetColorModes = defaultColorModes()
@@ -533,6 +536,7 @@ class OrbitWidgetFactory(
         val streak = widgetData.currentStreak ?: 0
         val dayState = prepareWidgetDay(widgetData.items ?: emptyList(), widgetData.dayOffset)
         habits = dayState.habits
+        rowDate = widgetRowDate(widgetData.dayOffset, Calendar.getInstance())
         headerLabel = if (dayState.isTomorrow) {
             tr(context, lang, WidgetString.TOMORROW)
         } else {
@@ -685,8 +689,17 @@ class OrbitWidgetFactory(
         applyDueTime(views, habit)
         applyBadges(views, habit)
 
-        views.setOnClickFillInIntent(R.id.widget_item_container, Intent())
+        views.setOnClickFillInIntent(R.id.widget_item_container, rowFillInIntent(habit.id, rowDate))
         return views
+    }
+
+    /**
+     * The row's half of the tap. The template carries no data, so Intent.fillIn copies this data
+     * URI into it and the app opens the habit this row shows, on the day this row shows.
+     */
+    private fun rowFillInIntent(habitId: String, date: String): Intent {
+        val link = widgetRowLink(habitId, date) ?: return Intent()
+        return Intent().setData(Uri.parse(link))
     }
 
     private fun buildRemainderView(remainderCount: Int): RemoteViews {

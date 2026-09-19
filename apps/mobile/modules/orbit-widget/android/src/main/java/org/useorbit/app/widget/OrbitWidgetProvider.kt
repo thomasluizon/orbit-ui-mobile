@@ -33,6 +33,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         internal const val FOUR_BY_TWO_HEIGHT_DP = 192f
         internal const val FOUR_BY_THREE_HEIGHT_DP = 288f
         internal const val TWO_BY_TWO_HEIGHT_DP = 192f
+        // Its own request code keeps the rows' mutable template and the card's immutable open-app
+        // PendingIntent as two separate entries.
+        private const val ROW_TEMPLATE_REQUEST_CODE = 1
         internal const val EXTRA_WIDGET_HEIGHT_DP = "widget_height_dp"
         internal const val EXTRA_SHOW_TIME = "show_time"
         // The widget's own minResizeWidth. A compact key sitting on the breakpoint would
@@ -108,8 +111,39 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setEmptyView(R.id.widget_list, R.id.widget_empty)
-            views.setPendingIntentTemplate(R.id.widget_list, openApp)
+            views.setPendingIntentTemplate(R.id.widget_list, rowTemplate(context, openAppIntent))
             for (target in OPEN_APP_TARGETS) views.setOnClickPendingIntent(target, openApp)
+        }
+
+        /**
+         * The rows' half of the tap. Two properties of the framework decide its shape, both read
+         * from the installed android-36 sources:
+         *
+         *  - FLAG_IMMUTABLE makes the send ignore the fill-in Intent entirely
+         *    (PendingIntent.java, FLAG_IMMUTABLE), so the template has to be mutable or a row
+         *    contributes nothing and every tap lands on the launch destination.
+         *  - Intent.fillIn copies the sender's data only while the base carries neither data nor
+         *    type (Intent.java, fillIn), so this template stays data-free and the row supplies the
+         *    destination. A row that supplies none opens the app itself, which is the fallback the
+         *    remainder row and an unusable habit id both take.
+         */
+        private fun rowTemplate(context: Context, openAppIntent: Intent): PendingIntent {
+            val template = Intent(Intent.ACTION_VIEW).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val launchComponent = openAppIntent.component
+            if (launchComponent != null) {
+                template.component = launchComponent
+            } else {
+                template.setPackage(context.packageName)
+            }
+            val mutability = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                PendingIntent.FLAG_MUTABLE
+            } else {
+                0
+            }
+            return PendingIntent.getActivity(
+                context, ROW_TEMPLATE_REQUEST_CODE, template,
+                PendingIntent.FLAG_UPDATE_CURRENT or mutability
+            )
         }
 
         fun applySignedOutCard(context: Context, views: RemoteViews) {
