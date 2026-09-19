@@ -17,6 +17,7 @@ import { RowList } from '@/components/ui/row-list'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
+import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 
 interface ProfileApiKeysProps {
@@ -327,6 +328,11 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const [creating, setCreating] = useState(false)
   const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
   const stepUp = useApiKeyStepUp()
+
+  useResetOnAccountChange(() => {
+    setCreatedKey(null)
+    setScopeOpen(false)
+  })
 
   const management = useApiKeyManagement({
     hasProAccess: hasProAccess && unlocked,

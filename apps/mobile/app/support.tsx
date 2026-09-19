@@ -5,7 +5,6 @@ import {
   Text,
   View,
 } from 'react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import Constants from 'expo-constants'
@@ -33,13 +32,16 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import {
+  forgetStoredSupportDraft,
+  readStoredSupportDraft,
+  writeStoredSupportDraft,
+} from '@/lib/support-draft-storage'
 import { AppBar } from '@/components/ui/app-bar'
 import { RadioGroup, RadioRow } from '@/components/ui/radio-row'
 import { RowList } from '@/components/ui/row-list'
 
 type Tokens = ReturnType<typeof createTokensV2>
-
-const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
 interface SupportDraft {
   subject: SupportSubjectId | null
@@ -312,7 +314,7 @@ export default function SupportScreen() {
 
   useEffect(() => {
     let isMounted = true
-    void AsyncStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
+    void readStoredSupportDraft()
       .then((storedDraft) => {
         if (!isMounted || !storedDraft || draftChangedRef.current) return
         try {
@@ -325,7 +327,7 @@ export default function SupportScreen() {
           setSubject(restoredDraft.subject)
           setMessage(restoredDraft.message)
         } catch {
-          void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+          void forgetStoredSupportDraft()
         }
       })
       .catch(() => {})
@@ -337,10 +339,7 @@ export default function SupportScreen() {
   const persistDraft = useCallback((change: Partial<typeof draftRef.current>) => {
     draftChangedRef.current = true
     draftRef.current = { ...draftRef.current, ...change }
-    void AsyncStorage.setItem(
-      SUPPORT_DRAFT_STORAGE_KEY,
-      JSON.stringify(draftRef.current),
-    )
+    void writeStoredSupportDraft(JSON.stringify(draftRef.current))
   }, [])
 
   const validateFields = () => {
@@ -389,7 +388,7 @@ export default function SupportScreen() {
       draftRef.current = { subject: null, message: '' }
       setSubject(null)
       setMessage('')
-      void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+      void forgetStoredSupportDraft()
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {

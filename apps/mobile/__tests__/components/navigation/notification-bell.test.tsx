@@ -45,7 +45,7 @@ vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ ...state }),
   useMarkNotificationRead: () => ({ mutate: state.mark }),
   useMarkAllNotificationsRead: () => ({ mutate: state.markAll }),
-  useDeleteNotification: () => ({ mutate: state.remove }),
+  useDeleteNotification: () => ({ mutate: state.remove, mutateAsync: (id: string) => Promise.resolve(state.remove(id)) }),
   useDeleteAllNotifications: () => ({ mutate: state.clear }),
 }))
 vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))

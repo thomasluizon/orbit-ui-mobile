@@ -11,6 +11,18 @@ import {
 } from '@/hooks/use-notifications'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
+import { useAuthStore } from '@/stores/auth-store'
+
+const feedback = vi.hoisted(() => ({ showError: vi.fn() }))
+
+vi.mock('next-intl', async () => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  return { useTranslations: () => createTranslator({ locale: 'en', messages }) }
+})
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: feedback.showError }),
+}))
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -48,6 +60,7 @@ function mockNotificationsResponse(response: NotificationsResponse) {
 describe('useNotifications', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    feedback.showError.mockReset()
   })
 
   it('fetches and returns notifications', async () => {
@@ -99,6 +112,7 @@ describe('useNotifications', () => {
 describe('useMarkNotificationRead', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    feedback.showError.mockReset()
   })
 
   it('calls markNotificationRead action', async () => {
@@ -280,6 +294,12 @@ describe('useMarkAllNotificationsRead optimistic update', () => {
 describe('useDeleteNotification', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    useAuthStore.setState({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+      sessionRefreshFailed: false,
+    })
   })
 
   it('calls deleteNotification action', async () => {
@@ -386,6 +406,131 @@ describe('useDeleteNotification', () => {
     expect(cached?.items).toHaveLength(1)
     expect(cached?.items.find((n) => n.id === 'n-1')).toBeUndefined()
     expect(cached?.unreadCount).toBe(0)
+  })
+
+  it('ignores a delete rejection from a replaced session', async () => {
+    const { deleteNotification } = await import('@/lib/actions/notifications')
+    const mockedAction = vi.mocked(deleteNotification)
+    let rejectDelete!: (error: Error) => void
+    mockedAction.mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectDelete = reject
+    }))
+    useAuthStore.getState().setAuth({
+      userId: 'account-a',
+      name: 'Account A',
+      email: 'account-a@example.com',
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const accountANotifications: NotificationsResponse = {
+      items: [createMockNotification({ id: 'account-a-notification', isRead: false })],
+      unreadCount: 1,
+    }
+    const accountBNotifications: NotificationsResponse = {
+      items: [createMockNotification({ id: 'account-b-notification', isRead: false })],
+      unreadCount: 1,
+    }
+    const { notificationKeys } = await import('@orbit/shared/query')
+    queryClient.setQueryData(notificationKeys.lists(), accountANotifications)
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+
+    function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(QueryClientProvider, { client: queryClient }, children)
+    }
+
+    const { result } = renderHook(() => useDeleteNotification(), { wrapper: Wrapper })
+    let deletePromise!: Promise<unknown>
+    await act(async () => {
+      deletePromise = result.current.mutateAsync('account-a-notification')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    await useAuthStore.getState().logout()
+    useAuthStore.getState().setAuth({
+      userId: 'account-b',
+      name: 'Account B',
+      email: 'account-b@example.com',
+    })
+    queryClient.setQueryData(notificationKeys.lists(), accountBNotifications)
+    invalidateQueries.mockClear()
+
+    await act(async () => {
+      rejectDelete(new Error('Late delete failure'))
+      await deletePromise.catch(() => undefined)
+    })
+
+    expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(accountBNotifications)
+    expect(invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('does not start a delete after the session changes while query cancellation is pending', async () => {
+    const { deleteNotification } = await import('@/lib/actions/notifications')
+    const { notificationKeys } = await import('@orbit/shared/query')
+    const mockedAction = vi.mocked(deleteNotification)
+    mockedAction.mockResolvedValue(undefined as never)
+    useAuthStore.getState().setAuth({
+      userId: 'account-a',
+      name: 'Account A',
+      email: 'account-a@example.com',
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    let releaseCancellation!: () => void
+    const cancelQueries = vi.spyOn(queryClient, 'cancelQueries').mockImplementationOnce(
+      () => new Promise<void>((resolve) => {
+        releaseCancellation = resolve
+      }),
+    )
+    const accountANotifications: NotificationsResponse = {
+      items: [createMockNotification({ id: 'account-a-notification', isRead: false })],
+      unreadCount: 1,
+    }
+    const accountBNotifications: NotificationsResponse = {
+      items: [createMockNotification({ id: 'account-b-notification', isRead: false })],
+      unreadCount: 1,
+    }
+    queryClient.setQueryData(notificationKeys.lists(), accountANotifications)
+
+    function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(QueryClientProvider, { client: queryClient }, children)
+    }
+
+    const { result } = renderHook(() => useDeleteNotification(), { wrapper: Wrapper })
+    let deletePromise!: Promise<unknown>
+    act(() => {
+      deletePromise = result.current.mutateAsync('account-a-notification')
+    })
+    await waitFor(() => expect(cancelQueries).toHaveBeenCalled())
+
+    mockFetch.mockResolvedValue({ ok: true })
+    await useAuthStore.getState().logout()
+    useAuthStore.getState().setAuth({
+      userId: 'account-b',
+      name: 'Account B',
+      email: 'account-b@example.com',
+    })
+    queryClient.setQueryData(notificationKeys.lists(), accountBNotifications)
+    mockedAction.mockClear()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    releaseCancellation()
+
+    await act(async () => {
+      await deletePromise
+    })
+
+    expect(mockedAction).not.toHaveBeenCalled()
+    expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(accountBNotifications)
+    expect(invalidateQueries).not.toHaveBeenCalled()
   })
 })
 
@@ -497,5 +642,222 @@ describe('useDeleteAllNotifications', () => {
     const cached = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
     expect(cached?.items).toEqual([])
     expect(cached?.unreadCount).toBe(0)
+  })
+})
+
+describe('notification mutations across an account switch', () => {
+  const accountANotifications: NotificationsResponse = {
+    items: [createMockNotification({ id: 'account-a-notification', isRead: false })],
+    unreadCount: 1,
+  }
+  const accountBNotifications: NotificationsResponse = {
+    items: [createMockNotification({ id: 'account-b-notification', isRead: false })],
+    unreadCount: 1,
+  }
+
+  beforeEach(() => {
+    mockFetch.mockReset()
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(accountBNotifications) })
+    feedback.showError.mockReset()
+  })
+
+  async function startAccountASession(options: { stallCancellation?: boolean } = {}) {
+    const { notificationKeys } = await import('@orbit/shared/query')
+    useAuthStore.getState().setAuth({
+      userId: 'account-a',
+      name: 'Account A',
+      email: 'account-a@example.com',
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    queryClient.setQueryData(notificationKeys.lists(), accountANotifications)
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    const cancelQueries = vi.spyOn(queryClient, 'cancelQueries')
+    let releaseCancellation: () => void = () => {}
+    if (options.stallCancellation) {
+      cancelQueries.mockImplementationOnce(
+        () => new Promise<void>((resolve) => {
+          releaseCancellation = resolve
+        }),
+      )
+    }
+
+    function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(QueryClientProvider, { client: queryClient }, children)
+    }
+
+    return {
+      Wrapper,
+      cancelQueries,
+      releaseCancellation: () => releaseCancellation(),
+      replaceAccount: async () => {
+        await useAuthStore.getState().logout()
+        useAuthStore.getState().setAuth({
+          userId: 'account-b',
+          name: 'Account B',
+          email: 'account-b@example.com',
+        })
+        queryClient.setQueryData(notificationKeys.lists(), accountBNotifications)
+        invalidateQueries.mockClear()
+        feedback.showError.mockClear()
+      },
+      expectReplacementAccountUntouched: () => {
+        expect(queryClient.getQueryData(notificationKeys.lists())).toEqual(accountBNotifications)
+        expect(invalidateQueries).not.toHaveBeenCalled()
+        expect(feedback.showError).not.toHaveBeenCalled()
+      },
+    }
+  }
+
+  it('ignores a mark one read rejection from a replaced session', async () => {
+    const { markNotificationRead } = await import('@/lib/actions/notifications')
+    let rejectAction!: (error: Error) => void
+    vi.mocked(markNotificationRead).mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectAction = reject
+    }))
+    const scenario = await startAccountASession()
+    const { result } = renderHook(() => useMarkNotificationRead(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    await act(async () => {
+      pending = result.current.mutateAsync('account-a-notification')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    await scenario.replaceAccount()
+
+    await act(async () => {
+      rejectAction(new Error('Late mark read failure'))
+      await pending.catch(() => undefined)
+    })
+
+    scenario.expectReplacementAccountUntouched()
+  })
+
+  it('ignores a mark all read rejection from a replaced session', async () => {
+    const { markAllNotificationsRead } = await import('@/lib/actions/notifications')
+    let rejectAction!: (error: Error) => void
+    vi.mocked(markAllNotificationsRead).mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectAction = reject
+    }))
+    const scenario = await startAccountASession()
+    const { result } = renderHook(() => useMarkAllNotificationsRead(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    await act(async () => {
+      pending = result.current.mutateAsync()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    await scenario.replaceAccount()
+
+    await act(async () => {
+      rejectAction(new Error('Late mark all read failure'))
+      await pending.catch(() => undefined)
+    })
+
+    scenario.expectReplacementAccountUntouched()
+  })
+
+  it('ignores a clear all rejection from a replaced session', async () => {
+    const { deleteAllNotifications } = await import('@/lib/actions/notifications')
+    let rejectAction!: (error: Error) => void
+    vi.mocked(deleteAllNotifications).mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectAction = reject
+    }))
+    const scenario = await startAccountASession()
+    const { result } = renderHook(() => useDeleteAllNotifications(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    await act(async () => {
+      pending = result.current.mutateAsync()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    await scenario.replaceAccount()
+
+    await act(async () => {
+      rejectAction(new Error('Late clear all failure'))
+      await pending.catch(() => undefined)
+    })
+
+    scenario.expectReplacementAccountUntouched()
+  })
+
+  it('does not mark one read under the account that replaced the sender', async () => {
+    const { markNotificationRead } = await import('@/lib/actions/notifications')
+    const action = vi.mocked(markNotificationRead)
+    action.mockResolvedValue(undefined as never)
+    const scenario = await startAccountASession({ stallCancellation: true })
+    const { result } = renderHook(() => useMarkNotificationRead(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    act(() => {
+      pending = result.current.mutateAsync('account-a-notification')
+    })
+    await waitFor(() => expect(scenario.cancelQueries).toHaveBeenCalled())
+
+    await scenario.replaceAccount()
+    action.mockClear()
+    scenario.releaseCancellation()
+    await act(async () => {
+      await pending
+    })
+
+    expect(action).not.toHaveBeenCalled()
+    scenario.expectReplacementAccountUntouched()
+  })
+
+  it('does not mark all read under the account that replaced the sender', async () => {
+    const { markAllNotificationsRead } = await import('@/lib/actions/notifications')
+    const action = vi.mocked(markAllNotificationsRead)
+    action.mockResolvedValue(undefined as never)
+    const scenario = await startAccountASession({ stallCancellation: true })
+    const { result } = renderHook(() => useMarkAllNotificationsRead(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    act(() => {
+      pending = result.current.mutateAsync()
+    })
+    await waitFor(() => expect(scenario.cancelQueries).toHaveBeenCalled())
+
+    await scenario.replaceAccount()
+    action.mockClear()
+    scenario.releaseCancellation()
+    await act(async () => {
+      await pending
+    })
+
+    expect(action).not.toHaveBeenCalled()
+    scenario.expectReplacementAccountUntouched()
+  })
+
+  it('does not clear the notifications of the account that replaced the sender', async () => {
+    const { deleteAllNotifications } = await import('@/lib/actions/notifications')
+    const action = vi.mocked(deleteAllNotifications)
+    action.mockResolvedValue(undefined as never)
+    const scenario = await startAccountASession({ stallCancellation: true })
+    const { result } = renderHook(() => useDeleteAllNotifications(), { wrapper: scenario.Wrapper })
+
+    let pending!: Promise<unknown>
+    act(() => {
+      pending = result.current.mutateAsync()
+    })
+    await waitFor(() => expect(scenario.cancelQueries).toHaveBeenCalled())
+
+    await scenario.replaceAccount()
+    action.mockClear()
+    scenario.releaseCancellation()
+    await act(async () => {
+      await pending
+    })
+
+    expect(action).not.toHaveBeenCalled()
+    scenario.expectReplacementAccountUntouched()
   })
 })

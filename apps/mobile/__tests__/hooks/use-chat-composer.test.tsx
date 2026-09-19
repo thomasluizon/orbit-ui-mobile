@@ -1,5 +1,5 @@
 import React from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -8,7 +8,10 @@ import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { DocumentPickerAsset } from 'expo-document-picker'
 
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useChatComposer } from '@/hooks/use-chat-composer'
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 
 const TestRenderer = require('react-test-renderer')
@@ -1225,5 +1228,83 @@ describe('mobile useChatComposer', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.lists(),
     })
+  })
+
+  it('disarms the previous account retry and attachments when the account changes', async () => {
+    mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: 'file:///pic.jpg', mimeType: 'image/jpeg', fileName: 'pic.jpg', fileSize: 2048 },
+      ],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('cancel my 9pm meds reminder')
+    })
+    expect(composer.current.canRetryLastSend).toBe(true)
+
+    await TestRenderer.act(async () => {
+      await composer.current.openFilePicker()
+    })
+    expect(composer.current.selectedImage).not.toBeNull()
+
+    TestRenderer.act(() => advanceAccountGeneration())
+
+    expect(composer.current.canRetryLastSend).toBe(false)
+    expect(composer.current.selectedImage).toBeNull()
+    expect(composer.current.imagePreview).toBeNull()
+  })
+
+  it('keeps the retry and the attachment when only the session epoch moves', async () => {
+    mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: 'file:///pic.jpg', mimeType: 'image/jpeg', fileName: 'pic.jpg', fileSize: 2048 },
+      ],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('cancel my 9pm meds reminder')
+    })
+    await TestRenderer.act(async () => {
+      await composer.current.openFilePicker()
+    })
+    expect(composer.current.canRetryLastSend).toBe(true)
+    expect(composer.current.selectedImage).not.toBeNull()
+
+    TestRenderer.act(() => advanceSessionEpoch())
+
+    expect(composer.current.canRetryLastSend).toBe(true)
+    expect(composer.current.selectedImage).not.toBeNull()
+  })
+
+  it('reads the draft back and keeps saving it after an account reset', async () => {
+    const getItem = vi.spyOn(AsyncStorage, 'getItem').mockResolvedValue(null)
+    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    const removeItem = vi.spyOn(AsyncStorage, 'removeItem').mockResolvedValue(undefined)
+    onTestFinished(() => {
+      getItem.mockRestore()
+      setItem.mockRestore()
+      removeItem.mockRestore()
+    })
+    useChatStore.setState({ draftHydrated: false })
+    const composer = await renderComposer()
+
+    await vi.waitFor(() => expect(getItem).toHaveBeenCalledTimes(1))
+
+    await TestRenderer.act(async () => {
+      await useChatStore.getState().resetAccountScopedChat()
+    })
+    await vi.waitFor(() => expect(getItem).toHaveBeenCalledTimes(2))
+
+    TestRenderer.act(() => composer.current.setInput('log water'))
+
+    expect(setItem).toHaveBeenCalledWith(CHAT_DRAFT_STORAGE_KEY, 'log water')
   })
 })

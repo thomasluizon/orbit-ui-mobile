@@ -8,13 +8,21 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useProfile } from '@/hooks/use-profile'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
+
+interface EntrySnapshot {
+  accountGeneration: number
+  hadHabits: boolean
+}
 
 /**
  * Decides the post-auth retained onboarding overlay for the current account. A brand-new account
  * (no habits) sees the overlay; an account that already has habits — a pre-migration user, or one
  * that abandoned onboarding after creating habits — is auto-completed instead of re-onboarded.
  * Whether the account already had habits is frozen at entry because the overlay itself creates
- * habits during the flow. Returns whether to render the overlay.
+ * habits during the flow. Neither shell unmounts across an account change, so the snapshot and the
+ * spent auto-complete both carry the account generation they belong to and stop counting for the
+ * next account. Returns whether to render the overlay.
  */
 export function useRetainedOnboardingGuard(
   profile: Profile | null | undefined,
@@ -23,8 +31,12 @@ export function useRetainedOnboardingGuard(
 ): boolean {
   const { patchProfile } = useProfile()
   const { count, isLoaded } = useHabitCountLoaded()
-  const [hadHabitsAtEntry, setHadHabitsAtEntry] = useState<boolean | null>(null)
-  const autoCompletedRef = useRef(false)
+  const accountGeneration = useAccountGeneration()
+  const [entrySnapshot, setEntrySnapshot] = useState<EntrySnapshot | null>(null)
+  const autoCompletedGeneration = useRef<number | null>(null)
+
+  const hadHabitsAtEntry =
+    entrySnapshot?.accountGeneration === accountGeneration ? entrySnapshot.hadHabits : null
 
   if (
     !forceShow &&
@@ -35,7 +47,7 @@ export function useRetainedOnboardingGuard(
       habitCountLoaded: isLoaded,
     })
   ) {
-    setHadHabitsAtEntry(count > 0)
+    setEntrySnapshot({ accountGeneration, hadHabits: count > 0 })
   }
 
   const action = resolveRetainedOnboarding({
@@ -44,8 +56,9 @@ export function useRetainedOnboardingGuard(
   })
 
   useEffect(() => {
-    if (forceShow || action !== 'autocomplete' || autoCompletedRef.current) return
-    autoCompletedRef.current = true
+    if (forceShow || action !== 'autocomplete' || autoCompletedGeneration.current === accountGeneration)
+      return
+    autoCompletedGeneration.current = accountGeneration
     void (async () => {
       try {
         await performQueuedApiMutation({
@@ -59,7 +72,7 @@ export function useRetainedOnboardingGuard(
       } catch {}
       patchProfile({ hasCompletedOnboarding: true })
     })()
-  }, [action, forceShow, patchProfile])
+  }, [accountGeneration, action, forceShow, patchProfile])
 
   return forceShow || action === 'show'
 }

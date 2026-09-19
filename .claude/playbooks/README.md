@@ -1,6 +1,6 @@
 # Playbooks: the on-demand judgement tier
 
-**At a glance:** 55 standing rules that no gate can check, split by activity and read **on demand**.
+**At a glance:** 56 standing rules that no gate can check, split by activity and read **on demand**.
 Nothing here loads automatically. The handful of rules that genuinely apply to every turn live in
 `.claude/rules/core.md`, which does load automatically and is deliberately ~50 lines.
 
@@ -48,7 +48,7 @@ are read on demand by the skill or agent that needs them:
 | file | rules | read it when |
 |---|---|---|
 | `debugging.md` | 8 | chasing a bug, triaging an issue, `/investigate`, or resolving a merge conflict |
-| `review-and-audit.md` | 11 | `/audit-*`, `/prod-readiness`, acting on a Pullfrog review, or any fan-out assessment |
+| `review-and-audit.md` | 12 | `/audit-*`, `/prod-readiness`, acting on a Pullfrog review, or any fan-out assessment |
 | `planning-and-artifacts.md` | 11 | `/ticket`, `/orchestrate`, ticket writing, prototyping, ADRs, or deciding whether to hand off |
 | `redesign-screen.md` | - | building any of the thirteen redesign screens. The D76 eight-step loop, the step 6 ui-skills sweep with its fetch commands, and what Thomas checks that no gate does. Cited from the always-loaded core, because the step this file exists to protect is the one an agent skips when it starts from the ticket alone |
 | `context-engineering.md` | 8 | authoring or editing anything the agent itself reads: a `CLAUDE.md`, a rule, a playbook, a skill, an agent, a tool interface, a ticket body. The 5-generation delta: constrain less, prompt the positive, design interfaces instead of writing examples, and prefer a runnable artifact over prose |

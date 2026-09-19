@@ -119,6 +119,51 @@ describe('mobile Toast', () => {
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
+  it('runs a neutral life that pauses while the pointer rests on it', () => {
+    const onDone = vi.fn()
+    const tree = render(
+      <Toast
+        kind="neutral"
+        message="Couldn't delete that alert. Try again."
+        actionLabel="Retry"
+        onAction={vi.fn()}
+        doneAfterMs={10000}
+        onDone={onDone}
+      />,
+    )
+    const toast = tree.root.findByProps({ testID: 'toast-neutral' })
+
+    advance(1000)
+    TestRenderer.act(() => toast.props.onHoverIn())
+    advance(30000)
+    expect(onDone).not.toHaveBeenCalled()
+    TestRenderer.act(() => toast.props.onHoverOut())
+    advance(9000)
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+
+  it('holds a neutral life while focus sits inside it', () => {
+    const onDone = vi.fn()
+    const tree = render(
+      <Toast
+        kind="neutral"
+        message="Couldn't delete that alert. Try again."
+        actionLabel="Retry"
+        onAction={vi.fn()}
+        doneAfterMs={10000}
+        onDone={onDone}
+      />,
+    )
+    const toast = tree.root.findByProps({ testID: 'toast-neutral' })
+
+    TestRenderer.act(() => toast.props.onFocus())
+    advance(30000)
+    expect(onDone).not.toHaveBeenCalled()
+    TestRenderer.act(() => toast.props.onBlur())
+    advance(10000)
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps lost feedback mounted and calls its action once per press', () => {
     const onAction = vi.fn()
     const tree = render(
