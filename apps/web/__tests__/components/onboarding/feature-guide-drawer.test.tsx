@@ -97,10 +97,10 @@ describe('FeatureGuideDrawer', () => {
 
   it('promises that a habit row opens that habit on the day the widget shows', () => {
     expect(en.onboarding.featureGuide.widgetSection.opensDesc).toBe(
-      'The widget never logs a habit. Tap a habit to open it on the day the widget shows, tap anywhere else to open Orbit, and refresh only updates the widget.',
+      'The widget never logs a habit. Tap a habit to open it on the day the widget shows. Tap anywhere else to open Orbit, and refresh only updates the widget.',
     )
     expect(ptBR.onboarding.featureGuide.widgetSection.opensDesc).toBe(
-      'O widget nunca registra um hábito. Toque em um hábito para abri-lo no dia que o widget mostra, toque em qualquer outro lugar para abrir o Orbit, e atualizar apenas renova o widget.',
+      'O widget nunca registra um hábito. Toque em um hábito para abri-lo no dia que o widget mostra. Toque em qualquer outro lugar para abrir o Orbit, e atualizar apenas renova o widget.',
     )
   })
 
