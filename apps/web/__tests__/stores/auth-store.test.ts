@@ -644,7 +644,7 @@ describe('auth store', () => {
       return new Promise((resolve) => setTimeout(resolve, 0))
     }
 
-    function announceFromAnotherTab(accountId: string): Promise<void> {
+    function announceFromAnotherTab(accountId: string | null): Promise<void> {
       const otherTab = new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
       otherTab.postMessage({ accountId })
       otherTab.close()
@@ -720,6 +720,38 @@ describe('auth store', () => {
 
       expect(getSessionEpoch()).toBe(epochBeforeSignal)
       expect(useAuthStore.getState().user?.userId).toBe('user-1')
+    })
+
+    it('ends the session when another tab signs the browser out', async () => {
+      const { getQueryClient } = await import('@/lib/query-client')
+      const { notificationKeys } = await import('@orbit/shared/query')
+      const queryClient = getQueryClient()
+      const stopMonitor = await startTabHoldingAccountOne()
+      queuePendingNotificationDelete('account-a-notification', () => Promise.resolve())
+      globalThis.localStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, accountASupportDraft)
+      queryClient.setQueryData(notificationKeys.lists(), accountANotificationList)
+      const epochBeforeSignal = getSessionEpoch()
+
+      await announceFromAnotherTab(null)
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
+      expect(useAuthStore.getState().user).toBeNull()
+      expect(getSessionEpoch()).toBeGreaterThan(epochBeforeSignal)
+      expect(getPendingNotificationDeleteIdsSnapshot()).toEqual([])
+      expect(globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)).toBeNull()
+      stopMonitor()
+    })
+
+    it('ignores a sign out reaching a tab that is already signed out', async () => {
+      const stopMonitor = await startTabHoldingAccountOne()
+      await announceFromAnotherTab(null)
+      const epochAfterFirstSignOut = getSessionEpoch()
+
+      await announceFromAnotherTab(null)
+
+      expect(getSessionEpoch()).toBe(epochAfterFirstSignOut)
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
+      stopMonitor()
     })
 
     it('still detects the change on the poll where BroadcastChannel is missing', async () => {

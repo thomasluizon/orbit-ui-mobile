@@ -30,35 +30,50 @@ function openAccountChannel(): BroadcastChannel | null {
   }
 }
 
-function readAccountId(payload: unknown): string | null {
-  if (typeof payload !== 'object' || payload === null) return null
-  const { accountId } = payload as { accountId?: unknown }
-  return typeof accountId === 'string' && accountId.length > 0 ? accountId : null
+/** The account the cookie now holds, where `null` says it holds none. */
+export interface AccountSignal {
+  accountId: string | null
 }
 
 /**
- * Announces the account a session just started under. The posting channel never receives its own
- * message, and a listener open in this same tab that does receive it reads an account it already
- * holds, so the sending tab does nothing either way.
+ * Reads a signal out of an arbitrary message. Any other tab on this origin can post here, so an
+ * unrecognised payload is dropped rather than read as a sign out, which would tear down a live
+ * session on a stray message.
  */
-export function announceAccountToOtherTabs(accountId: string): void {
+function readAccountSignal(payload: unknown): AccountSignal | null {
+  if (typeof payload !== 'object' || payload === null) return null
+  const { accountId } = payload as { accountId?: unknown }
+  if (accountId === null) return { accountId: null }
+  if (typeof accountId !== 'string' || accountId.length === 0) return null
+  return { accountId }
+}
+
+/**
+ * Announces the account a session just started under, or `null` for a sign out. Both transitions
+ * travel, because a tab left believing a dead account is still live keeps that account's habits,
+ * goals and alerts on screen for whoever is at the keyboard next.
+ *
+ * The posting channel never receives its own message, and a listener open in this same tab that
+ * does receive it reads a state it is already in, so the sending tab does nothing either way.
+ */
+export function announceAccountToOtherTabs(accountId: string | null): void {
   const channel = openAccountChannel()
   if (!channel) return
 
-  channel.postMessage({ accountId })
+  channel.postMessage({ accountId } satisfies AccountSignal)
   channel.close()
 }
 
 /** Registers a listener for another tab's account and returns its removal. */
 export function subscribeToAccountSignal(
-  onAccountAnnounced: (accountId: string) => void,
+  onAccountAnnounced: (accountId: string | null) => void,
 ): () => void {
   const channel = openAccountChannel()
   if (!channel) return () => {}
 
   const handleAccountMessage = (event: MessageEvent) => {
-    const accountId = readAccountId(event.data)
-    if (accountId !== null) onAccountAnnounced(accountId)
+    const signal = readAccountSignal(event.data)
+    if (signal) onAccountAnnounced(signal.accountId)
   }
 
   channel.addEventListener('message', handleAccountMessage)

@@ -747,6 +747,7 @@ describe('notification mutations across an account switch', () => {
     return {
       Wrapper,
       cancelQueries,
+      queryClient,
       releaseCancellation: () => releaseCancellation(),
       seedReplacementAccount,
       replaceAccount: async () => {
@@ -942,6 +943,9 @@ describe('notification mutations across an account switch', () => {
       await pending.catch(() => undefined)
     })
 
+    const { notificationKeys } = await import('@orbit/shared/query')
+    expect(scenario.queryClient.getQueryData(notificationKeys.lists()))
+      .toEqual(accountBNotifications)
     scenario.expectReplacementAccountUntouched()
   })
 })

@@ -24,8 +24,8 @@ describe('the cross-tab account signal', () => {
     for (const teardown of teardowns.splice(0)) teardown()
   })
 
-  function listen(): string[] {
-    const announced: string[] = []
+  function listen(): Array<string | null> {
+    const announced: Array<string | null> = []
     teardowns.push(subscribeToAccountSignal((accountId) => announced.push(accountId)))
     return announced
   }
@@ -39,13 +39,22 @@ describe('the cross-tab account signal', () => {
     expect(announced).toEqual(['account-b'])
   })
 
+  it('carries a sign out to a listening tab', async () => {
+    const announced = listen()
+
+    announceAccountToOtherTabs(null)
+    await settle()
+
+    expect(announced).toEqual([null])
+  })
+
   it.each([
     ['a payload with no account', {}],
     ['an account that is not a string', { accountId: 7 }],
     ['an empty account', { accountId: '' }],
     ['a bare string', 'account-b'],
     ['nothing at all', null],
-  ])('ignores %s', async (_name, payload) => {
+  ])('ignores %s rather than reading it as a sign out', async (_name, payload) => {
     const announced = listen()
 
     await postRawPayload(payload)
@@ -54,7 +63,7 @@ describe('the cross-tab account signal', () => {
   })
 
   it('stops delivering once the listener is removed', async () => {
-    const announced: string[] = []
+    const announced: Array<string | null> = []
     const stopListening = subscribeToAccountSignal((accountId) => announced.push(accountId))
 
     stopListening()
