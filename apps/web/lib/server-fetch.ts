@@ -65,6 +65,15 @@ interface MutateInit extends Omit<RequestInit, 'method'> {
 }
 
 /**
+ * The init `serverAuthFetch` accepts: a read method, or none at all.
+ *
+ * Narrowing the method here is what actually holds the line. `serverAuthFetch(path, { method:
+ * 'DELETE' })` is a compile error under this type, and so are the casts and the template literal a
+ * syntactic lint rule cannot see through.
+ */
+type ReadInit = Omit<RequestInit, 'method'> & { method?: 'GET' | 'HEAD' }
+
+/**
  * Resolves the session, forwards it as Bearer to the .NET API, and throws a structured
  * ApiClientError on failure. When a Zod `schema` is supplied, the response body is validated at the
  * trust boundary and a typed ApiClientError (502) is thrown if it does not match the contract.
@@ -130,7 +139,7 @@ async function fetchWithSession<T>(
  */
 export async function serverAuthFetch<T = unknown>(
   path: string,
-  init: RequestInit = {},
+  init: ReadInit = {},
   schema?: ZodType<T>,
 ): Promise<T> {
   return fetchWithSession(path, init, schema, null)
