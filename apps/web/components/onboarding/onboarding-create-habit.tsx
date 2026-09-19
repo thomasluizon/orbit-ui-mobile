@@ -1,243 +1,137 @@
 'use client'
 
-import { useState, useCallback, useEffect, useEffectEvent } from 'react'
-import { Check, Settings2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { useAppToast } from '@/hooks/use-app-toast'
-import { useOnboardingActions } from './onboarding-actions-context'
-import {
-  getFriendlyErrorMessage,
-  getOnboardingHabitFrequencyLabelKey,
-  ONBOARDING_HABIT_FREQUENCIES,
-  ONBOARDING_HABIT_SUGGESTIONS,
-  translateErrorKey,
-  validateHabitFormInput,
-} from '@orbit/shared/utils'
-import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
-import type { FrequencyUnit } from '@orbit/shared/types/habit'
+import type { Time24 } from '@orbit/shared/contracts/forms'
+import { MAX_HABIT_INTERVAL_WEEKS, type FrequencyUnit } from '@orbit/shared/types/habit'
+import { canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
-import { SectionLabel } from '@/components/ui/section-label'
-import { Input } from '@/components/ui/input'
-import { PillButton } from '@/components/ui/pill-button'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { Minus, Plus } from '@/components/ui/icons'
+import { Proposed } from '@/components/ui/proposed'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { TimeField } from '@/components/ui/time-field'
 
-interface Suggestion {
-  key: string
-  frequency: FrequencyUnit
-}
-
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 interface OnboardingCreateHabitProps {
-  onCreated: (habitId: string, title: string) => void
+  title: string
+  emoji: string
+  schedule: OnboardingSchedule
+  proposed: boolean
+  correcting: boolean
+  canSaveRepeatWeeks: boolean
+  atLimit: boolean
+  allowance: number
+  onCorrect: () => void
+  onToggleDay: (day: string) => void
+  onTimeChange: (value: string) => void
+  onModeChange: (mode: OnboardingScheduleMode) => void
+  onFrequencyUnitChange: (unit: FrequencyUnit) => void
+  onQuantityChange: (quantity: number) => void
+  onIntervalWeeksChange: (intervalWeeks: number) => void
 }
 
-export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHabitProps>) {
-  const t = useTranslations()
-  const translate = useCallback(
-    (key: string, values?: Record<string, string | number | Date>) => t(key, values),
-    [t],
-  )
-  const [title, setTitle] = useState('')
-  const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit | undefined>('Day')
-  const [createdInfo, setCreatedInfo] = useState<{ id: string; title: string } | null>(null)
-  const isCreated = createdInfo !== null
-  const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
-  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
-  const { showError } = useAppToast()
-  const actions = useOnboardingActions()
+function joinDays(days: string[], label: (day: string) => string, conjunction: string): string {
+  const labels = days.map(label)
+  if (labels.length < 2) return labels[0] ?? ''
+  if (labels.length === 2) return `${labels[0]} ${conjunction} ${labels[1]}`
+  return `${labels.slice(0, -1).join(', ')} ${conjunction} ${labels.at(-1)}`
+}
 
-  const onCreatedEvent = useEffectEvent(onCreated)
+function EmphasizedCadence({ text, emphasis }: Readonly<{ text: string; emphasis: string }>) {
+  /** An empty emphasis is a habit with no due time, and ''.indexOf returns 0, which would mark nothing. */
+  const start = emphasis ? text.indexOf(emphasis) : -1
+  if (start < 0) return <p className="text-[17px] leading-[1.4] text-[var(--fg-2)]">{text}</p>
+  return <p className="text-[17px] leading-[1.4] text-[var(--fg-2)]">{text.slice(0, start)}<strong className="font-medium text-[var(--fg-1)]">{emphasis}</strong>{text.slice(start + emphasis.length)}</p>
+}
 
-  useEffect(() => {
-    if (!createdInfo) return
-    const timer = setTimeout(() => {
-      onCreatedEvent(createdInfo.id, createdInfo.title)
-    }, 1500)
-    return () => clearTimeout(timer)
-  }, [createdInfo])
+type CadenceTranslate = ReturnType<typeof useTranslations>
+interface CadencePresentation { text: string; emphasis: string }
 
-  const activeFrequency = frequencyUnit ?? 'one-time'
+function cadenceKey(base: 'once' | 'daily' | 'fixed', time: string): string {
+  return `cadence.${time ? `${base}At` : base}`
+}
 
-  function selectSuggestion(suggestion: Suggestion) {
-    setTitle(t(`onboarding.flow.createHabit.suggestions.${suggestion.key}`))
-    setFrequencyUnit(suggestion.frequency)
-    setSelectedSuggestion(suggestion.key)
+function getIntervalCadence(schedule: OnboardingSchedule, days: string, t: CadenceTranslate): CadencePresentation {
+  const time = schedule.dueTime
+  const count = days ? schedule.intervalWeeks : (schedule.frequencyQuantity ?? 1)
+  const unit = days ? 'week' : (schedule.frequencyUnit ?? 'Day').toLowerCase()
+  const key = days ? (time ? 'cadence.intervalDaysAt' : 'cadence.intervalDays') : `cadence.${time ? 'intervalUnitAt' : 'intervalUnit'}.${unit}`
+  return { text: t(key, { count, days, time }), emphasis: time || String(count) }
+}
+
+function getCadencePresentation(schedule: OnboardingSchedule, t: CadenceTranslate): CadencePresentation {
+  const time = schedule.dueTime
+  if (schedule.isFlexible) {
+    const count = schedule.frequencyQuantity ?? 1
+    const unit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
+    return { text: t(`cadence.${time ? 'flexibleAt' : 'flexible'}.${unit}`, { count, time }), emphasis: String(count) }
   }
+  if (schedule.frequencyUnit === null && !schedule.isGeneral) return { text: t(cadenceKey('once', time), { time }), emphasis: time }
+  if (schedule.days.length === DAYS.length && schedule.intervalWeeks === 1) return { text: t(cadenceKey('daily', time), { time }), emphasis: time }
+  const days = joinDays(schedule.days, (day) => t(`daysLong.${day.toLowerCase()}`), t('cadence.and'))
+  if (days && schedule.intervalWeeks === 1) return { text: t(cadenceKey('fixed', time), { days, time }), emphasis: time }
+  return getIntervalCadence(schedule, days, t)
+}
 
-  function selectFrequency(value: FrequencyUnit | 'one-time') {
-    setFrequencyUnit(value === 'one-time' ? undefined : value)
-    setSelectedSuggestion(null)
-  }
+function CadenceSentence({ schedule }: Readonly<{ schedule: OnboardingSchedule }>) {
+  const t = useTranslations('onboarding.flow.when')
+  const presentation = getCadencePresentation(schedule, t)
+  return <EmphasizedCadence {...presentation} />
+}
 
-  const handleCreate = useCallback(async () => {
-    if (!title.trim() || isCreating) return
+interface StepperProps {
+  value: number
+  minimum: number
+  maximum?: number
+  lessLabel: string
+  moreLabel: string
+  description: string
+  onChange: (value: number) => void
+}
 
-    const validationError = translateErrorKey(
-      translate,
-      validateHabitFormInput({
-        title: title.trim(),
-        frequencyUnit,
-        frequencyQuantity: frequencyUnit ? 1 : null,
-      }),
-    )
-    if (validationError) {
-      showError(validationError)
-      return
-    }
+function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, onChange }: Readonly<StepperProps>) {
+  return <div className="flex flex-wrap items-center gap-2">
+    <button type="button" aria-label={lessLabel} disabled={value <= minimum} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40" onClick={() => onChange(Math.max(minimum, value - 1))}><Minus size={20} strokeWidth={2} aria-hidden="true" /></button>
+    <span className="min-w-7 text-center font-mono text-xl tabular-nums">{value}</span>
+    <button type="button" aria-label={moreLabel} disabled={maximum !== undefined && value >= maximum} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40" onClick={() => onChange(maximum === undefined ? value + 1 : Math.min(maximum, value + 1))}><Plus size={20} strokeWidth={2} aria-hidden="true" /></button>
+    <span className="text-sm text-[var(--fg-3)]">{description}</span>
+  </div>
+}
 
-    setIsCreating(true)
-    try {
-      const result = await actions.createHabit({
-        title: title.trim(),
-        frequencyQuantity: 1,
-        ...(frequencyUnit ? { frequencyUnit } : {}),
-      })
-      setCreatedInfo({ id: result.id, title: title.trim() })
-    } catch (err: unknown) {
-      showError(getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'))
-    } finally {
-      setIsCreating(false)
-    }
-  }, [title, frequencyUnit, isCreating, actions, showError, translate])
-
-  if (isCreated) {
-    return (
-      <div className="flex flex-col items-center" style={{ gap: 16, padding: '32px 0' }}>
-        <div
-          className="flex items-center justify-center rounded-full"
-          style={{
-            width: 56,
-            height: 56,
-            background: 'var(--primary)',
-            animation: 'orb-entrance 0.5s var(--ease-out) both',
-          }}
-        >
-          <Check
-            className="animate-check-pop size-7"
-            style={{ color: 'var(--fg-on-primary)', animationDelay: '300ms' }}
-            strokeWidth={2.4}
-          />
+export function OnboardingCreateHabit(props: Readonly<OnboardingCreateHabitProps>) {
+  const t = useTranslations('onboarding.flow')
+  const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
+  const mode = getOnboardingScheduleMode(schedule)
+  const frequencyUnitOptions = [
+    { value: 'Day', label: t('when.units.day') },
+    { value: 'Week', label: t('when.units.week') },
+    { value: 'Month', label: t('when.units.month') },
+    { value: 'Year', label: t('when.units.year') },
+  ] as const
+  const intervalCount = schedule.frequencyQuantity ?? 1
+  const intervalUnit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
+  const proposalCadence = getCadencePresentation(schedule, useTranslations('onboarding.flow.when'))
+  const controls = (
+    <div className="flex flex-col gap-4">
+      <SegmentedControl label={t('when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('when.fixedMode') }, { value: 'flexible', label: t('when.flexibleMode') }, { value: 'interval', label: t('when.intervalMode') }, { value: 'oneTime', label: t('when.oneTimeMode') }]} onChange={props.onModeChange} />
+      {mode === 'flexible' ? (
+        <><SegmentedControl label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.quantityLess')} moreLabel={t('when.quantityMore')} description={t(`when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} onChange={props.onQuantityChange} /></>
+      ) : null}
+      {mode === 'fixed' ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-[var(--fg-2)]">{t('when.daysLabel')}</span>
+          <div className="flex flex-wrap gap-2">{DAYS.map((day) => <Chip key={day} active={schedule.days.includes(day)} ariaLabel={t(`when.daysLong.${day.toLowerCase()}`)} onClick={() => props.onToggleDay(day)}>{t(`when.days.${day.toLowerCase()}`)}</Chip>)}</div>
         </div>
-        <div
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 17,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {title}
-        </div>
-        <div
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t(getOnboardingHabitFrequencyLabelKey(frequencyUnit))}
-          {' · '}
-          {t('onboarding.flow.createHabit.success')}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className="stagger-enter"
-      style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '16px 0' }}
-    >
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 24,
-          fontWeight: 500,
-          letterSpacing: '-0.01em',
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {t('onboarding.flow.createHabit.title')}
-      </div>
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          color: 'var(--fg-2)',
-          lineHeight: 1.55,
-        }}
-      >
-        {t('onboarding.flow.createHabit.subtitle')}
-      </div>
-
-      <Input
-        label={t('onboarding.flow.createHabit.label')}
-        value={title}
-        onChange={setTitle}
-        placeholder={t('onboarding.flow.createHabit.placeholder')}
-        maxLength={MAX_HABIT_TITLE_LENGTH}
-        disabled={isCreating}
-        onSubmit={() => void handleCreate()}
-      />
-
-      <div className="flex justify-center">
-        <Chip
-          active={showFrequencyPicker}
-          leading={
-            <Settings2 size={11} strokeWidth={1.5} color="var(--fg-2)" />
-          }
-          onClick={() => setShowFrequencyPicker((v) => !v)}
-        >
-          {t('onboarding.flow.createHabit.useForm')}
-        </Chip>
-      </div>
-
-      {showFrequencyPicker && (
-        <div className="flex flex-wrap justify-center" style={{ gap: 6 }}>
-          {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
-            <Chip
-              key={freq.value}
-              active={activeFrequency === freq.value}
-              onClick={() => selectFrequency(freq.value)}
-            >
-              {t(freq.labelKey)}
-            </Chip>
-          ))}
-        </div>
-      )}
-
-      <SectionLabel>
-        {t('onboarding.flow.createHabit.starters')}
-      </SectionLabel>
-      <div className="flex flex-wrap" style={{ gap: 6 }}>
-        {ONBOARDING_HABIT_SUGGESTIONS.map((suggestion) => (
-          <Chip
-            key={suggestion.key}
-            active={selectedSuggestion === suggestion.key}
-            onClick={() => selectSuggestion(suggestion)}
-          >
-            {t(`onboarding.flow.createHabit.suggestions.${suggestion.key}`)}
-          </Chip>
-        ))}
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <PillButton
-
-          disabled={!title.trim() || isCreating}
-          loading={isCreating}
-          onClick={() => void handleCreate()}
-
-        >
-          {isCreating
-            ? t('onboarding.flow.createHabit.creating')
-            : t('onboarding.flow.createHabit.create')}
-        </PillButton>
-      </div>
+      ) : null}
+      {mode === 'interval' ? <><SegmentedControl label={t('when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('when.frequencyLess')} moreLabel={t('when.frequencyMore')} description={t(`when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} onChange={props.onQuantityChange} /></> : null}
+      {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('when.intervalLess')} moreLabel={t('when.intervalMore')} description={t('when.interval', { count: schedule.intervalWeeks })} onChange={props.onIntervalWeeksChange} /> : null}
+      <TimeField label={t('when.timeLabel')} value={schedule.dueTime as Time24 | ''} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('when.timeHint')} />
     </div>
   )
+  return <section className="flex flex-col gap-6">
+    <div className="flex items-start gap-3">{props.proposed ? <span className="grid h-[26px] w-5 shrink-0 place-items-center text-[var(--fg-3)]"><AstraGlyph size={18} color="currentColor" /></span> : null}<h1 id="onboarding-title" className="m-0 min-w-0 flex-1 text-pretty text-[17px] font-normal leading-[1.5] text-[var(--fg-1)]">{props.proposed ? t('when.astraRead') : t('when.direct')}</h1></div>
+    {props.atLimit ? <CapacityNotice message={t('when.limit', { allowance: props.allowance })} /> : null}
+    {props.proposed && !props.correcting ? <><button type="button" aria-label={t('when.correctSchedule')} aria-describedby="onboarding-proposal-details" className="group w-full rounded-[20px] text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] active:scale-[0.99]" onClick={props.onCorrect}><Proposed proposed scope="block" label={t('when.proposedBy')}><div className="flex flex-col gap-4 rounded-[20px] p-6 transition-colors group-hover:bg-[var(--bg-hover)]"><div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-[12px] bg-[var(--bg-well)] text-2xl">{props.emoji}</span><strong className="text-[15px] font-medium text-[var(--fg-1)]">{props.title}</strong></div><CadenceSentence schedule={schedule} />{schedule.days.length ? <div className="flex flex-wrap gap-2" aria-label={t('when.daysLabel')}>{DAYS.map((day) => <span key={day} className={`grid size-9 place-items-center rounded-full text-xs ${schedule.days.includes(day) ? 'bg-[var(--bg-well)] text-[var(--fg-1)]' : 'text-[var(--fg-3)]'}`}>{t(`when.days.${day.toLowerCase()}`)}</span>)}</div> : null}<div className="flex flex-col gap-2"><span className="text-sm font-medium text-[var(--fg-2)]">{t('when.timeLabel')}</span><span className="rounded-[12px] bg-[var(--bg-field)] px-4 py-3 text-base text-[var(--fg-1)]">{schedule.dueTime || '--:--'}</span><span className="text-xs text-[var(--fg-2)]">{t('when.timeHint')}</span></div></div></Proposed></button><span id="onboarding-proposal-details" className="sr-only">{t('when.scheduleDetails', { title: props.title, cadence: proposalCadence.text, time: schedule.dueTime || t('when.anyTime') })}</span></> : controls}
+  </section>
 }

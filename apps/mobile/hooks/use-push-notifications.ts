@@ -82,8 +82,11 @@ interface UsePushNotificationsReturn {
   registrationStatus: PushRegistrationStatus
   disablePushNotifications: () => Promise<boolean>
   requestPermission: () => Promise<boolean>
+  requestPermissionOutcome: (registerDevice?: boolean) => Promise<PushPermissionOutcome>
   refreshPermissionStatus: () => Promise<void>
 }
+
+export type PushPermissionOutcome = 'granted' | 'denied' | 'unsupported' | 'failed'
 
 const PushNotificationsContext = createContext<UsePushNotificationsReturn | null>(null)
 
@@ -424,14 +427,14 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     }
   }, [isSupported, readDisabledPreference, registerAndSync])
 
-  const requestPermission = useCallback(async (): Promise<boolean> => {
+  const requestPermissionOutcome = useCallback(async (registerDevice = true): Promise<PushPermissionOutcome> => {
     const activeNotificationsModule = notificationsModule
     if (!isSupported || !activeNotificationsModule) {
       setPermissionStatus(null)
       setPermissionCanAskAgain(false)
       setRegistrationStatus('unsupported')
       setIsRegistered(false)
-      return false
+      return 'unsupported'
     }
 
     setIsLoading(true)
@@ -452,19 +455,24 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
         setExpoPushToken(null)
         setRegistrationStatus(status === 'denied' ? 'permission-denied' : 'permission-undetermined')
         setIsRegistered(false)
-        return false
+        return 'denied'
       }
 
-      return enablePushNotifications()
+      if (!registerDevice) return 'granted'
+      return await enablePushNotifications() ? 'granted' : 'failed'
     } catch (err: unknown) {
       setRegistrationStatus('sync-failed')
       setIsRegistered(false)
       setError(err instanceof Error ? err.message : i18n.t('settings.notifications.syncFailed'))
-      return false
+      return 'failed'
     } finally {
       setIsLoading(false)
     }
   }, [enablePushNotifications, isSupported])
+
+  const requestPermission = useCallback(async (): Promise<boolean> => (
+    await requestPermissionOutcome()
+  ) === 'granted', [requestPermissionOutcome])
 
   const disablePushNotifications = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
@@ -578,6 +586,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     registrationStatus,
     disablePushNotifications,
     requestPermission,
+    requestPermissionOutcome,
     refreshPermissionStatus: syncGrantedPermission,
   }
 }

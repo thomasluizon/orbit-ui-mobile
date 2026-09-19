@@ -55,6 +55,7 @@ vi.mock('@/stores/onboarding-draft-store', () => {
 
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: mocks.createHabitMutateAsync }),
+  useUpdateHabit: () => ({ mutateAsync: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: mocks.bulkCreateHabitsMutateAsync }),
   useLogHabit: () => ({ mutateAsync: mocks.logHabitMutateAsync }),
 }))
@@ -218,10 +219,12 @@ describe('onboarding action provider factories', () => {
 
 const stubActions: OnboardingActions = {
   createHabit: vi.fn(() => Promise.resolve({ id: '1', title: 'x' })),
+  updateHabit: vi.fn(() => Promise.resolve()),
   createHabitsBulk: vi.fn(() => Promise.resolve()),
   logHabit: vi.fn(() => Promise.resolve()),
   createGoal: vi.fn(() => Promise.resolve()),
   setWeekStartDay: vi.fn(() => Promise.resolve()),
+  deferPushRegistration: vi.fn(),
   finishOnboarding: vi.fn(() => Promise.resolve()),
 }
 

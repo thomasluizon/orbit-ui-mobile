@@ -1,145 +1,49 @@
 'use client'
 
-import { useMemo, type CSSProperties } from 'react'
-import { parseISO } from 'date-fns'
-import { Check } from '@/components/ui/icons'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { useProfile } from '@/hooks/use-profile'
-import { useOnboardingIsLive } from '@/components/onboarding/onboarding-actions-context'
-import { useDateFormat } from '@/hooks/use-date-format'
-import { InfoCard } from '@/components/ui/info-card'
+import { getOnboardingCompleteCopy } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
-import { VerifiedBadge } from '@/components/ui/verified-badge'
-
-const titleStyle: CSSProperties = {
-  fontFamily: 'var(--font-display)',
-  fontSize: 34,
-  fontWeight: 700,
-  letterSpacing: '-0.01em',
-  lineHeight: 1.15,
-  color: 'var(--fg-1)',
-  margin: '6px 0 0',
-  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-  animationDelay: '180ms',
-}
-
-const subtitleStyle: CSSProperties = {
-  fontFamily: 'var(--font-sans)',
-  fontSize: 16,
-  color: 'var(--fg-2)',
-  lineHeight: 1.5,
-  maxWidth: 280,
-  margin: 0,
-  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-  animationDelay: '240ms',
-}
+import { StatusRing } from '@/components/ui/status-ring'
 
 interface OnboardingCompleteProps {
   createdHabit: string
-  finishLabel?: string
+  emoji: string
+  remindersOff: boolean
+  skipped: boolean
+  signedOut: boolean
+  dueToday: boolean
+  general: boolean
   onFinish: () => void
 }
 
-export function OnboardingComplete({
-  createdHabit,
-  finishLabel,
-  onFinish,
-}: Readonly<OnboardingCompleteProps>) {
-  const t = useTranslations()
-  const { displayDate } = useDateFormat()
-  const isLive = useOnboardingIsLive()
-  const { profile } = useProfile({ enabled: isLive })
+function LandingRing() {
+  const accentRef = useRef<SVGCircleElement>(null)
+  const [swept, setSwept] = useState(false)
+  useEffect(() => {
+    const circle = accentRef.current
+    if (!circle || typeof circle.animate !== 'function' || globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setSwept(true)
+      return
+    }
+    const length = circle.getTotalLength()
+    circle.style.strokeDasharray = String(length)
+    circle.style.strokeDashoffset = String(length)
+    const animation = circle.animate([{ strokeDashoffset: length }, { strokeDashoffset: 0 }], { duration: 280, easing: 'ease-out' })
+    animation.onfinish = () => setSwept(true)
+    return () => animation.cancel()
+  }, [])
+  return <svg width="56" height="56" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--status-empty)" strokeWidth="1.5" /><circle ref={accentRef} cx="17" cy="17" r="15.5" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" transform="rotate(-90 17 17)" opacity={swept ? 0 : 1} /></svg>
+}
 
-  const trialEndsAt = profile?.trialEndsAt
-  const formattedTrialEnd = useMemo(() => {
-    if (!trialEndsAt) return ''
-    return displayDate(parseISO(trialEndsAt))
-    // react-doctor-disable-next-line exhaustive-deps -- trialEndsAt already aliases profile.trialEndsAt in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [trialEndsAt, displayDate])
-
-  const recapItems = createdHabit
-    ? [
-      {
-        key: 'habit',
-        label: t('onboarding.flow.complete.recap.habit'),
-      },
-    ]
-    : []
-
+export function OnboardingComplete({ createdHabit, emoji, remindersOff, skipped, signedOut, dueToday, general, onFinish }: Readonly<OnboardingCompleteProps>) {
+  const t = useTranslations('onboarding.flow.done')
+  const { titleKey, bodyKey, pendingKey, actionKey } = getOnboardingCompleteCopy({ skipped, signedOut, remindersOff, dueToday, general })
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '12px 0' }}>
-      <div
-        className="flex flex-col items-center"
-        style={{ gap: 14, paddingTop: 14 }}
-      >
-        <div style={{ animation: 'orb-entrance 0.6s var(--ease-out) both' }}>
-          <div className="animate-check-pop" style={{ animationDelay: '420ms' }}>
-            <VerifiedBadge size={96} />
-          </div>
-        </div>
-        <h1 className="text-center" style={titleStyle}>
-          {isLive
-            ? t('onboarding.flow.complete.title')
-            : t('onboarding.flow.saveYourPlan.title')}
-        </h1>
-        <p className="text-center" style={subtitleStyle}>
-          {isLive
-            ? t('onboarding.flow.complete.subtitle')
-            : t('onboarding.flow.saveYourPlan.subtitle')}
-        </p>
-      </div>
-
-      <div
-        className="stagger-enter"
-        style={{ animation: 'slide-up-fade 0.28s var(--ease-out) backwards', animationDelay: '300ms' }}
-      >
-        {recapItems.map((item) => (
-          <div
-            key={item.key}
-            className="flex items-center justify-between"
-            style={{ padding: '12px 0', borderBottom: '1px solid var(--hairline)' }}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                color: 'var(--fg-2)',
-              }}
-            >
-              {item.label}
-            </span>
-            <Check size={18} strokeWidth={1.8} color="var(--primary)" />
-          </div>
-        ))}
-      </div>
-
-      {profile?.isTrialActive && (
-        <div
-          style={{
-            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-            animationDelay: '380ms',
-          }}
-        >
-          <InfoCard>
-            <strong className="block text-[var(--fg-1)]">{t('onboarding.flow.complete.trialTitle')}</strong>
-            <p className="mt-1 text-sm text-[var(--fg-2)]">
-              {t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
-            </p>
-          </InfoCard>
-        </div>
-      )}
-
-      <div
-        style={{
-          marginTop: 8,
-          animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-          animationDelay: '440ms',
-        }}
-      >
-        <PillButton  onClick={onFinish}>
-          {finishLabel ?? t('onboarding.flow.complete.start')}
-        </PillButton>
-      </div>
-    </div>
+    <section className="mx-auto flex w-full max-w-md flex-col gap-6 py-8">
+      <div className="flex flex-col items-start gap-3">{createdHabit ? <LandingRing /> : null}<h1 id="onboarding-title" className="m-0 text-pretty font-display text-[22px] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--fg-1)] lg:text-[28px] lg:leading-[1.15]">{t(titleKey)}</h1><p className="m-0 text-pretty text-[17px] leading-[1.55] text-[var(--fg-2)]">{t(bodyKey)}</p></div>
+      {createdHabit ? <div className="flex items-center gap-4 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"><span className="grid size-11 place-items-center rounded-[12px] bg-[var(--bg-well)] text-2xl">{emoji}</span><span className="min-w-0 flex-1"><strong className="block text-[var(--fg-1)]">{createdHabit}</strong><small className="text-[var(--fg-3)]">{t(pendingKey)}</small></span>{/** The ring is a preview here, not the control: the line beside it already announces the same state. */}<span aria-hidden="true"><StatusRing status="empty" size={30} label={t(pendingKey)} /></span></div> : null}
+      <PillButton onClick={onFinish}>{t(actionKey)}</PillButton>
+    </section>
   )
 }

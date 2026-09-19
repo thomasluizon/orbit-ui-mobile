@@ -62,6 +62,17 @@ describe('FlowShell', () => {
     expect(screen.getAllByRole('heading')).toHaveLength(1)
   })
 
+  it('uses the uncarded 560px canvas column for onboarding', () => {
+    mocks.wide = true
+    render(<FlowShell mode="onboarding"><h1>Onboarding</h1></FlowShell>)
+
+    const flow = screen.getByRole('heading', { name: 'Onboarding' }).closest('[data-shell="flow"]')
+    expect(flow).toHaveAttribute('data-flow-mode', 'onboarding')
+    expect(flow).toHaveClass('max-w-[560px]')
+    expect(flow?.firstElementChild).not.toHaveClass('md:bg-[var(--bg-card)]')
+    expect(flow?.firstElementChild).toHaveClass('my-auto')
+  })
+
   it('gives chat a full-width definite-height flow instead of the card', () => {
     render(<FlowShell mode="full"><main>Conversation</main></FlowShell>)
 

@@ -393,6 +393,52 @@ describe('usePushNotifications', () => {
     expect(latestResult?.isEnabled).toBe(true)
   })
 
+  it('requests signed-out permission without registering the device', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('undetermined'),
+    )
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+
+    await renderHarness()
+    await flush()
+
+    let outcome = 'failed'
+    await TestRenderer.act(async () => {
+      outcome = (await latestResult?.requestPermissionOutcome(false)) ?? 'failed'
+    })
+
+    expect(outcome).toBe('granted')
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalled()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('reports denial and registration failure as different outcomes', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('undetermined'),
+    )
+    vi.mocked(notificationsModule.requestPermissionsAsync)
+      .mockResolvedValueOnce(createPermissionResponse('denied', true))
+
+    await renderHarness()
+    await flush()
+
+    let outcome = 'granted'
+    await TestRenderer.act(async () => {
+      outcome = (await latestResult?.requestPermissionOutcome()) ?? 'granted'
+    })
+    expect(outcome).toBe('denied')
+
+    vi.mocked(notificationsModule.requestPermissionsAsync)
+      .mockResolvedValueOnce(createPermissionResponse('granted'))
+    mocks.apiClient.mockRejectedValueOnce(new Error('registration failed'))
+    await TestRenderer.act(async () => {
+      outcome = (await latestResult?.requestPermissionOutcome()) ?? 'granted'
+    })
+    expect(outcome).toBe('failed')
+  })
+
   it('updates the mounted Profile surface when the global prompt registers push', async () => {
     vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
       createPermissionResponse('undetermined'),

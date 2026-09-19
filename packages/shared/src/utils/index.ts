@@ -319,22 +319,33 @@ export { isVersionBelow } from './version'
 export { formatTimeFieldInput } from './time-field'
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
 export {
+  canRepeatOnboardingScheduleWeeks,
   canSnapshotOnboardingEntry,
+  clampOnboardingRepeatWeeks,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
-  getOnboardingHabitFrequencyLabelKey,
-  getOnboardingNextStep,
-  getOnboardingPreviousStep,
-  ONBOARDING_COMPLETE_STEP,
-  ONBOARDING_CREATE_HABIT_STEP,
-  ONBOARDING_HABIT_FREQUENCIES,
-  ONBOARDING_HABIT_SUGGESTIONS,
+  buildOnboardingHabitInput,
+  buildOnboardingScheduleFromPhrase,
+  buildOnboardingScheduleFromSuggestion,
+  changeOnboardingScheduleMode,
+  toggleOnboardingScheduleDay,
+  getOnboardingHabitTitle,
+  getOnboardingCompleteCopy,
+  getOnboardingScheduleMode,
+  getOnboardingReminderPreviewTime,
+  getOnboardingRemindCopy,
+  isOnboardingHabitDueToday,
+  ONBOARDING_DONE_STEP,
+  ONBOARDING_REMIND_STEP,
+  ONBOARDING_STARTERS,
+  ONBOARDING_WHAT_STEP,
+  ONBOARDING_WHEN_STEP,
   ONBOARDING_TOTAL_STEPS,
-  ONBOARDING_WEEK_START_OPTIONS,
+  ONBOARDING_REMINDER_MINUTES,
   resolveRetainedOnboarding,
-  shouldHideOnboardingFooter,
+  shouldRequestOnboardingSuggestion,
 } from './onboarding'
-export type { RetainedOnboardingAction } from './onboarding'
+export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode, RetainedOnboardingAction } from './onboarding'
 export {
   isMissingBillingError,
   isMissingBillingStatus,

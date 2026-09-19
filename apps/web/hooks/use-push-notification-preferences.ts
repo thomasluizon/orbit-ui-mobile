@@ -12,6 +12,7 @@ import {
 } from '@/lib/actions/notifications'
 
 export type PushPreferenceStatus = WebPushPreferenceStatus
+export type WebPushPermissionOutcome = 'granted' | 'denied' | 'unsupported'
 
 export interface PushPreferenceSnapshot {
   supported: boolean
@@ -147,6 +148,14 @@ export async function subscribeToPushNotifications(
   }
 
   return createSnapshot(permission, true)
+}
+
+export async function requestWebPushPermission(): Promise<WebPushPermissionOutcome> {
+  if (!isPushNotificationSupported()) return 'unsupported'
+  const permission = Notification.permission === 'granted'
+    ? 'granted'
+    : await Notification.requestPermission()
+  return permission === 'granted' ? 'granted' : 'denied'
 }
 
 export async function unsubscribeFromPushNotifications(

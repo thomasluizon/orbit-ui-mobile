@@ -1,234 +1,43 @@
-import { useEffect, useMemo } from 'react'
-// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+import { useEffect, useMemo, useRef, useState } from 'react'
+// react-doctor-disable-next-line rn-prefer-reanimated -- WHY: SVG stroke animation uses system Animated until the pinned ABI changes. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, StyleSheet, Text, View } from 'react-native'
-import { parseISO } from 'date-fns'
-import { Check } from '@/components/ui/icons'
+import Svg, { Circle } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
-import { useProfile } from '@/hooks/use-profile'
-import { useOnboardingIsLive } from './onboarding-actions-context'
-import { useDateFormat } from '@/hooks/use-date-format'
-import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
+import { getOnboardingCompleteCopy } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
+import { StatusRing } from '@/components/ui/status-ring'
+import { createTokensV2, easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { InfoCard } from '@/components/ui/info-card'
-import { PillButton } from '@/components/ui/pill-button'
-import { VerifiedBadge } from '@/components/ui/verified-badge'
 
-interface OnboardingCompleteProps {
-  createdHabit: string
-  finishLabel?: string
-  onFinish: () => void
-}
+const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
-/**
- * Tudo certo (allset) step: VerifiedBadge hero, display title, recap rows,
- * trial InfoCard. Preserves trial info + onFinish.
- */
-export function OnboardingComplete({
-  createdHabit,
-  finishLabel,
-  onFinish,
-}: Readonly<OnboardingCompleteProps>) {
-  const { t } = useTranslation()
-  const { displayDate } = useDateFormat()
-  const isLive = useOnboardingIsLive()
-  const { profile } = useProfile({ enabled: isLive })
+function LandingRing() {
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
-  const styles = useMemo(() => createStyles(tokens), [tokens])
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const badgeScale = useMemo(() => new Animated.Value(0), [])
-  const badgePop = useMemo(() => new Animated.Value(0), [])
-  const rise = useMemo(() => new Animated.Value(0), [])
-
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  const circle = useRef<Circle>(null)
+  const offset = useMemo(() => new Animated.Value(0), [])
+  const [length, setLength] = useState(0)
+  const reduced = usePrefersReducedMotion()
+  const [swept, setSwept] = useState(reduced)
   useEffect(() => {
-    if (prefersReducedMotion) {
-      badgeScale.setValue(1)
-      rise.setValue(1)
-      return
-    }
-    const animation = Animated.parallel([
-      Animated.sequence([
-        Animated.spring(badgeScale, {
-          toValue: 1,
-          stiffness: 220,
-          damping: 22,
-          mass: 1,
-          useNativeDriver: true,
-        }),
-        Animated.sequence([
-          Animated.timing(badgePop, {
-            toValue: 1,
-            duration: 100,
-            easing: toAnimatedEasing(easings.out),
-            useNativeDriver: true,
-          }),
-          Animated.timing(badgePop, {
-            toValue: 0,
-            duration: 100,
-            easing: toAnimatedEasing(easings.out),
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-      Animated.timing(rise, {
-        toValue: 1,
-        duration: 560,
-        delay: 160,
-        easing: toAnimatedEasing(easings.out),
-        useNativeDriver: true,
-      }),
-    ])
-    animation.start()
+    if (!length) return
+    if (reduced) return
+    offset.setValue(length)
+    const animation = Animated.timing(offset, { toValue: 0, duration: 280, easing: toAnimatedEasing(easings.out), useNativeDriver: false })
+    animation.start(({ finished }) => { if (finished) setSwept(true) })
     return () => animation.stop()
-  }, [badgePop, badgeScale, prefersReducedMotion, rise])
-
-  const riseSlot = (from: number, to: number) => ({
-    opacity: rise.interpolate({
-      inputRange: [from, to],
-      outputRange: [0, 1],
-      extrapolate: 'clamp' as const,
-    }),
-    transform: [
-      {
-        translateY: rise.interpolate({
-          inputRange: [from, to],
-          outputRange: [12, 0],
-          extrapolate: 'clamp' as const,
-        }),
-      },
-    ],
-  })
-
-  const formattedTrialEnd = useMemo(() => {
-    if (!profile?.trialEndsAt) return ''
-    return displayDate(parseISO(profile.trialEndsAt))
-  }, [profile, displayDate])
-
-  const recapItems = createdHabit
-    ? [
-      {
-        key: 'habit',
-        label: t('onboarding.flow.complete.recap.habit'),
-      },
-    ]
-    : []
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Animated.View
-          style={{
-            opacity: badgeScale,
-            transform: [
-              {
-                scale: Animated.multiply(
-                  badgeScale.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.3, 1],
-                  }),
-                  badgePop.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, 1.12],
-                  }),
-                ),
-              },
-            ],
-          }}
-        >
-          <VerifiedBadge size={96} />
-        </Animated.View>
-        <Animated.Text style={[styles.title, riseSlot(0, 0.45)]}>
-          {isLive
-            ? t('onboarding.flow.complete.title')
-            : t('onboarding.flow.saveYourPlan.title')}
-        </Animated.Text>
-        <Animated.Text style={[styles.subtitle, riseSlot(0.1, 0.55)]}>
-          {isLive
-            ? t('onboarding.flow.complete.subtitle')
-            : t('onboarding.flow.saveYourPlan.subtitle')}
-        </Animated.Text>
-      </View>
-
-      <Animated.View style={[styles.recapList, riseSlot(0.25, 0.7)]}>
-        {recapItems.map((item) => (
-          <View key={item.key} style={styles.recapRow}>
-            <Text style={styles.recapText}>{item.label}</Text>
-            <Check size={18} color={tokens.primary} strokeWidth={1.8} />
-          </View>
-        ))}
-      </Animated.View>
-
-      {profile?.isTrialActive && (
-        <Animated.View style={riseSlot(0.4, 0.85)}>
-          <InfoCard>
-            <Text style={{ color: tokens.fg1 }}>{t('onboarding.flow.complete.trialTitle')}</Text>
-            <Text style={{ color: tokens.fg2 }}>
-              {t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
-            </Text>
-          </InfoCard>
-        </Animated.View>
-      )}
-
-      <Animated.View style={[styles.startBtnWrap, riseSlot(0.55, 1)]}>
-        <PillButton  onClick={onFinish}>
-          {finishLabel ?? t('onboarding.flow.complete.start')}
-        </PillButton>
-      </Animated.View>
-    </View>
-  )
+  }, [length, offset, reduced])
+  return <Svg accessible={false} width={56} height={56} viewBox="0 0 34 34" onLayout={() => { const measured = circle.current?.getTotalLength(); if (measured) setLength(measured); else setSwept(true) }}><Circle cx={17} cy={17} r={15.5} fill="none" stroke={tokens.statusEmpty} strokeWidth={1.5} /><AnimatedCircle ref={circle} cx={17} cy={17} r={15.5} fill="none" stroke={tokens.primary} strokeWidth={2.5} strokeLinecap="round" strokeDasharray={`${length} ${length}`} strokeDashoffset={offset} opacity={swept ? 0 : 1} rotation={-90} origin="17, 17" /></Svg>
 }
 
-function createStyles(tokens: AppTokensV2) {
-  return StyleSheet.create({
-    container: {
-      gap: 22,
-      paddingTop: 12,
-      paddingBottom: 12,
-    },
-    header: {
-      alignItems: 'center',
-      gap: 14,
-      paddingTop: 14,
-    },
-    title: {
-      fontFamily: 'SpaceGrotesk_600SemiBold',
-      fontSize: 34,
-      letterSpacing: -0.34,
-      lineHeight: 39,
-      color: tokens.fg1,
-      textAlign: 'center',
-      marginTop: 6,
-    },
-    subtitle: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 16,
-      lineHeight: 24,
-      color: tokens.fg2,
-      textAlign: 'center',
-      maxWidth: 280,
-    },
-    recapList: {
-      gap: 0,
-    },
-    recapRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairline,
-    },
-    recapText: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 16,
-      color: tokens.fg2,
-    },
-    startBtnWrap: {
-      marginTop: 8,
-    },
-  })
+interface Props { createdHabit: string; emoji: string; remindersOff: boolean; skipped: boolean; signedOut: boolean; dueToday: boolean; general: boolean; onFinish: () => void }
+export function OnboardingComplete({ createdHabit, emoji, remindersOff, skipped, signedOut, dueToday, general, onFinish }: Readonly<Props>) {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  const prefix = 'onboarding.flow.done'
+  const { titleKey, bodyKey, pendingKey, actionKey } = getOnboardingCompleteCopy({ skipped, signedOut, remindersOff, dueToday, general })
+  return <View style={styles.root}><View style={styles.intro}>{createdHabit ? <LandingRing /> : null}<Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t(`${prefix}.${titleKey}`)}</Text><Text style={[styles.body, { color: tokens.fg2 }]}>{t(`${prefix}.${bodyKey}`)}</Text></View>{createdHabit ? <View style={[styles.habit, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}><View style={[styles.emoji, { backgroundColor: tokens.bgWell }]}><Text style={styles.emojiText}>{emoji}</Text></View><View style={styles.copy}><Text style={[styles.habitTitle, { color: tokens.fg1 }]}>{createdHabit}</Text><Text style={[styles.pending, { color: tokens.fg3 }]}>{t(`${prefix}.${pendingKey}`)}</Text></View>{/** The ring is a preview here, not the control: the line beside it already announces the same state. */}<View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><StatusRing status="empty" size={30} label={t(`${prefix}.${pendingKey}`)} /></View></View> : null}<PillButton onClick={onFinish}>{t(`${prefix}.${actionKey}`)}</PillButton></View>
 }
+const styles = StyleSheet.create({ root: { gap: 24, paddingVertical: 32 }, intro: { alignItems: 'flex-start', gap: 12 }, title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, letterSpacing: -0.44, lineHeight: 26 }, body: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 26 }, habit: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 16, padding: 16 }, emoji: { alignItems: 'center', borderRadius: 12, height: 44, justifyContent: 'center', width: 44 }, emojiText: { fontSize: 24 }, copy: { flex: 1 }, habitTitle: { fontFamily: 'Geist_500Medium', fontSize: 15 }, pending: { fontFamily: 'Geist_400Regular', fontSize: 12 } })
