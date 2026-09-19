@@ -256,6 +256,9 @@ const TAG_CONTEXTS: ContextSet = new Set(['tag'])
  * Every rule below is derived from a live `WithMessage` call or a FluentValidation default in
  * `orbit-api`. A rule whose only producer was a `DomainErrors` sentence belongs in
  * `ERROR_CODE_TO_KEY` instead, because the API localizes those sentences at its response boundary.
+ * The first match wins, so a rule that reads a longer piece of the same sentence sits above the
+ * broader one: `sub-habit title` before the plain `title` pair, for both the empty and the
+ * over-the-limit case.
  */
 const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: ['description', String(MAX_HABIT_DESCRIPTION_LENGTH)], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
@@ -292,8 +295,8 @@ function matchesIncludes(msg: string, includes: MessageRule['includes']): boolea
 /**
  * Every rule in `CONTEXTUAL_RULES` names its own field, so the walk runs first and the title
  * fallback answers only what no rule claims. The fallback ran first until #614, where
- * `Sub-habit title must not exceed 200 characters` matched it on `title` plus the length and
- * made `habits.form.subHabitTitleTooLong` unreachable in every context. Any rule added below
+ * `Sub-habit title must not exceed 200 characters` matched it on `title` plus the length, which
+ * left the sub-habit rule below it unreachable in every context. Any rule added below
  * would have hit the same wall, which is why the order is the fix rather than a sub-habit test
  * inside the fallback. The fallback keeps its own context split because it answers for the
  * `Title` property of a habit and of a goal, which no rule covers.
