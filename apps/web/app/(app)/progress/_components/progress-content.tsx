@@ -586,7 +586,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
 }
 
 export function ProgressContent() {
-  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
+  const [detailGoalId, setDetailGoalId] = useAccountScopedState<string | null>(null)
   const t = useTranslations()
   const router = useRouter()
   const isDesktop = useIsDesktop()

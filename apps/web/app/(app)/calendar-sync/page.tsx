@@ -21,6 +21,7 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
@@ -80,12 +81,18 @@ function CalendarSyncPageContent() {
   const isReviewMode = searchParams.get('mode') === 'review'
   const isProUser = Boolean(profile) && hasProAccess
 
-  const [wizardStage, setWizardStage] = useState<WizardStage>('browse')
+  /**
+   * `events`, `selectedIds`, `visibleCount` and the latch below re-derive from the query cache
+   * through the `eventsKey` sync, so emptying that cache empties them. The four that follow do
+   * not: they are the wizard's own answer, and `importResult` names the habits the PREVIOUS
+   * account just created.
+   */
+  const [wizardStage, setWizardStage] = useAccountScopedState<WizardStage>('browse')
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [errorMessage, setErrorMessage] = useState('')
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
+  const [errorMessage, setErrorMessage] = useAccountScopedState('')
+  const [importResult, setImportResult] = useAccountScopedState<ImportResult | null>(null)
+  const [isConnecting, setIsConnecting] = useAccountScopedState(false)
   const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
 

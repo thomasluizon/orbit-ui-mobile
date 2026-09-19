@@ -835,6 +835,20 @@ describe('ProgressContent', () => {
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
   })
 
+  it('closes the goal detail when another account replaces the tab', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    mocks.goals.data.allGoals = [createMockGoal({})]
+    render(<ProgressPage />)
+    fireEvent.click(getGoalCard('Read 12 Books'))
+    expect(screen.getByLabelText('goal-detail')).toHaveTextContent('goal-1')
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByLabelText('goal-detail')).not.toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+
   it('drops the repair confirmation when another account replaces the tab', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
