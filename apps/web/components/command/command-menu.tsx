@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, type KeyboardEvent } from 'react'
+import { type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Command, CommandEmpty, CommandGroup, CommandList } from 'cmdk'
 import { buildSearchEntries, type CommandHabitEntry, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
 import { useHabitSearch } from '@/hooks/use-habit-search'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
 import { Button } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -26,7 +27,14 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   const t = useTranslations()
   const router = useRouter()
   const search = useHabitSearch()
-  const [page, setPage] = useState<SearchCommandPage>(null)
+  /**
+   * The palette outlives an account replacement, because `shell-store.paletteOpen` holds it open
+   * and `#600` leaves that store alone. Its rows are already the next account's, and so is the
+   * typed text, which `use-habit-search.ts:16-18` scopes. This page is the one thing that is not:
+   * left on `'log'`, the next account's first Enter logs a habit instead of opening it, which is a
+   * wrong write on their own data.
+   */
+  const [page, setPage] = useAccountScopedState<SearchCommandPage>(null)
   const { showError } = useAppToast()
   const onActionError = () => showError(t('errors.updateHabit'))
   const logHabit = useLogHabit()
