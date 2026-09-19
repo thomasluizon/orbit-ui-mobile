@@ -19,7 +19,6 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.Calendar
 import java.util.Locale
 import kotlin.math.floor
 
@@ -257,7 +256,7 @@ class OrbitWidgetFactory(
 ) : RemoteViewsService.RemoteViewsFactory {
 
     private var habits: List<HabitItem> = emptyList()
-    private var rowDate: String = widgetRowDate(0, Calendar.getInstance())
+    private var rowDate: String = widgetRowDate(0, nowInDeviceDay())
     private var headerLabel: String = "Today"
     private var lang: String = "en"
     private var colorModes: WidgetColorModes = defaultColorModes()
@@ -532,18 +531,24 @@ class OrbitWidgetFactory(
             return
         }
 
+        val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         lang = detectLanguage(widgetData.language)
         val streak = widgetData.currentStreak ?: 0
         val dayState = prepareWidgetDay(widgetData.items ?: emptyList(), widgetData.dayOffset)
         habits = dayState.habits
-        rowDate = widgetRowDate(widgetData.dayOffset, Calendar.getInstance())
+        // resolveWidgetData returns a cached payload of any age when the fetch fails, and
+        // dayOffset counts from the day that payload was fetched. Both writers stamp
+        // habits_updated_at, so the fetch day is what the offset applies to.
+        rowDate = widgetRowDate(
+            widgetData.dayOffset,
+            widgetFetchDay(prefs.getLong("habits_updated_at", 0L), nowInDeviceDay())
+        )
         headerLabel = if (dayState.isTomorrow) {
             tr(context, lang, WidgetString.TOMORROW)
         } else {
             tr(context, lang, WidgetString.TODAY)
         }
         // Cache header info for the provider to read
-        val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         prefs.edit()
             .putString("header_label", headerLabel)
             .putInt("habit_count", dayState.totalCount)

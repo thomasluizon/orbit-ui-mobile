@@ -32,6 +32,24 @@ class OrbitWidgetRowLinkTest {
     }
 
     @Test
+    fun `a payload replayed the next day keeps the day it was fetched for`() {
+        val fetchedOnD = dayOf(2026, Calendar.SEPTEMBER, 19)
+        val renderedOnDPlusOne = dayOf(2026, Calendar.SEPTEMBER, 20)
+
+        val anchor = widgetFetchDay(fetchedOnD.timeInMillis, renderedOnDPlusOne)
+
+        assertEquals("2026-09-20", widgetRowDate(1, anchor))
+        assertEquals("2026-09-20", widgetRowDate(0, renderedOnDPlusOne))
+    }
+
+    @Test
+    fun `a payload with no stored fetch time falls back to the clock`() {
+        val now = dayOf(2026, Calendar.SEPTEMBER, 19)
+
+        assertEquals("2026-09-20", widgetRowDate(1, widgetFetchDay(0L, now)))
+    }
+
+    @Test
     fun `a row link names the habit it shows and the day it shows`() {
         assertEquals(
             "orbit://habits/a12b34cd-1234-4567-89ab-123456789abc?date=2026-09-20",
