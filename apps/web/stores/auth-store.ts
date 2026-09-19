@@ -95,6 +95,12 @@ function endSessionLocally(): void {
  * Reads the account the cookie now names. A tab that has not yet learned an account only records it,
  * which leaves a reload of the same account untouched, and a replacement also drops the remembered
  * user because this tab cannot prove the new account's name.
+ *
+ * The step-up state is cleared BEFORE the account generation rises, because the rise is what tells
+ * every listener to re-read, and `use-api-key-management` re-reads the creation grant through a
+ * lazy initializer at exactly that moment. React happens to defer that render to a microtask, so
+ * the other order works, but a grant that lets the next account skip the emailed code should not
+ * rest on a flush order nothing states. `endSessionLocally` already clears first.
  */
 function adoptSessionAccount(userId: string | null): boolean {
   if (userId === null) return false
@@ -104,8 +110,8 @@ function adoptSessionAccount(userId: string | null): boolean {
     return false
   }
 
-  startAccountScopedSession(userId)
   bindStepUpStateToAccount(userId)
+  startAccountScopedSession(userId)
   return true
 }
 
@@ -197,8 +203,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setAuth: (loginResponse: LoginResponse) => {
     sessionRecoveryUser = null
-    startAccountScopedSession(loginResponse.userId)
     bindStepUpStateToAccount(loginResponse.userId)
+    startAccountScopedSession(loginResponse.userId)
     set({
       isAuthenticated: true,
       user: {
