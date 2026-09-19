@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "116cdd88e9d64827b62ec6606cb261e95c951e9c",
+  "generatedFrom": "f481be6d34956ad1d8e475d64122ae9549b15b36",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -6886,7 +6886,7 @@
       "ownedFiles": [
         "apps/mobile/app/chat.tsx"
       ],
-      "closureSize": 20,
+      "closureSize": 21,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -6900,7 +6900,7 @@
       "ownedFiles": [
         "apps/mobile/app/chat.tsx"
       ],
-      "closureSize": 20,
+      "closureSize": 21,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -6914,7 +6914,7 @@
       "ownedFiles": [
         "apps/mobile/app/chat.tsx"
       ],
-      "closureSize": 20,
+      "closureSize": 21,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -6928,7 +6928,7 @@
       "ownedFiles": [
         "apps/mobile/app/chat.tsx"
       ],
-      "closureSize": 20,
+      "closureSize": 21,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
