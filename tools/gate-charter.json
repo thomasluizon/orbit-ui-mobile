@@ -14,6 +14,11 @@
       }
     ]
   },
+  ".claude/hooks/forbid-node-modules-write.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   ".claude/hooks/forbid-raw-ticket-mutation.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
@@ -378,6 +383,16 @@
     "scope": "changed-files",
     "snapshot": "node tools/check-dashes.mjs --write-baseline",
     "constants": "none"
+  },
+  "tools/check-dependency-edits.mjs": {
+    "scope": "whole-tree-advisory",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "late mtime tolerance seconds",
+        "source": "tools/check-dependency-edits.mjs DEFAULT_TOLERANCE_SECONDS, measured against this repository's 2026-09-17 install"
+      }
+    ]
   },
   "tools/check-gate-charter.mjs": {
     "scope": "changed-files",

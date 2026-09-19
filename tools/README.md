@@ -116,6 +116,12 @@ is what makes landing on login a positive claim.
 |---|---|---|
 | `generate-brand-assets.mjs` | Regenerates the canonical 16, 48, 128 and 512 brand PNGs, the native 16 plus canonical 32 and 48 favicon layers, the Apple icon, console upload exports, platform icon, launcher layers, splash, notification silhouette, web icons, OG composite and Play feature graphic from the three canonical Orbit mark sources, `orbit-mark.svg` for the 1024 geometry, `orbit-mark-accent.svg` for every coloured raster and `orbit-mark-16.svg` for the native redraw below roughly 20px. Each one is validated before any render, so a missing or structurally invalid source fails rather than producing a silently wrong set. Outputs use the platform canvas and ink tokens with no baked mask radius. | `node tools/generate-brand-assets.mjs --write` |
 
+## Installed dependencies
+
+| Tool | What it does | Usage |
+|---|---|---|
+| `check-dependency-edits.mjs` | Walks every `node_modules` tree under the root and fails on any file whose mtime is later than its own package's `package.json`, which is a write the install did not make. Deliberately NOT a CI check: `node_modules` is never committed and CI installs a clean tree. Run it before citing installed source. Measured on this repository: 1671 packages and 187012 files in about 6 seconds, zero findings on a fresh install. | `node tools/check-dependency-edits.mjs [--root <path>] [--tolerance-seconds <n>]` |
+
 ## Harness self-test
 
 | Tool | What it does | Usage |
@@ -123,7 +129,7 @@ is what makes landing on login a positive claim.
 | `test-tools.mjs` | Executes every tool in this directory against its contract and fails on any tool with no coverage entry. Review-only evidence is not sufficient: a harness that is read but never run is how a gate reports green over work that never happened. | `node tools/test-tools.mjs` |
 | `record-gh-fixtures.mjs` | Re-records the GitHub issue, label, and Projects v2 response path/type manifest from read-only live `gh` commands. It never creates, edits, comments on, or closes a ticket. | `node tools/record-gh-fixtures.mjs` |
 
-Its sibling is `node .claude/hooks/test-hooks.mjs`, which proves the seven session hooks block and allow
+Its sibling is `node .claude/hooks/test-hooks.mjs`, which proves the nine session hooks block and allow
 as specified, and that every hook wired in `.claude/settings.json` exists on disk and vice versa.
 
 ## Fixtures

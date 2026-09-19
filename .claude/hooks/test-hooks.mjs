@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regression suite for the eight surviving session hooks. Three layers:
+// Regression suite for the nine surviving session hooks. Three layers:
 //   1. Wiring: settings.json and the hooks directory must agree in BOTH
 //      directions. A hook deleted while settings.json still names it is exactly
 //      how this suite was broken on 2026-08-04, and nothing else catches it.
@@ -9,7 +9,7 @@
 // Plus a cheap frontmatter check over the agents and skills this repo ships.
 // Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -22,6 +22,7 @@ import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
+import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
@@ -360,6 +361,85 @@ T("worker-browser: pnpm dlx cypress still blocks", blocks(worker("pnpm dlx cypre
 T("worker-browser: a dev script under a runner still blocks", blocks(worker("npm run dev -- --port 4000")), true)
 T("worker-browser: an unrelated npm script named dev-docs allows", worker("npm run dev:docs"), null)
 T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
+
+console.log("\n# forbid-node-modules-write (_lib/rules-dependencies.mjs)")
+// Measured 2026-09-18: two files inside node_modules/react-native were edited three hours after
+// the package was extracted, npm install left them alone, and four contradictory citations of
+// those two files were published across three sessions. Unlike the browser ban, this one takes no
+// caller: the damage is to what every later reader sees, not to one session's budget.
+const dependencyTree = join(root, "dependency-guard")
+const installedPackage = join(dependencyTree, "node_modules", "react-native")
+const installedFile = join(installedPackage, "ReactNativeFeatureFlagsDefaults.kt")
+mkdirSync(installedPackage, { recursive: true })
+mkdirSync(join(dependencyTree, "apps", "mobile", "app"), { recursive: true })
+mkdirSync(join(dependencyTree, "node_modules_backup"), { recursive: true })
+writeFileSync(installedFile, "enableImperativeFocus = false\n")
+const linkedPackage = join(dependencyTree, "link-to-package")
+let symlinkAvailable = true
+try {
+  symlinkSync(installedPackage, linkedPackage, "junction")
+} catch {
+  symlinkAvailable = false
+}
+const inTree = { cwd: dependencyTree }
+T("dependency-write: an absolute path inside node_modules blocks", blocks(checkDependencyFileWrite(installedFile, inTree)), true)
+T("dependency-write: a relative path inside node_modules blocks", blocks(checkDependencyFileWrite("node_modules/react-native/index.js", inTree)), true)
+// A guard that pattern-matches the literal string is not a guard: both of these reach the same
+// bytes while spelling neither.
+T(
+  "dependency-write: a traversal back into node_modules blocks",
+  blocks(checkDependencyFileWrite("apps/mobile/../../node_modules/react-native/index.js", inTree)),
+  true,
+)
+T(
+  "dependency-write: a symlink into the package blocks",
+  symlinkAvailable ? blocks(checkDependencyFileWrite(join(linkedPackage, "index.js"), inTree)) : true,
+  true,
+)
+T("dependency-write: the repository's own source allows", checkDependencyFileWrite("apps/mobile/app/index.tsx", inTree), null)
+// A SEGMENT, never a substring. node_modules_backup/ is an ordinary directory.
+T("dependency-write: a directory merely named like node_modules allows", checkDependencyFileWrite("node_modules_backup/notes.md", inTree), null)
+T("dependency-write: no path at all allows", checkDependencyFileWrite(null, inTree), null)
+const dependencyCommand = (command) => checkDependencyCommand(command, inTree)
+for (const command of [
+  "echo true > node_modules/react-native/flags.kt",
+  'sed -i "s/false/true/" node_modules/react-native/flags.kt',
+  "tee node_modules/react-native/flags.kt",
+  "cp /tmp/flags.kt node_modules/react-native/flags.kt",
+  "npx patch-package react-native",
+  "Set-Content -Path node_modules/react-native/flags.kt -Value true",
+  "Copy-Item C:\\tmp\\flags.kt node_modules/react-native/flags.kt",
+]) {
+  T(`dependency-write: ${command} blocks`, blocks(dependencyCommand(command)), true)
+}
+// The documented repair is a delete plus an install, so refusing it would leave a poisoned tree
+// with no sanctioned way out. Reading a dependency is the behaviour the rule asks for.
+for (const command of [
+  "rm -rf node_modules/react-native",
+  "npm install",
+  "npm ci",
+  "cat node_modules/react-native/flags.kt",
+  "grep -rn enableImperativeFocus node_modules/react-native",
+  "cp node_modules/react-native/flags.kt /tmp/flags.kt",
+  "Copy-Item node_modules/react-native/flags.kt C:\\tmp\\flags.kt",
+  "node tools/check-dependency-edits.mjs > report.txt",
+  "npm test 2>&1",
+]) {
+  T(`dependency-write: ${command} allows`, dependencyCommand(command), null)
+}
+// Prose ABOUT the ban is not the ban being broken, the same distinction rules-git and rules-worker
+// already draw for a commit message.
+T(
+  "dependency-write: a commit message naming the redirect allows",
+  dependencyCommand('git commit -m "forbid echo x > node_modules/react-native/flags.kt"'),
+  null,
+)
+T(
+  "dependency-write: a heredoc body naming the redirect allows",
+  dependencyCommand("git commit -F - <<'EOF'\nnever write > node_modules/react-native/flags.kt\nEOF"),
+  null,
+)
+T("dependency-write: the refusal names the repair that works", dependencyCommand("tee node_modules/react-native/flags.kt")?.message.includes("rm -rf node_modules/<package>"), true)
 
 console.log("\n# require-wake-source (_lib/rules-sleep.mjs)")
 // Under --sleep the ONLY thing that continues the run is a background task completing and
@@ -870,6 +950,20 @@ T("adapter worker-browser: a worker starting a dev server -> 2", runHook(BROWSER
 T("adapter worker-browser: a worker running playwright -> 2", runHook(BROWSER, bash("npx playwright test"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(BROWSER, bash("npm run dev")), 0)
+
+// This one is wired to Write, Edit and MultiEdit as well as both shells, because an agent edits a
+// file with a tool and not with a redirect, and the launcher marker is irrelevant to it: every
+// caller is refused.
+const DEPENDENCY = "forbid-node-modules-write.mjs"
+const edit = (toolName, filePath) => ({ tool_name: toolName, tool_input: { file_path: filePath }, cwd: dependencyTree })
+T("adapter dependency-write: Write inside node_modules -> 2", runHook(DEPENDENCY, edit("Write", installedFile)), 2)
+T("adapter dependency-write: Edit through a relative path -> 2", runHook(DEPENDENCY, edit("Edit", "node_modules/react-native/flags.kt")), 2)
+T("adapter dependency-write: MultiEdit on the repository's own source -> 0", runHook(DEPENDENCY, edit("MultiEdit", "apps/mobile/app/index.tsx")), 0)
+T("adapter dependency-write: a worker redirect into a dependency -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter dependency-write: the same redirect outside a worker still -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree)), 2)
+T("adapter dependency-write: the PowerShell tool is guarded too -> 2", runHook(DEPENDENCY, powershell("Set-Content -Path node_modules/react-native/flags.kt -Value true", dependencyTree)), 2)
+T("adapter dependency-write: the documented repair -> 0", runHook(DEPENDENCY, bash("rm -rf node_modules/react-native && npm install", dependencyTree)), 0)
+T("adapter dependency-write: reading the installed source -> 0", runHook(DEPENDENCY, bash("cat node_modules/react-native/flags.kt", dependencyTree)), 0)
 
 /**
  * The invented-identifier adapter, on both of its evidence sources. The ledger case writes THIS
