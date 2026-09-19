@@ -46,6 +46,11 @@ export const cases = () => {
   writeFileSync(changed, "worker output\n")
   const receipt = stage("salvage-worker/test-receipt.json", "")
   const failedOrder = stage("salvage-worker/fail-command.json", JSON.stringify({ command: process.execPath, args: ["-e", "process.exit(7)"] }))
+  const missingOrder = stage("salvage-worker/missing-command.json", JSON.stringify({ command: "orbit-no-such-command-610", args: [] }))
+  const shimPath = stage("salvage-worker/turbo-shim.cmd", "@echo off\r\nexit /b 0\r\n")
+  const absentShimOrder = stage("salvage-worker/absent-shim-command.json", JSON.stringify({ command: join(repo.path, "absent-shim.cmd"), args: [] }))
+  const shimOrder = stage("salvage-worker/shim-command.json", JSON.stringify({ command: shimPath, args: ["run", "test"] }))
+  const overflowOrder = stage("salvage-worker/overflow-command.json", JSON.stringify({ command: process.execPath, args: ["-e", "const block = Buffer.alloc(1024 * 1024, 97); for (let index = 0; index < 40; index += 1) process.stdout.write(block)"] }))
   const common = [
     "--issue", "ORB-250", "--repo", "ui", "--pr", "77", "--worktree", repo.path,
     "--branch", "feature/salvage", "--run-root", repo.path, "--test-receipt", receipt,
@@ -56,18 +61,74 @@ export const cases = () => {
     TOOL,
     "a salvaged push without a green workspace test receipt fails",
     [...common, "--test-command", failedOrder],
-    { status: 1, stderr: /workspace test failed; nothing was staged or pushed/ },
+    { status: 1, stderr: /workspace test failed: the suite ran and exited 7\. The branch is red/ },
     { path: staged.path },
   )
+  const failedReceipt = JSON.parse(readFileSync(receipt, "utf8"))
   T(
     `${TOOL}: failed salvage stages nothing`,
-    repo.git(["diff", "--cached", "--name-only"]).stdout.trim() === "" && JSON.parse(readFileSync(receipt, "utf8")).exitCode === 1,
+    repo.git(["diff", "--cached", "--name-only"]).stdout.trim() === "" && failedReceipt.exitCode === 1,
     failed.stdout || failed.stderr,
+  )
+  T(
+    `${TOOL}: a red suite is recorded as a suite that ran and its real exit status`,
+    failedReceipt.outcome === "failed" && failedReceipt.status === 7 && failedReceipt.timedOut === false && failedReceipt.overflowed === false && failedReceipt.spawnError === null,
+    JSON.stringify(failedReceipt),
   )
   T(
     `${TOOL}: failed salvage pushes no branch`,
     repo.git(["ls-remote", "--heads", "origin", "feature/salvage"]).stdout.trim() === "",
     "failed test reached the remote",
+  )
+
+  check(
+    TOOL,
+    "a test command that never starts is not reported as a red branch",
+    [...common, "--test-command", missingOrder],
+    { status: 3, stderr: /workspace test did not start: ENOENT[\s\S]*Read the command, not the code/ },
+    { path: staged.path },
+  )
+  const missingReceipt = JSON.parse(readFileSync(receipt, "utf8"))
+  T(
+    `${TOOL}: a command that never started is recorded as did-not-start, not as a failed suite`,
+    missingReceipt.outcome === "did-not-start" && missingReceipt.exitCode === 3 && missingReceipt.status === null && missingReceipt.spawnError?.code === "ENOENT",
+    JSON.stringify(missingReceipt),
+  )
+
+  check(
+    TOOL,
+    process.platform === "win32"
+      ? "a Windows command shim is refused before the suite runs, naming the working shape"
+      : "a .cmd name carries no meaning away from Windows and reaches the spawn",
+    [...common, "--test-command", shimOrder],
+    process.platform === "win32"
+      ? { status: 2, stderr: /Windows command shim this tool cannot spawn[\s\S]*"command":"node","args":\["node_modules\/turbo\/bin\/turbo"/ }
+      : { status: 3, stderr: /workspace test did not start: (ENOENT|EACCES)/ },
+    { path: staged.path },
+  )
+
+  check(
+    TOOL,
+    "a target whose spawn is refused outright is not reported as a red branch",
+    [...common, "--test-command", absentShimOrder],
+    process.platform === "win32"
+      ? { status: 3, stderr: /workspace test did not start: EINVAL/ }
+      : { status: 3, stderr: /workspace test did not start: ENOENT/ },
+    { path: staged.path },
+  )
+
+  check(
+    TOOL,
+    "a workspace test that floods the output bound is not reported as a red branch",
+    [...common, "--test-command", overflowOrder],
+    { status: 5, stderr: /workspace test exceeded the 33554432 byte output bound/ },
+    { path: staged.path },
+  )
+  const overflowReceipt = JSON.parse(readFileSync(receipt, "utf8"))
+  T(
+    `${TOOL}: a flooded output bound is recorded as overflowed, not as a failed suite`,
+    overflowReceipt.outcome === "overflowed" && overflowReceipt.exitCode === 5 && overflowReceipt.overflowed === true && overflowReceipt.spawnError === null,
+    JSON.stringify(overflowReceipt),
   )
 
   const wrongBranch = stageRepo("salvage-worker-wrong-branch")
@@ -106,6 +167,12 @@ export const cases = () => {
     [...common, "--test-command", passedOrder],
     { status: 0, stdout: /"stagedPaths": \[\s*"salvaged\.txt"/ },
     { path: staged.path },
+  )
+  const passedReceipt = JSON.parse(readFileSync(receipt, "utf8"))
+  T(
+    `${TOOL}: a green suite is recorded as green`,
+    passedReceipt.outcome === "passed" && passedReceipt.exitCode === 0 && passedReceipt.status === 0 && passedReceipt.timedOut === false && passedReceipt.overflowed === false && passedReceipt.spawnError === null,
+    JSON.stringify(passedReceipt),
   )
   const state = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-orchestrate-run.json"), "utf8"))
   T(
@@ -178,11 +245,17 @@ export const cases = () => {
       TOOL,
       "a hanging workspace test is bounded before staging",
       ["--issue", "ORB-250", "--repo", "ui", "--worktree", hanging.path, "--branch", "feature/hanging-test", "--run-root", hanging.path, "--test-command", hangingOrder, "--test-receipt", receipt, "--message", "never", "--path", "hung.txt"],
-      { status: 1, stderr: /workspace test failed; nothing was staged or pushed/ },
+      { status: 4, stderr: /workspace test timed out after 0\.02 minutes/ },
       { path: hangingStaged.path },
     )
+    const timedReceipt = JSON.parse(readFileSync(receipt, "utf8"))
+    T(
+      `${TOOL}: a bounded workspace test is recorded as timed-out, not as a failed suite`,
+      timedReceipt.outcome === "timed-out" && timedReceipt.exitCode === 4 && timedReceipt.timedOut === true && timedReceipt.spawnError === null,
+      JSON.stringify(timedReceipt),
+    )
     const childPid = Number(readFileSync(descendantPid, "utf8"))
-    T(`${TOOL}: a timed-out workspace test leaves no descendant process`, timed.status === 1 && !processIsRunning(childPid), `descendant ${childPid} survived`)
+    T(`${TOOL}: a timed-out workspace test leaves no descendant process`, timed.status === 4 && !processIsRunning(childPid), `descendant ${childPid} survived`)
   } else {
     T(`${TOOL}: hanging-test salvage fixture is available`, false, "could not create branch")
   }
