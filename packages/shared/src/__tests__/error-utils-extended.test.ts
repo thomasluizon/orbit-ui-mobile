@@ -337,12 +337,24 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe('habits.form.subHabitTitleRequired')
   })
 
-  it('maps sub-habit title too long via title+200 check', () => {
+  it('maps a sub-habit title over its limit to the sub-habit key, not the habit one', () => {
     const err = validationFailure(
       'SubHabits[0].Title',
       'Sub-habit title must not exceed 200 characters',
     )
-    expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe('habits.form.titleTooLong')
+    expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe(
+      'habits.form.subHabitTitleTooLong',
+    )
+  })
+
+  it('maps a nested sub-habit title over its limit while the form is creating a habit', () => {
+    const err = validationFailure(
+      'SubHabits[0].Title',
+      'Sub-habit title must not exceed 200 characters',
+    )
+    expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe(
+      'habits.form.subHabitTitleTooLong',
+    )
   })
 
   it('maps linked goals limit for habit', () => {
