@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -19,6 +19,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitCountLoaded: () => habitCount,
 }))
 
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 
 function profile(hasCompletedOnboarding: boolean): Profile {
@@ -82,5 +83,38 @@ describe('useRetainedOnboardingGuard', () => {
 
     expect(result.current).toBe(true)
     expect(completeOnboardingMock).not.toHaveBeenCalled()
+  })
+
+  it('re-decides for the next account instead of reusing the previous account snapshot', async () => {
+    habitCount.count = 3
+    const { result, rerender } = renderHook(() =>
+      useRetainedOnboardingGuard(profile(false), false),
+    )
+    expect(result.current).toBe(false)
+    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(1))
+
+    habitCount.count = 0
+    act(() => {
+      advanceAccountGeneration()
+    })
+    rerender()
+
+    expect(result.current).toBe(true)
+  })
+
+  it('auto-completes the next account too, rather than spending the attempt once', async () => {
+    habitCount.count = 3
+    const { result, rerender } = renderHook(() =>
+      useRetainedOnboardingGuard(profile(false), false),
+    )
+    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(1))
+
+    act(() => {
+      advanceAccountGeneration()
+    })
+    rerender()
+
+    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(2))
+    expect(result.current).toBe(false)
   })
 })

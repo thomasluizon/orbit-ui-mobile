@@ -1,8 +1,9 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 
 const TestRenderer = require('react-test-renderer')
@@ -48,12 +49,26 @@ async function flush() {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+const mounted: { update: (el: React.ReactElement) => void; unmount: () => void }[] = []
+
+/**
+ * Every tree stays subscribed to the shared account counter until it unmounts, so an account change
+ * in one case would otherwise re-fire the auto-complete of every earlier case in this file.
+ */
+async function unmountAll() {
+  await TestRenderer.act(async () => {
+    for (const renderer of mounted.splice(0)) renderer.unmount()
+    await flush()
+  })
+}
+
 async function render(p: Profile | undefined, suppressed: boolean) {
   let renderer!: { update: (el: React.ReactElement) => void; unmount: () => void }
   await TestRenderer.act(async () => {
     renderer = TestRenderer.create(<Harness profile={p} suppressed={suppressed} />)
     await flush()
   })
+  mounted.push(renderer)
   return renderer
 }
 
@@ -64,6 +79,10 @@ describe('mobile useRetainedOnboardingGuard', () => {
     mocks.patchProfile.mockClear()
     mocks.performQueuedApiMutation.mockClear()
     lastResult = undefined
+  })
+
+  afterEach(async () => {
+    await unmountAll()
   })
 
   it('shows the overlay for a not-onboarded account with no habits', async () => {
@@ -117,5 +136,35 @@ describe('mobile useRetainedOnboardingGuard', () => {
 
     expect(lastResult).toBe(true)
     expect(mocks.performQueuedApiMutation).not.toHaveBeenCalled()
+  })
+  it('re-decides for the next account instead of reusing the previous account snapshot', async () => {
+    mocks.habitCount.count = 3
+    const renderer = await render(profile(false), false)
+    expect(lastResult).toBe(false)
+    expect(mocks.performQueuedApiMutation).toHaveBeenCalledTimes(1)
+
+    mocks.habitCount.count = 0
+    await TestRenderer.act(async () => {
+      advanceAccountGeneration()
+      renderer.update(<Harness profile={profile(false)} suppressed={false} />)
+      await flush()
+    })
+
+    expect(lastResult).toBe(true)
+  })
+
+  it('auto-completes the next account too, rather than spending the attempt once', async () => {
+    mocks.habitCount.count = 3
+    const renderer = await render(profile(false), false)
+    expect(mocks.performQueuedApiMutation).toHaveBeenCalledTimes(1)
+
+    await TestRenderer.act(async () => {
+      advanceAccountGeneration()
+      renderer.update(<Harness profile={profile(false)} suppressed={false} />)
+      await flush()
+    })
+
+    expect(mocks.performQueuedApiMutation).toHaveBeenCalledTimes(2)
+    expect(lastResult).toBe(false)
   })
 })
