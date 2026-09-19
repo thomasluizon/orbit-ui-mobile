@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   announceAccountToOtherTabs,
+  resetAccountSignalForTests,
   subscribeToAccountSignal,
 } from '@/lib/cross-tab-account-signal'
 
@@ -10,10 +11,21 @@ function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+/**
+ * Stands in for a second tab, holding its channel open for the whole file.
+ *
+ * A channel closed in the turn it posted delivers nothing, which is the defect the module itself
+ * was carrying, so a helper that opens and closes one per message reproduces it here.
+ */
+let otherTab: BroadcastChannel | null = null
+
+function getOtherTab(): BroadcastChannel {
+  otherTab ??= new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
+  return otherTab
+}
+
 async function postRawPayload(payload: unknown): Promise<void> {
-  const otherTab = new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
-  otherTab.postMessage(payload)
-  otherTab.close()
+  getOtherTab().postMessage(payload)
   await settle()
 }
 
@@ -22,6 +34,9 @@ describe('the cross-tab account signal', () => {
 
   afterEach(() => {
     for (const teardown of teardowns.splice(0)) teardown()
+    resetAccountSignalForTests()
+    otherTab?.close()
+    otherTab = null
   })
 
   function listen(): Array<string | null> {
@@ -30,22 +45,40 @@ describe('the cross-tab account signal', () => {
     return announced
   }
 
-  it('carries the announced account to a listening tab', async () => {
+  it('carries an account from another tab', async () => {
     const announced = listen()
 
-    announceAccountToOtherTabs('account-b')
-    await settle()
+    await postRawPayload({ accountId: 'account-b' })
 
     expect(announced).toEqual(['account-b'])
   })
 
-  it('carries a sign out to a listening tab', async () => {
+  it('carries a sign out from another tab', async () => {
     const announced = listen()
 
+    await postRawPayload({ accountId: null })
+
+    expect(announced).toEqual([null])
+  })
+
+  it('never hands a tab back its own announcement', async () => {
+    const announced = listen()
+
+    announceAccountToOtherTabs('account-b')
     announceAccountToOtherTabs(null)
     await settle()
 
-    expect(announced).toEqual([null])
+    expect(announced).toEqual([])
+  })
+
+  it('reaches another tab that is listening on the channel', async () => {
+    const received: unknown[] = []
+    getOtherTab().addEventListener('message', (event) => received.push(event.data))
+
+    announceAccountToOtherTabs('account-b')
+    await settle()
+
+    expect(received).toEqual([{ accountId: 'account-b' }])
   })
 
   it.each([
@@ -67,13 +100,13 @@ describe('the cross-tab account signal', () => {
     const stopListening = subscribeToAccountSignal((accountId) => announced.push(accountId))
 
     stopListening()
-    announceAccountToOtherTabs('account-b')
-    await settle()
+    await postRawPayload({ accountId: 'account-b' })
 
     expect(announced).toEqual([])
   })
 
   it('announces nothing and hands back a safe teardown where BroadcastChannel is missing', () => {
+    resetAccountSignalForTests()
     const realBroadcastChannel = globalThis.BroadcastChannel
     Reflect.deleteProperty(globalThis, 'BroadcastChannel')
     const onAccountAnnounced = vi.fn()
@@ -90,6 +123,7 @@ describe('the cross-tab account signal', () => {
   })
 
   it('announces nothing when the channel cannot be opened', () => {
+    resetAccountSignalForTests()
     const realBroadcastChannel = globalThis.BroadcastChannel
     globalThis.BroadcastChannel = class {
       constructor() {

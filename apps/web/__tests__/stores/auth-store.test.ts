@@ -623,6 +623,8 @@ describe('auth store', () => {
 
     afterEach(async () => {
       vi.useRealTimers()
+      otherTab?.close()
+      otherTab = null
       const { getQueryClient } = await import('@/lib/query-client')
       getQueryClient().clear()
     })
@@ -644,10 +646,15 @@ describe('auth store', () => {
       return new Promise((resolve) => setTimeout(resolve, 0))
     }
 
+    /**
+     * Stands in for a second tab. Its channel stays open for the whole block, because a channel
+     * closed in the turn it posted delivers nothing.
+     */
+    let otherTab: BroadcastChannel | null = null
+
     function announceFromAnotherTab(accountId: string | null): Promise<void> {
-      const otherTab = new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
+      otherTab ??= new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
       otherTab.postMessage({ accountId })
-      otherTab.close()
       return settle()
     }
 

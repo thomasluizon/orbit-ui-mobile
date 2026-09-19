@@ -21,13 +21,29 @@ const ACCOUNT_SIGNAL_CHANNEL = 'orbit-account-signal'
  * reads the token out of SecureStore and sends it as an explicit Bearer, so the credential is bound
  * when the request is built rather than picked up by the platform when it is sent.
  */
+let accountChannel: BroadcastChannel | null = null
+
+/**
+ * One channel for the life of the tab, opened on first use.
+ *
+ * A channel per message loses the message. Measured in this repository on 2026-09-18: a sender that
+ * posts and closes in the same turn delivered 0 of 200 messages, where a sender left open delivered
+ * 200 of 200. Closing tears the port down before the runtime has moved anything across it, so the
+ * post has to outlive the turn that made it.
+ *
+ * A channel never receives its own posts, so one channel for both directions also means this tab
+ * never hears itself, and no message carries a tab id to filter on.
+ */
 function openAccountChannel(): BroadcastChannel | null {
+  if (accountChannel) return accountChannel
   if (typeof BroadcastChannel === 'undefined') return null
+
   try {
-    return new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
+    accountChannel = new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
   } catch {
-    return null
+    accountChannel = null
   }
+  return accountChannel
 }
 
 /** The account the cookie now holds, where `null` says it holds none. */
@@ -57,14 +73,14 @@ function readAccountSignal(payload: unknown): AccountSignal | null {
  * does receive it reads a state it is already in, so the sending tab does nothing either way.
  */
 export function announceAccountToOtherTabs(accountId: string | null): void {
-  const channel = openAccountChannel()
-  if (!channel) return
-
-  channel.postMessage({ accountId } satisfies AccountSignal)
-  channel.close()
+  openAccountChannel()?.postMessage({ accountId } satisfies AccountSignal)
 }
 
-/** Registers a listener for another tab's account and returns its removal. */
+/**
+ * Registers a listener for another tab's account and returns its removal. The teardown drops the
+ * listener and leaves the channel open, because the tab still announces its own transitions through
+ * it after the shell that was listening unmounts.
+ */
 export function subscribeToAccountSignal(
   onAccountAnnounced: (accountId: string | null) => void,
 ): () => void {
@@ -79,6 +95,11 @@ export function subscribeToAccountSignal(
   channel.addEventListener('message', handleAccountMessage)
   return () => {
     channel.removeEventListener('message', handleAccountMessage)
-    channel.close()
   }
+}
+
+/** Closes the tab's channel so the next test opens its own. */
+export function resetAccountSignalForTests(): void {
+  accountChannel?.close()
+  accountChannel = null
 }

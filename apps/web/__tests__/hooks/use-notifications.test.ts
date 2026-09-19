@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -701,10 +701,17 @@ describe('notification mutations across an account switch', () => {
     return new Promise((resolve) => setTimeout(resolve, 0))
   }
 
+  /** A second tab, whose channel stays open because a closed one delivers nothing. */
+  let otherTab: BroadcastChannel | null = null
+
+  afterEach(() => {
+    otherTab?.close()
+    otherTab = null
+  })
+
   function announceAccountFromAnotherTab(accountId: string): Promise<void> {
-    const otherTab = new BroadcastChannel('orbit-account-signal')
+    otherTab ??= new BroadcastChannel('orbit-account-signal')
     otherTab.postMessage({ accountId })
-    otherTab.close()
     return settle()
   }
 
