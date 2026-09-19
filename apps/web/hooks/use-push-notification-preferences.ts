@@ -10,6 +10,7 @@ import {
   subscribePush as subscribePushAction,
   unsubscribePush as unsubscribePushAction,
 } from '@/lib/actions/notifications'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 export type PushPreferenceStatus = WebPushPreferenceStatus
 export type WebPushPermissionOutcome = 'granted' | 'denied' | 'unsupported'
@@ -108,6 +109,14 @@ export async function loadPushNotificationState(): Promise<PushPreferenceSnapsho
   }
 }
 
+/**
+ * Reads the account before the permission prompt rather than after it.
+ *
+ * The person can sit on that prompt for as long as they like, and the browser's auth cookie is
+ * shared with every other tab, so this is the widest window in the app between an intent and the
+ * request that carries it. Registering this browser's endpoint under whichever account signed in
+ * meanwhile would send that account's push notifications to a device they never armed.
+ */
 export async function subscribeToPushNotifications(
   vapidKey: string | undefined = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
 ): Promise<PushPreferenceSnapshot> {
@@ -115,6 +124,7 @@ export async function subscribeToPushNotifications(
     return createUnsupportedSnapshot()
   }
 
+  const intendedAccountId = getHeldAccountId()
   const permission =
     Notification.permission === 'granted'
       ? 'granted'
@@ -141,7 +151,7 @@ export async function subscribeToPushNotifications(
   })
 
   try {
-    await subscribePushAction(subscription.toJSON())
+    await subscribePushAction(subscription.toJSON(), intendedAccountId)
   } catch {
     await subscription.unsubscribe().catch(() => undefined)
     throw new Error('Failed to persist push subscription')
@@ -165,12 +175,13 @@ export async function unsubscribeFromPushNotifications(
     return createUnsupportedSnapshot()
   }
 
+  const intendedAccountId = getHeldAccountId()
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
 
   if (subscription) {
     try {
-      await unsubscribePushAction(subscription.toJSON())
+      await unsubscribePushAction(subscription.toJSON(), intendedAccountId)
     } finally {
       await subscription.unsubscribe().catch(() => undefined)
     }

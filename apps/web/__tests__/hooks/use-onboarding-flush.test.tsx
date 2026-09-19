@@ -29,6 +29,7 @@ vi.mock('@/lib/actions/notifications', () => ({
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { requestWebPushPermission } from '@/hooks/use-push-notification-preferences'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -72,7 +73,7 @@ describe('useOnboardingFlush', () => {
     useOnboardingDraftStore.setState({ pushPermissionGranted: true })
     renderHook(() => useOnboardingFlush(), { wrapper })
 
-    await waitFor(() => expect(subscribePushMock).toHaveBeenCalledWith({ endpoint: 'https://push.example/subscription' }))
+    await waitFor(() => expect(subscribePushMock).toHaveBeenCalledWith({ endpoint: 'https://push.example/subscription' }, getHeldAccountId()))
   })
 
   it('retains the draft and exposes deferred registration failure', async () => {
