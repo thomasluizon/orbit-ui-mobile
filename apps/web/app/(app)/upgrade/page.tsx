@@ -138,6 +138,11 @@ export default function UpgradePage() {
           )
         }
         const data = (await response.json()) as { url?: string }
+        /**
+         * The tab may hold another account by now. A checkout session belongs to the account that
+         * opened it, so following its url would bill the wrong person, and reporting its failure
+         * would alarm someone who never pressed the button.
+         */
         if (getAccountGeneration() !== checkoutAccount) return
         if (data.url) globalThis.location.href = data.url
       } catch (error: unknown) {

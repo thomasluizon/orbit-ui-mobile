@@ -193,7 +193,7 @@ describe('UpgradePage across an account change', () => {
   })
 
   it('never sends the next account to the previous account checkout session', async () => {
-    let settleCheckout!: (response: unknown) => void
+    let settleCheckout!: (response: Response) => void
     vi.mocked(globalThis.fetch).mockImplementationOnce(
       () => new Promise((resolve) => { settleCheckout = resolve }),
     )
@@ -205,7 +205,11 @@ describe('UpgradePage across an account change', () => {
 
     await replaceAccountWith('user-2')
     await act(async () => {
-      settleCheckout({ ok: true, status: 200, json: () => Promise.resolve({ url: 'https://checkout.stripe.test/user-1' }) })
+      settleCheckout({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ url: 'https://checkout.stripe.test/user-1' }),
+      } as unknown as Response)
       await Promise.resolve()
     })
 
