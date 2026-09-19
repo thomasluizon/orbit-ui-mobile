@@ -48,6 +48,7 @@ import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 function renderPrompt() {
   const client = new QueryClient({
@@ -88,16 +89,19 @@ async function settle() {
 describe('MarketingConsentPrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn())
     resetStores()
     patchProfile.mockClear()
     updateMarketingConsent.mockClear()
     profileValue = { marketingEmailConsent: null }
+    holdAccount('user-1')
   })
 
   afterEach(() => {
     cleanup()
     vi.clearAllTimers()
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('renders nothing when no consent prompt is armed', () => {
@@ -167,6 +171,30 @@ describe('MarketingConsentPrompt', () => {
 
     expect(updateMarketingConsent).toHaveBeenCalledWith({ enabled: false })
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: false })
+    expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('takes the prompt off the screen when another account replaces the tab', async () => {
+    renderPrompt()
+    await armConsent()
+    await settle()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('does not open under the next account from a timer the previous one armed', async () => {
+    renderPrompt()
+    await armConsent()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    await replaceAccountWith('user-2')
+    await settle()
+
     expect(screen.queryByTestId('sheet')).toBeNull()
   })
 })

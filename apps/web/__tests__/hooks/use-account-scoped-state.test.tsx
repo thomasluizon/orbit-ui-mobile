@@ -1,6 +1,7 @@
+import { useLayoutEffect, type Dispatch, type SetStateAction } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { act, cleanup, renderHook } from '@testing-library/react'
-import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { act, cleanup, render, renderHook } from '@testing-library/react'
+import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
 import { holdAccount, recoverSameAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 beforeEach(() => {
@@ -53,4 +54,33 @@ it('builds a fresh object per account rather than sharing the first one', async 
 
   expect(result.current[0]).not.toBe(firstAccountSet)
   expect(result.current[0].size).toBe(0)
+})
+
+it('commits no render that still carries the value of the account it left', async () => {
+  const committed: Array<[number, string]> = []
+  let write: Dispatch<SetStateAction<string>> = () => {}
+
+  function Draft() {
+    const accountGeneration = useAccountGeneration()
+    const [value, setValue] = useAccountScopedState('')
+    write = setValue
+    useLayoutEffect(() => {
+      committed.push([accountGeneration, value])
+    })
+    return null
+  }
+
+  render(<Draft />)
+  act(() => write('a half-written message'))
+  const generationBeforeTheChange = committed.at(-1)?.[0] ?? 0
+
+  await replaceAccountWith('user-2')
+
+  const rendersUnderTheNextAccount = committed.filter(
+    ([accountGeneration]) => accountGeneration > generationBeforeTheChange,
+  )
+  expect(rendersUnderTheNextAccount.length).toBeGreaterThan(0)
+  expect(rendersUnderTheNextAccount.map(([, value]) => value)).toEqual(
+    rendersUnderTheNextAccount.map(() => ''),
+  )
 })

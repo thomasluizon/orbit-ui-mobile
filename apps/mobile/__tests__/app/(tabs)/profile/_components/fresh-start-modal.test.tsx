@@ -1,6 +1,8 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-modal'
+import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
+import { useAuthStore } from '@/stores/auth-store'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -32,6 +34,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     getItem: vi.fn((key: string) => Promise.resolve(storage.get(key) ?? null)),
     setItem: vi.fn((key: string, value: string) => { storage.set(key, value); return Promise.resolve() }),
     removeItem: vi.fn((key: string) => { storage.delete(key); return Promise.resolve() }),
+    multiRemove: vi.fn((keys: readonly string[]) => { for (const key of keys) storage.delete(key); return Promise.resolve() }),
   },
 }))
 
@@ -177,6 +180,20 @@ await Promise.resolve()
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(replace).toHaveBeenCalledWith('/')
     expect(replace).toHaveBeenCalledTimes(1)
+  })
+
+  it('lets the trial notice appear again, whichever key suppressed it', async () => {
+    const legacyKey = 'orbit_trial_expired_seen'
+    const scopedKey = buildAccountScopedStorageKey(legacyKey, 'user-1')
+    useAuthStore.setState({ user: { userId: 'user-1', name: 'Ada', email: 'ada@example.com' } })
+    storage.set(legacyKey, '1')
+    storage.set(scopedKey, '1')
+
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await confirmReset(tree)
+
+    expect(storage.has(legacyKey)).toBe(false)
+    expect(storage.has(scopedKey)).toBe(false)
   })
 
   it('enqueues the reset when it is queued offline', async () => {

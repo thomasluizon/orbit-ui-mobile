@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
@@ -125,13 +126,15 @@ export function getHeldAccountId(): string | null {
  * The FIRST session check of a tab records the account and returns early, because there is no
  * previous account to forget, so the account generation never rises on it. A component that keys
  * anything on the account therefore cannot wait on the generation: it would render once with no
- * account, and nothing would ever tell it otherwise. It subscribes to the store write that every
- * session check performs instead, and reads the held id for the window in which this tab knows
- * the account but not yet the person behind it.
+ * account, and nothing would ever tell it otherwise.
+ *
+ * It cannot wait on `user` either, which that same check leaves null until a later one names the
+ * person. So it subscribes to the store itself and re-reads the held id on every write. Every
+ * writer sets the id before it calls `set`, so the notification already carries the new answer,
+ * and the id is a string, which `useSyncExternalStore` compares without a cached snapshot.
  */
 export function useHeldAccountId(): string | null {
-  const signedInUserId = useAuthStore((state) => state.user?.userId ?? null)
-  return signedInUserId ?? getHeldAccountId()
+  return useSyncExternalStore(useAuthStore.subscribe, getHeldAccountId, getHeldAccountId)
 }
 
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {

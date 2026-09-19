@@ -35,6 +35,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 
 
+import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { FreshStartModal } from '@/app/(app)/profile/_components/fresh-start-modal'
 import {
   holdAccount,
@@ -283,5 +284,43 @@ describe('FreshStartModal across an account change', () => {
     await recoverSameAccount('user-1')
 
     expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toHaveValue('ORBIT')
+  })
+})
+
+describe('FreshStartModal and the trial notice', () => {
+  const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    localStorage.clear()
+    mockResetAccount.mockResolvedValue(undefined)
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    vi.unstubAllGlobals()
+  })
+
+  it('lets the trial notice appear again, whichever key suppressed it', async () => {
+    const scopedKey = buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, 'user-1')
+    localStorage.setItem(TRIAL_EXPIRED_SEEN_STORAGE_KEY, '1')
+    localStorage.setItem(scopedKey, '1')
+
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.change(screen.getByLabelText('profile.freshStart.confirmLabel'), {
+      target: { value: 'ORBIT' },
+    })
+    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+
+    await waitFor(() => {
+      expect(mockResetAccount).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(localStorage.getItem(scopedKey)).toBeNull()
+    })
+    expect(localStorage.getItem(TRIAL_EXPIRED_SEEN_STORAGE_KEY)).toBeNull()
   })
 })
