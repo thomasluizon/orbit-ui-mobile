@@ -726,8 +726,9 @@ describe('Android widget header', () => {
   /**
    * The row supplies the destination. An empty fill-in Intent was the whole #586 defect: it merged
    * nothing into the template, so a row that read "Run, 07:00" opened Orbit's launch destination,
-   * and a row on the tomorrow fallback opened today. The day is committed when the payload loads,
-   * from its own dayOffset, rather than recomputed when the app opens.
+   * and a row on the tomorrow fallback opened today. `dayOffset` counts from the day the payload
+   * was FETCHED, and a render can replay a cached payload of any age, so the row's day is anchored
+   * on the stored fetch time rather than on the clock that render happens to see.
    */
   it('fills each row in with the habit it shows and the day it shows', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
@@ -738,7 +739,10 @@ describe('Android widget header', () => {
     expect(kotlinFunctionBody(service, 'rowFillInIntent')).toMatch(
       /val link = widgetRowLink\(habitId, date\) \?: return Intent\(\)\s*return Intent\(\)\.setData\(Uri\.parse\(link\)\)/,
     )
-    expect(service).toContain('rowDate = widgetRowDate(widgetData.dayOffset, Calendar.getInstance())')
+    expect(service).toMatch(
+      /rowDate = widgetRowDate\(\s*widgetData\.dayOffset,\s*widgetFetchDay\(prefs\.getLong\("habits_updated_at", 0L\), nowInDeviceDay\(\)\)\s*\)/,
+    )
+    expect(service).not.toContain('widgetRowDate(widgetData.dayOffset, Calendar.getInstance())')
   })
 
   /**
