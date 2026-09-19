@@ -968,6 +968,7 @@ describe('web useChatComposer streaming send', () => {
     })
     expect(result.current.canRetryLastSend).toBe(true)
     expect(result.current.composerProps.onRetry).toBeTypeOf('function')
+    expect(result.current.sendError).toBe('chat.sendError')
 
     await act(async () => {
       answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
@@ -976,6 +977,7 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.canRetryLastSend).toBe(false)
     expect(result.current.composerProps.onRetry).toBeUndefined()
+    expect(result.current.sendError).toBeNull()
   })
 
   it('keeps the retry armed when the same account recovers from a rejected refresh', async () => {
@@ -1000,6 +1002,7 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.canRetryLastSend).toBe(true)
     expect(result.current.composerProps.onRetry).toBeTypeOf('function')
+    expect(result.current.sendError).toBe('chat.sendError')
   })
 
   it('drops the previous account text file when another account replaces it', async () => {
