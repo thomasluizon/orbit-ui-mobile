@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "4b9245b2a7a7ada7893ea3c4e80996266dd9b388",
+  "generatedFrom": "7ecf6480154342858328594eb312101d1655973a",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -1118,7 +1118,7 @@
         "apps/web/hooks/use-subscription-status.ts",
         "apps/web/lib/actions/subscription.ts"
       ],
-      "closureSize": 251,
+      "closureSize": 252,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -1144,7 +1144,7 @@
         "apps/web/hooks/use-subscription-status.ts",
         "apps/web/lib/actions/subscription.ts"
       ],
-      "closureSize": 251,
+      "closureSize": 252,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -1170,7 +1170,7 @@
         "apps/web/hooks/use-subscription-status.ts",
         "apps/web/lib/actions/subscription.ts"
       ],
-      "closureSize": 251,
+      "closureSize": 252,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -1196,7 +1196,7 @@
         "apps/web/hooks/use-subscription-status.ts",
         "apps/web/lib/actions/subscription.ts"
       ],
-      "closureSize": 251,
+      "closureSize": 252,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -3262,7 +3262,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
       ],
-      "closureSize": 187,
+      "closureSize": 188,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -3276,7 +3276,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
       ],
-      "closureSize": 187,
+      "closureSize": 188,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -3290,7 +3290,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
       ],
-      "closureSize": 187,
+      "closureSize": 188,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -3304,7 +3304,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/delete-account-modal.tsx"
       ],
-      "closureSize": 187,
+      "closureSize": 188,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
