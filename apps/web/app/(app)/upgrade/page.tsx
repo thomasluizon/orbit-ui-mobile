@@ -191,7 +191,6 @@ export default function UpgradePage() {
       <ErrorState
         message={t('upgrade.billing.error')}
         action={
-           
           <PillButton variant="ghost" onClick={retryLoad}>
             {t('upgrade.billing.retry')}
           </PillButton>
