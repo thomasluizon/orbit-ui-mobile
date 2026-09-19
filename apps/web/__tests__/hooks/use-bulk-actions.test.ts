@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitListHandle } from '@/components/habits/habit-list'
+import { holdAccount, recoverSameAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const bulkDelete = { mutateAsync: vi.fn() }
 const bulkLog = { mutateAsync: vi.fn() }
@@ -68,6 +69,32 @@ describe('useBulkActions reversibility boundary', () => {
     bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1']))
     bulkLog.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
     bulkSkip.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('disarms the delete confirmation when another account replaces the tab', async () => {
+    const { result } = renderBulkActions(new Set(['h-1', 'h-2']))
+    act(() => result.current.setShowBulkDeleteConfirm(true))
+    expect(result.current.showBulkDeleteConfirm).toBe(true)
+
+    await replaceAccountWith('user-2')
+
+    expect(result.current.showBulkDeleteConfirm).toBe(false)
+    expect(bulkDelete.mutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('keeps the delete confirmation when the same account recovers from a rejected refresh', async () => {
+    const { result } = renderBulkActions(new Set(['h-1', 'h-2']))
+    act(() => result.current.setShowBulkDeleteConfirm(true))
+
+    await recoverSameAccount('user-1')
+
+    expect(result.current.showBulkDeleteConfirm).toBe(true)
   })
 
   it('skips the selection on the viewed historical date with no confirmation state to clear', async () => {
