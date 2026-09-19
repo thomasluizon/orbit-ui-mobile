@@ -425,7 +425,7 @@ describe('getFriendlyErrorKey', () => {
   it('maps tag color validation errors', () => {
     const err = createApiClientError(
       400,
-      { error: 'Color must be a valid hex color' },
+      { error: 'Color must be a valid hex color (e.g. #FF5733)' },
       'fallback',
     )
     expect(getFriendlyErrorKey(err, 'errors.generic', 'tag')).toBe(
@@ -484,7 +484,7 @@ describe('getFriendlyErrorMessage', () => {
   it('translates the resolved friendly key', () => {
     const err = createApiClientError(
       400,
-      { error: 'Color must be a valid hex color' },
+      { error: 'Color must be a valid hex color (e.g. #FF5733)' },
       'fallback',
     )
     expect(getFriendlyErrorMessage(err, translate, 'errors.generic', 'tag')).toBe(

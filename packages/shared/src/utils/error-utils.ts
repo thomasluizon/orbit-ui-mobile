@@ -1,5 +1,7 @@
 import type { ZodType } from 'zod'
 
+import { MAX_HABIT_DESCRIPTION_LENGTH } from '../validation/constants'
+
 interface BackendErrorData {
   error?: string
   message?: string
@@ -238,8 +240,8 @@ export function extractBackendError(err: unknown): string | undefined {
 type ContextSet = ReadonlySet<FriendlyErrorContext>
 
 interface MessageRule {
-  /** All substrings must be present (AND logic). Use an array of arrays for OR groups. */
-  includes: readonly string[] | readonly (readonly string[])[]
+  /** All substrings must be present (AND logic). */
+  includes: readonly string[]
   key: string
   contexts?: ContextSet
 }
@@ -247,59 +249,50 @@ interface MessageRule {
 const HABIT_CONTEXTS: ContextSet = new Set(['habit', 'subHabit', 'habitLog'])
 const GOAL_CONTEXTS: ContextSet = new Set(['goal', 'goalProgress'])
 const TAG_CONTEXTS: ContextSet = new Set(['tag'])
-const AUTH_CONTEXTS: ContextSet = new Set(['auth'])
 
+/**
+ * The last resort for a backend error that carries no error code: a FluentValidation failure,
+ * which `ValidationExceptionHandler` writes as a bare `{ type, status, requestId, errors }` body.
+ * Every rule below is derived from a live `WithMessage` call or a FluentValidation default in
+ * `orbit-api`. A rule whose only producer was a `DomainErrors` sentence belongs in
+ * `ERROR_CODE_TO_KEY` instead, because the API localizes those sentences at its response boundary.
+ */
 const CONTEXTUAL_RULES: readonly MessageRule[] = [
-  { includes: ['description', '2000'], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['description', String(MAX_HABIT_DESCRIPTION_LENGTH)], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
   { includes: ['frequency quantity', 'required'], key: 'habits.form.frequencyRequired', contexts: HABIT_CONTEXTS },
   { includes: ['days can only be specified'], key: 'habits.form.daysOnlyForDaily', contexts: HABIT_CONTEXTS },
-  { includes: ['general habits cannot be bad habits'], key: 'habits.form.generalBadHabit', contexts: HABIT_CONTEXTS },
   { includes: ['checklist item text'], key: 'habits.form.checklistItemTooLong', contexts: HABIT_CONTEXTS },
-  { includes: ['scheduled reminders must not contain duplicate'], key: 'habits.form.duplicateScheduledReminder', contexts: HABIT_CONTEXTS },
   { includes: ['scheduled reminder', 'duplicate'], key: 'habits.form.duplicateScheduledReminder', contexts: HABIT_CONTEXTS },
   { includes: ['scheduled reminder', 'at most'], key: 'habits.form.scheduledReminderMax', contexts: HABIT_CONTEXTS },
   { includes: ['a habit can have at most', 'sub-habit'], key: 'habits.form.subHabitLimit', contexts: HABIT_CONTEXTS },
   { includes: ['sub-habit title', 'empty'], key: 'habits.form.subHabitTitleRequired', contexts: HABIT_CONTEXTS },
   { includes: ['sub-habit title', '200'], key: 'habits.form.subHabitTitleTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['title', 'must not be empty'], key: 'habits.form.titleRequired', contexts: HABIT_CONTEXTS },
   { includes: ['linked goals'], key: 'habits.form.goalLimit', contexts: HABIT_CONTEXTS },
   { includes: ['at most 5 tags'], key: 'habits.form.tagLimit', contexts: HABIT_CONTEXTS },
-  { includes: ['already logged'], key: 'habits.errors.alreadyLogged', contexts: HABIT_CONTEXTS },
-  { includes: [['max depth'], ['depth reached']], key: 'habits.errors.maxDepthReached', contexts: HABIT_CONTEXTS },
-  { includes: ['circular'], key: 'habits.errors.circularReference', contexts: HABIT_CONTEXTS },
 
-  { includes: ['unit', 'required'], key: 'goals.form.unitRequired', contexts: GOAL_CONTEXTS },
+  { includes: ['title', 'must not be empty'], key: 'goals.form.titleRequired', contexts: GOAL_CONTEXTS },
+  { includes: ['unit', 'must not be empty'], key: 'goals.form.unitRequired', contexts: GOAL_CONTEXTS },
   { includes: ['unit', '50'], key: 'goals.form.unitTooLong', contexts: GOAL_CONTEXTS },
-  { includes: [['target value'], ['must be greater than 0']], key: 'goals.form.targetValueRequired', contexts: GOAL_CONTEXTS },
-  { includes: ['new value', 'greater than or equal to 0'], key: 'goals.form.progressValueInvalid', contexts: GOAL_CONTEXTS },
-  { includes: ['linked habits'], key: 'goals.form.habitLimit', contexts: GOAL_CONTEXTS },
+  { includes: ['target value'], key: 'goals.form.targetValueRequired', contexts: GOAL_CONTEXTS },
+  { includes: ['new value', 'greater than or equal to'], key: 'goals.form.progressValueInvalid', contexts: GOAL_CONTEXTS },
+  { includes: ['at most', 'linked habits'], key: 'goals.form.habitLimit', contexts: GOAL_CONTEXTS },
 
-  { includes: ['name', 'required'], key: 'habits.form.tagNameRequired', contexts: TAG_CONTEXTS },
+  { includes: ['name', 'must not be empty'], key: 'habits.form.tagNameRequired', contexts: TAG_CONTEXTS },
   { includes: ['name', '50'], key: 'habits.form.tagNameTooLong', contexts: TAG_CONTEXTS },
   { includes: ['valid hex color'], key: 'habits.form.tagColorInvalid', contexts: TAG_CONTEXTS },
-
-  { includes: [['invalid verification code'], ['invalid code']], key: 'auth.errors.invalidCode', contexts: AUTH_CONTEXTS },
-  { includes: ['expired'], key: 'auth.errors.codeExpired', contexts: AUTH_CONTEXTS },
 ]
 
 function matchesIncludes(msg: string, includes: MessageRule['includes']): boolean {
   if (includes.length === 0) return false
-  if (typeof includes[0] === 'string') {
-    // react-doctor-disable-next-line js-set-map-lookups -- FP: `msg` is a string; `msg.includes(s)` is String.prototype.includes (substring test), not Array membership, so a Set is inapplicable (and each rule's pattern list is 1-3 entries). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    return (includes as readonly string[]).every((s) => msg.includes(s))
-  }
-  return (includes as readonly (readonly string[])[]).some((group) =>
-    // react-doctor-disable-next-line js-set-map-lookups -- FP: `msg` is a string; `msg.includes(s)` is String.prototype.includes (substring test), not Array membership, so a Set is inapplicable (and each group is 1-2 entries). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    group.every((s) => msg.includes(s)),
-  )
+  // react-doctor-disable-next-line js-set-map-lookups -- FP: `msg` is a string; `msg.includes(s)` is String.prototype.includes (substring test), not Array membership, so a Set is inapplicable (and each rule's pattern list is 1-3 entries). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  return includes.every((s) => msg.includes(s))
 }
 
 function getContextualMessageKey(
   normalizedMessage: string,
   context: FriendlyErrorContext,
 ): string | null {
-  if (normalizedMessage.includes('title') && normalizedMessage.includes('required')) {
-    return context === 'goal' ? 'goals.form.titleRequired' : 'habits.form.titleRequired'
-  }
   if (normalizedMessage.includes('title') && normalizedMessage.includes('200')) {
     return context === 'goal' ? 'goals.form.titleTooLong' : 'habits.form.titleTooLong'
   }
@@ -313,19 +306,35 @@ function getContextualMessageKey(
 }
 
 /**
- * Maps stable backend error codes (orbit-api ErrorCodes) to friendly i18n keys.
- * Consulted after contextual form-field matching, so precise validation messages
- * still win; this guarantees every other backend error renders localized text
- * instead of the raw English message.
+ * Maps stable backend error codes (orbit-api ErrorCodes and DomainErrors) to friendly i18n keys.
+ * Consulted after contextual form-field matching, so an uncoded FluentValidation message still
+ * wins; this guarantees every other backend error renders localized text instead of the raw
+ * English message. The code is the durable contract: the API rewrites its English sentences at
+ * the response boundary, so a form error resolves here rather than from a matched sentence.
  */
 export const ERROR_CODE_TO_KEY: Record<string, string> = {
   NO_PERMISSION: 'errors.api.noPermission',
   HABIT_NOT_OWNED: 'errors.api.noPermission',
   INVALID_SESSION: 'errors.api.sessionExpired',
+  INVALID_VERIFICATION_CODE: 'auth.errors.invalidCode',
+  CODE_EXPIRED: 'auth.errors.codeExpired',
+  ALREADY_LOGGED: 'habits.errors.alreadyLogged',
+  MAX_DEPTH_REACHED: 'habits.errors.maxDepthReached',
+  CIRCULAR_REFERENCE: 'habits.errors.circularReference',
   DUPLICATE_TAG_NAME: 'errors.api.duplicateTag',
   MAX_API_KEYS: 'errors.api.apiKeyLimit',
   MAX_TAGS_PER_HABIT: 'habits.form.tagLimit',
   MAX_HABITS_PER_GOAL: 'goals.form.habitLimit',
+  TAG_NAME_REQUIRED: 'habits.form.tagNameRequired',
+  TAG_COLOR_REQUIRED: 'habits.form.tagColorInvalid',
+  GENERAL_HABIT_IS_BAD: 'habits.form.generalBadHabit',
+  FREQUENCY_QUANTITY_INVALID: 'habits.form.frequencyRequired',
+  DAYS_REQUIRE_QUANTITY_ONE: 'habits.form.daysOnlyForDaily',
+  MAX_SCHEDULED_REMINDERS: 'habits.form.scheduledReminderMax',
+  DUPLICATE_SCHEDULED_REMINDERS: 'habits.form.duplicateScheduledReminder',
+  UNIT_REQUIRED: 'goals.form.unitRequired',
+  TARGET_VALUE_INVALID: 'goals.form.targetValueRequired',
+  PROGRESS_NEGATIVE: 'goals.form.progressValueInvalid',
   MESSAGE_TOO_LONG: 'errors.api.messageTooLong',
   CHAT_HISTORY_TOO_LARGE: 'errors.api.messageTooLong',
   IMAGE_TOO_LARGE: 'errors.api.imageInvalid',
@@ -395,11 +404,6 @@ export function getFriendlyErrorKey(
   if (code === 'TOO_MANY_ATTEMPTS' || status === 429 || normalizedMessage.includes('please wait')) {
     return 'toast.errors.tooManyRequests'
   }
-  if (code === 'INVALID_VERIFICATION_CODE') return 'auth.errors.invalidCode'
-  if (code === 'CODE_EXPIRED') return 'auth.errors.codeExpired'
-  if (code === 'ALREADY_LOGGED') return 'habits.errors.alreadyLogged'
-  if (code === 'MAX_DEPTH_REACHED') return 'habits.errors.maxDepthReached'
-  if (code === 'CIRCULAR_REFERENCE') return 'habits.errors.circularReference'
   if (
     code === 'HABIT_NOT_FOUND' ||
     code === 'GOAL_NOT_FOUND' ||
@@ -415,6 +419,10 @@ export function getFriendlyErrorKey(
 
   const contextualKey = getContextualMessageKey(normalizedMessage, context)
   if (contextualKey) return contextualKey
+
+  if (code === 'TITLE_REQUIRED') {
+    return context === 'goal' ? 'goals.form.titleRequired' : 'habits.form.titleRequired'
+  }
 
   if (code && ERROR_CODE_TO_KEY[code]) return ERROR_CODE_TO_KEY[code]
 
