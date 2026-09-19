@@ -1,6 +1,6 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const mocks = vi.hoisted(() => ({
@@ -32,7 +32,8 @@ vi.mock('@/lib/actions/auth', () => ({
   requestDeletion: () => mocks.requestDeletion(),
 }))
 
-vi.mock('@/lib/step-up-storage', () => ({
+vi.mock('@/lib/step-up-storage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/step-up-storage')>()),
   beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
 }))
 
@@ -40,6 +41,11 @@ vi.mock('@/components/ui/sheet', async () =>
   await import('@/__tests__/support/sheet-double'))
 
 import { DeleteAccountModal } from '@/app/(app)/profile/_components/delete-account-modal'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 const profile = {
   name: 'Thomas',
@@ -82,6 +88,13 @@ describe('DeleteAccountModal', () => {
     vi.clearAllMocks()
     sheetTestControls.defer(false)
     mocks.requestDeletion.mockResolvedValue(undefined)
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
   })
 
   it('keeps the cancellation path in the pre-confirmation copy', () => {
@@ -197,5 +210,42 @@ describe('DeleteAccountModal', () => {
       <DeleteAccountModal open={false} onOpenChange={mocks.onOpenChange} profile={profile} />,
     )
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('drops the send failure when another account replaces the tab', async () => {
+    mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+
+    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps the send failure when the same account recovers from a rejected refresh', async () => {
+    mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+
+    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('profile.deleteAccount.errorGeneric')
+  })
+
+  it('stops the send spinner when another account replaces the tab mid request', async () => {
+    mocks.requestDeletion.mockReturnValue(new Promise(() => {}))
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
+
+    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    const sendCode = screen.getByText('profile.deleteAccount.sendCode').closest('button')
+    await waitFor(() => expect(sendCode).toHaveAttribute('aria-busy', 'true'))
+
+    await replaceAccountWith('user-2')
+
+    expect(sendCode).not.toHaveAttribute('aria-busy')
   })
 })
