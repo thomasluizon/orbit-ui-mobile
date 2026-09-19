@@ -4,32 +4,52 @@ import { API } from '@orbit/shared/api'
 import { serverAuthFetch } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
-export async function markNotificationRead(
-  notificationId: string,
+/**
+ * Every notification write carries the account the person was looking at when they acted, so the
+ * server can refuse it once the shared cookie has moved on. The four of them run the same two
+ * lines, so they share one, and the account argument cannot then be added to three of them and
+ * forgotten on the fourth.
+ */
+function writeNotificationsForAccount(
+  path: string,
+  method: 'PUT' | 'DELETE',
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.notifications.markRead(notificationId), {
-    method: 'PUT',
-  }))
+  return wrapServerAction(() => serverAuthFetch(path, { method }, undefined, intendedAccountId))
 }
 
-export async function markAllNotificationsRead(): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.notifications.markAllRead, {
-    method: 'PUT',
-  }))
+export async function markNotificationRead(
+  notificationId: string,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return writeNotificationsForAccount(
+    API.notifications.markRead(notificationId),
+    'PUT',
+    intendedAccountId,
+  )
+}
+
+export async function markAllNotificationsRead(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return writeNotificationsForAccount(API.notifications.markAllRead, 'PUT', intendedAccountId)
 }
 
 export async function deleteNotification(
   notificationId: string,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.notifications.delete(notificationId), {
-    method: 'DELETE',
-  }))
+  return writeNotificationsForAccount(
+    API.notifications.delete(notificationId),
+    'DELETE',
+    intendedAccountId,
+  )
 }
 
-export async function deleteAllNotifications(): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.notifications.deleteAll, {
-    method: 'DELETE',
-  }))
+export async function deleteAllNotifications(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return writeNotificationsForAccount(API.notifications.deleteAll, 'DELETE', intendedAccountId)
 }
 
 /**
@@ -39,6 +59,7 @@ export async function deleteAllNotifications(): Promise<ServerActionResult<void>
  */
 export async function subscribePush(
   subscription: PushSubscriptionJSON,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthFetch(API.notifications.subscribe, {
     method: 'POST',
@@ -47,7 +68,7 @@ export async function subscribePush(
       p256dh: subscription.keys?.p256dh ?? '',
       auth: subscription.keys?.auth ?? '',
     }),
-  }))
+  }, undefined, intendedAccountId))
 }
 
 /**
@@ -56,6 +77,7 @@ export async function subscribePush(
  */
 export async function unsubscribePush(
   subscription: PushSubscriptionJSON,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
   return wrapServerAction(() => serverAuthFetch(API.notifications.unsubscribe, {
     method: 'POST',
@@ -64,5 +86,5 @@ export async function unsubscribePush(
       p256dh: subscription.keys?.p256dh ?? '',
       auth: subscription.keys?.auth ?? '',
     }),
-  }))
+  }, undefined, intendedAccountId))
 }

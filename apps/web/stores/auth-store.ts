@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
+import {
+  announceAccountToOtherTabs,
+  subscribeToAccountSignal,
+} from '@/lib/cross-tab-account-signal'
 import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
 import { getQueryClient } from '@/lib/query-client'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
@@ -73,6 +77,20 @@ function clearAccountScopedSessionState(): void {
 }
 
 /**
+ * Ends the session in this tab, with nothing of the account left behind and no request sent.
+ *
+ * A sign out in one tab signs the browser out of all of them, so a tab that hears about it has to
+ * reach the state the tab that pressed the button reaches, not a lesser version of it. One function
+ * so the two callers cannot drift, which is how the support draft once outlived the Astra one.
+ */
+function endSessionLocally(): void {
+  clearAccountScopedSessionState()
+  forgetPreviousAccountContent()
+  sessionRecoveryUser = null
+  useOnboardingDraftStore.getState().reset()
+}
+
+/**
  * Reads the account the cookie now names. A tab that has not yet learned an account only records it,
  * which leaves a reload of the same account untouched, and a replacement also drops the remembered
  * user because this tab cannot prove the new account's name.
@@ -90,6 +108,17 @@ function adoptSessionAccount(userId: string | null): boolean {
   return true
 }
 
+/**
+ * Reports the account this tab holds, which is the account any intent formed here belongs to.
+ *
+ * A write reads it at the moment the person acts and carries it to the server, where the cookie
+ * decides. The client counters cannot stand in for this: they count what THIS tab knows, and the
+ * defect is that the cookie already changed and the tab does not know yet.
+ */
+export function getHeldAccountId(): string | null {
+  return lastObservedAccountId
+}
+
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
   const next = sessionRevalidationQueue.then(task, task)
   sessionRevalidationQueue = next.catch(() => {})
@@ -103,6 +132,7 @@ interface AuthState {
   sessionRefreshFailed: boolean
 
   setAuth: (loginResponse: LoginResponse) => void
+  adoptAccountFromSignal: (accountId: string | null) => void
   confirmSessionRefreshFailure: () => Promise<void>
   recoverSessionRefreshFailure: () => Promise<void>
   checkSession: () => Promise<void>
@@ -160,6 +190,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       },
       sessionRefreshFailed: false,
     })
+    announceAccountToOtherTabs(loginResponse.userId)
+  },
+
+  /**
+   * Takes the account another tab just moved the browser to, without waiting for the poll.
+   *
+   * A named account runs the same `adoptSessionAccount` every detected change runs, so the epoch
+   * rises, the pending deletes drop, the step-up binding moves and the cache empties before the
+   * next paint. The same account announced again is refused there, so a reload cannot start
+   * churning. The signal names the account and nothing else, so the session check that follows
+   * fills in the expiry and the new account's name. It is the reconciliation, never the detection.
+   *
+   * A sign out names no account and ends the session here too, because the cookie it removed was
+   * this tab's as well. A tab already signed out ignores it, so a second announcement costs
+   * nothing.
+   */
+  adoptAccountFromSignal: (accountId: string | null) => {
+    if (accountId === null) {
+      if (!get().isAuthenticated && !get().sessionRefreshFailed) return
+
+      endSessionLocally()
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: false,
+      })
+      return
+    }
+
+    if (!adoptSessionAccount(accountId)) return
+
+    sessionRecoveryUser = null
+    set({ isAuthenticated: true, user: null, sessionRefreshFailed: false })
+    void get().checkSession()
   },
 
   confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
@@ -253,8 +318,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  /**
+   * Watches the session two ways. The cross-tab signal arrives the moment another tab replaces the
+   * account, and the poll stays as the detector for any browser or context the signal never
+   * reaches. The poll is the safety net, not the mechanism, so neither one is removed.
+   */
   startExpiryMonitor: () => {
     void get().checkSession()
+
+    const stopAccountSignal = subscribeToAccountSignal((accountId) => {
+      get().adoptAccountFromSignal(accountId)
+    })
 
     const intervalId = setInterval(() => {
       const { isAuthenticated, sessionRefreshFailed } = get()
@@ -265,25 +339,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       void get().checkSession()
     }, EXPIRY_CHECK_INTERVAL)
 
-    return () => clearInterval(intervalId)
+    return () => {
+      stopAccountSignal()
+      clearInterval(intervalId)
+    }
   },
 
   logout: async () => {
-    clearAccountScopedSessionState()
-    forgetPreviousAccountContent()
+    endSessionLocally()
+    announceAccountToOtherTabs(null)
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {
     }
 
-    sessionRecoveryUser = null
     set({
       isAuthenticated: false,
       user: null,
       expiresAt: null,
       sessionRefreshFailed: false,
     })
-    useOnboardingDraftStore.getState().reset()
 
     if ('location' in globalThis) {
       globalThis.location.href = '/login'

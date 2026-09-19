@@ -37,8 +37,26 @@ import { createSessionScopedRunner } from '@orbit/shared/utils/session-scope'
 import { fetchJson } from '@/lib/api-fetch'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getSessionEpoch } from '@/lib/session-epoch'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 const runForNotificationSession = createSessionScopedRunner(getSessionEpoch)
+
+interface NotificationWriteIntent {
+  sessionEpoch: number
+  intendedAccountId: string | null
+}
+
+/**
+ * Records who is acting, and when, at the moment the person clicks.
+ *
+ * The epoch guards what comes BACK: a callback the previous session started writes nothing into
+ * the next one's cache. The account id guards what goes OUT: the server refuses a request whose
+ * cookie now names somebody else. They answer different halves of the same race, so every write
+ * captures both together rather than one of them at three call sites and both at the fourth.
+ */
+function captureNotificationWriteIntent(): NotificationWriteIntent {
+  return { sessionEpoch: getSessionEpoch(), intendedAccountId: getHeldAccountId() }
+}
 
 /**
  * Cancels the list refetch for the session that owns the mutation. The await is the gap an account
@@ -83,13 +101,12 @@ export function useMarkNotificationRead() {
   const { showError } = useAppToast()
 
   const mutation = useMutation({
-    mutationFn: ({ notificationId, sessionEpoch }: {
+    mutationFn: ({ notificationId, sessionEpoch, intendedAccountId }: NotificationWriteIntent & {
       notificationId: string
-      sessionEpoch: number
     }) => {
       return runForNotificationSession(
         sessionEpoch,
-        () => markNotificationRead(notificationId),
+        () => markNotificationRead(notificationId, intendedAccountId),
       ) ?? Promise.resolve(undefined)
     },
 
@@ -128,11 +145,11 @@ export function useMarkNotificationRead() {
     ...mutation,
     mutate: (notificationId: string) => mutation.mutate({
       notificationId,
-      sessionEpoch: getSessionEpoch(),
+      ...captureNotificationWriteIntent(),
     }),
     mutateAsync: (notificationId: string) => mutation.mutateAsync({
       notificationId,
-      sessionEpoch: getSessionEpoch(),
+      ...captureNotificationWriteIntent(),
     }),
   }
 }
@@ -143,10 +160,10 @@ export function useMarkAllNotificationsRead() {
   const { showError } = useAppToast()
 
   const mutation = useMutation({
-    mutationFn: ({ sessionEpoch }: { sessionEpoch: number }) => {
+    mutationFn: ({ sessionEpoch, intendedAccountId }: NotificationWriteIntent) => {
       return runForNotificationSession(
         sessionEpoch,
-        () => markAllNotificationsRead(),
+        () => markAllNotificationsRead(intendedAccountId),
       ) ?? Promise.resolve(undefined)
     },
 
@@ -183,8 +200,8 @@ export function useMarkAllNotificationsRead() {
 
   return {
     ...mutation,
-    mutate: () => mutation.mutate({ sessionEpoch: getSessionEpoch() }),
-    mutateAsync: () => mutation.mutateAsync({ sessionEpoch: getSessionEpoch() }),
+    mutate: () => mutation.mutate(captureNotificationWriteIntent()),
+    mutateAsync: () => mutation.mutateAsync(captureNotificationWriteIntent()),
   }
 }
 
@@ -192,13 +209,12 @@ export function useDeleteNotification() {
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
-    mutationFn: ({ notificationId, sessionEpoch }: {
+    mutationFn: ({ notificationId, sessionEpoch, intendedAccountId }: NotificationWriteIntent & {
       notificationId: string
-      sessionEpoch: number
     }) => {
       return runForNotificationSession(
         sessionEpoch,
-        () => deleteNotificationAction(notificationId),
+        () => deleteNotificationAction(notificationId, intendedAccountId),
       ) ?? Promise.resolve(undefined)
     },
 
@@ -236,11 +252,11 @@ export function useDeleteNotification() {
     ...mutation,
     mutate: (notificationId: string) => mutation.mutate({
       notificationId,
-      sessionEpoch: getSessionEpoch(),
+      ...captureNotificationWriteIntent(),
     }),
     mutateAsync: (notificationId: string) => mutation.mutateAsync({
       notificationId,
-      sessionEpoch: getSessionEpoch(),
+      ...captureNotificationWriteIntent(),
     }),
   }
 }
@@ -251,10 +267,10 @@ export function useDeleteAllNotifications() {
   const { showError } = useAppToast()
 
   const mutation = useMutation({
-    mutationFn: ({ sessionEpoch }: { sessionEpoch: number }) => {
+    mutationFn: ({ sessionEpoch, intendedAccountId }: NotificationWriteIntent) => {
       return runForNotificationSession(
         sessionEpoch,
-        () => deleteAllNotificationsAction(),
+        () => deleteAllNotificationsAction(intendedAccountId),
       ) ?? Promise.resolve(undefined)
     },
 
@@ -291,7 +307,7 @@ export function useDeleteAllNotifications() {
 
   return {
     ...mutation,
-    mutate: () => mutation.mutate({ sessionEpoch: getSessionEpoch() }),
-    mutateAsync: () => mutation.mutateAsync({ sessionEpoch: getSessionEpoch() }),
+    mutate: () => mutation.mutate(captureNotificationWriteIntent()),
+    mutateAsync: () => mutation.mutateAsync(captureNotificationWriteIntent()),
   }
 }
