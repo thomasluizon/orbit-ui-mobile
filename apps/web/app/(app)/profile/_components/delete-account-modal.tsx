@@ -7,6 +7,7 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestDeletion } from '@/lib/actions/auth'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useHeldAccountId } from '@/stores/auth-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { TriangleAlert } from '@/components/ui/icons'
@@ -25,6 +26,7 @@ export function DeleteAccountModal({
   const t = useTranslations()
   const router = useRouter()
   const { sheetRef, closeSheet } = useSheetHost()
+  const accountId = useHeldAccountId()
   const [loading, setLoading] = useAccountScopedState(false)
   const [error, setError] = useAccountScopedState('')
 
@@ -53,7 +55,7 @@ export function DeleteAccountModal({
     setError('')
     try {
       await requestDeletion()
-      beginStepUpChallenge('delete')
+      beginStepUpChallenge('delete', accountId)
       closeSheet(() => {
         handleOpenChange(false)
         router.push('/step-up?operation=delete')

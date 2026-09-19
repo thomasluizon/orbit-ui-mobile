@@ -52,18 +52,24 @@ vi.mock('@/stores/auth-store', () => {
       (selector: (current: unknown) => unknown) => selector(state),
       { getState: () => state },
     ),
+    useHeldAccountId: () => 'user-1',
   }
 })
 vi.mock('@/lib/server-fetch', () => ({
   serverAuthFetch: (...args: unknown[]) => mocks.serverAuthFetch(...args),
 }))
 vi.mock('@/lib/step-up-storage', () => ({
-  beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
-  clearStepUpTiming: (operation: string) => mocks.clearTiming(operation),
-  markStepUpAttemptFailed: (record: unknown) => mocks.markAttemptFailed(record),
-  markStepUpExhausted: (record: unknown) => mocks.markExhausted(record),
+  beginStepUpChallenge: (operation: string, accountId: string | null) =>
+    mocks.beginChallenge(operation, accountId),
+  clearStepUpTiming: (operation: string, accountId: string | null) =>
+    mocks.clearTiming(operation, accountId),
+  markStepUpAttemptFailed: (record: unknown, accountId: string | null) =>
+    mocks.markAttemptFailed(record, accountId),
+  markStepUpExhausted: (record: unknown, accountId: string | null) =>
+    mocks.markExhausted(record, accountId),
   markStepUpVerified: (operation: string) => mocks.markVerified(operation),
-  readStepUpTiming: (operation: string) => mocks.readTiming(operation),
+  readStepUpTiming: (operation: string, accountId: string | null) =>
+    mocks.readTiming(operation, accountId),
 }))
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, action }: Readonly<{ children: React.ReactNode; action?: React.ReactNode }>) => (
@@ -260,7 +266,7 @@ describe('web step up screen', () => {
       API.auth.requestDeletion,
       { method: 'POST' },
     ))
-    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
     expect(screen.getByText(/cooldown/)).toBeInTheDocument()
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
   })
@@ -315,7 +321,7 @@ describe('web step up screen', () => {
       API.apiKeys.confirmCreationChallenge,
       { method: 'POST', body: JSON.stringify({ code: '123456' }) },
     ))
-    expect(mocks.clearTiming).toHaveBeenCalledWith('keys')
+    expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'user-1')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
     expect(mocks.replace).toHaveBeenCalledWith('/profile')
   })

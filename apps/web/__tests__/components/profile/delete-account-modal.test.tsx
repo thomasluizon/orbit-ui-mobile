@@ -34,7 +34,8 @@ vi.mock('@/lib/actions/auth', () => ({
 
 vi.mock('@/lib/step-up-storage', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/step-up-storage')>()),
-  beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
+  beginStepUpChallenge: (operation: string, accountId: string | null) =>
+    mocks.beginChallenge(operation, accountId),
 }))
 
 vi.mock('@/components/ui/sheet', async () =>
@@ -172,7 +173,7 @@ describe('DeleteAccountModal', () => {
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
     await waitFor(() => expect(mocks.requestDeletion).toHaveBeenCalledOnce())
-    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
     expect(mocks.onOpenChange).toHaveBeenCalledWith(false)
     expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
   })
@@ -184,7 +185,7 @@ describe('DeleteAccountModal', () => {
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
     await waitFor(() => expect(sheetTestControls.isDismissPending).toBe(true))
-    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
     expect(mocks.onOpenChange).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
 

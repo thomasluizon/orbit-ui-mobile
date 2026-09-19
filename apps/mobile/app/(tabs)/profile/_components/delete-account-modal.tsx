@@ -9,6 +9,7 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { useOffline } from '@/hooks/use-offline'
+import { useAuthStore } from '@/stores/auth-store'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -30,6 +31,7 @@ export function DeleteAccountModal({
   const { t } = useTranslation()
   const router = useRouter()
   const { isOnline } = useOffline()
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { sheetRef, closeSheet } = useSheetHost()
@@ -64,7 +66,7 @@ export function DeleteAccountModal({
         { method: 'POST' },
         stepUpMessageResponseSchema,
       )
-      await beginStepUpChallenge('delete')
+      await beginStepUpChallenge('delete', accountId)
       closeSheet(() => {
         handleClose()
         router.push('/step-up?operation=delete')

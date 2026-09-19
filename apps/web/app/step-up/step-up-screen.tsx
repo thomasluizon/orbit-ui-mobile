@@ -15,7 +15,7 @@ import {
 } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { useAuthStore } from '@/stores/auth-store'
+import { useAuthStore, useHeldAccountId } from '@/stores/auth-store'
 import {
   confirmApiKeyCreationChallenge,
   requestApiKeyCreationChallenge,
@@ -46,6 +46,7 @@ export function StepUpScreen() {
   const operationParam = searchParams.get('operation')
   const operation = isStepUpOperation(operationParam) ? operationParam : null
   const { profile } = useProfile()
+  const accountId = useHeldAccountId()
   const userEmail = useAuthStore((state) => state.user?.email)
   const logout = useAuthStore((state) => state.logout)
   const { displayDate } = useDateFormat()
@@ -56,7 +57,7 @@ export function StepUpScreen() {
     getClientReady,
     getServerNotReady,
   )
-  const storedRecord = clientReady && operation ? readStepUpTiming(operation) : null
+  const storedRecord = clientReady && operation ? readStepUpTiming(operation, accountId) : null
   const record = recordOverride ?? storedRecord
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<StepUpPhase>('challenge')
@@ -104,7 +105,7 @@ export function StepUpScreen() {
     try {
       if (operation === 'delete') await requestDeletion()
       else await requestApiKeyCreationChallenge()
-      const next = beginStepUpChallenge(operation)
+      const next = beginStepUpChallenge(operation, accountId)
       setRecord(next)
       setCode('')
       setAttemptsRemaining(null)
@@ -130,7 +131,7 @@ export function StepUpScreen() {
           handleConfirmationFailure(result.errorCode, result.remaining)
           return
         }
-        clearStepUpTiming(operation)
+        clearStepUpTiming(operation, accountId)
         markStepUpVerified(operation)
         router.replace('/profile')
         return
@@ -140,7 +141,7 @@ export function StepUpScreen() {
         handleConfirmationFailure(result.errorCode, result.remaining)
         return
       }
-      clearStepUpTiming(operation)
+      clearStepUpTiming(operation, accountId)
       setScheduledDeletionAt(result.response.scheduledDeletionAt)
       setPhase('deactivated')
     } catch {
@@ -161,7 +162,7 @@ export function StepUpScreen() {
     }
     if (errorCode === 'INVALID_VERIFICATION_CODE') {
       const next = operation === 'delete' && remaining === null
-        ? markStepUpAttemptFailed(record)
+        ? markStepUpAttemptFailed(record, accountId)
         : record
       if (remaining === 0 || (operation === 'delete' && (next.failedAttempts ?? 0) >= 3)) {
         setExhausted(next)
@@ -178,7 +179,7 @@ export function StepUpScreen() {
   }
 
   function setExhausted(currentRecord: StepUpTimingRecord) {
-    const next = markStepUpExhausted(currentRecord)
+    const next = markStepUpExhausted(currentRecord, accountId)
     setRecord(next)
     setPhase('exhausted')
     setNow(Date.now())
