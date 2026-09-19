@@ -20,10 +20,10 @@ pre-commit:
       root: "apps/mobile/"
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
       # No --fix here, unlike web and shared above. `expo lint` ignores the file
-      # arguments and always walks the whole app, so --fix repaired all 718
-      # suppressed local/spacing-scale violations across 65 files nobody staged,
-      # which orphaned those same 718 suppressions and exited 2. The hook could
-      # never pass while a fixable rule was suppressed. Without --fix it exits 0.
+      # arguments and always walks the whole app, so --fix rewrites files nobody
+      # staged: it once repaired 718 local/spacing-scale violations across 65 of
+      # them in one commit. Those violations and the baseline that recorded them
+      # are gone (#175), but the whole-app rewrite is not, so --fix stays off.
       run: npx expo lint -- {staged_files}
     dashes:
       run: node tools/check-dashes.mjs --files {staged_files}
