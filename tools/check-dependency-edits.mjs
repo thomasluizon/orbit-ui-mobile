@@ -11,8 +11,9 @@
  * Every one was accurate about the tree its author read.
  *
  * The signal that did catch it is mtime. Every file npm extracts for one package shares that
- * package's extraction time, so a file later than its own `package.json` was written by something
- * other than the install.
+ * package's extraction time, so a file much later than the package's EARLIEST file was written by
+ * something other than the install. The earliest file rather than `package.json`, because the
+ * manifest sits inside the same mutable tree: see the WHY on scanPackage.
  *
  * This is NOT a CI gate and is deliberately not wired into guards.yml: `node_modules` is never
  * committed, and CI installs a fresh tree whose files are clean by construction. It is a local
@@ -27,10 +28,10 @@ import { fileURLToPath } from "node:url"
 const USAGE = `usage: check-dependency-edits.mjs [--root <path>] [--tolerance-seconds <n>]
 
   Walks every node_modules tree under <root> and fails on any file whose mtime is later than
-  its own package's package.json. That is a write that did not come from the install.
+  its own package's earliest file. That is a write that did not come from the install.
 
   --root <path>              tree to scan (defaults to the parent of this tool's directory)
-  --tolerance-seconds <n>    how much later than the package.json is still extraction (default 300)
+  --tolerance-seconds <n>    how much later than the earliest file is still extraction (default 300)
   --help, -h                 print this usage and exit 0
 
   Repair what it finds with: rm -rf node_modules/<package> && npm install
@@ -45,10 +46,10 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 
 /**
  * The tolerance is the extraction SPAN of one package, not a guess. Measured against this
- * repository's 2026-09-17 install: 1657 packages, 186192 files, and the widest gap between a file
- * and its own package.json was under 300 seconds (three very large icon packages: 93s, 76s, 63s),
- * so at 300 the whole tree reports clean. The edits this tool exists to find were 10800 seconds
- * late, which is 36 times the widest honest extraction span.
+ * repository's 2026-09-19 tree, 1671 packages and 187012 files: the widest span between a
+ * package's earliest and latest file is 145 seconds (`@tabler/icons-react-native`), then 99s, 93s,
+ * 91s and 79s, and zero packages exceed 300, so the whole tree reports clean at the default. The
+ * edits this tool exists to find were 10800 seconds late, which is 74 times the widest honest span.
  */
 const DEFAULT_TOLERANCE_SECONDS = 300
 /** A long listing is not a report. The count is always exact; the listing is bounded. */
@@ -91,7 +92,8 @@ const readEntries = (directory) => {
   }
 }
 
-function walkPackageFiles(directory, packageName, extractedAtMs) {
+/** Every file the package itself owns, with its mtime. A nested tree is a separate package. */
+function collectPackageFiles(directory, collected) {
   for (const entry of readEntries(directory)) {
     const path = join(directory, entry.name)
     /**
@@ -102,33 +104,53 @@ function walkPackageFiles(directory, packageName, extractedAtMs) {
     if (entry.isSymbolicLink()) continue
     if (entry.isDirectory()) {
       if (entry.name === "node_modules") scanInstalledTree(path)
-      else walkPackageFiles(path, packageName, extractedAtMs)
+      else collectPackageFiles(path, collected)
       continue
     }
     if (!entry.isFile()) continue
     filesScanned += 1
-    let modifiedAtMs
     try {
-      modifiedAtMs = statSync(path).mtimeMs
+      collected.push({ path, modifiedAtMs: statSync(path).mtimeMs })
     } catch {
-      continue
-    }
-    if (modifiedAtMs > extractedAtMs + toleranceSeconds * 1000) {
-      findings.push({ path, packageName, lateSeconds: Math.round((modifiedAtMs - extractedAtMs) / 1000) })
+      /* a file that cannot be stated carries no mtime evidence either way */
     }
   }
 }
 
 function scanPackage(packageDirectory, packageName) {
-  let extractedAtMs
   try {
-    extractedAtMs = statSync(join(packageDirectory, "package.json")).mtimeMs
+    statSync(join(packageDirectory, "package.json"))
   } catch {
-    /** No package.json means no extraction reference, so there is nothing this tool can judge. */
+    /** No package.json means this directory is not an installed package, so it is not judged. */
     return
   }
   packagesScanned += 1
-  walkPackageFiles(packageDirectory, packageName, extractedAtMs)
+  const collected = []
+  collectPackageFiles(packageDirectory, collected)
+  if (collected.length === 0) return
+  /**
+   * The reference is the package's EARLIEST file, not its `package.json`.
+   *
+   * Measured 2026-09-19: with the manifest rewritten to the edit time, this tool printed
+   * `No dependency was edited in place` and exited 0 over two edited files, because the reference
+   * lives inside the same mutable tree it judges. A postinstall script, or a worker that also
+   * touches the manifest, buys that silence for free, and a positive clean verdict over a blind
+   * spot is worse than no verdict.
+   *
+   * The earliest file is safe as a reference because npm writes one extraction per package.
+   * Measured over this repository's 2026-09-19 tree, 1671 packages and 187012 files: the widest
+   * max-minus-min span inside one package is 145s (`@tabler/icons-react-native`), then 99s, 93s,
+   * 91s and 79s, and ZERO packages exceed the 300s default. Re-measure with
+   * `node tools/check-dependency-edits.mjs --tolerance-seconds 150` before narrowing it.
+   * It also makes a rewritten `package.json` report itself, which the old reference never could.
+   */
+  let extractedAtMs = collected[0].modifiedAtMs
+  for (const file of collected) if (file.modifiedAtMs < extractedAtMs) extractedAtMs = file.modifiedAtMs
+  for (const file of collected) {
+    if (file.modifiedAtMs > extractedAtMs + toleranceSeconds * 1000) {
+      findings.push({ path: file.path, packageName, lateSeconds: Math.round((file.modifiedAtMs - extractedAtMs) / 1000) })
+    }
+  }
 }
 
 function scanInstalledTree(nodeModulesDirectory) {

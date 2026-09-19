@@ -20,12 +20,23 @@
 // Pure: takes a path or a command string plus an injected cwd, returns { block, message } or null.
 //
 // KNOWN BYPASSES, disclosed rather than implied, because a list that reads as exhaustive and is not
-// is worse than none: a shell or interpreter wrapper (`sh -c '...'`, `node -e "..."`, `perl -i`)
-// whose inner text is never inspected; a script file that runs any of this; `dd of=...`; a writer
-// whose path argument is quoted and contains a space; and an npm script that fronts a writer. This
-// is cost-raising defence in depth for the command path. The FILE path is the one it really closes,
-// because Write, Edit and MultiEdit are how an agent edits. Detection for whatever still arrives is
-// tools/check-dependency-edits.mjs.
+// is worse than none. The class this command tier does not reach is ANY WRITER WHOSE DESTINATION IT
+// CANNOT SEE. Concretely: a shell or interpreter wrapper (`sh -c '...'`, `node -e "..."`, `perl -i`)
+// whose inner text is never inspected; a script file that runs any of this; an npm script that
+// fronts a writer; `dd of=...`; a writer whose destination is a flag value rather than a positional
+// argument, including `curl -o`, `wget -O`, `tar -C`, `unzip -d`; and git's own writers, `git
+// apply`, `git checkout -- <path>` and `git add -f <path>`. A quoted path containing a space is NOT
+// on this list: `echo true > "node_modules/react native/flags.kt"` was measured REFUSED, because
+// QUOTED_REDIRECT reads the quoted span before the bare scan runs.
+//
+// This is cost-raising defence in depth for the command path. The FILE path is the one it really
+// closes, because Write, Edit and MultiEdit are how an agent edits. Detection for whatever still
+// arrives is tools/check-dependency-edits.mjs.
+//
+// It guards the Claude engine only. `.claude/orchestrator.json` can set `worker: "codex"`, and
+// Codex never reads `.claude/settings.json`, so for that engine the order text in
+// tools/compose-prompt.mjs and the detector are the whole defence. rules-worker.mjs has the same
+// limit for the same reason.
 
 import { existsSync, realpathSync } from "node:fs"
 import { basename, dirname, isAbsolute, join, resolve } from "node:path"
@@ -62,11 +73,13 @@ const PATCH_TOOLS = new Set(["patch-package", "patch_package"])
 
 const unquote = (token) => String(token ?? "").replace(/^["']|["']$/g, "")
 
+/** `patch-package@latest` is the same binary as `patch-package`, so the version suffix is dropped. */
 const normalize = (token) =>
   unquote(token)
     .split(/[/\\]/)
     .pop()
     .replace(/\.(?:exe|cmd|bat|ps1)$/i, "")
+    .replace(/^(.+)@[^@]*$/, "$1")
     .toLowerCase()
 
 /**
@@ -76,6 +89,12 @@ const normalize = (token) =>
  * and a symlink pointing at the package both reach the same bytes while spelling neither. The file
  * usually does not exist yet on a Write, so the longest EXISTING ancestor is the one resolved and
  * the remaining segments are re-appended to it.
+ *
+ * `realpathSync.native` rather than `realpathSync`, measured 2026-09-19: the JavaScript resolver
+ * preserves the CALLER's spelling, so `NODE_MODULES/react-native/flags.kt` came back spelled
+ * `NODE_MODULES` on a Windows tree whose real directory is `node_modules`. The write was allowed
+ * and produced the literal incident edit. The native resolver asks the operating system, which
+ * returns the real on-disk spelling.
  */
 function resolveRealPath(target, cwd) {
   const base = typeof cwd === "string" && cwd !== "" ? cwd : process.cwd()
@@ -84,7 +103,7 @@ function resolveRealPath(target, cwd) {
   for (let guard = 0; guard < 64; guard += 1) {
     if (existsSync(current)) {
       try {
-        return join(realpathSync(current), ...tail)
+        return join(realpathSync.native(current), ...tail)
       } catch {
         return join(current, ...tail)
       }
@@ -97,8 +116,16 @@ function resolveRealPath(target, cwd) {
   return join(current, ...tail)
 }
 
-/** A `node_modules` SEGMENT, never a substring: `node_modules_backup/` is an ordinary directory. */
-const hasNodeModulesSegment = (path) => path.split(/[/\\]/).some((segment) => segment === "node_modules")
+/**
+ * A `node_modules` SEGMENT, never a substring: `node_modules_backup/` is an ordinary directory.
+ *
+ * Compared case-insensitively, because the native resolver only corrects the spelling of a path
+ * that already EXISTS. In a fresh worktree with no `node_modules` yet, the tail is re-appended
+ * verbatim and `NODE_MODULES/react-native/x.kt` was measured allowed with the native call alone.
+ * On a case-sensitive filesystem this is pessimistic by exactly one directory nobody has, which is
+ * the right side to be wrong on for a guard.
+ */
+const hasNodeModulesSegment = (path) => path.split(/[/\\]/).some((segment) => segment.toLowerCase() === "node_modules")
 
 export function resolvesInsideNodeModules(target, cwd) {
   const candidate = unquote(String(target ?? "")).trim()
@@ -113,25 +140,43 @@ function tokensOf(segment) {
   return rest.trim().split(/\s+/).filter(Boolean)
 }
 
-/** Strips package-runner prefixes so `npx patch-package` is judged as `patch-package`. */
+const isFlag = (token) => token.startsWith("-")
+
+/** `--` separates a runner's own flags from the command, and is not itself the command. */
+const dropLeadingFlags = (tokens) => {
+  let index = 0
+  while (index < tokens.length && (tokens[index] === "--" || isFlag(tokens[index]))) index += 1
+  return tokens.slice(index)
+}
+
+/**
+ * Strips package-runner prefixes so `npx patch-package` is judged as `patch-package`, and reports
+ * whether a runner was stripped at all.
+ *
+ * The flag strip is the fix for the measured hole of 2026-09-19: `npx -y patch-package` put `-y`
+ * in the slot the binary would occupy, the lookup read the flag, and the one command this whole
+ * guard exists to refuse was allowed. `-y` is the published idiom, because plain `npx` prompts
+ * before it installs.
+ */
 function withoutRunners(tokens) {
   let rest = tokens
-  for (let guard = 0; guard < 4 && rest.length > 1; guard += 1) {
+  let strippedRunner = false
+  for (let guard = 0; guard < 8 && rest.length > 1; guard += 1) {
     const binary = normalize(rest[0])
     if (RUNNER_PREFIXES.has(binary)) {
-      rest = rest.slice(1)
+      rest = dropLeadingFlags(rest.slice(1))
+      strippedRunner = true
       continue
     }
     if (RUNNER_SUBCOMMANDS.get(binary) === normalize(rest[1])) {
-      rest = rest.slice(2)
+      rest = dropLeadingFlags(rest.slice(2))
+      strippedRunner = true
       continue
     }
-    return rest
+    break
   }
-  return rest
+  return { tokens: rest, strippedRunner }
 }
-
-const isFlag = (token) => token.startsWith("-")
 
 /**
  * A shell redirection writes its target. Quoted spans are blanked before the bare scan, so a
@@ -176,13 +221,20 @@ function powershellWriteTargets(binary, rest) {
  */
 function segmentWrites(segment) {
   const targets = redirectTargets(segment)
-  const tokens = withoutRunners(tokensOf(segment))
+  const { tokens, strippedRunner } = withoutRunners(tokensOf(segment))
   if (tokens.length === 0) return { patchTool: false, targets }
 
   const binary = normalize(tokens[0])
   const rest = tokens.slice(1).map(unquote)
   const args = rest.filter((token) => !isFlag(token))
   if (PATCH_TOOLS.has(binary)) return { patchTool: true, targets }
+  /**
+   * Once a runner is stripped, the patch tool can still sit behind one of the runner's own
+   * value-taking flags (`npx -p patch-package patch-package`). Every remaining token is checked
+   * rather than guessing npm's flag grammar, and ONLY after a runner was stripped, so that
+   * `grep -rn patch-package .claude/hooks` and `npm install patch-package` stay ordinary commands.
+   */
+  if (strippedRunner && tokens.some((token) => PATCH_TOOLS.has(normalize(token)))) return { patchTool: true, targets }
   if (binary === "sed" && rest.some((token) => SED_IN_PLACE.test(token))) targets.push(...args.slice(1))
   if (WRITES_EVERY_ARGUMENT.has(binary)) targets.push(...args)
   if (WRITES_LAST_ARGUMENT.has(binary) && args.length > 1) targets.push(args[args.length - 1])

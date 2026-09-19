@@ -75,6 +75,37 @@ export const cases = () => {
     { status: 1, stderr: /rm -rf node_modules\/react-native && npm install[\s\S]*plain npm install leaves a complete package alone/ },
   )
 
+  /**
+   * The reference is the package's own EARLIEST file, not its `package.json`, because the manifest
+   * sits inside the same mutable tree. Measured 2026-09-19: with the manifest rewritten to the edit
+   * time, the tool printed `No dependency was edited in place` and exited 0 over two edited files,
+   * publishing a positive clean verdict across its own blind spot. A postinstall script or a worker
+   * that also touches the manifest buys that silence for free.
+   */
+  const blinded = stageTree("blinded")
+  const blindedPackage = stagePackage(blinded.nodeModules, "react-native", { "index.js": 0, "src/entry.js": 4 })
+  writeAt(join(blindedPackage, "ReactNativeFeatureFlagsDefaults.kt"), "enableImperativeFocus = true\n", at(3 * 60 * 60))
+  writeAt(join(blindedPackage, "KeyEvent.kt"), "KEYCODE_MOVE_HOME to \"Home\"\n", at(3 * 60 * 60))
+  writeAt(join(blindedPackage, "package.json"), '{ "name": "react-native", "version": "0.86.3" }\n', at(3 * 60 * 60))
+  check(
+    TOOL,
+    "a rewritten package.json does not blind the walk to the flags file edited beside it",
+    ["--root", blinded.repository],
+    { status: 1, stderr: /ReactNativeFeatureFlagsDefaults\.kt {2}\(\+10800s/ },
+  )
+  check(
+    TOOL,
+    "a rewritten package.json does not blind the walk to the key-map file edited beside it",
+    ["--root", blinded.repository],
+    { status: 1, stderr: /KeyEvent\.kt {2}\(\+10800s/ },
+  )
+  check(
+    TOOL,
+    "a rewritten package.json reports itself rather than becoming the reference",
+    ["--root", blinded.repository],
+    { status: 1, stderr: /react-native\/package\.json {2}\(\+10800s/ },
+  )
+
   const scoped = stageTree("scoped")
   stagePackage(scoped.nodeModules, "@react-native/gradle-plugin", { "index.js": 3 * 60 * 60 })
   check(

@@ -375,11 +375,11 @@ mkdirSync(join(dependencyTree, "apps", "mobile", "app"), { recursive: true })
 mkdirSync(join(dependencyTree, "node_modules_backup"), { recursive: true })
 writeFileSync(installedFile, "enableImperativeFocus = false\n")
 const linkedPackage = join(dependencyTree, "link-to-package")
-let symlinkAvailable = true
+let symlinkFixtureError = null
 try {
   symlinkSync(installedPackage, linkedPackage, "junction")
-} catch {
-  symlinkAvailable = false
+} catch (error) {
+  symlinkFixtureError = String(error?.message ?? error)
 }
 const inTree = { cwd: dependencyTree }
 T("dependency-write: an absolute path inside node_modules blocks", blocks(checkDependencyFileWrite(installedFile, inTree)), true)
@@ -391,9 +391,27 @@ T(
   blocks(checkDependencyFileWrite("apps/mobile/../../node_modules/react-native/index.js", inTree)),
   true,
 )
+// `symlinkAvailable ? blocks(...) : true` reported PASS as `true === true` when the fixture failed
+// to stage, so the assertion went green while proving nothing. The staging is its own assertion
+// now, and the guard case reports the staging error instead of substituting a passing value.
+T("dependency-write: the symlink fixture stages", symlinkFixtureError, null)
 T(
   "dependency-write: a symlink into the package blocks",
-  symlinkAvailable ? blocks(checkDependencyFileWrite(join(linkedPackage, "index.js"), inTree)) : true,
+  symlinkFixtureError ? `fixture unavailable: ${symlinkFixtureError}` : blocks(checkDependencyFileWrite(join(linkedPackage, "index.js"), inTree)),
+  true,
+)
+// Windows paths are case-insensitive, so `NODE_MODULES/...` and `node_modules/...` are the same
+// bytes. Measured 2026-09-19: realpathSync preserves the caller's spelling, so a case-different
+// write was ALLOWED and produced the literal incident edit. The native resolver returns the real
+// on-disk spelling, and the segment comparison is case-insensitive for the tree that has none yet.
+T(
+  "dependency-write: a case-different spelling of node_modules blocks",
+  blocks(checkDependencyFileWrite(join(dependencyTree, "NODE_MODULES", "react-native", "flags.kt"), inTree)),
+  true,
+)
+T(
+  "dependency-write: a case-different spelling blocks where no node_modules exists yet",
+  blocks(checkDependencyFileWrite("NODE_MODULES/react-native/x.kt", { cwd: join(dependencyTree, "apps") })),
   true,
 )
 T("dependency-write: the repository's own source allows", checkDependencyFileWrite("apps/mobile/app/index.tsx", inTree), null)
@@ -407,6 +425,19 @@ for (const command of [
   "tee node_modules/react-native/flags.kt",
   "cp /tmp/flags.kt node_modules/react-native/flags.kt",
   "npx patch-package react-native",
+  // `-y` is the published idiom, because plain npx prompts before it installs. Measured 2026-09-19:
+  // a flag sat in the slot the binary would occupy, the lookup read the flag, and every one of
+  // these was ALLOWED. patch-package rewrites the package as a subprocess, so no tool call is
+  // intercepted and the whole incident repeats end to end.
+  "npx -y patch-package react-native",
+  "npx --yes patch-package react-native",
+  "npm exec -- patch-package",
+  "npm exec -y patch-package",
+  "sudo -E npx patch-package",
+  "time npx -y patch-package",
+  "npx patch-package@latest react-native",
+  "npx -p patch-package patch-package",
+  "pnpm dlx -y patch-package",
   "Set-Content -Path node_modules/react-native/flags.kt -Value true",
   "Copy-Item C:\\tmp\\flags.kt node_modules/react-native/flags.kt",
 ]) {
@@ -424,6 +455,10 @@ for (const command of [
   "Copy-Item node_modules/react-native/flags.kt C:\\tmp\\flags.kt",
   "node tools/check-dependency-edits.mjs > report.txt",
   "npm test 2>&1",
+  // Reading or naming the tool is not running it, so the refusal must not reach a grep over this
+  // guard's own source or an ordinary install.
+  "grep -rn patch-package .claude/hooks",
+  "npm install --save-dev some-other-tool",
 ]) {
   T(`dependency-write: ${command} allows`, dependencyCommand(command), null)
 }
@@ -962,6 +997,9 @@ T("adapter dependency-write: MultiEdit on the repository's own source -> 0", run
 T("adapter dependency-write: a worker redirect into a dependency -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter dependency-write: the same redirect outside a worker still -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree)), 2)
 T("adapter dependency-write: the PowerShell tool is guarded too -> 2", runHook(DEPENDENCY, powershell("Set-Content -Path node_modules/react-native/flags.kt -Value true", dependencyTree)), 2)
+// The two payloads the harness never sent until 2026-09-19, both measured allowed before the fix.
+T("adapter dependency-write: a case-different spelling -> 2", runHook(DEPENDENCY, edit("Write", "NODE_MODULES/react-native/flags.kt")), 2)
+T("adapter dependency-write: npx -y patch-package -> 2", runHook(DEPENDENCY, bash("npx -y patch-package react-native", dependencyTree)), 2)
 T("adapter dependency-write: the documented repair -> 0", runHook(DEPENDENCY, bash("rm -rf node_modules/react-native && npm install", dependencyTree)), 0)
 T("adapter dependency-write: reading the installed source -> 0", runHook(DEPENDENCY, bash("cat node_modules/react-native/flags.kt", dependencyTree)), 0)
 

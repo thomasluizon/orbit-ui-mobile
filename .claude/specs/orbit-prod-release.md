@@ -544,7 +544,7 @@ Pointers, not restatements. The reasoning lives in the ADR.
   hold that premise up now, all landed by `#601`: every order `tools/compose-prompt.mjs` generates
   carries the prohibition, `.claude/hooks/forbid-node-modules-write.mjs` refuses the write at act
   time for every caller, and `node tools/check-dependency-edits.mjs` walks every installed tree in
-  about six seconds and names any file later than its own package's `package.json`. **A plain `npm
+  about six seconds and names any file later than its own package's EARLIEST file. **A plain `npm
   install` does not repair an edited package**, because npm leaves a complete package alone; the
   repair is `rm -rf node_modules/<package>` plus an install.
 - **Mobile parses ICU now, and an apostrophe next to ICU syntax is the trap.** `#540` merged as 966

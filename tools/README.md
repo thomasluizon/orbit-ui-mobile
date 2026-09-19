@@ -120,7 +120,7 @@ is what makes landing on login a positive claim.
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `check-dependency-edits.mjs` | Walks every `node_modules` tree under the root and fails on any file whose mtime is later than its own package's `package.json`, which is a write the install did not make. Deliberately NOT a CI check: `node_modules` is never committed and CI installs a clean tree. Run it before citing installed source. Measured on this repository: 1671 packages and 187012 files in about 6 seconds, zero findings on a fresh install. | `node tools/check-dependency-edits.mjs [--root <path>] [--tolerance-seconds <n>]` |
+| `check-dependency-edits.mjs` | Walks every `node_modules` tree under the root and fails on any file whose mtime is later than its own package's earliest file, which is a write the install did not make. The earliest file rather than `package.json`, because the manifest sits inside the same mutable tree and a rewritten one made the tool report clean over two edited files. Deliberately NOT a CI check: `node_modules` is never committed and CI installs a clean tree. Run it before citing installed source. Measured on this repository: 1671 packages and 187012 files in about 6 seconds, zero findings on a fresh install. | `node tools/check-dependency-edits.mjs [--root <path>] [--tolerance-seconds <n>]` |
 
 ## Harness self-test
 
