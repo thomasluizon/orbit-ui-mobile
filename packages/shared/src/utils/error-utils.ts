@@ -1,6 +1,6 @@
 import type { ZodType } from 'zod'
 
-import { MAX_HABIT_DESCRIPTION_LENGTH } from '../validation/constants'
+import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
 
 interface BackendErrorData {
   error?: string
@@ -256,6 +256,9 @@ const TAG_CONTEXTS: ContextSet = new Set(['tag'])
  * Every rule below is derived from a live `WithMessage` call or a FluentValidation default in
  * `orbit-api`. A rule whose only producer was a `DomainErrors` sentence belongs in
  * `ERROR_CODE_TO_KEY` instead, because the API localizes those sentences at its response boundary.
+ * The first match wins, so a rule that reads a longer piece of the same sentence sits above the
+ * broader one: `sub-habit title` before the plain `title` pair, for both the empty and the
+ * over-the-limit case.
  */
 const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: ['description', String(MAX_HABIT_DESCRIPTION_LENGTH)], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
@@ -266,7 +269,7 @@ const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: ['scheduled reminder', 'at most'], key: 'habits.form.scheduledReminderMax', contexts: HABIT_CONTEXTS },
   { includes: ['a habit can have at most', 'sub-habit'], key: 'habits.form.subHabitLimit', contexts: HABIT_CONTEXTS },
   { includes: ['sub-habit title', 'empty'], key: 'habits.form.subHabitTitleRequired', contexts: HABIT_CONTEXTS },
-  { includes: ['sub-habit title', '200'], key: 'habits.form.subHabitTitleTooLong', contexts: HABIT_CONTEXTS },
+  { includes: ['sub-habit title', String(MAX_HABIT_TITLE_LENGTH)], key: 'habits.form.subHabitTitleTooLong', contexts: HABIT_CONTEXTS },
   { includes: ['title', 'must not be empty'], key: 'habits.form.titleRequired', contexts: HABIT_CONTEXTS },
   { includes: ['linked goals'], key: 'habits.form.goalLimit', contexts: HABIT_CONTEXTS },
   { includes: ['at most 5 tags'], key: 'habits.form.tagLimit', contexts: HABIT_CONTEXTS },
@@ -289,17 +292,29 @@ function matchesIncludes(msg: string, includes: MessageRule['includes']): boolea
   return includes.every((s) => msg.includes(s))
 }
 
+/**
+ * Every rule in `CONTEXTUAL_RULES` names its own field, so the walk runs first and the title
+ * fallback answers only what no rule claims. The fallback ran first until #614, where
+ * `Sub-habit title must not exceed 200 characters` matched it on `title` plus the length, which
+ * left the sub-habit rule below it unreachable in every context. Any rule added below
+ * would have hit the same wall, which is why the order is the fix rather than a sub-habit test
+ * inside the fallback. The fallback keeps its own context split because it answers for the
+ * `Title` property of a habit and of a goal, which no rule covers.
+ */
 function getContextualMessageKey(
   normalizedMessage: string,
   context: FriendlyErrorContext,
 ): string | null {
-  if (normalizedMessage.includes('title') && normalizedMessage.includes('200')) {
-    return context === 'goal' ? 'goals.form.titleTooLong' : 'habits.form.titleTooLong'
-  }
-
   for (const rule of CONTEXTUAL_RULES) {
     if (rule.contexts && !rule.contexts.has(context)) continue
     if (matchesIncludes(normalizedMessage, rule.includes)) return rule.key
+  }
+
+  if (
+    normalizedMessage.includes('title') &&
+    normalizedMessage.includes(String(MAX_HABIT_TITLE_LENGTH))
+  ) {
+    return context === 'goal' ? 'goals.form.titleTooLong' : 'habits.form.titleTooLong'
   }
 
   return null
