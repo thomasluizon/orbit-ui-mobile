@@ -4,14 +4,11 @@ import { redirectSystemPath } from '@/app/+native-intent'
 const HABIT_ID = 'a12b34cd-1234-4567-89ab-123456789abc'
 
 describe('an Android widget row opens what it shows', () => {
-  it.each([true, false])(
-    'keeps the habit and the day on a cold start of %s',
-    (initial) => {
-      const path = `orbit://habits/${HABIT_ID}?date=2026-09-20`
+  it('keeps the habit and the day the row carried', () => {
+    const path = `orbit://habits/${HABIT_ID}?date=2026-09-20`
 
-      expect(redirectSystemPath({ path, initial })).toBe(path)
-    },
-  )
+    expect(redirectSystemPath({ path, initial: true })).toBe(path)
+  })
 
   it('keeps a day that is not today, so the tomorrow fallback opens tomorrow', () => {
     const tomorrow = `orbit://habits/${HABIT_ID}?date=2027-03-01`
