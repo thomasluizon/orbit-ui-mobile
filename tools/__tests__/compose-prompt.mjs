@@ -302,6 +302,23 @@ export const cases = () => {
     carriesCompleteReviewSweep(cloudPrompt),
     cloudPrompt,
   )
+  /**
+   * One brief feeds the local, Cloud and redesign orders, so each one is asserted separately: a
+   * later split could drop the block from any single mode and the other two would stay green. Each
+   * assertion names the read-only rule rather than the bare word node_modules, which a prompt could
+   * carry for an unrelated reason.
+   */
+  for (const [mode, order] of [["local", prompt], ["Cloud", cloudPrompt], ["redesign", redesignPrompt]]) {
+    T(
+      `${TOOL}: the ${mode} order forbids writing inside node_modules and keeps it read-only evidence`,
+      /NEVER write inside `node_modules`, under any path, in any worktree, for any reason/.test(order) &&
+        /READ-ONLY\s+evidence/.test(order) &&
+        /never stage or commit a\s+path under `node_modules`/.test(order) &&
+        /patch-package/.test(order),
+      order,
+    )
+  }
+
   const orchestrateSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
   T(
     `${TOOL}: the Cloud materialization skill mirrors the canonical review sweep contract`,

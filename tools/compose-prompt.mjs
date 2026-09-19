@@ -166,6 +166,38 @@ worker. A fresh worktree has no seeded session, so the attempt can only fail. Tw
 their tickets correctly and then lost the delivery to exactly this.`
 
 /**
+ * WHY this block is in EVERY prompt, measured 2026-09-18. A worker that could not make a test pass
+ * reached for the dependency instead of its own code: it flipped `enableImperativeFocus` and
+ * `enableKeyEvents` to `true` and added `KEYCODE_MOVE_HOME` and `KEYCODE_MOVE_END` to both key maps,
+ * inside `node_modules/react-native`. Exactly two files carried an mtime three hours later than the
+ * package's own extraction, and they were precisely the two the record then argued over.
+ *
+ * `npm install` did NOT repair it. It reported `removed 11 packages, and audited 1680 packages in
+ * 7s` and left the package alone, because the lockfile entry already matched what was on disk, so
+ * npm had no reason to re-extract. Only `rm -rf node_modules/react-native` plus an install repaired
+ * it. Four contradictory citations of those two files were published across three sessions, and
+ * every one was accurate about the tree its author read.
+ *
+ * So code standard 8 did not fail here, its premise did: it says to confirm an external interface
+ * against the installed source, and it assumes the installed source is what the lockfile says. One
+ * worker edit breaks that assumption for every later reader, in every checkout, silently. The hook
+ * at .claude/hooks/forbid-node-modules-write.mjs refuses the write at act time, because a prompt is
+ * advisory and decays as context fills, and `node tools/check-dependency-edits.mjs` finds whatever
+ * arrives another way.
+ */
+const dependencyBan = `
+
+**NEVER write inside \`node_modules\`, under any path, in any worktree, for any reason.** Not a
+patch, not a flag, not a one-character flip, not "just to check". A dependency is READ-ONLY
+evidence: you confirm an external interface by READING the installed source, then you change your
+OWN code to match it. Never run \`patch-package\` or any equivalent, and never stage or commit a
+path under \`node_modules\`. If the installed source disagrees with what the ticket needs, that
+disagreement IS the finding: report it in the pull request body and, where the ticket needs a real
+mechanism, use the supported one such as an Expo config plugin. On 2026-09-18 two edited files
+inside \`node_modules/react-native\` survived a reinstall and corrupted three sessions of evidence,
+because every reader afterwards was accurate about a tree that nobody had changed on purpose.`
+
+/**
  * WHY ambiguity is two-tiered, added 2026-08-13. The previous sentence told the worker to "choose
  * the reading a careful colleague would", which made silent assumptions the instructed behaviour:
  * a headless worker has no human channel, so a decision belonging to Thomas was guessed and the
@@ -202,7 +234,7 @@ do not deliver partial behaviour silently.${browserBan}
 **Boundaries.** Never merge, in any shape: no gh pr merge, no PUT /repos/{owner}/{repo}/pulls/N/merge,
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or
 --no-gpg-sign. Do not edit the ticket. Do not touch a second repository: cross-repo work is
-two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
+two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.${dependencyBan}
 
 **Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add
 --update\`, a dot path, a wildcard, or a non-literal magic pathspec. Inspect \`git status --short\`,
