@@ -364,8 +364,29 @@ frontmatter, the tags and the backlinks that say which decision superseded which
   - `The shipping branch outranks the redesign when the machine cannot run both.md`
   - `A written instruction is the authorization ship on it without asking again.md`
   - `A contract change needs its caller sweep in the same run.md`
+  - `A guard a normal refactor walks through is not a guard.md`
+  - `Prefer a type nobody can spell around to a lint rule anybody can.md`
+  - `Name where a guard regress stops rather than chase it forever.md`
+  - `A review-harness gate that checks for a heading is gameable so run the real lanes.md`
+  - `Read the tree before correcting a contradicting reviewer in public.md`
+  - `A round that lands mergeable work beats a round that improves parked work.md`
 
-  **All nineteen were re-confirmed through the Obsidian MCP on 2026-09-18 at 00:30**, by listing
+  **The last six were added on 2026-09-19.** They already existed in the vault and were missing from
+  this list, and each one is a lesson the night of 2026-09-18 into 09-19 paid for in review rounds:
+  a guard beaten by `confirmationToken: default` and then by `??=`, a lint rule beaten by
+  `as RequestInit` where the type held with zero call-site changes, five rounds on one test file
+  before a stopping bar was written down, a green review-harness gate with a body that had never run
+  its lanes, two reviewers contradicting each other where the tree settled it, and a free slot given
+  to the round that could merge over the round that could not.
+
+  **All twenty-five were re-confirmed through the Obsidian MCP on 2026-09-19**, by listing
+  `2 Areas/20-29 Orbit Engineering/Decisions/` with `obsidian_list_notes` and copying the names that
+  came back. The directory holds 81 notes. There is still **no ADR for the rule that a machine
+  resource is never a blocker**, which is now enforced in `.claude/hooks/_lib/rules-sleep.mjs`; that
+  one is worth writing.
+
+  Superseded by the above, kept for the record: the earlier note said nineteen, confirmed on
+  2026-09-18 at 00:30, by listing
   `2 Areas/20-29 Orbit Engineering/Decisions/` with `obsidian_list_notes` and copying the names that
   came back. The MCP is UP; `obsidian_search_notes` needs `mode: "text"`. Historical note: The Obsidian MCP was still
   unreachable (`fetch failed`, Obsidian not running), so the listing came from the `vault-fs` MCP,

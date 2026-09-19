@@ -67,6 +67,26 @@ confirm it rather than assuming it, and do not chase them as defects before you 
 Separately, `#627`'s `create-worktree` flake can add two more reds under load. It passes 9 of 9 under
 `--only create-worktree`.
 
+## The full in-flight inventory, run on 2026-09-19, including the empty results
+
+Every command below was RUN in all three repositories, `orbit-ui-mobile`, `orbit-api` and
+`orbit-landing-page`. An empty result is stated as empty rather than omitted.
+
+| what | result |
+|---|---|
+| `git stash list` | **none, in all three.** |
+| `git log @{u}..HEAD` | **none, in all three.** Nothing is committed-but-unpushed on any checked-out branch. |
+| detached HEADs (`git worktree list`) | **none.** |
+| running workers | **none.** Every worker was stopped on Thomas's instruction and no worker process remains. The wake-source directory is empty. |
+| uncommitted work | **two worktrees, both deliberate**: `ticket-612-web-overlays` 6 files, `ticket-586-widget-destination` 4 files. The other worktrees are clean. |
+| ignored paths worth knowing | `apps/mobile/android/` exists again, left by an `expo prebuild` during review. It is generated and safe to delete. |
+| open pull requests | ui: 1029, 1030, 1033 on `redesign/main`, plus 881, 801, 799, 798 on `main` which **predate this effort and nobody has triaged them**. api: 521, 528, 531, 532, 533, 534. |
+| branches ahead of `redesign/main` with no open pull request | **32.** Almost all are squash-merged branches, which always read as ahead because the squash rewrote their commits. The two that are not: `fix/ticket-586-widget-destination`, whose pull request was closed unmerged on purpose, and any branch listed here that a `gh pr list --state merged --head <branch>` does not explain. Reproduce with: `git for-each-ref --format='%(refname:short)' refs/heads/ \| grep -E '^(feature\|fix\|chore)/'` then compare against `gh pr list --state all --head <branch>`. |
+| open tickets this effort owns | **103.** Reproduce with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 200`. Every one is placed in a batch in the spec. |
+
+**The four `main`-targeted ui pull requests, 881, 801, 799 and 798, have no disposition.** No session
+this week has touched them. Triage them early rather than letting them sit another week.
+
 ## Start here
 
 1. **`#627`**, first in batch 0b. Two `create-worktree` cases use one number as both the kill
