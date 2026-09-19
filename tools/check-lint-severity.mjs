@@ -5,18 +5,17 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { fileURLToPath, pathToFileURL } from "node:url"
 import yaml from "js-yaml"
 
-const USAGE = `usage: check-lint-severity.mjs (--report-suppressions | --enforce-suppressions) [--root <path>]
+const USAGE = `usage: check-lint-severity.mjs [--root <path>]
 
-  Fails when an eslint config sets a local/* rule to warn, or sets one to off outside
-  a declared scoped exception. Finds eslint-suppressions.json files and targets named by
-  --suppressions-location, then either reports or enforces those findings.
+  A local/* rule ships at error with zero violations, or it does not ship. Fails when an
+  eslint config sets a local/* rule to warn, sets one to off outside a declared scoped
+  exception, or when a lint-suppression baseline exists: an eslint-suppressions.json
+  anywhere in the tree, or any file a --suppressions-location flag names.
 
-  --report-suppressions   print suppression findings and exit 0 when severity checks pass
-  --enforce-suppressions  fail on suppression findings
-  --root <path>           repository root (defaults to the parent of this tool's directory)
-  --help, -h              print this usage and exit 0
+  --root <path>  repository root (defaults to the parent of this tool's directory)
+  --help, -h     print this usage and exit 0
 
-exit codes: 0 checks passed, 1 a forbidden severity or enforced suppression exists,
+exit codes: 0 checks passed, 1 a forbidden severity or a suppression baseline exists,
             2 usage error or an unreadable eslint config`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -30,20 +29,15 @@ const fail = (code, message) => {
 }
 
 let repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
-let suppressionMode = null
 const argumentsLeft = process.argv.slice(2)
 while (argumentsLeft.length > 0) {
   const flag = argumentsLeft.shift()
   if (flag === "--root" && argumentsLeft.length > 0) {
     repositoryRoot = resolve(argumentsLeft.shift())
-  } else if (flag === "--report-suppressions" || flag === "--enforce-suppressions") {
-    if (suppressionMode !== null) fail(2, `check-lint-severity: choose exactly one suppression mode\n\n${USAGE}`)
-    suppressionMode = flag === "--report-suppressions" ? "report" : "enforce"
   } else {
     fail(2, `check-lint-severity: invalid arguments: ${process.argv.slice(2).join(" ")}\n\n${USAGE}`)
   }
 }
-if (suppressionMode === null) fail(2, `check-lint-severity: choose a suppression mode\n\n${USAGE}`)
 
 const normalizedRelativePath = (path) => relative(repositoryRoot, path).split(sep).join("/")
 const resolvedPath = (path) => {
@@ -300,20 +294,16 @@ if (severityProblems.length > 0) {
 const hasSuppressionFindings = suppressionFiles.size > 0 || suppressionLocationProblems.length > 0
 if (hasSuppressionFindings) {
   const paths = [...suppressionFiles].sort()
-  const label = suppressionMode === "report" ? "reported" : "failed"
-  const stream = suppressionMode === "report" ? console.log : console.error
   if (paths.length > 0) {
-    stream(`Lint suppressions ${label}: ${paths.length} baseline file(s) exist.`)
-    for (const path of paths) stream(`  ${path}`)
+    console.error(`Lint suppressions failed: ${paths.length} baseline file(s) exist.`)
+    for (const path of paths) console.error(`  ${path}`)
   }
   if (suppressionLocationProblems.length > 0) {
-    stream(`Lint suppression locations ${label}: ${suppressionLocationProblems.length} unsafe target declaration(s).`)
-    for (const problem of suppressionLocationProblems) stream(`  ${problem}`)
+    console.error(`Lint suppression locations failed: ${suppressionLocationProblems.length} unsafe target declaration(s).`)
+    for (const problem of suppressionLocationProblems) console.error(`  ${problem}`)
   }
-  if (suppressionMode === "report") {
-    stream("GitHub #175 keeps this finding report-only until the redesign reaches zero baselines; severity findings still enforce now.")
-  }
+  console.error("A local rule ships at error with zero violations, or it does not ship. Fix the violations rather than recording them.")
 }
 
-if (severityProblems.length > 0 || (suppressionMode === "enforce" && hasSuppressionFindings)) process.exit(1)
-console.log(`check-lint-severity: checked ${localRuleCount} local rule setting(s) across ${configPaths.length} config(s) in ${suppressionMode} mode.`)
+if (severityProblems.length > 0 || hasSuppressionFindings) process.exit(1)
+console.log(`check-lint-severity: checked ${localRuleCount} local rule setting(s) across ${configPaths.length} config(s).`)

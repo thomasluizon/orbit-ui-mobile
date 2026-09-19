@@ -80,9 +80,9 @@ These stay until he changes them. Keep his words.
   and you say which.
 - **2026-09-15** **The suppressed lint violations are part of finishing the redesign, and speed
   matters.** "the lint violations fixes, and the redesign finished, as fast as possible." Said after
-  being shown the 367 suppressed violations across 99 files. They are not a separate cleanup effort
-  to be scheduled later: every screen ticket already requires its own share gone with a strict
-  Suppressions Ratchet decrease, and that is now the largest remaining block of work. "As fast as
+  being shown the 367 suppressed violations across 99 files. They were not a separate cleanup effort
+  to be scheduled later: every screen ticket carried its own share, and the screen tickets drove both
+  baselines to zero. `#175` then deleted them and the ratchet that read them. "As fast as
   possible" narrows HOW, never WHAT: it means stop idling a worker slot and stop opening fronts that
   do not close a ticket. It does not license a cheaper implementation, and it never overrides
   "always the best implementation".
@@ -699,8 +699,8 @@ Pointers, not restatements. The reasoning lives in the ADR.
 - **`apps/mobile/__tests__/scripts/__snapshots__/widget-header.test.ts.snap` flips its line endings on
   its own.** Restore it and keep it out of every commit.
 - **A squash merge duplicates content into every stacked branch.** Resolve by reading both sides. For
-  `eslint-suppressions.json`, keep BOTH sides' deletions and the LOWER count, then prove it with
-  `GITHUB_BASE_REF=redesign/main node tools/check-suppressions-ratchet.mjs`.
+  a generated baseline such as `tools/dash-baseline.json` or `tools/copy-baseline.json`, take the base
+  wholesale and regenerate rather than hand-merging the two halves.
 - **Run `npm run type-check` from the repository ROOT, never per workspace.**
 - **`node tools/redesign-coverage.mjs` validates against a COMMITTED manifest, and since `#595` a CI
   job regenerates that manifest and diffs it.** `guards.yml#surface-manifest` ("Surface Manifest
@@ -718,32 +718,24 @@ Pointers, not restatements. The reasoning lives in the ADR.
   loses `m-overlay-ui-selection-field`.
 - Worktree and branch debt is large and mostly harmless. Read 2026-09-15 at 14:04 UTC under State.
 
-## The suppressed lint violations, which are now the largest block of work
+## The suppressed lint violations, closed by `#175`
 
-Read live on `redesign/main` at `d6715cfb`, 2026-09-16 late afternoon:
+This was the largest remaining block of work, and it is finished. The screen tickets that owned the
+files drove both baselines to zero, and `#175` then deleted the two baseline files,
+`tools/check-suppressions-ratchet.mjs`, and the `Suppressions Ratchet` job that read them.
 
-    web      66 violations across 27 files   (was 180 across 54 on 52ec075e)
-    mobile   90 violations across 22 files   (was 187 across 45)
+**There is no lint baseline any more, in either app.** Every `local/*` rule runs at `error` against a
+clean tree, so a violation fails the `Lint` check on the spot rather than being recorded. The
+required `Lint Severity` context, backed by `tools/check-lint-severity.mjs`, fails if anyone
+recreates a baseline file, points a `--suppressions-location` flag at one, lowers a `local/*` rule to
+`warn`, or turns one `off` outside the five scoped blocks that tool declares by name.
 
-**More than half went in one day**, through the screen tickets that owned them. Reproduce with a read
-of both `eslint-suppressions.json` files; never trust this number, it moves every merge.
+Three rules survive this work:
 
-**Perfil and settings are DOWN TO ZERO**, apart from `apps/mobile/app/preferences-styles.ts` with 5,
-which pull request 998 removes. What is left in those two files belongs to other screens: onboarding
-(`#67`), the habit form and habit detail, the charts (`#329`), and a block of shared overlays and
-primitives that no screen ticket obviously owns. **That last group needs a home.** Assign each file
-to a screen ticket, or file one ticket for the shared surfaces, before the redesign can be called
-finished; a suppression with no owner is how a file survives every screen pass.
-
-**Every screen ticket already requires its own share gone**, with a strict Suppressions Ratchet
-decrease, so this is not new scope: it is scope that was never counted. It is also the reason a screen
-that "looks done" is not closeable, which is how `#56`, `#71` and `#76` were all found open after being
-called finished.
-
-Two rules for this work, both learned the hard way:
-
-- **Fix the VALUE, never the count.** Never raise a count, never add an inline disable, and never
-  remove a rule from the ESLint config to make a file pass.
+- **A `local/*` rule ships at `error` with zero violations, or it does not ship.** Landing a rule
+  alongside its own violation set is what created this block, and the new gate refuses it.
+- **Fix the VALUE, never the count.** Never add an inline disable, and never remove a rule from the
+  ESLint config to make a file pass.
 - **A shared primitive needs a caller sweep before it is touched.** `settings-row.tsx`,
   `settings-group.tsx` and `settings-description.tsx` are used by more than one screen, so a spacing
   fix there moves gaps on surfaces the ticket does not own. Name what you found in the pull request
@@ -968,10 +960,10 @@ Two rules for this work, both learned the hard way:
 - **`better-interface` rule 5 is a real constraint on what may be reported.** Whether a disabled
   control announces its `aria-describedby` is runtime behaviour, so it cannot be reported from source
   alone. A citation around a guess is still a guess.
-- **A generated baseline is resolved by REGENERATING, never by hand-merging.** 1002's
-  `apps/web/eslint-suppressions.json` conflict was resolved by taking the base wholesale and running
-  `npm run lint:prune -w @orbit/web`, which removed 112 lines and converged on what the linter
-  actually finds.
+- **A generated baseline is resolved by REGENERATING, never by hand-merging.** 1002's web lint
+  baseline conflict was resolved by taking the base wholesale and regenerating, which removed 112
+  lines and converged on what the linter actually finds. That baseline is gone, but the rule still
+  governs `tools/dash-baseline.json` and `tools/copy-baseline.json`.
 - **A squash merge retargets a stacked child by itself.** 1010 moved from
   `chore/ticket-560-sweep-order` to `redesign/main` the moment 991 merged. The trap is
   `--delete-branch`, which was never passed.

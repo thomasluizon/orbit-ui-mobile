@@ -14,12 +14,7 @@ const stageConfig = (label, body, relativePath = "eslint.config.mjs") => {
   return repository
 }
 
-const run = (name, repository, expected, mode = "--enforce-suppressions") => check(
-  TOOL,
-  name,
-  [mode, "--root", repository],
-  expected,
-)
+const run = (name, repository, expected) => check(TOOL, name, ["--root", repository], expected)
 
 export const cases = () => {
   const clean = stageConfig("clean", 'export default [{ rules: { "local/example": "error" } }]\n')
@@ -76,14 +71,10 @@ export const cases = () => {
   const namedBaseline = stageConfig("named-baseline", 'export default [{ rules: { "local/example": "error" } }]\n')
   mkdirSync(join(namedBaseline, "nested"), { recursive: true })
   writeFileSync(join(namedBaseline, "nested", "eslint-suppressions.json"), "{}\n")
-  run("rejects eslint-suppressions.json in enforcing mode", namedBaseline, {
+  run("rejects an eslint-suppressions.json anywhere in the tree", namedBaseline, {
     status: 1,
     stderr: /nested\/eslint-suppressions\.json/,
   })
-  run("reports eslint-suppressions.json without weakening severity checks", namedBaseline, {
-    status: 0,
-    stdout: /GitHub #175 keeps this finding report-only/,
-  }, "--report-suppressions")
 
   const customBaseline = stageConfig("custom-baseline", 'export default [{ rules: { "local/example": "error" } }]\n')
   mkdirSync(join(customBaseline, "apps", "web"), { recursive: true })
@@ -247,20 +238,29 @@ jobs:
     stderr: /resolves outside the repository/,
   })
 
-  const reportingStillBlocks = stageConfig("reporting-warning", 'export default [{ rules: { "local/example": "warn" } }]\n')
-  run("keeps severity failures blocking in reporting mode", reportingStillBlocks, {
-    status: 1,
-    stderr: /local\/example is warn/,
-  }, "--report-suppressions")
+  run("accepts this repository's own tree", REPO_ROOT, {
+    status: 0,
+    stdout: /checked \d+ local rule setting\(s\) across \d+ config\(s\)\./,
+  })
 
   const guardsWorkflow = readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8")
   const lintSeverityJob = guardsWorkflow.slice(
     guardsWorkflow.indexOf("  lint-severity:"),
-    guardsWorkflow.indexOf("\n  ratchet:", guardsWorkflow.indexOf("  lint-severity:")),
+    guardsWorkflow.indexOf("\n  calibration:", guardsWorkflow.indexOf("  lint-severity:")),
   )
   T(
     `${TOOL}: the workflow predicate owns package-lock.json`,
     /\^package-lock\\\.json\$/.test(lintSeverityJob),
     lintSeverityJob.trim(),
+  )
+  T(
+    `${TOOL}: the workflow runs the gate with no suppression mode flag`,
+    /node tools\/check-lint-severity\.mjs\s*$/m.test(lintSeverityJob),
+    lintSeverityJob.trim(),
+  )
+  T(
+    `${TOOL}: no suppression ratchet survives in guards.yml`,
+    !/ratchet/i.test(guardsWorkflow),
+    guardsWorkflow.split("\n").filter((line) => /ratchet/i.test(line)).join("\n"),
   )
 }

@@ -26,10 +26,11 @@ finding is noise. ESLint `local/*` and Roslyn `ORBIT0001..0005`
 buttons, overshoot easing, and `will-change` discipline. `Type Check`, `Unit Tests`, `Build`, `Dash Ban`
 (em and en dashes, PR title and body included), `Copy Register` (shouted strings and the cliche register in
 i18n values), `Design Token Guard` (raw `--slate-*`, `transition-all`, `h-screen` in `apps/*`),
-`Suppressions Ratchet`, `Expo SDK Pin`, `Dependency Review`, `Dependency Audit`, `GitGuardian Security
-Checks`, `Analyze` (CodeQL), `SonarCloud Code Analysis`, and `React Doctor` own the rest. Three gates are
-partial and the uncovered half is yours: `local/no-decorative-glow` and `local/no-raw-gradient` ship at
-`warn` in `apps/*`, so pre-existing violations are known debt but a **newly introduced** one is a finding;
+`Lint Severity` (a `local/*` rule lowered to `warn` or `off`, and any lint-suppression baseline),
+`Expo SDK Pin`, `Dependency Review`, `Dependency Audit`, `GitGuardian Security
+Checks`, `Analyze` (CodeQL), `SonarCloud Code Analysis`, and `React Doctor` own the rest. Every
+`local/*` rule runs at `error` with no baseline behind it, so a violation of one is never a
+hand-written finding, old or new. Two gates are partial and the uncovered half is yours:
 `Cross-Platform Parity` and `Contract Drift` are scoped in dimensions 8 and 7.
 
 ## Finding template

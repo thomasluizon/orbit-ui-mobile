@@ -5,8 +5,10 @@ not fork. This file DEFERS to `CLAUDE.md` (same directory) for every repo conven
 before you write code. Your launch prompt already carries the objective, scope, caps, output
 contract, and the merge and push prohibitions; this file holds only what neither of those does.
 
-Beyond the gates `CLAUDE.md` names: `eslint-suppressions.json` and the dash and copy baselines
-may only shrink. The architecture map is generated and NOT committed (#470): run
+Beyond the gates `CLAUDE.md` names: the dash and copy baselines may only shrink, and there is no
+lint-suppression baseline at all. A `local/*` rule runs at `error` with zero violations, so a new
+violation fails on the spot; `Lint Severity` fails if anyone recreates a baseline or lowers a
+`local/*` rule to `warn`. The architecture map is generated and NOT committed (#470): run
 `node tools/arch-map.mjs` when you want to read it, and never commit its three artifacts. Never
 edit a gate baseline to admit a new violation; fix the violation.
 

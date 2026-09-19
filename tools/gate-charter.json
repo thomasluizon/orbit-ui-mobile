@@ -109,11 +109,6 @@
     "snapshot": "node tools/generate-performance-workflow.mjs --write",
     "constants": "none"
   },
-  ".github/workflows/guards.yml#ratchet": {
-    "scope": "changed-files",
-    "snapshot": "none",
-    "constants": "none"
-  },
   ".github/workflows/guards.yml#review-harness": {
     "scope": "changed-files",
     "snapshot": "none",
@@ -440,11 +435,6 @@
     ]
   },
   "tools/check-root-allowlist.mjs": {
-    "scope": "changed-files",
-    "snapshot": "none",
-    "constants": "none"
-  },
-  "tools/check-suppressions-ratchet.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
