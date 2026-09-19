@@ -4,40 +4,22 @@ import {
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
   ONBOARDING_TOTAL_STEPS,
-  ONBOARDING_WEEK_START_OPTIONS,
+  ONBOARDING_STARTERS,
 } from '@orbit/shared/utils'
 import { OnboardingWelcome } from '@/components/onboarding/onboarding-welcome'
-
-const mocks = vi.hoisted(() => ({
-  setWeekStartDay: vi.fn(() => Promise.resolve()),
-}))
+import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { weekStartDay: 1 } }),
-}))
-
-vi.mock('@/stores/onboarding-draft-store', () => ({
-  useOnboardingDraftStore: (selector: (state: { weekStartDay: null }) => unknown) =>
-    selector({ weekStartDay: null }),
-}))
-
-vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
-  useOnboardingActions: () => ({ setWeekStartDay: mocks.setWeekStartDay }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
 
-vi.mock('@/lib/motion', () => ({
-  usePrefersReducedMotion: () => true,
+vi.mock('@/components/ui/input', () => ({
+  Input: (props: Record<string, unknown>) => React.createElement('Input', props),
 }))
-
-vi.mock('@/components/ui/app-logo', () => ({ AppLogo: () => null }))
 vi.mock('@/components/ui/chip', () => ({
   Chip: ({ children, onPress }: { children: React.ReactNode; onPress: () => void }) =>
     React.createElement('Chip', { onPress }, children),
@@ -46,11 +28,8 @@ vi.mock('@/components/ui/chip', () => ({
 const TestRenderer = require('react-test-renderer')
 
 describe('OnboardingWelcome helpers', () => {
-  it('exposes both onboarding week-start options', () => {
-    expect(ONBOARDING_WEEK_START_OPTIONS).toEqual([
-      { value: 1, labelKey: 'settings.weekStartDay.monday' },
-      { value: 0, labelKey: 'settings.weekStartDay.sunday' },
-    ])
+  it('exposes the sentence starters', () => {
+    expect(ONBOARDING_STARTERS).toEqual(['water', 'walk', 'read', 'tidy'])
   })
 
   it('uses the same three-step display for every account', () => {
@@ -66,15 +45,25 @@ describe('OnboardingWelcome helpers', () => {
 })
 
 describe('OnboardingWelcome', () => {
-  it('renders week-start choices without a color scheme control', () => {
+  it('renders the what prompt and its four starters', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<OnboardingWelcome />)
+      tree = TestRenderer.create(<OnboardingWelcome sentence="" marks={[]} onChange={vi.fn()} />)
     })
     const renderedText = tree.root
       .findAll((node: { type: unknown }) => node.type === 'Text')
       .map((node: { props: { children?: unknown } }) => node.props.children)
-    expect(renderedText).toContain('onboarding.flow.welcome.weekStart')
-    expect(renderedText).not.toContain('onboarding.flow.welcome.colorScheme')
+    expect(renderedText).toContain('onboarding.flow.what.title')
+    expect(tree.root.findAll((node: { type: unknown }) => node.type === 'Chip')).toHaveLength(4)
+    expect(tree.root.findByType('Input').props.marksLabel).toBe('onboarding.flow.what.marksLabel')
+  })
+
+  it('keeps the account link neutral', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingWelcome sentence="" marks={[]} onChange={vi.fn()} onHaveAccount={vi.fn()} />)
+    })
+    const link = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => node.type === 'Text' && node.props.accessibilityRole === 'link')[0]
+    expect(Reflect.get(link.props as object, 'style')).toContainEqual({ color: createTokensV2('purple', 'dark').fg3 })
   })
 })

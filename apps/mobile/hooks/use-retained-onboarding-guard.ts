@@ -19,6 +19,7 @@ import { useProfile } from '@/hooks/use-profile'
 export function useRetainedOnboardingGuard(
   profile: Profile | null | undefined,
   suppressed: boolean,
+  forceShow = false,
 ): boolean {
   const { patchProfile } = useProfile()
   const { count, isLoaded } = useHabitCountLoaded()
@@ -26,6 +27,7 @@ export function useRetainedOnboardingGuard(
   const autoCompletedRef = useRef(false)
 
   if (
+    !forceShow &&
     hadHabitsAtEntry === null &&
     canSnapshotOnboardingEntry({
       hasCompletedOnboarding: profile?.hasCompletedOnboarding,
@@ -42,7 +44,7 @@ export function useRetainedOnboardingGuard(
   })
 
   useEffect(() => {
-    if (action !== 'autocomplete' || autoCompletedRef.current) return
+    if (forceShow || action !== 'autocomplete' || autoCompletedRef.current) return
     autoCompletedRef.current = true
     void (async () => {
       try {
@@ -57,7 +59,7 @@ export function useRetainedOnboardingGuard(
       } catch {}
       patchProfile({ hasCompletedOnboarding: true })
     })()
-  }, [action, patchProfile])
+  }, [action, forceShow, patchProfile])
 
-  return action === 'show'
+  return forceShow || action === 'show'
 }

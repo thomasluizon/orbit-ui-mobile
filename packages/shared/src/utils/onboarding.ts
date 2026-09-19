@@ -1,80 +1,385 @@
-export type OnboardingFrequencyUnit = 'Day' | 'Week' | 'Month' | 'Year'
+import type { CreateHabitRequest, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
+import type { SupportedLocale } from '../types/profile'
+import { buildHabitFormPatchFromSuggestion } from './habit-form-helpers'
+import { readHabitPhrase } from './habit-phrase-parser'
 
 export const ONBOARDING_TOTAL_STEPS = 3
-export const ONBOARDING_CREATE_HABIT_STEP = 1
-export const ONBOARDING_COMPLETE_STEP = 2
-
-export const ONBOARDING_HABIT_SUGGESTIONS: ReadonlyArray<{
-  key: string
-  frequency: OnboardingFrequencyUnit
-}> = [
-  { key: 'water', frequency: 'Day' },
-  { key: 'read', frequency: 'Day' },
-  { key: 'exercise', frequency: 'Week' },
-  { key: 'meditate', frequency: 'Day' },
-] as const
-
-export const ONBOARDING_HABIT_FREQUENCIES: ReadonlyArray<{
-  value: OnboardingFrequencyUnit | 'one-time'
-  labelKey: string
-}> = [
-  { value: 'Day', labelKey: 'onboarding.flow.createHabit.frequency.daily' },
-  { value: 'Week', labelKey: 'onboarding.flow.createHabit.frequency.weekly' },
-  { value: 'one-time', labelKey: 'onboarding.flow.createHabit.frequency.oneTime' },
-] as const
-
-export const ONBOARDING_WEEK_START_OPTIONS = [
-  { value: 1, labelKey: 'settings.weekStartDay.monday' },
-  { value: 0, labelKey: 'settings.weekStartDay.sunday' },
-] as const
+export const ONBOARDING_WHAT_STEP = 0
+export const ONBOARDING_WHEN_STEP = 1
+export const ONBOARDING_REMIND_STEP = 2
+export const ONBOARDING_DONE_STEP = 3
+export const ONBOARDING_STARTERS = ['water', 'walk', 'read', 'tidy'] as const
+export const ONBOARDING_REMINDER_MINUTES = 15
+export function shouldRequestOnboardingSuggestion(input: { isLive: boolean; atLimit: boolean }): boolean {
+  return input.isLive && !input.atLimit
+}
 
 export function getOnboardingDisplayTotal(): number {
   return ONBOARDING_TOTAL_STEPS
 }
 
 export function getOnboardingDisplayStep(currentStep: number): number {
-  return currentStep + 1
+  return Math.min(Math.max(currentStep + 1, 1), ONBOARDING_TOTAL_STEPS)
 }
 
-export function getOnboardingNextStep(currentStep: number): number {
-  if (currentStep >= ONBOARDING_COMPLETE_STEP) {
-    return ONBOARDING_COMPLETE_STEP
+export function getOnboardingHabitTitle(sentence: string, locale: SupportedLocale): string {
+  const read = readHabitPhrase(sentence, locale)
+  if (read.consumed.length === 0) return sentence.trim()
+
+  const characters = sentence.split('')
+  const removed = Array.from({ length: characters.length }, () => false)
+  for (const token of read.consumed) {
+    characters.fill(' ', token.start, token.end)
+    removed.fill(true, token.start, token.end)
   }
 
-  return currentStep + 1
+  const glue = locale === 'pt-BR'
+    ? /\b(?:toda|todo|todas|todos|as|os|e|por|na|no|nas|nos|a|em|cada)\b/giu
+    : /\b(?:every|each|and|a|per|at|on|times?|week)\b/giu
+  const removable = [...sentence.matchAll(glue)]
+  const touchesRemoved = (start: number, direction: -1 | 1): boolean => {
+    for (let index = start; index >= 0 && index < characters.length; index += direction) {
+      if (removed[index]) return true
+      if (!/[\s,;]/u.test(characters[index]!)) return false
+    }
+    return false
+  }
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const match of removable) {
+      const start = match.index
+      const end = start + match[0].length
+      if (removed.slice(start, end).every(Boolean)) continue
+      if (touchesRemoved(start - 1, -1) || touchesRemoved(end, 1)) {
+        characters.fill(' ', start, end)
+        removed.fill(true, start, end)
+        changed = true
+      }
+    }
+  }
+  const title = characters.join('').replaceAll(/[\s,;]+/gu, ' ').trim()
+  return title || sentence.trim()
 }
 
-export function getOnboardingPreviousStep(currentStep: number): number {
-  if (currentStep <= 0) {
-    return 0
-  }
-
-  return currentStep - 1
+export interface OnboardingSchedule {
+  frequencyUnit: FrequencyUnit | null
+  frequencyQuantity: number | null
+  intervalWeeks: number
+  days: string[]
+  isGeneral: boolean
+  isFlexible: boolean
+  dueTime: string
 }
 
-export function shouldHideOnboardingFooter(currentStep: number): boolean {
-  return [
-    ONBOARDING_CREATE_HABIT_STEP,
-    ONBOARDING_COMPLETE_STEP,
-  ].includes(currentStep)
+export type OnboardingScheduleMode = 'fixed' | 'flexible' | 'interval' | 'oneTime'
+
+export function getOnboardingScheduleMode(schedule: OnboardingSchedule): OnboardingScheduleMode {
+  if (schedule.isFlexible) return 'flexible'
+  if (schedule.frequencyUnit === null) return schedule.isGeneral ? 'fixed' : 'oneTime'
+  if (schedule.days.length > 0 || (schedule.frequencyUnit === 'Day' && schedule.frequencyQuantity === 1)) return 'fixed'
+  return 'interval'
 }
 
-export function getOnboardingHabitFrequencyLabelKey(
-  frequencyUnit: OnboardingFrequencyUnit | undefined,
-): string {
-  if (!frequencyUnit) {
-    return 'onboarding.flow.createHabit.frequency.oneTime'
-  }
+function scheduleShapeCarriesRepeatWeeks(schedule: OnboardingSchedule): boolean {
+  return schedule.days.length > 0 && getOnboardingScheduleMode(schedule) === 'fixed'
+}
 
-  if (frequencyUnit === 'Day') {
-    return 'onboarding.flow.createHabit.frequency.daily'
-  }
+/**
+ * Whether this run can show and save a repeat interval of more than one week. Two conditions, and
+ * both have to hold. The shape has to carry it: only a weekday schedule does, because the API reads
+ * `IntervalWeeks` for a habit with weekdays and ignores it for a general habit. The transport has to
+ * carry it too: a signed-out draft flushes through `POST /api/profile/onboarding/apply`, whose
+ * `ApplyHabitInput` has no `IntervalWeeks` field (see `applyOnboardingHabitSchema`), so the server
+ * drops the number and the habit comes back as "every Monday". Ticket #596 adds the field to the
+ * API; until it deploys, a signed-out run hides the stepper rather than write nothing.
+ */
+export function canRepeatOnboardingScheduleWeeks(
+  schedule: OnboardingSchedule,
+  canSaveRepeatWeeks: boolean,
+): boolean {
+  return canSaveRepeatWeeks && scheduleShapeCarriesRepeatWeeks(schedule)
+}
 
-  if (frequencyUnit === 'Week') {
-    return 'onboarding.flow.createHabit.frequency.weekly'
-  }
+/**
+ * Pins the repeat interval to one week whenever {@link canRepeatOnboardingScheduleWeeks} is false,
+ * so no screen shows and no request sends a number the saved habit drops.
+ */
+export function clampOnboardingRepeatWeeks(
+  schedule: OnboardingSchedule,
+  canSaveRepeatWeeks: boolean,
+): OnboardingSchedule {
+  if (canRepeatOnboardingScheduleWeeks(schedule, canSaveRepeatWeeks)) return schedule
+  return schedule.intervalWeeks === 1 ? schedule : { ...schedule, intervalWeeks: 1 }
+}
 
-  return 'onboarding.flow.createHabit.frequency.oneTime'
+function pinRepeatInterval(schedule: OnboardingSchedule): OnboardingSchedule {
+  return clampOnboardingRepeatWeeks(schedule, true)
+}
+
+export function toggleOnboardingScheduleDay(
+  schedule: OnboardingSchedule,
+  day: string,
+): OnboardingSchedule {
+  const days = schedule.days.includes(day)
+    ? schedule.days.filter((value) => value !== day)
+    : [...schedule.days, day]
+  return pinRepeatInterval({
+    ...schedule,
+    days,
+    frequencyUnit: days.length > 0 ? 'Day' : null,
+    frequencyQuantity: days.length > 0 ? 1 : null,
+    isGeneral: days.length === 0,
+    isFlexible: false,
+  })
+}
+
+export function changeOnboardingScheduleMode(
+  schedule: OnboardingSchedule,
+  mode: OnboardingScheduleMode,
+): OnboardingSchedule {
+  if (mode === 'oneTime') {
+    return { ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: false }
+  }
+  if (mode === 'flexible') {
+    return { ...schedule, frequencyUnit: 'Week', frequencyQuantity: schedule.isFlexible ? schedule.frequencyQuantity ?? 3 : 3, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: true }
+  }
+  if (mode === 'interval') {
+    const alreadyInterval = schedule.frequencyUnit !== null && schedule.days.length === 0 && !schedule.isFlexible && !(schedule.frequencyUnit === 'Day' && schedule.frequencyQuantity === 1)
+    return { ...schedule, frequencyUnit: alreadyInterval ? schedule.frequencyUnit : 'Week', frequencyQuantity: alreadyInterval ? schedule.frequencyQuantity ?? 1 : 2, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: false }
+  }
+  const isGeneral = schedule.days.length === 0
+  return pinRepeatInterval({ ...schedule, frequencyUnit: isGeneral ? null : 'Day', frequencyQuantity: isGeneral ? null : 1, isGeneral, isFlexible: false })
+}
+
+const EVERY_DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const WEEKDAY_BY_INDEX = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/**
+ * Whether the habit onboarding just created lands in today's list. A general habit never does:
+ * `GetHabitScheduleQuery` loads the day with `!h.IsGeneral` and appends general habits only when
+ * `IncludeGeneral` is set, and both clients default that preference to false, so a new account never
+ * sees one on Today. A weekday habit lands there only on a day it names, because the API moves its
+ * `DueDate` forward to the first matching weekday (`CreateHabitCommand.HandleLockedAsync`) and then
+ * reports every earlier date as not scheduled (`HabitScheduleService.IsHabitDueOnDate`, `if (target
+ * < anchor) return false`). A signed-out draft flushes through
+ * `ApplyOnboardingCommand.CreateHabitsAsync`, which anchors on today rather than advancing, and the
+ * same absence falls out of `HabitScheduleService.MatchesFrequency` rejecting a target whose weekday
+ * is not in `habit.Days`. Every other shape anchors on today and matches it.
+ */
+export function isOnboardingHabitDueToday(schedule: OnboardingSchedule, today: Date): boolean {
+  if (schedule.isGeneral) return false
+  if (schedule.days.length === 0) return true
+  return schedule.days.includes(WEEKDAY_BY_INDEX[today.getDay()]!)
+}
+
+/**
+ * Reads a typed sentence into the schedule the when screen shows. A bare "every 2 weeks" becomes the
+ * week unit with quantity 2, not `intervalWeeks`, because the interval stepper binds the quantity and
+ * the API fires a weekly habit on every `frequencyQuantity`-th week. `intervalWeeks` stays 1 unless
+ * the sentence also names weekdays, the one shape that shows and corrects it.
+ */
+export function buildOnboardingScheduleFromPhrase(
+  sentence: string,
+  locale: SupportedLocale,
+): OnboardingSchedule {
+  const read = readHabitPhrase(sentence, locale)
+  if (read.cadence === 'flexible') {
+    return {
+      frequencyUnit: 'Week', frequencyQuantity: read.frequencyQuantity ?? 1,
+      intervalWeeks: 1, days: [], isGeneral: false, isFlexible: true, dueTime: read.dueTime ?? '',
+    }
+  }
+  if (read.cadence === 'fixed' || read.cadence === 'daily') {
+    return {
+      frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: read.intervalWeeks ?? 1,
+      days: read.cadence === 'daily' ? EVERY_DAY : read.days,
+      isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
+    }
+  }
+  if (read.intervalWeeks) {
+    return {
+      frequencyUnit: 'Week', frequencyQuantity: read.intervalWeeks, intervalWeeks: 1,
+      days: [], isGeneral: false, isFlexible: false, dueTime: read.dueTime ?? '',
+    }
+  }
+  return {
+    frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 1,
+    days: [], isGeneral: true, isFlexible: false, dueTime: read.dueTime ?? '',
+  }
+}
+
+/**
+ * Reads an Astra proposal into the schedule the when screen shows. The suggestion is an LLM response,
+ * so a flexible one may arrive with no period at all; both screens read a flexible period as the week,
+ * and so does {@link changeOnboardingScheduleMode}, so this boundary settles it rather than sending a
+ * flexible habit with no unit, which the API never makes due.
+ */
+export function buildOnboardingScheduleFromSuggestion(
+  suggestion: HabitSetupSuggestion,
+): OnboardingSchedule {
+  const patch = buildHabitFormPatchFromSuggestion(suggestion)
+  const isFlexible = patch.mode === 'flexible'
+  return {
+    frequencyUnit: isFlexible ? patch.frequencyUnit ?? 'Week' : patch.frequencyUnit,
+    frequencyQuantity: patch.frequencyQuantity,
+    intervalWeeks: 1,
+    days: patch.days,
+    isGeneral: false,
+    isFlexible,
+    dueTime: patch.dueTime ?? '',
+  }
+}
+
+export function buildOnboardingHabitInput(input: {
+  sentence: string
+  locale: SupportedLocale
+  emoji: string
+  reminderEnabled: boolean
+  schedule: OnboardingSchedule
+}): CreateHabitRequest {
+  const { schedule } = input
+  const reminderEnabled = input.reminderEnabled && Boolean(schedule.dueTime)
+  return {
+    title: getOnboardingHabitTitle(input.sentence, input.locale),
+    emoji: input.emoji || null,
+    ...(!schedule.isGeneral && schedule.frequencyUnit ? { frequencyUnit: schedule.frequencyUnit } : {}),
+    ...(!schedule.isGeneral && schedule.frequencyQuantity ? { frequencyQuantity: schedule.frequencyQuantity } : {}),
+    intervalWeeks: schedule.intervalWeeks,
+    ...(schedule.days.length > 0 ? { days: schedule.days } : {}),
+    ...(schedule.isGeneral ? { isGeneral: true } : {}),
+    ...(schedule.isFlexible ? { isFlexible: true } : {}),
+    ...(schedule.dueTime ? { dueTime: schedule.dueTime } : {}),
+    reminderEnabled,
+    reminderTimes: reminderEnabled ? [ONBOARDING_REMINDER_MINUTES] : [],
+  }
+}
+
+export type OnboardingRemindState =
+  | 'ask'
+  | 'denied'
+  | 'refused'
+  | 'unsupported'
+  | 'failed'
+  | 'no-time'
+  | 'no-day'
+
+export interface OnboardingRemindCopy {
+  titleKey: string
+  bodyKey: string
+}
+
+const ONBOARDING_REMIND_TITLE_KEY: Record<OnboardingRemindState, string> = {
+  ask: 'title',
+  denied: 'deniedTitle',
+  refused: 'refusedTitle',
+  unsupported: 'unsupportedTitle',
+  failed: 'failedTitle',
+  'no-time': 'noTimeTitle',
+  'no-day': 'noDayTitle',
+}
+
+const ONBOARDING_REMIND_BODY_KEY: Record<OnboardingRemindState, string> = {
+  ask: 'body',
+  denied: 'deniedBody',
+  refused: 'refusedBody',
+  unsupported: 'unsupportedBody',
+  failed: 'failedBody',
+  'no-time': 'noTimeBody',
+  'no-day': 'noDayBody',
+}
+
+const ONBOARDING_REMIND_SIGNED_OUT_BODY_KEY: Partial<Record<OnboardingRemindState, string>> = {
+  ask: 'signedOutBody',
+  denied: 'deniedSignedOutBody',
+  refused: 'refusedSignedOutBody',
+  unsupported: 'unsupportedSignedOutBody',
+  failed: 'failedSignedOutBody',
+}
+
+/**
+ * Which `onboarding.flow.remind` strings the permission screen may truthfully show. Every body that
+ * reassures the person about the habit takes a signed-out pair, because a signed-out run buffers the
+ * habit into local storage rather than saving it to an account, and the next screen says exactly that
+ * in `signedOutBody`. The two schedule bodies claim nothing about storage, so they take one form.
+ */
+export function getOnboardingRemindCopy(
+  state: OnboardingRemindState,
+  isLive: boolean,
+): OnboardingRemindCopy {
+  const signedOutBodyKey = isLive ? undefined : ONBOARDING_REMIND_SIGNED_OUT_BODY_KEY[state]
+  return {
+    titleKey: ONBOARDING_REMIND_TITLE_KEY[state],
+    bodyKey: signedOutBodyKey ?? ONBOARDING_REMIND_BODY_KEY[state],
+  }
+}
+
+export interface OnboardingCompleteState {
+  skipped: boolean
+  signedOut: boolean
+  remindersOff: boolean
+  dueToday: boolean
+  general: boolean
+}
+
+export interface OnboardingCompleteCopy {
+  titleKey: string
+  bodyKey: string
+  pendingKey: string
+  actionKey: string
+}
+
+function getOnboardingCompleteBodyKey(state: OnboardingCompleteState): string {
+  if (state.skipped) return state.signedOut ? 'skippedSignedOutBody' : 'skippedBody'
+  if (state.signedOut) return 'signedOutBody'
+  if (state.general) return 'generalBody'
+  if (!state.dueToday) return state.remindersOff ? 'notTodayRemindersOffBody' : 'notTodayBody'
+  return state.remindersOff ? 'remindersOffBody' : 'body'
+}
+
+function getOnboardingCompleteTitleKey(state: OnboardingCompleteState): string {
+  if (state.skipped) return state.signedOut ? 'skippedSignedOutTitle' : 'skippedTitle'
+  if (state.signedOut) return 'signedOutTitle'
+  if (state.general) return 'generalTitle'
+  return state.dueToday ? 'title' : 'notTodayTitle'
+}
+
+/**
+ * Which `onboarding.flow.done` strings the last screen may truthfully show, button included, so the
+ * copy can never name a destination the button does not go to. The order of the four states is what
+ * keeps every sentence true.
+ *
+ * Skip outranks everything, because a run can only skip before a habit exists, so a skipped run has
+ * no plan to report; a skipped signed-out run then takes its own pair, because the button leaves for
+ * the login screen rather than Today, which is the only place the canvas-drawn skip copy can send
+ * anyone.
+ *
+ * Signing out outranks the general shape on purpose. A signed-out run holds a local draft rather
+ * than a saved habit, so the fact that matters is that nothing joins an account until the person
+ * signs in, and `generalBody`'s instruction to add days from the habit names a habit that does not
+ * exist yet. The general body may not offer a reminder, and `signedOutBody` offers none either, so
+ * the precedence costs detail rather than truth.
+ *
+ * A signed-in general habit then takes its own pair, because it is due on no day, it reaches neither
+ * Today nor the reminder scheduler, and no other body may offer it a reminder. Its badge takes
+ * `generalPending` rather than `notTodayPending`, which would claim a day it does not have.
+ *
+ * "It is in your day" holds only when the habit is due today, see {@link isOnboardingHabitDueToday}.
+ */
+export function getOnboardingCompleteCopy(state: OnboardingCompleteState): OnboardingCompleteCopy {
+  return {
+    titleKey: getOnboardingCompleteTitleKey(state),
+    bodyKey: getOnboardingCompleteBodyKey(state),
+    pendingKey: state.general ? 'generalPending' : state.dueToday ? 'pending' : 'notTodayPending',
+    actionKey: state.signedOut ? 'signIn' : 'seeDay',
+  }
+}
+
+export function getOnboardingReminderPreviewTime(dueTime: string): string | null {
+  const match = /^(\d{2}):(\d{2})$/u.exec(dueTime)
+  if (!match) return null
+  const minutes = (Number(match[1]) * 60 + Number(match[2]) - ONBOARDING_REMINDER_MINUTES + 1440) % 1440
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 }
 
 export type RetainedOnboardingAction = 'show' | 'autocomplete' | 'none'

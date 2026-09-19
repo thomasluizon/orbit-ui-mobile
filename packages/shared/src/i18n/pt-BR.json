@@ -1782,53 +1782,148 @@
     "flow": {
       "step": "{current} de {total}",
       "skip": "Pular",
-      "next": "Continuar",
-      "begin": "Começar",
       "back": "Voltar",
-      "welcome": {
-        "title": "Boas-vindas ao Orbit",
-        "subtitle": "Vamos deixar tudo do seu jeito e criar seu primeiro hábito.",
-        "weekStart": "Quando sua semana começa?"
-      },
-      "saveYourPlan": {
-        "title": "Salve seu plano",
-        "subtitle": "Crie sua conta para manter tudo o que você acabou de configurar.",
-        "habitSummary": "{count} hábitos prontos",
-        "habitSummaryOne": "1 hábito pronto",
-        "cta": "Criar conta e salvar",
-        "haveAccount": "Entrar"
-      },
-      "createHabit": {
-        "title": "Crie seu primeiro hábito",
-        "subtitle": "Os hábitos são a base de tudo. O que você quer acompanhar?",
-        "label": "Nome do hábito",
-        "placeholder": "ex: Beber água, Ler, Treinar",
-        "create": "Criar hábito",
-        "creating": "Criando...",
-        "success": "Hábito criado",
-        "useForm": "Usar formulário",
-        "starters": "Ou experimente",
-        "frequency": {
-          "daily": "Diário",
-          "weekly": "Semanal",
-          "oneTime": "Única vez"
+      "continue": "Continuar",
+      "create": "Criar hábito",
+      "retry": "Tentar novamente",
+      "createFailed": "O hábito não foi criado. Verifique a conexão e tente de novo.",
+      "what": {
+        "title": "O que você quer continuar fazendo?",
+        "label": "Escreva com as suas palavras",
+        "placeholder": "Caminhar toda segunda e quinta às 18:00",
+        "marksLabel": "Palavras que o Orbit entendeu",
+        "startersTitle": "Se quiser um começo",
+        "starters": {
+          "water": "Beber água pela manhã",
+          "walk": "Caminhar 3 vezes por semana",
+          "read": "Ler antes de dormir",
+          "tidy": "Arrumar a casa no sábado"
         },
-        "suggestions": {
-          "water": "Beber água",
-          "read": "Ler 10 páginas",
-          "exercise": "Exercitar",
-          "meditate": "Meditar"
+        "haveAccount": "Já tenho uma conta"
+      },
+      "when": {
+        "astraRead": "Entendi assim. Toque para corrigir.",
+        "direct": "Escolha os dias e a hora.",
+        "proposedBy": "Proposto pelo Astra",
+        "correctSchedule": "Corrigir agenda",
+        "scheduleDetails": "{title}. {cadence}. Hora: {time}",
+        "anyTime": "Qualquer hora",
+        "scheduleMode": "Agenda",
+        "fixedMode": "Dias fixos",
+        "flexibleMode": "Qualquer dia",
+        "intervalMode": "Repetir",
+        "oneTimeMode": "Uma vez",
+        "frequencyUnitLabel": "Unidade de repetição",
+        "frequencyLess": "Repetir antes",
+        "frequencyMore": "Repetir depois",
+        "units": {
+          "day": "Dias", "week": "Semanas", "month": "Meses", "year": "Anos"
+        },
+        "quantityLess": "Menos vezes",
+        "quantityMore": "Mais vezes",
+        "quantityUnit": {
+          "day": "{count, plural, one {vez por dia} other {vezes por dia}}",
+          "week": "{count, plural, one {vez por semana} other {vezes por semana}}",
+          "month": "{count, plural, one {vez por mês} other {vezes por mês}}",
+          "year": "{count, plural, one {vez por ano} other {vezes por ano}}"
+        },
+        "intervalLess": "Repetir com menos frequência",
+        "intervalMore": "Repetir com mais frequência",
+        "interval": "{count, plural, one {Toda semana} other {A cada # semanas}}",
+        "daysLabel": "Dias da semana",
+        "timeLabel": "Hora",
+        "timeHint": "Deixe vazio para qualquer hora do dia",
+        "limit": "As {allowance} mensagens de hoje foram usadas. A leitura da frase usa a mesma conta.",
+        "days": {
+          "sunday": "D", "monday": "S", "tuesday": "T", "wednesday": "Q", "thursday": "Q", "friday": "S", "saturday": "S"
+        },
+        "daysLong": {
+          "sunday": "domingo", "monday": "segunda", "tuesday": "terça", "wednesday": "quarta", "thursday": "quinta", "friday": "sexta", "saturday": "sábado"
+        },
+        "cadence": {
+          "fixed": "toda {days}",
+          "fixedAt": "toda {days} às {time}",
+          "daily": "todo dia",
+          "dailyAt": "todo dia às {time}",
+          "flexible": {
+            "day": "{count, plural, one {# vez por dia, qualquer dia} other {# vezes por dia, qualquer dia}}",
+            "week": "{count, plural, one {# vez por semana, qualquer dia} other {# vezes por semana, qualquer dia}}",
+            "month": "{count, plural, one {# vez por mês, qualquer dia} other {# vezes por mês, qualquer dia}}",
+            "year": "{count, plural, one {# vez por ano, qualquer dia} other {# vezes por ano, qualquer dia}}"
+          },
+          "flexibleAt": {
+            "day": "{count, plural, one {# vez por dia, qualquer dia, às {time}} other {# vezes por dia, qualquer dia, às {time}}}",
+            "week": "{count, plural, one {# vez por semana, qualquer dia, às {time}} other {# vezes por semana, qualquer dia, às {time}}}",
+            "month": "{count, plural, one {# vez por mês, qualquer dia, às {time}} other {# vezes por mês, qualquer dia, às {time}}}",
+            "year": "{count, plural, one {# vez por ano, qualquer dia, às {time}} other {# vezes por ano, qualquer dia, às {time}}}"
+          },
+          "once": "uma vez",
+          "onceAt": "uma vez às {time}",
+          "intervalUnit": {
+            "day": "{count, plural, one {todo dia} other {a cada # dias}}",
+            "week": "{count, plural, one {toda semana} other {a cada # semanas}}",
+            "month": "{count, plural, one {todo mês} other {a cada # meses}}",
+            "year": "{count, plural, one {todo ano} other {a cada # anos}}"
+          },
+          "intervalUnitAt": {
+            "day": "{count, plural, one {todo dia às {time}} other {a cada # dias, às {time}}}",
+            "week": "{count, plural, one {toda semana às {time}} other {a cada # semanas, às {time}}}",
+            "month": "{count, plural, one {todo mês às {time}} other {a cada # meses, às {time}}}",
+            "year": "{count, plural, one {todo ano às {time}} other {a cada # anos, às {time}}}"
+          },
+          "intervalDays": "{count, plural, one {toda semana, toda {days}} other {a cada # semanas, toda {days}}}",
+          "intervalDaysAt": "{count, plural, one {toda semana, toda {days}, às {time}} other {a cada # semanas, toda {days}, às {time}}}",
+          "and": "e"
         }
       },
-      "complete": {
-        "title": "Tudo pronto",
-        "subtitle": "É tudo de verdade. Seu hábito e seu progresso já estão salvos.",
-        "start": "Abrir Orbit",
-        "recap": {
-          "habit": "Hábito criado"
-        },
-        "trialTitle": "7 dias de Pro, grátis",
-        "trialDesc": "Sem cartão. Você tem acesso Pro completo até {date}."
+      "remind": {
+        "title": "Podemos te lembrar?",
+        "body": "O hábito já está criado. É assim que o lembrete chega:",
+        "signedOutBody": "O hábito fica neste aparelho até você entrar na conta. É assim que o lembrete chega:",
+        "notificationBody": "Em 15 minutos",
+        "fine": "Ele chega 15 minutos antes do hábito. Se o hábito já estiver registrado, ele não é enviado.",
+        "noTimeTitle": "Lembretes precisam de uma hora",
+        "noTimeBody": "O hábito ficou sem hora marcada, então não há lembrete para enviar. Você pode voltar e definir uma, ou seguir sem lembretes.",
+        "setTime": "Definir a hora",
+        "noDayTitle": "Lembretes precisam de um dia",
+        "noDayBody": "O hábito ficou sem dia marcado, então não há lembrete para enviar. Você pode voltar e escolher os dias, ou seguir sem lembretes.",
+        "setDays": "Escolher os dias",
+        "deniedTitle": "Os lembretes continuam desligados",
+        "deniedBody": "O Orbit não recebeu permissão para enviar notificações. O hábito já está salvo.",
+        "deniedSignedOutBody": "O Orbit não recebeu permissão para enviar notificações. O hábito fica neste aparelho até você entrar na conta.",
+        "refusedTitle": "Os lembretes estão desligados",
+        "refusedBody": "O aparelho está bloqueando as notificações do Orbit. Para receber lembretes, ligue as notificações do Orbit nas configurações do sistema. O hábito já está salvo.",
+        "refusedSignedOutBody": "O aparelho está bloqueando as notificações do Orbit. Para receber lembretes, ligue as notificações do Orbit nas configurações do sistema. O hábito fica neste aparelho até você entrar na conta.",
+        "unsupportedTitle": "Os lembretes não estão disponíveis",
+        "unsupportedBody": "Este aparelho não pode receber lembretes do Orbit. O hábito já está salvo.",
+        "unsupportedSignedOutBody": "Este aparelho não pode receber lembretes do Orbit. O hábito fica neste aparelho até você entrar na conta.",
+        "failedTitle": "Os lembretes não ligaram",
+        "failedBody": "A permissão foi dada e o registro deste aparelho falhou. O hábito já está salvo.",
+        "failedSignedOutBody": "A permissão foi dada e o registro deste aparelho falhou. O hábito fica neste aparelho até você entrar na conta.",
+        "allow": "Permitir lembretes",
+        "deny": "Agora não",
+        "continue": "Continuar"
+      },
+      "done": {
+        "title": "Pronto. Ele está no seu dia.",
+        "body": "Toque no anel dele no Hoje para registrar quando acontecer.",
+        "remindersOffBody": "Toque no anel dele no Hoje para registrar quando acontecer. Você pode ligar os lembretes no hábito.",
+        "notTodayTitle": "Pronto. Ele espera o primeiro dia.",
+        "notTodayBody": "Ele não é de hoje. Ele aparece no Hoje nos dias que você escolheu.",
+        "notTodayRemindersOffBody": "Ele não é de hoje. Ele aparece no Hoje nos dias que você escolheu. Você pode ligar os lembretes no hábito.",
+        "generalTitle": "Pronto. Ele não tem dias definidos.",
+        "generalBody": "Registre quando acontecer. Defina os dias no hábito para ele entrar no Hoje e enviar lembretes.",
+        "skippedTitle": "Você pode começar pelo Hoje.",
+        "skippedBody": "Crie o primeiro hábito quando quiser, escrevendo uma frase.",
+        "skippedSignedOutTitle": "Você pode começar depois de entrar.",
+        "skippedSignedOutBody": "Entre na conta e crie o primeiro hábito escrevendo uma frase.",
+        "signedOutTitle": "O seu plano está pronto.",
+        "signedOutBody": "Ele fica guardado neste aparelho e entra na sua conta quando você entrar.",
+        "seeDay": "Ver dia",
+        "signIn": "Entrar",
+        "notTodayPending": "hoje não",
+        "generalPending": "quando quiser",
+        "pending": "pendente"
       },
       "meetAstra": {
         "importPrompt": "Me ajude a importar meus hábitos de outro app. Vou anexar um arquivo ou colar minha lista, e você cria os hábitos."

@@ -1782,53 +1782,148 @@
     "flow": {
       "step": "{current} of {total}",
       "skip": "Skip",
-      "next": "Continue",
-      "begin": "Begin",
       "back": "Back",
-      "welcome": {
-        "title": "Welcome to Orbit",
-        "subtitle": "Let's set up your experience and create your first habit.",
-        "weekStart": "When does your week start?"
-      },
-      "saveYourPlan": {
-        "title": "Save your plan",
-        "subtitle": "Create your account to keep everything you just set up.",
-        "habitSummary": "{count} habits ready to go",
-        "habitSummaryOne": "1 habit ready to go",
-        "cta": "Create account & save",
-        "haveAccount": "Sign in"
-      },
-      "createHabit": {
-        "title": "Create your first habit",
-        "subtitle": "Habits are the building blocks. What do you want to track?",
-        "label": "Habit name",
-        "placeholder": "e.g., Drink water, Read, Exercise",
-        "create": "Create habit",
-        "creating": "Creating...",
-        "success": "Habit created",
-        "useForm": "Use form",
-        "starters": "Or try one",
-        "frequency": {
-          "daily": "Daily",
-          "weekly": "Weekly",
-          "oneTime": "One-time"
+      "continue": "Continue",
+      "create": "Create habit",
+      "retry": "Retry",
+      "createFailed": "The habit was not created. Check the connection and try again.",
+      "what": {
+        "title": "What do you want to keep doing?",
+        "label": "Write it in your own words",
+        "placeholder": "Walk every Monday and Thursday at 18:00",
+        "marksLabel": "Words Orbit understood",
+        "startersTitle": "If you want a start",
+        "starters": {
+          "water": "Drink water in the morning",
+          "walk": "Walk 3 times a week",
+          "read": "Read before bed",
+          "tidy": "Tidy the house on Saturday"
         },
-        "suggestions": {
-          "water": "Drink water",
-          "read": "Read 10 pages",
-          "exercise": "Exercise",
-          "meditate": "Meditate"
+        "haveAccount": "I already have an account"
+      },
+      "when": {
+        "astraRead": "This is how I read it. Tap to correct it.",
+        "direct": "Pick the days and the time.",
+        "proposedBy": "Proposed by Astra",
+        "correctSchedule": "Correct schedule",
+        "scheduleDetails": "{title}. {cadence}. Time: {time}",
+        "anyTime": "Any time",
+        "scheduleMode": "Schedule",
+        "fixedMode": "Set days",
+        "flexibleMode": "Any day",
+        "intervalMode": "Repeat",
+        "oneTimeMode": "Once",
+        "frequencyUnitLabel": "Repeat unit",
+        "frequencyLess": "Repeat sooner",
+        "frequencyMore": "Repeat later",
+        "units": {
+          "day": "Days", "week": "Weeks", "month": "Months", "year": "Years"
+        },
+        "quantityLess": "Fewer times",
+        "quantityMore": "More times",
+        "quantityUnit": {
+          "day": "{count, plural, one {time a day} other {times a day}}",
+          "week": "{count, plural, one {time a week} other {times a week}}",
+          "month": "{count, plural, one {time a month} other {times a month}}",
+          "year": "{count, plural, one {time a year} other {times a year}}"
+        },
+        "intervalLess": "Repeat less often",
+        "intervalMore": "Repeat more often",
+        "interval": "{count, plural, one {Every week} other {Every # weeks}}",
+        "daysLabel": "Days of the week",
+        "timeLabel": "Time",
+        "timeHint": "Leave empty for any time of day",
+        "limit": "Today''s {allowance} messages have been used. Reading the phrase draws on the same allowance.",
+        "days": {
+          "sunday": "Sun", "monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu", "friday": "Fri", "saturday": "Sat"
+        },
+        "daysLong": {
+          "sunday": "Sunday", "monday": "Monday", "tuesday": "Tuesday", "wednesday": "Wednesday", "thursday": "Thursday", "friday": "Friday", "saturday": "Saturday"
+        },
+        "cadence": {
+          "fixed": "every {days}",
+          "fixedAt": "every {days} at {time}",
+          "daily": "every day",
+          "dailyAt": "every day at {time}",
+          "flexible": {
+            "day": "{count, plural, one {# time a day, any day} other {# times a day, any day}}",
+            "week": "{count, plural, one {# time a week, any day} other {# times a week, any day}}",
+            "month": "{count, plural, one {# time a month, any day} other {# times a month, any day}}",
+            "year": "{count, plural, one {# time a year, any day} other {# times a year, any day}}"
+          },
+          "flexibleAt": {
+            "day": "{count, plural, one {# time a day, any day, at {time}} other {# times a day, any day, at {time}}}",
+            "week": "{count, plural, one {# time a week, any day, at {time}} other {# times a week, any day, at {time}}}",
+            "month": "{count, plural, one {# time a month, any day, at {time}} other {# times a month, any day, at {time}}}",
+            "year": "{count, plural, one {# time a year, any day, at {time}} other {# times a year, any day, at {time}}}"
+          },
+          "once": "once",
+          "onceAt": "once at {time}",
+          "intervalUnit": {
+            "day": "{count, plural, one {every day} other {every # days}}",
+            "week": "{count, plural, one {every week} other {every # weeks}}",
+            "month": "{count, plural, one {every month} other {every # months}}",
+            "year": "{count, plural, one {every year} other {every # years}}"
+          },
+          "intervalUnitAt": {
+            "day": "{count, plural, one {every day at {time}} other {every # days at {time}}}",
+            "week": "{count, plural, one {every week at {time}} other {every # weeks at {time}}}",
+            "month": "{count, plural, one {every month at {time}} other {every # months at {time}}}",
+            "year": "{count, plural, one {every year at {time}} other {every # years at {time}}}"
+          },
+          "intervalDays": "{count, plural, one {every week on {days}} other {every # weeks on {days}}}",
+          "intervalDaysAt": "{count, plural, one {every week on {days} at {time}} other {every # weeks on {days} at {time}}}",
+          "and": "and"
         }
       },
-      "complete": {
-        "title": "You're all set",
-        "subtitle": "Everything is real. Your habit and progress are already saved.",
-        "start": "Open Orbit",
-        "recap": {
-          "habit": "Habit created"
-        },
-        "trialTitle": "7 days of Pro, free",
-        "trialDesc": "No card required. You have full Pro access until {date}."
+      "remind": {
+        "title": "May we remind you?",
+        "body": "The habit is already created. This is how the reminder arrives:",
+        "signedOutBody": "The habit stays on this device until you sign in. This is how the reminder arrives:",
+        "notificationBody": "Due in 15 minutes",
+        "fine": "It arrives 15 minutes before the habit. If the habit is already logged, it is not sent.",
+        "noTimeTitle": "Reminders need a time",
+        "noTimeBody": "The habit has no set time, so there is no reminder to send. You can go back and set one, or continue without reminders.",
+        "setTime": "Set the time",
+        "noDayTitle": "Reminders need a day",
+        "noDayBody": "The habit has no set day, so there is no reminder to send. You can go back and pick the days, or continue without reminders.",
+        "setDays": "Pick the days",
+        "deniedTitle": "Reminders stay off",
+        "deniedBody": "Orbit did not get notification permission. The habit is already saved.",
+        "deniedSignedOutBody": "Orbit did not get notification permission. The habit stays on this device until you sign in.",
+        "refusedTitle": "Reminders are off",
+        "refusedBody": "The device is blocking Orbit notifications. To get reminders, turn Orbit notifications on in the system settings. The habit is already saved.",
+        "refusedSignedOutBody": "The device is blocking Orbit notifications. To get reminders, turn Orbit notifications on in the system settings. The habit stays on this device until you sign in.",
+        "unsupportedTitle": "Reminders are unavailable",
+        "unsupportedBody": "This device cannot receive Orbit reminders. The habit is already saved.",
+        "unsupportedSignedOutBody": "This device cannot receive Orbit reminders. The habit stays on this device until you sign in.",
+        "failedTitle": "Reminders did not turn on",
+        "failedBody": "Permission was given and registering this device failed. The habit is already saved.",
+        "failedSignedOutBody": "Permission was given and registering this device failed. The habit stays on this device until you sign in.",
+        "allow": "Allow reminders",
+        "deny": "Not now",
+        "continue": "Continue"
+      },
+      "done": {
+        "title": "Done. It is in your day.",
+        "body": "Tap its ring on Today to log it when it happens.",
+        "remindersOffBody": "Tap its ring on Today to log it when it happens. You can turn reminders on from the habit.",
+        "notTodayTitle": "Done. It waits for its first day.",
+        "notTodayBody": "It is not due today. It shows up on Today on the days you picked.",
+        "notTodayRemindersOffBody": "It is not due today. It shows up on Today on the days you picked. You can turn reminders on from the habit.",
+        "generalTitle": "Done. It has no set days.",
+        "generalBody": "Log it whenever it happens. Add days from the habit to put it on Today and get reminders.",
+        "skippedTitle": "You can start from Today.",
+        "skippedBody": "Create your first habit whenever you like, by writing a sentence.",
+        "skippedSignedOutTitle": "You can start once you sign in.",
+        "skippedSignedOutBody": "Sign in first, then create your first habit by writing a sentence.",
+        "signedOutTitle": "Your plan is ready.",
+        "signedOutBody": "It stays on this device and joins your account when you sign in.",
+        "seeDay": "See day",
+        "signIn": "Sign in",
+        "notTodayPending": "not today",
+        "generalPending": "anytime",
+        "pending": "pending"
       },
       "meetAstra": {
         "importPrompt": "Help me import my habits from another app. I'll attach a file or paste my list, and you create the habits."

@@ -25,6 +25,22 @@ describe('onboarding draft store', () => {
     expect(store.getState().habits).toHaveLength(2)
   })
 
+  it('replaces one buffered habit without changing its index', () => {
+    const store = makeStore()
+    store.getState().bufferHabit({ title: 'Drink water' })
+    store.getState().bufferHabit({ title: 'Read' })
+
+    store.getState().replaceHabit(0, {
+      title: 'Drink water',
+      frequencyUnit: 'Day',
+    })
+
+    expect(store.getState().habits).toEqual([
+      { title: 'Drink water', frequencyUnit: 'Day' },
+      { title: 'Read' },
+    ])
+  })
+
   it('builds an apply payload from buffered answers', () => {
     const store = makeStore()
     store.getState().bufferHabit({ title: 'Drink water', frequencyUnit: 'Day' })
@@ -61,6 +77,22 @@ describe('onboarding draft store', () => {
     expect(store.getState().hasPendingAnswers()).toBe(true)
   })
 
+  it('keeps deferred push registration outcomes in the persisted draft', () => {
+    const store = makeStore()
+
+    store.getState().markPushPermissionGranted()
+    expect(getPersistedOnboardingDraft(store.getState())).toMatchObject({
+      pushPermissionGranted: true,
+      pushRegistrationFailed: false,
+    })
+
+    store.getState().markPushRegistrationFailed()
+    expect(getPersistedOnboardingDraft(store.getState())).toMatchObject({
+      pushPermissionGranted: true,
+      pushRegistrationFailed: true,
+    })
+  })
+
   it('resets back to the initial draft', () => {
     const store = makeStore()
     store.getState().bufferHabit({ title: 'Drink water' })
@@ -75,30 +107,31 @@ describe('onboarding draft store', () => {
 
   it('migrates unknown persisted shapes to a clean draft', () => {
     expect(migrateOnboardingDraft(null)).toEqual({
-      step: 0,
       habits: [],
       firstLog: null,
       goal: null,
       weekStartDay: null,
       colorScheme: null,
       onboardingLocallyDone: false,
+      pushPermissionGranted: false,
+      pushRegistrationFailed: false,
     })
 
-    const partial = migrateOnboardingDraft({ step: 3, onboardingLocallyDone: true })
-    expect(partial.step).toBe(3)
+    const partial = migrateOnboardingDraft({ onboardingLocallyDone: true })
     expect(partial.onboardingLocallyDone).toBe(true)
     expect(partial.habits).toEqual([])
   })
 
   it('round-trips a payload through the pure builder', () => {
     const payload = buildApplyOnboardingPayload({
-      step: 6,
       habits: [{ title: 'Stretch' }],
       firstLog: null,
       goal: null,
       weekStartDay: 1,
       colorScheme: null,
       onboardingLocallyDone: true,
+      pushPermissionGranted: false,
+      pushRegistrationFailed: false,
     })
 
     expect(payload).toEqual({ habits: [{ title: 'Stretch' }], weekStartDay: 1 })

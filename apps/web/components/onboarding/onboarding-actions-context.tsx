@@ -12,7 +12,7 @@ import type { CreateGoalRequest } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { useBulkCreateHabits, useCreateHabit, useLogHabit } from '@/hooks/use-habits'
+import { useBulkCreateHabits, useCreateHabit, useLogHabit, useUpdateHabit } from '@/hooks/use-habits'
 import { useCreateGoal } from '@/hooks/use-goals'
 import {
   completeOnboarding,
@@ -22,10 +22,12 @@ import {
 /** Canonical mode-blind action surface consumed by every onboarding step. */
 export interface OnboardingActions {
   createHabit: (input: CreateHabitRequest) => Promise<{ id: string; title: string }>
+  updateHabit: (habitId: string, input: CreateHabitRequest) => Promise<void>
   createHabitsBulk: (items: BulkHabitItem[]) => Promise<void>
   logHabit: (habitId: string) => Promise<void>
   createGoal: (input: CreateGoalRequest) => Promise<void>
   setWeekStartDay: (day: OnboardingWeekStartDay) => Promise<void>
+  deferPushRegistration: () => void
   finishOnboarding: () => Promise<void>
   onImport?: () => void
 }
@@ -86,35 +88,28 @@ export function useBufferOnboardingActions(): OnboardingActions {
         const index = useOnboardingDraftStore.getState().bufferHabit(input)
         return Promise.resolve({ id: String(index), title: input.title })
       },
+      updateHabit: (habitId, input) => {
+        useOnboardingDraftStore.getState().replaceHabit(Number(habitId), input)
+        return Promise.resolve()
+      },
       createHabitsBulk: (items) => {
         const store = useOnboardingDraftStore.getState()
-        for (const item of items) {
-          store.bufferHabit({
-            title: item.title,
-            ...(item.emoji != null ? { emoji: item.emoji } : {}),
-            ...(item.frequencyUnit != null ? { frequencyUnit: item.frequencyUnit } : {}),
-            ...(item.frequencyQuantity != null
-              ? { frequencyQuantity: item.frequencyQuantity }
-              : {}),
-            ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
-          })
-        }
+        for (const item of items) store.bufferHabit({
+          title: item.title,
+          ...(item.emoji != null ? { emoji: item.emoji } : {}),
+          ...(item.frequencyUnit != null ? { frequencyUnit: item.frequencyUnit } : {}),
+          ...(item.frequencyQuantity != null ? { frequencyQuantity: item.frequencyQuantity } : {}),
+          ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
+        })
         return Promise.resolve()
       },
       logHabit: (habitId) => {
-        useOnboardingDraftStore
-          .getState()
-          .bufferFirstLog(Number(habitId), formatAPIDate(new Date()))
+        useOnboardingDraftStore.getState().bufferFirstLog(Number(habitId), formatAPIDate(new Date()))
         return Promise.resolve()
       },
-      createGoal: (input) => {
-        useOnboardingDraftStore.getState().bufferGoal(input)
-        return Promise.resolve()
-      },
-      setWeekStartDay: (day) => {
-        useOnboardingDraftStore.getState().bufferWeekStartDay(day)
-        return Promise.resolve()
-      },
+      createGoal: (input) => { useOnboardingDraftStore.getState().bufferGoal(input); return Promise.resolve() },
+      setWeekStartDay: (day) => { useOnboardingDraftStore.getState().bufferWeekStartDay(day); return Promise.resolve() },
+      deferPushRegistration: () => useOnboardingDraftStore.getState().markPushPermissionGranted(),
       finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
         router.push('/login?from=onboarding')
@@ -131,6 +126,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
   const queryClient = useQueryClient()
   const t = useTranslations()
   const createHabit = useCreateHabit()
+  const updateHabit = useUpdateHabit()
   const bulkCreateHabits = useBulkCreateHabits()
   const logHabit = useLogHabit()
   const createGoal = useCreateGoal()
@@ -141,22 +137,21 @@ export function useLiveOnboardingActions(): OnboardingActions {
         const result = await createHabit.mutateAsync(input)
         return { id: result.id, title: input.title }
       },
-      createHabitsBulk: async (items) => {
-        await bulkCreateHabits.mutateAsync({ habits: items })
+      updateHabit: async (habitId, input) => {
+        await updateHabit.mutateAsync({
+          habitId,
+          data: { ...input, isBadHabit: false, isGeneral: input.isGeneral ?? false, isFlexible: input.isFlexible ?? false, dueTime: input.dueTime ?? null },
+        })
       },
-      logHabit: async (habitId) => {
-        await logHabit.mutateAsync({ habitId, intent: 'log' })
-      },
-      createGoal: async (input) => {
-        await createGoal.mutateAsync(input)
-      },
+      createHabitsBulk: async (items) => { await bulkCreateHabits.mutateAsync({ habits: items }) },
+      logHabit: async (habitId) => { await logHabit.mutateAsync({ habitId, intent: 'log' }) },
+      createGoal: async (input) => { await createGoal.mutateAsync(input) },
       setWeekStartDay: async (day) => {
-        queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-          old ? { ...old, weekStartDay: day } : old,
-        )
+        queryClient.setQueryData<Profile>(profileKeys.detail(), (old) => old ? { ...old, weekStartDay: day } : old)
         await updateWeekStartDayAction({ weekStartDay: day })
         void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       },
+      deferPushRegistration: () => undefined,
       finishOnboarding: async () => {
         try {
           await completeOnboarding()
@@ -178,6 +173,6 @@ export function useLiveOnboardingActions(): OnboardingActions {
         router.push('/?astra=open')
       },
     }),
-    [bulkCreateHabits, createHabit, logHabit, createGoal, queryClient, router, t],
+    [bulkCreateHabits, createGoal, createHabit, logHabit, queryClient, router, t, updateHabit],
   )
 }

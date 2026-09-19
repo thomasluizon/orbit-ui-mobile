@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: mocks.createHabit }),
+  useUpdateHabit: () => ({ mutateAsync: vi.fn() }),
   useBulkCreateHabits: () => ({ mutateAsync: mocks.bulkCreate }),
   useLogHabit: () => ({ mutateAsync: mocks.logHabit }),
 }))

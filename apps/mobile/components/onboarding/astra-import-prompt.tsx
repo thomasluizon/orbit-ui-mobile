@@ -126,9 +126,9 @@ export function AstraImportPrompt() {
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     content: {
-      gap: 14,
+      gap: 12,
       paddingHorizontal: 24,
-      paddingTop: 10,
+      paddingTop: 8,
       paddingBottom: 8,
     },
     description: {
@@ -144,7 +144,7 @@ function createStyles(tokens: AppTokensV2) {
       minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingBottom: 10,
+      paddingBottom: 8,
     },
     quietText: {
       fontFamily: 'Geist_400Regular',

@@ -1,329 +1,109 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
-// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated, StyleSheet, Text, View } from 'react-native'
-import { Check, Settings2 } from '@/components/ui/icons'
+import { useMemo } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useAppToast } from '@/hooks/use-app-toast'
-import { useOnboardingActions } from './onboarding-actions-context'
-import { Input } from '@/components/ui/input'
+import type { Time24 } from '@orbit/shared/contracts/forms'
+import { MAX_HABIT_INTERVAL_WEEKS, type FrequencyUnit } from '@orbit/shared/types/habit'
+import { canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
-import { PillButton } from '@/components/ui/pill-button'
-import {
-  getFriendlyErrorMessage,
-  translateErrorKey,
-  validateHabitFormInput,
-} from '@orbit/shared/utils'
-import {
-  getOnboardingHabitFrequencyLabelKey,
-  ONBOARDING_HABIT_FREQUENCIES,
-  ONBOARDING_HABIT_SUGGESTIONS,
-  type OnboardingFrequencyUnit,
-} from '@orbit/shared/utils/onboarding'
-import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { Minus, Plus } from '@/components/ui/icons'
+import { Proposed } from '@/components/ui/proposed'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { TimeField } from '@/components/ui/time-field'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-interface Suggestion {
-  key: string
-  frequency: OnboardingFrequencyUnit
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
+interface Props { title: string; emoji: string; schedule: OnboardingSchedule; proposed: boolean; correcting: boolean; canSaveRepeatWeeks: boolean; atLimit: boolean; allowance: number; onCorrect: () => void; onToggleDay: (day: string) => void; onTimeChange: (value: string) => void; onModeChange: (mode: OnboardingScheduleMode) => void; onFrequencyUnitChange: (unit: FrequencyUnit) => void; onQuantityChange: (quantity: number) => void; onIntervalWeeksChange: (intervalWeeks: number) => void }
+
+function joinDays(days: string[], label: (day: string) => string, conjunction: string): string {
+  const labels = days.map(label)
+  if (labels.length < 2) return labels[0] ?? ''
+  if (labels.length === 2) return `${labels[0]} ${conjunction} ${labels[1]}`
+  return `${labels.slice(0, -1).join(', ')} ${conjunction} ${labels.at(-1)}`
 }
 
-interface OnboardingCreateHabitProps {
-  onCreated: (habitId: string, title: string) => void
+function EmphasizedCadence({ text, emphasis, color, strongColor }: Readonly<{ text: string; emphasis: string; color: string; strongColor: string }>) {
+  /** An empty emphasis is a habit with no due time, and ''.indexOf returns 0, which would mark nothing. */
+  const start = emphasis ? text.indexOf(emphasis) : -1
+  if (start < 0) return <Text style={[styles.sentence, { color }]}>{text}</Text>
+  return <Text style={[styles.sentence, { color }]}>{text.slice(0, start)}<Text style={[styles.emphasis, { color: strongColor }]}>{emphasis}</Text>{text.slice(start + emphasis.length)}</Text>
 }
 
-/**
- * ob-3 step: "Tell Astra what to track." Kit field well, suggestion chips,
- * frequency chip row, pill CTA.
- */
-export function OnboardingCreateHabit({
-  onCreated,
-}: Readonly<OnboardingCreateHabitProps>) {
+type CadenceTranslate = ReturnType<typeof useTranslation>['t']
+interface CadencePresentation { text: string; emphasis: string }
+
+function cadenceKey(base: 'once' | 'daily' | 'fixed', time: string): string {
+  return time ? `${base}At` : base
+}
+
+function getIntervalCadence(schedule: OnboardingSchedule, days: string, t: CadenceTranslate): CadencePresentation {
+  const time = schedule.dueTime
+  const count = days ? schedule.intervalWeeks : (schedule.frequencyQuantity ?? 1)
+  const unit = days ? 'week' : (schedule.frequencyUnit ?? 'Day').toLowerCase()
+  const key = days ? (time ? 'intervalDaysAt' : 'intervalDays') : `${time ? 'intervalUnitAt' : 'intervalUnit'}.${unit}`
+  return { text: t(`onboarding.flow.when.cadence.${key}`, { count, days, time }), emphasis: time || String(count) }
+}
+
+function getCadencePresentation(schedule: OnboardingSchedule, t: CadenceTranslate): CadencePresentation {
+  const time = schedule.dueTime
+  if (schedule.isFlexible) {
+    const count = schedule.frequencyQuantity ?? 1
+    const unit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
+    return { text: t(`onboarding.flow.when.cadence.${time ? 'flexibleAt' : 'flexible'}.${unit}`, { count, time }), emphasis: String(count) }
+  }
+  if (schedule.frequencyUnit === null && !schedule.isGeneral) return { text: t(`onboarding.flow.when.cadence.${cadenceKey('once', time)}`, { time }), emphasis: time }
+  if (schedule.days.length === DAYS.length && schedule.intervalWeeks === 1) return { text: t(`onboarding.flow.when.cadence.${cadenceKey('daily', time)}`, { time }), emphasis: time }
+  const days = joinDays(schedule.days, (day) => t(`onboarding.flow.when.daysLong.${day.toLowerCase()}`), t('onboarding.flow.when.cadence.and'))
+  if (days && schedule.intervalWeeks === 1) return { text: t(`onboarding.flow.when.cadence.${cadenceKey('fixed', time)}`, { days, time }), emphasis: time }
+  return getIntervalCadence(schedule, days, t)
+}
+
+function CadenceSentence({ schedule, color, emphasis }: Readonly<{ schedule: OnboardingSchedule; color: string; emphasis: string }>) {
   const { t } = useTranslation()
-  const translate = useCallback(
-    (key: string, values?: Record<string, unknown>) => t(key, values),
-    [t],
-  )
+  const presentation = getCadencePresentation(schedule, t)
+  return <EmphasizedCadence {...presentation} color={color} strongColor={emphasis} />
+}
+
+interface StepperProps { value: number; minimum: number; maximum?: number; lessLabel: string; moreLabel: string; description: string; colors: { fg1: string; fg2: string; fg3: string; bgWell: string; hairline: string }; onChange: (value: number) => void }
+function Stepper({ value, minimum, maximum, lessLabel, moreLabel, description, colors, onChange }: Readonly<StepperProps>) {
+  return <View style={styles.stepper}>
+    <Pressable accessibilityRole="button" accessibilityLabel={lessLabel} disabled={value <= minimum} style={[styles.stepButton, { backgroundColor: colors.bgWell, borderColor: colors.hairline }, value <= minimum ? styles.disabled : null]} onPress={() => onChange(Math.max(minimum, value - 1))}><Minus size={20} strokeWidth={2} color={colors.fg2} /></Pressable>
+    <Text style={[styles.quantity, { color: colors.fg1 }]}>{value}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={moreLabel} disabled={maximum !== undefined && value >= maximum} style={[styles.stepButton, { backgroundColor: colors.bgWell, borderColor: colors.hairline }, maximum !== undefined && value >= maximum ? styles.disabled : null]} onPress={() => onChange(maximum === undefined ? value + 1 : Math.min(maximum, value + 1))}><Plus size={20} strokeWidth={2} color={colors.fg2} /></Pressable>
+    <Text style={[styles.description, { color: colors.fg3 }]}>{description}</Text>
+  </View>
+}
+
+export function OnboardingCreateHabit(props: Readonly<Props>) {
+  const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
-  const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [title, setTitle] = useState('')
-  const [frequencyUnit, setFrequencyUnit] = useState<
-    OnboardingFrequencyUnit | undefined
-  >('Day')
-  const [isCreated, setIsCreated] = useState(false)
-  const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(
-    null,
-  )
-  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
-  const { showError } = useAppToast()
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const successScale = useMemo(() => new Animated.Value(0), [])
-
-  useEffect(() => {
-    if (!isCreated) return
-    if (prefersReducedMotion) {
-      successScale.setValue(1)
-      return
-    }
-    const animation = Animated.spring(successScale, {
-      toValue: 1,
-      stiffness: 260,
-      damping: 20,
-      mass: 0.9,
-      useNativeDriver: true,
-    })
-    animation.start()
-    return () => animation.stop()
-  }, [isCreated, prefersReducedMotion, successScale])
-
-  const actions = useOnboardingActions()
-
-  const activeFrequency = frequencyUnit ?? 'one-time'
-
-  function selectSuggestion(suggestion: Suggestion) {
-    setTitle(t(`onboarding.flow.createHabit.suggestions.${suggestion.key}`))
-    setFrequencyUnit(suggestion.frequency)
-    setSelectedSuggestion(suggestion.key)
-  }
-
-  function selectFrequency(value: OnboardingFrequencyUnit | 'one-time') {
-    if (value === 'one-time') {
-      setFrequencyUnit(undefined)
-    } else {
-      setFrequencyUnit(value)
-    }
-    setSelectedSuggestion(null)
-  }
-
-  const handleCreate = useCallback(async () => {
-    if (!title.trim() || isCreating) return
-
-    const validationError = translateErrorKey(
-      translate,
-      validateHabitFormInput({
-        title: title.trim(),
-        frequencyUnit,
-        frequencyQuantity: frequencyUnit ? 1 : null,
-      }),
-    )
-    if (validationError) {
-      showError(validationError)
-      return
-    }
-
-    setIsCreating(true)
-    try {
-      const created = await actions.createHabit({
-        title: title.trim(),
-        frequencyQuantity: 1,
-        ...(frequencyUnit ? { frequencyUnit } : {}),
-      })
-      setIsCreated(true)
-      setTimeout(() => {
-        onCreated(created.id, created.title)
-      }, 1500)
-    } catch (err: unknown) {
-      setIsCreating(false)
-      showError(
-        getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'),
-      )
-    }
-  }, [
-    title,
-    frequencyUnit,
-    isCreating,
-    actions,
-    onCreated,
-    showError,
-    translate,
-  ])
-
-  if (isCreated) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.successCard}>
-          <Animated.View
-            style={[
-              styles.successIcon,
-              {
-                opacity: successScale,
-                transform: [
-                  {
-                    scale: successScale.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.3, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <Check size={26} color={tokens.fgOnPrimary} strokeWidth={2.4} />
-          </Animated.View>
-          <Text style={styles.successTitle}>{title}</Text>
-          <Text style={styles.successFreq}>
-            {t(getOnboardingHabitFrequencyLabelKey(frequencyUnit))}
-          </Text>
-          <Text style={styles.successMessage}>
-            {t('onboarding.flow.createHabit.success')}
-          </Text>
-        </View>
-      </View>
-    )
-  }
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
-        {t('onboarding.flow.createHabit.title')}
-      </Text>
-      <Text style={styles.subtitle}>
-        {t('onboarding.flow.createHabit.subtitle')}
-      </Text>
-
-      <Input
-        label={t('onboarding.flow.createHabit.label')}
-        value={title}
-        onChange={setTitle}
-        placeholder={t('onboarding.flow.createHabit.placeholder')}
-        maxLength={MAX_HABIT_TITLE_LENGTH}
-        disabled={isCreating}
-        onSubmit={() => void handleCreate()}
-      />
-
-      <View style={styles.toggleRow}>
-        <Chip
-          active={showFrequencyPicker}
-          leading={<Settings2 size={11} strokeWidth={1.5} color={tokens.fg2} />}
-          onPress={() => setShowFrequencyPicker((value) => !value)}
-        >
-          {t('onboarding.flow.createHabit.useForm')}
-        </Chip>
-      </View>
-
-      {showFrequencyPicker && (
-        <View style={styles.chipsRow}>
-          {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
-            <Chip
-              key={freq.value}
-              active={activeFrequency === freq.value}
-              onPress={() => selectFrequency(freq.value)}
-            >
-              {t(freq.labelKey)}
-            </Chip>
-          ))}
-        </View>
-      )}
-
-      <Text style={styles.sectionLabel}>
-        {t('onboarding.flow.createHabit.starters')}
-      </Text>
-      <View style={styles.chipsRow}>
-        {ONBOARDING_HABIT_SUGGESTIONS.map((suggestion) => (
-          <Chip
-            key={suggestion.key}
-            active={selectedSuggestion === suggestion.key}
-            onPress={() => selectSuggestion(suggestion)}
-          >
-            {t(`onboarding.flow.createHabit.suggestions.${suggestion.key}`)}
-          </Chip>
-        ))}
-      </View>
-
-      <View style={styles.createBtnWrap}>
-        <PillButton
-
-          disabled={!title.trim() || isCreating}
-          loading={isCreating}
-          onClick={() => void handleCreate()}
-
-        >
-          {isCreating
-            ? t('onboarding.flow.createHabit.creating')
-            : t('onboarding.flow.createHabit.create')}
-        </PillButton>
-      </View>
-    </View>
-  )
+  const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
+  const schedule = clampOnboardingRepeatWeeks(props.schedule, props.canSaveRepeatWeeks)
+  const mode = getOnboardingScheduleMode(schedule)
+  const frequencyUnitOptions = [
+    { value: 'Day', label: t('onboarding.flow.when.units.day') },
+    { value: 'Week', label: t('onboarding.flow.when.units.week') },
+    { value: 'Month', label: t('onboarding.flow.when.units.month') },
+    { value: 'Year', label: t('onboarding.flow.when.units.year') },
+  ] as const
+  const intervalCount = schedule.frequencyQuantity ?? 1
+  const intervalUnit = (schedule.frequencyUnit ?? 'Week').toLowerCase()
+  const proposalCadence = getCadencePresentation(schedule, t)
+  const controls = <View style={[styles.controls, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
+    <SegmentedControl label={t('onboarding.flow.when.scheduleMode')} value={mode} options={[{ value: 'fixed', label: t('onboarding.flow.when.fixedMode') }, { value: 'flexible', label: t('onboarding.flow.when.flexibleMode') }, { value: 'interval', label: t('onboarding.flow.when.intervalMode') }, { value: 'oneTime', label: t('onboarding.flow.when.oneTimeMode') }]} onChange={props.onModeChange} />
+    {mode === 'flexible' ? <><SegmentedControl label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.quantityLess')} moreLabel={t('onboarding.flow.when.quantityMore')} description={t(`onboarding.flow.when.quantityUnit.${intervalUnit}`, { count: schedule.frequencyQuantity ?? 1 })} colors={tokens} onChange={props.onQuantityChange} /></> : null}
+    {mode === 'fixed' ? <><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.daysLabel')}</Text><View style={styles.days}>{DAYS.map((day) => <Chip key={day} active={schedule.days.includes(day)} accessibilityLabel={t(`onboarding.flow.when.daysLong.${day.toLowerCase()}`)} onPress={() => props.onToggleDay(day)}>{t(`onboarding.flow.when.days.${day.toLowerCase()}`)}</Chip>)}</View></> : null}
+    {mode === 'interval' ? <><SegmentedControl label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.frequencyLess')} moreLabel={t('onboarding.flow.when.frequencyMore')} description={t(`onboarding.flow.when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} colors={tokens} onChange={props.onQuantityChange} /></> : null}
+    {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('onboarding.flow.when.intervalLess')} moreLabel={t('onboarding.flow.when.intervalMore')} description={t('onboarding.flow.when.interval', { count: schedule.intervalWeeks })} colors={tokens} onChange={props.onIntervalWeeksChange} /> : null}
+    <TimeField label={t('onboarding.flow.when.timeLabel')} value={schedule.dueTime as Time24 | ''} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('onboarding.flow.when.timeHint')} />
+  </View>
+  return <View style={styles.root}>
+    <View style={styles.intro}>{props.proposed ? <AstraGlyph size={18} color={tokens.fg3} /> : null}<Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t(props.proposed ? 'onboarding.flow.when.astraRead' : 'onboarding.flow.when.direct')}</Text></View>
+    {props.atLimit ? <CapacityNotice message={t('onboarding.flow.when.limit', { allowance: props.allowance })} /> : null}
+    {props.proposed && !props.correcting ? <Pressable accessibilityRole="button" accessibilityLabel={t('onboarding.flow.when.correctSchedule')} accessibilityHint={t('onboarding.flow.when.scheduleDetails', { title: props.title, cadence: proposalCadence.text, time: schedule.dueTime || t('onboarding.flow.when.anyTime') })} onPress={props.onCorrect} style={({ pressed }) => pressed ? styles.proposalPressed : undefined}><Proposed proposed scope="block" label={t('onboarding.flow.when.proposedBy')}><View style={[styles.proposal, { backgroundColor: tokens.bgCard }]}><View style={styles.proposalTitle}><View style={[styles.proposalEmojiWell, { backgroundColor: tokens.bgWell }]}><Text style={styles.proposalEmoji}>{props.emoji}</Text></View><Text style={[styles.proposalHabit, { color: tokens.fg1 }]}>{props.title}</Text></View><CadenceSentence schedule={schedule} color={tokens.fg2} emphasis={tokens.fg1} />{schedule.days.length ? <View accessibilityLabel={t('onboarding.flow.when.daysLabel')} style={styles.previewDays}>{DAYS.map((day) => <View key={day} style={[styles.previewDay, schedule.days.includes(day) ? { backgroundColor: tokens.bgWell } : null]}><Text style={[styles.previewDayText, { color: schedule.days.includes(day) ? tokens.fg1 : tokens.fg3 }]}>{t(`onboarding.flow.when.days.${day.toLowerCase()}`)}</Text></View>)}</View> : null}<View style={styles.previewTime}><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.timeLabel')}</Text><View style={[styles.previewTimeWell, { backgroundColor: tokens.bgField }]}><Text style={[styles.previewTimeText, { color: tokens.fg1 }]}>{schedule.dueTime || '--:--'}</Text></View><Text style={[styles.previewHint, { color: tokens.fg2 }]}>{t('onboarding.flow.when.timeHint')}</Text></View></View></Proposed></Pressable> : controls}
+  </View>
 }
 
-function createStyles(tokens: AppTokensV2) {
-  return StyleSheet.create({
-    container: {
-      gap: 16,
-      paddingTop: 16,
-      paddingBottom: 12,
-    },
-    title: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 24,
-      letterSpacing: -0.24,
-      lineHeight: 31,
-      color: tokens.fg1,
-      textAlign: 'center',
-    },
-    subtitle: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 15,
-      lineHeight: 23,
-      color: tokens.fg2,
-      textAlign: 'center',
-    },
-    sectionLabel: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 12,
-      letterSpacing: 0.96,
-      textTransform: 'uppercase',
-      color: tokens.fg3,
-      marginTop: 6,
-    },
-    toggleRow: {
-      alignItems: 'center',
-    },
-    chipsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 6,
-    },
-    createBtnWrap: {
-      marginTop: 8,
-    },
-    successCard: {
-      paddingVertical: 24,
-      alignItems: 'center',
-      gap: 6,
-    },
-    successIcon: {
-      width: 56,
-      height: 56,
-      borderRadius: 999,
-      backgroundColor: tokens.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 8,
-    },
-    successTitle: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 17,
-      color: tokens.fg1,
-    },
-    successFreq: {
-      fontFamily: 'GeistMono_400Regular',
-      fontSize: 12,
-      color: tokens.fg3,
-      letterSpacing: 0.24,
-    },
-    successMessage: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
-      marginTop: 8,
-    },
-  })
-}
+const styles = StyleSheet.create({ root: { gap: 24 }, intro: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 }, title: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 26 }, controls: { borderRadius: 20, borderWidth: 1, gap: 16, padding: 24 }, label: { fontFamily: 'Geist_500Medium', fontSize: 14 }, days: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, proposal: { borderRadius: 20, gap: 16, padding: 24 }, proposalPressed: { transform: [{ scale: 0.99 }] }, proposalTitle: { alignItems: 'center', flexDirection: 'row', gap: 12 }, proposalEmojiWell: { alignItems: 'center', borderRadius: 12, height: 44, justifyContent: 'center', width: 44 }, proposalEmoji: { fontSize: 24 }, proposalHabit: { flex: 1, fontFamily: 'Geist_500Medium', fontSize: 15 }, previewDays: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, previewDay: { alignItems: 'center', borderRadius: 18, height: 36, justifyContent: 'center', width: 36 }, previewDayText: { fontFamily: 'Geist_400Regular', fontSize: 12 }, previewTime: { gap: 8 }, previewTimeWell: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }, previewTimeText: { fontFamily: 'Geist_400Regular', fontSize: 16 }, previewHint: { fontFamily: 'Geist_400Regular', fontSize: 12 }, sentence: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 }, emphasis: { fontFamily: 'Geist_500Medium' }, stepper: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, stepButton: { alignItems: 'center', borderRadius: 22, borderWidth: 1, height: 44, justifyContent: 'center', width: 44 }, quantity: { fontFamily: 'GeistMono_500Medium', fontSize: 20, minWidth: 28, textAlign: 'center', fontVariant: ['tabular-nums'] }, description: { fontFamily: 'Geist_400Regular', fontSize: 14 }, disabled: { opacity: 0.4 } })

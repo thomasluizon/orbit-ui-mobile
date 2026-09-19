@@ -6,6 +6,7 @@ import React from 'react'
 const applyOnboardingMock = vi.fn()
 const patchProfileMock = vi.fn()
 const captureExceptionMock = vi.fn()
+const subscribePushMock = vi.fn()
 const profileState = { hasCompletedOnboarding: false }
 
 vi.mock('@/lib/actions/onboarding', () => ({
@@ -20,7 +21,13 @@ vi.mock('@sentry/nextjs', () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }))
 
+vi.mock('@/lib/actions/notifications', () => ({
+  subscribePush: (...args: unknown[]) => subscribePushMock(...args),
+  unsubscribePush: vi.fn(),
+}))
+
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
+import { requestWebPushPermission } from '@/hooks/use-push-notification-preferences'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -34,12 +41,52 @@ async function seedPendingDraft() {
   await useOnboardingDraftStore.persist.rehydrate()
 }
 
+function installPushEnvironment() {
+  const requestPermission = vi.fn(() => Promise.resolve('granted' as const))
+  Object.defineProperty(globalThis, 'Notification', { configurable: true, value: { permission: 'default', requestPermission } })
+  Object.defineProperty(globalThis, 'PushManager', { configurable: true, value: class PushManager {} })
+  const subscription = { toJSON: () => ({ endpoint: 'https://push.example/subscription' }), unsubscribe: vi.fn() }
+  Object.defineProperty(globalThis.navigator, 'serviceWorker', {
+    configurable: true,
+    value: { ready: Promise.resolve({ pushManager: { getSubscription: vi.fn(() => null), subscribe: vi.fn(() => subscription) } }) },
+  })
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'AQ'
+}
+
 describe('useOnboardingFlush', () => {
   beforeEach(() => {
     applyOnboardingMock.mockReset()
     patchProfileMock.mockReset()
     captureExceptionMock.mockReset()
+    subscribePushMock.mockReset()
     profileState.hasCompletedOnboarding = false
+  })
+
+  it('registers a signed-out permission grant after authentication flushes onboarding', async () => {
+    installPushEnvironment()
+    applyOnboardingMock.mockResolvedValue({ applied: true, createdHabitCount: 1, createdGoal: false, loggedFirstHabit: false })
+    await seedPendingDraft()
+
+    const outcome = await requestWebPushPermission()
+    expect(outcome).toBe('granted')
+    useOnboardingDraftStore.setState({ pushPermissionGranted: true })
+    renderHook(() => useOnboardingFlush(), { wrapper })
+
+    await waitFor(() => expect(subscribePushMock).toHaveBeenCalledWith({ endpoint: 'https://push.example/subscription' }))
+  })
+
+  it('retains the draft and exposes deferred registration failure', async () => {
+    installPushEnvironment()
+    applyOnboardingMock.mockResolvedValue({ applied: true, createdHabitCount: 1, createdGoal: false, loggedFirstHabit: false })
+    subscribePushMock.mockRejectedValue(new Error('backend unavailable'))
+    await seedPendingDraft()
+    useOnboardingDraftStore.setState({ pushPermissionGranted: true })
+
+    renderHook(() => useOnboardingFlush(), { wrapper })
+
+    await waitFor(() => expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(true))
+    expect(useOnboardingDraftStore.getState().hasPendingAnswers()).toBe(true)
+    expect(patchProfileMock).not.toHaveBeenCalled()
   })
 
   it('applies buffered answers, clears the draft, and marks onboarded on success', async () => {

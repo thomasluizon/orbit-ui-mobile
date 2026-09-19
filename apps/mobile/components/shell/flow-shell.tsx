@@ -8,9 +8,10 @@ interface FlowShellProps {
   children: ReactNode
   action?: ReactNode
   header?: ReactNode
+  notice?: ReactNode
 }
 
-export function FlowShell({ children, action, header }: Readonly<FlowShellProps>) {
+export function FlowShell({ children, action, header, notice }: Readonly<FlowShellProps>) {
   const { surfaces } = useAppTheme()
 
   return (
@@ -28,6 +29,7 @@ export function FlowShell({ children, action, header }: Readonly<FlowShellProps>
       >
         {children}
       </ScrollView>
+      {notice ? <View style={styles.notice}>{notice}</View> : null}
       {action ? <View style={styles.action}>{action}</View> : null}
     </SafeAreaView>
   )
@@ -54,4 +56,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
   },
+  notice: { paddingHorizontal: 16 },
 })

@@ -22,23 +22,26 @@ type OnboardingDraftGet = () => OnboardingDraftState
 export type OnboardingWeekStartDay = 0 | 1
 
 export interface PersistedOnboardingDraft {
-  step: number
   habits: ApplyOnboardingHabit[]
   firstLog: ApplyOnboardingFirstLog | null
   goal: CreateGoalRequest | null
   weekStartDay: OnboardingWeekStartDay | null
   colorScheme: string | null
   onboardingLocallyDone: boolean
+  pushPermissionGranted: boolean
+  pushRegistrationFailed: boolean
 }
 
 export interface OnboardingDraftState extends PersistedOnboardingDraft {
-  setStep: (step: number) => void
   bufferHabit: (habit: ApplyOnboardingHabit) => number
+  replaceHabit: (habitIndex: number, habit: ApplyOnboardingHabit) => void
   bufferFirstLog: (habitIndex: number, date: string) => void
   bufferGoal: (goal: CreateGoalRequest | null) => void
   bufferWeekStartDay: (day: OnboardingWeekStartDay) => void
   bufferColorScheme: (scheme: string) => void
   markOnboardingLocallyDone: () => void
+  markPushPermissionGranted: () => void
+  markPushRegistrationFailed: () => void
   hasPendingAnswers: () => boolean
   buildApplyPayload: () => ApplyOnboardingRequest
   reset: () => void
@@ -46,13 +49,14 @@ export interface OnboardingDraftState extends PersistedOnboardingDraft {
 
 function createInitialDraft(): PersistedOnboardingDraft {
   return {
-    step: 0,
     habits: [],
     firstLog: null,
     goal: null,
     weekStartDay: null,
     colorScheme: null,
     onboardingLocallyDone: false,
+    pushPermissionGranted: false,
+    pushRegistrationFailed: false,
   }
 }
 
@@ -60,13 +64,14 @@ export function getPersistedOnboardingDraft(
   state: OnboardingDraftState,
 ): PersistedOnboardingDraft {
   return {
-    step: state.step,
     habits: state.habits.map((habit) => ({ ...habit })),
     firstLog: state.firstLog ? { ...state.firstLog } : null,
     goal: state.goal ? { ...state.goal } : null,
     weekStartDay: state.weekStartDay,
     colorScheme: state.colorScheme,
     onboardingLocallyDone: state.onboardingLocallyDone,
+    pushPermissionGranted: state.pushPermissionGranted,
+    pushRegistrationFailed: state.pushRegistrationFailed,
   }
 }
 
@@ -86,7 +91,6 @@ export function migrateOnboardingDraft(
   const goalResult = createGoalRequestSchema.safeParse(persistedState.goal)
 
   return {
-    step: typeof persistedState.step === 'number' ? persistedState.step : 0,
     habits,
     firstLog: firstLogResult.success ? firstLogResult.data : null,
     goal: goalResult.success ? goalResult.data : null,
@@ -99,6 +103,8 @@ export function migrateOnboardingDraft(
         ? persistedState.colorScheme
         : null,
     onboardingLocallyDone: persistedState.onboardingLocallyDone === true,
+    pushPermissionGranted: persistedState.pushPermissionGranted === true,
+    pushRegistrationFailed: persistedState.pushRegistrationFailed === true,
   }
 }
 
@@ -121,13 +127,18 @@ export function createOnboardingDraftState(
   return {
     ...createInitialDraft(),
 
-    setStep: (step) => set({ step }),
-
     bufferHabit: (habit) => {
       const index = get().habits.length
       set((state) => ({ habits: [...state.habits, { ...habit }] }))
       return index
     },
+
+    replaceHabit: (habitIndex, habit) =>
+      set((state) => ({
+        habits: state.habits.map((current, index) =>
+          index === habitIndex ? { ...habit } : current,
+        ),
+      })),
 
     bufferFirstLog: (habitIndex, date) => set({ firstLog: { habitIndex, date } }),
 
@@ -139,6 +150,10 @@ export function createOnboardingDraftState(
 
     markOnboardingLocallyDone: () => set({ onboardingLocallyDone: true }),
 
+    markPushPermissionGranted: () => set({ pushPermissionGranted: true, pushRegistrationFailed: false }),
+
+    markPushRegistrationFailed: () => set({ pushRegistrationFailed: true }),
+
     hasPendingAnswers: () => {
       const state = get()
       return (
@@ -148,6 +163,7 @@ export function createOnboardingDraftState(
         state.firstLog !== null ||
         state.weekStartDay !== null ||
         state.colorScheme !== null
+        || state.pushPermissionGranted
       )
     },
 

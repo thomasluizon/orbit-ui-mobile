@@ -59,10 +59,12 @@ vi.mock('@/components/version-update-drawer', () => ({
 }))
 const onboardingActionsStub: OverlayLayerProps['onboardingActions'] = {
   createHabit: () => Promise.resolve({ id: '', title: '' }),
+  updateHabit: () => Promise.resolve(),
   createHabitsBulk: () => Promise.resolve(),
   logHabit: () => Promise.resolve(),
   createGoal: () => Promise.resolve(),
   setWeekStartDay: () => Promise.resolve(),
+  deferPushRegistration: () => undefined,
   finishOnboarding: () => Promise.resolve(),
 }
 

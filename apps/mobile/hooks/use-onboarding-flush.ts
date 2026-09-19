@@ -9,6 +9,7 @@ import {
 } from '@/stores/onboarding-draft-store'
 import { useApplyOnboarding } from '@/hooks/use-apply-onboarding'
 import { useProfile } from '@/hooks/use-profile'
+import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { captureError } from '@/lib/sentry'
 
 /**
@@ -26,12 +27,16 @@ export function useOnboardingFlush(): void {
   const { profile } = useProfile()
   const queryClient = useQueryClient()
   const applyOnboarding = useApplyOnboarding()
+  const { requestPermissionOutcome } = usePushNotifications()
+  const pushPermissionGranted = useOnboardingDraftStore((state) => state.pushPermissionGranted)
+  const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
   const runningRef = useRef(false)
 
   const shouldFlush =
     isAuthenticated &&
     hasHydrated &&
     pendingAnswers &&
+    !pushRegistrationFailed &&
     !!profile &&
     !profile.hasCompletedOnboarding
 
@@ -42,8 +47,14 @@ export function useOnboardingFlush(): void {
     let cancelled = false
 
     async function flush() {
+      let onboardingApplied = false
       try {
         await applyOnboarding()
+        onboardingApplied = true
+        if (pushPermissionGranted) {
+          const outcome = await requestPermissionOutcome(true)
+          if (outcome !== 'granted') throw new Error('Failed to register deferred push subscription')
+        }
         if (cancelled) return
         useOnboardingDraftStore.getState().reset()
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
@@ -56,6 +67,9 @@ export function useOnboardingFlush(): void {
           queryClient.invalidateQueries({ queryKey: profileKeys.all }),
         ])
       } catch (error) {
+        if (onboardingApplied && pushPermissionGranted) {
+          useOnboardingDraftStore.getState().markPushRegistrationFailed()
+        }
         captureError(error)
       } finally {
         runningRef.current = false
@@ -67,5 +81,5 @@ export function useOnboardingFlush(): void {
     return () => {
       cancelled = true
     }
-  }, [applyOnboarding, queryClient, shouldFlush])
+  }, [applyOnboarding, pushPermissionGranted, queryClient, requestPermissionOutcome, shouldFlush])
 }
