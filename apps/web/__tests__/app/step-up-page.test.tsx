@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   },
   readTiming: vi.fn(),
   replace: vi.fn(),
+  stopMonitor: vi.fn(),
   router: { replace: vi.fn() },
   serverAuthFetch: vi.fn(),
 }))
@@ -46,6 +47,7 @@ vi.mock('@/stores/auth-store', () => {
     logout: mocks.logout,
     confirmSessionRefreshFailure: vi.fn(),
     recoverSessionRefreshFailure: vi.fn(),
+    startExpiryMonitor: () => mocks.stopMonitor,
   }
   return {
     useAuthStore: Object.assign(
@@ -92,7 +94,7 @@ function backendError(errorCode: string, error: string) {
 
 async function renderLiveScreen(record: StepUpTimingRecord = liveRecord()) {
   mocks.readTiming.mockReturnValue(record)
-  render(<StepUpScreen />)
+  render(<StepUpScreen serverAccountId={null} />)
   return screen.findByLabelText('codeLabel')
 }
 
@@ -241,7 +243,7 @@ describe('web step up screen', () => {
       sentAt: now,
       exhaustedAt: now - STEP_UP_ATTEMPT_WINDOW_MS + 10_000,
     })
-    render(<StepUpScreen />)
+    render(<StepUpScreen serverAccountId={null} />)
 
     expect(await screen.findByText('exhaustedNotice')).toBeInTheDocument()
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
@@ -254,7 +256,7 @@ describe('web step up screen', () => {
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
 
     mocks.readTiming.mockReturnValue(liveRecord(60_000))
-    render(<StepUpScreen />)
+    render(<StepUpScreen serverAccountId={null} />)
     expect((await screen.findByText('resend')).closest('button')).toHaveAttribute('data-variant', 'ghost')
   })
 
@@ -312,7 +314,7 @@ describe('web step up screen', () => {
   it('confirms API key creation and returns to the creation handoff', async () => {
     mocks.operation = 'keys'
     mocks.readTiming.mockReturnValue({ operation: 'keys', sentAt: Date.now() })
-    render(<StepUpScreen />)
+    render(<StepUpScreen serverAccountId={null} />)
     await screen.findByLabelText('codeLabel')
     enterCode()
     clickConfirm()
