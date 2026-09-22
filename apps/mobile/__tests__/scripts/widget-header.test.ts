@@ -728,7 +728,9 @@ describe('Android widget header', () => {
    * nothing into the template, so a row that read "Run, 07:00" opened Orbit's launch destination,
    * and a row on the tomorrow fallback opened today. `dayOffset` counts from the day the payload
    * was FETCHED, and a render can replay a cached payload of any age, so the row's day is anchored
-   * on the stored fetch time rather than on the clock that render happens to see.
+   * on the stored fetch time rather than on the clock that render happens to see. The render
+   * assigns that anchor once, so the count is part of the shape: a presence match on its own stays
+   * green when the pinned call sits in a comment beside a live wrong one.
    */
   it('fills each row in with the habit it shows and the day it shows', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
@@ -739,10 +741,12 @@ describe('Android widget header', () => {
     expect(kotlinFunctionBody(service, 'rowFillInIntent')).toMatch(
       /val link = widgetRowLink\(habitId, date\) \?: return Intent\(\)\s*return Intent\(\)\.setData\(Uri\.parse\(link\)\)/,
     )
-    expect(service).toMatch(
+    const loadWidgetData = kotlinFunctionBody(service, 'loadWidgetData')
+    const rowDateAssignments = loadWidgetData.match(/\browDate\s*=[^=]/g)
+    expect(rowDateAssignments).toHaveLength(1)
+    expect(loadWidgetData).toMatch(
       /rowDate = widgetRowDate\(\s*widgetData\.dayOffset,\s*widgetFetchDay\(prefs\.getLong\("habits_updated_at", 0L\), nowInDeviceDay\(\)\)\s*\)/,
     )
-    expect(service).not.toContain('widgetRowDate(widgetData.dayOffset, Calendar.getInstance())')
   })
 
   /**

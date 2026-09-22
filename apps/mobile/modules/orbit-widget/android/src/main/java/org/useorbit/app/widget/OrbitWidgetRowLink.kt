@@ -13,8 +13,10 @@ import java.util.TimeZone
 internal const val WIDGET_ROW_LINK_PREFIX = "orbit://habits/"
 
 /**
- * The device clock, read through the Gregorian fields the day string is built from. Locale.US
- * pins those fields, so what the device computes and what a test computes cannot diverge.
+ * The one clock read a row's day is built from. Locale.US states the calendar this file assumes
+ * rather than inheriting the device default. On Android it changes nothing: a locale sets only
+ * firstDayOfWeek and minimalDaysInFirstWeek, and neither add(DAY_OF_YEAR) nor the three fields
+ * below read them.
  */
 internal fun nowInDeviceDay(): Calendar = Calendar.getInstance(TimeZone.getDefault(), Locale.US)
 
@@ -22,7 +24,9 @@ internal fun nowInDeviceDay(): Calendar = Calendar.getInstance(TimeZone.getDefau
  * The day a payload's `dayOffset` counts from, which is the day the payload was FETCHED rather
  * than the day it renders. A render can replay a cached payload of any age, so anchoring on the
  * render clock walks the row's date one day forward for every day the cache is replayed.
- * A stored time of 0 means no payload was ever written, so the clock is all there is.
+ * A stored time of 0 is defensive only, never the first render: both writers stamp the time in
+ * the same edit() as the payload, the one clear path wipes both, and a render with no payload
+ * returns before this. Only a torn preferences file reaches the fallback.
  */
 internal fun widgetFetchDay(fetchedAtMillis: Long, now: Calendar): Calendar {
     if (fetchedAtMillis <= 0L) return now
