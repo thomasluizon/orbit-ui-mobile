@@ -1,5 +1,16 @@
 # NEXT
 
+## Before you start
+
+This is a fresh clone on a new machine. Two things first:
+
+1. `git checkout redesign/main && git pull`. A fresh clone lands on `main`, and every UI change
+   belongs on `redesign/main`.
+2. `npm install` at the repository root. No `node_modules` exists yet, and each new worktree needs
+   its own install.
+
+---
+
 **Read `.claude/specs/orbit-prod-release.md` first.** It is the living spec for this effort and it
 was rebuilt on 2026-09-19: the batch order now covers all 103 open tickets, every one placed in
 exactly one batch, and it ends with a section on what the night of 2026-09-18 into 09-19 taught.
@@ -38,10 +49,10 @@ Take every decision yourself, always the best approach and never the easiest, an
 
 | What | State | Disposition |
 |---|---|---|
-| `ui#1029` (`#612`) | open at `a0f53299`, **P1** | Round 4 needed. Its own round 3 broke a cold load of `/step-up`: `useHeldAccountId` is null there because the route is not under `(app)`, so 13 tests fail with an empty body. **Do not fix by reverting to an unnamespaced key.** Six dirty files preserved in `ticket-612-web-overlays`. |
+| `ui#1029` (`#612`) | open at `210b8f7e`, **P1** | Round 4 needed. Round 3 broke a cold load of `/step-up`: `useHeldAccountId` is null there because the route is not under `(app)`, so 13 tests fail with an empty body. **Do not fix by reverting to an unnamespaced key.** The work that sat dirty was committed and pushed on 2026-09-22 as `210b8f7e` on `fix/ticket-612-web-overlays`: an attempt to hold the screen until the account resolves, plus a new `step-up-cold-load.test.tsx`. **It is unverified. No test ran against it.** Run the suite before you trust that commit. |
 | `ui#1030` (`#615`) | open, round 2 delivered | Needs a re-review at its head. It took the `ReadInit` type narrowing, so a mutating call through the read function is now a compile error. |
 | `ui#1033` (`#610`) | open at `db19b29b` | **Never reviewed at any head.** |
-| `ui#1032` (`#586`) | **CLOSED unmerged** | Cancelled by Thomas. Branch `fix/ticket-586-widget-destination` left in place, 4 dirty files, deliberately. |
+| `ui#1032` (`#586`) | **CLOSED unmerged** | Cancelled by Thomas. The 3 dirty files were committed and pushed on 2026-09-22 as `e9b2fe4d` on `fix/ticket-586-widget-destination`, only so the work did not die with the machine. **Unverified.** The ticket stays cancelled: do not reopen it unless Thomas asks. |
 | `api#521` | **APPROVED** at `774f26b1` | Thomas merges and deploys by hand on or after 2026-09-22. |
 | `api#534` (`#599`) | **APPROVED**, five rounds | Same. Round 5 was declared the last round there; do not open a sixth. |
 | `api#528` (`#529`) | built, inert | Deploy, then flip `RequireApiKeyCreationStepUp` to `true` **only after `api#534` deploys**, and read the row back. |
