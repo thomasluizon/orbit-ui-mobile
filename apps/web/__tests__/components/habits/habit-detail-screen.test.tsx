@@ -123,7 +123,7 @@ vi.mock('@/components/ui/list-row', () => ({
     : <div data-testid={`list-row-${title}`} data-description={description} data-value={value}>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, disabled, label, onClick, descriptionId }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void; descriptionId?: string }) => <button type="button" disabled={disabled} aria-label={label} aria-describedby={descriptionId} onClick={onClick}>{children}</button>,
+  PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>{children}</button>,
 }))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
@@ -477,6 +477,7 @@ describe('HabitDetailScreen', () => {
       .toHaveAttribute('data-disabled-reason', 'habits.todayBoundary.readOnly')
     expect(screen.getByTestId('child-child-1'))
       .toHaveAttribute('data-completion-reason', 'habits.todayBoundary.readOnly')
+    expect(screen.getByText('habits.todayBoundary.readOnly')).toBeVisible()
   })
 
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
@@ -896,19 +897,4 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('button', { name: 'rescheduleAccept' })).toBeInTheDocument()
   })
 
-  it('explains and blocks rescheduling on an old day', () => {
-    mocks.logs = []
-    mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
-    mocks.suggestion = {
-      frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null,
-      days: [], rationale: 'Try tomorrow',
-    }
-    render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
-
-    const accept = screen.getByRole('button', { name: 'rescheduleAccept' })
-    expect(accept).toBeDisabled()
-    expect(accept).toHaveAccessibleDescription('habits.todayBoundary.readOnly')
-    fireEvent.click(accept)
-    expect(mocks.update).not.toHaveBeenCalled()
-  })
 })

@@ -69,6 +69,11 @@ function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
   return <section className="rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">{children}</section>
 }
 
+function CompletionBoundaryReason({ disabled, reason }: Readonly<{ disabled: boolean; reason?: string }>) {
+  if (!disabled || !reason) return null
+  return <p className="px-4 pb-4 text-sm text-[var(--fg-2)] sm:px-0">{reason}</p>
+}
+
 function completionReasonForBoundary(boundary: ReturnType<typeof getTodayBoundary>, t: ReturnType<typeof useTranslations>): string | undefined {
   if (boundary === 'read-only') return t('habits.todayBoundary.readOnly')
   if (boundary === 'future') return t('habits.todayBoundary.future')
@@ -193,7 +198,7 @@ function MetricsSection({ visible, loading, metrics, isBadHabit }: Readonly<{ vi
   return <div className="grid grid-cols-3 gap-4">{values.map((item) => <div key={item.label} className="min-w-0 text-center"><p className="font-[var(--font-display)] text-2xl font-semibold tabular-nums text-[var(--fg-1)]">{item.value}</p><p className="truncate text-sm text-[var(--fg-2)]">{item.label}</p></div>)}</div>
 }
 
-function RescheduleBlock({ habit, slipping, hasProAccess, locale, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; slipping: boolean; hasProAccess: boolean; locale: string; completionDisabled: boolean; completionReason?: string }>) {
+function RescheduleBlock({ habit, slipping, hasProAccess, locale }: Readonly<{ habit: NormalizedHabit; slipping: boolean; hasProAccess: boolean; locale: string }>) {
   const t = useTranslations('habits.detail')
   const router = useRouter()
   const { showError } = useAppToast()
@@ -202,7 +207,7 @@ function RescheduleBlock({ habit, slipping, hasProAccess, locale, completionDisa
   if (!slipping) return null
   if (!hasProAccess) return <Surface><ListRow title={t('slipping')} value={t('proGate')} onClick={() => router.push('/upgrade')} /></Surface>
   const accept = async () => {
-    if (completionDisabled || !query.suggestion) return
+    if (!query.suggestion) return
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, query.suggestion) })
     } catch {
@@ -212,8 +217,8 @@ function RescheduleBlock({ habit, slipping, hasProAccess, locale, completionDisa
   return (
     <Proposed proposed scope="block" label={t('proposed')}>
       <div className="flex flex-col gap-4 p-4">
-        <div><p className="font-medium text-[var(--fg-1)]">{t('slipping')}</p><p id={completionDisabled ? 'reschedule-limit-reason' : undefined} className="mt-1 text-sm text-[var(--fg-3)]">{completionDisabled ? completionReason : query.suggestion?.rationale ?? (query.error ? t('rescheduleError') : t('rescheduleLoading'))}</p></div>
-        <PillButton variant="secondary" size="sm" disabled={completionDisabled || !query.suggestion} descriptionId={completionDisabled ? 'reschedule-limit-reason' : undefined} loading={updateHabit.isPending} onClick={() => void accept()}>{t('rescheduleAccept')}</PillButton>
+        <div><p className="font-medium text-[var(--fg-1)]">{t('slipping')}</p><p className="mt-1 text-sm text-[var(--fg-3)]">{query.suggestion?.rationale ?? (query.error ? t('rescheduleError') : t('rescheduleLoading'))}</p></div>
+        <PillButton variant="secondary" size="sm" disabled={!query.suggestion} loading={updateHabit.isPending} onClick={() => void accept()}>{t('rescheduleAccept')}</PillButton>
       </div>
     </Proposed>
   )
@@ -362,7 +367,8 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   return (
     <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
       <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
-      <RescheduleBlock habit={habit} slipping={slipping} hasProAccess={hasProAccess} locale={profile?.language ?? locale} completionDisabled={completionDisabled} completionReason={completionReason} />
+      <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
+      <RescheduleBlock habit={habit} slipping={slipping} hasProAccess={hasProAccess} locale={profile?.language ?? locale} />
       {strip ? <Surface><div className="mb-4 flex items-center justify-between"><SectionTitle>{t('habits.detail.lastThirtyDays')}</SectionTitle><span className="text-sm text-[var(--fg-3)]">{strip.days.filter((value) => value === 'done').length}/30</span></div><div className="overflow-x-auto pb-1"><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></div><div className="mt-4"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></Surface> : null}
       <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={profile?.language ?? locale} weekStartsOn={profile?.weekStartDay ?? 0} />
       <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.checklist')}</SectionTitle></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><div className="mt-3 flex flex-col gap-2">{children.map(({ habit: child, completed: childCompleted, canLog, completionReadOnly }) => <HabitRow key={child.id} habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={completionReason} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} value={hasProAccess ? undefined : t('habits.detail.proGate')} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>

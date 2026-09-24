@@ -246,7 +246,7 @@ vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({ title, description, value, trailing, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => React.createElement('ListRow', { title, description, value, onClick }, trailing),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, disabled, label, onClick, hint }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void; hint?: string }) => React.createElement('PillButton', { disabled, label, onClick, hint }, children),
+  PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => React.createElement('PillButton', { disabled, label, onClick }, children),
 }))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
@@ -1001,6 +1001,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
     })
+    expect(tree!.root.findAllByType('Text').filter((node: { props: { children?: string } }) => node.props.children === 'habits.todayBoundary.readOnly')).toHaveLength(1)
 
     await TestRenderer.act(async () => {
       tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
@@ -1282,26 +1283,4 @@ describe('HabitDetailScreen', () => {
     expect(accept).toBeDefined()
   })
 
-  it('explains and blocks rescheduling on an old day', async () => {
-    mocks.logs = []
-    mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
-    mocks.suggestion = {
-      frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null,
-      days: [], rationale: 'Try tomorrow',
-    }
-    let tree: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
-    })
-    const accept = tree!.root.findAllByType('PillButton')
-      .find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.rescheduleAccept')
-
-    expect(accept!.props.disabled).toBe(true)
-    expect(accept!.props.hint).toBe('habits.todayBoundary.readOnly')
-    await TestRenderer.act(async () => {
-      accept!.props.onClick()
-      await Promise.resolve()
-    })
-    expect(mocks.update).not.toHaveBeenCalled()
-  })
 })
