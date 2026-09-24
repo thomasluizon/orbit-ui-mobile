@@ -309,6 +309,26 @@ describe('CreateHabitModal', () => {
     vi.unstubAllGlobals()
   })
 
+  it('opens for the new account after an account change while closed', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    const onOpenChange = vi.fn()
+    function Host() {
+      const [open, setOpen] = React.useState(false)
+      return <>
+        <button type="button" onClick={() => setOpen(true)}>open under B</button>
+        <CreateHabitModal open={open} onOpenChange={onOpenChange} />
+      </>
+    }
+    renderWithProviders(<Host />)
+
+    await replaceAccountWith('user-2')
+    fireEvent.click(screen.getByRole('button', { name: 'open under B' }))
+
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+
   it('does not close the next account modal when an old create finishes', async () => {
     vi.stubGlobal('fetch', vi.fn())
     holdAccount('user-1')

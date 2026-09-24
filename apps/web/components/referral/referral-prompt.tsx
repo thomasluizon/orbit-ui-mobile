@@ -39,15 +39,19 @@ export function ReferralPrompt() {
   const [visibleKey, setVisibleKey] = useAccountScopedState<string | null>(null)
   const [showDrawer, setShowDrawer] = useAccountScopedState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const retiredPromptRef = useRef<typeof armedPrompt>(null)
   /**
    * The settle timer is the one thing the state reset above cannot reach: with no prompt on
    * screen its effect never re-runs, so a timer armed for the previous account would open this
    * prompt under the next one.
    */
-  useResetOnAccountChange(() => clearTimeout(settleTimerRef.current))
+  useResetOnAccountChange(() => {
+    clearTimeout(settleTimerRef.current)
+    retiredPromptRef.current = armedPrompt
+  })
 
   useEffect(() => {
-    if (visibleKey || !armedMilestoneKey || celebrationInFlight) return
+    if (visibleKey || !armedMilestoneKey || celebrationInFlight || armedPrompt === retiredPromptRef.current) return
 
     if (
       !canPromptReferral(
@@ -69,6 +73,7 @@ export function ReferralPrompt() {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
   }, [
+    armedPrompt,
     armedMilestoneKey,
     celebrationInFlight,
     visibleKey,

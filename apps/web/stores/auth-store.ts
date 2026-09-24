@@ -46,9 +46,7 @@ let lastObservedAccountId: string | null = null
  */
 function startAccountScopedSession(nextAccountId: string | null): void {
   const previousAccountId = lastObservedAccountId
-  const accountChanged = nextAccountId !== null
-    && previousAccountId !== null
-    && previousAccountId !== nextAccountId
+  const accountChanged = nextAccountId !== null && previousAccountId !== nextAccountId
 
   advanceSessionEpoch()
   if (nextAccountId !== null) lastObservedAccountId = nextAccountId
@@ -87,6 +85,7 @@ function clearAccountScopedSessionState(): void {
 function endSessionLocally(): void {
   clearAccountScopedSessionState()
   forgetPreviousAccountContent()
+  getQueryClient().clear()
   lastObservedAccountId = null
   sessionRecoveryUser = null
   useOnboardingDraftStore.getState().reset()
@@ -272,9 +271,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'inactive') {
-      sessionRecoveryUser = null
-      clearAccountScopedSessionState()
-      lastObservedAccountId = null
+      endSessionLocally()
       set({
         isAuthenticated: false,
         sessionInactive: true,
@@ -313,9 +310,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
-      sessionRecoveryUser = null
-      clearAccountScopedSessionState()
-      lastObservedAccountId = null
+      endSessionLocally()
       set({
         isAuthenticated: false,
         sessionInactive: true,
@@ -344,9 +339,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
-      sessionRecoveryUser = null
-      clearAccountScopedSessionState()
-      lastObservedAccountId = null
+      endSessionLocally()
       set({
         isAuthenticated: false,
         sessionInactive: true,

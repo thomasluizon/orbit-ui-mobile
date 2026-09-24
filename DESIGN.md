@@ -824,10 +824,11 @@ It also deleted `apps/web/lib/overlay-stack.ts` and two defects with it: the `z-
 
 **The 83 callers were migrated in R1 (`#42`).** Both platforms now expose one close path: take `{ sheetRef, closeSheet }` from `useSheetHost()`, pass `ref={sheetRef}`, and call `closeSheet()` or `closeSheet(action)`. `onClose` fires only from the completed dismissal, so a caller never flips the open state directly.
 
-**One exception, and only one.** An account replacement under a running tab drops the open flag
-outright, through `useAccountScopedState`, so no exit transition runs. The exit would hold the
-previous account's content on screen for its whole duration, which is the defect rather than a
-gentler version of it. Nothing else may flip the flag.
+**One exception, and only one.** An account replacement under a running tab hides the previous
+account's overlay immediately, without an exit transition. Most owners reset their open flag through
+`useAccountScopedState`. `CreateHabitModal` gates its rendered sheet by account generation before
+its owner closes the flag. The exit would keep the previous account's content visible. Nothing else
+may flip the flag.
 
 ### Sizing
 

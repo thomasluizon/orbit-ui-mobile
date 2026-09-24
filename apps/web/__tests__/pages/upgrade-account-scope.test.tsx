@@ -146,6 +146,19 @@ describe('UpgradePage across an account change', () => {
     expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
   })
 
+  it('does not show an old portal return after the account changes during refresh', async () => {
+    let finishRefresh!: () => void
+    mocks.refetchStatus.mockImplementationOnce(() => new Promise<void>((resolve) => { finishRefresh = resolve }))
+    globalThis.sessionStorage.setItem('orbit.subscription.portal-return', '1')
+    render(<UpgradePage />)
+    expect(mocks.refetchStatus).toHaveBeenCalledOnce()
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishRefresh() })
+
+    expect(mocks.showSuccess).not.toHaveBeenCalled()
+  })
+
   it('keeps the pitch open when the same account recovers from a rejected refresh', async () => {
     render(<UpgradePage />)
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))

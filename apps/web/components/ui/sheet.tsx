@@ -27,10 +27,11 @@ export interface SheetHandle {
  * `sheetRef` to the sheet, then call `closeSheet()`, or `closeSheet(action)`
  * when something has to run after the sheet is gone.
  *
- * One exception, and only one: an account replacement drops the open flag outright,
- * through `useAccountScopedState`. The exit transition would hold the previous
- * account's content on screen for its whole duration, which is the defect rather than
- * a gentler version of it. Nothing else may flip the flag.
+ * One exception, and only one: an account replacement hides the previous account's
+ * overlay immediately, without an exit transition. Most owners reset their open flag
+ * through `useAccountScopedState`; CreateHabitModal gates its sheet by account generation
+ * before its owner closes the flag. An exit would keep previous-account content visible.
+ * Nothing else may flip the flag.
  */
 export function useSheetHost() {
   const sheetRef = useRef<SheetHandle>(null)

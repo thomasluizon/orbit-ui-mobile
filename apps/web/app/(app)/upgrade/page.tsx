@@ -91,10 +91,11 @@ export default function UpgradePage() {
   useEffect(() => {
     const refreshAfterPortal = () => {
       if (globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY) !== '1') return
+      const portalAccount = getAccountGeneration()
       globalThis.sessionStorage.removeItem(PORTAL_RETURN_KEY)
       setPortalState('idle')
       void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
-        showSuccess(t('upgrade.billing.portalReturned'))
+        if (getAccountGeneration() === portalAccount) showSuccess(t('upgrade.billing.portalReturned'))
       })
     }
     const handlePageShow = (event: PageTransitionEvent) => {

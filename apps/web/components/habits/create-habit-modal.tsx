@@ -98,7 +98,7 @@ export function CreateHabitModal({
   const [previousOpen, setPreviousOpen] = useState(open)
   if (previousOpen !== open) {
     setPreviousOpen(open)
-    if (!open) setOpenedAccountGeneration(accountGeneration)
+    setOpenedAccountGeneration(accountGeneration)
   }
   const t = useTranslations()
   const router = useRouter()

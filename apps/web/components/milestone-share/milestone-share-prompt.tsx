@@ -56,15 +56,19 @@ export function MilestoneSharePrompt() {
 
   const [visibleKey, setVisibleKey] = useAccountScopedState<string | null>(null)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const retiredPromptRef = useRef<typeof armedPrompt>(null)
   /**
    * The settle timer is the one thing the state reset above cannot reach: with no prompt on
    * screen its effect never re-runs, so a timer armed for the previous account would open this
    * prompt under the next one.
    */
-  useResetOnAccountChange(() => clearTimeout(settleTimerRef.current))
+  useResetOnAccountChange(() => {
+    clearTimeout(settleTimerRef.current)
+    retiredPromptRef.current = armedPrompt
+  })
 
   useEffect(() => {
-    if (visibleKey || !armedKey || celebrationInFlight) return
+    if (visibleKey || !armedKey || celebrationInFlight || armedPrompt === retiredPromptRef.current) return
 
     const profile = queryClient.getQueryData<GamificationProfile>(gamificationKeys.profile())
     if (
@@ -88,6 +92,7 @@ export function MilestoneSharePrompt() {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
   }, [
+    armedPrompt,
     armedKey,
     celebrationInFlight,
     visibleKey,

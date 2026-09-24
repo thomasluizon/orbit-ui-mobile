@@ -36,12 +36,16 @@ export function MarketingConsentPrompt() {
   const [visible, setVisible] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const retiredPromptRef = useRef<typeof armedPrompt>(null)
   /**
    * The settle timer is the one thing the state reset above cannot reach: with no prompt on
    * screen its effect never re-runs, so a timer armed for the previous account would open this
    * prompt under the next one.
    */
-  useResetOnAccountChange(() => clearTimeout(settleTimerRef.current))
+  useResetOnAccountChange(() => {
+    clearTimeout(settleTimerRef.current)
+    retiredPromptRef.current = armedPrompt
+  })
 
   const mutation = useMutation({
     mutationFn: (enabled: boolean) => updateMarketingConsent({ enabled }),
@@ -59,7 +63,7 @@ export function MarketingConsentPrompt() {
   })
 
   useEffect(() => {
-    if (visible || !isArmed || celebrationInFlight) return
+    if (visible || !isArmed || celebrationInFlight || armedPrompt === retiredPromptRef.current) return
 
     settleTimerRef.current = setTimeout(() => {
       markEngagementPrompted(
@@ -72,7 +76,7 @@ export function MarketingConsentPrompt() {
     return () => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
-  }, [celebrationInFlight, isArmed, markEngagementPrompted, setVisible, visible])
+  }, [armedPrompt, celebrationInFlight, isArmed, markEngagementPrompted, setVisible, visible])
 
   function answer(enabled: boolean) {
     closeSheet(() => {
