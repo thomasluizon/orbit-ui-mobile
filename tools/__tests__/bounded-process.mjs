@@ -28,6 +28,14 @@ setTimeout(() => process.stdout.write(bytes.subarray(bytes.length - 1)), 20)
     `${firstInvalid.stdout.toString("hex")} vs ${secondInvalid.stdout.toString("hex")}`,
   )
 
+  const refusedTarget = stage("bounded-process/refused-target.cmd", "@echo off\r\nexit /b 0\r\n")
+  const refused = await runBounded(process.platform === "win32" ? refusedTarget : "", [], { timeoutMs: 5000 })
+  T(
+    "bounded-process.mjs: a target the platform refuses to spawn resolves with its error instead of rejecting",
+    refused.error instanceof Error && refused.status === null && refused.stdout === "" && refused.timedOut === false,
+    JSON.stringify({ error: refused.error?.code ?? null, status: refused.status }),
+  )
+
   const pidFile = stage("bounded-process/descendant.pid", "")
   const script = stage(
     "bounded-process/hang.cjs",

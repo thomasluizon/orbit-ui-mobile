@@ -1,12 +1,12 @@
 # NEXT
 
-**Read `.claude/specs/orbit-prod-release.md` first**, and its last section, "What 2026-09-24 added",
-before anything else.
+**Read `.claude/specs/orbit-prod-release.md` first**, and its last section, "What the 2026-09-24
+sleep run added (session `dd9211b6`)", before anything else.
 
 ## Entry point
 
-`/sleep`. It runs `/orchestrate` itself. Codex (`gpt-6-sol`) writes every code change through
-`node tools/launch-worker.mjs`, never a Claude subagent.
+`/sleep`. It enters `/orchestrate` itself. Codex (`gpt-6-sol`) writes code through
+`node tools/launch-worker.mjs`.
 
 ## The goal: finish the spec
 
@@ -15,50 +15,48 @@ is left rather than trusting this file:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
 
-That query returned 247 on 2026-09-24. A blocker is the next piece of work. Only an exhausted
-allowance, the machine stopping, or Thomas saying stop ends the run.
+A blocker is the next piece of work. Only an exhausted allowance, the machine stopping, or Thomas
+saying stop ends the run.
 
 ## What to do, in order
 
-1. `ui#1035` is **merged** into `redesign/main` as `1b6ebc8e` (Pullfrog APPROVED at `4e2ccb47`).
-   The harness runs on this Mac.
-2. **`#633` is the top priority, ahead of every batch.** It covers the dead three-dot menu (root cause
-   proven, GPT-6 Sol agreed) and the drill ignoring Show completed. Run it as one PR against `main`,
-   merge it to `main`, then run `/android-release`. Thomas asked for exactly this.
-3. Backport the `#633` fixes to `redesign/main` as a separate PR. The redesign deleted
-   `anchored-menu.tsx` and `drill-view.tsx`; `habit-drill.tsx` needs the drill fix, and the redesign's
-   menu needs checking for the same state-rollback class.
-4. **Fix `/handoff --sleep` so it ends the session.** Thomas, 2026-09-24, after a `/handoff --sleep` run
-   kept working: "i ran /handoff, why are you continuing? handoff explicitly says that this session is
-   over." Change `.claude/skills/handoff/SKILL.md` ("Under `--sleep`, do not stop there", and the
-   `--sleep` lines in its Input and first sections) so `--sleep` only makes `NEXT.md` a prompt for an
-   unattended next session. The handing-off session always ends. Check `.claude/skills/wrap-up/SKILL.md`
-   and `.claude/skills/sleep/SKILL.md` for the same assumption, then run both harnesses.
-5. Then continue the spec's batch order: `#627` first in batch 0b, `ui#1029` round 4, the
-   `ui#1030` re-review, the `ui#1033` first review, the rest of 0b, then 0c, then batch 1.
+1. **`ui#1041` (`#633`, the dead three-dot menu and the drill) to `main`.** Pullfrog APPROVED at
+   `89bb9be5`, every check green, but GitHub read `BLOCKED` at handoff, and `verify-delivery.mjs
+   --wait-ci 1500` ended `CI_PENDING` after the handoff, so a required check on `main` never reported
+   within 25 minutes. Find that check, get it to report, merge with `--match-head-commit`, **tell Thomas it merged**, then run
+   `/android-release` to the **open** track and tell him when it is live. He asked for both messages.
+2. Drive the three Pullfrog pin PRs to merge (`ui#1046`, `api#537`, `landing#80`, all against
+   `main`). After the first review under the pin, confirm its log prints `openai/gpt-6-sol` and
+   `effort: medium`.
+3. Back-port the `#633` fixes to `redesign/main` as a separate PR: `habit-drill.tsx` needs the drill
+   visibility fix, and the redesign menu needs the same state-rollback check.
+4. Drive every open `redesign/main` PR in the spec's table to merge. Poll with `--no-request`. Merge
+   approved ones back to back, then merge-forward the rest once.
+5. Close `#558` as done by PR 970 (the worker proved it; nothing changed on its branch).
+6. Then the batch order: rest of 0b (`#556`, `#598`, `#638`, `#639`, and the deferred `#544`, `#575`,
+   `#619`, deciding their technical questions yourself), 0c, then batch 1.
 
 ## In flight, each with a disposition
 
 | item | state | disposition |
 |---|---|---|
-| `ui#1035` | MERGED `1b6ebc8e` | done |
-| `#633` | worktree `~/orca/workspaces/orbit-ui-mobile/ticket-633-menu-drill`, branch `fix/ticket-633-menu-drill` off `main` `959381da`, deps installed, NO worker launched, order at the old session's scratchpad `ticket-633-prompt.md` (recompose it) | step 2: compose the order, launch the worker |
-| `ui#1029`, `ui#1030`, `ui#1033` | open on `redesign/main`, untouched today | step 4, as the spec says |
-| `ui#1034`, `ui#801`, `ui#799`, `ui#798` | dependabot PRs on `main`, never triaged | triage in step 4; `ui#798` has a red `Contract Drift` |
-| `api#521`, `api#534` | earlier APPROVED, waiting on Thomas's manual deploy | leave for Thomas |
-| `api#528` | CHANGES_REQUESTED | spec batch 6 |
-| `api#531`, `api#532`, `api#533` | open, reviews owed | spec batches 1 and 2a |
-| `api#530`, `api#535`, `api#536` | dependabot | triage with the ui ones |
-| `landing#73` to `#79` | dependabot | triage with the ui ones |
-| scratch worktree `menu-probe` | detached at `959381da` in this session's scratchpad, instrumented with `[DEBUG-m3n7]` | debug only, never a PR. Remove with `git worktree remove --force` once `#633` is verified |
-| emulator | running `Orbit_Pixel_9_API_35` with the instrumented probe build (versionCode 91), logged in as Thomas | install the `#633` build over it to verify, same re-sign steps as the spec |
-| background `adb logcat` | streaming to the scratchpad | stop it when the probe is removed |
-
-Checked and empty in all three repos: stashes, unpushed commits, dirty trees. The only detached HEAD
-is the scratch `menu-probe` worktree. No worker was running when this was written.
+| workers | none running | none |
+| `ui#1041` | APPROVED, green, BLOCKED | step 1 |
+| pin PRs `ui#1046`, `api#537`, `landing#80` | review owed | step 2 |
+| `redesign/main` PRs 1029, 1030, 1033, 1039, 1040, 1042, 1044, 1045, 1047 to 1051 | see spec table | step 4 |
+| `api#521` | round 7 pushed | re-review, then merge and deploy (Thomas's 2026-09-14 rule) |
+| `api#528`, `#531`, `#532`, `#533` | rounds owed | spec batches 1, 2a, 6 |
+| dependabot `ui#1034`, `#801`, `#799`, `#798`, `api#536`, `#535`, `#530`, `landing#73` to `#79` | untriaged | triage with step 4 |
+| merged worktrees `ticket-546`, `ticket-613`, `ticket-627`, `ticket-634` | branches merged | `node tools/teardown-worktree.mjs` each |
+| empty worktree `ticket-558-progress-branch` | no commits | remove with `#558` |
+| scratch worktree `menu-probe` (old session scratchpad, detached `959381da`) | debug only | `git worktree remove --force` after `#633` ships |
+| stashes, unpushed commits, dirty trees | checked in all three repos: none | none |
+| decision log `sleep-decisions.md` | in session `dd9211b6` scratchpad | its durable content is in the spec section |
 
 Every identifier here came from a previous session. Treat each as a lead to verify.
 
 ## --sleep
 
-This run continues unattended in the same session through `/sleep`, with this spec's goal.
+This file is written for an unattended run. Start with `/sleep`, write the run state under the new
+session id, keep the Mac awake with `caffeinate -i -w <claude pid>`, and work the order above
+without waiting for anyone.
