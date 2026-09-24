@@ -488,6 +488,7 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     'const row = { gap: 12 }; const update = () => Object.assign(row, { gap: 14 }); <div style={row} />',
     'const row = { gap: 12 }; if (cond) Object.assign(row, { gap: 14 }, { gap: 16 }); <div style={row} />',
     'const row = { gap: 12 }; if (cond) { row.gap = 14; row.gap = 16; } <div style={row} />',
+    'const row = { gap: 12 }; if (cond) { row.gap = 14; const marker = 1; row.gap = 16; } <div style={row} />',
     'const row = { gap: 12 }; if (cond) { Object.assign(row, { gap: 14 }); Object.assign(row, { gap: 16 }); } <div style={row} />',
     'const row = { gap: 12 }; class Update { change() { row.gap = 14; } } <div style={row} />',
     'const base = { gap: 14 }; base.gap = 12; const row = { ...base }; <div style={row} />',
@@ -523,6 +524,36 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
   ],
   invalid: [
+    {
+      code: 'const row = { gap: 14 }; if (cond) row[propertyName] = 12; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; if (cond) delete row[propertyName]; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const style = Object.assign({}, { gap: 14 }); <div style={style} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={Object.assign({}, { gap: 14 })} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const source = { gap: 12 }; if (cond) delete source.gap; const row = { gap: 14, ...source }; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const source = { gap: 12 }; if (cond) delete source.gap; const row = { gap: 14 }; Object.assign(row, source); <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
     {
       code: 'const row = { gap: 14 }; if (cond) row.gap = 12; <div style={row} />',
       output: null,

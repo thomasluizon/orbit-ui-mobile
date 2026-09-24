@@ -141,6 +141,13 @@ function isStyleSheetCreate(node) {
   )
 }
 
+function isObjectAssign(node) {
+  return node.type === 'CallExpression' &&
+    node.callee.type === 'MemberExpression' && !node.callee.computed &&
+    node.callee.object.type === 'Identifier' && node.callee.object.name === 'Object' &&
+    node.callee.property.type === 'Identifier' && node.callee.property.name === 'assign'
+}
+
 module.exports = {
   meta: {
     type: 'problem',
@@ -330,6 +337,7 @@ module.exports = {
       const shadowed = new Set(ignored)
       const knownKeys = new Set()
       const deletedKeys = new Set()
+      const possiblyDeletedKeys = new Set()
       const conditionalShadows = new Map()
       let hasUnknownKey = false
       const mutations = (mutatedStyleProperties.get(variable) ?? [])
@@ -343,7 +351,7 @@ module.exports = {
         if (!definite && block) {
           const statementIndex = block.body.indexOf(statement)
           const previous = conditionalShadows.get(block)
-          const interrupted = previous && block.body.slice(statementIndex + 1, previous.index).some((entry) => entry.type !== 'ExpressionStatement')
+          const interrupted = previous && block.body.slice(statementIndex + 1, previous.index).some((entry) => entry.type !== 'ExpressionStatement' && entry.type !== 'VariableDeclaration')
           branchShadow = previous && !interrupted ? previous.shadow : new Set()
           conditionalShadows.set(block, { index: statementIndex, shadow: branchShadow })
         }
@@ -368,7 +376,8 @@ module.exports = {
           continue
         }
         if (mutation.name === '*') {
-          shadowed.add('*')
+          if (definite) shadowed.add('*')
+          else branchShadow?.add('*')
           hasUnknownKey = true
           continue
         }
@@ -376,7 +385,10 @@ module.exports = {
           if (definite) {
             if (!knownKeys.has(mutation.name)) deletedKeys.add(mutation.name)
             shadowed.add(mutation.name)
-          } else branchShadow?.add(mutation.name)
+          } else {
+            if (!knownKeys.has(mutation.name)) possiblyDeletedKeys.add(mutation.name)
+            branchShadow?.add(mutation.name)
+          }
         } else {
           if (definite && !deletedKeys.has(mutation.name)) knownKeys.add(mutation.name)
           if (!deletedKeys.has(mutation.name) && !shadowed.has('*') && !shadowed.has(mutation.name) && !branchShadow?.has('*') && !branchShadow?.has(mutation.name) && SPACING_PROPS.has(mutation.name) && mutation.value && !scannedMutationValues.has(mutation.node)) {
@@ -391,7 +403,7 @@ module.exports = {
       activeStyleBindings.delete(variable)
       if (initialKeys === null || hasUnknownKey) return null
       for (const key of initialKeys) {
-        if (!deletedKeys.has(key)) knownKeys.add(key)
+        if (!deletedKeys.has(key) && !possiblyDeletedKeys.has(key)) knownKeys.add(key)
       }
       return knownKeys
     }
@@ -432,6 +444,24 @@ module.exports = {
         const alternateKeys = scanStyleObject(node.alternate, ignored, cutoff)
         if (consequentKeys === null || alternateKeys === null) return null
         return new Set([...consequentKeys].filter((key) => alternateKeys.has(key)))
+      }
+      if (isObjectAssign(node)) {
+        const knownKeys = new Set()
+        const shadowed = new Set(ignored)
+        let hasUnknownKey = false
+        for (let index = node.arguments.length - 1; index >= 0; index--) {
+          const argumentKeys = scanStyleObject(node.arguments[index], shadowed, Math.min(cutoff, node.range[0]))
+          if (argumentKeys === null) {
+            shadowed.add('*')
+            hasUnknownKey = true
+          } else {
+            for (const key of argumentKeys) {
+              knownKeys.add(key)
+              shadowed.add(key)
+            }
+          }
+        }
+        return hasUnknownKey ? null : knownKeys
       }
       if (node.type !== 'ObjectExpression') return null
       const knownKeys = new Set()
@@ -556,7 +586,7 @@ module.exports = {
         else if (node.value?.type === 'JSXExpressionContainer') scanClassExpression(node.value.expression)
       },
       CallExpression(node) {
-        if (node.callee.type === 'MemberExpression' && !node.callee.computed && node.callee.object.type === 'Identifier' && node.callee.object.name === 'Object' && node.callee.property.type === 'Identifier' && node.callee.property.name === 'assign') {
+        if (isObjectAssign(node)) {
           markMutatedBinding(node.arguments[0], { kind: 'assign', sources: node.arguments.slice(1), position: node.range[0], node })
         }
         if (!isStyleSheetCreate(node)) return
