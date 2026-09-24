@@ -87,6 +87,7 @@ describe('HabitRow check circle accessible name', () => {
       onLog: vi.fn(), onSkip: vi.fn(), onReschedule: vi.fn(),
     }
     render(<HabitRow habit={createMockHabit({ title: 'Read' })} completionReadOnly={readOnly}
+      completionReason="Logging stops 7 days back."
       hasChildren hasSubHabits childProgress={{ done: 0, total: 1 }} actions={actions} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
@@ -102,7 +103,10 @@ describe('HabitRow check circle accessible name', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.expand' }))
     expect(actions.onDetail).toHaveBeenCalledOnce()
     expect(actions.onToggleExpand).toHaveBeenCalledOnce()
-    expect(screen.getByRole('button', { name: /habits.logHabit: Read/ })).toBeDisabled()
+    const parentRing = screen.getByRole('button', { name: /habits.logHabit: Read/ })
+    expect(parentRing).toHaveAttribute('aria-disabled', 'true')
+    expect(parentRing).toHaveAccessibleDescription('Logging stops 7 days back.')
+    fireEvent.click(parentRing)
     expect(actions.onLog).not.toHaveBeenCalled()
   })
 
@@ -113,8 +117,11 @@ describe('HabitRow check circle accessible name', () => {
       actions={{ onToggleExpand }} />)
     fireEvent.click(screen.getByRole('button', { name: 'common.collapse' }))
     expect(onToggleExpand).toHaveBeenCalledOnce()
-    rerender(<HabitRow habit={createMockHabit({ title: 'Write' })} completionReadOnly />)
-    expect(screen.getByTestId('habit-status-toggle')).toBeDisabled()
+    rerender(<HabitRow habit={createMockHabit({ title: 'Write' })} completionReadOnly
+      completionReason="Logging stops 7 days back." />)
+    const checkmark = screen.getByTestId('habit-status-toggle')
+    expect(checkmark).toHaveAttribute('aria-disabled', 'true')
+    expect(checkmark).toHaveAccessibleDescription('Logging stops 7 days back.')
   })
   it('lights the panel only while the enabled body is hovered', () => {
     const panel = renderRowInPanel(

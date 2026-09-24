@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import {
   CheckCircle2,
   FastForward,
@@ -48,14 +49,17 @@ interface BulkBtnProps {
 }
 
 function BulkBtn({ icon: Icon, label, color, onClick, disabled = false, reason }: Readonly<BulkBtnProps>) {
+  const reasonId = useId()
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { if (!disabled) onClick() }}
       aria-label={label}
-      disabled={disabled}
+      disabled={disabled && !reason}
+      aria-disabled={disabled || undefined}
+      aria-describedby={disabled && reason ? reasonId : undefined}
       title={disabled ? reason : undefined}
-      className={`appearance-none border-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${
+      className={`appearance-none border-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
         disabled
           ? 'opacity-45'
           : 'cursor-pointer hover:bg-[var(--bg-sunk)] active:scale-[0.96]'
@@ -69,6 +73,7 @@ function BulkBtn({ icon: Icon, label, color, onClick, disabled = false, reason }
       }}
     >
       <Icon size={20} strokeWidth={1.8} />
+      {disabled && reason ? <span id={reasonId} className="sr-only">{reason}</span> : null}
     </button>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { MoreVertical } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -13,6 +13,29 @@ import type { HabitStatus } from '@orbit/shared/contracts/lists'
 
 function resolveParentRingColor(isBadHabit: boolean): string | undefined {
   return isBadHabit ? 'var(--status-bad)' : undefined
+}
+
+function completionIsDisabled(completionReadOnly: boolean, canLog: boolean, isDone: boolean): boolean {
+  return completionReadOnly || (!canLog && !isDone)
+}
+
+function completionReasonId(disabled: boolean, reason: string | undefined, id: string): string | undefined {
+  return disabled && reason ? id : undefined
+}
+
+function CompletionReason({ id, disabled, reason }: Readonly<{ id: string; disabled: boolean; reason?: string }>) {
+  return disabled && reason ? <span id={id} className="sr-only">{reason}</span> : null
+}
+
+function parentRingLabel(status: string, action: string, title: string, progress?: { done: number; total: number }): string {
+  return progress ? `${status}, ${action}: ${title}, ${progress.done}/${progress.total}` : `${status}, ${action}: ${title}`
+}
+
+function triggerParentCompletion(event: React.MouseEvent, disabled: boolean, isDone: boolean, actions: HabitRowActions): void {
+  event.stopPropagation()
+  if (disabled) return
+  const parentAction = isDone ? actions.onUnlog : actions.onLog
+  parentAction?.()
 }
 
 function resolveParentRingTrackColor(
@@ -103,10 +126,11 @@ export function HabitRowTrailing({
   const statusDotLabelKey = `habits.statusDot.${state}`
   const [menuOpen, setMenuOpen] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
+  const reasonId = useId()
   const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly)
   const statusLabel = t(statusDotLabelKey)
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
-  const completionDisabled = completionReadOnly || (!canLog && !isDone)
+  const completionDisabled = completionIsDisabled(completionReadOnly, canLog, isDone)
 
   return (
     <div className="flex items-center shrink-0" style={{ gap: 8 }}>
@@ -116,20 +140,13 @@ export function HabitRowTrailing({
             <button
               type="button"
               data-habit-row-control="ring"
-              aria-label={
-                childProgress
-                  ? `${statusLabel}, ${toggleLabel}: ${habit.title}, ${childProgress.done}/${childProgress.total}`
-                  : `${statusLabel}, ${toggleLabel}: ${habit.title}`
-              }
-              onClick={(event) => {
-                event.stopPropagation()
-                if (completionDisabled) return
-                const parentAction = isDone ? actions.onUnlog : actions.onLog
-                parentAction?.()
-              }}
-              disabled={completionDisabled}
+              aria-label={parentRingLabel(statusLabel, toggleLabel, habit.title, childProgress)}
+              onClick={(event) => triggerParentCompletion(event, completionDisabled, isDone, actions)}
+              disabled={completionDisabled && !completionReason}
+              aria-disabled={completionDisabled || undefined}
+              aria-describedby={completionReasonId(completionDisabled, completionReason, reasonId)}
               title={completionDisabled ? completionReason : undefined}
-              className={`appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${completionDisabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}
+              className={`appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${completionDisabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}
             >
               <ParentRing
                 done={childProgress?.done ?? 0}
@@ -138,6 +155,7 @@ export function HabitRowTrailing({
                 color={resolveParentRingColor(habit.isBadHabit)}
                 trackColor={resolveParentRingTrackColor(habit.isBadHabit, state)}
               />
+              <CompletionReason id={reasonId} disabled={completionDisabled} reason={completionReason} />
             </button>
           </>
         ) : (
