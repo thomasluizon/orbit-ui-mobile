@@ -132,11 +132,15 @@ tools/verify-delivery.mjs; your own exit code counts for nothing. It owns CI wai
 
 const uiReviewSweepOwed = composedOrderNeedsUiReview(repoKey, baseBranch)
 const reviewSweepContract = renderUiReviewSweepContract()
+const uiReviewScope = reviewBatch
+  ? `After implementation, inspect only paths changed by this batch's commit. This sweep applies only
+when a path changed by this batch's commit matches \`${UI_SCOPE}\`. If no changed path matches, skip this sweep and omit the Review harness block.`
+  : `After implementation, inspect the complete diff. This sweep applies only when at least one changed
+path matches \`${UI_SCOPE}\`. If no changed path matches, skip this sweep and omit the Review harness block.`
 const uiReviewSweep = !cloud && uiReviewSweepOwed
   ? `## UI review sweep
 
-After implementation, inspect the complete diff. This sweep applies only when at least one changed
-path matches \`${UI_SCOPE}\`. If no changed path matches, skip this sweep and omit the Review harness block.
+${uiReviewScope}
 
 ${reviewSweepContract}`
   : ""

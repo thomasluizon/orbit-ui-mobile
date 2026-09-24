@@ -987,8 +987,14 @@ handoff, and the orchestrator consumes it before anything else.** Read the repor
 `## Test evidence`, `## Assumptions` and `## Manual steps` sections, its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools/lib/review-harness.mjs`,
 and any `NEEDS_DECISION` line at the step 7
 worker-exit gate, adjudicate the assumptions there exactly as for an initial worker, and write every
-one of those sections into the existing pull request body with `gh pr edit --body-file`. Only then
-the orchestrator replies to and resolves every identified thread on that commit, then pushes once. A
+one of those sections into the existing pull request body before delivery. Merge new entries into the existing `## Test evidence`, `## Assumptions` and `## Manual steps` sections.
+An empty second batch section preserves the first batch's entries. Deduplicate repeated evidence.
+Save the current PR body from `gh pr view <n> --json body --jq .body` and the worker's final report
+to separate files. Run `node tools/merge-review-batch-body.mjs --body-file <current-body> --report-file <worker-report> --out <merged-body>`.
+Add `--ui-scope` only when a path changed by this batch's commit matches `UI_SCOPE`, so the tool
+requires and replaces the complete `## Review harness` block for a UI batch. Without it, the tool
+preserves the previous block. Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
+the orchestrator reply to and resolve every identified thread on that commit, then push once. A
 report that lacks the evidence the order required is a failed batch, never a push. For a batch with no matching path, accept a report without that block and preserve any existing PR-body block.
 For a batch with a matching path, require the complete block and replace the PR-body block before continuing. That push starts Pullfrog's
 review with the fixes and resolved threads together. A registered

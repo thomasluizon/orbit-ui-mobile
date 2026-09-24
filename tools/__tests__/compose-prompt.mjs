@@ -304,6 +304,13 @@ export const cases = () => {
   )
   const reviewRedesignPrompt = composed(reviewRedesignOut)
   T(
+    `${TOOL}: review batch UI sweep uses only paths in its own commit`,
+    /paths changed by this batch's commit/.test(reviewRedesignPrompt) &&
+      !/After implementation, inspect the complete diff/.test(reviewRedesignPrompt) &&
+      /After implementation, inspect the complete diff/.test(redesignPrompt),
+    reviewRedesignPrompt,
+  )
+  T(
     `${TOOL}: redesign review batch requires harness evidence only for a UI-scope diff`,
     /If no changed path matches, skip this sweep and omit the Review harness block/.test(reviewRedesignPrompt) &&
       /`## Review harness` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern/.test(reviewRedesignPrompt) &&
@@ -429,7 +436,7 @@ export const cases = () => {
     `${TOOL}: orchestration resolves review batch threads before its single push`,
     /compose its order with `--review-batch`/.test(orchestrateSkill) &&
       /worker commits, runs the\s+broader suite, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
-      /resolves every identified thread on that commit, then pushes once/.test(orchestrateSkill) &&
+      /resolve every identified thread on that commit, then push once/.test(orchestrateSkill) &&
       !/A worker cannot keep that order\s+under today's contract/.test(orchestrateSkill),
     orchestrateSkill,
   )
@@ -437,10 +444,18 @@ export const cases = () => {
     `${TOOL}: orchestration writes a review batch's report into the pull request body before resolving`,
     /Its final report is the batch's\s+handoff/.test(orchestrateSkill) &&
       /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(orchestrateSkill) &&
-      /into the existing pull request body with `gh pr edit --body-file`\. Only then/.test(orchestrateSkill) &&
+      /node tools\/merge-review-batch-body\.mjs --body-file <current-body> --report-file <worker-report> --out <merged-body>/.test(orchestrateSkill) &&
+      /gh pr edit <n> --body-file <merged-body>/.test(orchestrateSkill) &&
       /its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools\/lib\/review-harness\.mjs`/.test(orchestrateSkill) &&
       /For a batch with no matching path, accept a report without that block and preserve any existing PR-body block/.test(orchestrateSkill) &&
       /For a batch with a matching path, require the complete block and replace the PR-body block/.test(orchestrateSkill),
+    orchestrateSkill,
+  )
+  T(
+    `${TOOL}: orchestration preserves earlier handoff entries across two review batches`,
+    /Merge new entries into the existing `## Test evidence`, `## Assumptions` and `## Manual steps` sections/.test(orchestrateSkill) &&
+      /An empty second batch section preserves the first batch's entries/.test(orchestrateSkill) &&
+      /Deduplicate repeated evidence/.test(orchestrateSkill),
     orchestrateSkill,
   )
   const sleepSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")
