@@ -52,6 +52,7 @@ export function DeleteAccountModal({
   }
 
   async function handleRequestDeletion() {
+    if (accountId === null) return
     const requestAccount = getAccountGeneration()
     setLoading(true)
     setError('')
@@ -120,7 +121,7 @@ export function DeleteAccountModal({
         <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
           <PillButton
             variant="destructive"
-            disabled={loading}
+            disabled={loading || accountId === null}
             loading={loading}
             onClick={() => void handleRequestDeletion()}
           >

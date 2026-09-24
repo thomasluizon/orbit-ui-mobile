@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-modal'
 import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { useAuthStore } from '@/stores/auth-store'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -194,6 +195,30 @@ await Promise.resolve()
 
     expect(storage.has(legacyKey)).toBe(false)
     expect(storage.has(scopedKey)).toBe(false)
+  })
+
+  it('keeps the next account trial notice after an old reset settles', async () => {
+    const offlineMutations = await import('@/lib/offline-mutations')
+    let finishReset!: (value: { queued: false; queuedMutationId: string }) => void
+    vi.mocked(offlineMutations.queueOrExecute).mockImplementationOnce(() =>
+      new Promise((resolve) => { finishReset = resolve }),
+    )
+    useAuthStore.setState({ user: { userId: 'user-1', name: 'Ada', email: 'ada@example.com' } })
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await confirmReset(tree)
+    const nextAccountKey = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-2')
+    storage.set(nextAccountKey, '1')
+
+    await TestRenderer.act(async () => {
+      advanceAccountGeneration()
+      useAuthStore.setState({ user: { userId: 'user-2', name: 'Bea', email: 'bea@example.com' } })
+      finishReset({ queued: false, queuedMutationId: 'reset-1' })
+      await Promise.resolve()
+    })
+
+    expect(storage.get(nextAccountKey)).toBe('1')
+    expect(queryClientClear).not.toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('enqueues the reset when it is queued offline', async () => {

@@ -151,3 +151,39 @@ it('does not route the next account after an old key challenge resolves', async 
   expect(management.push).not.toHaveBeenCalled()
   expect(screen.queryByText('Sign in again')).not.toBeInTheDocument()
 })
+
+it('waits for the first account check before requesting an API key challenge', async () => {
+  useAuthStore.getState().adoptAccountFromSignal(null)
+  useAuthStore.setState({ isAuthenticated: true, sessionInactive: false })
+  let finishSession!: (response: Response) => void
+  vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {
+    finishSession = resolve
+  }))
+  const firstCheck = useAuthStore.getState().checkSession()
+  vi.mocked(requestApiKeyCreationChallenge).mockResolvedValue(undefined as never)
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ProfileApiKeys profile={proProfile()} unlocked={false} />
+    </QueryClientProvider>,
+  )
+  fireEvent.click(screen.getByText('Open the keys'))
+  const sendButton = screen.getByText('Sign in again').closest('button')!
+  expect(sendButton).toBeDisabled()
+  fireEvent.click(sendButton)
+  expect(requestApiKeyCreationChallenge).not.toHaveBeenCalled()
+
+  await act(async () => {
+    finishSession({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId: 'user-1' }),
+    } as Response)
+    await firstCheck
+  })
+  fireEvent.click(screen.getByText('Open the keys'))
+  fireEvent.click(screen.getByText('Sign in again'))
+  await act(async () => { await Promise.resolve() })
+  expect(requestApiKeyCreationChallenge).toHaveBeenCalledTimes(1)
+  expect(readStepUpTiming('keys', 'user-1')).not.toBeNull()
+  expect(management.push).toHaveBeenCalledWith('/step-up?operation=keys')
+})

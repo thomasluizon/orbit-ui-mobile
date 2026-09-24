@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { getStepUpPhaseFromTiming, getStepUpStorageKey } from '@orbit/shared/utils'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { useAuthStore } from '@/stores/auth-store'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const mocks = vi.hoisted(() => ({
@@ -117,4 +118,32 @@ it('does not route the next account into a delayed deletion challenge', async ()
 
   expect(mocks.push).not.toHaveBeenCalled()
   expect(readStepUpTiming('delete', 'user-1')).toBeNull()
+})
+
+it('waits for the first account check before requesting a deletion challenge', async () => {
+  useAuthStore.getState().adoptAccountFromSignal(null)
+  useAuthStore.setState({ isAuthenticated: true, sessionInactive: false })
+  let finishSession!: (response: Response) => void
+  vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {
+    finishSession = resolve
+  }))
+  const firstCheck = useAuthStore.getState().checkSession()
+  render(<DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />)
+
+  const sendButton = screen.getByText('profile.deleteAccount.sendCode').closest('button')!
+  expect(sendButton).toBeDisabled()
+  fireEvent.click(sendButton)
+  expect(mocks.requestDeletion).not.toHaveBeenCalled()
+
+  await act(async () => {
+    finishSession({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId: 'user-1' }),
+    } as Response)
+    await firstCheck
+  })
+  await sendTheCode()
+  expect(mocks.requestDeletion).toHaveBeenCalledTimes(1)
+  expect(readStepUpTiming('delete', 'user-1')).not.toBeNull()
 })

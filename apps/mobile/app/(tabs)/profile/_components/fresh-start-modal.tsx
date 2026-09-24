@@ -15,6 +15,7 @@ import {
 import { apiClient } from '@/lib/api-client'
 import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
 import { useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   buildQueuedMutation,
   createQueuedAck,
@@ -36,8 +37,7 @@ const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
  * Lets the trial notice appear again for this account. The pre-rename key goes with it, because
  * left behind it answers for every account and keeps suppressing the notice this reset restores.
  */
-async function removeScopedTrialExpiredFlag(): Promise<void> {
-  const accountId = useAuthStore.getState().user?.userId ?? null
+async function removeScopedTrialExpiredFlag(accountId: string | null): Promise<void> {
   const keys = [TRIAL_EXPIRED_SEEN_STORAGE_KEY]
   if (accountId !== null) {
     keys.push(buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId))
@@ -134,6 +134,8 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
   async function handleResetAccount() {
     if (!isResetConfirmed) return
+    const resetAccount = getAccountGeneration()
+    const accountId = useAuthStore.getState().user?.userId ?? null
     setResetLoading(true)
     setResetError('')
     try {
@@ -161,30 +163,37 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         },
         queuedResult: createQueuedAck(queuedResetMutation.id),
       })
+      if (getAccountGeneration() !== resetAccount) return
 
       offlineQueue.clear()
       await useOfflineSyncStore.getState().clearDrops()
+      if (getAccountGeneration() !== resetAccount) return
       if (isQueuedResult(result)) {
         offlineQueue.enqueue(queuedResetMutation)
       }
       await useOfflineSyncStore.getState().clearDrops()
+      if (getAccountGeneration() !== resetAccount) return
 
       await Promise.all([
         clearChecklistTemplates(),
-        removeScopedTrialExpiredFlag(),
+        removeScopedTrialExpiredFlag(accountId),
       ])
+      if (getAccountGeneration() !== resetAccount) return
       queryClient.clear()
       await clearPersistedQueryCache()
+      if (getAccountGeneration() !== resetAccount) return
       closeSheet(() => {
+        if (getAccountGeneration() !== resetAccount) return
         onClose()
         queryClient.clear()
         router.replace('/')
       })
     } catch (err: unknown) {
+      if (getAccountGeneration() !== resetAccount) return
       const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
       setResetError(msg)
     } finally {
-      setResetLoading(false)
+      if (getAccountGeneration() === resetAccount) setResetLoading(false)
     }
   }
 

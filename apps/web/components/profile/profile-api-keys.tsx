@@ -175,11 +175,12 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
 
 interface ApiKeyGateProps {
   busy: boolean
+  accountReady: boolean
   error: boolean
   onStartStepUp: () => Promise<void>
 }
 
-function ApiKeyGate({ busy, error, onStartStepUp }: Readonly<ApiKeyGateProps>) {
+function ApiKeyGate({ busy, accountReady, error, onStartStepUp }: Readonly<ApiKeyGateProps>) {
   const t = useTranslations()
   const [showStepUp, setShowStepUp] = useAccountScopedState(false)
 
@@ -201,7 +202,7 @@ function ApiKeyGate({ busy, error, onStartStepUp }: Readonly<ApiKeyGateProps>) {
       <StepUp
         message={t('profile.apiKeys.stepUpBody')}
         actionLabel={t('profile.apiKeys.stepUpAction')}
-        busy={busy}
+        busy={busy || !accountReady}
         onAction={() => void onStartStepUp()}
       />
       {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('stepUp.requestError')}</p> : null}
@@ -218,6 +219,7 @@ interface ApiKeyAccessContentProps extends ApiKeyGateProps {
 
 function ApiKeyAccessContent({
   busy,
+  accountReady,
   children,
   error,
   hasProAccess,
@@ -241,7 +243,7 @@ function ApiKeyAccessContent({
     )
   }
   if (!unlocked) {
-    return <ApiKeyGate busy={busy} error={error} onStartStepUp={onStartStepUp} />
+    return <ApiKeyGate busy={busy} accountReady={accountReady} error={error} onStartStepUp={onStartStepUp} />
   }
   return children
 }
@@ -292,7 +294,7 @@ function useApiKeyStepUp() {
   const [error, setError] = useAccountScopedState(false)
 
   async function start() {
-    if (busy) return
+    if (busy || accountId === null) return
     const challengeAccount = getAccountGeneration()
     setBusy(true)
     setError(false)
@@ -308,7 +310,7 @@ function useApiKeyStepUp() {
     }
   }
 
-  return { busy, error, start }
+  return { busy, error, start, accountReady: accountId !== null }
 }
 
 function openScopeOrStartStepUp(
@@ -380,6 +382,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
       </p>
 
       <ApiKeyAccessContent
+        accountReady={stepUp.accountReady}
         busy={stepUp.busy}
         error={stepUp.error}
         hasProAccess={hasProAccess}
