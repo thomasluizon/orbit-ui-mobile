@@ -5,12 +5,12 @@ import expoNotificationsMock, {
   getPermissionsAsync,
   requestPermissionsAsync,
   resetExpoNotificationsMocks,
-  scheduleNotificationAsync,
   setNotificationChannelAsync,
 } from '@/test-mocks/expo-notifications'
 import { i18n } from '@/lib/i18n'
 import {
   __setPersistentReminderModuleForTests,
+  __setPersistentReminderNativeModuleForTests,
   buildReminderContent,
   cancelPersistentReminder,
   extractReminderFeed,
@@ -19,21 +19,22 @@ import {
   requestPersistentReminderPermission,
 } from '@/lib/persistent-reminder'
 import { usePersistentReminderStore } from '@/stores/persistent-reminder-store'
+import type { OrbitWidgetModuleType } from '../../modules/orbit-widget/src/OrbitWidget.types'
 
 const secureStoreMocks = vi.hoisted(() => ({ getToken: vi.fn() }))
 vi.mock('@/lib/secure-store', () => ({ getToken: secureStoreMocks.getToken }))
 
-interface ScheduledRequest {
-  identifier?: string
-  content: {
-    title: string
-    body: string
-    sticky: boolean
-    autoDismiss: boolean
-    color: string
-    data: { url: string }
-  }
-  trigger: { channelId: string } | null
+const postPersistentReminder = vi.fn(async (
+  _generation: number, _title: string, _body: string, _color: string,
+) => {})
+const cancelNativeReminder = vi.fn(async (_generation: number) => {})
+const nativeModule: OrbitWidgetModuleType = {
+  saveToken: vi.fn(),
+  clearToken: vi.fn(),
+  syncTheme: vi.fn(),
+  syncWidgetData: vi.fn(),
+  postPersistentReminder,
+  cancelPersistentReminder: cancelNativeReminder,
 }
 
 /** Compact JWS, exactly as the API emits it: base64url, padding stripped. */
@@ -48,13 +49,6 @@ function tokenFor(accountId: string, email = `${accountId}@example.com`): string
 const OWNER_TOKEN = tokenFor('owner-account')
 const PERSISTENT_REMINDER_IDENTIFIER = 'orbit-persistent-reminder'
 
-function lastScheduledRequest(): ScheduledRequest {
-  const calls = scheduleNotificationAsync.mock.calls
-  const lastCall = calls[calls.length - 1]
-  if (!lastCall) throw new Error('expected a scheduled notification')
-  return lastCall[0] as ScheduledRequest
-}
-
 const fakeTranslate = (key: string, params?: Record<string, unknown>) =>
   params ? `${key}:${JSON.stringify(params)}` : key
 
@@ -64,6 +58,11 @@ describe('persistent reminder', () => {
     secureStoreMocks.getToken.mockReset()
     secureStoreMocks.getToken.mockResolvedValue(OWNER_TOKEN)
     __setPersistentReminderModuleForTests(expoNotificationsMock)
+    __setPersistentReminderNativeModuleForTests(nativeModule)
+    postPersistentReminder.mockReset()
+    postPersistentReminder.mockResolvedValue(undefined)
+    cancelNativeReminder.mockReset()
+    cancelNativeReminder.mockResolvedValue(undefined)
     usePersistentReminderStore.setState({ enabled: false })
     await i18n.changeLanguage('en')
   })
@@ -112,7 +111,7 @@ describe('persistent reminder', () => {
         { currentStreak: 5, items: [{ isCompleted: true }] },
         OWNER_TOKEN,
       )
-      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+      expect(postPersistentReminder).not.toHaveBeenCalled()
     })
 
     it('posts a quiet ongoing notification with the feed streak and progress when on', async () => {
@@ -132,20 +131,15 @@ describe('persistent reminder', () => {
         OWNER_TOKEN,
       )
 
-      expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1)
+      expect(postPersistentReminder).toHaveBeenCalledTimes(1)
       expect(setNotificationChannelAsync).toHaveBeenCalledWith(
         'persistent-reminder',
         expect.objectContaining({ importance: AndroidImportance.LOW }),
       )
 
-      const request = lastScheduledRequest()
-      expect(request.identifier).toBe('orbit-persistent-reminder')
-      expect(request.content.title).toBe('12-day streak')
-      expect(request.content.body).toBe('3/5 done today')
-      expect(request.content.sticky).toBe(true)
-      expect(request.content.autoDismiss).toBe(false)
-      expect(request.content.data).toEqual({ url: '/' })
-      expect(request.trigger).toEqual({ channelId: 'persistent-reminder' })
+      expect(postPersistentReminder).toHaveBeenCalledWith(
+        expect.any(Number), '12-day streak', '3/5 done today', expect.any(String),
+      )
     })
 
     it('re-posts in place with the same identifier when the feed updates', async () => {
@@ -160,14 +154,10 @@ describe('persistent reminder', () => {
         OWNER_TOKEN,
       )
 
-      const calls = scheduleNotificationAsync.mock.calls
+      const calls = postPersistentReminder.mock.calls
       expect(calls).toHaveLength(2)
-      const first = calls[0]?.[0] as ScheduledRequest | undefined
-      const second = calls[1]?.[0] as ScheduledRequest | undefined
-      expect(first?.identifier).toBe('orbit-persistent-reminder')
-      expect(first?.content.body).toBe('0/1 done today')
-      expect(second?.identifier).toBe('orbit-persistent-reminder')
-      expect(second?.content.body).toBe('1/1 done today')
+      expect(calls[0]?.[2]).toBe('0/1 done today')
+      expect(calls[1]?.[2]).toBe('1/1 done today')
     })
 
     it('dismisses the notification when the feed is unavailable while enabled', async () => {
@@ -176,7 +166,8 @@ describe('persistent reminder', () => {
       await refreshPersistentReminder(null, null)
 
       expect(dismissNotificationAsync).toHaveBeenCalledWith('orbit-persistent-reminder')
-      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+      expect(postPersistentReminder).not.toHaveBeenCalled()
+      expect(cancelNativeReminder).toHaveBeenCalledTimes(1)
     })
 
     it('does not update after the feed resolves under a different signed-in account', async () => {
@@ -189,7 +180,7 @@ describe('persistent reminder', () => {
         authorizingToken,
       )
 
-      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+      expect(postPersistentReminder).not.toHaveBeenCalled()
     })
 
     it('reads an account from a payload whose base64url carries - or _', async () => {
@@ -203,7 +194,7 @@ describe('persistent reminder', () => {
         authorizingToken,
       )
 
-      expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1)
+      expect(postPersistentReminder).toHaveBeenCalledTimes(1)
     })
 
     it('dismisses again when cancellation starts while native scheduling is in flight', async () => {
@@ -211,23 +202,40 @@ describe('persistent reminder', () => {
       const authorizingToken = tokenFor('first-account')
       secureStoreMocks.getToken.mockResolvedValue(authorizingToken)
 
-      let releaseSchedule: () => void = () => {}
-      const schedulePending = new Promise<string>((resolve) => {
-        releaseSchedule = () => resolve(PERSISTENT_REMINDER_IDENTIFIER)
+      let releasePresentation: () => void = () => {}
+      const displayed = new Set<string>()
+      let cancelledAtGeneration = -1
+      const presentationPending = new Promise<void>((resolve) => {
+        releasePresentation = resolve
       })
-      scheduleNotificationAsync.mockImplementationOnce(() => schedulePending)
+      postPersistentReminder.mockImplementationOnce(async (generation) => {
+        await presentationPending
+        if (generation >= cancelledAtGeneration) {
+          displayed.add(PERSISTENT_REMINDER_IDENTIFIER)
+        }
+      })
+      cancelNativeReminder.mockImplementation((generation) => {
+        cancelledAtGeneration = generation
+        displayed.clear()
+        return Promise.resolve()
+      })
+      dismissNotificationAsync.mockImplementation((identifier) => {
+        displayed.delete(identifier)
+        return Promise.resolve()
+      })
 
       const refreshing = refreshPersistentReminder(
         { currentStreak: 8, items: [{ isCompleted: true }] },
         authorizingToken,
       )
-      await vi.waitFor(() => expect(scheduleNotificationAsync).toHaveBeenCalled())
+      await vi.waitFor(() => expect(postPersistentReminder).toHaveBeenCalled())
 
       await cancelPersistentReminder()
-      releaseSchedule()
+      releasePresentation()
       await refreshing
 
-      expect(dismissNotificationAsync).toHaveBeenCalledTimes(2)
+      expect(cancelNativeReminder).toHaveBeenCalledTimes(1)
+      expect(displayed).not.toContain(PERSISTENT_REMINDER_IDENTIFIER)
     })
 
     it('does not post when the reminder is cancelled during channel setup, same account', async () => {
@@ -252,7 +260,7 @@ describe('persistent reminder', () => {
       releaseChannel()
       await refreshing
 
-      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+      expect(postPersistentReminder).not.toHaveBeenCalled()
     })
 
     it('does not post when the payload carries no account to attribute it to', async () => {
@@ -260,7 +268,7 @@ describe('persistent reminder', () => {
 
       await refreshPersistentReminder({ currentStreak: 8, items: [{ isCompleted: true }] }, null)
 
-      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+      expect(postPersistentReminder).not.toHaveBeenCalled()
     })
 
     it('does not post when the account changes while channel setup is still pending', async () => {
@@ -289,7 +297,7 @@ describe('persistent reminder', () => {
       releaseChannel()
       await refreshing
 
-      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+      expect(postPersistentReminder).not.toHaveBeenCalled()
       expect(dismissNotificationAsync).toHaveBeenCalledWith('orbit-persistent-reminder')
     })
   })
@@ -298,6 +306,7 @@ describe('persistent reminder', () => {
     it('dismisses the ongoing notification', async () => {
       await cancelPersistentReminder()
       expect(dismissNotificationAsync).toHaveBeenCalledWith('orbit-persistent-reminder')
+      expect(cancelNativeReminder).toHaveBeenCalledTimes(1)
     })
   })
 

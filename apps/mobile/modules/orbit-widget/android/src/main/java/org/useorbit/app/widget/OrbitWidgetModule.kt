@@ -1,10 +1,16 @@
 package org.useorbit.app.widget
 
 import android.appwidget.AppWidgetManager
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.Color
+import android.net.Uri
 import android.util.Base64
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import expo.modules.kotlin.modules.Module
@@ -14,6 +20,9 @@ import org.json.JSONObject
 
 class OrbitWidgetModule : Module() {
   companion object {
+    private val reminderPresentation = PersistentReminderPresentation()
+    private const val REMINDER_TAG = "orbit-persistent-reminder"
+    private const val REMINDER_CHANNEL = "persistent-reminder"
     private const val PREFS_NAME = "orbit_widget_prefs"
     private const val KEY_TOKEN = "auth_token"
     private const val CACHE_PREFS_NAME = "orbit_widget_cache"
@@ -186,6 +195,42 @@ class OrbitWidgetModule : Module() {
           .apply()
       }
       refreshWidgets(context)
+    }
+
+    AsyncFunction("postPersistentReminder") {
+      generation: Int, title: String, body: String, color: String ->
+      val context = moduleContext()
+      reminderPresentation.post(generation) {
+        val openToday = Intent(Intent.ACTION_VIEW, Uri.parse("orbit:///"))
+          .setPackage(context.packageName)
+        val openTodayIntent = PendingIntent.getActivity(
+          context, 500, openToday,
+          PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val icon = context.resources.getIdentifier(
+          "notification_icon", "drawable", context.packageName
+        ).takeIf { it != 0 } ?: context.applicationInfo.icon
+        val notification = NotificationCompat.Builder(context, REMINDER_CHANNEL)
+          .setSmallIcon(icon)
+          .setContentTitle(title)
+          .setContentText(body)
+          .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+          .setColor(Color.parseColor(color))
+          .setContentIntent(openTodayIntent)
+          .setOngoing(true)
+          .setAutoCancel(false)
+          .setOnlyAlertOnce(true)
+          .setPriority(NotificationCompat.PRIORITY_LOW)
+          .build()
+        NotificationManagerCompat.from(context).notify(REMINDER_TAG, 0, notification)
+      }
+    }
+
+    AsyncFunction("cancelPersistentReminder") { generation: Int ->
+      val context = moduleContext()
+      reminderPresentation.cancel(generation) {
+        NotificationManagerCompat.from(context).cancel(REMINDER_TAG, 0)
+      }
     }
 
     OnActivityEntersBackground {
