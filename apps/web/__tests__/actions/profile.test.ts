@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/auth-api', () => ({
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-api')>(),
   getAuthHeaders: vi.fn().mockResolvedValue({
     Authorization: 'Bearer test-token',
   }),
@@ -10,6 +11,15 @@ vi.mock('@/lib/auth-api', () => ({
     refreshed: false,
   }),
 }))
+
+import { resolveServerSession } from '@/lib/auth-api'
+
+const accountClaim = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+
+function tokenForAccount(accountId: string): string {
+  const payload = Buffer.from(JSON.stringify({ [accountClaim]: accountId })).toString('base64url')
+  return `header.${payload}.signature`
+}
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -278,10 +288,42 @@ describe('profile server actions', () => {
   })
 
   describe('other account-scoped actions', () => {
+    beforeEach(() => {
+      vi.mocked(resolveServerSession).mockResolvedValue({
+        token: tokenForAccount('account-a'),
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: false,
+      })
+    })
+
     it.each([
-      ['name', () => updateName({ name: 'Ada' }, null), { name: 'Ada' }, '/api/profile/name'],
-      ['proactive Astra', () => updateProactiveAstra({ enabled: true }, null), { enabled: true }, '/api/profile/proactive-astra'],
-      ['marketing consent', () => updateMarketingConsent({ enabled: false }, null), { enabled: false }, '/api/profile/marketing-consent'],
+      ['name', () => updateName({ name: 'Ada' }, 'account-a')],
+      ['proactive Astra', () => updateProactiveAstra({ enabled: true }, 'account-a')],
+      ['marketing consent', () => updateMarketingConsent({ enabled: false }, 'account-a')],
+      ['selected calendars', () => setSelectedCalendars(['work', 'home'], 'account-a')],
+      ['calendar auto-sync', () => setCalendarAutoSync(true, 'account-a')],
+      ['calendar sync', () => runCalendarSyncNow('account-a')],
+      ['calendar suggestion', () => dismissCalendarSuggestion('suggestion-1', 'account-a')],
+      ['customer portal', () => openCustomerPortal('account-a')],
+      ['support message', () => sendSupportMessage({ subject: 'Sync', message: 'My calendar did not sync.' }, 'account-a')],
+    ] as const)('refuses the %s write after the cookie changes accounts', async (_label, send) => {
+      vi.mocked(resolveServerSession).mockResolvedValue({
+        token: tokenForAccount('account-b'),
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: false,
+      })
+      mock204()
+
+      await expect(send()).rejects.toMatchObject({ status: 409, code: 'ACCOUNT_CHANGED' })
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['name', () => updateName({ name: 'Ada' }, 'account-a'), { name: 'Ada' }, '/api/profile/name'],
+      ['proactive Astra', () => updateProactiveAstra({ enabled: true }, 'account-a'), { enabled: true }, '/api/profile/proactive-astra'],
+      ['marketing consent', () => updateMarketingConsent({ enabled: false }, 'account-a'), { enabled: false }, '/api/profile/marketing-consent'],
     ] as const)('sends the %s change through the guarded PUT', async (_label, send, payload, path) => {
       mock204()
       await send()
@@ -293,7 +335,7 @@ describe('profile server actions', () => {
 
     it('sends selected calendar IDs through the guarded PUT', async () => {
       mock204()
-      await setSelectedCalendars(['work', 'home'], null)
+      await setSelectedCalendars(['work', 'home'], 'account-a')
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/calendar/selected')
       expect(init.method).toBe('PUT')
@@ -302,7 +344,7 @@ describe('profile server actions', () => {
 
     it('sends the auto-sync setting through the guarded PUT', async () => {
       mock204()
-      await setCalendarAutoSync(true, null)
+      await setCalendarAutoSync(true, 'account-a')
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/calendar/auto-sync')
       expect(init.method).toBe('PUT')
@@ -311,7 +353,7 @@ describe('profile server actions', () => {
 
     it('starts calendar sync with POST', async () => {
       mock204()
-      await runCalendarSyncNow(null)
+      await runCalendarSyncNow('account-a')
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/calendar/auto-sync/run')
       expect(init.method).toBe('POST')
@@ -319,7 +361,7 @@ describe('profile server actions', () => {
 
     it('dismisses the named calendar suggestion with PUT', async () => {
       mock204()
-      await dismissCalendarSuggestion('suggestion-1', null)
+      await dismissCalendarSuggestion('suggestion-1', 'account-a')
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/calendar/auto-sync/suggestions/suggestion-1/dismiss')
       expect(init.method).toBe('PUT')
@@ -329,7 +371,7 @@ describe('profile server actions', () => {
       mockFetch.mockResolvedValue(new Response(JSON.stringify({ url: 'https://billing.example/portal' }), {
         status: 200,
       }))
-      await expect(openCustomerPortal(null)).resolves.toEqual({ url: 'https://billing.example/portal' })
+      await expect(openCustomerPortal('account-a')).resolves.toEqual({ url: 'https://billing.example/portal' })
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/subscriptions/portal')
       expect(init.method).toBe('POST')
@@ -338,7 +380,7 @@ describe('profile server actions', () => {
     it('sends the support message body with POST', async () => {
       mock204()
       const payload = { subject: 'Sync', message: 'My calendar did not sync.' }
-      await sendSupportMessage(payload, null)
+      await sendSupportMessage(payload, 'account-a')
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/support')
       expect(init.method).toBe('POST')
