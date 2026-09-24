@@ -10,6 +10,7 @@ const AGENT = ["---", "name: design-reviewer", "model: sonnet", "effort: medium"
 const SKILL = ["---", "name: ticket", "effort: high", "---", "", "body", ""].join("\n")
 const POINTER = ["---", "name: ticket", "description: pointer", "---", "", "The canonical definition is .claude/skills/ticket/SKILL.md.", ""].join("\n")
 const CLASSIFIER_PROMPT = "Classify the ticket.\n"
+const digestOf = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
 
 const write = (path, body) => {
   mkdirSync(dirname(path), { recursive: true })
@@ -55,6 +56,16 @@ const stage = (label, stamp) => {
   const fixture = join(root, "reseed-calibration", label)
   for (const file of FILES) write(join(fixture, ...file.path.split("/")), file.body)
   write(join(fixture, "tools", "lib", "ticket-classifier-prompt.md"), CLASSIFIER_PROMPT)
+  const casesText = readFileSync(join(REPO_ROOT, "tools", "__fixtures__", "ticket-classifier-cases.json"), "utf8")
+  const responsesText = readFileSync(join(REPO_ROOT, "tools", "__fixtures__", "ticket-classifier-responses.json"), "utf8")
+  const caseCount = JSON.parse(casesText).length
+  write(join(fixture, "tools", "__fixtures__", "ticket-classifier-cases.json"), casesText)
+  write(join(fixture, "tools", "__fixtures__", "ticket-classifier-responses.json"), responsesText)
+  write(join(fixture, "tools", "__fixtures__", "ticket-classifier-calibration.json"), `${JSON.stringify({
+    model: "gpt-6-luna", promptDigest: digestOf(CLASSIFIER_PROMPT), casesDigest: digestOf(casesText),
+    responsesDigest: digestOf(responsesText), calibratedAt: daysAgo(0), agreement: `${caseCount}/${caseCount}`,
+    verdict: `classifier matched all ${caseCount} recorded ticket cases`,
+  }, null, 2)}\n`)
   write(
     join(fixture, ".claude", "orchestrator.json"),
     `${JSON.stringify(
@@ -132,6 +143,40 @@ export const cases = () => {
     `the entry date was ${stampOf(aged).entries[A_SKILL].calibratedAt}, expected ${daysAgo(200)}`,
   )
   T(`${TOOL}: an unchanged classifier keeps its own calibration date`, stampOf(aged).classifier.calibratedAt === daysAgo(30))
+  const classifierMoved = stage("classifier-model-moved", first)
+  const movedConfigPath = join(classifierMoved, ".claude", "orchestrator.json")
+  const movedConfig = JSON.parse(readFileSync(movedConfigPath, "utf8"))
+  movedConfig.classifier.model = "gpt-6-next"
+  write(movedConfigPath, `${JSON.stringify(movedConfig, null, 2)}\n`)
+  check(TOOL, "model drift cannot be reseeded without a matching live classifier run", ["--root", classifierMoved], {
+    nonZero: true,
+    stderr: /classifier.*record/i,
+  })
+  T(`${TOOL}: failed model reseed preserves the old stamp`, stampOf(classifierMoved).classifier.model === "gpt-6-luna")
+  const movedRecordPath = join(classifierMoved, "tools", "__fixtures__", "ticket-classifier-calibration.json")
+  const movedRecord = JSON.parse(readFileSync(movedRecordPath, "utf8"))
+  movedRecord.model = "gpt-6-next"
+  write(movedRecordPath, `${JSON.stringify(movedRecord, null, 2)}\n`)
+  check(TOOL, "matching recorder evidence permits model recalibration", ["--root", classifierMoved], { status: 0, stdout: /stamped/ })
+  T(`${TOOL}: matching model evidence supplies the verdict and date`, stampOf(classifierMoved).classifier.model === "gpt-6-next" && stampOf(classifierMoved).classifier.verdict === movedRecord.verdict && stampOf(classifierMoved).classifier.calibratedAt === movedRecord.calibratedAt)
+  const classifierPromptMoved = stage("classifier-prompt-moved", first)
+  write(join(classifierPromptMoved, "tools", "lib", "ticket-classifier-prompt.md"), `${CLASSIFIER_PROMPT}Changed.\n`)
+  check(TOOL, "prompt drift cannot be reseeded without a matching live classifier run", ["--root", classifierPromptMoved], {
+    nonZero: true,
+    stderr: /classifier.*record/i,
+  })
+  T(`${TOOL}: failed prompt reseed preserves the old stamp`, stampOf(classifierPromptMoved).classifier.promptDigest === first.classifier.promptDigest)
+  const staleResponses = stage("classifier-stale-responses", first)
+  const staleConfigPath = join(staleResponses, ".claude", "orchestrator.json")
+  const staleConfig = JSON.parse(readFileSync(staleConfigPath, "utf8"))
+  staleConfig.classifier.model = "gpt-6-next"
+  write(staleConfigPath, `${JSON.stringify(staleConfig, null, 2)}\n`)
+  const staleRecordPath = join(staleResponses, "tools", "__fixtures__", "ticket-classifier-calibration.json")
+  const staleRecord = JSON.parse(readFileSync(staleRecordPath, "utf8"))
+  staleRecord.model = "gpt-6-next"
+  write(staleRecordPath, `${JSON.stringify(staleRecord, null, 2)}\n`)
+  write(join(staleResponses, "tools", "__fixtures__", "ticket-classifier-responses.json"), "{}\n")
+  check(TOOL, "changed responses invalidate an otherwise matching recorder record", ["--root", staleResponses], { nonZero: true, stderr: /classifier recorder record does not match/ })
 
   /** A file whose CONTENT moved is the one case that must be renewed, and only that file. */
   const edited = stage("edited", backdated(first, 200))

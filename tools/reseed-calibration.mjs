@@ -224,17 +224,34 @@ for (const file of files) {
   }
 }
 
-const classifierDigest = createHash("sha256").update(readFileSync(join(root, "tools/lib/ticket-classifier-prompt.md"), "utf8").replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
-const classifierVerdict = "gpt-6-luna matched all 41 recorded ticket cases on 2026-09-24, including a delegated choice the former phrase matcher missed"
-const classifierUnchanged = previous.classifier?.model === config.classifier.model && previous.classifier.promptDigest === classifierDigest && previous.classifier.verdict === classifierVerdict
+const digest = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
+const classifierDigest = digest(readFileSync(join(root, "tools/lib/ticket-classifier-prompt.md"), "utf8"))
+const classifierUnchanged = previous.classifier?.model === config.classifier.model &&
+  previous.classifier.promptDigest === classifierDigest &&
+  typeof previous.classifier.calibratedAt === "string" &&
+  typeof previous.classifier.verdict === "string" && previous.classifier.verdict.trim()
+let classifierCalibration = previous.classifier
+if (!classifierUnchanged) {
+  const recordPath = join(root, "tools/__fixtures__/ticket-classifier-calibration.json")
+  if (!existsSync(recordPath)) throw new Error("classifier calibration needs a live recorder record; run node tools/record-classifier-fixtures.mjs")
+  const record = JSON.parse(readFileSync(recordPath, "utf8"))
+  const casesText = readFileSync(join(root, "tools/__fixtures__/ticket-classifier-cases.json"), "utf8")
+  const responsesText = readFileSync(join(root, "tools/__fixtures__/ticket-classifier-responses.json"), "utf8")
+  const count = JSON.parse(casesText).length
+  const date = record.calibratedAt
+  const validDate = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+    !Number.isNaN(Date.parse(`${date}T00:00:00Z`)) && new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date &&
+    date <= calibratedAt
+  if (record.model !== config.classifier.model || record.promptDigest !== classifierDigest ||
+    record.casesDigest !== digest(casesText) || record.responsesDigest !== digest(responsesText) ||
+    record.agreement !== `${count}/${count}` || record.verdict !== `classifier matched all ${count} recorded ticket cases` || !validDate) {
+    throw new Error("classifier recorder record does not match the configured model, prompt, cases, responses and complete agreement")
+  }
+  classifierCalibration = { model: record.model, promptDigest: record.promptDigest, calibratedAt: date, verdict: record.verdict }
+}
 const stamp = {
   calibratedAt,
-  classifier: {
-    model: config.classifier.model,
-    promptDigest: classifierDigest,
-    calibratedAt: classifierUnchanged ? previous.classifier.calibratedAt : calibratedAt,
-    verdict: classifierVerdict,
-  },
+  classifier: classifierCalibration,
   workerEngine,
   workerCommand,
   workerTiers,

@@ -1,9 +1,13 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
-import { dirname, resolve } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { recordClassification } from "./lib/ticket-executability.mjs"
+
+const digest = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
 
 const USAGE = `usage: record-classifier-fixtures.mjs [--output <path>]
 
@@ -26,7 +30,8 @@ if (args.length > 0) {
   output = resolve(args[1])
 }
 
-const cases = JSON.parse(await readFile(new URL("./__fixtures__/ticket-classifier-cases.json", import.meta.url), "utf8"))
+const casesText = await readFile(new URL("./__fixtures__/ticket-classifier-cases.json", import.meta.url), "utf8")
+const cases = JSON.parse(casesText)
 const responses = {}
 let agreed = 0
 let failed = false
@@ -53,6 +58,19 @@ for (const entry of cases) {
   }
 }
 await mkdir(dirname(output), { recursive: true })
-await writeFile(output, `${JSON.stringify(responses, null, 2)}\n`)
+const responsesText = `${JSON.stringify(responses, null, 2)}\n`
+await writeFile(output, responsesText)
 process.stdout.write(`agreement ${agreed}/${cases.length}\n`)
+if (!failed) {
+  const calibration = {
+    model: readOrchestratorConfig().classifier.model,
+    promptDigest: digest(await readFile(new URL("./lib/ticket-classifier-prompt.md", import.meta.url), "utf8")),
+    casesDigest: digest(casesText),
+    responsesDigest: digest(responsesText),
+    calibratedAt: new Date().toISOString().slice(0, 10),
+    agreement: `${agreed}/${cases.length}`,
+    verdict: `classifier matched all ${cases.length} recorded ticket cases`,
+  }
+  await writeFile(join(dirname(output), "ticket-classifier-calibration.json"), `${JSON.stringify(calibration, null, 2)}\n`)
+}
 process.exitCode = failed ? 1 : 0

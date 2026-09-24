@@ -1,6 +1,7 @@
-import { readFileSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { chmodSync, readFileSync, writeFileSync } from "node:fs"
 
-import { T } from "./_harness.mjs"
+import { stage, T } from "./_harness.mjs"
 
 const TOOL = "lib/ticket-executability.mjs"
 const fixtures = JSON.parse(readFileSync(new URL("../__fixtures__/ticket-classifier-cases.json", import.meta.url), "utf8"))
@@ -166,6 +167,36 @@ export const cases = async () => {
   const on = await labelsModule.classifyConversationFirst("## Scope\n\n- Work", { labels: ["needs:conversation"], run: labelsRun })
   const off = await labelsModule.classifyConversationFirst("## Scope\n\n- Work", { labels: [{ name: "needs:no-conversation" }], run: labelsRun })
   T(`${TOOL}: labels skip the CLI in both directions`, on.source === "label" && off.source === "label" && on.conversationFirst && !off.conversationFirst)
+  const labeledFailureModule = await load("labeled-failure")
+  const labeledFailureBody = "## Scope\n\n- Fix labeled code"
+  const labeledFailureRun = async () => ({ code: 1, stdout: "", stderr: "" })
+  await labeledFailureModule.classifyExecutability(labeledFailureBody, { run: labeledFailureRun, retryDelayMs: 0 })
+  const labeledFailure = await labeledFailureModule.classifyConversationFirst(labeledFailureBody, { labels: ["needs:no-conversation"] })
+  T(`${TOOL}: off label preserves a cached classifier failure`, labeledFailure.source === "classifier" && labeledFailure.signals[0]?.kind === "CLASSIFIER_ERROR")
+  const labeledOnFailure = await labeledFailureModule.classifyConversationFirst(labeledFailureBody, { labels: ["needs:conversation"] })
+  T(`${TOOL}: on label preserves a cached classifier failure`, labeledOnFailure.source === "classifier" && labeledOnFailure.signals[0]?.kind === "CLASSIFIER_ERROR")
+  const nativeProbe = stage("ticket-executability/native-probe.mjs", `
+import { classifyConversationFirst } from ${JSON.stringify(new URL("../lib/ticket-executability.mjs", import.meta.url).href)}
+const started = performance.now()
+const result = await classifyConversationFirst("## Scope\\n\\n- Fix code\\n" + "x".repeat(4_000_000), { timeoutMs: 40, retryDelayMs: 0 })
+process.stdout.write(JSON.stringify({ kind: result.signals[0]?.kind, elapsedMs: performance.now() - started }))
+`)
+  for (const [name, source] of [
+    ["early-exit", "#!/usr/bin/env node\nprocess.exit(1)\n"],
+    ["stdio-descendant", "#!/usr/bin/env node\nimport { spawn } from 'node:child_process'\nspawn(process.execPath, ['-e', 'setTimeout(() => {}, 1200)'], { stdio: 'inherit' })\n"],
+    ["output-overflow", "#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync(process.argv[process.argv.indexOf('-o') + 1], JSON.stringify({ deferrals: [], signals: [] }))\nprocess.stdout.write('x'.repeat(2_000_000))\n"],
+  ]) {
+    const binary = stage(`ticket-executability/${name}.mjs`, source)
+    chmodSync(binary, 0o755)
+    const observed = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CODEX_BIN: binary } })
+    let verdict
+    try { verdict = JSON.parse(observed.stdout) } catch { verdict = null }
+    T(`${TOOL}: native ${name} fails closed within the deadline`, observed.status === 0 && verdict?.kind === "CLASSIFIER_ERROR" && verdict.elapsedMs < 600, observed.stderr || observed.stdout || String(observed.error))
+  }
+  const missingBinary = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CODEX_BIN: "/orbit-test/missing-codex" } })
+  let missingVerdict
+  try { missingVerdict = JSON.parse(missingBinary.stdout) } catch { missingVerdict = null }
+  T(`${TOOL}: native launch failure fails closed`, missingBinary.status === 0 && missingVerdict?.kind === "CLASSIFIER_ERROR", missingBinary.stderr || missingBinary.stdout || String(missingBinary.error))
   /** The queue contract has to name the reason, or the deferral arrives at 03:00 with no meaning. */
   T(
     `${TOOL}: the orchestrate contract documents NEEDS_CONVERSATION as a sleep-only deferral`,
