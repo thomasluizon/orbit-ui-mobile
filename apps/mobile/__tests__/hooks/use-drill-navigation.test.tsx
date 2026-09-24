@@ -218,6 +218,20 @@ describe('mobile useDrillNavigation', () => {
     expect(holder.current.drillChildren).toEqual([])
   })
 
+  it('clears a failed drill after Retry loads its children', async () => {
+    mocks.apiClient.mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce(makeDetail({ children: [makeChild({ id: 'recovered' })] }))
+    const { holder } = renderDrill()
+
+    await actAsync(() => holder.current.drillInto('p1'))
+    expect(holder.current.drillError).not.toBe('')
+
+    await actAsync(() => holder.current.refreshCurrent())
+
+    expect(holder.current.drillError).toBe('')
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['recovered'])
+  })
+
   it('refreshCurrent silently refetches the active parent with fresh children', async () => {
     mocks.apiClient.mockResolvedValueOnce(
       makeDetail({ children: [makeChild({ id: 'c1' })] }),

@@ -50,12 +50,11 @@ function DrillEmptyMessage({
   t,
   onShowCompleted,
 }: Readonly<Pick<HabitDrillProps, 'drill' | 'styles' | 't' | 'onShowCompleted'>>) {
-  if (!drill.hasUnfilteredChildren) {
-    return <Text style={styles.drillEmptyText}>{t('habits.noSubHabits')}</Text>
-  }
   return (
-    <View>
-      <Text style={styles.drillEmptyText}>{t('habits.filterEmptySubHabits')}</Text>
+    <View style={styles.drillEmptyWrap}>
+      <Text style={styles.drillEmptyText}>
+        {t(drill.hasUnfilteredChildren ? 'habits.filterEmptySubHabits' : 'habits.noSubHabits')}
+      </Text>
       {drill.canRevealCompletedChildren && onShowCompleted ? (
         <PillButton variant="ghost" onClick={onShowCompleted}>
           {t('habits.showCompleted')}

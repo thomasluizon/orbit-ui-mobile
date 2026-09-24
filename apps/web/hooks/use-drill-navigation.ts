@@ -107,6 +107,7 @@ export function useDrillNavigation(
         setDrillChildrenMap((prev) =>
           mergeDrillChildrenMap(prev, normalized.childrenByParent),
         )
+        setDrillError('')
       } catch (err: unknown) {
         if (!silent) {
           setDrillError(getFriendlyErrorMessage(err, t, 'errors.fetchSubHabits', 'subHabit'))
@@ -141,8 +142,8 @@ export function useDrillNavigation(
 
   const refreshCurrent = useCallback(async () => {
     if (!currentParentId) return
-    await fetchDrillChildren(currentParentId, true)
-  }, [currentParentId, fetchDrillChildren])
+    await fetchDrillChildren(currentParentId, drillError === '')
+  }, [currentParentId, drillError, fetchDrillChildren])
 
   const getDrillChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {

@@ -238,6 +238,26 @@ describe('useDrillNavigation', () => {
     expect(result.current.drillError).toBeTruthy()
   })
 
+  it('clears a failed drill after Retry loads its children', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ error: 'Server error' }),
+    }).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(makeDetailResponse()),
+    })
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+
+    await act(async () => { await result.current.drillInto('parent1') })
+    expect(result.current.drillError).not.toBe('')
+
+    await act(async () => { await result.current.refreshCurrent() })
+
+    expect(result.current.drillError).toBe('')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['child1'])
+  })
+
   it('pops one drill level on Escape (mirrors mobile hardware back)', async () => {
     mockFetch.mockResolvedValue({
       ok: true,

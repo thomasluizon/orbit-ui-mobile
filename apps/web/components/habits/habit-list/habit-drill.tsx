@@ -29,17 +29,10 @@ function DrillEmptyMessage({
   t,
   onShowCompleted,
 }: Readonly<Pick<HabitDrillProps, 'drill' | 't' | 'onShowCompleted'>>) {
-  if (!drill.hasUnfilteredChildren) {
-    return (
-      <p style={{ margin: 0, padding: '8px 16px', color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
-        {t('habits.noSubHabits')}
-      </p>
-    )
-  }
   return (
-    <div className="px-4 py-2">
+    <div className="flex flex-col items-start gap-2 py-2">
       <p style={{ margin: 0, color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
-        {t('habits.filterEmptySubHabits')}
+        {t(drill.hasUnfilteredChildren ? 'habits.filterEmptySubHabits' : 'habits.noSubHabits')}
       </p>
       {drill.canRevealCompletedChildren && onShowCompleted ? (
         <PillButton variant="ghost" onClick={onShowCompleted}>
