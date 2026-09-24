@@ -154,8 +154,6 @@ vi.mock('@/lib/offline-queue', () => ({
   replaceEntityReferences: mocks.replaceEntityReferences,
 }))
 
-vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
-
 vi.mock('@/stores/offline-sync-store', () => ({
   useOfflineSyncStore: {
     getState: () => ({ addDrop: vi.fn() }),
