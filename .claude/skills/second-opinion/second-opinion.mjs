@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
  * `codex exec` is intentional: this is a one-shot verdict with no supervised worker,
  * so the headless-worker ban in tools/launch-worker.mjs does not apply.
  */
-const DEFAULT_MODEL = 'gpt-5.6-sol';
+const DEFAULT_MODEL = 'gpt-6-sol';
 const DEFAULT_TIMEOUT_MS = 180_000;
 const SLUG = /^[\w./:-]+$/;
 

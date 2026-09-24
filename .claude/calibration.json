@@ -1,32 +1,28 @@
 {
-  "calibratedAt": "2026-09-18",
+  "calibratedAt": "2026-09-24",
   "workerEngine": "codex",
   "workerCommand": "codex",
   "workerTiers": {
     "default": {
-      "model": "gpt-5.6-sol",
+      "model": "gpt-6-sol",
       "args": [
         "exec",
-        "-c",
-        "windows.sandbox=\"unelevated\"",
         "--dangerously-bypass-approvals-and-sandbox",
         "-c",
         "model_reasoning_effort=\"high\"",
         "--model",
-        "gpt-5.6-sol"
+        "gpt-6-sol"
       ]
     },
     "mechanical": {
-      "model": "gpt-5.6-sol",
+      "model": "gpt-6-sol",
       "args": [
         "exec",
-        "-c",
-        "windows.sandbox=\"unelevated\"",
         "--dangerously-bypass-approvals-and-sandbox",
         "-c",
         "model_reasoning_effort=\"medium\"",
         "--model",
-        "gpt-5.6-sol"
+        "gpt-6-sol"
       ]
     }
   },
@@ -37,224 +33,224 @@
       "model": "haiku",
       "effort": null,
       "digest": "74e69f2e9ecb53a7",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: locates code and returns excerpts, never reviews it, so haiku is the right floor and effort is undeclared because breadth is passed in the prompt."
     },
     ".claude/agents/audit-readonly.md": {
       "model": "haiku",
       "effort": null,
       "digest": "ccf83adcaf2a327b",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: a read-only fan-out finder over Read/Grep/Glob, so haiku is the right floor and no effort is declared because the work is enumeration rather than judgement."
     },
     ".claude/agents/completeness-critic.md": {
       "model": "sonnet",
       "effort": "high",
       "digest": "18fa9e64efcdb3a1",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: its whole job is to falsify a completion claim across a surface inventory, which is judgement, so sonnet at high effort is right and must not fall to haiku."
     },
     ".claude/agents/design-reviewer.md": {
       "model": "sonnet",
       "effort": "medium",
       "digest": "2948735644b388c8",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: judges a diff against DESIGN.md with the spec in front of it, so sonnet at medium effort is right; the rules are written down, which is what keeps it off high."
     },
     ".claude/agents/design-specialist.md": {
       "model": "inherit",
       "effort": "high",
       "digest": "0238593f7564142c",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: shapes the UI half of a ticket and must refuse to improvise where the design system cannot meet a need, so it inherits the session model at high effort deliberately."
     },
     ".claude/agents/product-manager.md": {
       "model": "inherit",
       "effort": "high",
       "digest": "06e63d937fc86cb1",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: runs the eight-category edge-case pass and decides how many tickets a request becomes, so it inherits the session model at high effort."
     },
     ".claude/agents/web-researcher.md": {
       "model": "sonnet",
       "effort": "medium",
       "digest": "b0eba80af5cdd41f",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: verifies load-bearing facts against live pages for one narrow slice, so sonnet at medium effort is right; it has no Agent tool, which is the structural cap that matters more than the model."
     },
     ".claude/skills/android-generate/SKILL.md": {
       "model": null,
       "effort": "low",
       "digest": "4aab9a05b8f27d13",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: a mechanical gradle build and emulator install, so low effort is right."
     },
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
       "digest": "511b9e409e86a2d9",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: dispatches one workflow with computed version numbers, so low effort is right."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "2b278674dc8f8764",
-      "calibratedAt": "2026-09-14",
+      "digest": "799284759e579360",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: a judgement-level debt audit that opens tickets, which argues for an explicit high. Left undeclared in this first pass because declaring it changes behaviour and cost, and eleven skills are in the same position; that is the follow-up this pass names rather than a change smuggled into the mechanism."
     },
     ".claude/skills/audit-performance/SKILL.md": {
       "model": null,
       "effort": null,
       "digest": "97dae7a146ee0fc6",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up."
     },
     ".claude/skills/audit-security/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "e92ff1f4ff0b8b21",
-      "calibratedAt": "2026-09-14",
+      "digest": "a3078d7f522ced89",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up. This is the one where an inherited low effort would cost the most, because a missed authz hole is not visible in the output."
     },
     ".claude/skills/audit-tests/SKILL.md": {
       "model": null,
       "effort": null,
       "digest": "291bf85e61e31045",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up."
     },
     ".claude/skills/deep-research/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "a7bbf3c505b096e8",
-      "calibratedAt": "2026-09-14",
+      "digest": "913e39fb190ad7a7",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: it fans out web-researcher subagents that carry their own sonnet/medium tuning, so the orchestrating half inheriting the session is defensible today."
     },
     ".claude/skills/dev-server/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "b95013bea459e4fc",
-      "calibratedAt": "2026-09-14",
+      "digest": "0a9fda5b8bf966f0",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: brings up Docker, the API and the web server in dependency order with readiness gates, which is mechanical, so low effort is right."
     },
     ".claude/skills/drift-review/SKILL.md": {
       "model": null,
       "effort": null,
       "digest": "1fae48b525fe2fe2",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: it judges repeated evidence against the current workflow files, but every result remains a staged candidate for human review."
     },
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
       "digest": "7d5208953f5b58ed",
-      "calibratedAt": "2026-09-16",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four. Reseeded 2026-09-16 when it gained the rule that an attended handoff ENDS the session, which needs the same judgement to apply: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong."
     },
     ".claude/skills/investigate/SKILL.md": {
       "model": null,
       "effort": null,
       "digest": "9e633595abd89253",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate."
     },
     ".claude/skills/lesson/SKILL.md": {
       "model": null,
       "effort": null,
       "digest": "f3af59784bce4557",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: it graduates a correction into a rule, which is judgement, but it always runs with Thomas present, so an inherited effort is checked by a human in the moment."
     },
     ".claude/skills/merge-prs/SKILL.md": {
       "model": null,
       "effort": null,
       "digest": "30a5ce2efa3fb3ea",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth."
     },
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "c1573fca60cf066a",
-      "calibratedAt": "2026-09-18",
+      "digest": "3acc97319a511f47",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review. Reseeded 2026-09-18 a fifth time, when the third ending a pull request can reach became a CHECKED one. A run says which of READY, BLOCKED and merged each pull request landed on, and merged now carries a shape-checked merge commit sha: the measured failure was copying the skill's own template and leaving the placeholder unfilled, which read as a finished night in silence. So the call this file asks for is not only which disposition applies, it is which self-asserted fact stays honest, and the answer is the one a reader can check. The same caution now reaches its own red-gate arithmetic: four FAILs are the engine switch, a fifth may be the load-sensitive CPU test rather than a defect, and telling those apart is what a lower effort skips. That sits on top of the calls the earlier stamps named: deriving which required check failed from delivery's ci.checks.pass beside the receipt's ci.green, holding a CI_STALE receipt as expected even after a successful merge, judging when an exhausted allowance justifies a transient worker switch and naming it while it is live, judging whether a substitute reviewer is named openly or promoted quietly, and telling an instructed contract apart from one a run granted itself. Merge authority is the most expensive rule here to get wrong."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "24aa498f98faf0c3",
-      "calibratedAt": "2026-09-14",
+      "digest": "3054e304775236a2",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate."
     },
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
       "digest": "87a2b30be21cfa4b",
-      "calibratedAt": "2026-09-17",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up. The effort-agnostic rewrite now resolves integration per repository and distinguishes direct ancestry from an unprovable stacked squash boundary, so the answer requires evidence-led judgement rather than table lookup. The base-chain walk now also resolves each candidate in every pull request state and reports a closed unmerged parent as an unresolved chain rather than naming its head as integration, which adds one more judgement the answer cannot look up."
     },
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
       "digest": "430ce323de282429",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes his attention or ships a guess as a decision."
     },
     ".claude/skills/second-opinion/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "8977e10e62d65f75",
-      "calibratedAt": "2026-09-14",
+      "digest": "e087123c8f6c51c3",
+      "calibratedAt": "2026-09-24",
       "verdict": "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call."
     },
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "9ed01a413c790790",
-      "calibratedAt": "2026-09-16",
+      "digest": "d192704b99a01079",
+      "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: it takes every decision alone overnight, including whether configured lanes are available, so explicit high remains the strongest follow-up without guessing it here."
     },
     ".claude/skills/ticket/SKILL.md": {
       "model": null,
       "effort": "high",
       "digest": "ce7376bb28eca9c8",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it."
     },
     ".claude/skills/validate/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "e1ef5a36050d37f1",
-      "calibratedAt": "2026-09-14",
+      "digest": "be31e7d738c0b774",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: runs lint, type-check and tests across both repos, so low effort is right."
     },
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
       "digest": "7bbdfe9493568860",
-      "calibratedAt": "2026-09-17",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded, and 2026-09-17 made it stricter: each step now ENDS THE TURN on a literal handover line and waits for Thomas to say proceed, so the skill has to hold the order across three turns rather than one, and it must not let --sleep collapse the first two. Low would round that gate away, which is the one thing this skill exists to enforce."
     },
     ".agents/skills/merge-prs/SKILL.md": {
       "model": null,
       "effort": null,
       "digest": "fa4a10a59a391992",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict: the frontmatter name and description decide whether Codex finds this skill at all, and the body names the one canonical definition both hosts read."
     },
     ".agents/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": null,
       "digest": "d55e8bc268758fcb",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, and it matters most here: orchestrate is the entry point every other piece of work passes through, so a pointer that stops resolving takes the whole queue with it."
     },
     ".agents/skills/ticket/SKILL.md": {
       "model": null,
       "effort": null,
       "digest": "e1f13a268ec17004",
-      "calibratedAt": "2026-09-14",
+      "calibratedAt": "2026-09-24",
       "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, because a ticket is the prompt (D2) and a host that reads a forked definition writes a forked ticket."
     }
   }

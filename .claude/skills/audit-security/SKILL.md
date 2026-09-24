@@ -72,8 +72,8 @@ Parse `$ARGUMENTS` into a `{scope}` token to pass to the workflow: blank → `bo
 
 | Repo | Root |
 |---|---|
-| `orbit-ui-mobile` | `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile` |
-| `orbit-api` | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` |
+| `orbit-ui-mobile` | `/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile` |
+| `orbit-api` | `/Users/thomaslrgregoriogmail.com/Developer/orbit-api` |
 
 Load **`.claude/skills/_shared/verification-protocol.md`** (the reliability contract: the
 workflow *executes* the coverage contract §1, adversarial verify §2, and loop-until-dry §3;

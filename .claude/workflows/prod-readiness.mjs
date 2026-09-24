@@ -9,8 +9,8 @@ export const meta = {
   ],
 }
 
-const UI = 'C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-ui-mobile'
-const API = 'C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-api'
+const UI = '/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile'
+const API = '/Users/thomaslrgregoriogmail.com/Developer/orbit-api'
 
 const OPS_SCHEMA = {
   type: 'object',

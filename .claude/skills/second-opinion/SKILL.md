@@ -1,6 +1,6 @@
 ---
 name: second-opinion
-description: Get an independent cross-model second opinion (GPT-5.6 Sol via Codex) on a specific, load-bearing technical claim or a Critical or High code-review finding. A different model reads the claim and code, then returns AGREE, DISAGREE, or UNSURE. Use to stress-test a single blocking finding, a risky assertion, or a close call before you commit to it. Nothing fires it automatically: you invoke it deliberately, one claim per call. Not for open-ended research (use /deep-research) or multi-lens judgement (use /llm-council).
+description: Get an independent cross-model second opinion (GPT-6 Sol via Codex) on a specific, load-bearing technical claim or a Critical or High code-review finding. A different model reads the claim and code, then returns AGREE, DISAGREE, or UNSURE. Use to stress-test a single blocking finding, a risky assertion, or a close call before you commit to it. Nothing fires it automatically: you invoke it deliberately, one claim per call. Not for open-ended research (use /deep-research) or multi-lens judgement (use /llm-council).
 argument-hint: <a claim to test, optionally with a file:line to pull context from>
 ---
 
@@ -8,7 +8,7 @@ argument-hint: <a claim to test, optionally with a file:line to pull context fro
 
 **Input**: $ARGUMENTS
 
-Ask **GPT-5.6 Sol** through the local `codex` CLI to independently judge one concrete
+Ask **GPT-6 Sol** through the local `codex` CLI to independently judge one concrete
 claim. Sol is reserved for the ambiguous, difficult, high-value decision, where the extra
 cost is justified by the consequence of getting the call wrong. Run it once per claim.
 
@@ -60,7 +60,7 @@ stdout, always exiting 0:
 | `reason` | Why it degraded (only when `status: UNAVAILABLE`) |
 | `model` | The slug used |
 
-Options: `--model <slug>` (default `gpt-5.6-sol`; swap only to a live Codex model slug)
+Options: `--model <slug>` (default `gpt-6-sol`; swap only to a live Codex model slug)
 and `--timeout <ms>` (default 180000). The timeout is a backstop that yields
 `UNAVAILABLE`, never a hang.
 

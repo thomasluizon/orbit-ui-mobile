@@ -1184,6 +1184,14 @@ childProcess.spawnSync = (command, args, options) => {
   if (command === "powershell.exe" && args.some((arg) => arg.includes("Get-Process -Id ${process.pid} "))) {
     result.stdout = replaceIdentity(result.stdout.trim()) + "\\r\\n"
   }
+  // macOS: the identity is the lstart second, so the swap moves the start time and prints it back.
+  if (command === "ps" && args.includes("${process.pid}")) {
+    const [state, ...lstart] = result.stdout.trim().split(/\\s+/)
+    const seconds = Date.parse(lstart.join(" ") + " GMT") / 1000
+    const moved = new Date(Number(replaceIdentity(String(seconds))) * 1000).toUTCString()
+    const [, weekday, day, month, year, time] = /^(\\w{3}), (\\d{2}) (\\w{3}) (\\d{4}) ([\\d:]{8}) GMT$/.exec(moved)
+    result.stdout = state + "   " + weekday + " " + month + " " + String(Number(day)).padStart(2) + " " + time + " " + year + "\\n"
+  }
   return result
 }
 const read = fs.readFileSync

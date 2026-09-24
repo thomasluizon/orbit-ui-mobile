@@ -627,8 +627,8 @@ function attachPerformanceMetrics(findings, measurement) {
 }
 // </generated:performance-measurement>
 
-const UI = 'C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-ui-mobile'
-const API = 'C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-api'
+const UI = '/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile'
+const API = '/Users/thomaslrgregoriogmail.com/Developer/orbit-api'
 const VERIFY_CAP = 60
 const HARD_ROUNDS = 4
 

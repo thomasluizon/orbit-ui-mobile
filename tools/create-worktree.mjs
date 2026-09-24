@@ -6,6 +6,8 @@ import { mkdtempSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSy
 import { basename, join, resolve } from "node:path"
 import { setTimeout } from "node:timers/promises"
 
+import { darwinProcessStart } from "./lib/run-state.mjs"
+
 const USAGE = `usage: create-worktree.mjs --repo path:<path> --name <name> --base-branch <branch> --issue <ticket> --no-parent --comment <text> --json
 
 Serializes refresh and creation per repository; overlapping callers share a completed base fetch.
@@ -89,6 +91,11 @@ const processStartIdentity = (pid) => {
     if (["Z", "X", "x"].includes(fields[0])) return false
     const bootId = readFileSync("/proc/sys/kernel/random/boot_id", "utf8").trim()
     return /^\d+$/.test(fields[19]) && /^[0-9a-f-]{36}$/.test(bootId) ? `linux:${bootId}:${fields[19]}` : null
+  }
+  if (process.platform === "darwin") {
+    const start = darwinProcessStart(pid)
+    if (start === null) return null
+    return start.state.startsWith("Z") ? false : `darwin:${start.startSeconds}`
   }
   return null
 }

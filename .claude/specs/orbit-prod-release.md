@@ -95,6 +95,10 @@ These stay until he changes them. Keep his words.
   developer name becomes TL SOFTWARE ENGINEERING LTDA**.
 - **2026-09-16** **The local worker cap is TWO, not three.** Four were killed at once for low
   memory, every one of them after committing. This supersedes D89's figure of three on this machine.
+- **2026-09-24** **The new machine takes more workers.** "this is a macbook pro with m5 pro and 64gb
+  of ram, which means we can probably use a lot more workers." This supersedes the cap of two above:
+  `caps.parallelTickets` is 6 (see "The machine, and the real worker cap"). Same message: "change
+  the default worker to codex, and make it use GPT-6 Sol as the model."
 - **2026-09-16** **Copy he asks you to apply still gets both passes first.** On the Play listing
   text: "first make sure all the texts adhere to brand.md and run /humanizer on them." Copy being
   yours does not mean copy skips review; it means the review is yours to run, not his to sit through.
@@ -1076,6 +1080,12 @@ Capped to a serial turbo run with about two vitest workers, one worker sits at r
 processes and 1.5 to 5.4 GB, with 10 to 15 GB free. Thomas, 2026-09-18: **"all these workers makes
 the machine unusable, this is not good even if im not using it, because everything goes slow, use
 less workers, at least 2"**. Two is the cap, and a capped run is slower and just as valid.
+
+**Superseded 2026-09-24 by the new machine.** The run moved to a MacBook Pro M5 Pro with 64 GB and
+18 cores (`sysctl hw.memsize hw.ncpu`), and Thomas: "we can probably use a lot more workers".
+`caps.parallelTickets` is now **6**: six capped workers at the measured 5.4 GB peak come to about
+33 GB. Memory pressure drops a worker and never ends a run. The same pull request moved the worker
+to `gpt-6-sol`, confirmed live from 24 Codex replies on 2026-09-23, and ported the harness to macOS.
 
 ## What the night of 2026-09-18 into 09-19 added
 
