@@ -7,6 +7,7 @@ import {
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import type { LoginResponse } from '@orbit/shared/types/auth'
+import { waitForPendingLogoutResponses } from '@/stores/auth-store'
 
 class AuthFetchError extends Error {
   status: number
@@ -77,6 +78,9 @@ export async function fetchAuthEndpoint(
   url: string,
   body: Record<string, unknown>,
 ): Promise<unknown> {
+  if (url === '/api/auth/verify-code') {
+    await waitForPendingLogoutResponses()
+  }
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth-store'
+import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
 const mockFetch = vi.fn()
@@ -83,6 +84,43 @@ describe('auth store', () => {
       isAuthenticated: true,
       user: { userId: 'user-2', email: 'new@example.com' },
     })
+  })
+
+  it('preserves replacement login cookies when an older logout response arrives', async () => {
+    const browserCookies = new Map<string, string>([
+      ['auth_token', 'old-access'],
+      ['refresh_token', 'old-refresh'],
+    ])
+    let releaseLogout!: () => void
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/logout') {
+        return new Promise((resolve) => {
+          releaseLogout = () => {
+            browserCookies.clear()
+            resolve({ ok: true })
+          }
+        })
+      }
+      if (url === '/api/auth/verify-code') {
+        browserCookies.set('auth_token', 'new-access')
+        browserCookies.set('refresh_token', 'new-refresh')
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(makeLoginResponse()) })
+      }
+      throw new Error(`Unexpected auth endpoint: ${url}`)
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    const replacementLogin = fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'thomas@example.com',
+      code: '123456',
+    })
+    await Promise.resolve()
+    releaseLogout()
+    await Promise.all([oldLogout, replacementLogin])
+
+    expect(browserCookies.get('auth_token')).toBe('new-access')
+    expect(browserCookies.get('refresh_token')).toBe('new-refresh')
   })
 
   it('marks the session as signed out after confirming a refresh rejection', async () => {

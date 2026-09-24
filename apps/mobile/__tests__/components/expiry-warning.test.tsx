@@ -213,6 +213,20 @@ describe('ExpiryWarning', () => {
     expect(mocks.authState.isAuthenticated).toBe(true)
   })
 
+  it('keeps recovery available when refresh rejects', async () => {
+    mocks.refreshSession.mockRejectedValue(new Error('SecureStore unavailable'))
+    const instance = await renderExpiredWarning()
+
+    await TestRenderer.act(async () => {
+      await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+    })
+
+    expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
+    expect(action(instance, i18n.t('auth.refresh')).props.disabled).toBe(false)
+    expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
+    expect(mocks.authState.isAuthenticated).toBe(true)
+  })
+
   it('does not log out a replacement session after refresh is superseded', async () => {
     type SupersededOutcome = { status: 'superseded' }
     let resolveRefresh!: (outcome: SupersededOutcome) => void

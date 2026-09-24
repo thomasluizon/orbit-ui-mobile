@@ -6,6 +6,17 @@ const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
 let sessionOwnershipEpoch = 0
+const pendingLogoutResponses = new Set<Promise<Response>>()
+let loginsWaitingForLogout = 0
+
+export async function waitForPendingLogoutResponses(): Promise<void> {
+  loginsWaitingForLogout += 1
+  try {
+    await Promise.allSettled(pendingLogoutResponses)
+  } finally {
+    loginsWaitingForLogout -= 1
+  }
+}
 
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
   const next = sessionRevalidationQueue.then(task, task)
@@ -180,7 +191,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     const logoutEpoch = sessionOwnershipEpoch
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      const logoutResponse = fetch('/api/auth/logout', { method: 'POST' })
+      pendingLogoutResponses.add(logoutResponse)
+      try {
+        await logoutResponse
+      } finally {
+        pendingLogoutResponses.delete(logoutResponse)
+      }
     } catch {
     }
 
@@ -195,7 +212,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
     useOnboardingDraftStore.getState().reset()
 
-    if ('location' in globalThis) {
+    if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
     }
   },

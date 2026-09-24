@@ -10,7 +10,7 @@ import {
   extractBackendRequestId,
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
-import { useAuthStore } from '@/stores/auth-store'
+import { useAuthStore, waitForPendingLogoutResponses } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import type { LoginResponse } from '@orbit/shared/types/auth'
@@ -150,6 +150,7 @@ function AuthCallbackContent() {
       try {
         const referralCode = getCookieValue('referral_code')
 
+        await waitForPendingLogoutResponses()
         const response = await fetch('/api/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
