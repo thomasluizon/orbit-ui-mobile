@@ -7,6 +7,7 @@ import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/s
 import { apiKeyKeys } from '@orbit/shared/query'
 import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import {
   clearApiKeyCreationGrant,
@@ -67,6 +68,7 @@ export function useApiKeyManagement({
     onCreateGrantRequired: () => Promise<void>,
   ): Promise<ApiKeyCreateResponse | null> {
     const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     setCreateKeyError(null)
     if (!createGrantAvailable) {
       await onCreateGrantRequired()
@@ -74,6 +76,10 @@ export function useApiKeyManagement({
     }
     try {
       const result = await createApiKey(request, intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setCreateKeyError(t('errors.api.accountChanged'))
+        return null
+      }
       if (!result.success) {
         clearApiKeyCreationGrant()
         setCreateGrantAvailable(false)

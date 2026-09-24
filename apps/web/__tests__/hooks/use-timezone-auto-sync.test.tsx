@@ -4,6 +4,11 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showPersistentError: vi.fn() }),
+}))
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {

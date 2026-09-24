@@ -19,6 +19,7 @@ import {
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { sendSupportMessage } from '@/lib/actions/support'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   forgetStoredSupportDraft,
   readStoredSupportDraft,
@@ -144,6 +145,7 @@ export default function SupportPage() {
     if (!selectedSubject) return
 
     const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     setIsSending(true)
     setError(null)
     setSuccess(false)
@@ -156,6 +158,10 @@ export default function SupportPage() {
         message: attachSupportVersion(message, appVersion),
       })
       await sendSupportMessage(payload, intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setError(t('errors.api.accountChanged'))
+        return
+      }
       setSuccess(true)
       draftRef.current = { subject: null, message: '' }
       setSubject(null)

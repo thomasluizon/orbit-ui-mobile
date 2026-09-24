@@ -6,6 +6,7 @@ import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface UseBulkActionsOptions {
@@ -71,12 +72,18 @@ export function useBulkActions({
     )
   }, [onPartialFailure, onSuccess, showQueued, showToast, t])
 
+  function reportAccountSwitch(error: unknown): boolean {
+    return reportsAccountChanged(error)
+  }
+
   async function executeDelete(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
     try {
       const result = await bulkDelete.mutateAsync(ids)
       finish(result, (failedIds) => void executeDelete(failedIds))
+    } catch (error) {
+      if (!reportAccountSwitch(error)) throw error
     } finally {
       setShowBulkDeleteConfirm(false)
     }
@@ -85,21 +92,29 @@ export function useBulkActions({
   async function executeLog(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
-    const result = await bulkLog.mutateAsync(
-      ids.map((id) => ({ habitId: id, date: selectedDateStr })),
-    )
-    applyBulkMutationSuccesses(result.results, 'log')
-    finish(result, (failedIds) => void executeLog(failedIds))
+    try {
+      const result = await bulkLog.mutateAsync(
+        ids.map((id) => ({ habitId: id, date: selectedDateStr })),
+      )
+      applyBulkMutationSuccesses(result.results, 'log')
+      finish(result, (failedIds) => void executeLog(failedIds))
+    } catch (error) {
+      if (!reportAccountSwitch(error)) throw error
+    }
   }
 
   async function executeSkip(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
-    const result = await bulkSkip.mutateAsync(
-      ids.map((id) => ({ habitId: id, date: selectedDateStr })),
-    )
-    applyBulkMutationSuccesses(result.results, 'skip')
-    finish(result, (failedIds) => void executeSkip(failedIds))
+    try {
+      const result = await bulkSkip.mutateAsync(
+        ids.map((id) => ({ habitId: id, date: selectedDateStr })),
+      )
+      applyBulkMutationSuccesses(result.results, 'skip')
+      finish(result, (failedIds) => void executeSkip(failedIds))
+    } catch (error) {
+      if (!reportAccountSwitch(error)) throw error
+    }
   }
 
   const confirmBulkDelete = () => executeDelete(

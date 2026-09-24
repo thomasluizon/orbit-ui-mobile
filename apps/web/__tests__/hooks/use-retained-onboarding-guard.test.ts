@@ -7,6 +7,11 @@ const completeOnboardingMock = vi.fn()
 const patchProfileMock = vi.fn()
 const habitCount = { count: 0, isLoaded: true }
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showPersistentError: vi.fn() }),
+}))
+
 vi.mock('@/lib/actions/profile', () => ({
   completeOnboarding: (...args: unknown[]) => completeOnboardingMock(...args),
 }))

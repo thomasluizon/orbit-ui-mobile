@@ -2,11 +2,16 @@
 
 import {
   useMutation,
+  useQueryClient,
   type DefaultError,
   type MutateOptions,
   type UseMutationOptions,
 } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 /**
  * The variables the underlying mutation carries: what the caller passed, plus who was signed in
@@ -15,6 +20,7 @@ import { getHeldAccountId } from '@/stores/auth-store'
 interface AccountScopedVariables<TVariables> {
   input: TVariables
   intendedAccountId: string | null
+  accountGeneration: number
 }
 
 type AccountScopedOptions<TData, TError, TVariables, TOnMutateResult> = Omit<
@@ -25,7 +31,13 @@ type AccountScopedOptions<TData, TError, TVariables, TOnMutateResult> = Omit<
 }
 
 function scopeToHeldAccount<TVariables>(input: TVariables): AccountScopedVariables<TVariables> {
-  return { input, intendedAccountId: getHeldAccountId() }
+  return { input, intendedAccountId: getHeldAccountId(), accountGeneration: getAccountGeneration() }
+}
+
+function stillHeld<TVariables>(variables: AccountScopedVariables<TVariables>, error?: unknown): boolean {
+  return !reportsAccountChanged(error)
+    && getHeldAccountId() === variables.intendedAccountId
+    && getAccountGeneration() === variables.accountGeneration
 }
 
 function unwrapMutateOptions<TData, TError, TVariables, TOnMutateResult>(
@@ -43,15 +55,15 @@ function unwrapMutateOptions<TData, TError, TVariables, TOnMutateResult>(
 
   if (onSuccess) {
     unwrapped.onSuccess = (data, variables, onMutateResult, context) =>
-      onSuccess(data, variables.input, onMutateResult, context)
+      stillHeld(variables) ? onSuccess(data, variables.input, onMutateResult, context) : undefined
   }
   if (onError) {
     unwrapped.onError = (error, variables, onMutateResult, context) =>
-      onError(error, variables.input, onMutateResult, context)
+      stillHeld(variables, error) ? onError(error, variables.input, onMutateResult, context) : undefined
   }
   if (onSettled) {
     unwrapped.onSettled = (data, error, variables, onMutateResult, context) =>
-      onSettled(data, error, variables.input, onMutateResult, context)
+      stillHeld(variables, error) ? onSettled(data, error, variables.input, onMutateResult, context) : undefined
   }
 
   return unwrapped
@@ -76,6 +88,9 @@ export function useAccountScopedMutation<
   TVariables = void,
   TOnMutateResult = unknown,
 >(options: AccountScopedOptions<TData, TError, TVariables, TOnMutateResult>) {
+  const t = useTranslations()
+  const { showPersistentError } = useAppToast()
+  const queryClient = useQueryClient()
   const { mutationFn, onMutate, onSuccess, onError, onSettled, ...rest } = options
 
   const scopedOptions: UseMutationOptions<
@@ -93,15 +108,19 @@ export function useAccountScopedMutation<
   }
   if (onSuccess) {
     scopedOptions.onSuccess = (data, variables, onMutateResult, context) =>
-      onSuccess(data, variables.input, onMutateResult, context)
+      stillHeld(variables) ? onSuccess(data, variables.input, onMutateResult, context) : undefined
   }
-  if (onError) {
-    scopedOptions.onError = (error, variables, onMutateResult, context) =>
-      onError(error, variables.input, onMutateResult, context)
+  scopedOptions.onError = (error, variables, onMutateResult, context) => {
+    if (reportsAccountChanged(error)) {
+      if (getHeldAccountId() === variables.intendedAccountId && getAccountGeneration() === variables.accountGeneration) queryClient.clear()
+      showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+      return
+    }
+    if (stillHeld(variables)) onError?.(error, variables.input, onMutateResult, context)
   }
   if (onSettled) {
     scopedOptions.onSettled = (data, error, variables, onMutateResult, context) =>
-      onSettled(data, error, variables.input, onMutateResult, context)
+      stillHeld(variables, error) ? onSettled(data, error, variables.input, onMutateResult, context) : undefined
   }
 
   const mutation = useMutation(scopedOptions)

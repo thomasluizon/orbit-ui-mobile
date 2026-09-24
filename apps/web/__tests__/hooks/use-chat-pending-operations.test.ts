@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 const mocks = vi.hoisted(() => ({
   confirmPendingOperation: vi.fn(),
@@ -69,6 +70,22 @@ describe('useChatPendingOperations', () => {
     expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1', null)
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Created'))
     expect(outcome).toMatchObject({ ok: true })
+  })
+
+  it('does not forward an execution that returns after the account changes', async () => {
+    let resolveExecution!: (value: { ok: true; data: AgentExecuteOperationResponse }) => void
+    mocks.confirmPendingOperation.mockResolvedValue({ ok: true, data: { confirmationToken: 'token-1' } })
+    mocks.executePendingOperation.mockReturnValue(new Promise((resolve) => { resolveExecution = resolve }))
+    const onExecuted = vi.fn(async () => {})
+    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
+
+    const pending = result.current.confirmAndExecutePendingOperation('pending-1')
+    await vi.waitFor(() => expect(mocks.executePendingOperation).toHaveBeenCalledOnce())
+    advanceAccountGeneration()
+    resolveExecution({ ok: true, data: makeExecution('Created') })
+
+    await expect(pending).resolves.toEqual({ ok: false, error: 'errors.api.accountChanged' })
+    expect(onExecuted).not.toHaveBeenCalled()
   })
 
   it('stops at confirm failure without executing', async () => {

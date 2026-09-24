@@ -17,6 +17,7 @@ import {
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   confirmApiKeyCreationChallenge,
   requestApiKeyCreationChallenge,
@@ -102,11 +103,16 @@ export function StepUpScreen() {
   async function handleResend() {
     if (!operation || exhausted || requesting) return
     const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     setRequesting(true)
     setRequestError(null)
     try {
       if (operation === 'delete') await requestDeletion(intendedAccountId)
       else await requestApiKeyCreationChallenge(intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setRequestError(translate('errors.api.accountChanged'))
+        return
+      }
       const next = beginStepUpChallenge(operation)
       setRecord(next)
       setCode('')
@@ -124,12 +130,18 @@ export function StepUpScreen() {
   async function handleConfirm() {
     if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking) return
     const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     setPhase('checking')
     setFieldError(null)
     setRequestError(null)
     try {
       if (operation === 'keys') {
         const result = await confirmApiKeyCreationChallenge(code, intendedAccountId)
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+          setFieldError(translate('errors.api.accountChanged'))
+          setPhase('challenge')
+          return
+        }
         if (!result.success) {
           handleConfirmationFailure(result.errorCode, result.remaining)
           return
@@ -140,6 +152,11 @@ export function StepUpScreen() {
         return
       }
       const result = await confirmDeletion(code, intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setFieldError(translate('errors.api.accountChanged'))
+        setPhase('challenge')
+        return
+      }
       if (!result.success) {
         handleConfirmationFailure(result.errorCode, result.remaining)
         return

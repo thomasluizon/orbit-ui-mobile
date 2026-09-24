@@ -1549,6 +1549,17 @@ describe('useBulkLogHabits', () => {
     expect(mockedBulkLog).toHaveBeenCalledWith(items, null)
   })
 
+  it('keeps an account switch refusal out of retryable failed rows', async () => {
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockRejectedValue({ code: 'ACCOUNT_CHANGED', status: 409 })
+    const { result } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      await expect(result.current.mutateAsync([{ habitId: 'h-1' }]))
+        .rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    })
+  })
+
   it('optimistically completes every dated item in the viewed list', async () => {
     const { useBulkLogHabits } = await import('@/hooks/use-habits')
     const { bulkLogHabits } = await import('@/lib/actions/habits')

@@ -114,6 +114,18 @@ describe('useBulkActions reversibility boundary', () => {
     expect(onSuccess).toHaveBeenCalledTimes(1)
   })
 
+  it('does not offer a retry when a bulk write is refused after an account switch', async () => {
+    bulkLog.mutateAsync.mockRejectedValue({ code: 'ACCOUNT_CHANGED', status: 409 })
+    const { result, onPartialFailure } = renderBulkActions(new Set(['h-1']))
+
+    await act(async () => {
+      await result.current.confirmBulkLog().catch(() => {})
+    })
+
+    expect(showQueued).not.toHaveBeenCalled()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+  })
+
   it('keeps the confirmation for the irreversible bulk delete', async () => {
     const { result } = renderBulkActions(new Set(['h-1']))
 

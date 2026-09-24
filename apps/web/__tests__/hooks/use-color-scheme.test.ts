@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
+const heldAccount = vi.hoisted(() => ({ id: null as string | null }))
+const showPersistentError = vi.hoisted(() => vi.fn())
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError }) }))
+vi.mock('@/stores/auth-store', () => ({ getHeldAccountId: () => heldAccount.id }))
+
 vi.mock('@/lib/actions/profile', () => ({
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
@@ -64,6 +71,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme'
 describe('useColorScheme', () => {
   beforeEach(() => {
     mockCookies = {}
+    heldAccount.id = null
+    showPersistentError.mockClear()
     mockSetProperty.mockClear()
     mockClassList.add.mockClear()
     mockClassList.remove.mockClear()
@@ -125,6 +134,23 @@ describe('useColorScheme', () => {
     })
 
     expect(result.current.currentTheme).toBe('light')
+  })
+
+  it('does not restore the old theme after another account replaces the tab', async () => {
+    const { updateThemePreference } = await import('@/lib/actions/profile')
+    let rejectUpdate: ((error: unknown) => void) | undefined
+    vi.mocked(updateThemePreference).mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      rejectUpdate = reject
+    }))
+    heldAccount.id = 'account-a'
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => result.current.applyTheme('light'))
+    heldAccount.id = 'account-b'
+    await act(async () => rejectUpdate?.({ code: 'ACCOUNT_CHANGED', status: 409 }))
+
+    expect(mockCookies['orbit_theme_mode']).toBe('light')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
   })
 
   it('toggleTheme switches between dark and light', () => {

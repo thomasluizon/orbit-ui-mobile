@@ -11,6 +11,10 @@ import { getHeldAccountId } from '@/stores/auth-store'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useProfile } from '@/hooks/use-profile'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useTranslations } from 'next-intl'
 
 interface EntrySnapshot {
   accountGeneration: number
@@ -32,6 +36,8 @@ export function useRetainedOnboardingGuard(
   forceShow = false,
 ): boolean {
   const { patchProfile } = useProfile()
+  const t = useTranslations()
+  const { showPersistentError } = useAppToast()
   const { count, isLoaded } = useHabitCountLoaded()
   const accountGeneration = useAccountGeneration()
   const [entrySnapshot, setEntrySnapshot] = useState<EntrySnapshot | null>(null)
@@ -61,10 +67,21 @@ export function useRetainedOnboardingGuard(
     if (forceShow || action !== 'autocomplete' || autoCompletedGeneration.current === accountGeneration)
       return
     autoCompletedGeneration.current = accountGeneration
-    void completeOnboarding(getHeldAccountId())
-      .catch(() => {})
-      .finally(() => patchProfile({ hasCompletedOnboarding: true }))
-  }, [accountGeneration, action, forceShow, patchProfile])
+    const intendedAccountId = getHeldAccountId()
+    const stillCurrent = () => getHeldAccountId() === intendedAccountId
+      && getAccountGeneration() === accountGeneration
+    void completeOnboarding(intendedAccountId)
+      .then(() => {
+        if (stillCurrent()) patchProfile({ hasCompletedOnboarding: true })
+      })
+      .catch((error: unknown) => {
+        if (reportsAccountChanged(error)) {
+          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+        } else if (stillCurrent()) {
+          patchProfile({ hasCompletedOnboarding: true })
+        }
+      })
+  }, [accountGeneration, action, forceShow, patchProfile, showPersistentError, t])
 
   return forceShow || action === 'show'
 }

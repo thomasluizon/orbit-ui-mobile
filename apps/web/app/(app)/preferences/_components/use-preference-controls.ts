@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference, resolveSystemLocale } from '@orbit/shared/utils'
@@ -16,6 +16,8 @@ import {
 } from '@/lib/actions/profile'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
 import type { PreferencePicker } from './preference-picker-sheet'
 
 function writeLocaleCookie(value: string) {
@@ -25,6 +27,8 @@ function writeLocaleCookie(value: string) {
 }
 
 export function usePreferenceControls() {
+  const t = useTranslations()
+  const { showPersistentError } = useAppToast()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -51,7 +55,12 @@ export function usePreferenceControls() {
       if (isAuthenticated) {
         try {
           await updateLanguage({ language: nextLocale }, intendedAccountId)
-        } catch {
+        } catch (error) {
+          if (reportsAccountChanged(error)) {
+            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+            return
+          }
+          if (getHeldAccountId() !== intendedAccountId) return
           setSelectedLanguage(previousLocale)
           writeLocaleCookie(previousLocale)
           return
@@ -59,7 +68,7 @@ export function usePreferenceControls() {
       }
       globalThis.location.reload()
     },
-    [isAuthenticated, selectedLanguage],
+    [isAuthenticated, selectedLanguage, showPersistentError, t],
   )
 
   const weekStartMutation = useAccountScopedMutation({

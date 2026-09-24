@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/lib/actions/profile'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 function AmberPillButton({
   disabled = false,
@@ -106,14 +107,20 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   async function handleReset() {
     if (!isConfirmed) return
     const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     setLoading(true)
     setError('')
     try {
       await resetAccount(intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setError(t('errors.api.accountChanged'))
+        return
+      }
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem('orbit_trial_expired_seen')
       closeSheet(() => {
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
         handleOpenChange(false)
         queryClient.clear()
         router.push('/')

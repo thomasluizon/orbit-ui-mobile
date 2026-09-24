@@ -4,6 +4,10 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const heldAccount = { id: 'account-a' as string | null }
+const showPersistentError = vi.hoisted(() => vi.fn())
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError }) }))
 
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => heldAccount.id,
@@ -69,6 +73,46 @@ describe('useAccountScopedMutation', () => {
     releaseOnMutate?.()
 
     await waitFor(() => expect(seenAccounts).toEqual(['account-a']))
+  })
+
+  it('keeps a refused account A rollback out of account B cache', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const onSettled = vi.fn()
+    queryClient.setQueryData(['profile'], 'account-a-profile')
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async (_id: string) => { throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 }) },
+      onError: () => queryClient.setQueryData(['profile'], 'account-a-profile'),
+      onSettled,
+    }), { wrapper })
+
+    result.current.mutate('habit-1')
+    heldAccount.id = 'account-b'
+    queryClient.clear()
+    queryClient.setQueryData(['profile'], 'account-b-profile')
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(queryClient.getQueryData(['profile'])).toBe('account-b-profile')
+    expect(onSettled).not.toHaveBeenCalled()
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
+  })
+
+  it('removes optimistic account A cache when the cookie changed before this tab learned', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    queryClient.setQueryData(['profile'], 'account-a-profile')
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async (_id: string) => { throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 }) },
+      onError: () => queryClient.setQueryData(['profile'], 'account-a-profile'),
+    }), { wrapper })
+
+    result.current.mutate('habit-1')
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(queryClient.getQueryData(['profile'])).toBeUndefined()
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
   })
 
   it('hands every callback the caller variables, without the account wrapper', async () => {

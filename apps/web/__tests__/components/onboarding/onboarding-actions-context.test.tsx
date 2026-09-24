@@ -18,6 +18,11 @@ const mocks = vi.hoisted(() => ({
   updateWeekStartDay: vi.fn(),
   setQueryData: vi.fn(),
   invalidateQueries: vi.fn(),
+  showPersistentError: vi.fn(),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showPersistentError: mocks.showPersistentError }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -168,6 +173,17 @@ describe('live onboarding actions', () => {
     await result.current.finishOnboarding()
     expect(mocks.setQueryData).toHaveBeenCalled()
     expect(pushMock).toHaveBeenCalledWith('/')
+  })
+
+  it('keeps onboarding open when the account switch guard refuses completion', async () => {
+    mocks.completeOnboarding.mockRejectedValue({ code: 'ACCOUNT_CHANGED', status: 409 })
+    const { result } = renderHook(() => useLiveOnboardingActions())
+
+    await expect(result.current.finishOnboarding()).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(mocks.showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
   })
 
   it('seeds the chat draft and opens Astra on import', () => {

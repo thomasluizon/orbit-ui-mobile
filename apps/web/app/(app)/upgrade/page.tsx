@@ -24,12 +24,14 @@ import { UsageStats } from '@/components/upgrade/usage-stats'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import { openCustomerPortal } from '@/lib/actions/subscription'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBilling } from '@/hooks/use-billing'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
@@ -38,7 +40,7 @@ export default function UpgradePage() {
   const t = useTranslations()
   const locale = useLocale()
   const goBackOrFallback = useGoBackOrFallback()
-  const { showSuccess } = useAppToast()
+  const { showSuccess, showPersistentError } = useAppToast()
   const { isOnline } = useOffline()
   const {
     status,
@@ -150,6 +152,7 @@ export default function UpgradePage() {
   const handleOpenPortal = useCallback(async () => {
     if (!isOnline) return
     const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     setPortalState('opening')
     try {
       if (status?.source === 'play') {
@@ -158,12 +161,22 @@ export default function UpgradePage() {
         return
       }
       const data = await openCustomerPortal(intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setPortalState('idle')
+        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+        return
+      }
       globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
       globalThis.location.href = data.url
-    } catch {
+    } catch (error) {
+      if (reportsAccountChanged(error)) {
+        setPortalState('idle')
+        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+        return
+      }
       setPortalState('failed')
     }
-  }, [isOnline, status])
+  }, [isOnline, showPersistentError, status, t])
 
   const retryLoad = () => {
     void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])

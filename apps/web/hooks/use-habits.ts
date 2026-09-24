@@ -71,6 +71,7 @@ import {
 } from '@/lib/actions/habits'
 import { getMilestoneShareStreakKey } from '@orbit/shared/stores'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -679,6 +680,11 @@ export function useBulkDeleteHabits() {
         const outcomes = await Promise.allSettled(
           chunk.map((habitId) => deleteHabitAction(habitId, intendedAccountId)),
         )
+        for (const outcome of outcomes) {
+          if (outcome.status === 'rejected' && reportsAccountChanged(outcome.reason)) {
+            throw outcome.reason
+          }
+        }
         outcomes.forEach((outcome, itemIndex) => {
           const habitId = chunk[itemIndex]
           if (!habitId) return
@@ -722,6 +728,7 @@ export function useBulkLogHabits() {
           )
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
         } catch (error) {
+          if (reportsAccountChanged(error)) throw error
           results.push(...buildUnresolvedBulkFailures(
             items.slice(index),
             index,
@@ -787,7 +794,8 @@ export function useBulkSkipHabits() {
         try {
           const response = await bulkSkipHabitsAction(chunk, intendedAccountId)
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
-        } catch {
+        } catch (error) {
+          if (reportsAccountChanged(error)) throw error
           ambiguousIds.push(...chunk.map((item) => item.habitId))
         }
       }

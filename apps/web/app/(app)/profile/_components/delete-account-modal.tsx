@@ -7,6 +7,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestDeletion } from '@/lib/actions/auth'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -51,12 +52,19 @@ export function DeleteAccountModal({
 
   async function handleRequestDeletion() {
     const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     setLoading(true)
     setError('')
     try {
       await requestDeletion(intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setError(t('errors.api.accountChanged'))
+        setLoading(false)
+        return
+      }
       beginStepUpChallenge('delete')
       closeSheet(() => {
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
         handleOpenChange(false)
         router.push('/step-up?operation=delete')
       })

@@ -6,6 +6,7 @@ const mockToast = vi.fn()
 const mockToastError = vi.fn()
 const mockToastSuccess = vi.fn()
 const mockToastInfo = vi.fn()
+const mockToastDismiss = vi.fn()
 vi.mock('sonner', () => ({
   toast: Object.assign(
     (...args: unknown[]) => mockToast(...args),
@@ -13,6 +14,7 @@ vi.mock('sonner', () => ({
       error: (...args: unknown[]) => mockToastError(...args),
       success: (...args: unknown[]) => mockToastSuccess(...args),
       info: (...args: unknown[]) => mockToastInfo(...args),
+      dismiss: (...args: unknown[]) => mockToastDismiss(...args),
     },
   ),
 }))
@@ -68,6 +70,23 @@ describe('useAppToast', () => {
     expect(mockToastError).toHaveBeenCalledWith('Something went wrong', {
       duration: 5000,
     })
+  })
+
+  it('keeps reload guidance visible until the person dismisses it', () => {
+    mockToastError.mockReturnValueOnce(7)
+    const { result } = renderHook(() => useAppToast())
+
+    act(() => {
+      result.current.showPersistentError('Your account changed', 'Dismiss')
+    })
+
+    expect(mockToastError).toHaveBeenCalledWith('Your account changed', expect.objectContaining({
+      duration: Infinity,
+      action: expect.objectContaining({ label: 'Dismiss' }),
+    }))
+    const options = mockToastError.mock.lastCall?.[1] as { action: { onClick: () => void } }
+    options.action.onClick()
+    expect(mockToastDismiss).toHaveBeenCalledWith(7)
   })
 
   it('returns a stable showError function', () => {
