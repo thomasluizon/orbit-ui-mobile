@@ -24,10 +24,6 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
-vi.mock('@/components/ui/icons', () => ({
-  RefreshCw: () => React.createElement('RefreshCwMock'),
-}))
-
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, label }: { checked: boolean; label: string }) =>
     React.createElement('SwitchMock', {

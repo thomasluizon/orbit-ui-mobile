@@ -144,9 +144,9 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "7d5208953f5b58ed",
+      "digest": "aaf98d0ead23c387",
       "calibratedAt": "2026-09-24",
-      "verdict": "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four. Reseeded 2026-09-16 when it gained the rule that an attended handoff ENDS the session, which needs the same judgement to apply: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong."
+      "verdict": "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four. The rule that handoff always ENDS the session needs the same judgement: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong."
     },
     ".claude/skills/investigate/SKILL.md": {
       "model": null,
@@ -172,7 +172,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "3acc97319a511f47",
+      "digest": "8b6c01f7705f3266",
       "calibratedAt": "2026-09-24",
       "verdict": "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review. Reseeded 2026-09-18 a fifth time, when the third ending a pull request can reach became a CHECKED one. A run says which of READY, BLOCKED and merged each pull request landed on, and merged now carries a shape-checked merge commit sha: the measured failure was copying the skill's own template and leaving the placeholder unfilled, which read as a finished night in silence. So the call this file asks for is not only which disposition applies, it is which self-asserted fact stays honest, and the answer is the one a reader can check. The same caution now reaches its own red-gate arithmetic: four FAILs are the engine switch, a fifth may be the load-sensitive CPU test rather than a defect, and telling those apart is what a lower effort skips. That sits on top of the calls the earlier stamps named: deriving which required check failed from delivery's ci.checks.pass beside the receipt's ci.green, holding a CI_STALE receipt as expected even after a successful merge, judging when an exhausted allowance justifies a transient worker switch and naming it while it is live, judging whether a substitute reviewer is named openly or promoted quietly, and telling an instructed contract apart from one a run granted itself. Merge authority is the most expensive rule here to get wrong."
     },
@@ -228,7 +228,7 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "7bbdfe9493568860",
+      "digest": "3212556044724b43",
       "calibratedAt": "2026-09-24",
       "verdict": "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded, and 2026-09-17 made it stricter: each step now ENDS THE TURN on a literal handover line and waits for Thomas to say proceed, so the skill has to hold the order across three turns rather than one, and it must not let --sleep collapse the first two. Low would round that gate away, which is the one thing this skill exists to enforce."
     },
