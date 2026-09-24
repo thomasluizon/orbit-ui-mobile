@@ -69,7 +69,7 @@ function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
 
 interface DrillHarness {
   holder: { current: DrillNavigationState }
-  rerender: (habitsById: Map<string, NormalizedHabit>, lastUpdated: number) => void
+  rerender: (habitsById: Map<string, NormalizedHabit>, lastUpdated: number, visibilityOptions?: HabitVisibilityOptions) => void
 }
 
 function renderDrill(
@@ -81,21 +81,22 @@ function renderDrill(
   function Harness({
     habitsById: byId,
     lastUpdated: updated,
-  }: Readonly<{ habitsById: Map<string, NormalizedHabit>; lastUpdated: number }>) {
-    holder.current = useDrillNavigation(byId, updated, visibilityOptions, 'today')
+    visibilityOptions: options,
+  }: Readonly<{ habitsById: Map<string, NormalizedHabit>; lastUpdated: number; visibilityOptions?: HabitVisibilityOptions }>) {
+    holder.current = useDrillNavigation(byId, updated, options, 'today')
     return null
   }
   let root: { update: (element: React.ReactElement) => void } | null = null
   TestRenderer.act(() => {
     root = TestRenderer.create(
-      <Harness habitsById={habitsById} lastUpdated={lastUpdated} />,
+      <Harness habitsById={habitsById} lastUpdated={lastUpdated} visibilityOptions={visibilityOptions} />,
     )
   })
   return {
     holder,
-    rerender: (byId, updated) => {
+    rerender: (byId, updated, options = visibilityOptions) => {
       TestRenderer.act(() => {
-        root?.update(<Harness habitsById={byId} lastUpdated={updated} />)
+        root?.update(<Harness habitsById={byId} lastUpdated={updated} visibilityOptions={options} />)
       })
     },
   }
@@ -162,7 +163,7 @@ describe('mobile useDrillNavigation', () => {
         dueDate: '2026-07-12', isLoggedInRange: false,
       })],
       ['active', createMockHabit({
-        id: 'active', parentId: 'container', dueDate: date, scheduledDates: [date],
+        id: 'active', parentId: 'container', dueDate: date, scheduledDates: [date, '2026-07-14'],
       })],
     ])
     const options = {
@@ -178,11 +179,17 @@ describe('mobile useDrillNavigation', () => {
     expect(pastCompletion.holder.current.drillChildren.map((child) => child.id)).toEqual(['container'])
     expect(pastCompletion.holder.current.completedCount).toBe(0)
 
-    const justCompleted = renderDrill(byId, 1, {
+    const recentCompletionDates = new Map([['container', date]])
+    const justCompletedOptions = {
       ...options, recentlyCompletedIds: new Set(['container']),
-    })
+      recentlyCompletedDates: recentCompletionDates,
+    }
+    const justCompleted = renderDrill(byId, 1, justCompletedOptions)
     await actAsync(() => justCompleted.holder.current.drillInto('p1'))
     expect(justCompleted.holder.current.completedCount).toBe(1)
+    justCompleted.rerender(byId, 1, { ...justCompletedOptions, selectedDate: '2026-07-14' })
+    expect(justCompleted.holder.current.drillChildren.map((child) => child.id)).toEqual(['container'])
+    expect(justCompleted.holder.current.completedCount).toBe(0)
   })
 
   it('drills into a habit, fetching and normalizing its children', async () => {

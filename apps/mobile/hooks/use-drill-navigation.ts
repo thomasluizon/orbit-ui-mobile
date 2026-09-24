@@ -75,7 +75,7 @@ export function useDrillNavigation(
   const completedCount = countCompletedDrillChildren(
     drillChildren,
     visibilityOptions?.selectedDate || formatAPIDate(new Date()),
-    visibilityOptions?.recentlyCompletedIds,
+    visibilityOptions?.recentlyCompletedDates,
   )
 
   const fetchDrillChildren = useCallback(

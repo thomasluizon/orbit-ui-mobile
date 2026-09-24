@@ -275,7 +275,9 @@ describe('getVisibleDrillChildren', () => {
     const visible = getVisibleDrillChildren('parent-1', detail.childrenByParent, options, 'today', selectedDate)
     expect(visible.map((child) => child.id)).toEqual(['container'])
     expect(countCompletedDrillChildren(visible, selectedDate)).toBe(0)
-    expect(countCompletedDrillChildren(visible, selectedDate, new Set(['container']))).toBe(1)
+    const recentCompletionDates = new Map([['container', selectedDate]])
+    expect(countCompletedDrillChildren(visible, selectedDate, recentCompletionDates)).toBe(1)
+    expect(countCompletedDrillChildren(visible, '2025-01-03', recentCompletionDates)).toBe(0)
   })
 
   it('keeps a completed detail-only child hidden before its due date', () => {

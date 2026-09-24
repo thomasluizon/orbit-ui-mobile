@@ -106,13 +106,24 @@ export function canRevealCompletedDrillChildren(
 export function countCompletedDrillChildren(
   children: readonly NormalizedHabit[],
   selectedDate: string,
-  recentlyCompletedIds?: ReadonlySet<string>,
+  recentlyCompletedDates?: ReadonlyMap<string, string>,
 ): number {
   return children.filter((child) =>
     isHabitLoggedOnDate(child, selectedDate) ||
     (child.isGeneral && child.isCompleted) ||
-    (recentlyCompletedIds?.has(child.id) ?? false),
+    recentlyCompletedDates?.get(child.id) === selectedDate,
   ).length
+}
+
+export function getRecentlyCompletedIdsForDate(
+  recentlyCompletedDates: ReadonlyMap<string, string>,
+  selectedDate: string,
+): Set<string> {
+  const ids = new Set<string>()
+  for (const [id, date] of recentlyCompletedDates) {
+    if (date === selectedDate) ids.add(id)
+  }
+  return ids
 }
 
 export function normalizeDrillDetailChild(

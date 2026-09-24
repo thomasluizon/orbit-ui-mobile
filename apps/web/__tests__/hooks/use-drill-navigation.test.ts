@@ -166,7 +166,7 @@ describe('useDrillNavigation', () => {
         dueDate: '2025-01-14', isLoggedInRange: false,
       })],
       ['active', makeHabit({
-        id: 'active', parentId: 'container', dueDate: date, scheduledDates: [date],
+        id: 'active', parentId: 'container', dueDate: date, scheduledDates: [date, '2025-01-16'],
       })],
     ])
     const options = {
@@ -182,11 +182,16 @@ describe('useDrillNavigation', () => {
     expect(pastCompletion.result.current.completedCount).toBe(0)
     pastCompletion.unmount()
 
-    const justCompleted = renderHook(() => useDrillNavigation(byId, 0, {
-      ...options, recentlyCompletedIds: new Set(['container']),
-    }, 'today'))
+    const recentCompletionDates = new Map([['container', date]])
+    const justCompleted = renderHook(({ selectedDate }) => useDrillNavigation(byId, 0, {
+      ...options, selectedDate, recentlyCompletedIds: new Set(['container']),
+      recentlyCompletedDates: recentCompletionDates,
+    }, 'today'), { initialProps: { selectedDate: date } })
     await act(async () => { await justCompleted.result.current.drillInto('parent1') })
     expect(justCompleted.result.current.completedCount).toBe(1)
+    justCompleted.rerender({ selectedDate: '2025-01-16' })
+    expect(justCompleted.result.current.drillChildren.map((child) => child.id)).toEqual(['container'])
+    expect(justCompleted.result.current.completedCount).toBe(0)
   })
 
   it('starts with empty drill stack', () => {

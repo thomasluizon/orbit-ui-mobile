@@ -52,6 +52,7 @@ const mockDrillState = {
   refreshCurrent: drillRefreshCurrent,
   getDrillChildren: getDrillChildrenMock,
 }
+let capturedDrillOptions: HabitVisibilityOptions | undefined
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -114,7 +115,10 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
 })
 
 vi.mock('@/hooks/use-drill-navigation', () => ({
-  useDrillNavigation: () => mockDrillState,
+  useDrillNavigation: (_byId: unknown, _updated: unknown, options: HabitVisibilityOptions) => {
+    capturedDrillOptions = options
+    return mockDrillState
+  },
 }))
 
 vi.mock('@/hooks/use-config', () => ({
@@ -328,6 +332,7 @@ const defaultFilters = {
 
 describe('HabitList', () => {
   beforeEach(() => {
+    capturedDrillOptions = undefined
     vi.clearAllMocks()
     sheetTestControls.defer(false)
     mockHabitsDataUpdatedAt = 1
@@ -373,6 +378,22 @@ describe('HabitList', () => {
     )
     expect(screen.getByText('habits.emptyState')).toBeDefined()
     expect(screen.getByText('habits.noHabitsBody')).toBeDefined()
+  })
+
+  it('does not carry recent completion feedback into another selected date', () => {
+    const habit = createMockHabit({ id: 'dated-child', scheduledDates: [YESTERDAY, TODAY] })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = (date: string) => (
+      <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${date}T09:00:00Z`)} />
+    )
+    const rendered = renderWithProviders(renderList(YESTERDAY))
+
+    act(() => { ref.current?.markRecentlyCompleted(habit.id) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
+    rendered.rerenderWithProviders(renderList(TODAY))
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(false)
   })
 
   it('keeps sortable descriptions stable through hydration', async () => {

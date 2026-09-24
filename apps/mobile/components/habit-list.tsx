@@ -54,6 +54,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
+import { getRecentlyCompletedIdsForDate } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
@@ -391,9 +392,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
     const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
-    const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<
-      Set<string>
-    >(new Set())
+    const [recentlyCompletedDates, setRecentlyCompletedDates] = useState(
+      new Map<string, string>(),
+    )
+    const recentlyCompletedIds = useMemo(
+      () => getRecentlyCompletedIdsForDate(recentlyCompletedDates, selectedDateStr),
+      [recentlyCompletedDates, selectedDateStr],
+    )
     const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
       habitsById,
       childrenByParent,
@@ -401,6 +406,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       searchQuery: searchQuery ?? '',
       showCompleted,
       recentlyCompletedIds,
+      recentlyCompletedDates,
     }, view)
 
     useEffect(() => {
@@ -493,38 +499,41 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
     }, [])
 
-    const markRecentlyCompleted = useCallback((habitId: string) => {
-      setRecentlyCompletedIds((previous) => new Set(previous).add(habitId))
+    const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
+      setRecentlyCompletedDates((previous) => new Map(previous).set(habitId, date))
       const timers = recentlyCompletedTimersRef.current
-      const existing = timers.get(habitId)
+      const timerKey = `${habitId}:${date}`
+      const existing = timers.get(timerKey)
       if (existing) clearTimeout(existing)
       timers.set(
-        habitId,
+        timerKey,
         setTimeout(() => {
-          timers.delete(habitId)
-          setRecentlyCompletedIds((previous) => {
-            const next = new Set(previous)
+          timers.delete(timerKey)
+          setRecentlyCompletedDates((previous) => {
+            if (previous.get(habitId) !== date) return previous
+            const next = new Map(previous)
             next.delete(habitId)
             return next
           })
         }, 1400),
       )
-    }, [setRecentlyCompletedIds])
+    }, [selectedDateStr])
 
-    const clearRecentlyCompleted = useCallback((habitId: string) => {
+    const clearRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
       const timers = recentlyCompletedTimersRef.current
-      const existing = timers.get(habitId)
+      const timerKey = `${habitId}:${date}`
+      const existing = timers.get(timerKey)
       if (existing) {
         clearTimeout(existing)
-        timers.delete(habitId)
+        timers.delete(timerKey)
       }
-      setRecentlyCompletedIds((previous) => {
-        if (!previous.has(habitId)) return previous
-        const next = new Set(previous)
+      setRecentlyCompletedDates((previous) => {
+        if (previous.get(habitId) !== date) return previous
+        const next = new Map(previous)
         next.delete(habitId)
         return next
       })
-    }, [setRecentlyCompletedIds])
+    }, [selectedDateStr])
 
     const getVisibleChildren = useCallback(
       (parentId: string): NormalizedHabit[] =>

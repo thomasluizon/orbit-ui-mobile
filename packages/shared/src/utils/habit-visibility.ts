@@ -11,6 +11,7 @@ export interface HabitVisibilityOptions {
   searchQuery: string
   showCompleted: boolean
   recentlyCompletedIds: Set<string>
+  recentlyCompletedDates?: ReadonlyMap<string, string>
 }
 
 export interface HabitVisibilityHelpers {

@@ -192,6 +192,7 @@ const mockDrillState = {
   refreshCurrent: vi.fn(async () => {}),
   getDrillChildren: vi.fn(() => [] as NormalizedHabit[]),
 }
+let capturedDrillOptions: HabitVisibilityOptions | undefined
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -242,7 +243,10 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/hooks/use-drill-navigation', () => ({
-  useDrillNavigation: () => mockDrillState,
+  useDrillNavigation: (_byId: unknown, _updated: unknown, options: HabitVisibilityOptions) => {
+    capturedDrillOptions = options
+    return mockDrillState
+  },
 }))
 
 vi.mock('@/hooks/use-config', () => ({
@@ -450,6 +454,7 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 
 describe('HabitList', () => {
   beforeEach(() => {
+    capturedDrillOptions = undefined
     vi.clearAllMocks()
     sheetTestControls.defer(false)
     clearOfflineQueue()
@@ -485,6 +490,28 @@ describe('HabitList', () => {
     mockDrillState.drillError = null
     mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('does not carry recent completion feedback into another selected date', () => {
+    const habit = createMockHabit({ id: 'dated-child', scheduledDates: [YESTERDAY, TODAY] })
+    seedHabits([habit])
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = (date: string) => (
+      <HabitList
+        ref={ref}
+        view="today"
+        filters={{}}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList(YESTERDAY)) })
+    TestRenderer.act(() => { ref.current?.markRecentlyCompleted(habit.id) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
+    TestRenderer.act(() => { tree.update(renderList(TODAY)) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(false)
   })
 
   it('hides one-time tasks completed before the selected day when completed items are shown', () => {
