@@ -7,7 +7,6 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { generatedXml } from '../../scripts/generate-widget-colors'
 
 const repositoryRoot = resolve(process.cwd(), '../..')
-const generatorPath = 'apps/mobile/scripts/generate-widget-colors.ts'
 
 function generatedColor(xml: string, name: string) {
   const value = xml.match(new RegExp(`<color name="${name}">([^<]+)</color>`))?.[1]
@@ -31,13 +30,7 @@ describe('widget color generator', () => {
     expect(() => new SaxesParser().write(xml).close()).not.toThrow()
   })
 
-  /**
-   * Importing the module through Vitest does not exercise the command the pull request body cites
-   * as the provenance of the checked-in outputs. tsx transforms this file to CommonJS, where a
-   * top-level await is a hard esbuild error, so the direct entry point can be broken while every
-   * other test passes. That happened on this branch.
-   */
-  it('runs as a direct command and rewrites the checked-in outputs unchanged', () => {
+  it('runs the mobile workspace script and rewrites the checked-in outputs unchanged', () => {
     const before = GENERATED_OUTPUTS.map(file => ({
       file,
       bytes: readFileSync(resolve(repositoryRoot, file)),
@@ -45,8 +38,8 @@ describe('widget color generator', () => {
 
     try {
       const run = spawnSync(
-        process.execPath,
-        [resolve(repositoryRoot, 'node_modules/tsx/dist/cli.mjs'), generatorPath],
+        process.platform === 'win32' ? 'npm.cmd' : 'npm',
+        ['run', 'generate:widget-colors', '-w', '@orbit/mobile'],
         { cwd: repositoryRoot, encoding: 'utf8' },
       )
 
