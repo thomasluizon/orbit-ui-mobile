@@ -74,6 +74,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
 }))
 
 import UpgradePage from '@/app/(app)/upgrade/page'
+import { useAuthStore } from '@/stores/auth-store'
 import {
   holdAccount,
   recoverSameAccount,
@@ -149,7 +150,7 @@ describe('UpgradePage across an account change', () => {
   it('does not show an old portal return after the account changes during refresh', async () => {
     let finishRefresh!: () => void
     mocks.refetchStatus.mockImplementationOnce(() => new Promise<void>((resolve) => { finishRefresh = resolve }))
-    globalThis.sessionStorage.setItem('orbit.subscription.portal-return', '1')
+    globalThis.sessionStorage.setItem('orbit.subscription.portal-return', 'user-1')
     render(<UpgradePage />)
     expect(mocks.refetchStatus).toHaveBeenCalledOnce()
 
@@ -203,6 +204,60 @@ describe('UpgradePage across an account change', () => {
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
 
     expect(checkoutButton()).not.toHaveAttribute('aria-busy')
+  })
+
+  it('lets the next account check out while the previous checkout remains pending', async () => {
+    let finishFirst!: (response: Response) => void
+    let finishSecond!: (response: Response) => void
+    let checkoutRequests = 0
+    vi.mocked(globalThis.fetch).mockImplementation((input) => {
+      if (input === '/api/auth/session') {
+        return Promise.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-2' }))
+      }
+      checkoutRequests += 1
+      return new Promise((resolve) => {
+        if (checkoutRequests === 1) finishFirst = resolve
+        else finishSecond = resolve
+      })
+    })
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
+    fireEvent.click(checkoutButton())
+    await waitFor(() => expect(checkoutRequests).toBe(1))
+
+    await act(async () => { await useAuthStore.getState().checkSession() })
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
+    fireEvent.click(checkoutButton())
+    expect(checkoutRequests).toBe(2)
+    expect(checkoutButton()).toHaveAttribute('aria-busy', 'true')
+
+    await act(async () => {
+      finishFirst({ ok: true, status: 200, json: () => Promise.resolve({}) } as Response)
+      await Promise.resolve()
+    })
+    expect(checkoutButton()).toHaveAttribute('aria-busy', 'true')
+
+    await act(async () => {
+      finishSecond({ ok: true, status: 200, json: () => Promise.resolve({}) } as Response)
+      await Promise.resolve()
+    })
+    expect(checkoutButton()).not.toHaveAttribute('aria-busy')
+  })
+
+  it('does not acknowledge another account portal return after a cold reload', async () => {
+    status = STRIPE_PRO_STATUS
+    mocks.openCustomerPortal.mockResolvedValue({ url: 'https://billing.example.test/user-1' })
+    vi.stubGlobal('location', { href: '' })
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
+    await waitFor(() => expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).not.toBeNull())
+    cleanup()
+    holdAccount('user-2')
+    render(<UpgradePage />)
+
+    await waitFor(() => expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull())
+    expect(mocks.refetchStatus).not.toHaveBeenCalled()
+    expect(mocks.showSuccess).not.toHaveBeenCalled()
   })
 
   it('never sends the next account to the previous account checkout session', async () => {

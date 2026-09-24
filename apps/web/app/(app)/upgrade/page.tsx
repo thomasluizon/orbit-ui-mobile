@@ -31,6 +31,7 @@ import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
+import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
@@ -41,6 +42,7 @@ export default function UpgradePage() {
   const goBackOrFallback = useGoBackOrFallback()
   const { showSuccess } = useAppToast()
   const { isOnline } = useOffline()
+  const heldAccountId = useHeldAccountId()
   const {
     status,
     isLoading: isStatusLoading,
@@ -66,7 +68,7 @@ export default function UpgradePage() {
   } = useBilling(isStripeBilling)
 
   const [checkoutLoading, setCheckoutLoading] = useAccountScopedState<SubscriptionInterval | null>(null)
-  const checkoutPendingRef = useRef(false)
+  const checkoutPendingRef = useRef<number | null>(null)
   const [checkoutError, setCheckoutError] = useAccountScopedState('')
   const [showPitch, setShowPitch] = useAccountScopedState(false)
   const [portalState, setPortalState] = useAccountScopedState<SubscriptionPortalState>('idle')
@@ -90,9 +92,11 @@ export default function UpgradePage() {
 
   useEffect(() => {
     const refreshAfterPortal = () => {
-      if (globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY) !== '1') return
+      const portalOwner = globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY)
+      if (portalOwner === null || heldAccountId === null) return
       const portalAccount = getAccountGeneration()
       globalThis.sessionStorage.removeItem(PORTAL_RETURN_KEY)
+      if (portalOwner !== heldAccountId) return
       setPortalState('idle')
       void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
         if (getAccountGeneration() === portalAccount) showSuccess(t('upgrade.billing.portalReturned'))
@@ -111,15 +115,15 @@ export default function UpgradePage() {
       globalThis.removeEventListener('pageshow', handlePageShow)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [portalState, refetchBilling, refetchStatus, setPortalState, showSuccess, t])
+  }, [heldAccountId, portalState, refetchBilling, refetchStatus, setPortalState, showSuccess, t])
 
   const handleCheckout = useCallback(
     async (interval: SubscriptionInterval) => {
-      if (checkoutPendingRef.current || !isOnline) return
-      checkoutPendingRef.current = true
+      const checkoutAccount = getAccountGeneration()
+      if (checkoutPendingRef.current === checkoutAccount || !isOnline) return
+      checkoutPendingRef.current = checkoutAccount
       setCheckoutLoading(interval)
       setCheckoutError('')
-      const checkoutAccount = getAccountGeneration()
       try {
         const timeZone = getClientTimeZone()
         const checkoutUrl = timeZone
@@ -150,26 +154,29 @@ export default function UpgradePage() {
         if (getAccountGeneration() !== checkoutAccount) return
         setCheckoutError(getFriendlyErrorMessage(error, t, 'auth.genericError', 'generic'))
       } finally {
-        checkoutPendingRef.current = false
-        setCheckoutLoading(null)
+        if (checkoutPendingRef.current === checkoutAccount) {
+          checkoutPendingRef.current = null
+          setCheckoutLoading(null)
+        }
       }
     },
     [isOnline, setCheckoutError, setCheckoutLoading, t],
   )
 
   const handleOpenPortal = useCallback(async () => {
-    if (!isOnline) return
+    const portalOwner = getHeldAccountId()
+    if (!isOnline || portalOwner === null) return
     const portalAccount = getAccountGeneration()
     setPortalState('opening')
     try {
       if (status?.source === 'play') {
-        globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
+        globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, portalOwner)
         globalThis.location.href = playManageSubscriptionUrl()
         return
       }
       const data = await openCustomerPortal()
       if (getAccountGeneration() !== portalAccount) return
-      globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
+      globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, portalOwner)
       globalThis.location.href = data.url
     } catch {
       if (getAccountGeneration() !== portalAccount) return
