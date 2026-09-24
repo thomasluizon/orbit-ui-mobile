@@ -7,6 +7,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
+import { HabitListDateGroupSection } from '@/components/habit-list/date-group-section'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
@@ -25,6 +26,26 @@ const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const TestRenderer = require('react-test-renderer')
+const rowRenderCounts = vi.hoisted(() => new Map<string, number>())
+const tokenBuilds = vi.hoisted(() => ({ count: 0 }))
+
+vi.mock('@/components/habits/habit-row', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-row')>()
+  const React = await import('react')
+  const MemoTrackedHabitRow = React.memo(function MemoTrackedHabitRow(
+    props: React.ComponentProps<typeof actual.HabitRow>,
+  ) {
+    const id = props.habit.id
+    rowRenderCounts.set(id, (rowRenderCounts.get(id) ?? 0) + 1)
+    return React.createElement(actual.HabitRow, props)
+  })
+  return {
+    ...actual,
+    HabitRow: function TrackedHabitRow(props: React.ComponentProps<typeof actual.HabitRow>) {
+      return React.createElement(MemoTrackedHabitRow, props)
+    },
+  }
+})
 
 function flattenText(node: unknown): string {
   if (node == null) return ''
@@ -327,7 +348,10 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   return {
     ...actual,
     createColors: () => colorProxy,
-    createTokensV2: () => colorProxy,
+    createTokensV2: () => {
+      tokenBuilds.count += 1
+      return colorProxy
+    },
   }
 })
 
@@ -481,6 +505,115 @@ describe('HabitList', () => {
     mockDrillState.drillError = null
     mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('reuses row tokens when only habit content changes', () => {
+    const habit = createMockHabit({ id: 'token-row', title: 'Before' })
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} />) })
+    const previousBuilds = tokenBuilds.count
+    TestRenderer.act(() => {
+      tree.update(<HabitRow habit={{ ...habit, title: 'After' }} />)
+    })
+    expect(tokenBuilds.count).toBe(previousBuilds + 1)
+  })
+
+  it('reuses date group tokens when the group content changes', () => {
+    const group = { key: TODAY, label: 'Today', isOverdue: false, habits: [] }
+    const renderHabit = vi.fn()
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitListDateGroupSection group={group} overdueLabel="Overdue" renderHabit={renderHabit} />,
+      )
+    })
+    const previousBuilds = tokenBuilds.count
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitListDateGroupSection
+          group={{ ...group, label: 'New label' }}
+          overdueLabel="Overdue"
+          renderHabit={renderHabit}
+        />,
+      )
+    })
+    expect(tokenBuilds.count).toBe(previousBuilds)
+  })
+
+  it('renders only changed rows through a 60-habit search, view switch, and log', async () => {
+    const habits = Array.from({ length: 60 }, (_, index) => createMockHabit({
+      id: `render-habit-${index}`,
+      title: index === 0 ? 'Needle habit' : `Other habit ${index}`,
+      position: index,
+      dueDate: TODAY,
+      scheduledDates: [TODAY],
+    }))
+    const onCreatePress = vi.fn()
+    const renderList = (view: 'all' | 'today', search = '') => (
+      <HabitList
+        view={view}
+        filters={{ search: search || undefined }}
+        searchQuery={search}
+        showCompleted
+        onCreatePress={onCreatePress}
+      />
+    )
+    const renderAllGroup = (tree: any) => {
+      const list = tree.root.findByType('FlatList')
+      expect(list.props.data).toHaveLength(1)
+      return list.props.renderItem({ item: list.props.data[0], index: 0 })
+    }
+    const totalSince = (before: Map<string, number>) =>
+      Array.from(rowRenderCounts, ([id, count]) => count - (before.get(id) ?? 0))
+        .reduce((sum, count) => sum + count, 0)
+
+    seedHabits(habits)
+    rowRenderCounts.clear()
+    let tree: any
+    let groupTree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList('all')) })
+    TestRenderer.act(() => { groupTree = TestRenderer.create(renderAllGroup(tree)) })
+    const initial = totalSince(new Map())
+
+    const beforeSearch = new Map(rowRenderCounts)
+    seedHabits([habits[0]!])
+    TestRenderer.act(() => { tree.update(renderList('all', 'n')) })
+    TestRenderer.act(() => { groupTree.update(renderAllGroup(tree)) })
+    const searched = totalSince(beforeSearch)
+
+    const beforeClear = new Map(rowRenderCounts)
+    seedHabits(habits)
+    TestRenderer.act(() => { tree.update(renderList('all')) })
+    TestRenderer.act(() => { groupTree.update(renderAllGroup(tree)) })
+    const cleared = totalSince(beforeClear)
+
+    const beforeSwitch = new Map(rowRenderCounts)
+    TestRenderer.act(() => {
+      groupTree.unmount()
+      tree.update(renderList('today'))
+    })
+    const switched = totalSince(beforeSwitch)
+
+    const beforeLog = new Map(rowRenderCounts)
+    const firstRow = tree.root.findAll((node: any) =>
+      node.props.habit?.id === habits[0]!.id && typeof node.props.actions?.onLog === 'function',
+    )[0]
+    await TestRenderer.act(async () => {
+      firstRow.props.actions.onLog()
+      await Promise.resolve()
+    })
+    const updatedHabit = { ...habits[0]!, isCompleted: true, isLoggedInRange: true }
+    seedHabits([updatedHabit, ...habits.slice(1)])
+    TestRenderer.act(() => { tree.update(renderList('today')) })
+    const logged = totalSince(beforeLog)
+
+    expect({ initial, searched, cleared, switched, logged }).toEqual({
+      initial: 60,
+      searched: 0,
+      cleared: 59,
+      switched: 60,
+      logged: 1,
+    })
   })
 
   it('hides one-time tasks completed before the selected day when completed items are shown', () => {
@@ -1523,6 +1656,7 @@ describe('HabitList', () => {
     })
 
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
+    expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
 
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent' })
@@ -1545,6 +1679,7 @@ describe('HabitList', () => {
 
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(1)
+    expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
   })
 
   it('retries loading drill children from the drill error state', () => {
