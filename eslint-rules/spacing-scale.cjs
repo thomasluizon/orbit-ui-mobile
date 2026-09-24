@@ -321,9 +321,10 @@ module.exports = {
         return null
       }
       if (node.type === 'ConditionalExpression') {
-        scanStyleObject(node.consequent, ignored)
-        scanStyleObject(node.alternate, ignored)
-        return null
+        const consequentKeys = scanStyleObject(node.consequent, ignored)
+        const alternateKeys = scanStyleObject(node.alternate, ignored)
+        if (consequentKeys === null || alternateKeys === null) return null
+        return new Set([...consequentKeys].filter((key) => alternateKeys.has(key)))
       }
       if (node.type !== 'ObjectExpression') return null
       const knownKeys = new Set()
