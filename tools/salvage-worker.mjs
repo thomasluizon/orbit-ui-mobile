@@ -3,13 +3,14 @@
 
 import { createHash } from "node:crypto"
 import { lstatSync, readFileSync, readlinkSync, statSync, writeFileSync } from "node:fs"
-import { isAbsolute, relative, resolve } from "node:path"
+import { extname, isAbsolute, relative, resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { runBounded } from "./lib/bounded-process.mjs"
+import { MAX_OUTPUT_BYTES, runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readinessReceiptPath } from "./lib/readiness-receipt.mjs"
 import { readRunState, writeRunState } from "./lib/run-state.mjs"
+import { resolveSpawnTarget } from "./lib/win-spawn-target.mjs"
 
 const USAGE = `usage: salvage-worker.mjs --issue <ORB-N|#N|N> --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...] [--command-timeout-seconds <s>]
 
@@ -19,7 +20,15 @@ values are staged. A failed test stages and pushes nothing. When a PR already ex
 registered with a repository-qualified readiness receipt before commit/push. When salvage happens
 before PR creation, --pr is omitted and the output records that readiness registration is pending.
 
-exit codes: 0 committed and pushed, 1 test/commit/push failure, 2 usage or environment error`
+The command is spawned directly, never through a shell, so on Windows it may not name a .cmd or
+.bat shim: Node refuses one since the CVE-2024-27980 fix, and every npm binary is such a shim.
+Name the package entry point instead, as in
+{"command":"node","args":["node_modules/turbo/bin/turbo","run","test","--concurrency=1"]}.
+
+exit codes: 0 committed and pushed, 1 the workspace test ran and reported red, or the commit/push
+failed, 2 usage or environment error, 3 the workspace test never started, 4 the workspace test
+exceeded its time bound, 5 the workspace test exceeded its output bound, 6 the workspace test
+was interrupted by a signal before reporting a verdict`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -97,6 +106,21 @@ try {
 }
 if (typeof testOrder?.command !== "string" || !testOrder.command || !Array.isArray(testOrder.args) || testOrder.args.some((value) => typeof value !== "string")) fail(2, "test command must contain command:string and args:string[]")
 
+/**
+ * Resolve Node's direct-spawn target before looking for a Windows command shim. An explicit
+ * .cmd target is refused, while a bare name with only a .cmd match gets an actionable diagnostic.
+ */
+if (process.platform === "win32") {
+  const spawnTarget = resolveSpawnTarget(testOrder.command, { cwd: worktree })
+  if (spawnTarget !== null && [".cmd", ".bat"].includes(extname(spawnTarget).toLowerCase())) {
+    fail(2, [
+      `--test-command names a Windows command shim this tool cannot spawn: ${spawnTarget}`,
+      "Node refuses a .cmd or .bat target without a shell (CVE-2024-27980), and a shell is not used here because it concatenates arguments instead of escaping them.",
+      'Name the package entry point instead, as in {"command":"node","args":["node_modules/turbo/bin/turbo","run","test","--concurrency=1"]}.',
+    ].join("\n"))
+  }
+}
+
 const git = async (args) => {
   const result = await runBounded(process.env.GIT_BIN || "git", ["-C", worktree, ...args], { timeoutMs: commandTimeoutSeconds * 1000 })
   if (result.timedOut) throw new Error(`git ${args[0]} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated`)
@@ -126,20 +150,59 @@ const fingerprintPath = (path) => {
   }
 }
 const testedPathFingerprints = Object.fromEntries(normalizedPaths.map((path) => [path, fingerprintPath(path)]))
+const testRun = await runBounded(testOrder.command, testOrder.args, { cwd: worktree, timeoutMs: config.timeouts.hardCeilingMinutes * 60 * 1000 })
 const completedAt = new Date().toISOString()
-let testExitCode = 0
-try {
-  const testResult = await runBounded(testOrder.command, testOrder.args, { cwd: worktree, timeoutMs: config.timeouts.hardCeilingMinutes * 60 * 1000 })
-  if (testResult.timedOut || testResult.overflowed || testResult.error || testResult.status !== 0) testExitCode = 1
-} catch (error) {
-  testExitCode = 1
+const printableCommand = [testOrder.command, ...testOrder.args].join(" ")
+const tailOf = (text) => {
+  const trimmed = String(text ?? "").trim()
+  return trimmed === "" ? "" : `\nlast output:\n${trimmed.slice(-2000)}`
 }
+// Only "failed" reports a red branch. The other non-passing outcomes carry no suite verdict.
+const OUTCOMES = {
+  passed: { exitCode: 0, message: () => null },
+  failed: {
+    exitCode: 1,
+    message: () => `workspace test failed: the suite ran and exited ${testRun.status}. The branch is red, so read the code. Nothing was staged or pushed.\ncommand: ${printableCommand}${tailOf(testRun.stderr || testRun.stdout)}`,
+  },
+  "did-not-start": {
+    exitCode: 3,
+    message: () => `workspace test did not start: ${testRun.error?.code ?? "spawn failed"}. The suite never ran, so nothing here says the branch is red. Read the command, not the code. Nothing was staged or pushed.\ncommand: ${printableCommand}\n${testRun.error?.message ?? "the child process never began"}`,
+  },
+  "timed-out": {
+    exitCode: 4,
+    message: () => `workspace test timed out after ${config.timeouts.hardCeilingMinutes} minutes; the complete child process tree was terminated. The suite never reported, so nothing here says the branch is red. Nothing was staged or pushed.\ncommand: ${printableCommand}`,
+  },
+  overflowed: {
+    exitCode: 5,
+    message: () => `workspace test exceeded the ${MAX_OUTPUT_BYTES} byte output bound; the complete child process tree was terminated. The suite never reported, so nothing here says the branch is red. Nothing was staged or pushed.\ncommand: ${printableCommand}`,
+  },
+  interrupted: {
+    exitCode: 6,
+    message: () => `workspace test interrupted by signal ${testRun.signal}; the suite never reported, so nothing here says the branch is red. Nothing was staged or pushed.\ncommand: ${printableCommand}`,
+  },
+}
+const outcome = testRun.error ? "did-not-start" : testRun.timedOut ? "timed-out" : testRun.overflowed ? "overflowed" : testRun.status === null && testRun.signal !== null ? "interrupted" : testRun.status === 0 ? "passed" : "failed"
 const mutatedPaths = normalizedPaths.filter((path) => fingerprintPath(path) !== testedPathFingerprints[path])
-if (mutatedPaths.length > 0) testExitCode = 1
-const testReceipt = { command: testOrder.command, args: testOrder.args, exitCode: testExitCode, testedHead, testedPathFingerprints, mutatedPaths, completedAt, worktree }
+const testExitCode = mutatedPaths.length > 0 ? 1 : OUTCOMES[outcome].exitCode
+const testReceipt = {
+  command: testOrder.command,
+  args: testOrder.args,
+  outcome,
+  exitCode: testExitCode,
+  status: testRun.status,
+  signal: testRun.signal,
+  timedOut: testRun.timedOut,
+  overflowed: testRun.overflowed,
+  spawnError: testRun.error ? { code: testRun.error.code ?? null, message: testRun.error.message } : null,
+  testedHead,
+  testedPathFingerprints,
+  mutatedPaths,
+  completedAt,
+  worktree,
+}
 writeFileSync(testReceiptPath, `${JSON.stringify(testReceipt, null, 2)}\n`)
 if (mutatedPaths.length > 0) fail(1, `workspace test mutated named paths; nothing was staged or pushed: ${mutatedPaths.join(", ")}`)
-if (testExitCode !== 0) fail(1, "workspace test failed; nothing was staged or pushed")
+if (outcome !== "passed") fail(OUTCOMES[outcome].exitCode, OUTCOMES[outcome].message())
 
 let inventory
 try {
