@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Worker } from "node:worker_threads"
 
@@ -16,16 +16,16 @@ const stageCheckout = (label) => {
 }
 
 const reserveTogether = (moduleUrl, repoRoot, launch, cap) => {
-  const signal = new SharedArrayBuffer(2 * Int32Array.BYTES_PER_ELEMENT)
+  const signal = new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT)
   const workerSource = `
 const fs = require("node:fs")
 const { syncBuiltinESMExports } = require("node:module")
 const { parentPort, workerData } = require("node:worker_threads")
 const signal = new Int32Array(workerData.signal)
-const originalOpenSync = fs.openSync
+const originalLinkSync = fs.linkSync
 let synchronized = false
-fs.openSync = (...args) => {
-  if (!synchronized && String(args[0]).includes("orbit-worker-launches") && args[1] === "wx") {
+fs.linkSync = (...args) => {
+  if (!synchronized && String(args[1]).includes("-slot-")) {
     synchronized = true
     if (Atomics.add(signal, 0, 1) + 1 === 2) {
       Atomics.store(signal, 1, 1)
@@ -34,7 +34,8 @@ fs.openSync = (...args) => {
       while (Atomics.load(signal, 1) === 0) Atomics.wait(signal, 1, 0)
     }
   }
-  return originalOpenSync(...args)
+  if (String(args[1]).includes("-slot-") && Atomics.load(signal, 0) < 2) Atomics.add(signal, 2, 1)
+  return originalLinkSync(...args)
 }
 syncBuiltinESMExports()
 import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
@@ -55,25 +56,31 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
     })
     worker.once("message", resolve)
     worker.once("error", reject)
-  })))
+  }))).then((reservations) => ({
+    reservations,
+    barrierCalls: Atomics.load(new Int32Array(signal), 0),
+    publishedBeforeBothArrived: Atomics.load(new Int32Array(signal), 2),
+    barrierPath: "linkSync",
+  }))
 }
 
 const reserveAfterLaterReturns = (moduleUrl, repoRoot, launch) => {
-  const signal = new SharedArrayBuffer(2 * Int32Array.BYTES_PER_ELEMENT)
+  const signal = new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT)
   const workerSource = `
 const fs = require("node:fs")
 const { syncBuiltinESMExports } = require("node:module")
 const { parentPort, workerData } = require("node:worker_threads")
 const signal = new Int32Array(workerData.signal)
 if (workerData.earlier) {
-  const originalOpenSync = fs.openSync
-  fs.openSync = (...args) => {
-    if (String(args[0]).includes("orbit-worker-launches") && args[1] === "wx") {
+  const originalLinkSync = fs.linkSync
+  fs.linkSync = (...args) => {
+    if (String(args[1]).includes("-slot-")) {
+      Atomics.add(signal, 2, 1)
       Atomics.store(signal, 0, 1)
       Atomics.notify(signal, 0)
       while (Atomics.load(signal, 1) === 0) Atomics.wait(signal, 1, 0)
     }
-    return originalOpenSync(...args)
+    return originalLinkSync(...args)
   }
   syncBuiltinESMExports()
 } else {
@@ -102,7 +109,7 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
     })
     worker.once("message", resolve)
     worker.once("error", reject)
-  })))
+  }))).then((reservations) => ({ reservations, barrierCalls: Atomics.load(new Int32Array(signal), 2), barrierPath: "linkSync" }))
 }
 
 export const cases = async () => {
@@ -199,6 +206,59 @@ export const cases = async () => {
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 
   const launch = { repositoryKey: "ui", branch: "chore/test", headSha: "a".repeat(40), tier: "default", timestamp: "2026-09-14T00:00:00.000Z", relaunchReason: null }
+  const occupiedRoot = stageCheckout("occupied-worker")
+  registerWakeSource({ pid: process.ppid, what: "worker ORB-1", workerPid: process.pid }, occupiedRoot)
+  const occupiedReservation = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, occupiedRoot)
+  T(`${TOOL}: a live worker in the worktree refuses another launch and names its pid`,
+    occupiedReservation.allowed === false && occupiedReservation.occupiedWorkerPid === process.pid,
+    JSON.stringify(occupiedReservation))
+  const staleReclaimRoot = stageCheckout("stale-reclaim")
+  const staleClaimDirectory = workerLaunchDirectory(staleReclaimRoot)
+  mkdirSync(staleClaimDirectory, { recursive: true })
+  writeFileSync(join(staleClaimDirectory, "occupied-worktree.json"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone", gateProtocol: 1 }))
+  writeFileSync(join(staleClaimDirectory, "occupied-worktree.json.reclaim"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone" }))
+  const reclaimed = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, staleReclaimRoot)
+  T(`${TOOL}: a dead reclaim owner does not strand a stale worktree claim`, reclaimed.allowed === true,
+    JSON.stringify(reclaimed))
+  const staleRaceRoot = stageCheckout("stale-reclaim-race")
+  const staleRaceDirectory = workerLaunchDirectory(staleRaceRoot)
+  mkdirSync(staleRaceDirectory, { recursive: true })
+  writeFileSync(join(staleRaceDirectory, "occupied-worktree.json"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone", gateProtocol: 1 }))
+  writeFileSync(join(staleRaceDirectory, "occupied-worktree.json.reclaim"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone" }))
+  const staleContenders = await Promise.all([1, 2].map(() => new Promise((resolve, reject) => {
+    const worker = new Worker(`
+const { parentPort, workerData } = require("node:worker_threads")
+import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
+  parentPort.postMessage(reserveWorkerLaunch(workerData.launch, 2, workerData.repoRoot))
+})`, { eval: true, execArgv: [], workerData: {
+      moduleUrl: new URL("../lib/run-state.mjs", import.meta.url).href,
+      launch: { ...launch, launcherPid: process.pid }, repoRoot: staleRaceRoot,
+    } })
+    worker.once("message", resolve)
+    worker.once("error", reject)
+  })))
+  T(`${TOOL}: concurrent stale reclaimers still admit only one launcher`,
+    staleContenders.filter((reservation) => reservation.allowed).length === 1,
+    JSON.stringify(staleContenders))
+  const legacyRoot = stageCheckout("legacy-unpublished-worker")
+  mkdirSync(workerLaunchDirectory(legacyRoot), { recursive: true })
+  writeFileSync(join(workerLaunchDirectory(legacyRoot), "occupied-worktree.json"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone" }))
+  const legacy = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, legacyRoot)
+  T(`${TOOL}: a pid-less claim from the old launcher stays closed because its child may be live`, legacy.allowed === false,
+    JSON.stringify(legacy))
+  const partialPublicationRoot = stageCheckout("partial-publication")
+  mkdirSync(workerLaunchDirectory(partialPublicationRoot), { recursive: true })
+  writeFileSync(join(workerLaunchDirectory(partialPublicationRoot), "occupied-worktree.json.dead.unpublished"), "{")
+  const afterPartialPublication = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, partialPublicationRoot)
+  T(`${TOOL}: a killed claim writer leaves only an ignored unpublished file`, afterPartialPublication.allowed === true,
+    JSON.stringify(afterPartialPublication))
+  const partialRoot = stageCheckout("partial-claim")
+  mkdirSync(workerLaunchDirectory(partialRoot), { recursive: true })
+  writeFileSync(join(workerLaunchDirectory(partialRoot), "occupied-worktree.json"), "{")
+  const partial = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, partialRoot)
+  T(`${TOOL}: a malformed reservation is classified as occupied without overwriting it`,
+    partial.allowed === false && readFileSync(join(workerLaunchDirectory(partialRoot), "occupied-worktree.json"), "utf8") === "{",
+    JSON.stringify(partial))
   const firstReservation = reserveWorkerLaunch(launch, 1, repoRoot)
   const refusedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:01:00.000Z" }, 1, repoRoot)
   const reasonedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:02:00.000Z", relaunchReason: "known conflict list" }, 1, repoRoot)
@@ -212,33 +272,36 @@ export const cases = async () => {
   )
 
   const raceRoot = stageCheckout("launch-race")
-  const racingReservations = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, raceRoot, launch, 1)
+  const simultaneousRace = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, raceRoot, launch, 1)
+  const racingReservations = simultaneousRace.reservations
   const raceLedger = readWorkerLaunches(raceRoot)
   T(
     `${TOOL}: simultaneous reservations admit exactly one launch and retain its record`,
-    racingReservations.filter((reservation) => reservation.allowed).length === 1 && raceLedger.length === 1,
-    JSON.stringify({ racingReservations, raceLedger }),
+    racingReservations.filter((reservation) => reservation.allowed).length === 1 && raceLedger.length === 1 && simultaneousRace.barrierCalls === 2 && simultaneousRace.publishedBeforeBothArrived === 0 && simultaneousRace.barrierPath === "linkSync",
+    JSON.stringify({ racingReservations, raceLedger, barrierCalls: simultaneousRace.barrierCalls, publishedBeforeBothArrived: simultaneousRace.publishedBeforeBothArrived, barrierPath: simultaneousRace.barrierPath }),
   )
 
   const freeSlotRoot = stageCheckout("launch-race-free-slot")
   reserveWorkerLaunch(launch, 2, freeSlotRoot)
-  const contenders = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, freeSlotRoot, launch, 2)
+  const freeSlotRace = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, freeSlotRoot, launch, 2)
+  const contenders = freeSlotRace.reservations
   const freeSlotLedger = readWorkerLaunches(freeSlotRoot)
   T(
     `${TOOL}: simultaneous contenders use the one free slot instead of both yielding it`,
     contenders.filter((reservation) => reservation.allowed).length === 1 &&
       contenders.filter((reservation) => !reservation.allowed).length === 1 &&
-      freeSlotLedger.length === 2,
-    JSON.stringify({ contenders, freeSlotLedger }),
+      freeSlotLedger.length === 2 && freeSlotRace.barrierCalls === 2 && freeSlotRace.publishedBeforeBothArrived === 0 && freeSlotRace.barrierPath === "linkSync",
+    JSON.stringify({ contenders, freeSlotLedger, barrierCalls: freeSlotRace.barrierCalls, publishedBeforeBothArrived: freeSlotRace.publishedBeforeBothArrived, barrierPath: freeSlotRace.barrierPath }),
   )
 
   const delayedCreateRoot = stageCheckout("launch-race-delayed-create")
-  const delayedCreateReservations = await reserveAfterLaterReturns(new URL("../lib/run-state.mjs", import.meta.url).href, delayedCreateRoot, launch)
+  const delayedRace = await reserveAfterLaterReturns(new URL("../lib/run-state.mjs", import.meta.url).href, delayedCreateRoot, launch)
+  const delayedCreateReservations = delayedRace.reservations
   const delayedCreateLedger = readWorkerLaunches(delayedCreateRoot)
   T(
     `${TOOL}: a contender returning before an earlier contender creates cannot exceed the cap`,
-    delayedCreateReservations.filter((reservation) => reservation.allowed).length === 1 && delayedCreateLedger.length === 1,
-    JSON.stringify({ delayedCreateReservations, delayedCreateLedger }),
+    delayedCreateReservations.filter((reservation) => reservation.allowed).length === 1 && delayedCreateLedger.length === 1 && delayedRace.barrierCalls === 1 && delayedRace.barrierPath === "linkSync",
+    JSON.stringify({ delayedCreateReservations, delayedCreateLedger, barrierCalls: delayedRace.barrierCalls, barrierPath: delayedRace.barrierPath }),
   )
 
   registerWakeSource({ pid: process.pid, what: "worker ORB-1" }, repoRoot)
@@ -287,4 +350,7 @@ export const cases = async () => {
     threw = true
   }
   T(`${TOOL}: an unwritable location is a no-op, never a thrown launch failure`, threw === false && readWakeSources(notADirectory).length === 0)
+  const unsafeAdmission = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 1, notADirectory)
+  T(`${TOOL}: a real launcher refuses an unrecordable worktree claim`, unsafeAdmission.allowed === false,
+    JSON.stringify(unsafeAdmission))
 }
