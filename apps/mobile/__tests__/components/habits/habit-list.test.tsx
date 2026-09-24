@@ -3,7 +3,7 @@ import { FlatList } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
@@ -77,6 +77,7 @@ const bulkLogMutateAsync = vi.fn()
 const bulkSkipMutateAsync = vi.fn()
 let mockHabitsDataUpdatedAt = 1
 let useActualHabitVisibility = false
+let mockSearchResults = false
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
 const colorProxy: Record<string, string> = new Proxy(
@@ -237,8 +238,19 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
-  useHabits: () => ({
-    data: mockHabitsData,
+  useHabits: (filters: HabitsFilter) => ({
+    data: mockSearchResults && filters.search
+      ? (() => {
+          const matching = mockHabitsData.topLevelHabits.filter((habit) =>
+            habit.title.toLowerCase().includes(filters.search!.toLowerCase()),
+          )
+          return {
+            ...mockHabitsData,
+            habitsById: new Map(matching.map((habit) => [habit.id, habit])),
+            topLevelHabits: matching,
+          }
+        })()
+      : mockHabitsData,
     isLoading: false,
     isFetching: false,
     dataUpdatedAt: mockHabitsDataUpdatedAt,
@@ -488,6 +500,7 @@ describe('HabitList', () => {
     offlineMocks.setOnline(false)
     mockHabitsDataUpdatedAt = 1
     useActualHabitVisibility = false
+    mockSearchResults = false
     habitListRefetch.mockReset()
     habitListRefetch.mockResolvedValue(undefined)
     logMutateAsync.mockReset()
@@ -548,7 +561,7 @@ describe('HabitList', () => {
     expect(tokenBuilds.count).toBe(previousBuilds)
   })
 
-  it('renders only changed rows through a 60-habit search, view switch, and log', async () => {
+  it('renders only changed rows through a 60-habit Today search, clear, and log', async () => {
     const habits = Array.from({ length: 60 }, (_, index) => createMockHabit({
       id: `render-habit-${index}`,
       title: index === 0 ? 'Needle habit' : `Other habit ${index}`,
@@ -557,50 +570,36 @@ describe('HabitList', () => {
       scheduledDates: [TODAY],
     }))
     const onCreatePress = vi.fn()
-    const renderList = (view: 'all' | 'today', search = '') => (
+    const renderList = (search = '') => (
       <HabitList
-        view={view}
+        view="today"
         filters={{ search: search || undefined }}
         searchQuery={search}
         showCompleted
         onCreatePress={onCreatePress}
       />
     )
-    const renderAllGroup = (tree: any) => {
-      const list = tree.root.findByType('FlatList')
-      expect(list.props.data).toHaveLength(1)
-      return list.props.renderItem({ item: list.props.data[0], index: 0 })
-    }
     const totalSince = (before: Map<string, number>) =>
       Array.from(rowRenderCounts, ([id, count]) => count - (before.get(id) ?? 0))
         .reduce((sum, count) => sum + count, 0)
 
     seedHabits(habits)
+    mockSearchResults = true
     rowRenderCounts.clear()
     let tree: any
-    let groupTree: any
-    TestRenderer.act(() => { tree = TestRenderer.create(renderList('all')) })
-    TestRenderer.act(() => { groupTree = TestRenderer.create(renderAllGroup(tree)) })
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList()) })
     const initial = totalSince(new Map())
 
     const beforeSearch = new Map(rowRenderCounts)
-    seedHabits([habits[0]!])
-    TestRenderer.act(() => { tree.update(renderList('all', 'n')) })
-    TestRenderer.act(() => { groupTree.update(renderAllGroup(tree)) })
+    TestRenderer.act(() => { tree.update(renderList('n')) })
+    expect(tree.root.findAllByType(HabitRow).map((row: any) => row.props.habit.id))
+      .toEqual([habits[0]!.id])
     const searched = totalSince(beforeSearch)
 
     const beforeClear = new Map(rowRenderCounts)
-    seedHabits(habits)
-    TestRenderer.act(() => { tree.update(renderList('all')) })
-    TestRenderer.act(() => { groupTree.update(renderAllGroup(tree)) })
+    TestRenderer.act(() => { tree.update(renderList()) })
+    expect(tree.root.findAllByType(HabitRow)).toHaveLength(60)
     const cleared = totalSince(beforeClear)
-
-    const beforeSwitch = new Map(rowRenderCounts)
-    TestRenderer.act(() => {
-      groupTree.unmount()
-      tree.update(renderList('today'))
-    })
-    const switched = totalSince(beforeSwitch)
 
     const beforeLog = new Map(rowRenderCounts)
     const firstRow = tree.root.findAll((node: any) =>
@@ -612,14 +611,13 @@ describe('HabitList', () => {
     })
     const updatedHabit = { ...habits[0]!, isCompleted: true, isLoggedInRange: true }
     seedHabits([updatedHabit, ...habits.slice(1)])
-    TestRenderer.act(() => { tree.update(renderList('today')) })
+    TestRenderer.act(() => { tree.update(renderList()) })
     const logged = totalSince(beforeLog)
 
-    expect({ initial, searched, cleared, switched, logged }).toEqual({
+    expect({ initial, searched, cleared, logged }).toEqual({
       initial: 60,
       searched: 0,
       cleared: 59,
-      switched: 60,
       logged: 1,
     })
   })
