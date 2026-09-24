@@ -86,11 +86,9 @@ function selectedSizeKey(keysDp: readonly NamedSizeDp[], hostDp: SizeDp) {
  * other call site: `renderWidgets()` also appears in `renderPlaceholder` and in the exception path,
  * so deleting the successful sync's own render left every widget test green.
  */
-function kotlinFunctionBody(source: string, name: string) {
-  const declaration = source.search(new RegExp(`(?:private|internal) fun ${name}\\(`))
-  if (declaration < 0) throw new Error(`Missing Kotlin function: ${name}`)
-
-  const open = source.indexOf('{', declaration)
+function kotlinBlockBody(source: string, start: number) {
+  if (start < 0) throw new Error('Missing Kotlin block')
+  const open = source.indexOf('{', start)
   let depth = 0
   for (let index = open; index < source.length; index += 1) {
     if (source[index] === '{') depth += 1
@@ -99,7 +97,13 @@ function kotlinFunctionBody(source: string, name: string) {
       if (depth === 0) return source.slice(open + 1, index)
     }
   }
-  throw new Error(`Unbalanced braces in Kotlin function: ${name}`)
+  throw new Error('Unbalanced braces in Kotlin block')
+}
+
+function kotlinFunctionBody(source: string, name: string) {
+  const declaration = source.search(new RegExp(`(?:(?:private|internal) )?fun ${name}\\(`))
+  if (declaration < 0) throw new Error(`Missing Kotlin function: ${name}`)
+  return kotlinBlockBody(source, declaration)
 }
 
 function kotlinFloatConstant(source: string, name: string) {
@@ -671,7 +675,7 @@ describe('Android widget header', () => {
      * one full render, so the size-keyed child the host selects is never left stale.
      */
     expect(kotlinFunctionBody(service, 'loadWidgetData')).toMatch(
-      /\.putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, false\)\s*\.apply\(\)\s*renderWidgets\(\)\s*$/,
+      /\.putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, false\)\s*\.apply\(\)\s*renderWidgets\(\)\s*\}\s*$/,
     )
     expect(worker).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
   })
@@ -708,15 +712,14 @@ describe('Android widget header', () => {
    * owning it are not the same: a CLEARED token is a sign-out and the signed-out card wins, while a
    * CHANGED token naming the SAME account is an access-token rotation, the person is still signed
    * in, and a newer load already owns the render, so this one drops silently rather than blanking a
-   * signed-in widget. A token naming a DIFFERENT account is neither: returning would leave `habits`
-   * holding the previous account's rows for `getViewAt` to keep serving, so it goes through
-   * `renderPlaceholder`, which is the thing that clears that list.
+   * signed-in widget. A different account clears only this factory's rows, because its token write
+   * has already refreshed the shared widget and its render may have completed.
    */
-  it('drops a load whose session ended, blanks one whose account changed, and keeps a rotation', () => {
+  it('drops a load whose session ended or account changed and keeps a rotation', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
     expect(service).toMatch(
-      /val currentToken = OrbitWidgetModule\.getToken\(context\)\s*if \(currentToken == null\) \{\s*renderPlaceholder\(showSkeleton = false, signedOut = true\)\s*return\s*\}\s*if \(OrbitWidgetModule\.sessionKey\(currentToken\) != OrbitWidgetModule\.sessionKey\(token\)\) \{\s*renderPlaceholder\(showSkeleton = true, signedOut = false\)\s*return\s*\}\s*if \(currentToken != token\) \{\s*return\s*\}/,
+      /val currentToken = OrbitWidgetModule\.getToken\(context\)\s*if \(currentToken == null\) \{\s*habits = emptyList\(\)\s*habitsSession = null\s*return\s*\}\s*if \(OrbitWidgetModule\.sessionKey\(currentToken\) != OrbitWidgetModule\.sessionKey\(token\)\) \{\s*habits = emptyList\(\)\s*habitsSession = null\s*return\s*\}\s*if \(currentToken != token\) \{\s*return\s*\}/,
     )
     expect(service).toMatch(/private fun renderPlaceholder\([^)]*\) \{\s*habits = emptyList\(\)/)
 
@@ -725,9 +728,99 @@ describe('Android widget header', () => {
     const cacheAt = afterFetch.indexOf('.putInt("user_streak"')
     expect(guardAt).toBeGreaterThan(-1)
     expect(cacheAt).toBeGreaterThan(guardAt)
-    expect(service).toMatch(
-      /private fun renderPlaceholder[\s\S]*?putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, showSkeleton && !signedOut\)[\s\S]*?renderWidgets\(\)/,
+    expect(service).toMatch(/private fun renderPlaceholder\(\)[\s\S]*?\.remove\(renderSessionKey\)[\s\S]*?renderWidgets\(\)/)
+  })
+
+  it('hides old rows and header while the next account load is blocked', () => {
+    const module = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const saveToken = module.slice(module.indexOf('AsyncFunction("saveToken")'))
+    const buildWidgetViews = kotlinFunctionBody(provider, 'buildWidgetViews')
+    const loadWidgetData = kotlinFunctionBody(service, 'loadWidgetData')
+
+    expect(saveToken).toMatch(/putString\(KEY_TOKEN, token\)\.apply\(\)\s*\}\s*refreshWidgets\(context\)/)
+    expect(buildWidgetViews).toContain('renderSessionKey(appWidgetId, widgetHeightDp, showTime)')
+    expect(buildWidgetViews).toContain('OrbitWidgetModule.sessionKey')
+    expect(buildWidgetViews).toMatch(/views\.setViewVisibility\(R\.id\.widget_list, if \(ownsRows && !showSkeleton\) View\.VISIBLE else View\.GONE\)/)
+    expect(buildWidgetViews).toMatch(/val headerLabel = if \(ownsRows\)/)
+    expect(provider).toContain('fallback.setViewVisibility(R.id.widget_list, View.GONE)')
+    expect(loadWidgetData).toContain('.putString(renderSessionKey, OrbitWidgetModule.sessionKey(token))')
+    expect(loadWidgetData).toMatch(/\.putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, false\)\s*\.apply\(\)\s*renderWidgets\(\)\s*\}\s*$/)
+    expect(service).toContain('.remove(renderSessionKey)')
+    expect(service).toMatch(/override fun getCount\(\): Int = runCatching \{\s*if \(habitsSession != OrbitWidgetModule\.getToken/)
+    expect(service).toMatch(/private fun buildItemView\(position: Int\): RemoteViews \{\s*if \(habitsSession != OrbitWidgetModule\.getToken/)
+  })
+
+  it('keeps a blocked widget hidden when another factory finishes loading', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const buildWidgetViews = kotlinFunctionBody(provider, 'buildWidgetViews')
+    const loadWidgetData = kotlinFunctionBody(service, 'loadWidgetData')
+    const keyTemplate = provider.match(
+      /fun renderSessionKey\(appWidgetId: Int, widgetHeightDp: Float, showTime: Boolean\): String =\s*"([^"]+)"/,
+    )?.[1]
+
+    expect(keyTemplate).toBe('render_session_${appWidgetId}_${widgetHeightDp}_${showTime}')
+    if (!keyTemplate) throw new Error('Missing adapter readiness key')
+    const renderSessionKey = (widgetId: number, height: number, time: boolean) => keyTemplate
+      .replace('${appWidgetId}', String(widgetId))
+      .replace('${widgetHeightDp}', String(height))
+      .replace('${showTime}', String(time))
+    const readySessions = new Map([[renderSessionKey(101, 192, true), 'account-b']])
+
+    expect(readySessions.get(renderSessionKey(101, 192, true))).toBe('account-b')
+    expect(readySessions.get(renderSessionKey(202, 192, true))).toBeUndefined()
+    expect(readySessions.get(renderSessionKey(101, 96, true))).toBeUndefined()
+    readySessions.delete(renderSessionKey(202, 192, true))
+    expect(readySessions.get(renderSessionKey(101, 192, true))).toBe('account-b')
+    expect(service).toContain('intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)')
+    expect(service).toContain('OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp, showTime)')
+    expect(loadWidgetData).toContain('.putString(renderSessionKey, OrbitWidgetModule.sessionKey(token))')
+    expect(buildWidgetViews).toMatch(/prefs\.getString\(\s*renderSessionKey\(appWidgetId, widgetHeightDp, showTime\), null\s*\)/)
+    expect(buildWidgetViews).not.toContain('prefs.getString("render_session", null)')
+    const renderPlaceholder = kotlinFunctionBody(service, 'renderPlaceholder')
+    expect(renderPlaceholder).toContain('.remove(renderSessionKey)')
+    expect(renderPlaceholder).not.toContain('CACHE_LOADING_SKELETON')
+    expect(renderPlaceholder).not.toContain('.putString("header_label"')
+  })
+
+  it('serializes provider publication with account token changes', () => {
+    const module = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const update = kotlinFunctionBody(provider, 'updateWidgetLayout')
+    const save = module.slice(module.indexOf('AsyncFunction("saveToken")'), module.indexOf('AsyncFunction("clearToken")'))
+    const clear = module.slice(module.indexOf('AsyncFunction("clearToken")'), module.indexOf('AsyncFunction("syncTheme")'))
+
+    const publication = kotlinBlockBody(update, update.indexOf('synchronized(OrbitWidgetModule.accountRenderLock)'))
+    const tokenWrite = kotlinBlockBody(save, save.indexOf('synchronized(accountRenderLock)'))
+    const tokenClear = kotlinBlockBody(clear, clear.indexOf('synchronized(accountRenderLock)'))
+
+    expect(publication).toContain('renderWidget(context, appWidgetManager, appWidgetId)')
+    expect(publication).toContain('appWidgetManager.updateAppWidget(appWidgetId, fallback)')
+    expect(tokenWrite).toContain('putString(KEY_TOKEN, token).apply()')
+    expect(tokenClear).toContain('remove(KEY_TOKEN).apply()')
+    expect(tokenClear).toContain('clearWidgetCache(context)')
+  })
+
+  it('keeps a newer render when an older factory resumes after an account switch', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const load = kotlinFunctionBody(service, 'loadWidgetData')
+    const afterFetch = load.slice(load.indexOf('val widgetData = resolveWidgetData(token)'))
+    const publication = kotlinBlockBody(afterFetch, afterFetch.indexOf('synchronized(OrbitWidgetModule.accountRenderLock)'))
+    const differentAccount = kotlinBlockBody(
+      publication,
+      publication.indexOf('if (OrbitWidgetModule.sessionKey(currentToken) != OrbitWidgetModule.sessionKey(token))'),
     )
+
+    expect(load).toMatch(/val token = synchronized\(OrbitWidgetModule\.accountRenderLock\) \{[\s\S]*if \(currentToken == null\) \{\s*renderPlaceholder\(\)/)
+    expect(publication).toContain('val currentToken = OrbitWidgetModule.getToken(context)')
+    expect(publication).toContain('.putString(renderSessionKey, OrbitWidgetModule.sessionKey(token))')
+    expect(publication).toContain('renderWidgets()')
+    expect(differentAccount).toContain('habits = emptyList()')
+    expect(differentAccount).toContain('habitsSession = null')
+    expect(differentAccount).not.toContain('renderPlaceholder(')
+    expect(differentAccount).not.toContain('renderWidgets()')
   })
 
   /**
@@ -915,7 +1008,7 @@ describe('Android widget header', () => {
       /fun applySignedOutCard[\s\S]*?setTextViewText\(R\.id\.widget_header, "Orbit"\)[\s\S]*?R\.id\.widget_subtitle,\s*OrbitWidgetFactory\.tr\(context, lang, WidgetString\.SIGN_IN\)[\s\S]*?R\.id\.widget_empty_text,\s*OrbitWidgetFactory\.tr\(context, lang, WidgetString\.SIGN_IN\)[\s\S]*?hideRefresh\(views\)/,
     )
     expect(provider).toMatch(/if \(isSignedOut\(context\)\) \{\s*for \(id in appWidgetIds\) updateWidgetLayout/)
-    expect(service).toContain('renderPlaceholder(showSkeleton = false, signedOut = true)')
+    expect(service).toContain('renderPlaceholder()')
     expect(service).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
     expect(worker).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
     expect(provider).toContain(
@@ -936,6 +1029,7 @@ describe('Android widget header', () => {
 
     expect(views.get('widget_refresh')).toMatchObject({
       'android:contentDescription': '@string/widget_refresh',
+      'android:accessibilityLiveRegion': 'polite',
     })
     expect(provider).toMatch(
       /val refreshDescription = OrbitWidgetFactory\.tr\(\s*context,\s*lang,\s*WidgetString\.REFRESH\s*\)/,
@@ -946,6 +1040,10 @@ describe('Android widget header', () => {
   })
 
   it('names every visible refresh spinner through the widget language path', () => {
+    expect(layoutViews().get('widget_refresh_loading')).toMatchObject({
+      'android:accessibilityLiveRegion': 'polite',
+    })
+
     const makesSpinnerVisible =
       /setViewVisibility\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,80}?(?:android\.view\.)?View\.VISIBLE/
     const namesSpinner =

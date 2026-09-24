@@ -25,6 +25,7 @@ class OrbitWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
         return OrbitWidgetFactory(
             applicationContext,
+            intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID),
             intent.getFloatExtra(
                 OrbitWidgetProvider.EXTRA_WIDGET_HEIGHT_DP,
                 OrbitWidgetProvider.FOUR_BY_TWO_HEIGHT_DP
@@ -250,11 +251,14 @@ internal fun RemoteViews.setModeAwareBitmap(
 
 class OrbitWidgetFactory(
     private val context: Context,
+    appWidgetId: Int,
     private val widgetHeightDp: Float,
     private val showTime: Boolean
 ) : RemoteViewsService.RemoteViewsFactory {
 
+    private val renderSessionKey = OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp, showTime)
     private var habits: List<HabitItem> = emptyList()
+    private var habitsSession: String? = null
     private var headerLabel: String = "Today"
     private var lang: String = "en"
     private var colorModes: WidgetColorModes = defaultColorModes()
@@ -442,25 +446,15 @@ class OrbitWidgetFactory(
         }
     }
 
-    /**
-     * Clears the habit list and restores the idle header. With showSkeleton=true the
-     * loading skeleton stays up (signed in, no data yet) so the widget never paints
-     * blank; with false it yields to the empty/sign-in view (signed out).
-     */
-    private fun renderPlaceholder(showSkeleton: Boolean, signedOut: Boolean) {
+    /** Clears only this factory. The provider derives its loading or signed-out card from ownership. */
+    private fun renderPlaceholder() {
         habits = emptyList()
-        lang = detectLanguage(null)
-        headerLabel = tr(context, lang, WidgetString.TODAY)
+        habitsSession = null
 
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         prefs.edit()
-            .putString("header_label", headerLabel)
-            .putInt("habit_count", 0)
-            .putInt("completed_count", 0)
-            .putInt("user_streak", 0)
-            .putString("lang", lang)
+            .remove(renderSessionKey)
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
-            .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, showSkeleton && !signedOut)
             .apply()
 
         // The provider owns the whole card, including signed-out copy, controls and skeleton.
@@ -486,10 +480,13 @@ class OrbitWidgetFactory(
 
     private fun loadWidgetData() {
         colorModes = getThemeColorModes(context)
-        val token = OrbitWidgetModule.getToken(context)
-        if (token == null) {
-            renderPlaceholder(showSkeleton = false, signedOut = true)
-            return
+        val token = synchronized(OrbitWidgetModule.accountRenderLock) {
+            val currentToken = OrbitWidgetModule.getToken(context)
+            if (currentToken == null) {
+                renderPlaceholder()
+                return
+            }
+            currentToken
         }
 
         val widgetData = resolveWidgetData(token)
@@ -498,60 +495,63 @@ class OrbitWidgetFactory(
         // the signed-in header, so a load must prove it still owns the session before it lands.
         // The three ways it can stop owning it are NOT the same:
         //
-        //  - the token is gone: a sign-out happened, and a load started under the old session would
-        //    put a logged-out person's habits back on their home screen. The sign-out wins.
-        //  - a DIFFERENT ACCOUNT is signed in: returning here would leave `habits` holding the rows
-        //    the previous load put there, and getViewAt would keep serving one account's habits to
-        //    the next one until their own load finished. Clearing the list is the point; the
-        //    skeleton is what their own load replaces.
+        //  - the token is gone or names a DIFFERENT ACCOUNT: clear this factory's rows only.
+        //    The token change already refreshed the shared widget, and a newer factory may have
+        //    published its render since this fetch started.
         //  - the token changed but names the SAME account: an access-token rotation, and the person
         //    is still signed in. auth-store.ts calls saveWidgetToken after every refresh, and
         //    OrbitWidgetModule.saveToken refreshes the widgets, so a NEWER load already owns the
         //    render. This one drops silently rather than blanking a signed-in widget, and it must
         //    keep the rows on screen because they are still that person's rows.
-        val currentToken = OrbitWidgetModule.getToken(context)
-        if (currentToken == null) {
-            renderPlaceholder(showSkeleton = false, signedOut = true)
-            return
-        }
-        if (OrbitWidgetModule.sessionKey(currentToken) != OrbitWidgetModule.sessionKey(token)) {
-            renderPlaceholder(showSkeleton = true, signedOut = false)
-            return
-        }
-        if (currentToken != token) {
-            return
-        }
-        // The cache is account-scoped, so even a write that landed before this check is unreadable
-        // by another account. These returns only avoid rendering a result somebody else supersedes.
+        synchronized(OrbitWidgetModule.accountRenderLock) {
+            val currentToken = OrbitWidgetModule.getToken(context)
+            if (currentToken == null) {
+                habits = emptyList()
+                habitsSession = null
+                return
+            }
+            if (OrbitWidgetModule.sessionKey(currentToken) != OrbitWidgetModule.sessionKey(token)) {
+                habits = emptyList()
+                habitsSession = null
+                return
+            }
+            if (currentToken != token) {
+                return
+            }
+            // The cache is account-scoped, so even a write that landed before this check is unreadable
+            // by another account. These returns only avoid rendering a result somebody else supersedes.
 
-        if (widgetData == null) {
-            renderPlaceholder(showSkeleton = true, signedOut = false)
-            return
-        }
+            if (widgetData == null) {
+                renderPlaceholder()
+                return
+            }
 
-        lang = detectLanguage(widgetData.language)
-        val streak = widgetData.currentStreak ?: 0
-        val dayState = prepareWidgetDay(widgetData.items ?: emptyList(), widgetData.dayOffset)
-        habits = dayState.habits
-        headerLabel = if (dayState.isTomorrow) {
-            tr(context, lang, WidgetString.TOMORROW)
-        } else {
-            tr(context, lang, WidgetString.TODAY)
-        }
-        // Cache header info for the provider to read
-        val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        prefs.edit()
-            .putString("header_label", headerLabel)
-            .putInt("habit_count", dayState.totalCount)
-            .putInt("completed_count", dayState.completedCount)
-            .putInt("user_streak", streak)
-            .putString("lang", lang)
-            .putString("empty_reason", widgetData.emptyReason)
-            .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
-            .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
-            .apply()
+            lang = detectLanguage(widgetData.language)
+            val streak = widgetData.currentStreak ?: 0
+            val dayState = prepareWidgetDay(widgetData.items ?: emptyList(), widgetData.dayOffset)
+            habits = dayState.habits
+            habitsSession = OrbitWidgetModule.sessionKey(token)
+            headerLabel = if (dayState.isTomorrow) {
+                tr(context, lang, WidgetString.TOMORROW)
+            } else {
+                tr(context, lang, WidgetString.TODAY)
+            }
+            // Cache header info for the provider to read
+            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            prefs.edit()
+                .putString("header_label", headerLabel)
+                .putInt("habit_count", dayState.totalCount)
+                .putInt("completed_count", dayState.completedCount)
+                .putInt("user_streak", streak)
+                .putString("lang", lang)
+                .putString("empty_reason", widgetData.emptyReason)
+                .putString(renderSessionKey, OrbitWidgetModule.sessionKey(token))
+                .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
+                .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
+                .apply()
 
-        renderWidgets()
+            renderWidgets()
+        }
     }
 
     private fun detectLanguage(language: String?): String {
@@ -657,6 +657,9 @@ class OrbitWidgetFactory(
     }
 
     override fun getCount(): Int = runCatching {
+        if (habitsSession != OrbitWidgetModule.getToken(context)?.let { OrbitWidgetModule.sessionKey(it) }) {
+            return@runCatching 0
+        }
         val geometry = calculateWidgetGeometry(widgetHeightDp, habits.size)
         geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0
     }.getOrDefault(0)
@@ -670,6 +673,9 @@ class OrbitWidgetFactory(
     }
 
     private fun buildItemView(position: Int): RemoteViews {
+        if (habitsSession != OrbitWidgetModule.getToken(context)?.let { OrbitWidgetModule.sessionKey(it) }) {
+            return RemoteViews(context.packageName, R.layout.widget_item)
+        }
         val geometry = calculateWidgetGeometry(widgetHeightDp, habits.size)
         if (geometry.canStateRemainder && position == geometry.visibleRowCount) {
             return buildRemainderView(geometry.remainderCount)
