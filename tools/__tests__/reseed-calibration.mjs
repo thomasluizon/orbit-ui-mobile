@@ -143,6 +143,33 @@ export const cases = () => {
     `the entry date was ${stampOf(aged).entries[A_SKILL].calibratedAt}, expected ${daysAgo(200)}`,
   )
   T(`${TOOL}: an unchanged classifier keeps its own calibration date`, stampOf(aged).classifier.calibratedAt === daysAgo(30))
+  const expiredClassifier = stage("expired-classifier", {
+    ...first,
+    classifier: { ...first.classifier, calibratedAt: daysAgo(100) },
+  })
+  check("check-calibration.mjs", "expired classifier stamp fails the calibration gate", ["--root", expiredClassifier], {
+    status: 1,
+    stderr: /classifier was calibrated.*past the 90 day backstop/,
+  })
+  check(TOOL, "fresh recorder evidence renews an expired classifier stamp", ["--root", expiredClassifier], { status: 0, stdout: /stamped/ })
+  T(`${TOOL}: the expired classifier date is renewed from the recorder`, stampOf(expiredClassifier).classifier.calibratedAt === daysAgo(0))
+  check("check-calibration.mjs", "recorder renewal clears the calibration gate", ["--root", expiredClassifier], {
+    status: 0,
+    stdout: /check-calibration:/,
+  })
+  const expiredWithoutFreshRecord = stage("expired-classifier-old-record", {
+    ...first,
+    classifier: { ...first.classifier, calibratedAt: daysAgo(100) },
+  })
+  const oldRecordPath = join(expiredWithoutFreshRecord, "tools", "__fixtures__", "ticket-classifier-calibration.json")
+  const oldRecord = JSON.parse(readFileSync(oldRecordPath, "utf8"))
+  oldRecord.calibratedAt = daysAgo(100)
+  write(oldRecordPath, `${JSON.stringify(oldRecord, null, 2)}\n`)
+  check(TOOL, "expired classifier cannot renew without fresh recorder evidence", ["--root", expiredWithoutFreshRecord], {
+    nonZero: true,
+    stderr: /classifier.*record/i,
+  })
+  T(`${TOOL}: failed renewal preserves the expired stamp`, stampOf(expiredWithoutFreshRecord).classifier.calibratedAt === daysAgo(100))
   const classifierMoved = stage("classifier-model-moved", first)
   const movedConfigPath = join(classifierMoved, ".claude", "orchestrator.json")
   const movedConfig = JSON.parse(readFileSync(movedConfigPath, "utf8"))
