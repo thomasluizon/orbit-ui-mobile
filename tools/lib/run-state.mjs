@@ -21,12 +21,13 @@
  * instead of removing it. The reader checks the process start identity as well as liveness, because
  * a reused pid must never turn an old registration into evidence that a worker still exists.
  *
- * Every write fails soft. A launch must never die because a status file could not be written.
+ * Status writes fail soft for readers. Launch admission fails closed if ownership cannot be
+ * published before a worker starts.
  */
 
 import { spawnSync } from "node:child_process"
 import { createHash, randomUUID } from "node:crypto"
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, linkSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -123,24 +124,63 @@ const readLaunchFiles = (paths) => paths.flatMap((path) => {
   }
 })
 
-const claimLaunchFile = (path, launch) => {
-  let fileDescriptor
+const writeAtomicFile = (path, contents) => {
+  const unpublished = `${path}.${randomUUID()}.unpublished`
   try {
-    fileDescriptor = openSync(path, "wx")
-  } catch {
-    return { claimed: false, occupied: existsSync(path), recorded: false }
+    writeFileSync(unpublished, contents, { flag: "wx" })
+    renameSync(unpublished, path)
+  } finally {
+    rmSync(unpublished, { force: true })
   }
+}
+
+const claimLaunchFile = (path, launch) => {
+  const unpublished = `${path}.${randomUUID()}.unpublished`
   try {
-    writeFileSync(fileDescriptor, `${JSON.stringify(launch, null, 2)}\n`)
+    writeFileSync(unpublished, `${JSON.stringify(launch, null, 2)}\n`, { flag: "wx" })
+    // A rename could replace another launcher's claim. A hard link publishes the complete file
+    // only if the destination is still absent.
+    linkSync(unpublished, path)
     return { claimed: true, occupied: true, recorded: true }
   } catch {
-    return { claimed: true, occupied: true, recorded: false }
+    return { claimed: false, occupied: existsSync(path), recorded: false }
   } finally {
-    try {
-      closeSync(fileDescriptor)
-    } catch {
-      /* the exclusive create already claimed the slot, so closing remains fail-soft */
-    }
+    rmSync(unpublished, { force: true })
+  }
+}
+
+const processDefinitelyGone = (pid, identity) => {
+  if (processIsMissing(pid)) return true
+  const currentIdentity = processStartIdentity(pid)
+  return typeof identity === "string" && currentIdentity !== null && currentIdentity !== identity
+}
+
+const reclaimOwner = (launch) => ({
+  launcherPid: launch.launcherPid,
+  launcherProcessStartIdentity: processStartIdentity(launch.launcherPid),
+})
+
+const reclaimIsStale = (path) => {
+  try {
+    const claim = JSON.parse(readFileSync(path, "utf8"))
+    return processDefinitelyGone(claim.launcherPid, claim.launcherProcessStartIdentity)
+  } catch {
+    return false
+  }
+}
+
+const removeStaleReclaim = (path) => {
+  if (!reclaimIsStale(path)) return false
+  const recovered = `${path}.${randomUUID()}.recovered`
+  try { renameSync(path, recovered) } catch { return false }
+  try {
+    // Another launcher may have replaced the stale sentinel between our first read and rename.
+    // Restore a live replacement without overwriting a third launcher's claim.
+    if (reclaimIsStale(recovered)) return true
+    try { linkSync(recovered, path) } catch { /* a newer sentinel already owns the path */ }
+    return false
+  } finally {
+    rmSync(recovered, { force: true })
   }
 }
 
@@ -150,6 +190,9 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   try {
     mkdirSync(directory, { recursive: true })
   } catch {
+    if (Number.isInteger(launch.launcherPid)) {
+      return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
+    }
     return { allowed: true, earlierLaunches: [], recorded: false }
   }
   if (Number.isInteger(launch.launcherPid)) {
@@ -158,11 +201,16 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
       isWakeSourceAlive({ pid: source.workerPid, processStartIdentity: source.workerProcessStartIdentity }))
     if (occupied) return { allowed: false, occupiedWorkerPid: occupied.workerPid, earlierLaunches: [], recorded: false }
     const path = occupiedWorktreePath(repoRoot)
+    const reclaimPath = `${path}.reclaim`
     let claimed = false
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (existsSync(reclaimPath)) {
+        if (!removeStaleReclaim(reclaimPath)) return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
+      }
       const claim = claimLaunchFile(path, {
         launcherPid: launch.launcherPid,
         launcherProcessStartIdentity: processStartIdentity(launch.launcherPid),
+        gateProtocol: 1,
       })
       if (claim.claimed) {
         if (!claim.recorded) {
@@ -180,25 +228,29 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
         previous = JSON.parse(previousContents)
       } catch { previous = null }
       if (!previous) return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
+      // Older launchers could start a child before publishing its pid. Their pid-less claim cannot
+      // prove the worktree is free after the launcher dies.
+      if (previous.gateProtocol !== 1 && !Number.isInteger(previous.workerPid)) {
+        return { allowed: false, occupiedLauncherPid: previous.launcherPid ?? null, earlierLaunches: [], recorded: false }
+      }
       if (isWakeSourceAlive({ pid: previous.workerPid, processStartIdentity: previous.workerProcessStartIdentity })) {
         return { allowed: false, occupiedWorkerPid: previous.workerPid, earlierLaunches: [], recorded: false }
       }
       if (isWakeSourceAlive({ pid: previous.launcherPid, processStartIdentity: previous.launcherProcessStartIdentity })) {
         return { allowed: false, occupiedLauncherPid: previous.launcherPid, earlierLaunches: [], recorded: false }
       }
-      if (!processIsMissing(previous.launcherPid) || !processIsMissing(previous.workerPid)) {
+      if (!processDefinitelyGone(previous.launcherPid, previous.launcherProcessStartIdentity) ||
+          !processDefinitelyGone(previous.workerPid, previous.workerProcessStartIdentity)) {
         return { allowed: false, occupiedLauncherPid: previous.launcherPid, earlierLaunches: [], recorded: false }
       }
-      const reclaimPath = `${path}.reclaim`
-      let reclaimDescriptor
-      try { reclaimDescriptor = openSync(reclaimPath, "wx") } catch {
+      const reclaim = claimLaunchFile(reclaimPath, reclaimOwner(launch))
+      if (!reclaim.claimed) {
         return { allowed: false, occupiedLauncherPid: previous.launcherPid, earlierLaunches: [], recorded: false }
       }
       try {
         if (readFileSync(path, "utf8") === previousContents) rmSync(path)
       } catch { /* the next claim observes the current occupant */ }
       finally {
-        closeSync(reclaimDescriptor)
         rmSync(reclaimPath, { force: true })
       }
     }
@@ -229,9 +281,12 @@ export const recordReservedWorkerPid = (launcherPid, workerPid, repoRoot = REPO_
   const path = occupiedWorktreePath(repoRoot)
   try {
     const reservation = JSON.parse(readFileSync(path, "utf8"))
-    if (reservation.launcherPid !== launcherPid) return
-    writeFileSync(path, `${JSON.stringify({ ...reservation, workerPid, workerProcessStartIdentity: processStartIdentity(workerPid) })}\n`)
-  } catch { /* the wake registration still records the child */ }
+    if (reservation.launcherPid !== launcherPid) return false
+    const workerProcessStartIdentity = processStartIdentity(workerPid)
+    if (workerProcessStartIdentity === null) return false
+    writeAtomicFile(path, `${JSON.stringify({ ...reservation, workerPid, workerProcessStartIdentity })}\n`)
+    return true
+  } catch { return false }
 }
 
 export const clearWorkerLaunchReservation = (launcherPid, repoRoot = REPO_ROOT) => {
@@ -400,13 +455,17 @@ export const readWakeSources = (repoRoot = REPO_ROOT) => readWakeSourceStates(re
 
 export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {
-    if (!Number.isInteger(source?.pid) || source.pid <= 0) return
+    if (!Number.isInteger(source?.pid) || source.pid <= 0) return false
     const identity = processStartIdentity(source.pid)
     mkdirSync(wakeSourceDirectory(repoRoot), { recursive: true })
     const workerProcessStartIdentity = Number.isInteger(source.workerPid) ? processStartIdentity(source.workerPid) : null
-    writeFileSync(join(wakeSourceDirectory(repoRoot), `${source.pid}.json`), `${JSON.stringify({ ...source, processStartIdentity: identity, workerProcessStartIdentity }, null, 2)}\n`)
+    if ((identity === null && !Number.isInteger(source.workerPid)) ||
+        (Number.isInteger(source.workerPid) && workerProcessStartIdentity === null)) return false
+    writeAtomicFile(join(wakeSourceDirectory(repoRoot), `${source.pid}.json`),
+      `${JSON.stringify({ ...source, processStartIdentity: identity, workerProcessStartIdentity }, null, 2)}\n`)
+    return true
   } catch {
-    /* a status file is never worth failing a launch over */
+    return false
   }
 }
 

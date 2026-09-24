@@ -3,6 +3,7 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSyn
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
+import { readWakeSourceStates } from "../lib/run-state.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -307,6 +308,74 @@ export const cases = async () => {
     Number.isInteger(runningWorkerPid) && refusedOccupied.status === 2 && refusedOccupied.stderr.includes(`live worker pid ${runningWorkerPid}`),
     JSON.stringify({ runningWorkerPid, status: refusedOccupied.status, stderr: refusedOccupied.stderr }))
   discardLog((await firstOccupied.result).stdout)
+  const gateWorkerPidFile = stage("launch-worker/gate-worker.pid", "")
+  rmSync(gateWorkerPidFile)
+  const gateWorker = stage("launch-worker/gate-worker.js", `require('node:fs').writeFileSync(${JSON.stringify(gateWorkerPidFile)}, String(process.pid)); setTimeout(() => {}, 60000)\n`)
+  const gateLaunch = launch("post-spawn-gate", launchConfig({ ...stubEngine(gateWorker), timeouts: { hardCeilingMinutes: 0.03, noProgressMinutes: 5, pollSeconds: 0.2 } }))
+  const gateArgv = ["--issue", "ORB-201", "--worktree", gateLaunch.worktree, "--prompt", gateLaunch.prompt]
+  const gateClaim = join(gateLaunch.worktree, ".git", "orbit-worker-launches", "occupied-worktree.json")
+  const gatePause = stage("launch-worker/gate-pause", "")
+  rmSync(gatePause)
+  const gatePreload = stage("launch-worker/gate-preload.cjs", `
+const fs = require('node:fs')
+const { syncBuiltinESMExports } = require('node:module')
+const claim = ${JSON.stringify(gateClaim)}
+const marker = ${JSON.stringify(gatePause)}
+const originalWrite = fs.writeFileSync
+const originalRename = fs.renameSync
+const hold = () => {
+  originalWrite(marker, 'paused')
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30000)
+}
+fs.writeFileSync = (path, ...args) => {
+  if (path === claim) hold()
+  return originalWrite(path, ...args)
+}
+fs.renameSync = (source, destination) => {
+  if (destination === claim) hold()
+  return originalRename(source, destination)
+}
+syncBuiltinESMExports()
+`)
+  const gateEnv = githubAuthEnv()
+  const pausedLaunch = launchAsync(gateLaunch.path, gateArgv, { ...gateEnv, NODE_OPTIONS: `${gateEnv.NODE_OPTIONS} --require "${gatePreload}"` })
+  await waitForFile(gatePause, "paused", pausedLaunch.result)
+  const gateStartDeadline = Date.now() + 1500
+  while (!existsSync(gateWorkerPidFile) && Date.now() < gateStartDeadline) await new Promise((resolve) => setTimeout(resolve, 20))
+  const workerStartedBeforePublication = existsSync(gateWorkerPidFile)
+  const firstGateWorkerPid = workerStartedBeforePublication ? Number(readFileSync(gateWorkerPidFile, "utf8")) : null
+  pausedLaunch.child.kill("SIGKILL")
+  await pausedLaunch.result
+  const afterDeath = run(TOOL, gateArgv, { path: gateLaunch.path, env: githubAuthEnv() })
+  T(`${TOOL}: a killed launcher before PID publication cannot start a worker or strand admission`,
+    !workerStartedBeforePublication && afterDeath.status !== 2,
+    JSON.stringify({ workerStartedBeforePublication, status: afterDeath.status, stderr: afterDeath.stderr }))
+  discardLog(afterDeath.stdout)
+  if (existsSync(gateWorkerPidFile)) {
+    const pid = Number(readFileSync(gateWorkerPidFile, "utf8"))
+    if (processIsRunning(pid)) process.kill(pid)
+  }
+  if (firstGateWorkerPid && processIsRunning(firstGateWorkerPid)) process.kill(firstGateWorkerPid)
+  const orphanWorkerPidFile = stage("launch-worker/orphan-worker.pid", "")
+  rmSync(orphanWorkerPidFile)
+  const orphanWorker = stage("launch-worker/orphan-worker.js", `require('node:fs').writeFileSync(${JSON.stringify(orphanWorkerPidFile)}, String(process.pid)); setTimeout(() => {}, 60000)\n`)
+  const orphanLaunch = launch("published-orphan", launchConfig({ ...stubEngine(orphanWorker), timeouts: { hardCeilingMinutes: 1, noProgressMinutes: 5, pollSeconds: 0.2 } }))
+  const orphanArgv = ["--issue", "ORB-201", "--worktree", orphanLaunch.worktree, "--prompt", orphanLaunch.prompt]
+  const releasedLaunch = launchAsync(orphanLaunch.path, orphanArgv, githubAuthEnv())
+  const orphanDeadline = Date.now() + 5000
+  while (!existsSync(orphanWorkerPidFile) && Date.now() < orphanDeadline) await new Promise((resolve) => setTimeout(resolve, 20))
+  releasedLaunch.child.kill("SIGKILL")
+  await releasedLaunch.result
+  const orphanStates = readWakeSourceStates(orphanLaunch.base)
+  const orphanGatePid = orphanStates.orphaned[0]?.workerPid
+  const refusedOrphan = run(TOOL, orphanArgv, { path: orphanLaunch.path, env: githubAuthEnv() })
+  T(`${TOOL}: after publication a killed launcher leaves a named orphan and blocks another worker`,
+    Number.isInteger(orphanGatePid) && refusedOrphan.status === 2 && refusedOrphan.stderr.includes(`live worker pid ${orphanGatePid}`),
+    JSON.stringify({ orphanGatePid, status: refusedOrphan.status, stderr: refusedOrphan.stderr }))
+  if (orphanGatePid) {
+    if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(orphanGatePid)])
+    else try { process.kill(-orphanGatePid) } catch { /* the gate already exited */ }
+  }
   const cappedArgs = ["--issue", "ORB-201", "--worktree", capped.worktree, "--prompt", capped.prompt]
   const firstLaunch = check(TOOL, "the first launch below the branch cap succeeds", cappedArgs, { status: 0 }, { path: capped.path, env: githubAuthEnv() })
   const secondLaunch = check(TOOL, "the second launch at the branch cap succeeds", [...cappedArgs, "--tier", "mechanical"], { status: 0 }, { path: capped.path, env: githubAuthEnv() })
@@ -612,16 +681,22 @@ while (!existsSync(${JSON.stringify(wakeAuthRelease)})) {
 process.stdout.write("test-github-token")
 process.exit(0)
 `)
-  writeFileSync(wakeObserver, `const { existsSync, readFileSync, writeFileSync } = require("node:fs")
+  writeFileSync(wakeObserver, `const { readFileSync, readdirSync, writeFileSync } = require("node:fs")
 const { spawnSync } = require("node:child_process")
 const { join } = require("node:path")
-const recordPath = join(${JSON.stringify(observedLaunch.base)}, ".git", "orbit-wake-sources", process.ppid + ".json")
+const wakeDirectory = join(${JSON.stringify(observedLaunch.base)}, ".git", "orbit-wake-sources")
 const hookPath = join(${JSON.stringify(wakeHooks)}, "require-wake-source.mjs")
 const deadline = setTimeout(() => process.exit(1), 10000)
 const poll = setInterval(() => {
-  if (!existsSync(recordPath)) return
+  const name = readdirSync(wakeDirectory).find((entry) => {
+    if (!entry.endsWith(".json")) return false
+    const record = JSON.parse(readFileSync(join(wakeDirectory, entry), "utf8"))
+    return record.workerPid === process.ppid
+  })
+  if (!name) return
+  const recordPath = join(wakeDirectory, name)
   const source = JSON.parse(readFileSync(recordPath, "utf8"))
-  if (source.workerPid !== process.pid) return
+  if (source.workerPid !== process.ppid) return
   const stopped = spawnSync(process.execPath, [hookPath], {
     input: JSON.stringify({ session_id: ${JSON.stringify(wakeSessionId)}, stop_hook_active: false }),
     encoding: "utf8",
@@ -631,6 +706,7 @@ const poll = setInterval(() => {
     recordPath,
     source,
     observerPid: process.pid,
+    gatePid: process.ppid,
     stopStatus: stopped.status,
     stopStderr: stopped.stderr,
   }))
@@ -682,7 +758,7 @@ const poll = setInterval(() => {
   T(
     `${TOOL}: spawning the child replaces the pending record with its real pid and the Stop adapter still allows`,
     observation.source.pending !== true &&
-      observation.source.workerPid === observation.observerPid &&
+      observation.source.workerPid === observation.gatePid &&
       observation.stopStatus === 0,
     JSON.stringify(observation),
   )

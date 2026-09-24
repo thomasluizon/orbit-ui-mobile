@@ -16,6 +16,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
@@ -309,7 +310,10 @@ const startedAt = new Date().toISOString()
  * a Stop in that launch window can observe the live launcher. The reader expires this pending form
  * after 45 seconds, while the process identity still proves that the launcher itself really began.
  */
-registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })
+if (!registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })) {
+  clearWorkerLaunchReservation(process.pid, runDirectory)
+  fail(3, "could not register the pending launcher wake source")
+}
 const logFd = openSync(logFile, "a")
 /**
  * stdin is CLOSED, never "inherit" and never "pipe": an inherited-but-unwritten stdin pipe hangs
@@ -327,9 +331,12 @@ try {
 } catch (error) {
   fail(3, redactSecrets(error.message))
 }
-const child = spawn(executable, workerArgs, {
-  cwd: runDirectory,
-  stdio: ["ignore", logFd, logFd],
+// The gate cannot enter the worktree until both records name its pid. If this launcher dies
+// beforehand, its IPC channel closes and the gate exits without starting the real worker.
+const gatePath = fileURLToPath(new URL("./lib/worker-gate.cjs", import.meta.url))
+const child = spawn(process.execPath, [gatePath], {
+  cwd: tmpdir(),
+  stdio: ["ignore", logFd, logFd, "ipc"],
   windowsHide: true,
   // POSIX only, and it is what makes killTree's `process.kill(-pid)` reach anything at all: the
   // child becomes a process-group leader, so the group exists to be signalled. Windows needs the
@@ -341,7 +348,10 @@ const child = spawn(executable, workerArgs, {
     ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
   },
 })
-if (child.pid) recordReservedWorkerPid(process.pid, child.pid, runDirectory)
+if (!child.pid || !recordReservedWorkerPid(process.pid, child.pid, runDirectory)) {
+  child.kill()
+  fail(3, "could not publish the worker pid in the worktree reservation")
+}
 
 /**
  * THIS process, not the child, is what the orchestrator backgrounds and what its exit re-invokes the
@@ -350,7 +360,11 @@ if (child.pid) recordReservedWorkerPid(process.pid, child.pid, runDirectory)
  * ended a turn claiming "CI will wake me" with nothing scheduled ended the whole night on 2026-08-06.
  * This overwrites the pending form now that the child pid is known.
  */
-registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: child.pid ?? null, logFile, startedAt })
+if (!registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: child.pid, logFile, startedAt })) {
+  child.kill()
+  fail(3, "could not publish the worker pid in the wake source")
+}
+child.send({ executable, args: workerArgs, directory: runDirectory })
 
 let finishing = false
 const finish = (outcome, exitCode) => {

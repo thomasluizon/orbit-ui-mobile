@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Worker } from "node:worker_threads"
 
@@ -205,6 +205,53 @@ export const cases = async () => {
   T(`${TOOL}: a live worker in the worktree refuses another launch and names its pid`,
     occupiedReservation.allowed === false && occupiedReservation.occupiedWorkerPid === process.pid,
     JSON.stringify(occupiedReservation))
+  const staleReclaimRoot = stageCheckout("stale-reclaim")
+  const staleClaimDirectory = workerLaunchDirectory(staleReclaimRoot)
+  mkdirSync(staleClaimDirectory, { recursive: true })
+  writeFileSync(join(staleClaimDirectory, "occupied-worktree.json"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone", gateProtocol: 1 }))
+  writeFileSync(join(staleClaimDirectory, "occupied-worktree.json.reclaim"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone" }))
+  const reclaimed = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, staleReclaimRoot)
+  T(`${TOOL}: a dead reclaim owner does not strand a stale worktree claim`, reclaimed.allowed === true,
+    JSON.stringify(reclaimed))
+  const staleRaceRoot = stageCheckout("stale-reclaim-race")
+  const staleRaceDirectory = workerLaunchDirectory(staleRaceRoot)
+  mkdirSync(staleRaceDirectory, { recursive: true })
+  writeFileSync(join(staleRaceDirectory, "occupied-worktree.json"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone", gateProtocol: 1 }))
+  writeFileSync(join(staleRaceDirectory, "occupied-worktree.json.reclaim"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone" }))
+  const staleContenders = await Promise.all([1, 2].map(() => new Promise((resolve, reject) => {
+    const worker = new Worker(`
+const { parentPort, workerData } = require("node:worker_threads")
+import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
+  parentPort.postMessage(reserveWorkerLaunch(workerData.launch, 2, workerData.repoRoot))
+})`, { eval: true, execArgv: [], workerData: {
+      moduleUrl: new URL("../lib/run-state.mjs", import.meta.url).href,
+      launch: { ...launch, launcherPid: process.pid }, repoRoot: staleRaceRoot,
+    } })
+    worker.once("message", resolve)
+    worker.once("error", reject)
+  })))
+  T(`${TOOL}: concurrent stale reclaimers still admit only one launcher`,
+    staleContenders.filter((reservation) => reservation.allowed).length === 1,
+    JSON.stringify(staleContenders))
+  const legacyRoot = stageCheckout("legacy-unpublished-worker")
+  mkdirSync(workerLaunchDirectory(legacyRoot), { recursive: true })
+  writeFileSync(join(workerLaunchDirectory(legacyRoot), "occupied-worktree.json"), JSON.stringify({ launcherPid: 2147483647, launcherProcessStartIdentity: "gone" }))
+  const legacy = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, legacyRoot)
+  T(`${TOOL}: a pid-less claim from the old launcher stays closed because its child may be live`, legacy.allowed === false,
+    JSON.stringify(legacy))
+  const partialPublicationRoot = stageCheckout("partial-publication")
+  mkdirSync(workerLaunchDirectory(partialPublicationRoot), { recursive: true })
+  writeFileSync(join(workerLaunchDirectory(partialPublicationRoot), "occupied-worktree.json.dead.unpublished"), "{")
+  const afterPartialPublication = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, partialPublicationRoot)
+  T(`${TOOL}: a killed claim writer leaves only an ignored unpublished file`, afterPartialPublication.allowed === true,
+    JSON.stringify(afterPartialPublication))
+  const partialRoot = stageCheckout("partial-claim")
+  mkdirSync(workerLaunchDirectory(partialRoot), { recursive: true })
+  writeFileSync(join(workerLaunchDirectory(partialRoot), "occupied-worktree.json"), "{")
+  const partial = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, partialRoot)
+  T(`${TOOL}: a malformed reservation is classified as occupied without overwriting it`,
+    partial.allowed === false && readFileSync(join(workerLaunchDirectory(partialRoot), "occupied-worktree.json"), "utf8") === "{",
+    JSON.stringify(partial))
   const firstReservation = reserveWorkerLaunch(launch, 1, repoRoot)
   const refusedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:01:00.000Z" }, 1, repoRoot)
   const reasonedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:02:00.000Z", relaunchReason: "known conflict list" }, 1, repoRoot)
@@ -293,4 +340,7 @@ export const cases = async () => {
     threw = true
   }
   T(`${TOOL}: an unwritable location is a no-op, never a thrown launch failure`, threw === false && readWakeSources(notADirectory).length === 0)
+  const unsafeAdmission = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 1, notADirectory)
+  T(`${TOOL}: a real launcher refuses an unrecordable worktree claim`, unsafeAdmission.allowed === false,
+    JSON.stringify(unsafeAdmission))
 }
