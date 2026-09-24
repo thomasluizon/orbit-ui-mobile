@@ -272,6 +272,7 @@ describe('Hoje date control', () => {
     )
 
     expect(screen.getByText(en.habits.todayBoundary.readOnly)).toBeInTheDocument()
+    expect(en.habits.todayBoundary.readOnly).toBe('Logging stops 7 days back. You can still edit, move and delete here.')
   })
 
   it('ignores an upgraded showCompleted true payload when rendering Today', async () => {

@@ -30,12 +30,13 @@ function buildMenuItems(
   canSelect: boolean,
   canDrillInto: boolean,
   hasProAccess: boolean,
+  completionReadOnly: boolean,
 ): MenuItem[] {
   const items: MenuItem[] = []
   if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.form.addSubHabit'), badge: hasProAccess ? undefined : 'Pro' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.moveParent.button') })
-  if (actions.onSkip) items.push({ id: 'skip', label: t('habits.actions.skip') })
-  if (actions.onReschedule) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
+  if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip') })
+  if (actions.onReschedule && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
   if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit') })
   if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate') })
   if (canSelect && actions.onEnterSelectMode) items.push({ id: 'select', label: t('common.select') })
@@ -63,7 +64,8 @@ interface HabitRowTrailingProps {
   actions: HabitRowActions
   hasProAccess: boolean
   onToggleStatus: () => void
-  readOnly: boolean
+  completionReadOnly: boolean
+  completionReason?: string
 }
 
 /** Trailing cluster of a habit row: parent ring or status ring, then overflow. */
@@ -83,7 +85,8 @@ export function HabitRowTrailing({
   actions,
   hasProAccess,
   onToggleStatus,
-  readOnly,
+  completionReadOnly,
+  completionReason,
 }: Readonly<HabitRowTrailingProps>) {
   const t = useTranslations()
   const {
@@ -100,10 +103,10 @@ export function HabitRowTrailing({
   const statusDotLabelKey = `habits.statusDot.${state}`
   const [menuOpen, setMenuOpen] = useState(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
-  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess)
+  const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly)
   const statusLabel = t(statusDotLabelKey)
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
-  const completionDisabled = readOnly || (!canLog && !isDone)
+  const completionDisabled = completionReadOnly || (!canLog && !isDone)
 
   return (
     <div className="flex items-center shrink-0" style={{ gap: 8 }}>
@@ -125,6 +128,7 @@ export function HabitRowTrailing({
                 parentAction?.()
               }}
               disabled={completionDisabled}
+              title={completionDisabled ? completionReason : undefined}
               className={`appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${completionDisabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}
             >
               <ParentRing
@@ -141,6 +145,7 @@ export function HabitRowTrailing({
             state={state}
             onToggle={onToggleStatus}
             disabled={completionDisabled}
+            disabledReason={completionReason}
             size={depth === 1 ? 24 : 30}
             ariaLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}`}
           />
@@ -153,13 +158,11 @@ export function HabitRowTrailing({
             data-habit-row-control="menu"
             aria-label={t('habits.actions.more')}
             aria-expanded={menuOpen}
-            disabled={readOnly}
             onClick={(event) => {
               event.stopPropagation()
-              if (readOnly) return
               setMenuOpen((current) => !current)
             }}
-            className={`touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${readOnly ? 'cursor-default' : 'cursor-pointer hover:text-[var(--fg-1)] active:scale-[0.96]'}`}
+            className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer hover:text-[var(--fg-1)] active:scale-[0.96]"
             style={{ width: 44, height: 44 }}
           >
             <MoreVertical size={20} strokeWidth={1.8} />
@@ -171,7 +174,6 @@ export function HabitRowTrailing({
             items={menuItems}
             onClose={() => setMenuOpen(false)}
             onSelect={(id) => {
-              if (readOnly) return
               const handlers: Record<string, (() => void) | undefined> = {
                 add: onAddSubHabit, move: onMoveParent, skip: onSkip, reschedule: onReschedule,
                 edit: onEdit, duplicate: onDuplicate, select: onEnterSelectMode,

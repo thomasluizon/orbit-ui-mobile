@@ -179,6 +179,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         onBulkSkip={() => void view.selection.confirmBulkSkip()}
         onBulkDelete={() => view.selection.setShowBulkDeleteConfirm(true)}
         onCancel={view.toggleSelectMode}
+        completionReadOnly={view.selection.completionReadOnly}
       />
     ),
     buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected),

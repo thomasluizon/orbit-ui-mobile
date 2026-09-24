@@ -9,10 +9,11 @@ interface CheckCircleProps {
   onToggle: () => void
   disabled: boolean
   ariaLabel: string
+  disabledReason?: string
   size?: number
 }
 
-export function CheckCircle({ state, onToggle, disabled, ariaLabel, size = 30 }: Readonly<CheckCircleProps>) {
+export function CheckCircle({ state, onToggle, disabled, ariaLabel, disabledReason, size = 30 }: Readonly<CheckCircleProps>) {
   const previousState = useRef(state)
   const [justCompleted, setJustCompleted] = useState(false)
 
@@ -37,6 +38,7 @@ export function CheckCircle({ state, onToggle, disabled, ariaLabel, size = 30 }:
       }}
       disabled={disabled}
       aria-label={ariaLabel}
+      title={disabled ? disabledReason : undefined}
       className={`appearance-none border-0 bg-transparent shrink-0 flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer active:scale-[0.96]'}`}
       style={{ opacity: disabled ? 0.4 : 1 }}
     >

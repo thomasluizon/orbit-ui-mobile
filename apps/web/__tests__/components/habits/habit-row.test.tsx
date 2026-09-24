@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { getTodayBoundary } from '@orbit/shared/utils'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
@@ -75,6 +76,46 @@ describe('HabitRow canonical content', () => {
 })
 
 describe('HabitRow check circle accessible name', () => {
+  it('keeps management available ten days back while completion stays disabled', () => {
+    const selectedDate = '2026-04-01'
+    const today = '2026-04-11'
+    const readOnly = getTodayBoundary(selectedDate, today) === 'read-only'
+    const actions = {
+      onEdit: vi.fn(), onDuplicate: vi.fn(), onMoveParent: vi.fn(),
+      onAddSubHabit: vi.fn(), onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(),
+      onDelete: vi.fn(), onDetail: vi.fn(), onToggleExpand: vi.fn(),
+      onLog: vi.fn(), onSkip: vi.fn(), onReschedule: vi.fn(),
+    }
+    render(<HabitRow habit={createMockHabit({ title: 'Read' })} completionReadOnly={readOnly}
+      hasChildren hasSubHabits childProgress={{ done: 0, total: 1 }} actions={actions} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    for (const label of ['habits.form.addSubHabit', 'habits.moveParent.button', 'common.edit',
+      'habits.actions.duplicate', 'common.select', 'habits.actions.openSubHabits', 'habits.deleteHabit']) {
+      expect(screen.getByRole('menuitem', { name: label })).toBeEnabled()
+    }
+    expect(screen.queryByRole('menuitem', { name: 'habits.actions.skip' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'habits.actions.reschedule' })).toBeNull()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'common.edit' }))
+    expect(actions.onEdit).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: 'Read' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.expand' }))
+    expect(actions.onDetail).toHaveBeenCalledOnce()
+    expect(actions.onToggleExpand).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: /habits.logHabit: Read/ })).toBeDisabled()
+    expect(actions.onLog).not.toHaveBeenCalled()
+  })
+
+  it('keeps collapse available and disables a leaf checkmark on an old day', () => {
+    const onToggleExpand = vi.fn()
+    const { rerender } = render(<HabitRow habit={createMockHabit({ title: 'Read' })}
+      completionReadOnly hasChildren expanded childProgress={{ done: 0, total: 1 }}
+      actions={{ onToggleExpand }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.collapse' }))
+    expect(onToggleExpand).toHaveBeenCalledOnce()
+    rerender(<HabitRow habit={createMockHabit({ title: 'Write' })} completionReadOnly />)
+    expect(screen.getByTestId('habit-status-toggle')).toBeDisabled()
+  })
   it('lights the panel only while the enabled body is hovered', () => {
     const panel = renderRowInPanel(
       <HabitRow
@@ -139,71 +180,6 @@ describe('HabitRow check circle accessible name', () => {
     expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
   })
 
-  it('shows no hover feedback anywhere on a read-only row', () => {
-    const panel = renderRowInPanel(
-      <HabitRow
-        habit={createMockHabit({ title: 'Meditate' })}
-        readOnly
-        hasChildren
-        childProgress={{ done: 0, total: 1 }}
-        actions={{ onDetail: vi.fn(), onToggleExpand: vi.fn(), onEdit: vi.fn() }}
-      />,
-    )
-    const row = screen.getByTestId('habit-row')
-
-    for (const target of [row, ...Array.from(row.querySelectorAll('button'))]) {
-      fireEvent.mouseOver(target)
-      expect(matchingHabitHoverBackgrounds(panel)).toEqual([])
-      expect(matchingHabitHoverBackgrounds(target)).toEqual([])
-      fireEvent.mouseOut(target)
-    }
-  })
-
-  it('makes every read-only descendant inert for keyboard and synthetic activation', async () => {
-    const user = userEvent.setup()
-    const onDetail = vi.fn()
-    const onLog = vi.fn()
-    const onToggleExpand = vi.fn()
-    const onEdit = vi.fn()
-    render(
-      <>
-        <button type="button">Before</button>
-        <HabitRow
-          habit={createMockHabit({ title: 'Meditate' })}
-          readOnly
-          hasChildren
-          childProgress={{ done: 0, total: 1 }}
-          actions={{ onDetail, onLog, onToggleExpand, onEdit }}
-        />
-        <button type="button">After</button>
-      </>,
-    )
-
-    const row = screen.getByTestId('habit-row')
-    expect(row).toHaveAttribute('aria-disabled', 'true')
-    expect(row).toHaveStyle({ opacity: '0.5' })
-    expect(row).not.toHaveStyle({ pointerEvents: 'none' })
-
-    const rowButtons = Array.from(row.querySelectorAll('button'))
-    expect(rowButtons).toHaveLength(4)
-    for (const button of rowButtons) {
-      expect(button).toBeDisabled()
-      fireEvent.keyDown(button, { key: 'Enter' })
-      fireEvent.keyDown(button, { key: ' ' })
-      fireEvent.click(button)
-    }
-    fireEvent.contextMenu(row)
-
-    await user.click(screen.getByRole('button', { name: 'Before' }))
-    await user.tab()
-    expect(screen.getByRole('button', { name: 'After' })).toHaveFocus()
-    expect(onDetail).not.toHaveBeenCalled()
-    expect(onLog).not.toHaveBeenCalled()
-    expect(onToggleExpand).not.toHaveBeenCalled()
-    expect(onEdit).not.toHaveBeenCalled()
-    expect(screen.queryByRole('menu')).toBeNull()
-  })
-
   it('keeps future row navigation live while disabling only its completion ring', () => {
     const onDetail = vi.fn()
     const onLog = vi.fn()
@@ -218,7 +194,6 @@ describe('HabitRow check circle accessible name', () => {
 
     const row = screen.getByTestId('habit-row')
     expect(row).not.toHaveAttribute('aria-disabled')
-    expect(row).toHaveStyle({ opacity: '1' })
     fireEvent.click(screen.getByRole('button', { name: 'Meditate' }))
     expect(onDetail).toHaveBeenCalledOnce()
     expect(screen.getByTestId('habit-status-toggle')).toBeDisabled()

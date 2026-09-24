@@ -9,15 +9,19 @@ interface HabitLogButtonProps {
   logged: boolean
   onPress: () => void
   progress?: number
+  disabled?: boolean
+  disabledReason?: string
 }
 
-export function HabitLogButton({ label, logged, completed = logged, onPress, progress }: Readonly<HabitLogButtonProps>) {
+export function HabitLogButton({ label, logged, completed = logged, onPress, progress, disabled = false, disabledReason }: Readonly<HabitLogButtonProps>) {
   return (
     <button
       type="button"
       aria-label={label}
       onClick={onPress}
-      className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+      disabled={disabled}
+      title={disabled ? disabledReason : undefined}
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-0 bg-transparent transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)]'}`}
     >
       <span aria-hidden="true" className="grid place-items-center">
         {progress === undefined || completed ? (

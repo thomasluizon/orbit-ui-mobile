@@ -11,7 +11,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
   selectedDateStr: string
-  readOnly: boolean
+  completionReadOnly: boolean
   habitsById: Map<string, NormalizedHabit>
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
@@ -32,7 +32,7 @@ function failedHabitIds(results: readonly BulkResultItem[]): string[] {
 export function useBulkActions({
   selectedHabitIds,
   selectedDateStr,
-  readOnly,
+  completionReadOnly,
   habitsById,
   habitListRef,
   onSuccess,
@@ -72,7 +72,6 @@ export function useBulkActions({
   }, [onPartialFailure, onSuccess, showQueued, showToast, t])
 
   async function executeDelete(ids: string[]) {
-    if (readOnly) return
     if (ids.length === 0) return
     try {
       const result = await bulkDelete.mutateAsync(ids)
@@ -83,7 +82,7 @@ export function useBulkActions({
   }
 
   async function executeLog(ids: string[]) {
-    if (readOnly) return
+    if (completionReadOnly) return
     if (ids.length === 0) return
     const result = await bulkLog.mutateAsync(
       ids.map((id) => ({ habitId: id, date: selectedDateStr })),
@@ -93,7 +92,7 @@ export function useBulkActions({
   }
 
   async function executeSkip(ids: string[]) {
-    if (readOnly) return
+    if (completionReadOnly) return
     if (ids.length === 0) return
     const result = await bulkSkip.mutateAsync(
       ids.map((id) => ({ habitId: id, date: selectedDateStr })),

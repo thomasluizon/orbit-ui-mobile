@@ -40,7 +40,7 @@ type BulkActions = ReturnType<typeof useBulkActions>
 
 function renderBulkActions(
   selectedHabitIds: Set<string>,
-  readOnly = false,
+  completionReadOnly = false,
   habitsById = new Map<string, NormalizedHabit>(),
 ) {
   const onSuccess = vi.fn()
@@ -54,7 +54,7 @@ function renderBulkActions(
     captured.current = useBulkActions({
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
-      readOnly,
+      completionReadOnly,
       habitsById,
       habitListRef,
       onSuccess,
@@ -327,7 +327,7 @@ describe('useBulkActions reversibility boundary', () => {
     expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent'])
   })
 
-  it('refuses log, skip, and delete mutations on a read-only date', async () => {
+  it('refuses completion but allows deletion on an old date', async () => {
     const { captured, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
       new Set(['h-1']),
       true,
@@ -341,8 +341,8 @@ describe('useBulkActions reversibility boundary', () => {
 
     expect(bulkLog.mutateAsync).not.toHaveBeenCalled()
     expect(bulkSkip.mutateAsync).not.toHaveBeenCalled()
-    expect(bulkDelete.mutateAsync).not.toHaveBeenCalled()
+    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['h-1'])
     expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
-    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledOnce()
   })
 })

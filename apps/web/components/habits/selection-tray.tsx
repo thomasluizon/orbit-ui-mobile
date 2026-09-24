@@ -35,6 +35,7 @@ export interface SelectionTrayProps {
   onBulkSkip: () => void
   onBulkDelete: () => void
   onCancel: () => void
+  completionReadOnly?: boolean
 }
 
 interface BulkBtnProps {
@@ -43,15 +44,17 @@ interface BulkBtnProps {
   color: string
   onClick: () => void
   disabled?: boolean
+  reason?: string
 }
 
-function BulkBtn({ icon: Icon, label, color, onClick, disabled = false }: Readonly<BulkBtnProps>) {
+function BulkBtn({ icon: Icon, label, color, onClick, disabled = false, reason }: Readonly<BulkBtnProps>) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
       disabled={disabled}
+      title={disabled ? reason : undefined}
       className={`appearance-none border-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${
         disabled
           ? 'opacity-45'
@@ -79,11 +82,13 @@ export function SelectionTray({
   onBulkSkip,
   onBulkDelete,
   onCancel,
+  completionReadOnly = false,
 }: Readonly<SelectionTrayProps>) {
   const t = useTranslations()
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
   const nothingSelected = selectedCount === 0
+  const completionReason = completionReadOnly ? t('habits.todayBoundary.readOnly') : undefined
   return (
     <motion.div
       data-testid="bulk-action-bar"
@@ -149,14 +154,16 @@ export function SelectionTray({
           label={t('habits.bulkBar.log')}
           color="var(--primary)"
           onClick={onBulkLog}
-          disabled={nothingSelected}
+          disabled={nothingSelected || completionReadOnly}
+          reason={completionReason}
         />
         <BulkBtn
           icon={FastForward}
           label={t('habits.bulkBar.skip')}
           color="var(--fg-3)"
           onClick={onBulkSkip}
-          disabled={nothingSelected}
+          disabled={nothingSelected || completionReadOnly}
+          reason={completionReason}
         />
         <BulkBtn
           icon={Trash2}

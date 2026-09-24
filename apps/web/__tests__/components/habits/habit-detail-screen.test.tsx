@@ -170,14 +170,14 @@ vi.mock('@/components/habits/habit-log-button', () => ({
   HabitLogButton: ({ label, logged, onPress }: { label: string; logged: boolean; onPress: () => void }) => <button type="button" aria-label={label} data-logged={logged} onClick={onPress}>{label}</button>,
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, state, canLog, readOnly, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; readOnly: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
+  HabitRow: ({ habit, state, canLog, completionReadOnly, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
     <div>
       <button
         type="button"
         data-testid={`child-${habit.id}`}
         data-state={state}
         data-can-log={canLog}
-        data-read-only={readOnly}
+        data-completion-read-only={completionReadOnly}
         aria-label={state === 'done' ? 'unlog-child' : 'log-child'}
         onClick={state === 'done' ? actions.onUnlog : actions.onLog}
       >
@@ -491,7 +491,7 @@ describe('HabitDetailScreen', () => {
       const child = screen.getByRole('button', { name: 'unlog-child' })
       expect(child).toHaveAttribute('data-state', 'done')
       expect(child).toHaveAttribute('data-can-log', 'true')
-      expect(child).toHaveAttribute('data-read-only', 'false')
+      expect(child).toHaveAttribute('data-completion-read-only', 'false')
 
       fireEvent.click(child)
       expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })

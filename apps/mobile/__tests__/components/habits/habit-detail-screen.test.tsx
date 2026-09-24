@@ -281,12 +281,12 @@ vi.mock('@/components/habits/habit-log-button', () => ({
   HabitLogButton: ({ label, logged, onPress }: { label: string; logged: boolean; onPress: () => void }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress }),
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, selectedDate, readOnly, actions }: { habit: NormalizedHabit; selectedDate: Date; readOnly: boolean; actions: { onLog: () => void; onUnlog: () => void } }) => React.createElement('HabitRow', {
+  HabitRow: ({ habit, selectedDate, completionReadOnly, actions }: { habit: NormalizedHabit; selectedDate: Date; completionReadOnly: boolean; actions: { onLog: () => void; onUnlog: () => void } }) => React.createElement('HabitRow', {
     testID: `child-${habit.id}`,
     state: habit.isCompleted ? 'done' : 'empty',
     action: habit.isCompleted ? 'unlog' : 'log',
     selectedDate: formatAPIDate(selectedDate),
-    readOnly,
+    completionReadOnly,
     actions,
   }),
 }))
@@ -631,7 +631,7 @@ describe('HabitDetailScreen', () => {
       const child = tree!.root.findByProps({ testID: 'child-child-1' })
       expect(child.props.state).toBe('done')
       expect(child.props.action).toBe('unlog')
-      expect(child.props.readOnly).toBe(false)
+      expect(child.props.completionReadOnly).toBe(false)
 
       child.props.actions.onUnlog()
       expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })

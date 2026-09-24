@@ -349,6 +349,7 @@ describe('Hoje date boundaries', () => {
     })
 
     expect(flattenText(tree!.root)).toContain(en.habits.todayBoundary.readOnly)
+    expect(en.habits.todayBoundary.readOnly).toBe('Logging stops 7 days back. You can still edit, move and delete here.')
   })
 
   it('ignores an upgraded showCompleted true payload when rendering Today', async () => {

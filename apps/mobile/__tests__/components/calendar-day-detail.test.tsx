@@ -376,7 +376,7 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(rows.slice(0, 3).map((row) => ({
       title: row.props.title,
       value: row.props.value,
-      readOnly: row.props.readOnly,
+      readOnly: row.props.completionReadOnly,
       ringStatus: (row.props.trailing as React.ReactElement<{ status: string }>).props.status,
     }))).toEqual([
       { title: 'Read', value: '08:00 · done', readOnly: true, ringStatus: 'done' },

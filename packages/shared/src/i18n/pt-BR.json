@@ -363,7 +363,7 @@
     "refresh": "Atualizar",
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
-      "readOnly": "Somente leitura. Você pode registrar até 7 dias atrás.",
+      "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e excluir aqui.",
       "future": "Este dia ainda não chegou. Você pode registrar o que não tem hora marcada."
     },
     "login": "Entrar",
@@ -406,7 +406,7 @@
   "habits": {
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
-      "readOnly": "Somente leitura. Você pode registrar até 7 dias atrás.",
+      "readOnly": "O registro para 7 dias atrás. Você ainda pode editar, mover e excluir aqui.",
       "future": "Este dia ainda não chegou. Você pode registrar o que não tem hora marcada."
     },
     "emptyState": "Nenhum hábito ainda",

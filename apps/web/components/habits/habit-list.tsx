@@ -1204,8 +1204,7 @@ export function HabitList({
     const meta = buildMetaTokens(habit)
     const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
     const boundary = getTodayBoundary(selectedDateStr, todayStr)
-    const readOnly = boundary === 'read-only'
-    const completionReadOnly = readOnly || (boundary === 'future' && !canLog)
+    const completionReadOnly = boundary === 'read-only' || (boundary === 'future' && !canLog)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     return (
       <HabitRow
@@ -1214,7 +1213,8 @@ export function HabitList({
         state={state}
         meta={meta}
         canLog={canLog}
-        readOnly={readOnly}
+        completionReadOnly={completionReadOnly}
+        completionReason={boundary === 'read-only' ? t('habits.todayBoundary.readOnly') : boundary === 'future' ? t('habits.todayBoundary.future') : undefined}
         hasProAccess={profile?.hasProAccess !== false}
         streak={habit.currentStreak}
         child={isChild}

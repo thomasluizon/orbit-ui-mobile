@@ -407,7 +407,7 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
     captured.current = useBulkActions({
       selectedHabitIds,
       selectedDateStr: TODAY,
-      readOnly: false,
+      completionReadOnly: false,
       habitsById: new Map(),
       habitListRef,
       onSuccess: vi.fn(),
