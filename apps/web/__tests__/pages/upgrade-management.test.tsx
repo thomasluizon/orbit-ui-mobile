@@ -10,6 +10,13 @@ const mockGoBackOrFallback = vi.hoisted(() => vi.fn())
 const mockRefetchStatus = vi.hoisted(() => vi.fn())
 const mockRefetchBilling = vi.hoisted(() => vi.fn())
 const mockShowSuccess = vi.hoisted(() => vi.fn())
+const mockShowPersistentError = vi.hoisted(() => vi.fn())
+const mockAccount = vi.hoisted(() => ({ held: 'account-a' }))
+
+vi.mock('@/stores/auth-store', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/stores/auth-store')>(),
+  getHeldAccountId: () => mockAccount.held,
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -92,7 +99,7 @@ vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mockIsOnline }),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showSuccess: mockShowSuccess }),
+  useAppToast: () => ({ showSuccess: mockShowSuccess, showPersistentError: mockShowPersistentError }),
 }))
 
 let mockPlans: Record<string, unknown> | null = null
@@ -205,6 +212,8 @@ describe('UpgradePage subscription management', () => {
     mockRefetchStatus.mockReset().mockResolvedValue(undefined)
     mockRefetchBilling.mockReset().mockResolvedValue(undefined)
     mockShowSuccess.mockReset()
+    mockShowPersistentError.mockReset()
+    mockAccount.held = 'account-a'
     globalThis.sessionStorage.clear()
   })
 
@@ -605,6 +614,39 @@ describe('UpgradePage subscription management', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('upgrade.billing.portalFailed')
     expect(screen.getByRole('button', { name: 'upgrade.billing.retry' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'upgrade.billing.payment.change' })).toBeDisabled()
+  })
+
+  it('keeps the old account out of the portal after an account switch', async () => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false }
+    let finish: ((value: { url: string }) => void) | undefined
+    mockOpenCustomerPortal.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    const location = { href: '' }
+    vi.stubGlobal('location', location)
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
+    await waitFor(() => expect(mockOpenCustomerPortal).toHaveBeenCalledWith('account-a'))
+    mockAccount.held = 'account-b'
+    finish?.({ url: 'https://billing.example/portal' })
+    await waitFor(() => expect(mockShowPersistentError).toHaveBeenCalledWith(
+      'errors.api.accountChanged', 'common.dismiss',
+    ))
+    expect(location.href).toBe('')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
+    expect(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' })).toBeEnabled()
+  })
+
+  it('reports an account refusal instead of a portal failure', async () => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false }
+    mockOpenCustomerPortal.mockRejectedValueOnce({ status: 409, code: 'ACCOUNT_CHANGED' })
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
+    await waitFor(() => expect(mockShowPersistentError).toHaveBeenCalledWith(
+      'errors.api.accountChanged', 'common.dismiss',
+    ))
+    expect(screen.queryByText('upgrade.billing.portalFailed')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' })).toBeEnabled()
   })
 
   it('shows the Google Play management panel for Play-sourced Pro users', () => {

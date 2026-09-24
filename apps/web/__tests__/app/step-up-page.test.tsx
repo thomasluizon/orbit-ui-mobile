@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   router: { replace: vi.fn() },
   serverAuthMutate: vi.fn(),
+  heldAccountId: 'account-a',
 }))
 
 vi.mock('next/navigation', () => ({
@@ -48,7 +49,7 @@ vi.mock('@/stores/auth-store', () => {
     recoverSessionRefreshFailure: vi.fn(),
   }
   return {
-    getHeldAccountId: () => 'account-a',
+    getHeldAccountId: () => mocks.heldAccountId,
     useAuthStore: Object.assign(
       (selector: (current: unknown) => unknown) => selector(state),
       { getState: () => state },
@@ -103,6 +104,7 @@ describe('web step up screen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.operation = 'delete'
+    mocks.heldAccountId = 'account-a'
     mocks.router.replace = mocks.replace
     mocks.profile.email = 'person@example.com'
     mocks.profile.hasProAccess = false
@@ -221,6 +223,65 @@ describe('web step up screen', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
     expect(screen.getByRole('alert')).not.toHaveTextContent('genericError')
+  })
+
+  it('does not show deletion success after a different account arrives during confirmation', async () => {
+    let finish: ((value: { scheduledDeletionAt: string }) => void) | undefined
+    mocks.serverAuthMutate.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledOnce())
+    mocks.heldAccountId = 'account-b'
+    finish?.({ scheduledDeletionAt: '2026-09-04T03:00:00Z' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(screen.queryByText(/successTitle/)).not.toBeInTheDocument()
+    expect(mocks.clearTiming).not.toHaveBeenCalled()
+  })
+
+  it('does not grant API key creation after a different account arrives during confirmation', async () => {
+    mocks.operation = 'keys'
+    let finish: ((value: { message: string }) => void) | undefined
+    mocks.serverAuthMutate.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    await renderLiveScreen({ operation: 'keys', sentAt: Date.now() })
+    enterCode()
+    clickConfirm()
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledOnce())
+    mocks.heldAccountId = 'account-b'
+    finish?.({ message: 'Challenge confirmed' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(mocks.markVerified).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('does not restart a challenge after a different account arrives during resend', async () => {
+    let finish: ((value: { message: string }) => void) | undefined
+    mocks.serverAuthMutate.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    await renderLiveScreen(liveRecord(60_000))
+    fireEvent.click(screen.getByText('resend'))
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledOnce())
+    mocks.heldAccountId = 'account-b'
+    finish?.({ message: 'Challenge sent' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+  })
+
+  it('requests a new API key challenge under the held account', async () => {
+    mocks.operation = 'keys'
+    await renderLiveScreen({ operation: 'keys', sentAt: Date.now() - 60_000 })
+    fireEvent.click(screen.getByText('resend'))
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
+      API.apiKeys.requestCreationChallenge, { method: 'POST' }, 'account-a',
+    ))
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('keys')
+  })
+
+  it('keeps the old challenge when resending fails with an account refusal', async () => {
+    mocks.serverAuthMutate.mockRejectedValueOnce({ status: 409, code: 'ACCOUNT_CHANGED' })
+    await renderLiveScreen(liveRecord(60_000))
+    fireEvent.click(screen.getByText('resend'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })
 
   it('moves the third wrong code to the persisted exhausted boundary', async () => {

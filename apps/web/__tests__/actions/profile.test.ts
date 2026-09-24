@@ -15,16 +15,27 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 const {
+  updateName,
   updateTimezone,
   updateLanguage,
   updateAiSummary,
+  updateProactiveAstra,
+  updateMarketingConsent,
   updateWeekStartDay,
   updateThemePreference,
   updateColorScheme,
   completeOnboarding,
   resetAccount,
 } = await import('@/lib/actions/profile')
-const { dismissCalendarImport } = await import('@/lib/actions/calendar')
+const {
+  dismissCalendarImport,
+  setSelectedCalendars,
+  setCalendarAutoSync,
+  runCalendarSyncNow,
+  dismissCalendarSuggestion,
+} = await import('@/lib/actions/calendar')
+const { openCustomerPortal } = await import('@/lib/actions/subscription')
+const { sendSupportMessage } = await import('@/lib/actions/support')
 
 describe('profile server actions', () => {
   beforeEach(() => {
@@ -263,6 +274,75 @@ describe('profile server actions', () => {
       mockApiResponse({ error: 'Server error' }, 500)
 
       await expect(dismissCalendarImport(null)).rejects.toThrow('Server error')
+    })
+  })
+
+  describe('other account-scoped actions', () => {
+    it.each([
+      ['name', () => updateName({ name: 'Ada' }, null), { name: 'Ada' }, '/api/profile/name'],
+      ['proactive Astra', () => updateProactiveAstra({ enabled: true }, null), { enabled: true }, '/api/profile/proactive-astra'],
+      ['marketing consent', () => updateMarketingConsent({ enabled: false }, null), { enabled: false }, '/api/profile/marketing-consent'],
+    ] as const)('sends the %s change through the guarded PUT', async (_label, send, payload, path) => {
+      mock204()
+      await send()
+      const [url, init] = mockFetch.mock.calls[0]!
+      expect(url).toContain(path)
+      expect(init.method).toBe('PUT')
+      expect(JSON.parse(init.body)).toEqual(payload)
+    })
+
+    it('sends selected calendar IDs through the guarded PUT', async () => {
+      mock204()
+      await setSelectedCalendars(['work', 'home'], null)
+      const [url, init] = mockFetch.mock.calls[0]!
+      expect(url).toContain('/api/calendar/selected')
+      expect(init.method).toBe('PUT')
+      expect(JSON.parse(init.body)).toEqual({ calendarIds: ['work', 'home'] })
+    })
+
+    it('sends the auto-sync setting through the guarded PUT', async () => {
+      mock204()
+      await setCalendarAutoSync(true, null)
+      const [url, init] = mockFetch.mock.calls[0]!
+      expect(url).toContain('/api/calendar/auto-sync')
+      expect(init.method).toBe('PUT')
+      expect(JSON.parse(init.body)).toEqual({ enabled: true })
+    })
+
+    it('starts calendar sync with POST', async () => {
+      mock204()
+      await runCalendarSyncNow(null)
+      const [url, init] = mockFetch.mock.calls[0]!
+      expect(url).toContain('/api/calendar/auto-sync/run')
+      expect(init.method).toBe('POST')
+    })
+
+    it('dismisses the named calendar suggestion with PUT', async () => {
+      mock204()
+      await dismissCalendarSuggestion('suggestion-1', null)
+      const [url, init] = mockFetch.mock.calls[0]!
+      expect(url).toContain('/api/calendar/auto-sync/suggestions/suggestion-1/dismiss')
+      expect(init.method).toBe('PUT')
+    })
+
+    it('opens the customer portal with POST and returns its URL', async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify({ url: 'https://billing.example/portal' }), {
+        status: 200,
+      }))
+      await expect(openCustomerPortal(null)).resolves.toEqual({ url: 'https://billing.example/portal' })
+      const [url, init] = mockFetch.mock.calls[0]!
+      expect(url).toContain('/api/subscriptions/portal')
+      expect(init.method).toBe('POST')
+    })
+
+    it('sends the support message body with POST', async () => {
+      mock204()
+      const payload = { subject: 'Sync', message: 'My calendar did not sync.' }
+      await sendSupportMessage(payload, null)
+      const [url, init] = mockFetch.mock.calls[0]!
+      expect(url).toContain('/api/support')
+      expect(init.method).toBe('POST')
+      expect(JSON.parse(init.body)).toEqual(payload)
     })
   })
 
