@@ -285,6 +285,14 @@ Unchanged and absolute. Once every screen ticket is done, a run **stops** and sh
 INTERNAL build off `redesign/main` for Thomas to test as a real update. It does not merge to `main`
 and does not start the next batch. **Only his approval merges `redesign/main` to `main`.**
 
+**The merge carries one protection change, in the same moment (added 2026-09-24).** `main` requires
+`Suppressions Ratchet` again, because `main` still has both `eslint-suppressions.json` baselines and
+no `Lint Severity` job, so the `#617` swap had made every pull request to `main` unmergeable. The
+`redesign/main` into `main` pull request deletes the ratchet and brings `Lint Severity`, so swap the
+required context back to `Lint Severity` when that pull request is ready to merge. Payload shape:
+`gh api -X PATCH repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks
+--input <json>` with `{strict: true, checks: [{context, app_id}]}` (`app_id` 15368 for Actions).
+
 ### Batch 2a: the API contracts the UI is already waiting on
 
 `#526` (calendar events report the account timezone day and time), `#591` (project the recurrence
@@ -344,7 +352,7 @@ pointers; the reasoning, the options that were rejected and the cost of each are
 **Read them through the Obsidian MCP, not the filesystem.** `mcp__obsidian__obsidian_list_notes` to
 see what exists, `mcp__obsidian__obsidian_get_note` to read one, and
 `mcp__obsidian__obsidian_search_notes` when you know the idea but not the filename. The vault is also
-on disk at `C:/Users/thoma/Documents/Programming/Projects/brain`, but `cat` and `ls` miss the
+on disk at `~/Developer/brain` on the Mac (the Windows path is gone), but `cat` and `ls` miss the
 frontmatter, the tags and the backlinks that say which decision superseded which. Use the MCP.
 
 - `2 Areas/20-29 Orbit Engineering.md` is the area note and the way in.
@@ -1543,6 +1551,8 @@ Tickets closed: `#599`, `#627`, `#634`, `#546`, `#613`, `#560` (already done by 
 
 ### Open pull requests at the end of the run, each with its state
 
+**Superseded** by the open-PR table in the next section (session `382214fc`, 2026-09-24 evening).
+
 | PR | base | head | state |
 |---|---|---|---|
 | `ui#1041` (`#633`) | `main` | `89bb9be5` | **APPROVED, checks green, `mergeStateStatus` BLOCKED at handoff.** Find why, merge, release. |
@@ -1560,3 +1570,101 @@ Tickets closed: `#599`, `#627`, `#634`, `#546`, `#613`, `#560` (already done by 
 
 Unchanged and untriaged: dependabot `ui#1034`, `#801`, `#799`, `#798`; `api#536`, `#535`, `#530`;
 `landing#73` to `#79`. Older `api#528`, `#531`, `#532`, `#533` still owe their rounds (batches 1, 2a, 6).
+
+## What the 2026-09-24 evening sleep run added (session `382214fc`)
+
+**Durable because** it records two production deploys, a Play release, a change to `main`'s branch
+protection, the CI capacity limit every future run hits, and four instructions from Thomas on how an
+unattended run behaves.
+
+### Thomas's instructions, 2026-09-24 evening, in his words
+
+- **A pasted `NEXT.md` IS the instruction.** "i pasted a prompt, you just execute whats on the
+  prompt, why are you asking if you can do what i already asked you to do?"
+- **A sleep run never asks anything.** "you are not allowed to stop a sleep run to ask me questions,
+  you have to take every decision yourself ... JUST DO IT, DO THE RECOMMENDED ALWAYS". This covers
+  decisions a rule reserves for him, including a D95 gate or protection edit: take the recommended
+  option and log it.
+- **Verify before naming a blocker, and keep a decision when asked why.** The run told him `#575`
+  needed an OpenAI API key; it did not (`codex exec --output-schema` in the installed codex-cli
+  0.156.1). His words: "why do you assume stuff without checking?" and "i feel really scared of how
+  NOT CONFIDENT you are with your decisions". A "why" gets the evidence and the decision stands
+  unless a fresh check contradicts it. Before anything reaches him as a blocker, every installed tool
+  and existing account that could reach the same goal is tried and its result written down.
+- **Approved at wrap-up: put that last rule in `.claude/rules/core.md` rule 8** ("Rule in core.md").
+  Not done yet; it is the first item of the next run (own ticket, own PR, both harnesses).
+
+### Shipped to real people
+
+| what a person gets | how | verified |
+|---|---|---|
+| The three-dot habit menu opens; "show completed" works inside "go to sub habits" (web and Android) | `ui#1041` (`#633`) into `main` as `2809b017` | Android 1.3.32 (91) on the Play open track, run `36041553873` success; Vercel production deploy of `2809b017` |
+| Recurring calendar series no longer withheld in 13 timezones | `api#521` (`#526`) into `orbit-api` `main` as `e315e06a` | Render deploy `dep-daqnn56q1p3s73ap22bg` live 19:37 UTC, `/health` Healthy |
+| The landing page's six npm advisories (1 critical) are gone | `landing#81` (`#640`) as `daafa61c`; Node floor now `>=22.19.0` (undici 8) | Vercel production success, useorbit.org 200 |
+
+Also verified: `api#534` (`#599`) went live on Render at 2026-09-24 16:16 UTC (`313b74b8`), which the
+previous section listed as unverified.
+
+### Merged into `redesign/main` (built, not shipped)
+
+`ui#1033` (`#610`), `#1039` (`#624`), `#1040` (`#611`), `#1048` (`#528`), `#1045` (`#541`), `#1042`
+(`#618`), `#1050` (`#525`), `#1051` (`#455`), `#1047` (`#530`), `#1053` (`#641`). Tickets closed as
+already done by earlier PRs after a re-read against the tree: `#558` (PR 970), `#598` (PR 1023),
+`#544` (PR 984), `#563` (PR 999 on `main`; `redesign/main` gets it through `#556`).
+
+### Decisions this run took, with the evidence
+
+- **`main`'s required checks: `Lint Severity` swapped back to `Suppressions Ratchet`.** See THE
+  REDESIGN GATE for why and for the swap back. Before-state was `21 contexts, strict true`.
+- **Landing merges follow Thomas's non-redesign API rule by analogy** ("merge and deploy to main").
+- **`ui#1049` (`#559`) states a closed analysis boundary** (D117) after each review found new
+  expression shapes; its PR body carries `## Analysis boundary`.
+- **`#575` runs through `codex exec --output-schema`, not a raw API key**; scope change posted on the
+  ticket.
+- **`#557` needed a `main` backport**: PR 994 had fixed it on `redesign/main` only, so the shipped app
+  still signed people out. `ui#1057` cherry-picks `ce5ad59a` onto `main`.
+- **The three Pullfrog pin PRs wait on an external release**: npm `pullfrog` `latest` is 0.1.82, whose
+  `models.ts` has no `openai/gpt-6-sol`, so `effort: medium` is not applied. `pullfrog/pullfrog`
+  `main` (`32046f3c`) has it; release staged (`5edc3a07`). Comment on each PR.
+
+### Constraints learned this run
+
+- **GitHub Actions capacity is the bottleneck, not workers.** 72 queued runs against about 10 in
+  progress. `guards.yml` and `dependency-review.yml` had no `concurrency` group; `ui#1058` (`#643`)
+  adds one. Until it merges, cancel queued runs for heads a newer push replaced.
+- **Pullfrog's incremental review can submit NO review.** After resolving threads, post one
+  `--re-review` (`list-bot-threads.mjs --re-review --wait-seconds 1` posts it without waiting); a
+  merge-forward push alone usually does get an automatic approval.
+- **`list-bot-threads.mjs` waits 900 s by default**; use `--wait-seconds 0` for a single poll.
+- **"Build web" can fail on a Google Fonts fetch** (`next-font-loader`: "Cannot read properties of
+  null (reading '1')"). It is a flake: `gh run rerun <id> --failed`.
+- **Render reads work with `RENDER_MCP_TOKEN`** from the environment; the `orbit-api` service is
+  `srv-d6tc2isr85hc739bf75g` (autoDeploy on `main`).
+- **A fix merged to `main` does not reach `redesign/main`.** `redesign-drift.yml` has failed on every
+  `main` push since 2026-09-16; `main` is 12 commits ahead. That is `#556`, next after 1052 merges.
+- **Shell traps on this Mac:** zsh treats `path` as `PATH`; `set -- $var` does not split; the
+  orchestrator guardrail refuses a redirect whose target contains a variable (write to a literal
+  path or use the Write tool); `ls` is aliased and rejects `-t`.
+- **`.claude/pending-lessons.md` is tracked**, so staging a lesson there dirties the orchestrating
+  checkout and blocks `create-worktree`. Stage in the run log or through a PR.
+- **`caps.reviewFixAttempts` (3) was spent this run on `ui#1029`, `#1030` and `#1049`.** A new session
+  starts a new count; if their next review still blocks, split the remaining findings into a ticket
+  rather than looping.
+
+### Open pull requests at the end of this run
+
+| PR | base | head | state |
+|---|---|---|---|
+| `ui#1044` (`#542`) | `redesign/main` | `94a33e00` | APPROVED, 1 check pending: merge when green |
+| `ui#1056` (`#639`) | `redesign/main` | `598da112` | APPROVED, 1 check pending: merge when green |
+| `ui#1058` (`#643`) | `redesign/main` | `a18ca976` | APPROVED, CI pending: merge when green |
+| `ui#1054` (`#619`) | `redesign/main` | `32f1dd90` | APPROVED, CI pending: merge when green |
+| `ui#1052` (`#633` backport) | `redesign/main` | `2d7d1f93` | drill error scoped to the active parent; re-review owed |
+| `ui#1030` (`#615`) | `redesign/main` | `ad6ba428` | null intent fails closed, chat and transcription carry the account; re-review owed |
+| `ui#1055` (`#638`) | `redesign/main` | `ba74f7f5` | DESIGN.md gate list fixed; re-review owed |
+| `ui#1049` (`#559`) | `redesign/main` | `c6dc9bfe` | CHANGES_REQUESTED, 2 new findings; review-fix cap spent this run |
+| `ui#1029` (`#612`) | `redesign/main` | `2688894e` + worker | CHANGES_REQUESTED (chat SSE continuation, mobile delete-account navigation); a worker was mid-round at handoff |
+| `ui#1057` (`#557` backport) | `main` | `bf779031` | first review owed; after merge, `/android-release` to the open track |
+| `ui#1046`, `api#537`, `landing#80` (pins) | `main` | | wait for Pullfrog 0.1.83 |
+| dependabot `ui#1034`, `#801`, `#799`, `#798`; `api#535`, `#538`, `#530` | `main` | | rebased; merge each Pullfrog approves with green CI |
+| `api#528`, `#531`, `#532`, `#533` | `orbit-api` `main` | | older rounds owed (batches 1, 2a, 6) |
