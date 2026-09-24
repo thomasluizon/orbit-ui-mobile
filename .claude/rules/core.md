@@ -56,6 +56,8 @@ would annotate "Recommend: X"; decide X and move on.
 
 Retry once with different wording, then say the answer came from built-in defaults, not a match.
 Never invent ratings, prices, reviews, or org details, or a `file:line` no tool gave you.
+Before any item reaches Thomas as a blocker, try every installed tool and existing account that could reach the same goal, and write what each returned. A blocker names the goal, not the first method's precondition.
+This never crosses an identity, authorization, manual-step or redaction limit a skill sets: a method such a limit forbids is written down as forbidden, not tried, and no credential appears in what you write.
 
 ### 9. Carry the standing operating contract (D89, D90)
 
