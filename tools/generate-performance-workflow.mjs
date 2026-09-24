@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+// Temporary scope probe for #613.
 import { readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
