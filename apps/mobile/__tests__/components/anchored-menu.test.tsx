@@ -68,7 +68,10 @@ describe('AnchoredMenu', () => {
       void TestRenderer.act(() => controller!.open())
       const first = root!.root.findAllByType('Modal')[0]
       void TestRenderer.act(() => controller!.open())
-      expect(root!.root.findAllByType('Modal')[0]).not.toBe(first)
+      const second = root!.root.findAllByType('Modal')[0]
+      expect(second).not.toBe(first)
+      void TestRenderer.act(() => controller!.toggle())
+      expect(root!.root.findAllByType('Modal')[0]).not.toBe(second)
       void TestRenderer.act(() => controller!.close())
       expect(root!.root.findAllByType('Modal')).toHaveLength(1)
       void TestRenderer.act(() => controller!.open())

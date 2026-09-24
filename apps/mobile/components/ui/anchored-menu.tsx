@@ -31,7 +31,7 @@ type AppTokens = ReturnType<typeof createTokensV2>
 
 /**
  * Single seam for an anchored (popover) menu: owns the trigger ref, open/close
- * state and the measured anchor rect. `open`/`toggle` flip visibility
+ * state and the measured anchor rect. `open` and `toggle` show a fresh dialog
  * synchronously and then refine the anchor position, so the menu never depends
  * on a native measure callback firing (which silently no-ops on Android Fabric
  * release builds). Pair with `MenuAnchorHost` on the trigger and `AnchoredMenu`
@@ -76,12 +76,8 @@ export function useAnchoredMenu(): AnchoredMenuController {
   }, [])
 
   const toggle = useCallback(() => {
-    if (phase === 'open') {
-      close()
-      return
-    }
     open()
-  }, [close, open, phase])
+  }, [open])
 
   return {
     anchorRef, visible: phase === 'open', isClosing: phase === 'closing',
