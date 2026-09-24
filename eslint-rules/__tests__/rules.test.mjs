@@ -475,6 +475,8 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     '<div style={{ gap: tokens.gap, padding: spacing.md }} />',
     '<div style={{ gap: 96, padding: 64 }} />',
     'const row = { gap: 12, padding: "16px" }; <div style={row} />',
+    'const row = { gap: 12 } as const; <div style={row} />',
+    'const row = { gap: 12 } satisfies React.CSSProperties; <div style={row} />',
     'let row = { gap: 14 }; <div style={row} />',
     'const row = getStyle(); <div style={row} />',
     'const row = { gap: tokens.gap }; <div style={row} />',
@@ -509,6 +511,16 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
       code: 'const row = { gap: 14 }; const alias = row; <><div style={alias} /><span style={row} /><button style={{ ...alias }} /></>',
       output: null,
       errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: "const CONTROL_STYLE = { padding: '15px 16px' } as const; <><input style={{ ...CONTROL_STYLE }} /><textarea style={{ ...CONTROL_STYLE }} /></>",
+      output: "const CONTROL_STYLE = { padding: '16px 16px' } as const; <><input style={{ ...CONTROL_STYLE }} /><textarea style={{ ...CONTROL_STYLE }} /></>",
+      errors: [{ messageId: 'offScaleStyle', data: { value: '15', prop: 'padding', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '16' } }],
+    },
+    {
+      code: 'const row = { gap: 14 } satisfies React.CSSProperties; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle', data: { value: '14', prop: 'gap', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '12' } }],
     },
     // DESIGN.md drops 20, 28, 40 and 56. Each is EXACTLY midway between two surviving
     // steps, so isUnambiguous() refuses to autofix and a human picks the direction.

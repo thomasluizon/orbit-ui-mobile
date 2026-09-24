@@ -3,7 +3,7 @@
 import type { InputProps } from '@orbit/shared/contracts/forms'
 import { useEffect, useId, useRef, type ChangeEvent } from 'react'
 
-const CONTROL_STYLE = { width: '100%', appearance: 'none', border: 0, background: 'transparent', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: '24px', color: 'var(--fg-1)', padding: '15px 16px' } as const
+const CONTROL_STYLE = { width: '100%', appearance: 'none', border: 0, background: 'transparent', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: '24px', color: 'var(--fg-1)', padding: '12px 16px' } as const
 
 function getDescriptionId(error: string | undefined, hint: string | undefined, errorId: string, hintId: string) {
   if (error && hint) return `${errorId} ${hintId}`

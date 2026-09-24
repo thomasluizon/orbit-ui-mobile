@@ -196,7 +196,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
     minHeight: 52,
     paddingBlock: 8,
     paddingInlineStart: 20 + Math.max(0, depth) * 20,
-    paddingInlineEnd: 20,
+    paddingInlineEnd: 16,
     background: selected ? 'rgba(var(--primary-rgb), 0.10)' : 'transparent',
     boxShadow: selected ? 'inset 0 0 0 1.5px var(--primary)' : undefined,
     borderRadius: 'var(--r-well)',

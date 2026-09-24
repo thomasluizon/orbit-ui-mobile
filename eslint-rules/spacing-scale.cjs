@@ -264,6 +264,10 @@ module.exports = {
 
     function scanStyleObject(node) {
       if (!node) return
+      if (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression') {
+        scanStyleObject(node.expression)
+        return
+      }
       if (node.type === 'Identifier') {
         let scope = context.sourceCode.getScope(node)
         while (scope) {
