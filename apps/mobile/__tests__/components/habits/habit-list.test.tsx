@@ -339,7 +339,8 @@ vi.mock('@/components/habits/create-habit-modal', () => ({
 }))
 
 vi.mock('@/components/habits/reschedule-sheet', () => ({
-  RescheduleSheet: () => null,
+  RescheduleSheet: (props: Record<string, unknown>) =>
+    React.createElement('RescheduleSheet', props),
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -621,6 +622,70 @@ describe('HabitList', () => {
       switched: 60,
       logged: 1,
     })
+  })
+
+  it('keeps row actions stable while using the latest habit and list callbacks', () => {
+    const habit = createMockHabit({
+      id: 'action-parent',
+      title: 'Before',
+      isOverdue: true,
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({ id: 'action-child', parentId: habit.id })
+    const onDetailHabit = vi.fn()
+    const onEditHabit = vi.fn()
+    const onCreatePress = vi.fn()
+    const renderList = (editHabit: typeof onEditHabit) => (
+      <HabitList
+        view="today"
+        filters={{}}
+        showCompleted
+        onCreatePress={onCreatePress}
+        onDetailHabit={onDetailHabit}
+        onEditHabit={editHabit}
+      />
+    )
+
+    seedHabits([habit, child])
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList(onEditHabit)) })
+    const firstRow = tree.root.findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === habit.id)
+    expect(firstRow).toBeDefined()
+    const actions = firstRow!.props.actions
+
+    const updatedHabit = { ...habit, title: 'After' }
+    const onEditHabitAfterUpdate = vi.fn()
+    seedHabits([updatedHabit, child])
+    TestRenderer.act(() => { tree.update(renderList(onEditHabitAfterUpdate)) })
+    const updatedRow = tree.root.findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === habit.id)
+    expect(updatedRow!.props.actions).toBe(actions)
+
+    TestRenderer.act(() => {
+      actions.onDetail()
+      actions.onEdit()
+      actions.onReschedule()
+      actions.onDuplicate()
+      actions.onDrillInto()
+      actions.onEnterSelectMode()
+    })
+
+    expect(onDetailHabit).toHaveBeenCalledWith(updatedHabit)
+    expect(onEditHabitAfterUpdate).toHaveBeenCalledWith(updatedHabit, undefined)
+    expect(tree.root.findByType('RescheduleSheet').props).toMatchObject({
+      open: true,
+      habit: updatedHabit,
+    })
+    expect(flattenRenderedText(confirmationSheets(tree, 'habits.duplicateConfirmTitle')))
+      .toContain('After')
+    expect(mockDrillState.drillInto).toHaveBeenCalledWith(habit.id)
+    expect(toggleSelectMode).toHaveBeenCalledOnce()
+    expect(toggleSelectionCascade).toHaveBeenCalledWith(
+      habit.id,
+      expect.any(Function),
+      expect.any(Function),
+    )
   })
 
   it('hides one-time tasks completed before the selected day when completed items are shown', () => {
