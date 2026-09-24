@@ -231,10 +231,11 @@ describe('persistent reminder', () => {
       await vi.waitFor(() => expect(postPersistentReminder).toHaveBeenCalled())
 
       await cancelPersistentReminder()
+      expect(cancelNativeReminder).toHaveBeenCalledTimes(1)
+      expect(dismissNotificationAsync).toHaveBeenCalledTimes(1)
       releasePresentation()
       await refreshing
 
-      expect(cancelNativeReminder).toHaveBeenCalledTimes(1)
       expect(displayed).not.toContain(PERSISTENT_REMINDER_IDENTIFIER)
     })
 
@@ -341,6 +342,12 @@ describe('persistent reminder', () => {
 
     it('is unsupported once the notifications module is unavailable', () => {
       __setPersistentReminderModuleForTests(null)
+
+      expect(isPersistentReminderSupported()).toBe(false)
+    })
+
+    it('is unsupported once the native presentation module is unavailable', () => {
+      __setPersistentReminderNativeModuleForTests(null)
 
       expect(isPersistentReminderSupported()).toBe(false)
     })
