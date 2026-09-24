@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -87,13 +87,11 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
-  const [prevOpen, setPrevOpen] = useState(open)
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) setCopied(false)
-  }
+  useEffect(() => {
+    if (open) void Promise.resolve().then(() => setCopied(false))
+  }, [open])
 
   const discountPercent = stats?.discountPercent ?? 10
 

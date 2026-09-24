@@ -40,7 +40,9 @@ export function useGoalProgressFormState({
   const { showInterstitialIfDue } = useAdMob()
   const updateProgress = useUpdateGoalProgress()
 
-  const [progressValue, setProgressValue] = useState('')
+  const [progressValue, setProgressValue] = useState(() =>
+    open && goalCurrentValue !== undefined ? String(goalCurrentValue) : '',
+  )
   const [progressNote, setProgressNote] = useState('')
   const [showProgressForm, setShowProgressForm] = useState(false)
   const [showProgressDiscardDialog, setShowProgressDiscardDialog] =
@@ -57,7 +59,9 @@ export function useGoalProgressFormState({
     return numVal > goalTargetValue
   }, [progressValue, goalTargetValue])
 
-  const [initialProgressValue, setInitialProgressValue] = useState('')
+  const [initialProgressValue, setInitialProgressValue] = useState(() =>
+    open && goalCurrentValue !== undefined ? String(goalCurrentValue) : '',
+  )
 
   const isProgressDirty = useMemo(() => {
     if (!showProgressForm) return false
@@ -66,11 +70,12 @@ export function useGoalProgressFormState({
     )
   }, [initialProgressValue, progressNote, progressValue, showProgressForm])
 
-  const [prevResetKey, setPrevResetKey] = useState<string | null>(null)
   const resetKey = open ? `${goalId}:${goalCurrentValue}` : null
-  if (resetKey !== prevResetKey) {
-    setPrevResetKey(resetKey)
-    if (open) {
+  const previousResetKey = useRef(resetKey)
+  useEffect(() => {
+    if (resetKey === previousResetKey.current) return
+    previousResetKey.current = resetKey
+    if (open) void Promise.resolve().then(() => {
       const nextInitial =
         goalCurrentValue !== undefined ? String(goalCurrentValue) : ''
       setInitialProgressValue(nextInitial)
@@ -78,8 +83,8 @@ export function useGoalProgressFormState({
       setShowProgressForm(false)
       setProgressNote('')
       setShowProgressDiscardDialog(false)
-    }
-  }
+    })
+  }, [goalCurrentValue, open, resetKey])
 
   useEffect(() => {
     pendingProgressDismissRef.current = null

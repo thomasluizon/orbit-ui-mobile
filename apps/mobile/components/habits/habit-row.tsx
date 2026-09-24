@@ -151,9 +151,12 @@ export function HabitRow({
   const {
     anchorRef: menuButtonRef,
     visible: menuVisible,
+    isClosing: menuIsClosing,
+    openRevision: menuOpenRevision,
     anchorRect: menuAnchorRect,
     open: openMenu,
     close: closeMenu,
+    finishClose: finishMenuClose,
   } = useAnchoredMenu()
   const [rowPressed, setRowPressed] = useState(false)
 
@@ -297,8 +300,11 @@ export function HabitRow({
       {hasMenuActions ? (
         <AnchoredMenu
           visible={menuVisible}
+          isClosing={menuIsClosing}
+          openRevision={menuOpenRevision}
           anchorRect={menuAnchorRect}
           onClose={closeMenu}
+          onCloseComplete={finishMenuClose}
           width={208}
           estimatedHeight={actions.onDrillInto ? 340 : 296}
         >

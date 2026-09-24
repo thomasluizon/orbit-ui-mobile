@@ -157,8 +157,11 @@ const TodaySearchBar = memo(function TodaySearchBar({
 
 interface TodayControlsMenuProps {
   visible: boolean;
+  isClosing: boolean;
+  openRevision: number;
   anchorRect: MenuAnchorRect | null;
   onClose: () => void;
+  onCloseComplete: () => void;
   isSelectMode: boolean;
   allCollapsed: boolean;
   isFetching: boolean;
@@ -176,8 +179,11 @@ interface TodayControlsMenuProps {
 // react-doctor-disable-next-line prefer-explicit-variants -- The two booleans (isSelectMode, allCollapsed) are orthogonal, independent menu-item states that each toggle one icon/label; they are not mutually-exclusive variants of a single dimension, so an explicit `variant` enum cannot model two independent binary toggles and would obscure intent. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function TodayControlsMenu({
   visible,
+  isClosing,
+  openRevision,
   anchorRect,
   onClose,
+  onCloseComplete,
   isSelectMode,
   allCollapsed,
   isFetching,
@@ -196,8 +202,11 @@ function TodayControlsMenu({
   return (
     <AnchoredMenu
       visible={visible}
+      isClosing={isClosing}
+      openRevision={openRevision}
       anchorRect={anchorRect}
       onClose={onClose}
+      onCloseComplete={onCloseComplete}
       width={220}
       estimatedHeight={220}
     >
@@ -289,8 +298,11 @@ function TodayControlsMenu({
 
 interface TodayFrequencyMenuProps {
   visible: boolean;
+  isClosing: boolean;
+  openRevision: number;
   anchorRect: MenuAnchorRect | null;
   onClose: () => void;
+  onCloseComplete: () => void;
   selectedFrequency: FreqKey | null;
   frequencyOptions: { key: FreqKey; label: string }[];
   onSelectFrequency: (key: FreqKey | null) => void;
@@ -300,8 +312,11 @@ interface TodayFrequencyMenuProps {
 
 function TodayFrequencyMenu({
   visible,
+  isClosing,
+  openRevision,
   anchorRect,
   onClose,
+  onCloseComplete,
   selectedFrequency,
   frequencyOptions,
   onSelectFrequency,
@@ -313,8 +328,11 @@ function TodayFrequencyMenu({
   return (
     <AnchoredMenu
       visible={visible}
+      isClosing={isClosing}
+      openRevision={openRevision}
       anchorRect={anchorRect}
       onClose={onClose}
+      onCloseComplete={onCloseComplete}
       width={200}
       estimatedHeight={260}
     >
@@ -412,8 +430,12 @@ interface TodayHabitsHeaderProps {
   isFetching: boolean;
   allCollapsed: boolean;
   showControlsMenu: boolean;
+  isControlsMenuClosing: boolean;
+  controlsMenuOpenRevision: number;
   controlsMenuAnchorRect: MenuAnchorRect | null;
   showFreqMenu: boolean;
+  isFreqMenuClosing: boolean;
+  freqMenuOpenRevision: number;
   freqMenuAnchorRect: MenuAnchorRect | null;
   controlsButtonRef: React.RefObject<View | null>;
   freqMenuButtonRef: React.RefObject<View | null>;
@@ -428,7 +450,9 @@ interface TodayHabitsHeaderProps {
   onToggleFreqMenu: () => void;
   onToggleControlsMenu: () => void;
   onCloseControlsMenu: () => void;
+  onFinishControlsMenuClose: () => void;
   onCloseFreqMenu: () => void;
+  onFinishFreqMenuClose: () => void;
   onToggleSelect: () => void;
   onToggleCollapse: () => void;
   onRefresh: () => void;
@@ -463,8 +487,12 @@ export function TodayHabitsHeader({
   isFetching,
   allCollapsed,
   showControlsMenu,
+  isControlsMenuClosing,
+  controlsMenuOpenRevision,
   controlsMenuAnchorRect,
   showFreqMenu,
+  isFreqMenuClosing,
+  freqMenuOpenRevision,
   freqMenuAnchorRect,
   controlsButtonRef,
   freqMenuButtonRef,
@@ -479,7 +507,9 @@ export function TodayHabitsHeader({
   onToggleFreqMenu,
   onToggleControlsMenu,
   onCloseControlsMenu,
+  onFinishControlsMenuClose,
   onCloseFreqMenu,
+  onFinishFreqMenuClose,
   onToggleSelect,
   onToggleCollapse,
   onRefresh,
@@ -686,8 +716,11 @@ export function TodayHabitsHeader({
 
         <TodayControlsMenu
           visible={showControlsMenu}
+          isClosing={isControlsMenuClosing}
+          openRevision={controlsMenuOpenRevision}
           anchorRect={controlsMenuAnchorRect}
           onClose={onCloseControlsMenu}
+          onCloseComplete={onFinishControlsMenuClose}
           isSelectMode={isSelectMode}
           allCollapsed={allCollapsed}
           isFetching={isFetching}
@@ -704,8 +737,11 @@ export function TodayHabitsHeader({
 
         <TodayFrequencyMenu
           visible={showFreqMenu}
+          isClosing={isFreqMenuClosing}
+          openRevision={freqMenuOpenRevision}
           anchorRect={freqMenuAnchorRect}
           onClose={onCloseFreqMenu}
+          onCloseComplete={onFinishFreqMenuClose}
           selectedFrequency={selectedFrequency}
           frequencyOptions={frequencyOptions}
           onSelectFrequency={onSelectFrequency}

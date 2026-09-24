@@ -31,7 +31,7 @@ type AppTokens = ReturnType<typeof createTokensV2>
 
 /**
  * Single seam for an anchored (popover) menu: owns the trigger ref, open/close
- * state and the measured anchor rect. `open`/`toggle` flip visibility
+ * state and the measured anchor rect. `open` and `toggle` show a fresh dialog
  * synchronously and then refine the anchor position, so the menu never depends
  * on a native measure callback firing (which silently no-ops on Android Fabric
  * release builds). Pair with `MenuAnchorHost` on the trigger and `AnchoredMenu`
@@ -40,15 +40,19 @@ type AppTokens = ReturnType<typeof createTokensV2>
 export interface AnchoredMenuController {
   anchorRef: RefObject<View | null>
   visible: boolean
+  isClosing: boolean
+  openRevision: number
   anchorRect: MenuAnchorRect | null
   open: () => void
   close: () => void
+  finishClose: () => void
   toggle: () => void
 }
 
 export function useAnchoredMenu(): AnchoredMenuController {
   const anchorRef = useRef<View>(null)
-  const [visible, setVisible] = useState(false)
+  const [phase, setPhase] = useState<'closed' | 'open' | 'closing'>('closed')
+  const [openRevision, setOpenRevision] = useState(0)
   const [anchorRect, setAnchorRect] = useState<MenuAnchorRect | null>(null)
 
   const measureAnchor = useCallback(() => {
@@ -58,24 +62,27 @@ export function useAnchoredMenu(): AnchoredMenuController {
   }, [])
 
   const open = useCallback(() => {
-    setVisible(true)
+    setPhase('open')
+    setOpenRevision((revision) => revision + 1)
     measureAnchor()
   }, [measureAnchor])
 
   const close = useCallback(() => {
-    setVisible(false)
+    setPhase((current) => current === 'open' ? 'closing' : current)
+  }, [])
+
+  const finishClose = useCallback(() => {
+    setPhase((current) => current === 'closing' ? 'closed' : current)
   }, [])
 
   const toggle = useCallback(() => {
-    if (visible) {
-      setVisible(false)
-      return
-    }
-    setVisible(true)
-    measureAnchor()
-  }, [measureAnchor, visible])
+    open()
+  }, [open])
 
-  return { anchorRef, visible, anchorRect, open, close, toggle }
+  return {
+    anchorRef, visible: phase === 'open', isClosing: phase === 'closing',
+    openRevision, anchorRect, open, close, finishClose, toggle,
+  }
 }
 
 interface MenuAnchorHostProps {
@@ -106,8 +113,11 @@ export function MenuAnchorHost({
 
 interface AnchoredMenuProps {
   visible: boolean
+  isClosing: boolean
+  openRevision: number
   anchorRect: MenuAnchorRect | null
   onClose: () => void
+  onCloseComplete: () => void
   children: ReactNode
   width?: number
   estimatedHeight?: number
@@ -116,8 +126,11 @@ interface AnchoredMenuProps {
 
 export function AnchoredMenu({
   visible,
+  isClosing,
+  openRevision,
   anchorRect,
   onClose,
+  onCloseComplete,
   children,
   width = 200,
   estimatedHeight = 220,
@@ -131,19 +144,8 @@ export function AnchoredMenu({
   const menuMotion = useResolvedMotionPreset('menu')
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [menuHeight, setMenuHeight] = useState(estimatedHeight)
-  const [shouldRender, setShouldRender] = useState(visible)
   const progress = useMemo(() => new Animated.Value(0), [])
-
-  const [prevVisible, setPrevVisible] = useState(visible)
-  const [prevEstimatedHeight, setPrevEstimatedHeight] = useState(estimatedHeight)
-  if (visible !== prevVisible || estimatedHeight !== prevEstimatedHeight) {
-    setPrevVisible(visible)
-    setPrevEstimatedHeight(estimatedHeight)
-    if (visible) {
-      setMenuHeight(estimatedHeight)
-      if (visible !== prevVisible) setShouldRender(true)
-    }
-  }
+  const closeToken = useRef(0)
 
   // react-doctor-disable-next-line advanced-event-handler-refs -- onClose is a stable menu-close callback; the listener re-subscribes only if the trigger passes a new handler and must track `visible` to add/remove, so the re-subscribe is a cheap one-shot rotation dismiss https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
@@ -158,6 +160,7 @@ export function AnchoredMenu({
 
   useEffect(() => {
     if (visible) {
+      closeToken.current += 1
       Animated.timing(progress, {
         toValue: 1,
         duration: menuMotion.enterDuration,
@@ -167,17 +170,20 @@ export function AnchoredMenu({
       return
     }
 
+    if (!isClosing) return
+    const token = ++closeToken.current
+
     Animated.timing(progress, {
       toValue: 0,
       duration: menuMotion.exitDuration,
       easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) {
-        setShouldRender(false)
+      if (finished && closeToken.current === token) {
+        onCloseComplete()
       }
     })
-  }, [menuMotion.enterDuration, menuMotion.exitDuration, progress, visible])
+  }, [isClosing, menuMotion.enterDuration, menuMotion.exitDuration, onCloseComplete, progress, visible])
 
   const position = useMemo(() => {
     // react-doctor-disable-next-line rn-no-dimensions-get -- the menu dismisses on any dimension change (see the close effect above), so this open-time window snapshot never goes stale https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -191,7 +197,7 @@ export function AnchoredMenu({
     })
   }, [anchorRect, menuHeight, width])
 
-  if (!shouldRender) {
+  if (!visible && !isClosing) {
     return null
   }
 
@@ -210,6 +216,7 @@ export function AnchoredMenu({
 
   return (
     <Modal
+      key={openRevision}
       visible
       transparent
       animationType="none"

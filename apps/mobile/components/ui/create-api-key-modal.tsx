@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -303,10 +303,11 @@ export function CreateApiKeyModal({
 
   const isRevealState = createdKey !== null
 
-  const [prevOpen, setPrevOpen] = useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (!open) {
+  const previousOpen = useRef(open)
+  useEffect(() => {
+    const wasOpen = previousOpen.current
+    previousOpen.current = open
+    if (!open && wasOpen) void Promise.resolve().then(() => {
       setKeyName('')
       setSelectedScopes([])
       setIsReadOnly(false)
@@ -315,8 +316,8 @@ export function CreateApiKeyModal({
       setIsSubmitting(false)
       setCreatedKey(null)
       setCopied(false)
-    }
-  }
+    })
+  }, [open])
 
   const validate = useCallback((): boolean => {
     setValidationError('')

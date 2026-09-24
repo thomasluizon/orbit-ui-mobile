@@ -75,14 +75,11 @@ export default function RetrospectiveScreen() {
     }
   }, [hasProAccess, profile, router])
 
-  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey)
-  if (cacheKey !== prevCacheKey) {
-    setPrevCacheKey(cacheKey)
-    setIsCacheLoading(true)
-  }
-
   useEffect(() => {
     let active = true
+    void Promise.resolve().then(() => {
+      if (active) setIsCacheLoading(true)
+    })
 
     void AsyncStorage.getItem(cacheKey)
       .then((value) => {

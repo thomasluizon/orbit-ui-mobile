@@ -154,8 +154,6 @@ vi.mock('@/lib/offline-queue', () => ({
   replaceEntityReferences: mocks.replaceEntityReferences,
 }))
 
-vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
-
 vi.mock('@/stores/offline-sync-store', () => ({
   useOfflineSyncStore: {
     getState: () => ({ addDrop: vi.fn() }),
@@ -209,7 +207,8 @@ describe('offline mutations', () => {
     mocks.markOfflineTombstone.mockClear()
     mocks.resolveOfflineEntity.mockClear()
     mocks.getResolvedEntityId.mockClear()
-    mocks.persistQueryCache.mockClear()
+    mocks.persistQueryCache.mockReset()
+    mocks.persistQueryCache.mockResolvedValue(undefined)
     mocks.invalidateQueries.mockClear()
     mocks.apiClient.mockReset()
     mocks.apiClient.mockImplementation((endpoint: string) =>
@@ -1245,9 +1244,18 @@ describe('offline mutations', () => {
     it('settles and reports a second persistence rejection from a timer retry', async () => {
       mocks.setOnline(true)
       mocks.apiClient.mockRejectedValue(new Error('Network request failed'))
-      mocks.persistQueryCache
-        .mockRejectedValueOnce(new Error('Initial queue persistence failed'))
-        .mockRejectedValueOnce(new Error('Timer queue persistence failed'))
+      let persistenceAttempts = 0
+      mocks.persistQueryCache.mockImplementation(() => {
+        persistenceAttempts += 1
+        return Promise.reject(new Error(
+          persistenceAttempts === 1
+            ? 'Initial queue persistence failed'
+            : 'Timer queue persistence failed',
+        ))
+      })
+      const timerErrorReported = new Promise<unknown>((resolve) => {
+        mocks.captureError.mockImplementationOnce(resolve)
+      })
       mocks.queued.push({
         ...buildQueuedMutation({
           type: 'updateHabit',
@@ -1270,7 +1278,11 @@ describe('offline mutations', () => {
       try {
         await expect(flushQueuedMutations()).rejects.toThrow('Initial queue persistence failed')
         await vi.advanceTimersByTimeAsync(2_000)
-        await new Promise<void>((resolve) => nativeSetImmediate(resolve))
+        expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+        expect(mocks.persistQueryCache).toHaveBeenCalledTimes(2)
+        await expect(timerErrorReported).resolves.toMatchObject({
+          message: 'Timer queue persistence failed',
+        })
 
         expect(unhandledRejections).toEqual([])
         expect(mocks.captureError).toHaveBeenCalledWith(

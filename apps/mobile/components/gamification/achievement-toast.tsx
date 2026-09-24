@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef, useCallback, useEffectEvent } from 'react'
+import { useMemo, useEffect, useRef, useCallback, useEffectEvent } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Trophy } from 'lucide-react-native'
@@ -30,16 +30,13 @@ export function AchievementToast() {
   const activeCelebration = useUIStore((s) => s.activeCelebration)
   const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
   const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
-  const [currentAchievement, setCurrentAchievement] = useState<{
-    achievementId: string
-    xpReward: number
-  } | null>(null)
   const translateY = useMemo(() => new Animated.Value(-100), [])
   const opacity = useMemo(() => new Animated.Value(0), [])
   const scale = useMemo(() => new Animated.Value(0.96), [])
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeAchievement =
     activeCelebration?.kind === 'achievement' ? activeCelebration : null
+  const currentAchievement = activeAchievement?.payload ?? null
 
   const dismiss = useCallback(
     (id?: string) => {
@@ -66,7 +63,6 @@ export function AchievementToast() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        setCurrentAchievement(null)
         completeActiveCelebration(id)
       })
     },
@@ -89,18 +85,6 @@ export function AchievementToast() {
 
     invalidate()
   }, [enqueueCelebration, invalidate, newAchievements])
-
-  const [prevActiveAchievement, setPrevActiveAchievement] =
-    useState(activeAchievement)
-  if (activeAchievement !== prevActiveAchievement) {
-    setPrevActiveAchievement(activeAchievement)
-    if (activeAchievement) {
-      setCurrentAchievement({
-        achievementId: activeAchievement.payload.achievementId,
-        xpReward: activeAchievement.payload.xpReward,
-      })
-    }
-  }
 
   useEffect(() => {
     if (!activeAchievement) return

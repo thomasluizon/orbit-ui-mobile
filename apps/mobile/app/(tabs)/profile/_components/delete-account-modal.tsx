@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import {
   View,
   Text,
@@ -296,18 +296,18 @@ export function DeleteAccountModal({
   const [deleteError, setDeleteError] = useState('')
   const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
   const deleteCodeRefs = useRef<(TextInput | null)[]>([])
-  const [prevOpen, setPrevOpen] = useState(open)
-
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) {
+  const previousOpen = useRef(open)
+  useEffect(() => {
+    const wasOpen = previousOpen.current
+    previousOpen.current = open
+    if (open && !wasOpen) void Promise.resolve().then(() => {
       setDeleteStep('confirm')
       setDeleteCodeDigits(['', '', '', '', '', ''])
       setDeleteError('')
       setDeleteLoading(false)
       setScheduledDeletionDate(null)
-    }
-  }
+    })
+  }, [open])
 
   function backToDeleteConfirmStep() {
     setDeleteStep('confirm')

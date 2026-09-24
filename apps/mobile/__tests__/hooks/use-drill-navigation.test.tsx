@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BackHandler } from '../../test-mocks/react-native'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitDetail, HabitDetailChild, NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { useDrillNavigation, type DrillNavigationState } from '@/hooks/use-drill-navigation'
 
 const TestRenderer = require('react-test-renderer')
@@ -74,13 +75,14 @@ interface DrillHarness {
 function renderDrill(
   habitsById: Map<string, NormalizedHabit> = new Map(),
   lastUpdated = 1,
+  visibilityOptions?: HabitVisibilityOptions,
 ): DrillHarness {
   const holder = { current: null as unknown as DrillNavigationState }
   function Harness({
     habitsById: byId,
     lastUpdated: updated,
   }: Readonly<{ habitsById: Map<string, NormalizedHabit>; lastUpdated: number }>) {
-    holder.current = useDrillNavigation(byId, updated)
+    holder.current = useDrillNavigation(byId, updated, visibilityOptions, 'today')
     return null
   }
   let root: { update: (element: React.ReactElement) => void } | null = null
@@ -108,6 +110,53 @@ async function actAsync(callback: () => Promise<void>): Promise<void> {
 describe('mobile useDrillNavigation', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
+  })
+
+  it('hides current-day overdue detail-only children on an earlier selected date', async () => {
+    mocks.apiClient.mockResolvedValue(makeDetail({ children: [
+      makeChild({ id: 'overdue-child', dueDate: '2025-01-02', isOverdue: true }),
+    ] }))
+    const options = {
+      habitsById: new Map<string, NormalizedHabit>(),
+      childrenByParent: new Map<string, string[]>(),
+      selectedDate: '2025-01-01', searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+    const { holder } = renderDrill(new Map(), 1, options)
+    await actAsync(() => holder.current.drillInto('p1'))
+
+    expect(holder.current.drillChildren).toEqual([])
+  })
+
+  it('hides completed detail children and shows them when requested', async () => {
+    const date = '2026-07-13'
+    const children = [
+      makeChild({ id: 'one-time', isCompleted: true }),
+      makeChild({ id: 'recurring', frequencyUnit: 'Day', isCompleted: true }),
+    ]
+    const habitsById = new Map<string, NormalizedHabit>(children.map((child) => [
+      child.id,
+      createMockHabit({
+        id: child.id, parentId: 'p1', frequencyUnit: child.frequencyUnit,
+        isCompleted: child.isCompleted, isLoggedInRange: true,
+        scheduledDates: [date],
+      }),
+    ]))
+    const options = {
+      habitsById, childrenByParent: new Map([['p1', children.map((child) => child.id)]]),
+      selectedDate: date, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+    mocks.apiClient.mockResolvedValue(makeDetail({ children }))
+    const hidden = renderDrill(habitsById, 1, options)
+    await actAsync(() => hidden.holder.current.drillInto('p1'))
+    expect(hidden.holder.current.drillChildren).toEqual([])
+
+    const shown = renderDrill(habitsById, 1, { ...options, showCompleted: true })
+    await actAsync(() => shown.holder.current.drillInto('p1'))
+    expect(shown.holder.current.drillChildren.map((child) => child.id)).toEqual([
+      'one-time', 'recurring',
+    ])
   })
 
   it('drills into a habit, fetching and normalizing its children', async () => {

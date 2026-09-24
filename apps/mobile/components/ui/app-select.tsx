@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the select transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
@@ -71,7 +71,10 @@ export function AppSelect({
   label,
 }: Readonly<AppSelectProps>) {
   const [isOpen, setIsOpen] = useState(false)
-  const [visible, setVisible] = useState(false)
+  const [visibleDuringExit, setVisibleDuringExit] = useState(false)
+  const visible = isOpen || visibleDuringExit
+  const transitionToken = useRef(0)
+  const hasOpened = useRef(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -81,15 +84,14 @@ export function AppSelect({
   const dialogMotion = useResolvedMotionPreset('dialog')
   const progress = useMemo(() => new Animated.Value(0), [])
 
-  const [prevOpen, setPrevOpen] = useState(isOpen)
-  if (isOpen !== prevOpen) {
-    setPrevOpen(isOpen)
-    if (isOpen) setVisible(true)
-  }
-
   // react-doctor-disable-next-line no-event-handler -- mount/exit-animation orchestration: `visible` keeps the Modal mounted through the exit timing driven by the isOpen transition; not a synthetic event handler https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
+    const token = ++transitionToken.current
     if (isOpen) {
+      hasOpened.current = true
+      void Promise.resolve().then(() => {
+        if (transitionToken.current === token) setVisibleDuringExit(true)
+      })
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,
@@ -99,14 +101,17 @@ export function AppSelect({
       return
     }
 
+    if (!hasOpened.current) return
+
     Animated.timing(progress, {
       toValue: 0,
       duration: dialogMotion.exitDuration,
       easing: toAnimatedEasing(dialogMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) {
-        setVisible(false)
+      if (finished && transitionToken.current === token) {
+        hasOpened.current = false
+        setVisibleDuringExit(false)
       }
     })
   }, [
