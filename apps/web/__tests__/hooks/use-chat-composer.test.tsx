@@ -75,6 +75,7 @@ vi.mock('@/app/actions/chat', () => ({
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useAuthStore } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
@@ -180,6 +181,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: false, contextualSuggestion: null })
+    useUIStore.getState().setAstraConversationOpen(false)
     globalThis.localStorage.clear()
     vi.stubGlobal('fetch', mocks.fetch)
   })
@@ -188,6 +190,33 @@ describe('web useChatComposer streaming send', () => {
     useThrottleStore.getState().clear()
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it('sends Support entry intent on the first and later requests of that conversation', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    useUIStore.getState().setAstraConversationOpen(true, 'support')
+
+    await act(async () => { await result.current.sendMessage('my streak reset') })
+    await act(async () => { await result.current.sendMessage('can you help?') })
+
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    for (const [, request] of mocks.fetch.mock.calls) {
+      const context = JSON.parse((request.body as FormData).get('clientContext') as string)
+      expect(context.entryPointIntent).toBe('support')
+    }
+  })
+
+  it('omits Support entry intent from a normal conversation', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    useUIStore.getState().setAstraConversationOpen(true)
+
+    await act(async () => { await result.current.sendMessage('log water') })
+
+    const [, request] = mocks.fetch.mock.calls[0]!
+    const context = JSON.parse((request.body as FormData).get('clientContext') as string)
+    expect(context).not.toHaveProperty('entryPointIntent')
   })
 
   it('publishes the stream refusal deadline without replaying the send', async () => {

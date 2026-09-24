@@ -13,6 +13,7 @@ import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
@@ -238,10 +239,38 @@ describe('mobile useChatComposer', () => {
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: true, contextualSuggestion: null })
+    useUIStore.getState().setAstraConversationOpen(false)
   })
 
   afterEach(() => {
     for (const tree of mountedTrees.splice(0)) tree.unmount()
+  })
+
+  it('sends Support entry intent on the first and later requests of that conversation', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    useUIStore.getState().setAstraConversationOpen(true, 'support')
+
+    await TestRenderer.act(async () => { await composer.current.sendMessage('my streak reset') })
+    await TestRenderer.act(async () => { await composer.current.sendMessage('can you help?') })
+
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    for (const [formData] of mocks.openChatStream.mock.calls) {
+      const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
+      expect(context.entryPointIntent).toBe('support')
+    }
+  })
+
+  it('omits Support entry intent from a normal conversation', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    useUIStore.getState().setAstraConversationOpen(true)
+
+    await TestRenderer.act(async () => { await composer.current.sendMessage('log water') })
+
+    const [formData] = mocks.openChatStream.mock.calls[0]!
+    const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
+    expect(context).not.toHaveProperty('entryPointIntent')
   })
 
   it('streams deltas into a single ai bubble and the final response wins', async () => {
