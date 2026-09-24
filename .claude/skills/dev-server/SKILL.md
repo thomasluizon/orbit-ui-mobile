@@ -14,7 +14,7 @@ Brings up the three tiers **in order, each gated on the previous being ready**: 
 | Tier | Where | Command | URL / port |
 |---|---|---|---|
 | DB | Docker container `orbit-postgres` (`postgres:17`) | `docker start orbit-postgres` | `localhost:5432` |
-| API | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` | `dotnet run --project src/Orbit.Api` | http://localhost:5000 |
+| API | `/Users/thomaslrgregoriogmail.com/Developer/orbit-api` | `dotnet run --project src/Orbit.Api` | http://localhost:5000 |
 | Web | current Orbit UI checkout | `npm run web` | `http://localhost:<worktree web port>` |
 
 - DB connection (from `appsettings.Development.json`): `Host=localhost;Port=5432;Database=orbit;Username=postgres;Password=postgres`.
@@ -44,7 +44,7 @@ Brings up the three tiers **in order, each gated on the previous being ready**: 
 
 Normally a no-op: the API **auto-applies migrations on startup** in Development (Step 3), so skip this. Only run a manual apply if you need the schema current before booting the API — and note `dotnet ef` does NOT load `appsettings.Development.json` (it reads the empty base `appsettings.json`), so you MUST pass the connection string explicitly:
 ```bash
-cd "C:/Users/thoma/Documents/Programming/Projects/orbit-api"
+cd "/Users/thomaslrgregoriogmail.com/Developer/orbit-api"
 dotnet ef database update --project src/Orbit.Infrastructure --startup-project src/Orbit.Api \
   --connection "Host=localhost;Port=5432;Database=orbit;Username=postgres;Password=postgres"
 ```
@@ -53,7 +53,7 @@ dotnet ef database update --project src/Orbit.Infrastructure --startup-project s
 ## Step 3 — API (background, gated)
 
 ```bash
-cd "C:/Users/thoma/Documents/Programming/Projects/orbit-api"
+cd "/Users/thomaslrgregoriogmail.com/Developer/orbit-api"
 dotnet run --project src/Orbit.Api
 ```
 Launch it with `run_in_background: true`. Then gate on health: poll `http://localhost:5000/health` until 200 (the XpAwardLog backfill runs on first startup — allow ~60s). Do not proceed to web until the API answers.

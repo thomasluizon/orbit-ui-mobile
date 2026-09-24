@@ -5,20 +5,18 @@
       "command": "codex",
       "args": [
         "exec",
-        "-c",
-        "windows.sandbox=\"unelevated\"",
         "--dangerously-bypass-approvals-and-sandbox"
       ],
       "models": {
         "default": {
-          "model": "gpt-5.6-sol",
+          "model": "gpt-6-sol",
           "args": [
             "-c",
             "model_reasoning_effort=\"high\""
           ]
         },
         "mechanical": {
-          "model": "gpt-5.6-sol",
+          "model": "gpt-6-sol",
           "args": [
             "-c",
             "model_reasoning_effort=\"medium\""
@@ -58,7 +56,7 @@
     "pollSeconds": 60
   },
   "caps": {
-    "parallelTickets": 3,
+    "parallelTickets": 6,
     "cloudParallelTasks": 8,
     "reviewFixAttempts": 3,
     "workerLaunchesPerBranch": 2,
@@ -91,8 +89,8 @@
     }
   },
   "repos": {
-    "ui": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-ui-mobile",
-    "api": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-api",
-    "landing": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-landing-page"
+    "ui": "/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile",
+    "api": "/Users/thomaslrgregoriogmail.com/Developer/orbit-api",
+    "landing": "/Users/thomaslrgregoriogmail.com/Developer/orbit-landing-page"
   }
 }

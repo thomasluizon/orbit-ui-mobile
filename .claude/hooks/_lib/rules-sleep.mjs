@@ -60,6 +60,22 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
    */
   const hasRecordedBlocker = (entry) => typeof entry.blocker === "string" && entry.blocker !== ""
   /**
+   * A MACHINE RESOURCE is never a blocker. It is a reason to use fewer workers.
+   *
+   * Measured 2026-09-19: the low-memory guard reaped two workers mid-round, the run recorded that as
+   * a blocker on both rows, and this function let it end BLOCKED with a pull request approved and
+   * one body edit from merging. Thomas: "YOU CANT END A RUN BECAUSE OF A MEMORY HOOK ... if you have
+   * memory problems, just use less workers or some shit, but never end the run".
+   *
+   * The distinction is whether the limit is external and unarguable. An exhausted API allowance is:
+   * no amount of care makes it resolve before it resets. Memory, disk and CPU are not: they are
+   * consequences of how much this run chose to start at once, so the answer is to start less and
+   * keep going. Letting them end a night makes "the box was busy" a synonym for "the work is done".
+   */
+  const MACHINE_PRESSURE =
+    /\b(low[- ](?:on[- ])?memory|out of memory|memory pressure|oom|reaped?|reaper|disk (?:space|full)|enospc|cpu pressure)\b/i
+  const isMachinePressureBlocker = (entry) => hasRecordedBlocker(entry) && MACHINE_PRESSURE.test(entry.blocker)
+  /**
    * A MERGED pull request is finished, and neither READY nor BLOCKED describes it.
    *
    * Measured 2026-09-18 by driving this function: a run that merged a pull request under the step 9
@@ -111,6 +127,22 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
      * 11's report carries the merge shas beside it.
      */
     if (live.length > 0) return null
+    const machinePressure = blockedPullRequests.filter(isMachinePressureBlocker)
+    if (machinePressure.length > 0) {
+      return {
+        block: true,
+        message:
+          `A MACHINE RESOURCE IS NOT A BLOCKER. ${machinePressure.length} row(s) record one:\n\n` +
+          machinePressure.map((entry) => `  ${entry.repositoryKey}#${entry.prNumber}: ${entry.blocker}`).join("\n") +
+          "\n\nMemory, disk and CPU are consequences of how much this run started at once, not\n" +
+          "external limits it cannot argue with. An exhausted API allowance resets on a clock and\n" +
+          "no care makes it come back sooner; a reaped worker comes back the moment you start one.\n\n" +
+          "USE FEWER WORKERS AND KEEP GOING. Drop to a single worker, relaunch the round that was\n" +
+          "reaped, and let the review subagents wait their turn. The worktree still holds its work,\n" +
+          "so nothing is lost by relaunching and everything is lost by stopping.\n\n" +
+          "Then clear that blocker string. It is not one.",
+      }
+    }
     if (blockedPullRequests.length > 0) {
       return {
         block: false,
