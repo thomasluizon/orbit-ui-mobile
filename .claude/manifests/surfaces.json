@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "fd5b2d45879a4f348872ae648a52ff5b4b0bb718",
+  "generatedFrom": "4678f21f06010b7f1f47fbb9cb24f11aa7e3c535",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -5962,7 +5962,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 301,
+      "closureSize": 302,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -5988,7 +5988,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 301,
+      "closureSize": 302,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -6014,7 +6014,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 301,
+      "closureSize": 302,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -6040,7 +6040,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 301,
+      "closureSize": 302,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6718,7 +6718,7 @@
         "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 291,
+      "closureSize": 292,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -6740,7 +6740,7 @@
         "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 291,
+      "closureSize": 292,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -6762,7 +6762,7 @@
         "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 291,
+      "closureSize": 292,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -6784,7 +6784,7 @@
         "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 291,
+      "closureSize": 292,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6806,7 +6806,7 @@
         "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 291,
+      "closureSize": 292,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -6828,7 +6828,7 @@
         "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 291,
+      "closureSize": 292,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -6850,7 +6850,7 @@
         "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 291,
+      "closureSize": 292,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -6872,7 +6872,7 @@
         "apps/mobile/hooks/use-calendars.ts",
         "apps/mobile/lib/calendar-sync-state.ts"
       ],
-      "closureSize": 291,
+      "closureSize": 292,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"

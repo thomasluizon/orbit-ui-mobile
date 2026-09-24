@@ -13,6 +13,16 @@ import {
   useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
 
+vi.mock('react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react')>()),
+  useEffect: () => {},
+  useState: (value: unknown) => [value, () => {}],
+}))
+
+vi.mock('@/hooks/use-session-reset', () => ({
+  useAccountGeneration: () => getAccountGeneration(),
+}))
+
 
 const mocks = vi.hoisted(() => {
   type Store = {
@@ -273,7 +283,7 @@ describe('mobile calendar auto-sync hooks', () => {
   it('useRunCalendarSyncNow invalidates calendar and notification queries on settle', async () => {
     const mutation = (await import('@/hooks/use-calendar-auto-sync')).useRunCalendarSyncNow() as unknown as MutationConfig<
       CalendarAutoSyncResult,
-      void,
+      number,
       undefined
     >
 
@@ -283,8 +293,8 @@ describe('mobile calendar auto-sync hooks', () => {
       status: 'Idle',
     })
 
-    const result = await mutation.mutationFn(undefined)
-    mutation.onSettled?.(result, null, undefined, undefined)
+    const result = await mutation.mutationFn(getAccountGeneration())
+    mutation.onSettled?.(result, null, getAccountGeneration(), undefined)
 
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: calendarKeys.all,

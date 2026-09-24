@@ -1,6 +1,8 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
+import { toast } from 'sonner'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import {
   buildCalendarMonthModel,
   CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
@@ -827,6 +829,22 @@ describe('CalendarPage view switcher', () => {
 
     expect(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
       .toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('drops the previous account day-detail toggle error after replacement', async () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    let failFirst!: (error: Error) => void
+    setAutoSync.mockImplementationOnce(() => new Promise((_resolve, reject) => { failFirst = reject }))
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByTestId('month-view'))
+    let first!: Promise<void>
+    act(() => { first = calendarDayDetailProps.onCalendarAutoSyncChange!(false) })
+    await waitFor(() => expect(setAutoSync).toHaveBeenCalledTimes(1))
+    act(() => advanceAccountGeneration())
+    await act(async () => { await calendarDayDetailProps.onCalendarAutoSyncChange!(true) })
+    expect(setAutoSync).toHaveBeenCalledTimes(2)
+    await act(async () => { failFirst(new Error('old failure')); await first })
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it('keeps the calendar usable and offers habit creation for an empty current month', () => {

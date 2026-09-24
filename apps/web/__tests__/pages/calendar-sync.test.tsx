@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { toast } from 'sonner'
@@ -120,6 +120,7 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
   }),
   useDismissCalendarSuggestion: () => ({
     mutate: mockDismissSuggestion,
+    mutateAsync: mockDismissSuggestion,
     isPending: false,
   }),
 }))
@@ -695,6 +696,26 @@ describe('CalendarSyncPage', () => {
 
     expect(toast.error).not.toHaveBeenCalled()
     expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
+  })
+
+  it('does not show a previous account suggestion error after replacement', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [{
+        id: 'sug-1',
+        event: { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+      }],
+      isLoading: false,
+    }
+    holdAccount('user-1')
+    let failDismiss!: (error: Error) => void
+    mockDismissSuggestion.mockImplementationOnce(() => new Promise((_resolve, reject) => { failDismiss = reject }))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'calendar.autoSync.dismissSuggestion' }))
+    await waitFor(() => expect(mockDismissSuggestion).toHaveBeenCalledWith({ id: 'sug-1' }))
+    await replaceAccountWith('user-2')
+    await act(async () => { failDismiss(new Error('old failure')); await Promise.resolve() })
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it('invalidates sync suggestions after a review-mode import', async () => {

@@ -45,6 +45,7 @@ import {
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   useCalendarAutoSyncState,
   useSetCalendarAutoSync,
@@ -379,9 +380,11 @@ function CalendarPageContent({
   const setCalendarAutoSync = useSetCalendarAutoSync()
 
   const handleCalendarAutoSyncChange = useCallback(async (enabled: boolean) => {
+    const requestAccount = getAccountGeneration()
     try {
       await setCalendarAutoSync.mutateAsync({ enabled })
     } catch (error: unknown) {
+      if (getAccountGeneration() !== requestAccount) return
       toast.error(getFriendlyErrorMessage(
         error,
         t,

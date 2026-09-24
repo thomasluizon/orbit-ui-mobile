@@ -5,6 +5,7 @@ import React from 'react'
 import {
   useCalendarAutoSyncState,
   useDismissCalendarSuggestion,
+  useRunCalendarSyncNow,
   useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
 import { calendarKeys } from '@orbit/shared/query'
@@ -249,7 +250,7 @@ describe('useSetCalendarAutoSync', () => {
       client.setQueryData(calendarKeys.autoSyncState(), accountBState)
       finishRequest({ ok: false, status: 500, json: () => Promise.resolve({ error: 'failed' }) })
     })
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    await waitFor(() => expect(result.current.isError).toBe(false))
 
     expect(client.getQueryData(calendarKeys.autoSyncState())).toEqual(accountBState)
   })
@@ -273,6 +274,39 @@ describe('useSetCalendarAutoSync', () => {
     await act(async () => { finishCancellation(); await toggle })
 
     expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it.each([true, false])('lets the next account toggle before the previous %s response settles', async (succeeds) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    const { Wrapper } = createWrapper(client)
+    let finishFirst!: (response: unknown) => void
+    let finishSecond!: (response: unknown) => void
+    mockFetch
+      .mockReturnValueOnce(new Promise((resolve) => { finishFirst = resolve }))
+      .mockReturnValueOnce(new Promise((resolve) => { finishSecond = resolve }))
+    const { result } = renderHook(() => useSetCalendarAutoSync(), { wrapper: Wrapper })
+
+    let first!: Promise<void>
+    act(() => { first = result.current.mutateAsync({ enabled: true }) })
+    await waitFor(() => expect(result.current.isPending).toBe(true))
+    act(() => advanceAccountGeneration())
+    await waitFor(() => expect(result.current.isPending).toBe(false))
+
+    let second!: Promise<void>
+    act(() => { second = result.current.mutateAsync({ enabled: false }) })
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+    expect(result.current.isPending).toBe(true)
+
+    await act(async () => {
+      finishFirst({ ok: succeeds, status: succeeds ? 204 : 500, json: () => Promise.resolve({ error: 'old failure' }) })
+      await first.catch(() => undefined)
+    })
+    expect(result.current.isPending).toBe(true)
+    await act(async () => {
+      finishSecond({ ok: true, status: 204, json: () => Promise.resolve(null) })
+      await second
+    })
+    await waitFor(() => expect(result.current.isPending).toBe(false))
   })
 })
 
@@ -359,7 +393,7 @@ describe('useDismissCalendarSuggestion', () => {
       client.setQueryData(calendarKeys.syncSuggestions(), accountBSuggestions)
       finishRequest({ ok: false, status: 500, json: () => Promise.resolve({ error: 'failed' }) })
     })
-    await waitFor(() => expect(result.current.isError).toBe(true))
+    await waitFor(() => expect(result.current.isError).toBe(false))
 
     expect(client.getQueryData(calendarKeys.syncSuggestions())).toEqual(accountBSuggestions)
   })
@@ -383,5 +417,55 @@ describe('useDismissCalendarSuggestion', () => {
     await act(async () => { finishCancellation(); await dismiss })
 
     expect(mockFetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('remaining calendar mutations', () => {
+  beforeEach(() => { mockFetch.mockReset() })
+
+  it('retires a pending manual sync and ignores its late cache invalidation', async () => {
+    const { Wrapper, client } = createWrapper()
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    let finishFirst!: (response: unknown) => void
+    mockFetch.mockReturnValueOnce(new Promise((resolve) => { finishFirst = resolve }))
+    const { result } = renderHook(() => useRunCalendarSyncNow(), { wrapper: Wrapper })
+    let first!: Promise<unknown>
+    act(() => { first = result.current.mutateAsync() })
+    await waitFor(() => expect(result.current.isPending).toBe(true))
+    act(() => advanceAccountGeneration())
+    expect(result.current.isPending).toBe(false)
+    await act(async () => {
+      finishFirst({ ok: true, status: 200, json: () => Promise.resolve({ newSuggestions: 1, reconciledHabits: 0, status: 'Idle' }) })
+      await first
+    })
+    expect(invalidate).not.toHaveBeenCalled()
+  })
+
+  it('retires a pending suggestion dismissal before the next account dismisses', async () => {
+    const { Wrapper } = createWrapper()
+    let finishFirst!: (response: unknown) => void
+    let finishSecond!: (response: unknown) => void
+    mockFetch
+      .mockReturnValueOnce(new Promise((resolve) => { finishFirst = resolve }))
+      .mockReturnValueOnce(new Promise((resolve) => { finishSecond = resolve }))
+    const { result } = renderHook(() => useDismissCalendarSuggestion(), { wrapper: Wrapper })
+    let first!: Promise<void>
+    act(() => { first = result.current.mutateAsync({ id: 'sugg-1' }) })
+    await waitFor(() => expect(result.current.isPending).toBe(true))
+    act(() => advanceAccountGeneration())
+    expect(result.current.isPending).toBe(false)
+    let second!: Promise<void>
+    act(() => { second = result.current.mutateAsync({ id: 'sugg-2' }) })
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+    await act(async () => {
+      finishFirst({ ok: true, status: 204 })
+      await first
+    })
+    expect(result.current.isPending).toBe(true)
+    await act(async () => {
+      finishSecond({ ok: true, status: 204 })
+      await second
+    })
+    await waitFor(() => expect(result.current.isPending).toBe(false))
   })
 })
