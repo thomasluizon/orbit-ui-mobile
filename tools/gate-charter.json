@@ -75,7 +75,7 @@
     "constants": "none"
   },
   ".github/workflows/guards.yml#gate-charter": {
-    "scope": "invalid",
+    "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
   },
