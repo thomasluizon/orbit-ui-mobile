@@ -5,7 +5,7 @@ import type {
   CalendarAutoSyncResult,
   CalendarSyncSuggestion,
 } from '@orbit/shared/types/calendar'
-import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { advanceAccountGeneration, getAccountGeneration } from '@/lib/session-epoch'
 
 import {
   useCalendarAutoSyncState,
@@ -73,7 +73,16 @@ const mocks = vi.hoisted(() => {
     queryClient,
     useQuery: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
-    useMutation: vi.fn((config: unknown) => config),
+    useMutation: vi.fn((config: unknown) => {
+      const mutation = config as MutationConfig<unknown, unknown, unknown>
+      return {
+        ...mutation,
+        mutateAsync: async (variables: unknown) => {
+          await mutation.onMutate?.(variables)
+          return mutation.mutationFn(variables)
+        },
+      }
+    }),
     apiClient: vi.fn(),
   }
 })
@@ -182,7 +191,7 @@ describe('mobile calendar auto-sync hooks', () => {
   it('useSetCalendarAutoSync applies optimistic update then commits the server state', async () => {
     const mutation = useSetCalendarAutoSync() as unknown as MutationConfig<
       void,
-      { enabled: boolean },
+      { enabled: boolean; accountGeneration?: number },
       { previous: CalendarAutoSyncState | undefined }
     >
 
@@ -190,11 +199,11 @@ describe('mobile calendar auto-sync hooks', () => {
 
     mocks.apiClient.mockResolvedValue({ success: true })
 
-    const context = await mutation.onMutate?.({ enabled: true })
+    const context = await mutation.onMutate?.({ enabled: true, accountGeneration: getAccountGeneration() })
 
     expect(mocks.store.state.enabled).toBe(true)
 
-    const result = await mutation.mutationFn({ enabled: true })
+    const result = await mutation.mutationFn({ enabled: true, accountGeneration: getAccountGeneration() })
     mutation.onSettled?.(result, null, { enabled: true }, context)
 
     expect(mocks.apiClient).toHaveBeenCalledWith(
@@ -210,7 +219,7 @@ describe('mobile calendar auto-sync hooks', () => {
   it('useSetCalendarAutoSync rolls back the optimistic update when the mutation fails', async () => {
     const mutation = useSetCalendarAutoSync() as unknown as MutationConfig<
       void,
-      { enabled: boolean },
+      { enabled: boolean; accountGeneration?: number },
       { previous: CalendarAutoSyncState | undefined }
     >
 
@@ -219,11 +228,11 @@ describe('mobile calendar auto-sync hooks', () => {
 
     mocks.apiClient.mockRejectedValue(new Error('Toggle failed'))
 
-    const context = await mutation.onMutate?.({ enabled: true })
+    const context = await mutation.onMutate?.({ enabled: true, accountGeneration: getAccountGeneration() })
 
     expect(mocks.store.state.enabled).toBe(true)
 
-    await expect(mutation.mutationFn({ enabled: true })).rejects.toThrow('Toggle failed')
+    await expect(mutation.mutationFn({ enabled: true, accountGeneration: getAccountGeneration() })).rejects.toThrow('Toggle failed')
     mutation.onError?.(new Error('Toggle failed'), { enabled: true }, context)
 
     expect(mocks.store.state).toEqual(initialState)
@@ -232,10 +241,10 @@ describe('mobile calendar auto-sync hooks', () => {
   it('does not restore the previous account state after a late toggle failure', async () => {
     const mutation = useSetCalendarAutoSync() as unknown as MutationConfig<
       void,
-      { enabled: boolean },
+      { enabled: boolean; accountGeneration?: number },
       { previous: CalendarAutoSyncState | undefined }
     >
-    const context = await mutation.onMutate?.({ enabled: true })
+    const context = await mutation.onMutate?.({ enabled: true, accountGeneration: getAccountGeneration() })
     const accountBState = buildState({ hasGoogleConnection: false })
     advanceAccountGeneration()
     mocks.store.state = accountBState
@@ -245,6 +254,20 @@ describe('mobile calendar auto-sync hooks', () => {
 
     expect(mocks.store.state).toEqual(accountBState)
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('does not send a toggle after account replacement interrupts query cancellation', async () => {
+    const mutation = useSetCalendarAutoSync()
+    let finishCancellation!: () => void
+    mocks.queryClient.cancelQueries.mockReturnValueOnce(new Promise<void>((resolve) => {
+      finishCancellation = resolve
+    }))
+    const pendingMutation = mutation.mutateAsync({ enabled: true })
+    advanceAccountGeneration()
+    finishCancellation()
+    await pendingMutation
+
+    expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
   it('useRunCalendarSyncNow invalidates calendar and notification queries on settle', async () => {
@@ -274,17 +297,17 @@ describe('mobile calendar auto-sync hooks', () => {
   it('useDismissCalendarSuggestion optimistically removes the suggestion from the list', async () => {
     const mutation = useDismissCalendarSuggestion() as unknown as MutationConfig<
       void,
-      { id: string },
+      { id: string; accountGeneration?: number },
       { previous: CalendarSyncSuggestion[] | undefined }
     >
 
     mocks.apiClient.mockResolvedValue(undefined)
 
-    await mutation.onMutate?.({ id: 's-1' })
+    await mutation.onMutate?.({ id: 's-1', accountGeneration: getAccountGeneration() })
 
     expect(mocks.store.suggestions?.map((s) => s.id)).toEqual(['s-2'])
 
-    await mutation.mutationFn({ id: 's-1' })
+    await mutation.mutationFn({ id: 's-1', accountGeneration: getAccountGeneration() })
 
     expect(mocks.apiClient).toHaveBeenCalledWith(
       '/api/calendar/auto-sync/suggestions/s-1/dismiss',
@@ -295,7 +318,7 @@ describe('mobile calendar auto-sync hooks', () => {
   it('useDismissCalendarSuggestion restores the list when the api fails', async () => {
     const mutation = useDismissCalendarSuggestion() as unknown as MutationConfig<
       void,
-      { id: string },
+      { id: string; accountGeneration?: number },
       { previous: CalendarSyncSuggestion[] | undefined }
     >
 
@@ -304,10 +327,10 @@ describe('mobile calendar auto-sync hooks', () => {
 
     mocks.apiClient.mockRejectedValue(new Error('Dismiss failed'))
 
-    const context = await mutation.onMutate?.({ id: 's-1' })
+    const context = await mutation.onMutate?.({ id: 's-1', accountGeneration: getAccountGeneration() })
     expect(mocks.store.suggestions.map((s) => s.id)).toEqual(['s-2'])
 
-    await expect(mutation.mutationFn({ id: 's-1' })).rejects.toThrow('Dismiss failed')
+    await expect(mutation.mutationFn({ id: 's-1', accountGeneration: getAccountGeneration() })).rejects.toThrow('Dismiss failed')
     mutation.onError?.(new Error('Dismiss failed'), { id: 's-1' }, context)
 
     expect(mocks.store.suggestions.map((s) => s.id)).toEqual(['s-1', 's-2'])
@@ -316,10 +339,10 @@ describe('mobile calendar auto-sync hooks', () => {
   it('does not restore the previous account suggestions after a late failure', async () => {
     const mutation = useDismissCalendarSuggestion() as unknown as MutationConfig<
       void,
-      { id: string },
+      { id: string; accountGeneration?: number },
       { previous: CalendarSyncSuggestion[] | undefined }
     >
-    const context = await mutation.onMutate?.({ id: 's-1' })
+    const context = await mutation.onMutate?.({ id: 's-1', accountGeneration: getAccountGeneration() })
     const accountBSuggestions = [buildSuggestion('account-b')]
     advanceAccountGeneration()
     mocks.store.suggestions = accountBSuggestions
@@ -329,5 +352,19 @@ describe('mobile calendar auto-sync hooks', () => {
 
     expect(mocks.store.suggestions).toEqual(accountBSuggestions)
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('does not dismiss a suggestion after account replacement interrupts query cancellation', async () => {
+    const mutation = useDismissCalendarSuggestion()
+    let finishCancellation!: () => void
+    mocks.queryClient.cancelQueries.mockReturnValueOnce(new Promise<void>((resolve) => {
+      finishCancellation = resolve
+    }))
+    const pendingMutation = mutation.mutateAsync({ id: 's-1' })
+    advanceAccountGeneration()
+    finishCancellation()
+    await pendingMutation
+
+    expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 })

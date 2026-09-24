@@ -69,16 +69,16 @@ export function useCalendarSyncSuggestions(options?: CalendarQueryOptions) {
 export function useSetCalendarAutoSync() {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, { enabled: boolean }, {
+  const mutation = useMutation<void, Error, { enabled: boolean; accountGeneration: number }, {
     previous: CalendarAutoSyncState | undefined
     accountGeneration: number
   }>({
-    mutationFn: async ({ enabled }) => {
+    mutationFn: async ({ enabled, accountGeneration }) => {
+      if (accountGeneration !== getAccountGeneration()) return
       await setCalendarAutoSyncAction(enabled)
     },
 
-    onMutate: async ({ enabled }) => {
-      const accountGeneration = getAccountGeneration()
+    onMutate: async ({ enabled, accountGeneration }) => {
       await queryClient.cancelQueries({ queryKey: calendarKeys.autoSyncState() })
       if (getAccountGeneration() !== accountGeneration) {
         return { previous: undefined, accountGeneration }
@@ -109,6 +109,12 @@ export function useSetCalendarAutoSync() {
       void queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
     },
   })
+
+  return {
+    ...mutation,
+    mutate: (variables: { enabled: boolean }, options?: Parameters<typeof mutation.mutate>[1]) => mutation.mutate({ ...variables, accountGeneration: getAccountGeneration() }, options),
+    mutateAsync: (variables: { enabled: boolean }, options?: Parameters<typeof mutation.mutateAsync>[1]) => mutation.mutateAsync({ ...variables, accountGeneration: getAccountGeneration() }, options),
+  }
 }
 
 /**
@@ -138,16 +144,16 @@ export function useRunCalendarSyncNow() {
 export function useDismissCalendarSuggestion() {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, { id: string }, {
+  const mutation = useMutation<void, Error, { id: string; accountGeneration: number }, {
     previous: CalendarSyncSuggestion[] | undefined
     accountGeneration: number
   }>({
-    mutationFn: async ({ id }) => {
+    mutationFn: async ({ id, accountGeneration }) => {
+      if (accountGeneration !== getAccountGeneration()) return
       await dismissCalendarSuggestionAction(id)
     },
 
-    onMutate: async ({ id }) => {
-      const accountGeneration = getAccountGeneration()
+    onMutate: async ({ id, accountGeneration }) => {
       await queryClient.cancelQueries({ queryKey: calendarKeys.syncSuggestions() })
       if (getAccountGeneration() !== accountGeneration) {
         return { previous: undefined, accountGeneration }
@@ -178,4 +184,10 @@ export function useDismissCalendarSuggestion() {
       void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
     },
   })
+
+  return {
+    ...mutation,
+    mutate: (variables: { id: string }, options?: Parameters<typeof mutation.mutate>[1]) => mutation.mutate({ ...variables, accountGeneration: getAccountGeneration() }, options),
+    mutateAsync: (variables: { id: string }, options?: Parameters<typeof mutation.mutateAsync>[1]) => mutation.mutateAsync({ ...variables, accountGeneration: getAccountGeneration() }, options),
+  }
 }

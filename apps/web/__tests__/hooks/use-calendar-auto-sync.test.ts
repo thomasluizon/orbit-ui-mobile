@@ -253,6 +253,27 @@ describe('useSetCalendarAutoSync', () => {
 
     expect(client.getQueryData(calendarKeys.autoSyncState())).toEqual(accountBState)
   })
+
+  it('does not send a toggle after account replacement interrupts query cancellation', async () => {
+    mockEmptyResponse()
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    let finishCancellation!: () => void
+    vi.spyOn(client, 'cancelQueries').mockReturnValueOnce(new Promise<void>((resolve) => {
+      finishCancellation = resolve
+    }))
+    const { Wrapper } = createWrapper(client)
+    const { result } = renderHook(() => useSetCalendarAutoSync(), { wrapper: Wrapper })
+
+    let toggle!: Promise<void>
+    act(() => { toggle = result.current.mutateAsync({ enabled: true }) })
+    await waitFor(() => expect(client.cancelQueries).toHaveBeenCalledOnce())
+    act(() => advanceAccountGeneration())
+    await act(async () => { finishCancellation(); await toggle })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
 })
 
 describe('useDismissCalendarSuggestion', () => {
@@ -341,5 +362,26 @@ describe('useDismissCalendarSuggestion', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
 
     expect(client.getQueryData(calendarKeys.syncSuggestions())).toEqual(accountBSuggestions)
+  })
+
+  it('does not dismiss a suggestion after account replacement interrupts query cancellation', async () => {
+    mockEmptyResponse()
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    let finishCancellation!: () => void
+    vi.spyOn(client, 'cancelQueries').mockReturnValueOnce(new Promise<void>((resolve) => {
+      finishCancellation = resolve
+    }))
+    const { Wrapper } = createWrapper(client)
+    const { result } = renderHook(() => useDismissCalendarSuggestion(), { wrapper: Wrapper })
+
+    let dismiss!: Promise<void>
+    act(() => { dismiss = result.current.mutateAsync({ id: 'sugg-1' }) })
+    await waitFor(() => expect(client.cancelQueries).toHaveBeenCalledOnce())
+    act(() => advanceAccountGeneration())
+    await act(async () => { finishCancellation(); await dismiss })
+
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })
