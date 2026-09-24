@@ -339,8 +339,14 @@ module.exports = {
         const definite = isDefiniteMutation(mutation, variable)
         const statement = mutation.node.parent
         const block = statement.type === 'ExpressionStatement' && statement.parent.type === 'BlockStatement' ? statement.parent : null
-        const branchShadow = !definite && block ? conditionalShadows.get(block) ?? new Set() : null
-        if (branchShadow) conditionalShadows.set(block, branchShadow)
+        let branchShadow = null
+        if (!definite && block) {
+          const statementIndex = block.body.indexOf(statement)
+          const previous = conditionalShadows.get(block)
+          const interrupted = previous && block.body.slice(statementIndex + 1, previous.index).some((entry) => entry.type !== 'ExpressionStatement')
+          branchShadow = previous && !interrupted ? previous.shadow : new Set()
+          conditionalShadows.set(block, { index: statementIndex, shadow: branchShadow })
+        }
         if (mutation.kind === 'assign') {
           const callShadow = new Set([...shadowed, ...(branchShadow ?? [])])
           for (let index = mutation.sources.length - 1; index >= 0; index--) {

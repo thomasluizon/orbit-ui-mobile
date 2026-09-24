@@ -554,6 +554,11 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
       errors: [{ messageId: 'offScaleStyle' }],
     },
     {
+      code: 'const row = { gap: 12 }; for (const item of items) { row.gap = 14; if (item.skip) continue; row.gap = 16; } <View style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
       code: 'const row = { gap: 14 }; switch (value) { case 1: row.gap = 12; } <View style={row} />',
       output: null,
       errors: [{ messageId: 'offScaleStyle' }],
