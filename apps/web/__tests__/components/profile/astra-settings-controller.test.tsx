@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { habitKeys } from '@orbit/shared/query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 import { useAstraSettingsController } from '@/components/profile/astra-settings-controller'
 

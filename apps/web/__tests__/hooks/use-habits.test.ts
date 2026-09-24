@@ -60,6 +60,7 @@ vi.mock('next-intl', () => ({
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
     showError: mockShowError,
+    showPersistentError: vi.fn(),
     showSuccess: mockShowSuccess,
     showInfo: vi.fn(),
     showToast: vi.fn(),

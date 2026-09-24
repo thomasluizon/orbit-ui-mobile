@@ -116,7 +116,7 @@ export function useAccountScopedMutation<
       showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
       return
     }
-    if (stillHeld(variables)) onError?.(error, variables.input, onMutateResult, context)
+    if (stillHeld(variables)) return onError?.(error, variables.input, onMutateResult, context)
   }
   if (onSettled) {
     scopedOptions.onSettled = (data, error, variables, onMutateResult, context) =>
