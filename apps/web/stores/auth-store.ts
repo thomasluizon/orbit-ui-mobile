@@ -142,8 +142,12 @@ export function useHeldAccountId(): string | null {
   return useSyncExternalStore(useAuthStore.subscribe, getHeldAccountId, getHeldAccountId)
 }
 
-function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
-  const next = sessionRevalidationQueue.then(task, task)
+function queueSessionRevalidation(task: (requestVersion: number) => Promise<void>): Promise<void> {
+  const requestVersion = sessionReadVersion
+  const next = sessionRevalidationQueue.then(
+    () => task(requestVersion),
+    () => task(requestVersion),
+  )
   sessionRevalidationQueue = next.catch(() => {})
   return next
 }
@@ -254,8 +258,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     void get().checkSession()
   },
 
-  confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+  confirmSessionRefreshFailure: () => queueSessionRevalidation(async (requestVersion) => {
+    if (sessionReadVersion !== requestVersion) return
     const session = await readCurrentSession()
+    if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'active') {
       const accountChanged = adoptSessionAccount(session.userId)
       const user = accountChanged ? null : get().user ?? sessionRecoveryUser
@@ -293,10 +299,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   }),
 
-  recoverSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+  recoverSessionRefreshFailure: () => queueSessionRevalidation(async (requestVersion) => {
+    if (sessionReadVersion !== requestVersion) return
     if (!get().sessionRefreshFailed) return
 
     const session = await readCurrentSession()
+    if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'active') {
       const accountChanged = adoptSessionAccount(session.userId)
       const user = accountChanged ? null : get().user ?? sessionRecoveryUser

@@ -765,6 +765,56 @@ describe('auth store', () => {
       stopMonitor()
     })
 
+    it('does not restore a signed-out account from an older refresh confirmation', async () => {
+      const stopMonitor = await startTabHoldingAccountOne()
+      let finishSession!: (response: Response) => void
+      mockFetch.mockClear()
+      mockFetch.mockImplementationOnce(() => new Promise((resolve) => { finishSession = resolve }))
+      const confirming = useAuthStore.getState().confirmSessionRefreshFailure()
+      await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+
+      await announceFromAnotherTab(null)
+      finishSession({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId: 'user-1' }),
+      } as Response)
+      await confirming
+
+      expect(useAuthStore.getState().sessionInactive).toBe(true)
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
+      stopMonitor()
+    })
+
+    it('does not restore a signed-out account from an older refresh recovery', async () => {
+      const stopMonitor = await startTabHoldingAccountOne()
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ refreshFailed: true }),
+      })
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+      expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+
+      let finishSession!: (response: Response) => void
+      mockFetch.mockClear()
+      mockFetch.mockImplementationOnce(() => new Promise((resolve) => { finishSession = resolve }))
+      const recovering = useAuthStore.getState().recoverSessionRefreshFailure()
+      await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+
+      await announceFromAnotherTab(null)
+      finishSession({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, userId: 'user-1' }),
+      } as Response)
+      await recovering
+
+      expect(useAuthStore.getState().sessionInactive).toBe(true)
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
+      stopMonitor()
+    })
+
     it('ignores a sign out reaching a tab that is already signed out', async () => {
       const stopMonitor = await startTabHoldingAccountOne()
       await announceFromAnotherTab(null)
