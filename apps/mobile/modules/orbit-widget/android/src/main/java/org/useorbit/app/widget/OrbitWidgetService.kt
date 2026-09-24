@@ -255,6 +255,7 @@ class OrbitWidgetFactory(
 ) : RemoteViewsService.RemoteViewsFactory {
 
     private var habits: List<HabitItem> = emptyList()
+    private var habitsSession: String? = null
     private var headerLabel: String = "Today"
     private var lang: String = "en"
     private var colorModes: WidgetColorModes = defaultColorModes()
@@ -449,6 +450,7 @@ class OrbitWidgetFactory(
      */
     private fun renderPlaceholder(showSkeleton: Boolean, signedOut: Boolean) {
         habits = emptyList()
+        habitsSession = null
         lang = detectLanguage(null)
         headerLabel = tr(context, lang, WidgetString.TODAY)
 
@@ -459,6 +461,7 @@ class OrbitWidgetFactory(
             .putInt("completed_count", 0)
             .putInt("user_streak", 0)
             .putString("lang", lang)
+            .remove("render_session")
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
             .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, showSkeleton && !signedOut)
             .apply()
@@ -515,6 +518,12 @@ class OrbitWidgetFactory(
             return
         }
         if (OrbitWidgetModule.sessionKey(currentToken) != OrbitWidgetModule.sessionKey(token)) {
+            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            if (prefs.getString("render_session", null) == OrbitWidgetModule.sessionKey(currentToken)) {
+                habits = emptyList()
+                habitsSession = null
+                return
+            }
             renderPlaceholder(showSkeleton = true, signedOut = false)
             return
         }
@@ -533,6 +542,7 @@ class OrbitWidgetFactory(
         val streak = widgetData.currentStreak ?: 0
         val dayState = prepareWidgetDay(widgetData.items ?: emptyList(), widgetData.dayOffset)
         habits = dayState.habits
+        habitsSession = OrbitWidgetModule.sessionKey(token)
         headerLabel = if (dayState.isTomorrow) {
             tr(context, lang, WidgetString.TOMORROW)
         } else {
@@ -547,6 +557,7 @@ class OrbitWidgetFactory(
             .putInt("user_streak", streak)
             .putString("lang", lang)
             .putString("empty_reason", widgetData.emptyReason)
+            .putString("render_session", OrbitWidgetModule.sessionKey(token))
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
             .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
             .apply()
@@ -657,6 +668,9 @@ class OrbitWidgetFactory(
     }
 
     override fun getCount(): Int = runCatching {
+        if (habitsSession != OrbitWidgetModule.getToken(context)?.let { OrbitWidgetModule.sessionKey(it) }) {
+            return@runCatching 0
+        }
         val geometry = calculateWidgetGeometry(widgetHeightDp, habits.size)
         geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0
     }.getOrDefault(0)
@@ -670,6 +684,9 @@ class OrbitWidgetFactory(
     }
 
     private fun buildItemView(position: Int): RemoteViews {
+        if (habitsSession != OrbitWidgetModule.getToken(context)?.let { OrbitWidgetModule.sessionKey(it) }) {
+            return RemoteViews(context.packageName, R.layout.widget_item)
+        }
         val geometry = calculateWidgetGeometry(widgetHeightDp, habits.size)
         if (geometry.canStateRemainder && position == geometry.visibleRowCount) {
             return buildRemainderView(geometry.remainderCount)

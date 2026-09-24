@@ -716,7 +716,7 @@ describe('Android widget header', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
     expect(service).toMatch(
-      /val currentToken = OrbitWidgetModule\.getToken\(context\)\s*if \(currentToken == null\) \{\s*renderPlaceholder\(showSkeleton = false, signedOut = true\)\s*return\s*\}\s*if \(OrbitWidgetModule\.sessionKey\(currentToken\) != OrbitWidgetModule\.sessionKey\(token\)\) \{\s*renderPlaceholder\(showSkeleton = true, signedOut = false\)\s*return\s*\}\s*if \(currentToken != token\) \{\s*return\s*\}/,
+      /val currentToken = OrbitWidgetModule\.getToken\(context\)\s*if \(currentToken == null\) \{\s*renderPlaceholder\(showSkeleton = false, signedOut = true\)\s*return\s*\}\s*if \(OrbitWidgetModule\.sessionKey\(currentToken\) != OrbitWidgetModule\.sessionKey\(token\)\) \{[\s\S]*?renderPlaceholder\(showSkeleton = true, signedOut = false\)\s*return\s*\}\s*if \(currentToken != token\) \{\s*return\s*\}/,
     )
     expect(service).toMatch(/private fun renderPlaceholder\([^)]*\) \{\s*habits = emptyList\(\)/)
 
@@ -728,6 +728,27 @@ describe('Android widget header', () => {
     expect(service).toMatch(
       /private fun renderPlaceholder[\s\S]*?putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, showSkeleton && !signedOut\)[\s\S]*?renderWidgets\(\)/,
     )
+  })
+
+  it('hides old rows and header while the next account load is blocked', () => {
+    const module = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const saveToken = module.slice(module.indexOf('AsyncFunction("saveToken")'))
+    const buildWidgetViews = kotlinFunctionBody(provider, 'buildWidgetViews')
+    const loadWidgetData = kotlinFunctionBody(service, 'loadWidgetData')
+
+    expect(saveToken).toMatch(/putString\(KEY_TOKEN, token\)\.apply\(\)\s*refreshWidgets\(context\)/)
+    expect(buildWidgetViews).toContain('prefs.getString("render_session", null)')
+    expect(buildWidgetViews).toContain('OrbitWidgetModule.sessionKey')
+    expect(buildWidgetViews).toMatch(/views\.setViewVisibility\(R\.id\.widget_list, if \(ownsRows && !showSkeleton\) View\.VISIBLE else View\.GONE\)/)
+    expect(buildWidgetViews).toMatch(/val headerLabel = if \(ownsRows\)/)
+    expect(provider).toContain('fallback.setViewVisibility(R.id.widget_list, View.GONE)')
+    expect(loadWidgetData).toContain('.putString("render_session", OrbitWidgetModule.sessionKey(token))')
+    expect(loadWidgetData).toMatch(/\.putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, false\)\s*\.apply\(\)\s*renderWidgets\(\)\s*$/)
+    expect(service).toContain('.remove("render_session")')
+    expect(service).toMatch(/override fun getCount\(\): Int = runCatching \{\s*if \(habitsSession != OrbitWidgetModule\.getToken/)
+    expect(service).toMatch(/private fun buildItemView\(position: Int\): RemoteViews \{\s*if \(habitsSession != OrbitWidgetModule\.getToken/)
   })
 
   /**
