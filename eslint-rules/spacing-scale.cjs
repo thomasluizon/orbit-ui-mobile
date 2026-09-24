@@ -30,6 +30,7 @@
  * so it neither reports nor suppresses spacing on that value. An unresolved
  * entry within an analysed array, spread, or Object.assign may overwrite
  * earlier keys.
+ * A mutation is definite only when its statement shares the declaration block.
  */
 
 // DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
@@ -178,6 +179,7 @@ module.exports = {
     const scaleLabel = scale.join(' ')
     const scaleSet = new Set(scale)
     const scannedStyleProperties = new WeakSet()
+    const scannedMutationValues = new WeakSet()
     const activeStyleBindings = new WeakSet()
     const mutatedStyleProperties = new WeakMap()
     const jsxStyleExpressions = []
@@ -307,6 +309,13 @@ module.exports = {
       return '*'
     }
 
+    function isDefiniteMutation(mutation, variable) {
+      const statement = mutation.node.parent
+      const declaration = variable.defs[0].node.parent
+      const block = declaration.parent
+      return (block.type === 'Program' || block.type === 'BlockStatement') && statement.type === 'ExpressionStatement' && statement.parent === block
+    }
+
     function scanBinding(variable, initializer, ignored, cutoff) {
       activeStyleBindings.add(variable)
       const shadowed = new Set(ignored)
@@ -317,7 +326,9 @@ module.exports = {
         .filter((mutation) => mutation.position < cutoff)
         .sort((left, right) => right.position - left.position)
       for (const mutation of mutations) {
+        const definite = isDefiniteMutation(mutation, variable)
         if (mutation.kind === 'assign') {
+          if (!definite) hasUnknownKey = true
           for (let index = mutation.sources.length - 1; index >= 0; index--) {
             const keys = scanStyleObject(mutation.sources[index], shadowed, mutation.position)
             if (keys === null) {
@@ -325,7 +336,7 @@ module.exports = {
               hasUnknownKey = true
             } else {
               for (const key of keys) {
-                knownKeys.add(key)
+                if (definite && !deletedKeys.has(key)) knownKeys.add(key)
                 shadowed.add(key)
               }
             }
@@ -338,14 +349,21 @@ module.exports = {
           continue
         }
         if (mutation.kind === 'delete') {
-          if (!knownKeys.has(mutation.name)) deletedKeys.add(mutation.name)
-        } else if (!deletedKeys.has(mutation.name)) {
-          knownKeys.add(mutation.name)
-          if (!shadowed.has('*') && !shadowed.has(mutation.name) && SPACING_PROPS.has(mutation.name) && mutation.value) {
+          if (definite) {
+            if (!knownKeys.has(mutation.name)) deletedKeys.add(mutation.name)
+            shadowed.add(mutation.name)
+          } else {
+            hasUnknownKey = true
+          }
+        } else {
+          if (!definite) hasUnknownKey = true
+          if (definite && !deletedKeys.has(mutation.name)) knownKeys.add(mutation.name)
+          if (!deletedKeys.has(mutation.name) && !shadowed.has('*') && !shadowed.has(mutation.name) && SPACING_PROPS.has(mutation.name) && mutation.value && !scannedMutationValues.has(mutation.node)) {
+            scannedMutationValues.add(mutation.node)
             reportStyleValue(mutation.value, mutation.name)
           }
+          shadowed.add(mutation.name)
         }
-        shadowed.add(mutation.name)
       }
       const initialKeys = scanStyleObject(initializer, shadowed, cutoff)
       activeStyleBindings.delete(variable)
@@ -517,7 +535,7 @@ module.exports = {
       },
       CallExpression(node) {
         if (node.callee.type === 'MemberExpression' && !node.callee.computed && node.callee.object.type === 'Identifier' && node.callee.object.name === 'Object' && node.callee.property.type === 'Identifier' && node.callee.property.name === 'assign') {
-          markMutatedBinding(node.arguments[0], { kind: 'assign', sources: node.arguments.slice(1), position: node.range[0] })
+          markMutatedBinding(node.arguments[0], { kind: 'assign', sources: node.arguments.slice(1), position: node.range[0], node })
         }
         if (!isStyleSheetCreate(node)) return
         const argument = node.arguments[0]
@@ -528,13 +546,13 @@ module.exports = {
         }
       },
       AssignmentExpression(node) {
-        if (node.left.type === 'MemberExpression') markMutatedBinding(node.left.object, { kind: 'write', name: mutationPropertyName(node.left), value: node.operator === '=' ? node.right : null, position: node.range[0] })
+        if (node.left.type === 'MemberExpression') markMutatedBinding(node.left.object, { kind: 'write', name: mutationPropertyName(node.left), value: node.operator === '=' ? node.right : null, position: node.range[0], node })
       },
       UpdateExpression(node) {
-        if (node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, { kind: 'write', name: mutationPropertyName(node.argument), position: node.range[0] })
+        if (node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, { kind: 'write', name: mutationPropertyName(node.argument), position: node.range[0], node })
       },
       UnaryExpression(node) {
-        if (node.operator === 'delete' && node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, { kind: 'delete', name: mutationPropertyName(node.argument), position: node.range[0] })
+        if (node.operator === 'delete' && node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, { kind: 'delete', name: mutationPropertyName(node.argument), position: node.range[0], node })
       },
       'Program:exit'() {
         for (const expression of jsxStyleExpressions) scanStyleObject(expression)

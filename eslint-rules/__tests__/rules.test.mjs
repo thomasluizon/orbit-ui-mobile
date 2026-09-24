@@ -484,6 +484,8 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     'const row = { gap: 14 }; const alias = row; alias.gap = runtimeGap; <div style={row} />',
     'const row = { gap: 14 }; Object.assign(row, runtimeStyle); <div style={row} />',
     'const row = { gap: 14 }; Object.assign(row, { gap: 12 }); <div style={row} />',
+    'const row = { gap: 14 }; if (cond) row.gap = 12; <div style={row} />',
+    'const row = { gap: 14 }; if (cond) Object.assign(row, { gap: 12 }); <div style={row} />',
     'const base = { gap: 14 }; base.gap = 12; const row = { ...base }; <div style={row} />',
     'const row = [{ gap: 14 }, { gap: 12 }]; <View style={row} />',
     'const row = [{ gap: 14 }, { ...{ gap: 12 } }]; <View style={row} />',
@@ -517,6 +519,61 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
   ],
   invalid: [
+    {
+      code: 'const source = {}; Object.assign(source, { gap: 12 }); delete source.gap; const row = { gap: 14, ...source }; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = {}; Object.assign(row, { gap: 12 }); delete row.gap; <View style={[{ gap: 14 }, row]} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = {}; row.gap = 14; <><div style={row} /><span style={row} /></>',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 12 }; if (cond) row.gap = 14; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; if (cond) delete row.gap; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; for (const value of values) delete row.gap; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; switch (value) { case 1: delete row.gap; } <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; try { delete row.gap; } catch (error) {} <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; labelled: { delete row.gap; } <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; function update() { delete row.gap; } <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 12 }; if (cond) Object.assign(row, { gap: 14 }); <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
     {
       code: 'const SETTINGS_ROW_STYLE: React.CSSProperties = { padding: "20px", gap: 14 }; const PRO_BADGE_STYLE = { padding: "2px 6px" }; <><div style={SETTINGS_ROW_STYLE} /><span style={PRO_BADGE_STYLE} /></>',
       output: null,
