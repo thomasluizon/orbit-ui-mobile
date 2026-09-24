@@ -14,7 +14,7 @@ Brings up the three tiers **in order, each gated on the previous being ready**: 
 | Tier | Where | Command | URL / port |
 |---|---|---|---|
 | DB | Docker container `orbit-postgres` (`postgres:17`) | `docker start orbit-postgres` | `localhost:5432` |
-| API | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` | `dotnet run --project src/Orbit.Api` | http://localhost:5000 |
+| API | `/Users/thomaslrgregoriogmail.com/Developer/orbit-api` | `dotnet run --project src/Orbit.Api` | http://localhost:5000 |
 | Web | current Orbit UI checkout | `npm run web` | `http://localhost:<worktree web port>` |
 
 - DB connection (from `appsettings.Development.json`): `Host=localhost;Port=5432;Database=orbit;Username=postgres;Password=postgres`.

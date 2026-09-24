@@ -437,17 +437,15 @@ const progressFingerprint = () => `${gitIn(["rev-parse", "HEAD"])}:${newestMtime
  */
 const processRows = () => {
   if (process.platform === "darwin") {
-    // BSD ps `time` is user plus system CPU. Read on the M5 Pro (2026-09-24): `0:12.16`, and
-    // minutes past 59 stay in the first field. Fields are parsed right to left, so an hours or
-    // days prefix still reads correctly.
+    // BSD ps `time` is user plus system CPU as minutes:seconds.hundredths. Read on the M5 Pro
+    // (2026-09-24): `0:17.22`, and `66:23.41` from an 18-thread burner, so minutes never roll into
+    // hours. A row in any other shape is skipped; the sampler clamps a drop, never a rise.
     const result = spawnSync("ps", ["-A", "-o", "pid=,ppid=,time="], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } })
     if (result.status !== 0) return null
     const rows = []
     for (const line of result.stdout.split("\n")) {
-      const match = /^\s*(\d+)\s+(\d+)\s+(?:(\d+)-)?([\d:.]+)\s*$/.exec(line)
-      if (!match) continue
-      const seconds = match[4].split(":").reverse().reduce((total, part, index) => total + Number(part) * 60 ** index, 0)
-      rows.push({ pid: Number(match[1]), parentPid: Number(match[2]), cpuMilliseconds: (Number(match[3] ?? 0) * 86_400 + seconds) * 1000 })
+      const match = /^\s*(\d+)\s+(\d+)\s+(\d+):(\d{2}\.\d{2})\s*$/.exec(line)
+      if (match) rows.push({ pid: Number(match[1]), parentPid: Number(match[2]), cpuMilliseconds: (Number(match[3]) * 60 + Number(match[4])) * 1000 })
     }
     return rows
   }

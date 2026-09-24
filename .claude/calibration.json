@@ -95,7 +95,7 @@
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "2b278674dc8f8764",
+      "digest": "799284759e579360",
       "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: a judgement-level debt audit that opens tickets, which argues for an explicit high. Left undeclared in this first pass because declaring it changes behaviour and cost, and eleven skills are in the same position; that is the follow-up this pass names rather than a change smuggled into the mechanism."
     },
@@ -109,7 +109,7 @@
     ".claude/skills/audit-security/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "e92ff1f4ff0b8b21",
+      "digest": "a3078d7f522ced89",
       "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up. This is the one where an inherited low effort would cost the most, because a missed authz hole is not visible in the output."
     },
@@ -123,14 +123,14 @@
     ".claude/skills/deep-research/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "a7bbf3c505b096e8",
+      "digest": "913e39fb190ad7a7",
       "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: it fans out web-researcher subagents that carry their own sonnet/medium tuning, so the orchestrating half inheriting the session is defensible today."
     },
     ".claude/skills/dev-server/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "098812e7b1e1ddb7",
+      "digest": "0a9fda5b8bf966f0",
       "calibratedAt": "2026-09-24",
       "verdict": "current: brings up Docker, the API and the web server in dependency order with readiness gates, which is mechanical, so low effort is right."
     },
@@ -172,14 +172,14 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "bd415bc92590c8b2",
+      "digest": "3acc97319a511f47",
       "calibratedAt": "2026-09-24",
       "verdict": "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review. Reseeded 2026-09-18 a fifth time, when the third ending a pull request can reach became a CHECKED one. A run says which of READY, BLOCKED and merged each pull request landed on, and merged now carries a shape-checked merge commit sha: the measured failure was copying the skill's own template and leaving the placeholder unfilled, which read as a finished night in silence. So the call this file asks for is not only which disposition applies, it is which self-asserted fact stays honest, and the answer is the one a reader can check. The same caution now reaches its own red-gate arithmetic: four FAILs are the engine switch, a fifth may be the load-sensitive CPU test rather than a defect, and telling those apart is what a lower effort skips. That sits on top of the calls the earlier stamps named: deriving which required check failed from delivery's ci.checks.pass beside the receipt's ci.green, holding a CI_STALE receipt as expected even after a successful merge, judging when an exhausted allowance justifies a transient worker switch and naming it while it is live, judging whether a substitute reviewer is named openly or promoted quietly, and telling an instructed contract apart from one a run granted itself. Merge authority is the most expensive rule here to get wrong."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "24aa498f98faf0c3",
+      "digest": "3054e304775236a2",
       "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate."
     },
@@ -207,7 +207,7 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "b774562939720d2c",
+      "digest": "d192704b99a01079",
       "calibratedAt": "2026-09-24",
       "verdict": "undeclared, inherits the session: it takes every decision alone overnight, including whether configured lanes are available, so explicit high remains the strongest follow-up without guessing it here."
     },
@@ -221,7 +221,7 @@
     ".claude/skills/validate/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "e1ef5a36050d37f1",
+      "digest": "be31e7d738c0b774",
       "calibratedAt": "2026-09-24",
       "verdict": "current: runs lint, type-check and tests across both repos, so low effort is right."
     },

@@ -223,7 +223,7 @@ Six sources feed every turn. Print each one's current byte count and the total, 
 ```bash
 wc -c CLAUDE.md .claude/rules/core.md ~/.claude/CLAUDE.md \
       ~/.claude/rules/agentic-baseline.md \
-      ~/Documents/Programming/Projects/brain/hot.md
+      ~/Developer/brain/hot.md
 
 # the sixth source: the frontmatter description: value, continuation lines included,
 # of every discoverable skill in BOTH scopes
