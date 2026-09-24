@@ -21,4 +21,7 @@ export const cases = () => {
   check(TOOL, "replaces UI evidence only for a UI batch", args(path("after-second.md"), uiReport, path("after-ui.md"), true), { status: 0 })
   T(`${TOOL}: UI batch replaces stale review evidence`, read("after-ui.md").includes("- gates lane: second finding") && !read("after-ui.md").includes("- gates lane: first finding"))
   check(TOOL, "rejects missing UI evidence", args(original, second, path("invalid.md"), true), { status: 1, stderr: /Review harness/ })
+  const crlf = stage("merge-review-batch-body/crlf.md", "Commit ghi\r\n\r\n## Test evidence\r\n\r\n- crlf test\r\n\r\n## Assumptions\r\n\r\n## Manual steps")
+  check(TOOL, "accepts a CRLF report whose last section is empty at end of file", args(path("after-second.md"), crlf, path("after-crlf.md")), { status: 0 })
+  T(`${TOOL}: a CRLF report merges without carriage returns`, read("after-crlf.md").includes("- crlf test") && !read("after-crlf.md").includes("\r"), read("after-crlf.md"))
 }

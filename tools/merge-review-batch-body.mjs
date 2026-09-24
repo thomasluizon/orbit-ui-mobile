@@ -33,8 +33,10 @@ if (!bodyFile || !reportFile || !out || ![bodyFile, reportFile, out].every(isAbs
   process.exit(2)
 }
 
-const parse = (markdown) => {
-  const matches = [...markdown.matchAll(/^## ([^\n]+)\n/gm)]
+// Worker reports arrive with CRLF line endings and may end on an empty heading with no newline.
+const parse = (source) => {
+  const markdown = source.replace(/\r\n?/g, "\n")
+  const matches = [...markdown.matchAll(/^## ([^\n]+)(?:\n|$)/gm)]
   const sections = matches.map((match, index) => ({
     title: match[1],
     body: markdown.slice(match.index + match[0].length, matches[index + 1]?.index ?? markdown.length).trim(),
