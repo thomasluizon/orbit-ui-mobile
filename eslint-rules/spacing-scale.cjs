@@ -170,9 +170,9 @@ module.exports = {
 
     const scaleLabel = scale.join(' ')
     const scaleSet = new Set(scale)
-    const scannedStyleObjects = new WeakSet()
-    const scannedStyleBindings = new WeakSet()
-    const mutatedStyleBindings = new WeakSet()
+    const scannedStyleProperties = new WeakSet()
+    const activeStyleBindings = new WeakSet()
+    const mutatedStyleProperties = new WeakMap()
     const jsxStyleExpressions = []
 
     function isOnScale(px, prop) {
@@ -279,51 +279,60 @@ module.exports = {
       return null
     }
 
-    function markMutatedBinding(node, visited = new WeakSet()) {
+    function markMutatedBinding(node, name, visited = new WeakSet()) {
       node = unwrapStyleExpression(node)
       if (node?.type !== 'Identifier') return
       const variable = findBinding(node)
       if (!variable || visited.has(variable)) return
       visited.add(variable)
-      mutatedStyleBindings.add(variable)
+      const names = mutatedStyleProperties.get(variable) ?? new Set()
+      names.add(name)
+      mutatedStyleProperties.set(variable, names)
       const definition = variable.defs[0]
       if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const') {
-        markMutatedBinding(definition.node.init, visited)
+        markMutatedBinding(definition.node.init, name, visited)
       }
     }
 
-    function scanStyleObject(node) {
+    function mutationPropertyName(node) {
+      if (!node.computed && node.property.type === 'Identifier') return node.property.name
+      if (node.computed && node.property.type === 'Literal') return String(node.property.value)
+      return '*'
+    }
+
+    function scanStyleObject(node, ignored = new Set()) {
       node = unwrapStyleExpression(node)
       if (!node) return
       if (node.type === 'Identifier') {
         const variable = findBinding(node)
-        if (!variable || mutatedStyleBindings.has(variable)) return
+        if (!variable || activeStyleBindings.has(variable)) return
         const definition = variable.defs[0]
-        if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const' && !scannedStyleBindings.has(variable)) {
-          scannedStyleBindings.add(variable)
-          scanStyleObject(definition.node.init)
+        if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const') {
+          activeStyleBindings.add(variable)
+          const ignoredHere = new Set([...ignored, ...(mutatedStyleProperties.get(variable) ?? [])])
+          scanStyleObject(definition.node.init, ignoredHere)
+          activeStyleBindings.delete(variable)
         }
         return
       }
       if (node.type === 'ArrayExpression') {
-        for (const element of node.elements) scanStyleObject(element)
+        for (const element of node.elements) scanStyleObject(element, ignored)
         return
       }
       if (node.type === 'ConditionalExpression') {
-        scanStyleObject(node.consequent)
-        scanStyleObject(node.alternate)
+        scanStyleObject(node.consequent, ignored)
+        scanStyleObject(node.alternate, ignored)
         return
       }
       if (node.type !== 'ObjectExpression') return
-      if (scannedStyleObjects.has(node)) return
-      scannedStyleObjects.add(node)
       for (const property of node.properties) {
         if (property.type === 'SpreadElement') {
-          scanStyleObject(property.argument)
+          scanStyleObject(property.argument, ignored)
           continue
         }
         const name = propertyName(property)
-        if (name === null || !SPACING_PROPS.has(name)) continue
+        if (name === null || !SPACING_PROPS.has(name) || ignored.has('*') || ignored.has(name) || scannedStyleProperties.has(property)) continue
+        scannedStyleProperties.add(property)
         reportStyleValue(property.value, name)
       }
     }
@@ -417,7 +426,7 @@ module.exports = {
       },
       CallExpression(node) {
         if (node.callee.type === 'MemberExpression' && !node.callee.computed && node.callee.object.type === 'Identifier' && node.callee.object.name === 'Object' && node.callee.property.type === 'Identifier' && node.callee.property.name === 'assign') {
-          markMutatedBinding(node.arguments[0])
+          markMutatedBinding(node.arguments[0], '*')
         }
         if (!isStyleSheetCreate(node)) return
         const argument = node.arguments[0]
@@ -428,13 +437,13 @@ module.exports = {
         }
       },
       AssignmentExpression(node) {
-        if (node.left.type === 'MemberExpression') markMutatedBinding(node.left.object)
+        if (node.left.type === 'MemberExpression') markMutatedBinding(node.left.object, mutationPropertyName(node.left))
       },
       UpdateExpression(node) {
-        if (node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object)
+        if (node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, mutationPropertyName(node.argument))
       },
       UnaryExpression(node) {
-        if (node.operator === 'delete' && node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object)
+        if (node.operator === 'delete' && node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, mutationPropertyName(node.argument))
       },
       'Program:exit'() {
         for (const expression of jsxStyleExpressions) scanStyleObject(expression)
