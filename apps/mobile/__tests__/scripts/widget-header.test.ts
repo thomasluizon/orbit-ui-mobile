@@ -936,6 +936,7 @@ describe('Android widget header', () => {
 
     expect(views.get('widget_refresh')).toMatchObject({
       'android:contentDescription': '@string/widget_refresh',
+      'android:accessibilityLiveRegion': 'polite',
     })
     expect(provider).toMatch(
       /val refreshDescription = OrbitWidgetFactory\.tr\(\s*context,\s*lang,\s*WidgetString\.REFRESH\s*\)/,
@@ -946,6 +947,10 @@ describe('Android widget header', () => {
   })
 
   it('names every visible refresh spinner through the widget language path', () => {
+    expect(layoutViews().get('widget_refresh_loading')).toMatchObject({
+      'android:accessibilityLiveRegion': 'polite',
+    })
+
     const makesSpinnerVisible =
       /setViewVisibility\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,80}?(?:android\.view\.)?View\.VISIBLE/
     const namesSpinner =
