@@ -5,7 +5,19 @@ import { resolveServerSession } from '@/lib/auth-api'
 
 const ACCOUNT_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
 function tokenFor(accountId: string, signature = 'signature'): string {
-  return `header.${Buffer.from(JSON.stringify({ [ACCOUNT_CLAIM]: accountId })).toString('base64url')}.${signature}`
+  const issuedAtSeconds = Math.floor(PINNED_TEST_TIME.getTime() / 1000)
+  const payload = {
+    aud: 'orbit-client',
+    iss: 'orbit-api',
+    exp: issuedAtSeconds + 3600,
+    [ACCOUNT_CLAIM]: accountId,
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress': 'account@example.com',
+    jti: '8c7d6e5f-4a3b-2c1d-0e9f-8a7b6c5d4e3f',
+    iat: issuedAtSeconds,
+    nbf: issuedAtSeconds,
+  }
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
+  return `${header}.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.${signature}`
 }
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
