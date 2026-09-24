@@ -238,6 +238,31 @@ describe('useDrillNavigation', () => {
     expect(result.current.drillError).toBeTruthy()
   })
 
+  it('keeps the active drill error when a stale drill fetch succeeds later', async () => {
+    const stale: { resolve: (response: unknown) => void } = { resolve: () => undefined }
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Server error' }),
+      })
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    act(() => { staleDrill = result.current.drillInto('parent1') })
+    act(() => { result.current.drillBack() })
+    await act(async () => { await result.current.drillInto('parent2') })
+    expect(result.current.drillError).not.toBe('')
+
+    await act(async () => {
+      stale.resolve({ ok: true, json: () => Promise.resolve(makeDetailResponse()) })
+      await staleDrill
+    })
+
+    expect(result.current.currentParentId).toBe('parent2')
+    expect(result.current.drillError).not.toBe('')
+  })
+
   it('clears a failed drill after Retry loads its children', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,

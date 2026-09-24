@@ -46,6 +46,10 @@ export function useDrillNavigation(
   const [drillError, setDrillError] = useState('')
 
   const currentParentId = drillStack.at(-1) ?? null
+  const activeParentIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    activeParentIdRef.current = currentParentId
+  }, [currentParentId])
 
   const currentParent = useMemo(() => {
     if (!currentParentId) return null
@@ -78,7 +82,8 @@ export function useDrillNavigation(
         const detail = await fetchHabitDetail(habitId)
         const today = formatAPIDate(new Date())
         const normalized = normalizeHabitDetailForDrill(detail, today)
-        setDrillParentInfo(normalized.parent)
+        const isActive = activeParentIdRef.current === habitId
+        if (isActive) setDrillParentInfo(normalized.parent)
 
         setDrillChildrenMap((prev) => {
           const next = new Map(prev)
@@ -87,9 +92,9 @@ export function useDrillNavigation(
           }
           return next
         })
-        setDrillError('')
+        if (isActive) setDrillError('')
       } catch (err: unknown) {
-        if (!silent) {
+        if (!silent && activeParentIdRef.current === habitId) {
           setDrillError(getFriendlyErrorMessage(err, t, 'errors.fetchSubHabits', 'subHabit'))
         }
       } finally {
@@ -102,6 +107,7 @@ export function useDrillNavigation(
   const drillInto = useCallback(
     async (habitId: string) => {
       setDrillError('')
+      activeParentIdRef.current = habitId
       setDrillStack((prev) => [...prev, habitId])
       if (!drillChildrenMap.has(habitId)) {
         await fetchDrillChildren(habitId)
