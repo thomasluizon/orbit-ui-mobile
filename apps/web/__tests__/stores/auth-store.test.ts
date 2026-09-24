@@ -166,6 +166,65 @@ describe('auth store', () => {
     })
   })
 
+  it('preserves replacement login cookies when an older logout response arrives in the same tab', async () => {
+    const browserCookies = new Map<string, string>([
+      ['auth_token', 'old-access'], ['refresh_token', 'old-refresh'],
+    ])
+    let releaseLogout!: () => void
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/logout') {
+        return new Promise<Response>((resolve) => {
+          releaseLogout = () => {
+            browserCookies.clear()
+            resolve(Response.json({ success: true }))
+          }
+        })
+      }
+      if (url === '/api/auth/verify-code') {
+        browserCookies.set('auth_token', 'new-access')
+        browserCookies.set('refresh_token', 'new-refresh')
+        return Promise.resolve(Response.json(makeLoginResponse()))
+      }
+      throw new Error(`Unexpected auth endpoint: ${url}`)
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    const replacementLogin = fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'thomas@example.com', code: '123456',
+    })
+    await Promise.resolve()
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/auth/verify-code', expect.anything())
+    releaseLogout()
+    await Promise.all([oldLogout, replacementLogin])
+
+    expect(browserCookies.get('auth_token')).toBe('new-access')
+    expect(browserCookies.get('refresh_token')).toBe('new-refresh')
+  })
+
+  it('keeps a replacement account signaled by another tab during logout', async () => {
+    let releaseLogout!: () => void
+    mockFetch.mockImplementation((url: string) => url === '/api/auth/logout'
+      ? new Promise<Response>((resolve) => {
+        releaseLogout = () => resolve(Response.json({ success: true }))
+      })
+      : Promise.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-2' })))
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    useAuthStore.getState().adoptAccountFromSignal('user-2')
+    releaseLogout()
+    await oldLogout
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      expiresAt: Date.now() + 3600000,
+      sessionRefreshFailed: false,
+    })
+  })
+
 
   it('removes the stored Astra draft when the account signs out', async () => {
     mockFetch.mockResolvedValue({ ok: true })

@@ -7,7 +7,7 @@ import {
 } from '@/lib/cross-tab-account-signal'
 import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
 import { getQueryClient } from '@/lib/query-client'
-import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
+import { advanceAccountGeneration, advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
 import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
 import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
@@ -16,7 +16,6 @@ import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
-let sessionOwnershipEpoch = 0
 let loginsWaitingForLogout = 0
 
 export async function withCookieSettingLogin<T>(task: () => Promise<T>): Promise<T> {
@@ -190,7 +189,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
-    sessionOwnershipEpoch += 1
     sessionRecoveryUser = null
     startAccountScopedSession(loginResponse.userId)
     bindStepUpStateToAccount(loginResponse.userId)
@@ -359,22 +357,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    const logoutEpoch = sessionOwnershipEpoch
+    const logoutEpoch = getSessionEpoch()
+    let teardownEpoch: number | null
     try {
-      await withSessionCookieLock(async () => {
-        if (logoutEpoch !== sessionOwnershipEpoch) return
+      teardownEpoch = await withSessionCookieLock(async () => {
+        if (logoutEpoch !== getSessionEpoch()) return null
         endSessionLocally()
+        const currentTeardownEpoch = getSessionEpoch()
         announceAccountToOtherTabs(null)
         try {
           await fetch('/api/auth/logout', { method: 'POST' })
         } catch {
         }
+        return currentTeardownEpoch
       })
     } catch {
       return
     }
 
-    if (logoutEpoch !== sessionOwnershipEpoch) return
+    if (teardownEpoch === null || teardownEpoch !== getSessionEpoch()) return
 
     set({
       isAuthenticated: false,

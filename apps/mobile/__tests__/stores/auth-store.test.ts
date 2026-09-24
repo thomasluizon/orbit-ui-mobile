@@ -1,7 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { profileKeys } from '@orbit/shared/query'
+import { notificationKeys, profileKeys } from '@orbit/shared/query'
 import { i18n } from '@/lib/i18n'
 import { getRuntimeTheme } from '@/lib/theme'
 import { useLogout } from '@/hooks/use-logout'
@@ -21,7 +21,6 @@ import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/st
 import { shouldExposeOnboardingRoute } from '@/lib/capture-mode'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useDeleteNotification } from '@/hooks/use-notifications'
-import { notificationKeys } from '@orbit/shared/query'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import {
   getFailedNotificationDeleteIdsSnapshot,
@@ -1222,7 +1221,7 @@ describe('mobile auth store security paths', () => {
       expiresAt: Date.now() + 3600_000,
     })
 
-    const logout = useAuthStore.getState().logout()
+    const logout = renderHookValue(() => useLogout())()
     await vi.waitFor(() => expect(releaseRevoke).toBeTypeOf('function'))
 
     await useAuthStore.getState().login(
@@ -1249,6 +1248,31 @@ describe('mobile auth store security paths', () => {
       isAuthenticated: true,
       user: { userId: 'replacement-user' },
     })
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('does not navigate an old logout after replacement login during return URL cleanup', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    let releaseReturnUrlCleanup!: () => void
+    const returnUrlCleanup = new Promise<void>((resolve) => {
+      releaseReturnUrlCleanup = resolve
+    })
+    getRefreshTokenMock.mockResolvedValue(null)
+    await useAuthStore.getState().login('old-access-token', null, oldUser)
+    clearStoredAuthReturnUrlMock.mockReturnValue(returnUrlCleanup)
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    const oldLogout = logoutAndRedirect()
+    await vi.waitFor(() => expect(clearStoredAuthReturnUrlMock).toHaveBeenCalledTimes(1))
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+
+    await useAuthStore.getState().login('new-access-token', 'new-refresh-token', newUser)
+    releaseReturnUrlCleanup()
+    await oldLogout
+
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
+    expect(replaceMock).not.toHaveBeenCalled()
   })
 
   it('does not let a second logout waiting on push unsubscribe adopt a replacement session', async () => {
