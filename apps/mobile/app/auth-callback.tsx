@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import * as Linking from 'expo-linking'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
 import { clearStoredReferralCode, consumeStoredAuthReturnUrl, getSafeReturnUrl,
   getStoredReferralCode } from '@/lib/auth-flow'
-import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, extractGoogleAuthParams,
-  resolveGoogleAuthCallbackUrl, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { clearPendingGoogleAuthSession, extractGoogleAuthParams,
+  usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
 import { useAuthStore } from '@/stores/auth-store'
 import { captureBuildEnabled, shouldRetainEmptyAuthCallback } from '@/lib/capture-mode'
@@ -14,19 +13,13 @@ import { LoginContent } from '@/components/auth/login-content'
 
 export default function AuthCallbackScreen() {
   const { i18n } = useTranslation()
-  const params = useLocalSearchParams<{ token?: string; refreshToken?: string; userId?: string;
-    name?: string; email?: string; error?: string; error_description?: string; access_token?: string; refresh_token?: string }>()
-  const rawUrl = Linking.useLinkingURL()
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
-  const { callbackUrl: sessionCallbackUrl, isPending } = usePendingGoogleAuthSession()
+  const { callbackUrl, isPending } = usePendingGoogleAuthSession()
   const processed = useRef(false)
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
   const [accountBack, setAccountBack] = useState<BackendLoginResponse | null>(null)
   const [loading, setLoading] = useState(false)
-  const callbackUrl = useMemo(() => resolveGoogleAuthCallbackUrl({
-    sessionCallbackUrl, rawUrl, params, callbackUrl: AUTH_CALLBACK_URL,
-  }), [params, rawUrl, sessionCallbackUrl])
 
   useEffect(() => {
     if (processed.current || !callbackUrl) return

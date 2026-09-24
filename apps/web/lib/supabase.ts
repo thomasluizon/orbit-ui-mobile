@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { clearGoogleAuthStarted } from './google-auth-session'
 
 let client: SupabaseClient | null = null
 
@@ -13,6 +14,7 @@ export function getSupabaseClient(): SupabaseClient {
 }
 
 export function clearSupabaseSession(): void {
+  clearGoogleAuthStarted()
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   if (!url || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return
   const projectRef = new URL(url).hostname.split('.')[0]

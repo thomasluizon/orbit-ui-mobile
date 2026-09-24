@@ -8,12 +8,13 @@ const mocks = vi.hoisted(() => ({
   verify: vi.fn(),
   setAuth: vi.fn(),
   push: vi.fn(),
+  replace: vi.fn(),
   unsubscribe: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mocks.push }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
   useSearchParams: () => new URLSearchParams(),
 }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => ({ setAuth: mocks.setAuth }) }))
@@ -48,6 +49,7 @@ describe('Google auth callback', () => {
     })
     mocks.verify.mockReset().mockResolvedValue(undefined)
     mocks.push.mockReset()
+    mocks.replace.mockReset()
     mocks.setAuth.mockReset()
     mocks.unsubscribe.mockReset()
     sessionStorage.clear()
@@ -61,6 +63,7 @@ describe('Google auth callback', () => {
 
       expect(mocks.exchange).not.toHaveBeenCalled()
       expect(mocks.verify).not.toHaveBeenCalled()
+      expect(mocks.replace).toHaveBeenCalledWith('/login')
     },
   )
 
@@ -71,6 +74,7 @@ describe('Google auth callback', () => {
     await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
 
     expect(mocks.exchange).not.toHaveBeenCalled()
+    expect(mocks.replace).toHaveBeenCalledWith('/login')
   })
 
   it('refuses a restored session that differs from the redirect token', async () => {
@@ -81,6 +85,7 @@ describe('Google auth callback', () => {
     await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
 
     expect(mocks.exchange).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -100,6 +105,7 @@ describe('Google auth callback', () => {
       body: expect.stringContaining('account-a-access'),
     }))
     expect(mocks.verify.mock.calls[0]?.[4]()).toBe(expectedReturnUrl)
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 
   it('refuses a redirect after the pending auth window expires', async () => {

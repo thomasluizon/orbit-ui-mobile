@@ -9,13 +9,17 @@ const mocks = vi.hoisted(() => ({
   retainEmptyCallback: true,
   replace: vi.fn(),
   login: vi.fn(),
+  rawUrl: null as string | null,
+  sessionCallbackUrl: null as string | null,
+  isPending: false,
+  complete: vi.fn(),
 }))
 
 vi.mock('@/components/auth/login-content', () => ({
   LoginContent: ({ callback }: { callback: { state: string } }) => React.createElement('View', { callbackState: callback.state }),
 }))
 
-vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
+vi.mock('expo-linking', () => ({ useLinkingURL: () => mocks.rawUrl }))
 
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
@@ -43,15 +47,13 @@ vi.mock('@/lib/auth-flow', () => ({
   getStoredReferralCode: vi.fn(() => Promise.resolve(null)),
 }))
 
-vi.mock('@/lib/google-auth-callback', () => ({
-  AUTH_CALLBACK_URL: 'https://app.useorbit.org/auth-callback',
+vi.mock('@/lib/google-auth-callback', async (importActual) => ({
+  ...(await importActual<typeof import('@/lib/google-auth-callback')>()),
   clearPendingGoogleAuthSession: vi.fn(),
-  extractGoogleAuthParams: vi.fn(),
-  resolveGoogleAuthCallbackUrl: () => null,
-  usePendingGoogleAuthSession: () => ({ callbackUrl: null, isPending: false }),
+  usePendingGoogleAuthSession: () => ({ callbackUrl: mocks.sessionCallbackUrl, isPending: mocks.isPending }),
 }))
 
-vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: vi.fn() }))
+vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: mocks.complete }))
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) =>
@@ -83,6 +85,12 @@ describe('AuthCallbackScreen capture retention', () => {
     vi.useFakeTimers()
     mocks.retainEmptyCallback = true
     mocks.replace.mockClear()
+    mocks.login.mockReset().mockResolvedValue(undefined)
+    mocks.complete.mockReset().mockResolvedValue({ token: 'orbit-token', refreshToken: 'orbit-refresh',
+      userId: 'account-a', name: 'A', email: 'a@example.com' })
+    mocks.rawUrl = null
+    mocks.sessionCallbackUrl = null
+    mocks.isPending = false
   })
 
   afterEach(() => {
@@ -116,5 +124,41 @@ describe('AuthCallbackScreen capture retention', () => {
     })
 
     expect(mocks.replace).toHaveBeenCalledWith('/login')
+  })
+
+  it('refuses a token-bearing deep link without a pending Google auth attempt', async () => {
+    mocks.retainEmptyCallback = false
+    mocks.rawUrl = 'https://app.useorbit.org/auth-callback#access_token=account-a&refresh_token=old-refresh'
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<AuthCallbackScreen />)
+      await Promise.resolve()
+    })
+
+    expect(mocks.complete).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(251) })
+    expect(mocks.replace).toHaveBeenCalledWith('/login')
+  })
+
+  it('accepts the callback returned by the pending Google auth session', async () => {
+    mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback#access_token=fresh&refresh_token=fresh-refresh'
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<AuthCallbackScreen />)
+      await Promise.resolve()
+    })
+
+    expect(mocks.complete).toHaveBeenCalledWith(mocks.sessionCallbackUrl, 'en', undefined)
+    expect(mocks.login).toHaveBeenCalled()
+  })
+
+  it('refuses an unrelated deep link while this process has a pending Google auth attempt', async () => {
+    mocks.isPending = true
+    mocks.rawUrl = 'https://app.useorbit.org/auth-callback#access_token=fresh&refresh_token=fresh-refresh'
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<AuthCallbackScreen />)
+      await Promise.resolve()
+    })
+
+    expect(mocks.complete).not.toHaveBeenCalled()
+    expect(mocks.login).not.toHaveBeenCalled()
   })
 })

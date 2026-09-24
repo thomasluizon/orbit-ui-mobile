@@ -34,6 +34,10 @@ function AuthCallbackContent() {
     const hash = new URLSearchParams(globalThis.location.hash.substring(1))
     const redirectAccessToken = hash.get('access_token')
     recentGoogleAuthStart.current ??= consumeRecentGoogleAuthStart()
+    if (!recentGoogleAuthStart.current || !redirectAccessToken) {
+      router.replace('/login')
+      return
+    }
     const supabase = getSupabaseClient()
     async function exchange(session: Session) {
       try {

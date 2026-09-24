@@ -6,6 +6,7 @@ vi.mock('@supabase/supabase-js', () => ({
 }))
 
 import { clearSupabaseSession } from '@/lib/supabase'
+import { markGoogleAuthStarted } from '@/lib/google-auth-session'
 
 describe('Supabase session cleanup', () => {
   beforeEach(() => {
@@ -24,5 +25,13 @@ describe('Supabase session cleanup', () => {
 
     expect(localStorage.getItem(key)).toBeNull()
     expect(mocks.signOut).toHaveBeenCalledWith({ scope: 'local' })
+  })
+
+  it('removes an abandoned OAuth attempt when the Orbit session changes', () => {
+    markGoogleAuthStarted()
+
+    clearSupabaseSession()
+
+    expect(sessionStorage.getItem('orbit_google_auth_started_at')).toBeNull()
   })
 })
