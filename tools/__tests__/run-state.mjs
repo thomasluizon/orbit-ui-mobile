@@ -16,16 +16,16 @@ const stageCheckout = (label) => {
 }
 
 const reserveTogether = (moduleUrl, repoRoot, launch, cap) => {
-  const signal = new SharedArrayBuffer(2 * Int32Array.BYTES_PER_ELEMENT)
+  const signal = new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT)
   const workerSource = `
 const fs = require("node:fs")
 const { syncBuiltinESMExports } = require("node:module")
 const { parentPort, workerData } = require("node:worker_threads")
 const signal = new Int32Array(workerData.signal)
-const originalOpenSync = fs.openSync
+const originalLinkSync = fs.linkSync
 let synchronized = false
-fs.openSync = (...args) => {
-  if (!synchronized && String(args[0]).includes("orbit-worker-launches") && args[1] === "wx") {
+fs.linkSync = (...args) => {
+  if (!synchronized && String(args[1]).includes("-slot-")) {
     synchronized = true
     if (Atomics.add(signal, 0, 1) + 1 === 2) {
       Atomics.store(signal, 1, 1)
@@ -34,7 +34,8 @@ fs.openSync = (...args) => {
       while (Atomics.load(signal, 1) === 0) Atomics.wait(signal, 1, 0)
     }
   }
-  return originalOpenSync(...args)
+  if (String(args[1]).includes("-slot-") && Atomics.load(signal, 0) < 2) Atomics.add(signal, 2, 1)
+  return originalLinkSync(...args)
 }
 syncBuiltinESMExports()
 import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
@@ -55,25 +56,31 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
     })
     worker.once("message", resolve)
     worker.once("error", reject)
-  })))
+  }))).then((reservations) => ({
+    reservations,
+    barrierCalls: Atomics.load(new Int32Array(signal), 0),
+    publishedBeforeBothArrived: Atomics.load(new Int32Array(signal), 2),
+    barrierPath: "linkSync",
+  }))
 }
 
 const reserveAfterLaterReturns = (moduleUrl, repoRoot, launch) => {
-  const signal = new SharedArrayBuffer(2 * Int32Array.BYTES_PER_ELEMENT)
+  const signal = new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT)
   const workerSource = `
 const fs = require("node:fs")
 const { syncBuiltinESMExports } = require("node:module")
 const { parentPort, workerData } = require("node:worker_threads")
 const signal = new Int32Array(workerData.signal)
 if (workerData.earlier) {
-  const originalOpenSync = fs.openSync
-  fs.openSync = (...args) => {
-    if (String(args[0]).includes("orbit-worker-launches") && args[1] === "wx") {
+  const originalLinkSync = fs.linkSync
+  fs.linkSync = (...args) => {
+    if (String(args[1]).includes("-slot-")) {
+      Atomics.add(signal, 2, 1)
       Atomics.store(signal, 0, 1)
       Atomics.notify(signal, 0)
       while (Atomics.load(signal, 1) === 0) Atomics.wait(signal, 1, 0)
     }
-    return originalOpenSync(...args)
+    return originalLinkSync(...args)
   }
   syncBuiltinESMExports()
 } else {
@@ -102,7 +109,7 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
     })
     worker.once("message", resolve)
     worker.once("error", reject)
-  })))
+  }))).then((reservations) => ({ reservations, barrierCalls: Atomics.load(new Int32Array(signal), 2), barrierPath: "linkSync" }))
 }
 
 export const cases = async () => {
@@ -265,33 +272,36 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
   )
 
   const raceRoot = stageCheckout("launch-race")
-  const racingReservations = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, raceRoot, launch, 1)
+  const simultaneousRace = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, raceRoot, launch, 1)
+  const racingReservations = simultaneousRace.reservations
   const raceLedger = readWorkerLaunches(raceRoot)
   T(
     `${TOOL}: simultaneous reservations admit exactly one launch and retain its record`,
-    racingReservations.filter((reservation) => reservation.allowed).length === 1 && raceLedger.length === 1,
-    JSON.stringify({ racingReservations, raceLedger }),
+    racingReservations.filter((reservation) => reservation.allowed).length === 1 && raceLedger.length === 1 && simultaneousRace.barrierCalls === 2 && simultaneousRace.publishedBeforeBothArrived === 0 && simultaneousRace.barrierPath === "linkSync",
+    JSON.stringify({ racingReservations, raceLedger, barrierCalls: simultaneousRace.barrierCalls, publishedBeforeBothArrived: simultaneousRace.publishedBeforeBothArrived, barrierPath: simultaneousRace.barrierPath }),
   )
 
   const freeSlotRoot = stageCheckout("launch-race-free-slot")
   reserveWorkerLaunch(launch, 2, freeSlotRoot)
-  const contenders = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, freeSlotRoot, launch, 2)
+  const freeSlotRace = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, freeSlotRoot, launch, 2)
+  const contenders = freeSlotRace.reservations
   const freeSlotLedger = readWorkerLaunches(freeSlotRoot)
   T(
     `${TOOL}: simultaneous contenders use the one free slot instead of both yielding it`,
     contenders.filter((reservation) => reservation.allowed).length === 1 &&
       contenders.filter((reservation) => !reservation.allowed).length === 1 &&
-      freeSlotLedger.length === 2,
-    JSON.stringify({ contenders, freeSlotLedger }),
+      freeSlotLedger.length === 2 && freeSlotRace.barrierCalls === 2 && freeSlotRace.publishedBeforeBothArrived === 0 && freeSlotRace.barrierPath === "linkSync",
+    JSON.stringify({ contenders, freeSlotLedger, barrierCalls: freeSlotRace.barrierCalls, publishedBeforeBothArrived: freeSlotRace.publishedBeforeBothArrived, barrierPath: freeSlotRace.barrierPath }),
   )
 
   const delayedCreateRoot = stageCheckout("launch-race-delayed-create")
-  const delayedCreateReservations = await reserveAfterLaterReturns(new URL("../lib/run-state.mjs", import.meta.url).href, delayedCreateRoot, launch)
+  const delayedRace = await reserveAfterLaterReturns(new URL("../lib/run-state.mjs", import.meta.url).href, delayedCreateRoot, launch)
+  const delayedCreateReservations = delayedRace.reservations
   const delayedCreateLedger = readWorkerLaunches(delayedCreateRoot)
   T(
     `${TOOL}: a contender returning before an earlier contender creates cannot exceed the cap`,
-    delayedCreateReservations.filter((reservation) => reservation.allowed).length === 1 && delayedCreateLedger.length === 1,
-    JSON.stringify({ delayedCreateReservations, delayedCreateLedger }),
+    delayedCreateReservations.filter((reservation) => reservation.allowed).length === 1 && delayedCreateLedger.length === 1 && delayedRace.barrierCalls === 1 && delayedRace.barrierPath === "linkSync",
+    JSON.stringify({ delayedCreateReservations, delayedCreateLedger, barrierCalls: delayedRace.barrierCalls, barrierPath: delayedRace.barrierPath }),
   )
 
   registerWakeSource({ pid: process.pid, what: "worker ORB-1" }, repoRoot)

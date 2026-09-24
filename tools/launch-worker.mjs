@@ -623,6 +623,10 @@ child.on("error", (error) => {
   finish("SPAWN_FAILED", null)
 })
 
+child.on("message", (message) => {
+  if (message?.type === "SPAWN_FAILED") outcome = "SPAWN_FAILED"
+})
+
 child.on("exit", (code) => {
   clearTimeout(ceiling)
   clearInterval(sampler)

@@ -253,6 +253,24 @@ export const cases = async () => {
     { path: unresolvable.path },
   )
 
+  const innerSpawnFailure = launch("inner-spawn-failure", launchConfig({ ...stubEngine(IMMEDIATE) }))
+  const failGateSpawn = stage("launch-worker/fail-gate-spawn.cjs", `
+if (process.argv[1]?.endsWith("worker-gate.cjs")) {
+  const childProcess = require("node:child_process")
+  const originalSpawn = childProcess.spawn
+  childProcess.spawn = (_executable, args, options) => originalSpawn("orbit-worker-binary-that-does-not-exist", args, options)
+}
+`)
+  const innerFailureEnv = githubAuthEnv()
+  const innerFailure = check(
+    TOOL,
+    "a spawn failure inside the gate reports SPAWN_FAILED and a nonzero launcher exit",
+    ["--issue", "ORB-201", "--worktree", innerSpawnFailure.worktree, "--prompt", innerSpawnFailure.prompt],
+    { status: 1, stdout: /"outcome": "SPAWN_FAILED"/ },
+    { path: innerSpawnFailure.path, env: { ...innerFailureEnv, NODE_OPTIONS: `${innerFailureEnv.NODE_OPTIONS} --require "${failGateSpawn}"` } },
+  )
+  discardLog(innerFailure.stdout)
+
   const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, options)
   const real = realOrchestratorConfig()
   const engine = real.workers[real.worker]
