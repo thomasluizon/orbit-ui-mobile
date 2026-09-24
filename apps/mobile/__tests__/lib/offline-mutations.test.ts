@@ -1246,9 +1246,15 @@ describe('offline mutations', () => {
     it('settles and reports a second persistence rejection from a timer retry', async () => {
       mocks.setOnline(true)
       mocks.apiClient.mockRejectedValue(new Error('Network request failed'))
-      mocks.persistQueryCache
-        .mockRejectedValueOnce(new Error('Initial queue persistence failed'))
-        .mockRejectedValueOnce(new Error('Timer queue persistence failed'))
+      let persistenceAttempts = 0
+      mocks.persistQueryCache.mockImplementation(() => {
+        persistenceAttempts += 1
+        return Promise.reject(new Error(
+          persistenceAttempts === 1
+            ? 'Initial queue persistence failed'
+            : 'Timer queue persistence failed',
+        ))
+      })
       const timerErrorReported = new Promise<unknown>((resolve) => {
         mocks.captureError.mockImplementationOnce(resolve)
       })
