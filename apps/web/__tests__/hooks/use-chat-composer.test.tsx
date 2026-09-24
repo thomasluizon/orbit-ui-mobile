@@ -214,6 +214,31 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.sendError).toBeTruthy()
   })
 
+  it('finishes a live stream after the same account recovers', async () => {
+    signInAs('user-1')
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+
+    let send!: Promise<void>
+    act(() => { send = result.current.sendMessage('Keep this send') })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    await act(async () => {
+      refuseSessionRefresh()
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
+      await useAuthStore.getState().recoverSessionRefreshFailure()
+    })
+    await act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Still yours' })))
+      stream.close()
+      await send
+    })
+
+    expect(useChatStore.getState().messages.at(-1)?.content).toBe('Still yours')
+    expect(mocks.queryClient.setQueryData).toHaveBeenCalledOnce()
+  })
+
   it('streams deltas into a single ai bubble and the final response wins', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(
       frame('{"type":"started"}'),
@@ -1008,6 +1033,41 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(true)
     expect(result.current.composerProps.onRetry).toBeTypeOf('function')
     expect(result.current.sendError).toBe('chat.sendError')
+  })
+
+  it.each([
+    ['final', finalFrame(makeChatResponse({ aiMessage: 'Account A answer' }))],
+    ['failure', frame('{"type":"error","error":"Account A failed","status":500}')],
+  ])('discards a late %s stream after account replacement', async (_, outcome) => {
+    signInAs('user-1')
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+
+    let send!: Promise<void>
+    act(() => { send = result.current.sendMessage('Account A prompt') })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
+      await useAuthStore.getState().checkSession()
+    })
+    act(() => useChatStore.getState().setDraft('Account B draft'))
+
+    await act(async () => {
+      stream.enqueue(frame('{"type":"delta","text":"Account A partial"}'))
+      stream.enqueue(outcome)
+      stream.close()
+      await send
+    })
+
+    expect(useChatStore.getState().messages).toEqual([])
+    expect(useChatStore.getState().draft).toBe('Account B draft')
+    expect(useChatStore.getState().isTyping).toBe(false)
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(result.current.canRetryLastSend).toBe(false)
+    expect(result.current.sendError).toBeNull()
   })
 
   it('drops the previous account text file when another account replaces it', async () => {

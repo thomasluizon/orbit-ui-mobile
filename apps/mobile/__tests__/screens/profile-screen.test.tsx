@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
 import { createApiClientError } from '@orbit/shared/utils'
+import type { StepUpTimingRecord } from '@orbit/shared/utils'
+import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import ProfileScreen from '@/app/(tabs)/profile'
 import { PreferenceSettingsList } from '@/components/profile/preferences-sections'
@@ -441,6 +444,8 @@ describe('ProfileScreen', () => {
     mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
+    vi.mocked(beginStepUpChallenge).mockClear()
+    mockAuthState.user.userId = 'user-1'
     mockSearchParams.current = {}
     mockStepUpVerified.current = false
     mockCreateGrant.consumed = false
@@ -899,6 +904,73 @@ describe('ProfileScreen', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
     expect(mockCreateGrant.consumed).toBe(true)
     expect(nodeText(tree.root)).not.toContain('orbitMcp.createKeyError')
+  })
+
+  it.each(['success', 'failure'])('drops a late API key challenge %s after replacement', async (outcome) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockCreateGrant.consumed = true
+    let settle!: () => void
+    let reject!: (reason: Error) => void
+    mockApiClient.mockReturnValue(new Promise((resolve, rejectPromise) => {
+      settle = () => resolve({ message: 'sent' })
+      reject = rejectPromise
+    }))
+    const tree = await renderProfileScreen()
+    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.create').props.onPress())
+    expect(mockApiClient).toHaveBeenCalledWith(
+      API.apiKeys.requestCreationChallenge,
+      { method: 'POST' },
+      expect.anything(),
+    )
+
+    mockAuthState.user.userId = 'user-2'
+    TestRenderer.act(() => {
+      tree.unmount()
+      advanceAccountGeneration()
+    })
+    await TestRenderer.act(async () => {
+      if (outcome === 'success') settle()
+      else reject(new Error('Account A failure'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(beginStepUpChallenge).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalledWith('/step-up?operation=keys')
+  })
+
+  it('does not navigate when account replacement interrupts timing storage', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockCreateGrant.consumed = true
+    mockApiClient.mockResolvedValue({ message: 'sent' })
+    let settle!: () => void
+    vi.mocked(beginStepUpChallenge).mockReturnValueOnce(new Promise<StepUpTimingRecord>((resolve) => {
+      settle = () => resolve({ operation: 'keys', sentAt: Date.now() })
+    }))
+    const tree = await renderProfileScreen()
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
+      await Promise.resolve()
+    })
+    expect(beginStepUpChallenge).toHaveBeenCalledWith('keys', 'user-1')
+
+    TestRenderer.act(() => advanceAccountGeneration())
+    await TestRenderer.act(async () => {
+      settle()
+      await Promise.resolve()
+    })
+
+    expect(mockRouterPush).not.toHaveBeenCalledWith('/step-up?operation=keys')
   })
 
   it('shows trial copy and routes its allowance action to the trial pitch', async () => {

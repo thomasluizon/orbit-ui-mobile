@@ -48,6 +48,7 @@ import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
 import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 interface AttemptedSend {
   content: string
@@ -418,6 +419,8 @@ export function useChatComposer() {
   }, [locale])
 
   const runStreamingSend = useCallback(async (attempted: AttemptedSend) => {
+    const startingAccountGeneration = getAccountGeneration()
+    const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
     const controller = new AbortController()
     let idleTimer: ReturnType<typeof setTimeout> | undefined
     const armIdleTimer = () => {
@@ -443,10 +446,12 @@ export function useChatComposer() {
         body: buildChatFormData(attempted),
         signal: controller.signal,
       })
+      if (!ownsAccount()) return false
       if (!response.ok || !response.body) {
         const errorBody = (await response.json().catch(() => null)) as
           | { error?: string; errorCode?: string }
           | null
+        if (!ownsAccount()) return false
         useThrottleStore.getState().show(response.status, errorBody)
         handleFailedSend(
           {
@@ -464,15 +469,19 @@ export function useChatComposer() {
         streamTextChunks(response.body, armIdleTimer),
         {
           onDelta: (text) => {
+            if (!ownsAccount()) return
             appendToMessageContent(ensureDraftMessage(), text)
             scrollToBottom()
           },
           onReset: () => {
+            if (!ownsAccount()) return
             if (draftMessageId) updateMessage(draftMessageId, { content: '' })
             setIsTyping(true)
           },
         },
       )
+
+      if (!ownsAccount()) return false
 
       if (outcome.kind === 'final') {
         await applyFinalResponse(outcome.response, draftMessageId)
@@ -493,6 +502,7 @@ export function useChatComposer() {
       )
       return false
     } catch (error: unknown) {
+      if (!ownsAccount()) return false
       handleFailedSend(
         {
           status: isAbortError(error) ? 408 : null,
@@ -505,7 +515,7 @@ export function useChatComposer() {
       return false
     } finally {
       clearTimeout(idleTimer)
-      if (useChatStore.getState().streamingMessageId === draftMessageId) {
+      if (ownsAccount() && useChatStore.getState().streamingMessageId === draftMessageId) {
         setStreamingMessageId(null)
       }
     }
@@ -617,8 +627,10 @@ export function useChatComposer() {
     const sendState = useChatStore.getState()
     if (!lastFailedSend || sendState.isTyping || sendState.streamingMessageId !== null) return
     const attempted = lastFailedSend
+    const startingAccountGeneration = getAccountGeneration()
     const succeeded = await performSend(attempted, true)
     if (
+      getAccountGeneration() === startingAccountGeneration &&
       succeeded &&
       attempted.clearDraftOnSuccess &&
       attempted.restoredDraftRevision !== null &&

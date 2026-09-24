@@ -1258,6 +1258,58 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.imagePreview).toBeNull()
   })
 
+  it.each([
+    ['final', finalFrame(makeChatResponse({ aiMessage: 'Account A answer' }))],
+    ['failure', frame('{"type":"error","error":"Account A failed","status":500}')],
+  ])('discards a late %s stream after account replacement', async (_, outcome) => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('Account A prompt') })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+
+    await TestRenderer.act(async () => {
+      await useChatStore.getState().resetAccountScopedChat()
+      advanceAccountGeneration()
+      useChatStore.getState().setDraft('Account B draft')
+    })
+    await TestRenderer.act(async () => {
+      stream.enqueue(frame('{"type":"delta","text":"Account A partial"}'))
+      stream.enqueue(outcome)
+      stream.close()
+      await send
+    })
+
+    expect(useChatStore.getState().messages).toEqual([])
+    expect(useChatStore.getState().draft).toBe('Account B draft')
+    expect(useChatStore.getState().isTyping).toBe(false)
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(composer.current.canRetryLastSend).toBe(false)
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it('finishes a live stream when only the session epoch changes', async () => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('Keep this send') })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    TestRenderer.act(() => advanceSessionEpoch())
+    await TestRenderer.act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Still yours' })))
+      stream.close()
+      await send
+    })
+
+    expect(useChatStore.getState().messages.at(-1)?.content).toBe('Still yours')
+    expect(mocks.queryClient.setQueryData).toHaveBeenCalledOnce()
+  })
+
   it('keeps the retry and the attachment when only the session epoch moves', async () => {
     mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
     mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
