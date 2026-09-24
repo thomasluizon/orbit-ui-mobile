@@ -148,6 +148,15 @@ export const cases = () => {
   }
 
   const guards = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8"))
+  for (const workflowFile of ["guards.yml", "dependency-review.yml"]) {
+    const workflow = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", workflowFile), "utf8"))
+    T(`${workflowFile}: superseded runs share a workflow and ref concurrency group`,
+      workflow.concurrency?.group === "${{ github.workflow }}-${{ github.ref }}",
+      JSON.stringify(workflow.concurrency))
+    T(`${workflowFile}: superseded runs are cancelled`,
+      workflow.concurrency?.["cancel-in-progress"] === true,
+      JSON.stringify(workflow.concurrency))
+  }
   for (const [jobId, stepName] of [
     ["dashes", "PR title and body carry no dashes"],
     ["review-harness", "A UI pull request on redesign/main records what the review skills found"],
