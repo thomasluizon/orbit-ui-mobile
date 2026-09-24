@@ -87,6 +87,7 @@ function clearAccountScopedSessionState(): void {
 function endSessionLocally(): void {
   clearAccountScopedSessionState()
   forgetPreviousAccountContent()
+  lastObservedAccountId = null
   sessionRecoveryUser = null
   useOnboardingDraftStore.getState().reset()
 }
@@ -151,6 +152,7 @@ function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
 
 interface AuthState {
   isAuthenticated: boolean
+  sessionInactive: boolean
   user: User | null
   expiresAt: number | null
   sessionRefreshFailed: boolean
@@ -197,6 +199,7 @@ async function readCurrentSession(): Promise<SessionSnapshot> {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
+  sessionInactive: false,
   user: null,
   expiresAt: null,
   sessionRefreshFailed: false,
@@ -207,6 +210,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     startAccountScopedSession(loginResponse.userId)
     set({
       isAuthenticated: true,
+      sessionInactive: false,
       user: {
         userId: loginResponse.userId,
         name: loginResponse.name,
@@ -237,6 +241,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       endSessionLocally()
       set({
         isAuthenticated: false,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -247,7 +252,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!adoptSessionAccount(accountId)) return
 
     sessionRecoveryUser = null
-    set({ isAuthenticated: true, user: null, sessionRefreshFailed: false })
+    set({ isAuthenticated: true, sessionInactive: false, user: null, sessionRefreshFailed: false })
     void get().checkSession()
   },
 
@@ -259,6 +264,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        sessionInactive: false,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
@@ -268,8 +274,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (session.kind === 'inactive') {
       sessionRecoveryUser = null
       clearAccountScopedSessionState()
+      lastObservedAccountId = null
       set({
         isAuthenticated: false,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -281,6 +289,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
+        sessionInactive: false,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: true,
@@ -298,6 +307,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        sessionInactive: false,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
@@ -305,8 +315,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } else if (session.kind === 'inactive') {
       sessionRecoveryUser = null
       clearAccountScopedSessionState()
+      lastObservedAccountId = null
       set({
         isAuthenticated: false,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -326,6 +338,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        sessionInactive: false,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
@@ -333,8 +346,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } else if (session.kind === 'inactive') {
       sessionRecoveryUser = null
       clearAccountScopedSessionState()
+      lastObservedAccountId = null
       set({
         isAuthenticated: false,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -379,6 +394,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({
       isAuthenticated: false,
+      sessionInactive: true,
       user: null,
       expiresAt: null,
       sessionRefreshFailed: false,

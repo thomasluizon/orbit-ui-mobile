@@ -54,6 +54,7 @@ vi.mock('@/stores/auth-store', () => {
       (selector: (current: unknown) => unknown) => selector(state),
       { getState: () => state },
     ),
+    getHeldAccountId: () => 'user-1',
     useHeldAccountId: () => 'user-1',
   }
 })

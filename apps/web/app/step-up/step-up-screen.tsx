@@ -16,7 +16,8 @@ import {
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { useAuthStore, useHeldAccountId } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore, useHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   confirmApiKeyCreationChallenge,
   requestApiKeyCreationChallenge,
@@ -67,7 +68,8 @@ export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: st
   const operation = isStepUpOperation(operationParam) ? operationParam : null
   const { profile } = useProfile()
   const heldAccountId = useHeldAccountId()
-  const accountId = heldAccountId ?? serverAccountId
+  const sessionInactive = useAuthStore((state) => state.sessionInactive)
+  const accountId = sessionInactive ? null : heldAccountId ?? serverAccountId
   const userEmail = useAuthStore((state) => state.user?.email)
   const logout = useAuthStore((state) => state.logout)
   const { displayDate } = useDateFormat()
@@ -96,10 +98,14 @@ export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: st
 
   useEffect(() => {
     if (!clientReady) return
+    if (sessionInactive) {
+      router.replace('/login')
+      return
+    }
     if (!operation || !record) {
       router.replace('/profile')
     }
-  }, [clientReady, operation, record, router])
+  }, [clientReady, operation, record, router, sessionInactive])
 
   useEffect(() => {
     const timer = globalThis.setInterval(() => setNow(Date.now()), 1000)
@@ -124,13 +130,22 @@ export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: st
     ? displayDate(scheduledDeletionAt)
     : ''
 
+  function isCurrentRequest(generation: number, initiatingAccountId: string | null): boolean {
+    return getAccountGeneration() === generation
+      && !useAuthStore.getState().sessionInactive
+      && (getHeldAccountId() ?? serverAccountId) === initiatingAccountId
+  }
+
   async function handleResend() {
     if (!operation || exhausted || requesting) return
+    const generation = getAccountGeneration()
+    const initiatingAccountId = accountId
     setRequesting(true)
     setRequestError(null)
     try {
       if (operation === 'delete') await requestDeletion()
       else await requestApiKeyCreationChallenge()
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       const next = beginStepUpChallenge(operation, accountId)
       setRecord(next)
       setCode('')
@@ -139,20 +154,24 @@ export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: st
       setPhase(getStepUpPhaseFromTiming(next, Date.now()))
       setNow(Date.now())
     } catch {
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       setRequestError(t('requestError'))
     } finally {
-      setRequesting(false)
+      if (isCurrentRequest(generation, initiatingAccountId)) setRequesting(false)
     }
   }
 
   async function handleConfirm() {
     if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking) return
+    const generation = getAccountGeneration()
+    const initiatingAccountId = accountId
     setPhase('checking')
     setFieldError(null)
     setRequestError(null)
     try {
       if (operation === 'keys') {
         const result = await confirmApiKeyCreationChallenge(code)
+        if (!isCurrentRequest(generation, initiatingAccountId)) return
         if (!result.success) {
           handleConfirmationFailure(result.errorCode, result.remaining)
           return
@@ -163,6 +182,7 @@ export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: st
         return
       }
       const result = await confirmDeletion(code)
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       if (!result.success) {
         handleConfirmationFailure(result.errorCode, result.remaining)
         return
@@ -171,6 +191,7 @@ export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: st
       setScheduledDeletionAt(result.response.scheduledDeletionAt)
       setPhase('deactivated')
     } catch {
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       setFieldError(t('genericError'))
       setPhase('challenge')
     }
@@ -220,7 +241,7 @@ export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: st
 
   const otpError = getOtpError(t, fieldError, attemptsRemaining)
 
-  if (!clientReady || !operation || !record) return null
+  if (!clientReady || sessionInactive || !operation || !record) return null
 
   const sharedView = { operationLabel, t }
   if (success) {
