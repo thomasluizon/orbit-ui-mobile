@@ -385,7 +385,6 @@ function getCount(): number {
 
 describe('mobile habit hooks', () => {
   beforeEach(() => {
-    vi.useRealTimers()
     seedHabitState([makeHabit()], 1)
     mocks.state.tempIds = []
     mocks.queryClient.cancelQueries.mockReset()
@@ -433,6 +432,22 @@ describe('mobile habit hooks', () => {
       mutation: expect.objectContaining({
         type: 'logHabit',
         dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      }),
+    }))
+  })
+
+  it('uses the pinned day for an undated queued toggle', async () => {
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      unknown
+    >
+
+    await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
+
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({
+        dedupeKey: 'habit-toggle:habit-1:2026-09-12',
       }),
     }))
   })
