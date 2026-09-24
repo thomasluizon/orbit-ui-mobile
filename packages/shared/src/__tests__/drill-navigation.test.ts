@@ -208,6 +208,41 @@ describe('mergeDrillChildrenMap', () => {
 })
 
 describe('getVisibleDrillChildren', () => {
+  it('keeps fresh detail fields while using list date and search metadata', () => {
+    const selectedDate = '2025-01-02'
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({
+        id: 'child-1', title: 'New title', dueDate: '2025-01-10',
+        isCompleted: true,
+      }),
+    ] }), selectedDate)
+    const staleListChild = createMockHabit({
+      id: 'child-1', parentId: 'parent-1', title: 'Old title',
+      dueDate: '2025-01-01', isCompleted: false,
+      scheduledDates: [selectedDate], isLoggedInRange: true,
+      instances: [{ date: selectedDate, status: 'Completed', logId: 'log-1' }],
+      searchMatches: [{ field: 'title', value: 'Old title' }],
+    })
+    const options = {
+      habitsById: new Map([[staleListChild.id, staleListChild]]),
+      childrenByParent: new Map([['parent-1', [staleListChild.id]]]),
+      selectedDate, searchQuery: 'old', showCompleted: true,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    const [visibleChild] = getVisibleDrillChildren(
+      'parent-1', detail.childrenByParent, options, 'today', selectedDate,
+    )
+    expect(visibleChild).toMatchObject({
+      title: 'New title', dueDate: '2025-01-10', isCompleted: true,
+      scheduledDates: [selectedDate], isLoggedInRange: true,
+      instances: staleListChild.instances, searchMatches: staleListChild.searchMatches,
+    })
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
+      ...options, searchQuery: '', showCompleted: false,
+    }, 'all', selectedDate)).toEqual([])
+  })
+
   it('ignores current-day overdue on a detail-only child for an earlier selected date', () => {
     const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
       makeDetailChild({ id: 'overdue-child', dueDate: '2025-01-02', isOverdue: true }),

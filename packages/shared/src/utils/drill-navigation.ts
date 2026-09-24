@@ -60,7 +60,13 @@ export function getVisibleDrillChildren(
       habitsById.set(child.id, {
         ...child,
         ...(!listChild && !isSelectedDateToday ? { isOverdue: false } : {}),
-        ...listChild,
+        ...(listChild ? {
+          scheduledDates: listChild.scheduledDates,
+          isLoggedInRange: listChild.isLoggedInRange,
+          instances: listChild.instances,
+          searchMatches: listChild.searchMatches,
+          isOverdue: listChild.isOverdue,
+        } : {}),
       })
     }
   }
