@@ -61,4 +61,14 @@ export const cases = () => {
   })
   T("win-spawn-target.mjs: an earlier symlinked executable wins over a later command shim",
     linkedTarget === join(sandbox, "linked", "tool.exe"), `resolved ${linkedTarget}`)
+  mkdirSync(join(sandbox, "dangling"))
+  symlinkSync(join(sandbox, "missing-directory"), join(sandbox, "dangling", "tool.exe"), "dir")
+  const danglingTarget = resolveSpawnTarget("tool", {
+    platform: "win32",
+    cwd: sandbox,
+    pathValue: `${join(sandbox, "dangling")};${join(sandbox, "shim")}`,
+    pathExt: ".CMD;.EXE",
+  })
+  T("win-spawn-target.mjs: an earlier dangling link is skipped, so a later command shim still reaches its diagnostic",
+    danglingTarget === join(sandbox, "shim", "tool.CMD"), `resolved ${danglingTarget}`)
 }

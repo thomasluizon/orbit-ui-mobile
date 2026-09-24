@@ -24,9 +24,10 @@ const windowsPathDirectories = (pathValue) => {
 }
 
 /**
- * libuv accepts a candidate when `GetFileAttributesW` finds it and it is not a directory. That call
- * reads the link itself, so a file symlink is accepted even when `lstat` calls it a symbolic link.
- * A link is judged by its target when the target exists, and accepted when it dangles.
+ * libuv accepts a candidate when `GetFileAttributesW` finds it and it is not a directory. A live
+ * link is judged by its target, which carries the same type as the link. A DANGLING link is never
+ * spawnable: libuv skips a dangling directory link, and a dangling file link that libuv would pick
+ * cannot start either, so skipping it lets the search reach the documented shim diagnostic.
  */
 const isSpawnableFile = (candidate) => {
   let link
@@ -39,7 +40,7 @@ const isSpawnableFile = (candidate) => {
   try {
     return !statSync(candidate).isDirectory()
   } catch {
-    return true
+    return false
   }
 }
 
