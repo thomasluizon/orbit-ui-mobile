@@ -93,7 +93,7 @@ interface AuthState {
   isLoading: boolean
   expiresAt: number | null
   login: (token: string, refreshToken: string | null, user: User) => Promise<void>
-  logout: () => Promise<boolean>
+  logout: (observedCredential?: SessionSnapshot) => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
 }
@@ -504,6 +504,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       try {
         const profile = await apiClient<Profile>(API.profile.get)
+        if (!isCurrentSessionEpoch(ownership.epoch)) return
         queryClient.setQueryData(profileKeys.detail(), profile)
 
         if (profile.language && i18n.language !== profile.language) {
@@ -543,15 +544,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: async () => {
-    const ownership = getSessionGeneration()
+  logout: async (observedCredential) => {
+    const ownership = observedCredential ?? getSessionGeneration()
+    if (observedCredential && !isCurrentCredentialObservation(observedCredential)) return false
     await import('@/hooks/use-push-notifications')
       .then((module) => module.unsubscribePushToken())
       .catch(() => {})
 
     const teardown = await runSessionTeardown({
-      authority: 'session-owner',
-      epoch: ownership.epoch,
+      ...(observedCredential
+        ? { authority: 'observed-credential' as const, ...ownership }
+        : { authority: 'session-owner' as const, epoch: ownership.epoch }),
     }, true)
     const refreshToken = teardown?.refreshToken ?? null
     if (teardown && refreshToken && isCurrentSessionTeardown(teardown.epoch)) {
@@ -563,9 +566,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (!teardown) return false
-    if (!isCurrentSessionTeardown(teardown.epoch)) return true
+    if (!isCurrentSessionTeardown(teardown.epoch)) return false
     await clearStoredAuthReturnUrl()
-    if (!isCurrentSessionTeardown(teardown.epoch)) return true
+    if (!isCurrentSessionTeardown(teardown.epoch)) return false
     offlineQueue.clear()
     return true
   },

@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useRouter } from 'expo-router'
-import { useAuthStore } from '@/stores/auth-store'
+import { getSessionGeneration, useAuthStore } from '@/stores/auth-store'
 
 /**
  * Signs the user out and routes to the login screen.
@@ -12,11 +12,11 @@ import { useAuthStore } from '@/stores/auth-store'
  * with an empty onboarding draft), so the router anchor would otherwise drop the
  * user on the onboarding flow (#431 / #432).
  */
-export function useLogout(): () => Promise<void> {
+export function useLogout(): (observedCredential?: ReturnType<typeof getSessionGeneration>) => Promise<void> {
   const router = useRouter()
   const logout = useAuthStore((state) => state.logout)
-  return useCallback(async () => {
-    const didLogout = await logout()
+  return useCallback(async (observedCredential) => {
+    const didLogout = await logout(observedCredential)
     if (didLogout) {
       router.replace('/login')
     }

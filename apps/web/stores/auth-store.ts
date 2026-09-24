@@ -11,10 +11,22 @@ import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epo
 import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
 import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+let sessionOwnershipEpoch = 0
+let loginsWaitingForLogout = 0
+
+export async function withCookieSettingLogin<T>(task: () => Promise<T>): Promise<T> {
+  loginsWaitingForLogout += 1
+  try {
+    return await withSessionCookieLock(task)
+  } finally {
+    loginsWaitingForLogout -= 1
+  }
+}
 
 let lastObservedAccountId: string | null = null
 
@@ -178,6 +190,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
+    sessionOwnershipEpoch += 1
     sessionRecoveryUser = null
     startAccountScopedSession(loginResponse.userId)
     bindStepUpStateToAccount(loginResponse.userId)
@@ -346,12 +359,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    endSessionLocally()
-    announceAccountToOtherTabs(null)
+    const logoutEpoch = sessionOwnershipEpoch
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await withSessionCookieLock(async () => {
+        if (logoutEpoch !== sessionOwnershipEpoch) return
+        endSessionLocally()
+        announceAccountToOtherTabs(null)
+        try {
+          await fetch('/api/auth/logout', { method: 'POST' })
+        } catch {
+        }
+      })
     } catch {
+      return
     }
+
+    if (logoutEpoch !== sessionOwnershipEpoch) return
 
     set({
       isAuthenticated: false,
@@ -360,7 +383,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionRefreshFailed: false,
     })
 
-    if ('location' in globalThis) {
+    if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
     }
   },

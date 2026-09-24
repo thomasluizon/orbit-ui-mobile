@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth-store'
+import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import { getSessionEpoch } from '@/lib/session-epoch'
 import { subscribeToAccountSignal } from '@/lib/cross-tab-account-signal'
 import { useChatStore } from '@/stores/chat-store'
@@ -23,10 +24,22 @@ afterEach(() => vi.useRealTimers())
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+let lockQueue: Promise<unknown>
 
 
 describe('auth store', () => {
   beforeEach(() => {
+    lockQueue = Promise.resolve()
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: {
+        request: (_name: string, task: () => Promise<unknown>) => {
+          const result = lockQueue.then(task)
+          lockQueue = result.catch(() => {})
+          return result
+        },
+      },
+    })
     resetPendingNotificationDeletesForTests()
     clearStepUpState()
     useAuthStore.setState({
@@ -44,6 +57,7 @@ describe('auth store', () => {
   })
 
   afterEach(() => {
+    Reflect.deleteProperty(navigator, 'locks')
     globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
     globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     useChatStore.setState({
@@ -119,6 +133,39 @@ describe('auth store', () => {
       sessionRefreshFailed: false,
     })
   })
+
+  it('keeps the session when browser cookie locking is unavailable', async () => {
+    Reflect.deleteProperty(navigator, 'locks')
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    await useAuthStore.getState().logout()
+    await expect(fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'thomas@example.com', code: '123456',
+    })).rejects.toThrow('Web Locks API is required for session cookie changes')
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('keeps a replacement login when an older logout response arrives', async () => {
+    let releaseLogout!: () => void
+    mockFetch.mockImplementation(() => new Promise<Response>((resolve) => {
+      releaseLogout = () => resolve(Response.json({ success: true }))
+    }))
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'user-2', email: 'new@example.com' }))
+    releaseLogout()
+    await oldLogout
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: { userId: 'user-2', email: 'new@example.com' },
+    })
+  })
+
 
   it('removes the stored Astra draft when the account signs out', async () => {
     mockFetch.mockResolvedValue({ ok: true })

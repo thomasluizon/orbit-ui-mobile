@@ -1,4 +1,10 @@
+import React from 'react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
+import { API } from '@orbit/shared/api'
+import { profileKeys } from '@orbit/shared/query'
+import { i18n } from '@/lib/i18n'
+import { getRuntimeTheme } from '@/lib/theme'
+import { useLogout } from '@/hooks/use-logout'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
 
@@ -26,6 +32,7 @@ import {
 } from '@/lib/pending-notification-deletes'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+const TestRenderer = require('react-test-renderer')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
@@ -96,6 +103,7 @@ vi.mock('expo-router', () => ({
   router: {
     replace: replaceMock,
   },
+  useRouter: () => ({ replace: replaceMock }),
 }))
 
 vi.mock('@/lib/secure-store', () => ({
@@ -211,6 +219,16 @@ function makeJwtWithClaims(expirySeconds: number, userId = 'jwt-user', email = '
   return `${header}.${payload}.`
 }
 
+function renderHookValue<T>(hook: () => T): T {
+  let value!: T
+  function Probe() {
+    value = hook()
+    return null
+  }
+  TestRenderer.act(() => TestRenderer.create(React.createElement(Probe)))
+  return value
+}
+
 describe('mobile auth store security paths', () => {
   beforeEach(() => {
     resetPendingNotificationDeletesForTests()
@@ -227,6 +245,7 @@ describe('mobile auth store security paths', () => {
     apiClientMock.mockReset()
     clearPersistedQueryCacheMock.mockReset()
     queryClientClearMock.mockReset()
+    setQueryDataMock.mockReset()
     clearStoredAuthReturnUrlMock.mockReset()
     resetAccountScopedChatMock.mockReset()
     resetAccountScopedChatMock.mockResolvedValue(undefined)
@@ -1907,5 +1926,44 @@ describe('mobile auth store security paths', () => {
       name: 'Login Name',
       email: 'login@example.com',
     })
+  })
+
+  it('does not publish an old profile after a replacement login scopes the cache', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    const oldProfile = { name: 'Old', email: oldUser.email, language: 'pt-BR', colorScheme: 'rose', themePreference: 'light' }
+    const newProfile = { name: 'New', email: newUser.email, language: 'en', colorScheme: 'blue', themePreference: 'dark' }
+    let releaseOldProfile!: (profile: typeof oldProfile) => void
+    apiClientMock
+      .mockImplementationOnce(() => new Promise<typeof oldProfile>((resolve) => { releaseOldProfile = resolve }))
+      .mockResolvedValueOnce(newProfile)
+
+    const oldLogin = useAuthStore.getState().login('old-token', 'old-refresh', oldUser)
+    await vi.waitFor(() => expect(releaseOldProfile).toBeTypeOf('function'))
+    await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
+    releaseOldProfile(oldProfile)
+    await oldLogin
+
+    expect(setQueryDataMock).toHaveBeenCalledTimes(1)
+    expect(setQueryDataMock).toHaveBeenCalledWith(profileKeys.detail(), newProfile)
+    expect(i18n.language).toBe('en')
+    expect(getRuntimeTheme()).toMatchObject({ scheme: 'blue', themeMode: 'dark' })
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
+  })
+
+  it('refuses a rejected refresh logout after a replacement login', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    await useAuthStore.getState().login('old-token', 'old-refresh', oldUser)
+    const oldOwnership = getSessionGeneration()
+    await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    await logoutAndRedirect(oldOwnership)
+
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
+    expect(replaceMock).not.toHaveBeenCalled()
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(apiClientMock).not.toHaveBeenCalledWith(API.auth.logout, expect.anything())
   })
 })
