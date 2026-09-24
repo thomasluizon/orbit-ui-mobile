@@ -120,7 +120,8 @@ export default function UpgradePage() {
   const handleCheckout = useCallback(
     async (interval: SubscriptionInterval) => {
       const checkoutAccount = getAccountGeneration()
-      if (checkoutPendingRef.current === checkoutAccount || !isOnline) return
+      const checkoutOwner = getHeldAccountId()
+      if (checkoutPendingRef.current === checkoutAccount || !isOnline || checkoutOwner === null) return
       checkoutPendingRef.current = checkoutAccount
       setCheckoutLoading(interval)
       setCheckoutError('')
@@ -131,7 +132,10 @@ export default function UpgradePage() {
           : API.subscription.checkout
         const response = await fetchWithThrottle(checkoutUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Orbit-Held-Account-Id': checkoutOwner,
+          },
           body: JSON.stringify({ interval }),
         })
         if (!response.ok) {

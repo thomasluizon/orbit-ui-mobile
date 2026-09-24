@@ -284,6 +284,21 @@ describe('UpgradePage across an account change', () => {
     expect(globalThis.location.href).toBe('')
   })
 
+  it('binds checkout to the held account before the tab learns that its cookie changed', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(Response.json({}))
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
+    fireEvent.click(checkoutButton())
+
+    await waitFor(() => expect(vi.mocked(globalThis.fetch)).toHaveBeenCalled())
+    expect(vi.mocked(globalThis.fetch).mock.calls[0]?.[1]).toMatchObject({
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Orbit-Held-Account-Id': 'user-1',
+      },
+    })
+  })
+
   it('never shows the next account a failure from the previous account checkout', async () => {
     let failCheckout!: (reason: Error) => void
     vi.mocked(globalThis.fetch).mockImplementationOnce(
