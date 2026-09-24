@@ -239,6 +239,32 @@ describe('mobile useDrillNavigation', () => {
     expect(holder.current.drillError).not.toBe('')
   })
 
+  it('keeps the latest same-parent failure when an older visit succeeds later', async () => {
+    const stale: { resolve: (detail: HabitDetail) => void } = { resolve: () => undefined }
+    mocks.apiClient.mockImplementationOnce(() => new Promise<HabitDetail>((resolve) => { stale.resolve = resolve }))
+      .mockRejectedValueOnce(new Error('network'))
+    const { holder } = renderDrill()
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    TestRenderer.act(() => { staleDrill = holder.current.drillInto('p1') })
+    TestRenderer.act(() => holder.current.drillBack())
+    await actAsync(() => holder.current.drillInto('p1'))
+    const latestError = holder.current.drillError
+    expect(latestError).not.toBe('')
+    expect(holder.current.drillChildren).toEqual([])
+
+    await actAsync(async () => {
+      stale.resolve(makeDetail({ children: [makeChild({ id: 'stale' })] }))
+      await staleDrill
+    })
+
+    expect(holder.current.currentParentId).toBe('p1')
+    expect(holder.current.drillError).toBe(latestError)
+    expect(holder.current.currentParent).toBeNull()
+    expect(holder.current.drillChildren).toEqual([])
+    expect(holder.current.drillLoading).toBe(false)
+  })
+
   it('clears a failed drill after Retry loads its children', async () => {
     mocks.apiClient.mockRejectedValueOnce(new Error('network'))
       .mockResolvedValueOnce(makeDetail({ children: [makeChild({ id: 'recovered' })] }))

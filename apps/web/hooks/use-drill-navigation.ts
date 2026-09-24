@@ -74,6 +74,7 @@ export function useDrillNavigation(
 
   const currentParentId = drillStack.at(-1) ?? null
   const activeParentIdRef = useRef<string | null>(null)
+  const requestIdRef = useRef(0)
   useEffect(() => {
     activeParentIdRef.current = currentParentId
   }, [currentParentId])
@@ -104,21 +105,23 @@ export function useDrillNavigation(
 
   const fetchDrillChildren = useCallback(
     async (habitId: string, silent = false) => {
+      if (activeParentIdRef.current !== habitId) return
+      const requestId = ++requestIdRef.current
       if (!silent) setDrillLoading(true)
       try {
         const normalized = await loadDrillChildren(habitId, fetchHabitDetail)
-        const isActive = activeParentIdRef.current === habitId
-        if (isActive) setDrillParentInfo(normalized.parent)
+        if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
+        setDrillParentInfo(normalized.parent)
         setDrillChildrenMap((prev) =>
           mergeDrillChildrenMap(prev, normalized.childrenByParent),
         )
-        if (isActive) setDrillError('')
+        setDrillError('')
       } catch (err: unknown) {
-        if (!silent && activeParentIdRef.current === habitId) {
+        if (!silent && requestIdRef.current === requestId && activeParentIdRef.current === habitId) {
           setDrillError(getFriendlyErrorMessage(err, t, 'errors.fetchSubHabits', 'subHabit'))
         }
       } finally {
-        if (!silent) setDrillLoading(false)
+        if (!silent && requestIdRef.current === requestId) setDrillLoading(false)
       }
     },
     [t],
@@ -126,7 +129,9 @@ export function useDrillNavigation(
 
   const drillInto = useCallback(
     async (habitId: string) => {
+      requestIdRef.current += 1
       setDrillError('')
+      setDrillLoading(false)
       activeParentIdRef.current = habitId
       setDrillStack((prev) => [...prev, habitId])
       if (!drillChildrenMap.has(habitId)) {
@@ -137,10 +142,16 @@ export function useDrillNavigation(
   )
 
   const drillBack = useCallback(() => {
+    requestIdRef.current += 1
+    activeParentIdRef.current = null
+    setDrillLoading(false)
     setDrillStack((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev))
   }, [])
 
   const drillReset = useCallback(() => {
+    requestIdRef.current += 1
+    activeParentIdRef.current = null
+    setDrillLoading(false)
     setDrillStack([])
     setDrillChildrenMap(new Map())
     setDrillParentInfo(null)

@@ -263,6 +263,36 @@ describe('useDrillNavigation', () => {
     expect(result.current.drillError).not.toBe('')
   })
 
+  it('keeps the latest same-parent failure when an older visit succeeds later', async () => {
+    const stale: { resolve: (response: unknown) => void } = { resolve: () => undefined }
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: 'Server error' }),
+      })
+    const { result } = renderHook(() => useDrillNavigation(new Map(), 0))
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    act(() => { staleDrill = result.current.drillInto('parent1') })
+    act(() => { result.current.drillBack() })
+    await act(async () => { await result.current.drillInto('parent1') })
+    const latestError = result.current.drillError
+    expect(latestError).not.toBe('')
+    expect(result.current.drillChildren).toEqual([])
+
+    await act(async () => {
+      stale.resolve({ ok: true, json: () => Promise.resolve(makeDetailResponse()) })
+      await staleDrill
+    })
+
+    expect(result.current.currentParentId).toBe('parent1')
+    expect(result.current.drillError).toBe(latestError)
+    expect(result.current.currentParent).toBeNull()
+    expect(result.current.drillChildren).toEqual([])
+    expect(result.current.drillLoading).toBe(false)
+  })
+
   it('clears a failed drill after Retry loads its children', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
