@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * One worker prompt = the ticket body verbatim + its comments + an orchestrator's brief + the
- * finishing contract.
+ * One worker prompt = the ticket body verbatim + its comments, then the finishing contract and the
+ * orchestrator's brief. A local order puts the finishing contract (and any redesign sweep) BEFORE the
+ * brief, so the delivery steps are read first (#624); a Cloud order keeps brief, then finishing.
  *
  * WHY the comments are here, added 2026-08-13: three places claimed this file already passed them
  * through, and it did not. It read `liveTicket.body` alone. That silently broke the conversation
