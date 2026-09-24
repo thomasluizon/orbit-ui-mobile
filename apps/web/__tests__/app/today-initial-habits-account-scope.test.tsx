@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, renderHook, waitFor } from '@testing-library/react'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { habitKeys } from '@orbit/shared/query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import {
@@ -11,7 +11,8 @@ import {
 import { getQueryClient } from '@/lib/query-client'
 import { useTodayHabitsData } from '@/app/(app)/use-today-habits-data'
 import { buildTodayFilters } from '@/app/(app)/today-model'
-import { holdAccount, recoverSameAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { holdAccount, recoverSameAccount, replaceAccountWith, respondWithAccount } from '@/__tests__/support/account-change'
+import { useAuthStore } from '@/stores/auth-store'
 
 const mocks = vi.hoisted(() => ({ fetchJson: vi.fn() }))
 
@@ -98,6 +99,24 @@ it('never shows the next account the habits the server rendered for the previous
 
   await waitFor(() =>
     expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Walk the dog']))
+})
+
+it('discards server habits when the first client session check finds another account', async () => {
+  useAuthStore.getState().adoptAccountFromSignal(null)
+  const rendered = renderToday()
+  expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Take lithium at 9pm'])
+  mocks.fetchJson.mockResolvedValue({
+    items: [scheduleItem('habit-b', 'Walk the dog')],
+    page: 1,
+    pageSize: 200,
+    totalCount: 1,
+    totalPages: 1,
+  })
+
+  respondWithAccount('user-2')
+  await act(async () => { await useAuthStore.getState().checkSession() })
+
+  await waitFor(() => expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Walk the dog']))
 })
 
 it('keeps the rendered habits when the same account recovers from a rejected refresh', async () => {

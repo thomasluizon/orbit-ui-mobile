@@ -92,9 +92,9 @@ function endSessionLocally(): void {
 }
 
 /**
- * Reads the account the cookie now names. A tab that has not yet learned an account only records it,
- * which leaves a reload of the same account untouched, and a replacement also drops the remembered
- * user because this tab cannot prove the new account's name.
+ * Reads the account the cookie now names. A tab that has not yet learned an account starts a new
+ * boundary even on its first check: server-rendered data may belong to a different account if the
+ * shared cookie changed between the server render and this check.
  *
  * The step-up state is cleared BEFORE the account generation rises, because the rise is what tells
  * every listener to re-read, and `use-api-key-management` re-reads the creation grant through a
@@ -106,8 +106,9 @@ function adoptSessionAccount(userId: string | null): boolean {
   if (userId === null) return false
   if (lastObservedAccountId === userId) return false
   if (lastObservedAccountId === null) {
-    lastObservedAccountId = userId
-    return false
+    bindStepUpStateToAccount(userId)
+    startAccountScopedSession(userId)
+    return true
   }
 
   bindStepUpStateToAccount(userId)
@@ -129,15 +130,10 @@ export function getHeldAccountId(): string | null {
 /**
  * Reports the held account to a component and re-renders it when that account arrives.
  *
- * The FIRST session check of a tab records the account and returns early, because there is no
- * previous account to forget, so the account generation never rises on it. A component that keys
- * anything on the account therefore cannot wait on the generation: it would render once with no
- * account, and nothing would ever tell it otherwise.
- *
- * It cannot wait on `user` either, which that same check leaves null until a later one names the
- * person. So it subscribes to the store itself and re-reads the held id on every write. Every
- * writer sets the id before it calls `set`, so the notification already carries the new answer,
- * and the id is a string, which `useSyncExternalStore` compares without a cached snapshot.
+ * The first session check can leave `user` null while the held account is known, so subscribers
+ * read the held id from the store notification. Every writer sets the id before it calls `set`,
+ * so the notification already carries the new answer. The id is a string, which
+ * `useSyncExternalStore` compares without a cached snapshot.
  */
 export function useHeldAccountId(): string | null {
   return useSyncExternalStore(useAuthStore.subscribe, getHeldAccountId, getHeldAccountId)
