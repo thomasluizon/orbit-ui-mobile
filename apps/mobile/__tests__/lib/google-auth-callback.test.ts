@@ -35,6 +35,14 @@ function renderPendingSession(): { current: PendingSession } {
 describe('google auth callback helpers', () => {
   const nativeCallbackUrl = 'orbit://auth-callback'
 
+  it('parses encoded callback params through Expo Router query-string', () => {
+    const queryString = require('query-string')
+
+    expect(queryString.parse('error_description=User%20cancelled')).toEqual({
+      error_description: 'User cancelled',
+    })
+  })
+
   it('treats a bare callback route as having no payload', () => {
     const params = extractGoogleAuthParams(AUTH_CALLBACK_URL)
 
