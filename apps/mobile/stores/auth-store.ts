@@ -487,6 +487,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       try {
         const profile = await apiClient<Profile>(API.profile.get)
+        if (!isCurrentSessionEpoch(ownership.epoch)) return
         queryClient.setQueryData(profileKeys.detail(), profile)
 
         if (profile.language && i18n.language !== profile.language) {

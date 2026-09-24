@@ -1,6 +1,9 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { profileKeys } from '@orbit/shared/query'
+import { i18n } from '@/lib/i18n'
+import { getRuntimeTheme } from '@/lib/theme'
 import { useLogout } from '@/hooks/use-logout'
 
 import {
@@ -180,6 +183,7 @@ describe('mobile auth store security paths', () => {
     apiClientMock.mockReset()
     clearPersistedQueryCacheMock.mockReset()
     queryClientClearMock.mockReset()
+    setQueryDataMock.mockReset()
     clearStoredAuthReturnUrlMock.mockReset()
     clearMessagesMock.mockReset()
     offlineQueueClearMock.mockReset()
@@ -479,6 +483,32 @@ describe('mobile auth store security paths', () => {
       sessionPhase: 'signed-in',
       isAuthenticated: true,
       user: { userId: 'replacement-user' },
+    })
+  })
+
+  it('does not publish an old profile after a replacement login scopes the cache', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    const oldProfile = { name: 'Old', email: oldUser.email, language: 'pt-BR', colorScheme: 'rose', themePreference: 'light' }
+    const newProfile = { name: 'New', email: newUser.email, language: 'en', colorScheme: 'blue', themePreference: 'dark' }
+    let releaseOldProfile!: (profile: typeof oldProfile) => void
+    apiClientMock
+      .mockImplementationOnce(() => new Promise<typeof oldProfile>((resolve) => { releaseOldProfile = resolve }))
+      .mockResolvedValueOnce(newProfile)
+
+    const oldLogin = useAuthStore.getState().login('old-token', 'old-refresh', oldUser)
+    await vi.waitFor(() => expect(releaseOldProfile).toBeTypeOf('function'))
+    await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
+    releaseOldProfile(oldProfile)
+    await oldLogin
+
+    expect(setQueryDataMock).toHaveBeenCalledTimes(1)
+    expect(setQueryDataMock).toHaveBeenCalledWith(profileKeys.detail(), newProfile)
+    expect(i18n.language).toBe('en')
+    expect(getRuntimeTheme()).toMatchObject({ scheme: 'blue', themeMode: 'dark' })
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: newUser,
     })
   })
 

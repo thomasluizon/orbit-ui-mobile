@@ -35,11 +35,15 @@ const mocks = vi.hoisted(() => {
     isAuthenticated: boolean
     accessToken: string | null
     refreshToken: string | null
+    epoch: number
+    credentialVersion: number
   } = {
     expiresAt: 0,
     isAuthenticated: true,
     accessToken: 'expired-access-token',
     refreshToken: 'refresh-token',
+    epoch: 1,
+    credentialVersion: 1,
   }
   const authListeners = new Set<() => void>()
   return {
@@ -69,6 +73,10 @@ vi.mock('@/stores/auth-store', async () => {
         () => selector(mocks.authState),
       ),
     refreshSession: mocks.refreshSession,
+    getSessionGeneration: () => ({
+      epoch: mocks.authState.epoch,
+      credentialVersion: mocks.authState.credentialVersion,
+    }),
     clearSessionAndResetAuth: mocks.clearSessionAndResetAuth,
   }
 })
@@ -127,6 +135,8 @@ beforeEach(() => {
     expiresAt: null,
     accessToken: 'expired-access-token',
     refreshToken: 'refresh-token',
+    epoch: 1,
+    credentialVersion: 1,
   })
   mocks.logout.mockReset()
   mocks.logout.mockImplementation(() => {
@@ -256,6 +266,33 @@ describe('ExpiryWarning', () => {
       })
       resolveRefresh({ status: 'superseded' })
       await refreshPromise
+    })
+
+    expect(mocks.logout).not.toHaveBeenCalled()
+    expect(mocks.currentRoute).toBeNull()
+    expect(mocks.authState).toMatchObject({
+      isAuthenticated: true,
+      accessToken: 'replacement-access-token',
+      refreshToken: 'replacement-refresh-token',
+    })
+  })
+
+  it('does not log out a replacement after the old refresh returns unauthorized', async () => {
+    mocks.refreshSession.mockResolvedValue({ status: 'unauthorized' })
+    const instance = await renderExpiredWarning()
+    let recovery!: Promise<void>
+
+    await TestRenderer.act(async () => {
+      recovery = (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+      mocks.setAuthState({
+        epoch: 2,
+        credentialVersion: 2,
+        isAuthenticated: true,
+        expiresAt: Date.now() + 60 * 60_000,
+        accessToken: 'replacement-access-token',
+        refreshToken: 'replacement-refresh-token',
+      })
+      await recovery
     })
 
     expect(mocks.logout).not.toHaveBeenCalled()
