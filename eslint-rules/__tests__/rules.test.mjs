@@ -474,6 +474,13 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     '<div style={{ width: 34, height: 220, fontSize: 13 }} />',
     '<div style={{ gap: tokens.gap, padding: spacing.md }} />',
     '<div style={{ gap: 96, padding: 64 }} />',
+    'const row = { gap: 12, padding: "16px" }; <div style={row} />',
+    'let row = { gap: 14 }; <div style={row} />',
+    'const row = getStyle(); <div style={row} />',
+    'const row = { gap: tokens.gap }; <div style={row} />',
+    'const row = { gap: 14 }; function Item() { const row = getStyle(); return <div style={row} /> }',
+    'import { row } from "./styles"; <div style={row} />',
+    'const first = second; const second = first; <div style={first} />',
     '<div className="flex gap-3 px-4 pb-12" />',
     '<div className="absolute inset-0 top-0 md:mt-6" />',
     '<div className="p-px w-4 z-40 rounded-2xl grid-cols-2 space-y-2 translate-y-2 top-1/2" />',
@@ -488,6 +495,21 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
   ],
   invalid: [
+    {
+      code: 'const SETTINGS_ROW_STYLE: React.CSSProperties = { padding: "20px", gap: 14 }; const PRO_BADGE_STYLE = { padding: "2px 6px" }; <><div style={SETTINGS_ROW_STYLE} /><span style={PRO_BADGE_STYLE} /></>',
+      output: null,
+      errors: [
+        { messageId: 'offScaleStyle', data: { value: '20', prop: 'padding', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '16' } },
+        { messageId: 'offScaleStyle', data: { value: '14', prop: 'gap', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '12' } },
+        { messageId: 'offScaleStyle', data: { value: '2', prop: 'padding', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '0' } },
+        { messageId: 'offScaleStyle', data: { value: '6', prop: 'padding', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '4' } },
+      ],
+    },
+    {
+      code: 'const row = { gap: 14 }; const alias = row; <><div style={alias} /><span style={row} /><button style={{ ...alias }} /></>',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
     // DESIGN.md drops 20, 28, 40 and 56. Each is EXACTLY midway between two surviving
     // steps, so isUnambiguous() refuses to autofix and a human picks the direction.
     { code: '<div style={{ gap: 20 }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },

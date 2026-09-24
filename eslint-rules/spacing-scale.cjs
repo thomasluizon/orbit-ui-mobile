@@ -2,11 +2,11 @@
  * Local ESLint rule: every layout spacing value must sit on the DESIGN.md scale.
  *
  * DESIGN.md `### Spacing (base 4)` enumerates the only legal steps
- * (0 4 8 12 16 20 24 28 32 40 48 56 64 px). This gate reads spacing from the
- * three places it actually lives in Orbit - JSX inline `style={{ }}` objects,
+ * (0 4 8 12 16 24 32 48 64 96 px). This gate reads spacing from the
+ * three places it actually lives in Orbit - JSX inline and local constant style objects,
  * React Native `StyleSheet.create({ })` objects, and Tailwind `className`
  * utilities (both scale steps and arbitrary `[13px]` values) - because a
- * CSS-only linter sees none of the first two. Inline-style values are read both
+ * CSS-only linter sees none of the first two. Style values are read both
  * as a single length (`padding: 15`, `'15px'`) and as a multi-value shorthand
  * string (`padding: '0 20px 6px'`), so a spaced shorthand is not a loophole;
  * unparseable tokens (`auto`, `calc(...)`, `%`) make the rule skip that value.
@@ -136,7 +136,7 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Require every margin/padding/gap/inset value to sit on the enumerated DESIGN.md spacing scale, across inline styles, StyleSheet.create, and Tailwind classes.',
+        'Require every margin/padding/gap/inset value to sit on the enumerated DESIGN.md spacing scale, across JSX styles, StyleSheet.create, and Tailwind classes.',
     },
     fixable: 'code',
     schema: [
@@ -170,6 +170,8 @@ module.exports = {
 
     const scaleLabel = scale.join(' ')
     const scaleSet = new Set(scale)
+    const scannedStyleObjects = new WeakSet()
+    const scannedStyleBindings = new WeakSet()
 
     function isOnScale(px, prop) {
       const magnitude = Math.abs(px)
@@ -262,6 +264,22 @@ module.exports = {
 
     function scanStyleObject(node) {
       if (!node) return
+      if (node.type === 'Identifier') {
+        let scope = context.sourceCode.getScope(node)
+        while (scope) {
+          const variable = scope.set.get(node.name)
+          if (variable) {
+            const definition = variable.defs[0]
+            if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const' && !scannedStyleBindings.has(variable)) {
+              scannedStyleBindings.add(variable)
+              scanStyleObject(definition.node.init)
+            }
+            return
+          }
+          scope = scope.upper
+        }
+        return
+      }
       if (node.type === 'ArrayExpression') {
         for (const element of node.elements) scanStyleObject(element)
         return
@@ -272,7 +290,13 @@ module.exports = {
         return
       }
       if (node.type !== 'ObjectExpression') return
+      if (scannedStyleObjects.has(node)) return
+      scannedStyleObjects.add(node)
       for (const property of node.properties) {
+        if (property.type === 'SpreadElement') {
+          scanStyleObject(property.argument)
+          continue
+        }
         const name = propertyName(property)
         if (name === null || !SPACING_PROPS.has(name)) continue
         reportStyleValue(property.value, name)
