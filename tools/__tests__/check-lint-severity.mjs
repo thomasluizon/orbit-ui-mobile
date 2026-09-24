@@ -16,6 +16,32 @@ const stageConfig = (label, body, relativePath = "eslint.config.mjs") => {
 
 const run = (name, repository, expected) => check(TOOL, name, ["--root", repository], expected)
 
+const sharedFiles = ["src/**/*.{ts,tsx}"]
+const sharedIgnores = ["node_modules/**", "dist/**", "coverage/**", "src/types/__generated__/**", "*.config.{js,mjs,cjs,ts}"]
+const sharedTestFiles = ["src/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"]
+const sharedConfig = ({ files = sharedFiles, ignores = sharedIgnores, testFiles = sharedTestFiles, testBasePath } = {}) => `export default [
+  { files: ${JSON.stringify(files)}, ignores: ["**/*.d.ts"], rules: { "local/no-comments": "error" } },
+  { ${testBasePath ? `basePath: ${JSON.stringify(testBasePath)}, ` : ""}files: ${JSON.stringify(testFiles)}, rules: { "local/no-double-assertion": "off" } },
+  { ignores: ${JSON.stringify(ignores)} },
+]\n`
+
+const webNextIgnores = [".next/**", "out/**", "build/**", "next-env.d.ts"]
+const webIgnores = [".next/**", "node_modules/**", "coverage/**", "public/**", "*.config.{js,mjs,cjs,ts}"]
+const webScreenFiles = [
+  "**/*-sheet.tsx", "**/*-modal.tsx", "**/*-dialog.tsx", "**/*-drawer.tsx",
+  "**/*-overlay.tsx", "**/*-prompt.tsx", "**/*-form.tsx", "**/*-celebration.tsx",
+  "**/*-picker.tsx", "**/*-gate.tsx", "**/goal-detail-drawer/**", "**/calendar-sync/**",
+  "**/onboarding/**", "**/(auth)/**", "**/*empty-state.tsx", "**/*-no-data-state.tsx",
+]
+const webTestFiles = ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"]
+const webConfig = ({ ignores = webIgnores, screenFiles = webScreenFiles } = {}) => `export default [
+  ...Array.from({ length: 3 }, () => ({ ignores: ${JSON.stringify(webNextIgnores)} })),
+  { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"], rules: { "local/no-comments": "error" } },
+  { files: ${JSON.stringify(screenFiles)}, rules: { "local/no-fullbleed-button": "off" } },
+  { files: ${JSON.stringify(webTestFiles)}, rules: { "local/no-fullbleed-button": "off", "local/max-button-words": "off", "local/no-double-assertion": "off" } },
+  { ignores: ${JSON.stringify(ignores)} },
+]\n`
+
 export const cases = () => {
   const clean = stageConfig("clean", 'export default [{ rules: { "local/example": "error" } }]\n')
   run("accepts local rules at error", clean, { status: 0, stdout: /checked 1 local rule setting/ })
@@ -29,17 +55,17 @@ export const cases = () => {
     stderr: /local\/example is off outside the declared scoped allowlist/,
   })
 
-  const allowedFiles = ["src/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"]
+  const allowedFiles = sharedTestFiles
   const allowed = stageConfig(
     "allowed-off",
-    `export default [{ files: ${JSON.stringify(allowedFiles)}, rules: { "local/no-double-assertion": "off" } }]\n`,
+    sharedConfig(),
     "packages/shared/eslint.config.mjs",
   )
   run("accepts an explicitly allowlisted scoped off rule", allowed, { status: 0 })
 
   const escapedBasePath = stageConfig(
     "escaped-base-path",
-    `export default [{ basePath: "../..", files: ${JSON.stringify(allowedFiles)}, rules: { "local/no-double-assertion": "off" } }]\n`,
+    sharedConfig({ testBasePath: "../.." }),
     "packages/shared/eslint.config.mjs",
   )
   run("rejects an allowlisted off rule resolved outside its named directory", escapedBasePath, {
@@ -47,15 +73,9 @@ export const cases = () => {
     stderr: /outside the declared scoped allowlist/,
   })
 
-  const fullScreenFiles = [
-    "**/*-sheet.tsx", "**/*-modal.tsx", "**/*-dialog.tsx", "**/*-drawer.tsx",
-    "**/*-overlay.tsx", "**/*-prompt.tsx", "**/*-form.tsx", "**/*-celebration.tsx",
-    "**/*-picker.tsx", "**/*-gate.tsx", "**/goal-detail-drawer/**", "**/calendar-sync/**",
-    "**/onboarding/**", "**/(auth)/**", "**/*empty-state.tsx", "**/*-no-data-state.tsx",
-  ]
   const fullScreen = stageConfig(
     "full-screen-off",
-    `export default [{ files: ${JSON.stringify(fullScreenFiles)}, rules: { "local/no-fullbleed-button": "off" } }]\n`,
+    webConfig(),
     "apps/web/eslint.config.mjs",
   )
   run("accepts the allowlisted full-screen off scope", fullScreen, { status: 0 })
@@ -63,10 +83,22 @@ export const cases = () => {
   const broadenedFiles = [...allowedFiles, "src/**/*.ts"]
   const broadened = stageConfig(
     "broadened-off",
-    `export default [{ files: ${JSON.stringify(broadenedFiles)}, rules: { "local/no-double-assertion": "off" } }]\n`,
+    sharedConfig({ testFiles: broadenedFiles }),
     "packages/shared/eslint.config.mjs",
   )
   run("rejects an allowlisted rule when its scope is broadened", broadened, { status: 1, stderr: /outside the declared scoped allowlist/ })
+
+  const addedIgnore = stageConfig("added-ignore", webConfig({ ignores: [...webIgnores, "app/**"] }), "apps/web/eslint.config.mjs")
+  run("rejects an added top-level ignore", addedIgnore, { status: 1, stderr: /apps\/web\/eslint\.config\.mjs.*app\/\*\*/ })
+
+  const removedIgnore = stageConfig("removed-ignore", sharedConfig({ ignores: sharedIgnores.slice(1) }), "packages/shared/eslint.config.mjs")
+  run("rejects a removed top-level ignore", removedIgnore, { status: 1, stderr: /packages\/shared\/eslint\.config\.mjs.*node_modules\/\*\*/ })
+
+  const narrowedFiles = stageConfig("narrowed-files", sharedConfig({ files: ["matches-nothing/**/*.ts"] }), "packages/shared/eslint.config.mjs")
+  run("rejects a narrowed local rule block", narrowedFiles, { status: 1, stderr: /packages\/shared\/eslint\.config\.mjs.*matches-nothing/ })
+
+  const addedRule = stageConfig("added-rule", sharedConfig().replace('"local/no-comments": "error"', '"local/no-comments": "error", "local/new-rule": "error"'), "packages/shared/eslint.config.mjs")
+  run("accepts a new local rule at error in an existing block", addedRule, { status: 0 })
 
   const namedBaseline = stageConfig("named-baseline", 'export default [{ rules: { "local/example": "error" } }]\n')
   mkdirSync(join(namedBaseline, "nested"), { recursive: true })

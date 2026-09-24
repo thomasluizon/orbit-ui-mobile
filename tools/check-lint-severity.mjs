@@ -9,13 +9,14 @@ const USAGE = `usage: check-lint-severity.mjs [--root <path>]
 
   A local/* rule ships at error with zero violations, or it does not ship. Fails when an
   eslint config sets a local/* rule to warn, sets one to off outside a declared scoped
-  exception, or when a lint-suppression baseline exists: an eslint-suppressions.json
-  anywhere in the tree, or any file a --suppressions-location flag names.
+  exception, changes a declared ignore or local-rule file scope, or finds a lint-suppression
+  baseline: an eslint-suppressions.json anywhere in the tree, or any file a
+  --suppressions-location flag names.
 
   --root <path>  repository root (defaults to the parent of this tool's directory)
   --help, -h     print this usage and exit 0
 
-exit codes: 0 checks passed, 1 a forbidden severity or a suppression baseline exists,
+exit codes: 0 checks passed, 1 a forbidden severity, scope, or suppression baseline exists,
             2 usage error or an unreadable eslint config`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -119,6 +120,43 @@ const scopedOffAllowlist = [
   },
 ]
 
+const nextIgnores = [".next/**", "out/**", "build/**", "next-env.d.ts"]
+const scopeInventory = [
+  {
+    config: "apps/web/eslint.config.mjs",
+    globalIgnores: [
+      nextIgnores, nextIgnores, nextIgnores,
+      [".next/**", "node_modules/**", "coverage/**", "public/**", "*.config.{js,mjs,cjs,ts}"],
+    ],
+    localBlocks: [
+      { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"] },
+      { files: scopedOffAllowlist[0].files, ignores: [] },
+      { files: scopedOffAllowlist[1].files, ignores: [] },
+    ],
+  },
+  {
+    config: "apps/mobile/eslint.config.js",
+    globalIgnores: [
+      ["android/app/build"],
+      ["dist/**", ".expo/**", "android/**", "ios/**", "modules/*/android/build/**", "eslint.config.js"],
+    ],
+    localBlocks: [
+      { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"] },
+      { files: scopedOffAllowlist[2].files, ignores: [] },
+      { files: ["**/supabase.ts"], ignores: [] },
+      { files: scopedOffAllowlist[3].files, ignores: [] },
+    ],
+  },
+  {
+    config: "packages/shared/eslint.config.mjs",
+    globalIgnores: [["node_modules/**", "dist/**", "coverage/**", "src/types/__generated__/**", "*.config.{js,mjs,cjs,ts}"]],
+    localBlocks: [
+      { files: ["src/**/*.{ts,tsx}"], ignores: ["**/*.d.ts"] },
+      { files: scopedOffAllowlist[4].files, ignores: [] },
+    ],
+  },
+]
+
 const sameStrings = (left, right) =>
   Array.isArray(left)
   && left.length === right.length
@@ -148,7 +186,19 @@ const isAllowedOff = (configPath, block, rule) => {
 const flattenConfigs = (value) => Array.isArray(value) ? value.flatMap(flattenConfigs) : [value]
 const severityOf = (setting) => Array.isArray(setting) ? setting[0] : setting
 const severityProblems = []
+const scopeProblems = []
 let localRuleCount = 0
+
+const compareScope = (configName, label, actual, expected) => {
+  if (!Array.isArray(actual) || !actual.every((pattern) => typeof pattern === "string")) {
+    scopeProblems.push(`${configName} ${label}: missing or invalid glob list`)
+    return
+  }
+  if (sameStrings(actual, expected)) return
+  const added = actual.filter((pattern) => !expected.includes(pattern))
+  const removed = expected.filter((pattern) => !actual.includes(pattern))
+  scopeProblems.push(`${configName} ${label}: added ${added.join(", ") || "none"}; removed ${removed.join(", ") || "none"}`)
+}
 
 for (const configPath of configPaths) {
   const configName = normalizedRelativePath(configPath)
@@ -160,6 +210,32 @@ for (const configPath of configPaths) {
     fail(2, `check-lint-severity: cannot load ${configName}: ${error.message}`)
   }
   const blocks = flattenConfigs(exported).filter((block) => block && typeof block === "object")
+  const inventory = scopeInventory.find((entry) => entry.config === configName)
+  if (inventory) {
+    const globalIgnores = blocks.filter((block) => block.ignores !== undefined && block.files === undefined && block.rules === undefined)
+    const localBlocks = blocks.filter((block) => Object.keys(block.rules ?? {}).some((rule) => rule.startsWith("local/")))
+    if (globalIgnores.length !== inventory.globalIgnores.length) {
+      scopeProblems.push(`${configName}: expected ${inventory.globalIgnores.length} top-level ignores block(s), found ${globalIgnores.length}`)
+    }
+    if (localBlocks.length !== inventory.localBlocks.length) {
+      scopeProblems.push(`${configName}: expected ${inventory.localBlocks.length} local rule block(s), found ${localBlocks.length}`)
+    }
+    globalIgnores.forEach((block, index) => {
+      if (block.basePath !== undefined) scopeProblems.push(`${configName} top-level ignores block ${index + 1}: undeclared basePath ${block.basePath}`)
+      if (inventory.globalIgnores[index]) compareScope(configName, `top-level ignores block ${index + 1}`, block.ignores, inventory.globalIgnores[index])
+      else scopeProblems.push(`${configName} top-level ignores block ${index + 1}: undeclared ${JSON.stringify(block.ignores)}`)
+    })
+    localBlocks.forEach((block, index) => {
+      const declared = inventory.localBlocks[index]
+      if (!declared) {
+        scopeProblems.push(`${configName} local rule block ${index + 1}: undeclared files ${JSON.stringify(block.files)}`)
+        return
+      }
+      if (block.basePath !== undefined) scopeProblems.push(`${configName} local rule block ${index + 1}: undeclared basePath ${block.basePath}`)
+      compareScope(configName, `local rule block ${index + 1} files`, block.files, declared.files)
+      compareScope(configName, `local rule block ${index + 1} ignores`, block.ignores ?? [], declared.ignores)
+    })
+  }
   blocks.forEach((block, index) => {
     if (!block.rules || typeof block.rules !== "object") return
     for (const [rule, setting] of Object.entries(block.rules)) {
@@ -291,6 +367,11 @@ if (severityProblems.length > 0) {
   for (const problem of severityProblems) console.error(`  ${problem}`)
 }
 
+if (scopeProblems.length > 0) {
+  console.error(`Lint scopes failed: ${scopeProblems.length} undeclared scope change(s).`)
+  for (const problem of scopeProblems) console.error(`  ${problem}`)
+}
+
 const hasSuppressionFindings = suppressionFiles.size > 0 || suppressionLocationProblems.length > 0
 if (hasSuppressionFindings) {
   const paths = [...suppressionFiles].sort()
@@ -305,5 +386,5 @@ if (hasSuppressionFindings) {
   console.error("A local rule ships at error with zero violations, or it does not ship. Fix the violations rather than recording them.")
 }
 
-if (severityProblems.length > 0 || hasSuppressionFindings) process.exit(1)
+if (severityProblems.length > 0 || scopeProblems.length > 0 || hasSuppressionFindings) process.exit(1)
 console.log(`check-lint-severity: checked ${localRuleCount} local rule setting(s) across ${configPaths.length} config(s).`)
