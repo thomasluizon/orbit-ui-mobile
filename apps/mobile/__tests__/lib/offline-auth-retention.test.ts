@@ -5,6 +5,11 @@ import * as auth from '@/stores/auth-store'
 import * as queue from '@/lib/offline-queue'
 import { cancelScheduledFlush, flushQueuedMutations } from '@/lib/offline-mutations'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 const mocks = await vi.hoisted(async () => {
   const { DatabaseSync } = await import('node:sqlite')
   const database = new DatabaseSync(':memory:')

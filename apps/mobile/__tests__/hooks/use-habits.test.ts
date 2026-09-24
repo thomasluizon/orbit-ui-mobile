@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
@@ -25,6 +25,11 @@ import {
   useUpdateHabit,
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const mocks = vi.hoisted(() => {
   class OfflineMutationPreflightError extends Error {}
@@ -368,7 +373,7 @@ function getCalendarStatus(
   habitId = 'habit-1',
 ) {
   const calendar = mocks.queryClient.getQueryData(key) as CalendarMonthResponse
-  return buildCalendarDayMap(calendar, new Date('2025-01-16T12:00:00Z'))
+  return buildCalendarDayMap(calendar, new Date('2025-01-16T09:00:00Z'))
     .get(date)?.find((entry) => entry.habitId === habitId)?.status
 }
 
@@ -380,7 +385,6 @@ function getCount(): number {
 
 describe('mobile habit hooks', () => {
   beforeEach(() => {
-    vi.useRealTimers()
     seedHabitState([makeHabit()], 1)
     mocks.state.tempIds = []
     mocks.queryClient.cancelQueries.mockReset()
@@ -428,6 +432,22 @@ describe('mobile habit hooks', () => {
       mutation: expect.objectContaining({
         type: 'logHabit',
         dedupeKey: 'habit-toggle:habit-1:2026-08-29',
+      }),
+    }))
+  })
+
+  it('uses the pinned day for an undated queued toggle', async () => {
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      unknown
+    >
+
+    await mutation.mutationFn({ habitId: 'habit-1', intent: 'log' })
+
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({
+        dedupeKey: 'habit-toggle:habit-1:2026-09-12',
       }),
     }))
   })
@@ -872,7 +892,7 @@ describe('mobile habit hooks', () => {
 
   it('optimistically postpones one-time child skips instead of completing them', async () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+    vi.setSystemTime(new Date('2025-01-15T09:00:00Z'))
     seedHabitState([
       makeHabit({
         id: 'parent-1',
@@ -959,7 +979,7 @@ describe('mobile habit hooks', () => {
 
   it('falls back to today for optimistic offline creates when the payload dueDate is an empty string', async () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2025-02-14T12:00:00Z'))
+    vi.setSystemTime(new Date('2025-02-14T09:00:00Z'))
 
     try {
       const mutation = useCreateHabit() as unknown as MutationConfig<
