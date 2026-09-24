@@ -14,6 +14,11 @@ import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import { useAuthStore } from '@/stores/auth-store'
 import { subscribeToAccountSignal } from '@/lib/cross-tab-account-signal'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 const feedback = vi.hoisted(() => ({ showError: vi.fn() }))
 
 vi.mock('next-intl', async () => {

@@ -1,10 +1,15 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { VOICE_SILENCE_TIMEOUT_MS, VOICE_LEVEL_POLL_MS } from '@orbit/shared/chat'
 
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useThrottleStore } from '@/stores/throttle-store'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const TestRenderer = require('react-test-renderer')
 
