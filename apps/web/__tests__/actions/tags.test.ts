@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/auth-api', () => ({
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-api')>()),
   getAuthHeaders: vi.fn().mockResolvedValue({
     Authorization: 'Bearer test-token',
   }),
@@ -87,7 +88,7 @@ describe('tag server actions', () => {
     it('sends POST to /api/tags with name and color', async () => {
       mockApiResponse({ id: 'tag-new' })
 
-      const result = await createTag('Fitness', '#00ff00', null)
+      const result = await createTag('Fitness', '#00ff00', 'account-a')
 
       expect(result).toEqual({ id: 'tag-new' })
 
@@ -103,7 +104,7 @@ describe('tag server actions', () => {
     it('throws on duplicate name', async () => {
       mockApiResponse({ error: 'Tag name already exists' }, 409)
 
-      await expect(createTag('Health', '#ff0000', null)).rejects.toThrow(
+      await expect(createTag('Health', '#ff0000', 'account-a')).rejects.toThrow(
         'Tag name already exists',
       )
     })
@@ -111,7 +112,7 @@ describe('tag server actions', () => {
     it('throws on validation error', async () => {
       mockApiResponse({ error: 'Name is required' }, 400)
 
-      await expect(createTag('', '#ff0000', null)).rejects.toThrow(
+      await expect(createTag('', '#ff0000', 'account-a')).rejects.toThrow(
         'Name is required',
       )
     })
@@ -122,7 +123,7 @@ describe('tag server actions', () => {
     it('sends PUT to /api/tags/:id with name and color', async () => {
       mock204()
 
-      await updateTag('tag-1', 'Updated Name', '#abcdef', null)
+      await updateTag('tag-1', 'Updated Name', '#abcdef', 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/tags/tag-1')
@@ -137,7 +138,7 @@ describe('tag server actions', () => {
       mockApiResponse({ error: 'Tag not found' }, 404)
 
       await expect(
-        updateTag('nonexistent', 'Name', '#000000', null),
+        updateTag('nonexistent', 'Name', '#000000', 'account-a'),
       ).rejects.toThrow('Tag not found')
     })
   })
@@ -147,7 +148,7 @@ describe('tag server actions', () => {
     it('sends DELETE to /api/tags/:id', async () => {
       mock204()
 
-      await deleteTag('tag-1', null)
+      await deleteTag('tag-1', 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/tags/tag-1')
@@ -157,7 +158,7 @@ describe('tag server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Not found' }, 404)
 
-      await expect(deleteTag('nonexistent', null)).rejects.toThrow('Not found')
+      await expect(deleteTag('nonexistent', 'account-a')).rejects.toThrow('Not found')
     })
   })
 
@@ -166,7 +167,7 @@ describe('tag server actions', () => {
     it('sends PUT to /api/tags/:habitId/assign with tagIds', async () => {
       mock204()
 
-      await assignTags('h-1', ['tag-1', 'tag-2'], null)
+      await assignTags('h-1', ['tag-1', 'tag-2'], 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/tags/h-1/assign')
@@ -177,7 +178,7 @@ describe('tag server actions', () => {
     it('handles empty tagIds to unassign all', async () => {
       mock204()
 
-      await assignTags('h-1', [], null)
+      await assignTags('h-1', [], 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(JSON.parse(init.body)).toEqual({ tagIds: [] })
@@ -186,7 +187,7 @@ describe('tag server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Habit not found' }, 404)
 
-      await expect(assignTags('nonexistent', ['tag-1'], null)).rejects.toThrow(
+      await expect(assignTags('nonexistent', ['tag-1'], 'account-a')).rejects.toThrow(
         'Habit not found',
       )
     })
@@ -197,13 +198,13 @@ describe('tag server actions', () => {
     it('throws with error message from response body', async () => {
       mockApiResponse({ error: 'Tag not found' }, 404)
 
-      await expect(deleteTag('x', null)).rejects.toThrow('Tag not found')
+      await expect(deleteTag('x', 'account-a')).rejects.toThrow('Tag not found')
     })
 
     it('throws with message field from response body', async () => {
       mockApiResponse({ message: 'Validation failed' }, 400)
 
-      await expect(createTag('', '', null)).rejects.toThrow('Validation failed')
+      await expect(createTag('', '', 'account-a')).rejects.toThrow('Validation failed')
     })
 
     it('throws with status code when no error body', async () => {

@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 import { renderHook, waitFor, act } from '@testing-library/react'
@@ -39,6 +40,10 @@ function wrapperFor(client: QueryClient) {
   Wrapper.displayName = 'TestQueryClientProvider'
   return Wrapper
 }
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
 
 describe('useChecklistTemplates', () => {
   beforeEach(() => {
@@ -88,7 +93,7 @@ describe('useCreateChecklistTemplate', () => {
     expect(createChecklistTemplateAction).toHaveBeenCalledWith({
       name: 'Workout',
       items: ['Warmup'],
-    }, null)
+    }, 'account-a')
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: checklistTemplateKeys.lists(),
     })

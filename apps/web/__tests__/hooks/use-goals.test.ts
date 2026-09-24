@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -91,6 +92,10 @@ function createWrapper() {
     )
   }
 }
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
 
 describe('useGoals', () => {
   beforeEach(() => {
@@ -210,7 +215,7 @@ describe('useCreateGoal', () => {
       title: 'New Goal',
       targetValue: 10,
       unit: 'items',
-    }, null)
+    }, 'account-a')
   })
 })
 
@@ -238,7 +243,7 @@ describe('useUpdateGoal', () => {
       title: 'Updated',
       targetValue: 20,
       unit: 'books',
-    }, null)
+    }, 'account-a')
   })
 })
 
@@ -259,7 +264,7 @@ describe('useDeleteGoal', () => {
       await result.current.mutateAsync('g-1')
     })
 
-    expect(mockedDeleteGoal).toHaveBeenCalledWith('g-1', null)
+    expect(mockedDeleteGoal).toHaveBeenCalledWith('g-1', 'account-a')
   })
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
@@ -286,7 +291,7 @@ describe('useDeleteGoal', () => {
       performUndo()
     })
 
-    await waitFor(() => expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', null))
+    await waitFor(() => expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', 'account-a'))
   })
 })
 
@@ -314,7 +319,7 @@ describe('useRestoreGoal', () => {
       await result.current.mutateAsync('g-1')
     })
 
-    expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', null)
+    expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1', 'account-a')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')
   })
@@ -363,7 +368,7 @@ describe('useUpdateGoalProgress', () => {
     expect(mockedUpdateProgress).toHaveBeenCalledWith('g-1', {
       currentValue: 5,
       note: 'Halfway',
-    }, null)
+    }, 'account-a')
     expect(mockSetGoalCompleted).toHaveBeenCalledWith({
       name: 'Ship Orbit',
       count: 5,
@@ -440,7 +445,7 @@ describe('useUpdateGoalStatus', () => {
       })
     })
 
-    expect(mockedUpdateStatus).toHaveBeenCalledWith('g-1', { status: 'Completed' }, null)
+    expect(mockedUpdateStatus).toHaveBeenCalledWith('g-1', { status: 'Completed' }, 'account-a')
     expect(mockSetGoalCompleted).toHaveBeenCalledWith({
       name: 'Ship Orbit',
       count: 12,
@@ -535,7 +540,7 @@ describe('useReorderGoals', () => {
       await result.current.mutateAsync(positions)
     })
 
-    expect(mockedReorder).toHaveBeenCalledWith(positions, null)
+    expect(mockedReorder).toHaveBeenCalledWith(positions, 'account-a')
   })
 
   it('rolls back on error', async () => {
@@ -579,6 +584,6 @@ describe('useLinkHabitsToGoal', () => {
       })
     })
 
-    expect(mockedLink).toHaveBeenCalledWith('g-1', ['h-1', 'h-2'], null)
+    expect(mockedLink).toHaveBeenCalledWith('g-1', ['h-1', 'h-2'], 'account-a')
   })
 })

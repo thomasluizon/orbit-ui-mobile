@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import React from 'react'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -17,6 +18,10 @@ vi.mock('@/lib/actions/profile', () => ({
   updateAiSummary: mocks.updateAiSummary,
   updateProactiveAstra: mocks.updateProactiveAstra,
 }))
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
 
 describe('useAstraSettingsController', () => {
   beforeEach(() => {
@@ -71,7 +76,7 @@ describe('useAstraSettingsController', () => {
     act(() => result.current.onToggleProactive())
 
     await waitFor(() => {
-      expect(mocks.updateProactiveAstra).toHaveBeenCalledWith({ enabled: true }, null)
+      expect(mocks.updateProactiveAstra).toHaveBeenCalledWith({ enabled: true }, 'account-a')
       expect(patchProfile).toHaveBeenLastCalledWith({ proactiveAstraEnabled: true })
       expect(result.current.proactivePending).toBe(true)
     })

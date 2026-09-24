@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -9,6 +10,10 @@ import { buildCalendarDayMap } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
 
 describe('search cache settlement', () => {
   it('refreshes cached empty search pages after creating a habit', async () => {
@@ -375,7 +380,7 @@ describe('useLogHabit', () => {
       await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
-    expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, null)
+    expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, 'account-a')
   })
 
   it('reconciles habit data without refetching response-backed or AI summary families', async () => {
@@ -430,7 +435,7 @@ describe('useLogHabit', () => {
 
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', {
       date: '2025-01-15',
-    }, null)
+    }, 'account-a')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.logs('h-1') })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.metrics('h-1') })
   })
@@ -571,7 +576,7 @@ describe('useLogHabit', () => {
     ).toBe(true)
 
     resolveCancel?.()
-    await waitFor(() => expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, null))
+    await waitFor(() => expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, 'account-a'))
   })
 })
 
@@ -593,7 +598,7 @@ describe('useSkipHabit', () => {
       await result.current.mutateAsync({ habitId: 'h-1' })
     })
 
-    expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', undefined, null)
+    expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', undefined, 'account-a')
   })
 
   it('invalidates lists, summary, goals, gamification, and profile on settle (parity with mobile)', async () => {
@@ -630,7 +635,7 @@ describe('useSkipHabit', () => {
       await result.current.mutateAsync({ habitId: 'h-1', date: '2025-01-15' })
     })
 
-    expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', '2025-01-15', null)
+    expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', '2025-01-15', 'account-a')
   })
 
   it('optimistically postpones one-time child skips instead of completing them', async () => {
@@ -689,7 +694,7 @@ describe('useCreateHabit', () => {
       await result.current.mutateAsync({ title: 'New Habit' })
     })
 
-    expect(mockedCreateHabit).toHaveBeenCalledWith({ title: 'New Habit' }, null)
+    expect(mockedCreateHabit).toHaveBeenCalledWith({ title: 'New Habit' }, 'account-a')
   })
 })
 
@@ -710,7 +715,7 @@ describe('useDeleteHabit', () => {
       await result.current.mutateAsync('h-1')
     })
 
-    expect(mockedDeleteHabit).toHaveBeenCalledWith('h-1', null)
+    expect(mockedDeleteHabit).toHaveBeenCalledWith('h-1', 'account-a')
   })
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
@@ -737,7 +742,7 @@ describe('useDeleteHabit', () => {
       performUndo()
     })
 
-    await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1', null))
+    await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1', 'account-a'))
   })
 
   it('removes a deleted child from the mounted parent detail tree', async () => {
@@ -783,7 +788,7 @@ describe('useRestoreHabit', () => {
       await result.current.mutateAsync('h-1')
     })
 
-    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1', null)
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1', 'account-a')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
@@ -987,7 +992,7 @@ describe('useLogHabit onSuccess', () => {
       await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
-    expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, null)
+    expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined, 'account-a')
   })
 
   it('completes without triggering streak when not first today', async () => {
@@ -1107,7 +1112,7 @@ describe('useUpdateHabit', () => {
       })
     })
 
-    expect(mockedUpdateHabit).toHaveBeenCalledWith('h-1', { title: 'Updated Exercise', isBadHabit: false }, null)
+    expect(mockedUpdateHabit).toHaveBeenCalledWith('h-1', { title: 'Updated Exercise', isBadHabit: false }, 'account-a')
   })
 
   it('optimistically patches emoji changes', async () => {
@@ -1165,7 +1170,7 @@ describe('useReorderHabits', () => {
       await result.current.mutateAsync(data)
     })
 
-    expect(mockedReorderHabits).toHaveBeenCalledWith(data, null)
+    expect(mockedReorderHabits).toHaveBeenCalledWith(data, 'account-a')
   })
 
   it('optimistically applies the new positions to the cached list before the action resolves', async () => {
@@ -1267,7 +1272,7 @@ describe('useDuplicateHabit', () => {
       await result.current.mutateAsync('h-1')
     })
 
-    expect(mockedDuplicateHabit).toHaveBeenCalledWith('h-1', null)
+    expect(mockedDuplicateHabit).toHaveBeenCalledWith('h-1', 'account-a')
   })
 })
 
@@ -1295,7 +1300,7 @@ describe('useUpdateChecklist', () => {
       await result.current.mutateAsync({ habitId: 'h-1', items })
     })
 
-    expect(mockedUpdateChecklist).toHaveBeenCalledWith('h-1', items, null)
+    expect(mockedUpdateChecklist).toHaveBeenCalledWith('h-1', items, 'account-a')
   })
 
   it('optimistically updates the detail and fullDetail caches', async () => {
@@ -1413,7 +1418,7 @@ describe('useCreateSubHabit', () => {
       })
     })
 
-    expect(mockedCreateSubHabit).toHaveBeenCalledWith('h-1', { title: 'Warmup' }, null)
+    expect(mockedCreateSubHabit).toHaveBeenCalledWith('h-1', { title: 'Warmup' }, 'account-a')
     expect(queryClient.getQueryData<HabitDetail>(habitKeys.detail('h-1'))?.children[0])
       .toMatchObject({ title: 'Warmup' })
   })
@@ -1441,7 +1446,7 @@ describe('useMoveHabitParent', () => {
       })
     })
 
-    expect(mockedMoveHabitParent).toHaveBeenCalledWith('sub-h-1', { parentId: 'h-2' }, null)
+    expect(mockedMoveHabitParent).toHaveBeenCalledWith('sub-h-1', { parentId: 'h-2' }, 'account-a')
   })
 })
 
@@ -1470,7 +1475,7 @@ describe('useBulkCreateHabits', () => {
       await result.current.mutateAsync(request)
     })
 
-    expect(mockedBulkCreate).toHaveBeenCalledWith(request, null)
+    expect(mockedBulkCreate).toHaveBeenCalledWith(request, 'account-a')
   })
 })
 
@@ -1493,8 +1498,8 @@ describe('useBulkDeleteHabits', () => {
       await result.current.mutateAsync(['h-1', 'h-2'])
     })
 
-    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(1, 'h-1', null)
-    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(2, 'h-2', null)
+    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(1, 'h-1', 'account-a')
+    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(2, 'h-2', 'account-a')
   })
 
   it('limits parallel deletes to four and preserves global result indices', async () => {
@@ -1547,7 +1552,7 @@ describe('useBulkLogHabits', () => {
       await result.current.mutateAsync(items)
     })
 
-    expect(mockedBulkLog).toHaveBeenCalledWith(items, null)
+    expect(mockedBulkLog).toHaveBeenCalledWith(items, 'account-a')
   })
 
   it('keeps an account switch refusal out of retryable failed rows', async () => {
@@ -1649,7 +1654,7 @@ describe('useBulkSkipHabits', () => {
       await result.current.mutateAsync(items)
     })
 
-    expect(mockedBulkSkip).toHaveBeenCalledWith(items, null)
+    expect(mockedBulkSkip).toHaveBeenCalledWith(items, 'account-a')
   })
 
   it('optimistically completes every dated item in the viewed list', async () => {

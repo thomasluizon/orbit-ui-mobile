@@ -109,12 +109,11 @@ describe('a notification write formed under a replaced account', () => {
     },
   )
 
-  it('sends a write that names no account, because nothing proves a mismatch', async () => {
+  it('refuses a write before its account is known', async () => {
     holdCookieForAccount('account-b')
 
-    await deleteAllNotifications(null)
+    await expect(deleteAllNotifications(null)).rejects.toMatchObject({ status: 409, code: 'ACCOUNT_CHANGED' })
 
-    const [url] = mockFetch.mock.calls[0]!
-    expect(url).toContain('/api/notifications/all')
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })

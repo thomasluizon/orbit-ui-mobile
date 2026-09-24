@@ -92,7 +92,7 @@ describe('usePreferenceControls', () => {
     localStorage.clear()
     profileRef.value = { hasProAccess: true, weekStartDay: 0, colorScheme: 'purple', timeZone: 'UTC' }
     authRef.isAuthenticated = true
-    heldAccount.id = null
+    heldAccount.id = 'account-a'
     Object.defineProperty(globalThis, 'location', {
       configurable: true,
       value: { reload: reloadMock, href: 'http://localhost/', pathname: '/' },
@@ -121,7 +121,7 @@ describe('usePreferenceControls', () => {
       await result.current.handleLanguageChange('pt-BR')
     })
 
-    expect(updateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' }, null)
+    expect(updateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' }, 'account-a')
     expect(document.cookie).toContain('i18n_locale=pt-BR')
     expect(reloadMock).toHaveBeenCalledTimes(1)
     expect(result.current.selectedLanguage).toBe('pt-BR')
@@ -184,7 +184,7 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenCalledWith({ weekStartDay: 1 })
-    expect(updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 1 }, null)
+    expect(updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 1 }, 'account-a')
   })
 
   it('rolls the week-start day back on error', async () => {
@@ -209,7 +209,7 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
-    expect(updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' }, null)
+    expect(updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' }, 'account-a')
   })
 
   it('refetches every calendar event timezone after the timezone write settles', async () => {
