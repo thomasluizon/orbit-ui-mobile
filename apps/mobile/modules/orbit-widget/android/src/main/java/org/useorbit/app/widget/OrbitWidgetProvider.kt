@@ -40,6 +40,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val COMPACT_IDEAL_WIDTH_DP = 110f
         internal const val CACHE_REFRESHING = "refresh_loading"
         internal const val CACHE_LOADING_SKELETON = "loading_skeleton"
+        internal fun renderSessionKey(appWidgetId: Int, widgetHeightDp: Float, showTime: Boolean): String =
+            "render_session_${appWidgetId}_${widgetHeightDp}_${showTime}"
         // Every region that opens the app. The whole card is one tap target, per the drawing's
         // touch note, and only the refresh is its own.
         private val OPEN_APP_TARGETS = intArrayOf(
@@ -284,7 +286,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             val lang = cachedLanguage(context)
             val ownsRows = !signedOut && OrbitWidgetModule.getToken(context)?.let {
-                OrbitWidgetModule.sessionKey(it) == prefs.getString("render_session", null)
+                OrbitWidgetModule.sessionKey(it) == prefs.getString(
+                    renderSessionKey(appWidgetId, widgetHeightDp, showTime), null
+                )
             } == true
             val headerLabel = if (ownsRows) prefs.getString("header_label", null) else null
             val safeHeaderLabel = headerLabel

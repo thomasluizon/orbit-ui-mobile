@@ -25,6 +25,7 @@ class OrbitWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
         return OrbitWidgetFactory(
             applicationContext,
+            intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID),
             intent.getFloatExtra(
                 OrbitWidgetProvider.EXTRA_WIDGET_HEIGHT_DP,
                 OrbitWidgetProvider.FOUR_BY_TWO_HEIGHT_DP
@@ -250,10 +251,12 @@ internal fun RemoteViews.setModeAwareBitmap(
 
 class OrbitWidgetFactory(
     private val context: Context,
+    appWidgetId: Int,
     private val widgetHeightDp: Float,
     private val showTime: Boolean
 ) : RemoteViewsService.RemoteViewsFactory {
 
+    private val renderSessionKey = OrbitWidgetProvider.renderSessionKey(appWidgetId, widgetHeightDp, showTime)
     private var habits: List<HabitItem> = emptyList()
     private var habitsSession: String? = null
     private var headerLabel: String = "Today"
@@ -443,27 +446,15 @@ class OrbitWidgetFactory(
         }
     }
 
-    /**
-     * Clears the habit list and restores the idle header. With showSkeleton=true the
-     * loading skeleton stays up (signed in, no data yet) so the widget never paints
-     * blank; with false it yields to the empty/sign-in view (signed out).
-     */
-    private fun renderPlaceholder(showSkeleton: Boolean, signedOut: Boolean) {
+    /** Clears only this factory. The provider derives its loading or signed-out card from ownership. */
+    private fun renderPlaceholder() {
         habits = emptyList()
         habitsSession = null
-        lang = detectLanguage(null)
-        headerLabel = tr(context, lang, WidgetString.TODAY)
 
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         prefs.edit()
-            .putString("header_label", headerLabel)
-            .putInt("habit_count", 0)
-            .putInt("completed_count", 0)
-            .putInt("user_streak", 0)
-            .putString("lang", lang)
-            .remove("render_session")
+            .remove(renderSessionKey)
             .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
-            .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, showSkeleton && !signedOut)
             .apply()
 
         // The provider owns the whole card, including signed-out copy, controls and skeleton.
@@ -492,7 +483,7 @@ class OrbitWidgetFactory(
         val token = synchronized(OrbitWidgetModule.accountRenderLock) {
             val currentToken = OrbitWidgetModule.getToken(context)
             if (currentToken == null) {
-                renderPlaceholder(showSkeleton = false, signedOut = true)
+                renderPlaceholder()
                 return
             }
             currentToken
@@ -531,7 +522,7 @@ class OrbitWidgetFactory(
             // by another account. These returns only avoid rendering a result somebody else supersedes.
 
             if (widgetData == null) {
-                renderPlaceholder(showSkeleton = true, signedOut = false)
+                renderPlaceholder()
                 return
             }
 
@@ -554,7 +545,7 @@ class OrbitWidgetFactory(
                 .putInt("user_streak", streak)
                 .putString("lang", lang)
                 .putString("empty_reason", widgetData.emptyReason)
-                .putString("render_session", OrbitWidgetModule.sessionKey(token))
+                .putString(renderSessionKey, OrbitWidgetModule.sessionKey(token))
                 .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
                 .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
                 .apply()
