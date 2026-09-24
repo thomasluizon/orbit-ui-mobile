@@ -6,6 +6,11 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     setupFiles: ['./test-setup-expo-runtime.ts', './test-setup.ts'],
+    server: {
+      deps: {
+        inline: ['@tabler/icons-react-native'],
+      },
+    },
     include: ['__tests__/**/*.test.{ts,tsx}'],
     /**
      * `turbo run test` runs the four workspace suites at once and vitest defaults its pool to
@@ -135,10 +140,6 @@ export default defineConfig({
       {
         find: 'react-native-safe-area-context',
         replacement: path.resolve(__dirname, './test-mocks/react-native-safe-area-context.ts'),
-      },
-      {
-        find: '@/components/ui/icons',
-        replacement: path.resolve(__dirname, './test-mocks/icons.ts'),
       },
       {
         find: 'react-native-svg',

@@ -17,19 +17,32 @@ const killTree = (pid) => {
   }
 }
 
+/** The default output bound, exported so a caller can name the real number in its own message. */
+export const MAX_OUTPUT_BYTES = 32 * 1024 * 1024
+
 /**
  * Run one child with a hard wall-clock bound. POSIX children lead a process group and Windows
  * children are terminated with taskkill /T, so a timeout cannot leave grandchildren running.
+ * Always resolves, never rejects: a child that cannot start is reported through `error`.
  */
-export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = 32 * 1024 * 1024, input, encoding = "utf8" } = {}) =>
+export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = MAX_OUTPUT_BYTES, input, encoding = "utf8" } = {}) =>
   new Promise((resolve) => {
-    const child = spawn(file, args, {
-      cwd,
-      env,
-      detached: process.platform !== "win32",
-      stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
-      windowsHide: true,
-    })
+    const empty = () => (encoding === null ? Buffer.alloc(0) : "")
+    let child
+    try {
+      child = spawn(file, args, {
+        cwd,
+        env,
+        detached: process.platform !== "win32",
+        stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+        windowsHide: true,
+      })
+    } catch (error) {
+      // Since the Node 20.12 fix for CVE-2024-27980, a .cmd or .bat target throws EINVAL here
+      // instead of emitting an error event, which would otherwise reject this promise.
+      resolve({ status: null, signal: null, stdout: empty(), stderr: empty(), timedOut: false, overflowed: false, error })
+      return
+    }
     const stdoutChunks = []
     const stderrChunks = []
     let stdoutBytes = 0
