@@ -74,6 +74,14 @@ export const cases = () => {
     { status: 1, stderr: /changed-files job has a blocking run that is not scoped to the pull request diff/ },
   )
 
+  const unpreparedChangedPaths = "jobs:\n  existing:\n    steps:\n      - run: |\n          if grep -Eq '^package\\.json$' \"$RUNNER_TEMP/changed-paths.txt\"; then\n            node gate.mjs\n          fi\n"
+  check(
+    "check-gate-charter.mjs",
+    "rejects a changed-path file without the resolving step",
+    ["--root", stageRepository("unprepared-changed-paths", completeCharter(), { guardWorkflow: unpreparedChangedPaths })],
+    { status: 1, stderr: /changed-files job has a blocking run that is not scoped to the pull request diff/ },
+  )
+
   const wholeTreeLint = "jobs:\n  lint:\n    steps:\n      - run: |\n          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed.txt\n          npm run lint\n"
   check(
     "check-gate-charter.mjs",

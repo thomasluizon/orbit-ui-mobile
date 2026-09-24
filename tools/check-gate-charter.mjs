@@ -98,7 +98,10 @@ function conditionalRanges(script) {
 function derivedVariables(script) {
   const variables = new Set()
   for (const match of script.matchAll(/\b([a-zA-Z_][a-zA-Z0-9_]*)=\$\(([\s\S]*?)\)/g)) {
-    if (/\bgit\s+diff\s+--name-only\b/.test(match[2])) variables.add(match[1])
+    if (/\bgit\s+diff\s+--name-only\b/.test(match[2]) ||
+        /\b(?:cat|grep\s+-zE)\b[\s\S]*?\$RUNNER_TEMP\/changed-paths\.(?:txt|nul)|\$RUNNER_TEMP\/changed-paths-present\.nul/.test(match[2])) {
+      variables.add(match[1])
+    }
   }
   let changed = true
   while (changed) {
@@ -115,6 +118,8 @@ function derivedVariables(script) {
 
 function commandUsesRedirectedChangedFiles(script, command) {
   const before = script.slice(0, command.index)
+  const preparedCopy = /\bcp\s+"\$RUNNER_TEMP\/changed-paths\.(?:txt|nul)"\s+"([^"]+)"/.exec(before)
+  if (preparedCopy && command.line.includes(`--changed-files-file "${preparedCopy[1]}"`)) return true
   for (const match of before.matchAll(/\bgit\s+diff\s+--name-only\b[^\n]*(?:\\\r?\n[^\n]*)*?>\s*(?:"([^"]+)"|'([^']+)'|([^\s;]+))/g)) {
     const target = match[1] ?? match[2] ?? match[3]
     if (new RegExp(`--changed-files-file\\s+["']?${target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(command.line)) return true
@@ -123,6 +128,8 @@ function commandUsesRedirectedChangedFiles(script, command) {
 }
 
 function commandUsesChangedFilePipeline(script, command) {
+  if (/\bxargs\s+-0\s+--no-run-if-empty\s+node\b/.test(command.line) &&
+      script.includes('< "$RUNNER_TEMP/changed-paths-present.nul"')) return true
   const before = script.slice(0, command.index)
   const diff = before.lastIndexOf("git diff --name-only")
   if (diff < 0) return false
@@ -131,6 +138,7 @@ function commandUsesChangedFilePipeline(script, command) {
 }
 
 function conditionUsesChangedFiles(condition) {
+  if (/\bgrep\s+-Eq\s+['"][^\n]+['"]\s+"\$RUNNER_TEMP\/changed-paths\.txt"/.test(condition)) return true
   const diff = condition.indexOf("git diff --name-only")
   if (diff < 0) return false
   const beforeDiff = condition.slice(0, diff)
@@ -168,7 +176,15 @@ function blockingRunUsesChangedFiles(script) {
 
 function guardJobUsesChangedFiles(job) {
   const blockingRuns = runSteps(job).filter((step) => step["continue-on-error"] !== true)
-  return blockingRuns.length > 0 && blockingRuns.every((step) => blockingRunUsesChangedFiles(step.run))
+  const preparation = blockingRuns.findIndex((step) =>
+    step.name === "Resolve pull request changed paths" &&
+    step.if === "github.event_name == 'pull_request'" &&
+    step.run === 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"' &&
+    step.env?.BASE_REF === "${{ github.base_ref }}")
+  if (preparation < 0 && blockingRuns.some((step) => step.run.includes("$RUNNER_TEMP/changed-paths"))) return false
+  if (preparation >= 0 && blockingRuns.slice(0, preparation).some((step) => !isPrerequisiteRun(step.run))) return false
+  return blockingRuns.length > 0 && blockingRuns.every((step, index) =>
+    index === preparation || blockingRunUsesChangedFiles(step.run))
 }
 
 function guardJobIsAdvisory(job) {
