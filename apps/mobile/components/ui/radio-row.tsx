@@ -210,7 +210,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
   const rowStyle = [
     styles.row,
     {
-      paddingLeft: 20 + Math.max(0, depth) * 20,
+      paddingLeft: 16 + Math.min(3, Math.max(0, Math.trunc(depth))) * 16,
       backgroundColor: selected ? tokens.selectionBg : 'transparent',
       borderColor: selected ? tokens.primary : 'transparent',
       opacity: disabled ? 0.5 : 1,
