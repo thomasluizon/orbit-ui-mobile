@@ -34,6 +34,7 @@ interface RadioGroupContextValue {
 }
 
 const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
+const ROW_INDENTS = [16, 24, 32, 48, 64, 96] as const
 
 export function useRadioGroupItem({
   disabled,
@@ -195,7 +196,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
     gap: 12,
     minHeight: 52,
     paddingBlock: 8,
-    paddingInlineStart: 16 + Math.min(3, Math.max(0, Math.trunc(depth))) * 16,
+    paddingInlineStart: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
     paddingInlineEnd: 16,
     background: selected ? 'rgba(var(--primary-rgb), 0.10)' : 'transparent',
     boxShadow: selected ? 'inset 0 0 0 1.5px var(--primary)' : undefined,

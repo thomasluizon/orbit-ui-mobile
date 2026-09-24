@@ -132,7 +132,7 @@ describe('list primitives on web', () => {
       />,
     )
     expect(screen.getByRole('radio', { name: /Weekly/ })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('radio', { name: /Weekly/ })).toHaveStyle({ paddingInlineStart: '48px' })
+    expect(screen.getByRole('radio', { name: /Weekly/ })).toHaveStyle({ paddingInlineStart: '32px' })
     expect(screen.getByText('Every Monday')).toBeInTheDocument()
     expect(screen.getByText('3/4')).toBeInTheDocument()
     expect(screen.getByText('Pro')).toBeInTheDocument()
@@ -144,8 +144,10 @@ describe('list primitives on web', () => {
     expect(disabled).toHaveAttribute('aria-disabled', 'true')
     expect(disabled).toHaveStyle({ paddingInlineStart: '16px' })
     expect(screen.getByText('Upgrade required')).toBeInTheDocument()
-    rerender(<RadioRow label="Nested" depth={5} />)
-    expect(screen.getByRole('radio', { name: 'Nested' })).toHaveStyle({ paddingInlineStart: '64px' })
+    for (const [depth, padding] of [[1, '24px'], [3, '48px'], [4, '64px'], [5, '96px']] as const) {
+      rerender(<RadioRow label="Nested" depth={depth} />)
+      expect(screen.getByRole('radio', { name: 'Nested' })).toHaveStyle({ paddingInlineStart: padding })
+    }
   })
 
   it('filters non-row children and divides valid RowList entries', () => {

@@ -45,6 +45,7 @@ interface RadioGroupContextValue {
 }
 
 const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
+const ROW_INDENTS = [16, 24, 32, 48, 64, 96] as const
 
 export function RadioGroup({ children, onCommit, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & {
@@ -210,7 +211,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
   const rowStyle = [
     styles.row,
     {
-      paddingLeft: 16 + Math.min(3, Math.max(0, Math.trunc(depth))) * 16,
+      paddingLeft: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
       backgroundColor: selected ? tokens.selectionBg : 'transparent',
       borderColor: selected ? tokens.primary : 'transparent',
       opacity: disabled ? 0.5 : 1,
