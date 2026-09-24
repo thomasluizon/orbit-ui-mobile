@@ -47,17 +47,11 @@ export function mergeDrillChildrenMap(
 function enrichDrillChild(
   child: NormalizedHabit,
   listChild: NormalizedHabit | undefined,
-  options: HabitVisibilityOptions,
   isSelectedDateToday: boolean,
-  today: string,
 ): NormalizedHabit {
   return {
     ...child,
     ...(!listChild && !isSelectedDateToday ? { isOverdue: false } : {}),
-    ...(!listChild && isSelectedDateToday && options.showCompleted &&
-      child.isCompleted && child.frequencyUnit === null && child.dueDate <= today
-      ? { isLoggedInRange: true }
-      : {}),
     ...(listChild ? {
       scheduledDates: listChild.scheduledDates,
       isLoggedInRange: listChild.isLoggedInRange,
@@ -84,7 +78,7 @@ export function getVisibleDrillChildren(
     childrenByParent.set(id, children.map((child) => child.id))
     for (const child of children) {
       const listChild = options.habitsById.get(child.id)
-      habitsById.set(child.id, enrichDrillChild(child, listChild, options, isSelectedDateToday, today))
+      habitsById.set(child.id, enrichDrillChild(child, listChild, isSelectedDateToday))
     }
   }
 

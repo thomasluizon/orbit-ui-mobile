@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import type { HabitDetail, HabitDetailChild, NormalizedHabit } from '../types/habit'
 import { createMockHabit } from './factories'
 import {
+  canRevealCompletedDrillChildren,
+  countCompletedDrillChildren,
   getVisibleDrillChildren,
   loadDrillChildren,
   mergeDrillChildrenMap,
@@ -226,10 +228,10 @@ describe('getVisibleDrillChildren', () => {
     ])
   })
 
-  it('shows a completed detail-only one-time child when Show completed is on', () => {
+  it('does not infer selected-day completion for a detail-only one-time child', () => {
     const date = '2025-01-02'
     const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
-      makeDetailChild({ id: 'detail-only', isCompleted: true, dueDate: date }),
+      makeDetailChild({ id: 'detail-only', isCompleted: true, dueDate: '2025-01-01', isOverdue: false }),
     ] }), date)
     const options = {
       habitsById: new Map<string, NormalizedHabit>(),
@@ -239,9 +241,12 @@ describe('getVisibleDrillChildren', () => {
     }
 
     expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, options, 'today', date)).toEqual([])
-    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
+    expect(canRevealCompletedDrillChildren('parent-1', detail.childrenByParent, options, 'today', date)).toBe(false)
+    const revealed = getVisibleDrillChildren('parent-1', detail.childrenByParent, {
       ...options, showCompleted: true,
-    }, 'today', date).map((child) => child.id)).toEqual(['detail-only'])
+    }, 'today', date)
+    expect(revealed).toEqual([])
+    expect(countCompletedDrillChildren(revealed, date)).toBe(0)
   })
 
   it('keeps a completed detail-only child hidden before its due date', () => {
