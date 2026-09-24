@@ -21,6 +21,29 @@ interface HabitDrillProps {
     options?: { isDrillCard?: boolean; isDraggingList?: boolean },
   ) => ReactNode
   onAddSubHabit: (parentId: string) => void
+  onShowCompleted?: () => void
+}
+
+function DrillEmptyMessage({
+  drill,
+  t,
+  onShowCompleted,
+}: Readonly<Pick<HabitDrillProps, 'drill' | 't' | 'onShowCompleted'>>) {
+  if (!drill.hasUnfilteredChildren) {
+    return (
+      <p style={{ margin: 0, padding: '8px 16px', color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
+        {t('habits.noSubHabits')}
+      </p>
+    )
+  }
+  if (!drill.canRevealCompletedChildren || !onShowCompleted) return null
+  return (
+    <div className="px-4 py-2">
+      <PillButton variant="ghost" onClick={onShowCompleted}>
+        {t('habits.showCompleted')}
+      </PillButton>
+    </div>
+  )
 }
 
 /** The focused, stack-based view of one parent's direct sub habits. */
@@ -30,10 +53,8 @@ export function HabitDrill({
   hasProAccess,
   renderHabitCard,
   onAddSubHabit,
+  onShowCompleted,
 }: Readonly<HabitDrillProps>) {
-  const completedCount = drill.drillChildren.filter(
-    (child) => child.isCompleted || child.isLoggedInRange,
-  ).length
   const addRow = drill.currentParentId ? (
     <ListRow
       icon="plus"
@@ -85,7 +106,7 @@ export function HabitDrill({
             }}
           >
             {t('habits.drillProgress', {
-              done: completedCount,
+              done: drill.completedCount,
               total: drill.drillChildren.length,
             })}
           </p>
@@ -117,9 +138,7 @@ export function HabitDrill({
       {!drill.drillLoading && !drill.drillError ? (
         <>
           {drill.drillChildren.length === 0 ? (
-            <p style={{ margin: 0, padding: '8px 16px', color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
-              {t('habits.noSubHabits')}
-            </p>
+            <DrillEmptyMessage drill={drill} t={t} onShowCompleted={onShowCompleted} />
           ) : (
             drill.drillChildren.map((child) => {
               const nestedChildren = drill.getDrillChildren(child.id)

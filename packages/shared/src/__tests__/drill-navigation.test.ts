@@ -176,6 +176,55 @@ describe('drill navigation utils', () => {
 })
 
 describe('getVisibleDrillChildren', () => {
+  it('shows a completed detail-only one-time child when Show completed is on', () => {
+    const date = '2025-01-02'
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({ id: 'detail-only', isCompleted: true, dueDate: date }),
+    ] }), date)
+    const options = {
+      habitsById: new Map<string, NormalizedHabit>(),
+      childrenByParent: new Map<string, string[]>(),
+      selectedDate: date, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, options, 'today', date)).toEqual([])
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
+      ...options, showCompleted: true,
+    }, 'today', date).map((child) => child.id)).toEqual(['detail-only'])
+  })
+
+  it('keeps a completed detail-only child hidden before its due date', () => {
+    const today = '2025-01-03'
+    const selectedDate = '2025-01-01'
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({ id: 'completed-later', isCompleted: true, dueDate: today }),
+    ] }), today)
+    const options = {
+      habitsById: new Map<string, NormalizedHabit>(),
+      childrenByParent: new Map<string, string[]>(),
+      selectedDate, searchQuery: '', showCompleted: true,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, options, 'today', today)).toEqual([])
+  })
+
+  it('does not infer completion on a past date after a detail-only child was due', () => {
+    const today = '2025-01-03'
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({ id: 'completed-later', isCompleted: true, dueDate: '2025-01-01' }),
+    ] }), today)
+    const options = {
+      habitsById: new Map<string, NormalizedHabit>(),
+      childrenByParent: new Map<string, string[]>(),
+      selectedDate: '2025-01-02', searchQuery: '', showCompleted: true,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, options, 'today', today)).toEqual([])
+  })
+
   it('filters completed one-time and logged recurring children using selected-date list data', () => {
     const date = '2025-01-02'
     const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
@@ -202,6 +251,37 @@ describe('getVisibleDrillChildren', () => {
     expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
       ...options, showCompleted: true,
     }, 'today', date).map((child) => child.id)).toEqual(['one-time', 'recurring'])
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
+      ...options, recentlyCompletedIds: new Set(['recurring']),
+    }, 'today', date).map((child) => child.id)).toEqual(['recurring'])
+  })
+
+  it('uses search matches and selected-date logs from the list', () => {
+    const date = '2025-01-02'
+    const listChild = createMockHabit({
+      id: 'recurring', parentId: 'parent-1', frequencyUnit: 'Day',
+      dueDate: '2025-01-10', scheduledDates: [date],
+      instances: [{ date, status: 'Completed', logId: 'log-1' }],
+      searchMatches: [{ field: 'title', value: 'Recurring' }],
+    })
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({ id: listChild.id, frequencyUnit: 'Day', dueDate: '2025-01-10' }),
+    ] }), date)
+    const options = {
+      habitsById: new Map([[listChild.id, listChild]]),
+      childrenByParent: new Map([['parent-1', [listChild.id]]]),
+      selectedDate: date, searchQuery: 'recurring', showCompleted: true,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, options, 'today', date)).toHaveLength(1)
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
+      ...options, searchQuery: 'missing',
+      habitsById: new Map([[listChild.id, { ...listChild, searchMatches: null }]]),
+    }, 'today', date)).toEqual([])
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
+      ...options, selectedDate: '2025-01-03',
+    }, 'today', date)).toEqual([])
   })
 
   it('keeps fresh detail fields and rejects current-day overdue on a past date', () => {

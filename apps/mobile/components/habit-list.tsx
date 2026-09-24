@@ -92,6 +92,7 @@ interface HabitListProps {
   filters: HabitsFilter
   selectedDate?: Date
   showCompleted: boolean
+  onShowCompleted?: () => void
   searchQuery?: string
   isSelectMode?: boolean
   selectedHabitIds?: Set<string>
@@ -314,6 +315,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       filters,
       selectedDate,
       showCompleted,
+      onShowCompleted,
       searchQuery,
       isSelectMode,
       selectedHabitIds,
@@ -1675,6 +1677,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             bulkBarStyle={bulkBarStyle}
             renderHabitCard={renderHabitCard}
             onAddSubHabit={startAddSubHabit}
+            onShowCompleted={onShowCompleted}
           />
           {commonOverlays}
         </>

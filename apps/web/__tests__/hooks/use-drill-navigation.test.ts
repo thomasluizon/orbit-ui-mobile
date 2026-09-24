@@ -124,7 +124,8 @@ describe('useDrillNavigation', () => {
       ['one-time', makeHabit({ id: 'one-time', parentId: 'parent1', isCompleted: true,
         scheduledDates: [date], isLoggedInRange: true })],
       ['recurring', makeHabit({ id: 'recurring', parentId: 'parent1', frequencyUnit: 'Day',
-        scheduledDates: [date], isLoggedInRange: true })],
+        scheduledDates: [date], isLoggedInRange: false,
+        instances: [{ date, status: 'Completed', logId: 'log-1' }] })],
     ])
     const options = {
       habitsById: byId, childrenByParent: new Map([['parent1', ['one-time', 'recurring']]]),
@@ -135,6 +136,8 @@ describe('useDrillNavigation', () => {
     const hidden = renderHook(() => useDrillNavigation(byId, 0, options, 'today'))
     await act(async () => { await hidden.result.current.drillInto('parent1') })
     expect(hidden.result.current.drillChildren).toEqual([])
+    expect(hidden.result.current.hasUnfilteredChildren).toBe(true)
+    expect(hidden.result.current.canRevealCompletedChildren).toBe(true)
     hidden.unmount()
 
     const shown = renderHook(() => useDrillNavigation(byId, 0, {
@@ -144,6 +147,7 @@ describe('useDrillNavigation', () => {
     expect(shown.result.current.drillChildren.map((child) => child.id)).toEqual([
       'one-time', 'recurring',
     ])
+    expect(shown.result.current.completedCount).toBe(2)
   })
 
   it('starts with empty drill stack', () => {

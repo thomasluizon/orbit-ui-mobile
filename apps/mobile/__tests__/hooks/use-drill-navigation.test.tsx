@@ -122,8 +122,11 @@ describe('mobile useDrillNavigation', () => {
       child.id,
       createMockHabit({
         id: child.id, parentId: 'p1', frequencyUnit: child.frequencyUnit,
-        isCompleted: child.isCompleted, isLoggedInRange: true,
+        isCompleted: child.isCompleted, isLoggedInRange: child.id === 'one-time',
         scheduledDates: [date],
+        instances: child.id === 'recurring'
+          ? [{ date, status: 'Completed', logId: 'log-1' }]
+          : [],
       }),
     ]))
     const options = {
@@ -136,12 +139,15 @@ describe('mobile useDrillNavigation', () => {
     const hidden = renderDrill(habitsById, 1, options)
     await actAsync(() => hidden.holder.current.drillInto('p1'))
     expect(hidden.holder.current.drillChildren).toEqual([])
+    expect(hidden.holder.current.hasUnfilteredChildren).toBe(true)
+    expect(hidden.holder.current.canRevealCompletedChildren).toBe(true)
 
     const shown = renderDrill(habitsById, 1, { ...options, showCompleted: true })
     await actAsync(() => shown.holder.current.drillInto('p1'))
     expect(shown.holder.current.drillChildren.map((child) => child.id)).toEqual([
       'one-time', 'recurring',
     ])
+    expect(shown.holder.current.completedCount).toBe(2)
   })
 
   it('drills into a habit, fetching and normalizing its children', async () => {

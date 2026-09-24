@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { BackHandler } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { getVisibleDrillChildren, normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
+import { canRevealCompletedDrillChildren, countCompletedDrillChildren, getVisibleDrillChildren, normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
 import type { HabitVisibilityOptions, HabitVisibilityView } from '@orbit/shared/utils/habit-visibility'
 import { API } from '@orbit/shared/api'
 
@@ -18,6 +18,9 @@ export interface DrillNavigationState {
   currentParentId: string | null
   currentParent: NormalizedHabit | null
   drillChildren: NormalizedHabit[]
+  hasUnfilteredChildren: boolean
+  canRevealCompletedChildren: boolean
+  completedCount: number
   drillLoading: boolean
   drillError: string
   drillInto: (habitId: string) => Promise<void>
@@ -56,6 +59,16 @@ export function useDrillNavigation(
         : drillChildrenMap.get(currentParentId) ?? []
       : [],
     [currentParentId, drillChildrenMap, visibilityOptions, view],
+  )
+  const hasUnfilteredChildren = currentParentId
+    ? (drillChildrenMap.get(currentParentId)?.length ?? 0) > 0
+    : false
+  const canRevealCompletedChildren = currentParentId !== null && drillChildren.length === 0 && visibilityOptions
+    ? canRevealCompletedDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+    : false
+  const completedCount = countCompletedDrillChildren(
+    drillChildren,
+    visibilityOptions?.selectedDate || formatAPIDate(new Date()),
   )
 
   const fetchDrillChildren = useCallback(
@@ -145,6 +158,9 @@ export function useDrillNavigation(
     currentParentId,
     currentParent,
     drillChildren,
+    hasUnfilteredChildren,
+    canRevealCompletedChildren,
+    completedCount,
     drillLoading,
     drillError,
     drillInto,

@@ -131,6 +131,7 @@ interface HabitListProps {
   view?: 'today' | 'all' | 'general'
   selectedDate?: Date
   showCompleted?: boolean
+  onShowCompleted?: () => void
   isSelectMode?: boolean
   selectedHabitIds?: Set<string>
   searchQuery?: string
@@ -302,6 +303,7 @@ export function HabitList({
   view = 'today',
   selectedDate,
   showCompleted = false,
+  onShowCompleted,
   isSelectMode = false,
   selectedHabitIds,
   searchQuery = '',
@@ -1308,6 +1310,7 @@ export function HabitList({
           hasProAccess={profile?.hasProAccess !== false}
           renderHabitCard={renderHabitCard}
           onAddSubHabit={startAddSubHabit}
+          onShowCompleted={onShowCompleted}
         />
       )
     }

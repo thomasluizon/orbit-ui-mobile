@@ -36,6 +36,9 @@ const mockDrillState = {
   currentParentId: null as string | null,
   currentParent: null as NormalizedHabit | null,
   drillChildren: [] as NormalizedHabit[],
+  completedCount: 0,
+  hasUnfilteredChildren: false,
+  canRevealCompletedChildren: false,
   drillInto,
   drillBack: vi.fn(),
   drillReset: vi.fn(),
@@ -332,6 +335,9 @@ describe('HabitList', () => {
     mockDrillState.currentParentId = null
     mockDrillState.currentParent = null
     mockDrillState.drillChildren = []
+    mockDrillState.completedCount = 0
+    mockDrillState.hasUnfilteredChildren = false
+    mockDrillState.canRevealCompletedChildren = false
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
     skipHabitMutateAsync.mockReset()
@@ -2471,6 +2477,24 @@ describe('HabitList', () => {
     ])
     expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: YESTERDAY, intent: 'log' })
     expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+  })
+
+  it('offers Show completed when filtering hides every drilled child', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const onShowCompleted = vi.fn()
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.hasUnfilteredChildren = true
+    mockDrillState.canRevealCompletedChildren = true
+
+    renderWithProviders(<HabitList filters={defaultFilters} onShowCompleted={onShowCompleted} />)
+
+    expect(screen.queryByText('habits.noSubHabits')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.showCompleted' }))
+    expect(onShowCompleted).toHaveBeenCalledTimes(1)
   })
 
   it('stores drill edit onSaved callback without invoking refresh eagerly', async () => {

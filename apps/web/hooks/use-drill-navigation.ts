@@ -3,6 +3,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import {
+  countCompletedDrillChildren,
+  canRevealCompletedDrillChildren,
   getVisibleDrillChildren,
   loadDrillChildren,
   mergeDrillChildrenMap,
@@ -35,6 +37,9 @@ export interface DrillNavigationState {
   currentParentId: string | null
   currentParent: NormalizedHabit | null
   drillChildren: NormalizedHabit[]
+  hasUnfilteredChildren: boolean
+  canRevealCompletedChildren: boolean
+  completedCount: number
   drillLoading: boolean
   drillError: string
   drillInto: (habitId: string) => Promise<void>
@@ -81,6 +86,16 @@ export function useDrillNavigation(
         : drillChildrenMap.get(currentParentId) ?? []
       : [],
     [currentParentId, drillChildrenMap, visibilityOptions, view],
+  )
+  const hasUnfilteredChildren = currentParentId
+    ? (drillChildrenMap.get(currentParentId)?.length ?? 0) > 0
+    : false
+  const canRevealCompletedChildren = currentParentId !== null && drillChildren.length === 0 && visibilityOptions
+    ? canRevealCompletedDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+    : false
+  const completedCount = countCompletedDrillChildren(
+    drillChildren,
+    visibilityOptions?.selectedDate || formatAPIDate(new Date()),
   )
 
   const fetchDrillChildren = useCallback(
@@ -167,6 +182,9 @@ export function useDrillNavigation(
     currentParentId,
     currentParent,
     drillChildren,
+    hasUnfilteredChildren,
+    canRevealCompletedChildren,
+    completedCount,
     drillLoading,
     drillError,
     drillInto,

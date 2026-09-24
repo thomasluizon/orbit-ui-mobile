@@ -41,6 +41,24 @@ interface HabitDrillProps {
     options?: { isDrillCard?: boolean },
   ) => ReactNode
   onAddSubHabit: (parentId: string) => void
+  onShowCompleted?: () => void
+}
+
+function DrillEmptyMessage({
+  drill,
+  styles,
+  t,
+  onShowCompleted,
+}: Readonly<Pick<HabitDrillProps, 'drill' | 'styles' | 't' | 'onShowCompleted'>>) {
+  if (!drill.hasUnfilteredChildren) {
+    return <Text style={styles.drillEmptyText}>{t('habits.noSubHabits')}</Text>
+  }
+  if (!drill.canRevealCompletedChildren || !onShowCompleted) return null
+  return (
+    <PillButton variant="ghost" onClick={onShowCompleted}>
+      {t('habits.showCompleted')}
+    </PillButton>
+  )
 }
 
 /** The focused, stack-based view of one parent's direct sub habits. */
@@ -57,13 +75,10 @@ export function HabitDrill({
   bulkBarStyle,
   renderHabitCard,
   onAddSubHabit,
+  onShowCompleted,
 }: Readonly<HabitDrillProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const completedCount = drill.drillChildren.filter(
-    (child) => child.isCompleted || child.isLoggedInRange,
-  ).length
-
   const renderItem: ListRenderItem<NormalizedHabit> = ({ item: child }) => {
     const nestedChildren = drill.getDrillChildren(child.id)
     return renderHabitCard(
@@ -96,7 +111,7 @@ export function HabitDrill({
           </Text>
           <Text style={styles.drillProgress}>
             {t('habits.drillProgress', {
-              done: completedCount,
+              done: drill.completedCount,
               total: drill.drillChildren.length,
             })}
           </Text>
@@ -140,7 +155,7 @@ export function HabitDrill({
     </View>
   ) : (
     <View>
-      <Text style={styles.drillEmptyText}>{t('habits.noSubHabits')}</Text>
+      <DrillEmptyMessage drill={drill} styles={styles} t={t} onShowCompleted={onShowCompleted} />
       {addRow}
     </View>
   )

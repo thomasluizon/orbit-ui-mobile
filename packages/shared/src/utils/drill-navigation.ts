@@ -7,6 +7,7 @@ import { formatAPIDate } from './dates'
 import { fallbackChildOverdue } from './habit-normalization'
 import {
   createHabitVisibilityHelpers,
+  isHabitLoggedOnDate,
   type HabitVisibilityOptions,
   type HabitVisibilityView,
 } from './habit-visibility'
@@ -43,6 +44,31 @@ export function mergeDrillChildrenMap(
   return next
 }
 
+function enrichDrillChild(
+  child: NormalizedHabit,
+  listChild: NormalizedHabit | undefined,
+  options: HabitVisibilityOptions,
+  isSelectedDateToday: boolean,
+  today: string,
+): NormalizedHabit {
+  return {
+    ...child,
+    ...(!listChild && !isSelectedDateToday ? { isOverdue: false } : {}),
+    ...(!listChild && isSelectedDateToday && options.showCompleted &&
+      child.isCompleted && child.frequencyUnit === null && child.dueDate <= today
+      ? { isLoggedInRange: true }
+      : {}),
+    ...(listChild ? {
+      scheduledDates: listChild.scheduledDates,
+      isLoggedInRange: listChild.isLoggedInRange,
+      instances: listChild.instances,
+      searchMatches: listChild.searchMatches,
+      isOverdue: listChild.isOverdue,
+      ...(listChild.isGeneral ? { isCompleted: listChild.isCompleted } : {}),
+    } : {}),
+  }
+}
+
 export function getVisibleDrillChildren(
   parentId: string,
   drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
@@ -58,18 +84,7 @@ export function getVisibleDrillChildren(
     childrenByParent.set(id, children.map((child) => child.id))
     for (const child of children) {
       const listChild = options.habitsById.get(child.id)
-      habitsById.set(child.id, {
-        ...child,
-        ...(!listChild && !isSelectedDateToday ? { isOverdue: false } : {}),
-        ...(listChild ? {
-          scheduledDates: listChild.scheduledDates,
-          isLoggedInRange: listChild.isLoggedInRange,
-          instances: listChild.instances,
-          searchMatches: listChild.searchMatches,
-          isOverdue: listChild.isOverdue,
-          ...(listChild.isGeneral ? { isCompleted: listChild.isCompleted } : {}),
-        } : {}),
-      })
+      habitsById.set(child.id, enrichDrillChild(child, listChild, options, isSelectedDateToday, today))
     }
   }
 
@@ -78,6 +93,30 @@ export function getVisibleDrillChildren(
     habitsById,
     childrenByParent,
   }).getVisibleChildren(parentId, view)
+}
+
+export function canRevealCompletedDrillChildren(
+  parentId: string,
+  drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
+  options: HabitVisibilityOptions,
+  view: HabitVisibilityView,
+  today: string,
+): boolean {
+  if (options.showCompleted) return false
+  return getVisibleDrillChildren(parentId, drillChildrenMap, {
+    ...options,
+    showCompleted: true,
+  }, view, today).length > 0
+}
+
+export function countCompletedDrillChildren(
+  children: readonly NormalizedHabit[],
+  selectedDate: string,
+): number {
+  return children.filter((child) =>
+    isHabitLoggedOnDate(child, selectedDate) ||
+    (child.isCompleted && (child.isGeneral || child.frequencyUnit === null)),
+  ).length
 }
 
 export function normalizeDrillDetailChild(
