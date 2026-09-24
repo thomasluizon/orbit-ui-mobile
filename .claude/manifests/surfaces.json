@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "7a5246108adb67f5e2bec05c4695387071b2cb14",
+  "generatedFrom": "3d5873c2688a9f332cde4ecdd794ec35b811c430",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -1743,7 +1743,7 @@
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 235,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -1758,7 +1758,7 @@
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 235,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -1773,7 +1773,7 @@
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 235,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -1788,7 +1788,7 @@
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 235,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
