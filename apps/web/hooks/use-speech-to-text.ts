@@ -11,6 +11,7 @@ import {
 } from '@orbit/shared/chat'
 import { ERROR_CODE_TO_KEY, getErrorSurface } from '@orbit/shared/utils'
 import { useThrottleStore } from '@/stores/throttle-store'
+import { getHeldAccountId } from '@/stores/auth-store'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
@@ -80,12 +81,16 @@ export function useSpeechToText() {
   }, [])
 
   const transcribe = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob, intendedAccountId: string | null) => {
       setIsTranscribing(true)
       try {
         const formData = new FormData()
         formData.append('audio', blob, 'recording.webm')
-        const response = await fetchWithThrottle(API.chat.transcribe, { method: 'POST', body: formData })
+        const response = await fetchWithThrottle(API.chat.transcribe, {
+          method: 'POST',
+          ...(intendedAccountId ? { headers: { 'X-Orbit-Held-Account-Id': intendedAccountId } } : {}),
+          body: formData,
+        })
         const data = (await response.json().catch(() => null)) as TranscriptionResponse | null
         const text = data?.text?.trim() ?? ''
         if (!response.ok || !text) {
@@ -159,6 +164,7 @@ export function useSpeechToText() {
   const startRecording = useCallback(async () => {
     if (!isSupported || isRecording) return
     if ((getErrorSurface(useThrottleStore.getState().error).retryAt ?? 0) > Date.now()) return
+    const intendedAccountId = getHeldAccountId()
     setError(null)
     setTranscript('')
     setRecordingDuration(0)
@@ -179,7 +185,7 @@ export function useSpeechToText() {
         stopStream()
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
         chunksRef.current = []
-        if (blob.size > 0) void transcribe(blob)
+        if (blob.size > 0) void transcribe(blob, intendedAccountId)
       }
 
       recorder.start()

@@ -222,7 +222,7 @@ describe('useAccountScopedMutation', () => {
     await waitFor(() => expect(result.current.variables).toBe('habit-1'))
   })
 
-  it('carries a null account when the tab holds none', async () => {
+  it('refuses a mutation while the tab holds no account', async () => {
     heldAccount.id = null
     const seenAccounts: (string | null)[] = []
     const { result } = renderHook(
@@ -235,8 +235,8 @@ describe('useAccountScopedMutation', () => {
       { wrapper: createWrapper() },
     )
 
-    await result.current.mutateAsync('habit-1')
+    await expect(result.current.mutateAsync('habit-1')).rejects.toMatchObject({ status: 409 })
 
-    expect(seenAccounts).toEqual([null])
+    expect(seenAccounts).toEqual([])
   })
 })

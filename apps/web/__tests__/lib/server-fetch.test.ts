@@ -350,12 +350,13 @@ describe('serverAuthMutate', () => {
     expect(url).toContain('/api/habits/h-1')
   })
 
-  it('sends a write that names no account, because nothing proves a mismatch', async () => {
+  it('refuses a write before the held account has loaded', async () => {
     holdCookieForAccount('account-b')
 
-    await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, null)
+    await expect(serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, null))
+      .rejects.toMatchObject({ status: 409 })
 
-    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('sends a write whose token carries no readable account, rather than failing shut', async () => {
@@ -428,7 +429,7 @@ describe('serverAuthMutate', () => {
     })
 
     await expect(
-      serverAuthMutate(API.auth.refresh, { method: 'POST' }, null),
+      serverAuthMutate(API.auth.refresh, { method: 'POST' }, 'account-a'),
     ).rejects.toMatchObject({ status: 401 })
 
     expect(resolveServerSessionMock).toHaveBeenCalledTimes(1)

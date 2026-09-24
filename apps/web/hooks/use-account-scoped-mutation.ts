@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { getHeldAccountId } from '@/stores/auth-store'
-import { reportsAccountChanged } from '@/app/actions/action-result'
+import { ACCOUNT_CHANGED_ERROR_CODE, reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getAccountGeneration } from '@/lib/session-epoch'
 
@@ -100,7 +100,14 @@ export function useAccountScopedMutation<
     TOnMutateResult
   > = {
     ...rest,
-    mutationFn: ({ input, intendedAccountId }) => mutationFn(input, intendedAccountId),
+    mutationFn: ({ input, intendedAccountId }) => {
+      if (intendedAccountId === null) {
+        return Promise.reject(Object.assign(new Error('Account not loaded'), {
+          code: ACCOUNT_CHANGED_ERROR_CODE, status: 409,
+        }))
+      }
+      return mutationFn(input, intendedAccountId)
+    },
   }
 
   if (onMutate) {

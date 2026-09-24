@@ -190,6 +190,31 @@ describe('web useChatComposer streaming send', () => {
     vi.useRealTimers()
   })
 
+  it('sends the account held when chat intent formed', async () => {
+    signInAs('account-a')
+    mocks.fetch.mockResolvedValue(new Response('{"error":"failed"}', { status: 500 }))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => { await result.current.sendMessage('hello') })
+
+    expect(mocks.fetch.mock.calls[0]?.[1]?.headers).toMatchObject({
+      'X-Orbit-Held-Account-Id': 'account-a',
+    })
+  })
+
+  it('shows reload guidance and disables retry after an account switch refusal', async () => {
+    signInAs('account-a')
+    mocks.fetch.mockResolvedValue(Response.json({
+      error: 'Account changed', errorCode: 'ACCOUNT_CHANGED',
+    }, { status: 409 }))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => { await result.current.sendMessage('hello') })
+
+    expect(result.current.sendError).toBe('errors.api.accountChanged')
+    expect(result.current.canRetryLastSend).toBe(false)
+  })
+
   it('publishes the stream refusal deadline without replaying the send', async () => {
     const payload = { error: 'Too many requests', requestId: 'stream-reference', limit: 10, count: 11, retryAfterUtc: '2026-09-06T00:00:42.000Z' }
     mocks.fetch.mockResolvedValue(new Response(JSON.stringify(payload), { status: 429 }))

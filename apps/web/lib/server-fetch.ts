@@ -29,9 +29,8 @@ function parseResponseBody<T>(text: string, schema: ZodType<T> | undefined, path
  * the tab believes and the cookie says what the server will act on. Only a check here, where both
  * are in hand at once, can refuse it.
  *
- * A caller that names no account, and a token whose account cannot be read, both pass: neither one
- * proves a mismatch, and refusing on an unread token would break every write on a token shape
- * change rather than on a real account switch.
+ * Reads can omit intent. Writes require it before resolving a session, including during bootstrap.
+ * A token whose account cannot be read still passes because it does not prove a mismatch.
  */
 function assertIntendedAccountStillHolds(
   token: string,
@@ -153,9 +152,7 @@ export async function serverAuthFetch<T = unknown>(
  * `schema` used to skip straight past the account. Here no argument can be omitted to reach the
  * schema, so a write either names the account or does not compile.
  *
- * `null` is a real value and still sends. A caller that names no account proves no mismatch, and
- * refusing it would break every write that has no account to name rather than a real account
- * switch.
+ * A null account means bootstrap has not established who formed the write, so it cannot send.
  */
 export async function serverAuthMutate<T = unknown>(
   path: string,
@@ -163,6 +160,12 @@ export async function serverAuthMutate<T = unknown>(
   intendedAccountId: string | null,
   schema?: ZodType<T>,
 ): Promise<T> {
+  if (!intendedAccountId) {
+    throw createApiClientError(409, {
+      error: 'The signed in account has not loaded before this request ran',
+      errorCode: ACCOUNT_CHANGED_ERROR_CODE,
+    }, 'The signed in account has not loaded before this request ran')
+  }
   return fetchWithSession(path, init, schema, intendedAccountId)
 }
 
