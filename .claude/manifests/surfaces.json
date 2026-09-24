@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "db14c512bef000af0c0f82660f02117dece454ca",
+  "generatedFrom": "fd5b2d45879a4f348872ae648a52ff5b4b0bb718",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -8196,7 +8196,6 @@
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-session-reset.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
@@ -8216,7 +8215,6 @@
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-session-reset.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
@@ -8236,7 +8234,6 @@
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-session-reset.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
@@ -8256,7 +8253,6 @@
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-session-reset.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
@@ -8276,7 +8272,6 @@
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-session-reset.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
@@ -8296,7 +8291,6 @@
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-session-reset.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
@@ -8316,7 +8310,6 @@
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-session-reset.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
@@ -8336,7 +8329,6 @@
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
-        "apps/mobile/hooks/use-session-reset.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
@@ -11919,7 +11911,7 @@
         "apps/mobile/components/ui/settings-group.tsx",
         "apps/mobile/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 217,
+      "closureSize": 218,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -11934,7 +11926,7 @@
         "apps/mobile/components/ui/settings-group.tsx",
         "apps/mobile/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 217,
+      "closureSize": 218,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -11949,7 +11941,7 @@
         "apps/mobile/components/ui/settings-group.tsx",
         "apps/mobile/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 217,
+      "closureSize": 218,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -11964,7 +11956,7 @@
         "apps/mobile/components/ui/settings-group.tsx",
         "apps/mobile/components/ui/trial-expired-modal.tsx"
       ],
-      "closureSize": 217,
+      "closureSize": 218,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
