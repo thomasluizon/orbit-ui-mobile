@@ -28,6 +28,7 @@ const ConfirmSheet = dynamic(
 export function buildSelectionRefreshKey(
   selectedHabitIds: ReadonlySet<string>,
   allSelected: boolean,
+  completionReadOnly: boolean,
 ): string {
   const selectedKey = Array.from(selectedHabitIds)
     .sort((left, right) => {
@@ -36,7 +37,7 @@ export function buildSelectionRefreshKey(
       return 0
     })
     .join(',')
-  return `${selectedKey}:${allSelected ? 'all' : 'some'}`
+  return `${selectedKey}:${allSelected ? 'all' : 'some'}:${completionReadOnly ? 'read-only' : 'loggable'}`
 }
 
 function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | null {
@@ -182,7 +183,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         completionReadOnly={view.selection.completionReadOnly}
       />
     ),
-    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected),
+    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected, view.selection.completionReadOnly),
   )
 
   return (

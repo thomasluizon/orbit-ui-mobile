@@ -44,6 +44,7 @@ const mocks = vi.hoisted(() => ({
   setStorage: vi.fn(),
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
+  timeZone: 'UTC',
   focusEffect: null as null | (() => void | (() => void)),
   suggestion: null as null | {
     frequencyUnit: 'Day'
@@ -200,6 +201,7 @@ vi.mock('@/hooks/use-profile', () => ({
       hasProAccess: mocks.hasProAccess,
       language: 'en',
       weekStartDay: 1,
+      timeZone: mocks.timeZone,
     },
   }),
 }))
@@ -278,7 +280,7 @@ vi.mock('@/components/habits/habit-checklist', () => ({
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
 vi.mock('@/components/habits/habit-form-fields/styles', () => ({ createStyles: () => ({}) }))
 vi.mock('@/components/habits/habit-log-button', () => ({
-  HabitLogButton: ({ label, logged, onPress }: { label: string; logged: boolean; onPress: () => void }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress }),
+  HabitLogButton: ({ label, logged, onPress, disabled }: { label: string; logged: boolean; onPress: () => void; disabled: boolean }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled }),
 }))
 vi.mock('@/components/habits/habit-row', () => ({
   HabitRow: ({ habit, selectedDate, completionReadOnly, actions }: { habit: NormalizedHabit; selectedDate: Date; completionReadOnly: boolean; actions: { onLog: () => void; onUnlog: () => void } }) => React.createElement('HabitRow', {
@@ -330,6 +332,7 @@ describe('HabitDetailScreen', () => {
     mocks.setStorage.mockResolvedValue(undefined)
     mocks.history = []
     mocks.hasProAccess = true
+    mocks.timeZone = 'UTC'
     mocks.suggestion = null
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
   })
@@ -1014,6 +1017,22 @@ describe('HabitDetailScreen', () => {
     })
     expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
     expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('uses the account day and disables completion after rollover while mounted', () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    })
+    expect(tree!.root.findByProps({ testID: 'header-log' }).props.disabled).toBe(false)
+    TestRenderer.act(() => {
+      vi.setSystemTime(new Date('2026-08-30T12:00:00Z'))
+      vi.advanceTimersByTime(60_000)
+    })
+    expect(tree!.root.findByProps({ testID: 'header-log' }).props.disabled).toBe(true)
+    expect(tree!.root.findByProps({ testID: 'child-child-1' }).props.completionReadOnly).toBe(true)
   })
 
   it('clears a checklist only after confirmation', async () => {

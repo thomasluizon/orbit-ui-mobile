@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
   routerReplace: vi.fn(),
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
+  timeZone: 'UTC',
   suggestion: null as null | {
     frequencyUnit: 'Day'
     frequencyQuantity: number
@@ -59,6 +60,11 @@ vi.mock('next-intl', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: mocks.routerReplace }),
 }))
+
+vi.mock('@/app/(app)/today-provider', async () => {
+  const { formatAPIDateInTimeZone } = await import('@orbit/shared/utils')
+  return { useToday: (timeZone: string | null | undefined) => formatAPIDateInTimeZone(new Date(), timeZone) }
+})
 
 vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
@@ -86,6 +92,7 @@ vi.mock('@/hooks/use-profile', () => ({
       hasProAccess: mocks.hasProAccess,
       language: 'en',
       weekStartDay: 1,
+      timeZone: mocks.timeZone,
     },
   }),
 }))
@@ -224,6 +231,7 @@ describe('HabitDetailScreen', () => {
     mocks.routerReplace.mockReset()
     mocks.history = []
     mocks.hasProAccess = true
+    mocks.timeZone = 'UTC'
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     mocks.suggestion = null
     localStorage.clear()
@@ -478,6 +486,17 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByTestId('child-child-1'))
       .toHaveAttribute('data-completion-reason', 'habits.todayBoundary.readOnly')
     expect(screen.getByText('habits.todayBoundary.readOnly')).toBeVisible()
+  })
+
+  it('uses the account day and disables completion after rollover while mounted', () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    expect(screen.getByRole('button', { name: 'log' })).toBeEnabled()
+    vi.setSystemTime(new Date('2026-08-30T12:00:00Z'))
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    expect(screen.getByRole('button', { name: 'log' })).toBeDisabled()
+    expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-completion-read-only', 'true')
   })
 
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {

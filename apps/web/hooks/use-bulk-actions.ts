@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -43,6 +43,10 @@ export function useBulkActions({
   const bulkDelete = useBulkDeleteHabits()
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
+  const currentPermission = useRef({ selectedDateStr, completionReadOnly })
+  useEffect(() => {
+    currentPermission.current = { selectedDateStr, completionReadOnly }
+  }, [selectedDateStr, completionReadOnly])
 
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
 
@@ -82,7 +86,7 @@ export function useBulkActions({
   }
 
   async function executeLog(ids: string[]) {
-    if (completionReadOnly) return
+    if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
     if (ids.length === 0) return
     const result = await bulkLog.mutateAsync(
       ids.map((id) => ({ habitId: id, date: selectedDateStr })),
@@ -92,7 +96,7 @@ export function useBulkActions({
   }
 
   async function executeSkip(ids: string[]) {
-    if (completionReadOnly) return
+    if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
     if (ids.length === 0) return
     const result = await bulkSkip.mutateAsync(
       ids.map((id) => ({ habitId: id, date: selectedDateStr })),

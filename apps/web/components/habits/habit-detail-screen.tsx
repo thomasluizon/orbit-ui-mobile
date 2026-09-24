@@ -14,7 +14,6 @@ import {
   canNavigateHabitHistoryForward,
   canLogHabitOnDate,
   computeHabitFrequencyLabel,
-  formatAPIDate,
   formatLocaleDate,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
@@ -23,6 +22,7 @@ import {
   isHabitSlipping,
   mergeHabitDetailWithScopedHabit,
   normalizeHabitDetailForDrill,
+  parseAPIDate,
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
@@ -51,6 +51,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useChatStore } from '@/stores/chat-store'
+import { useToday } from '@/app/(app)/today-provider'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
 
@@ -234,9 +235,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
-  const today = useMemo(() => new Date(), [])
-  const todayStr = formatAPIDate(today)
-  const dateStr = date ?? formatAPIDate(today)
+  const { profile } = useProfile()
+  const todayStr = useToday(profile?.timeZone)
+  const today = useMemo(() => parseAPIDate(todayStr), [todayStr])
+  const dateStr = date ?? todayStr
   const detailQuery = useHabitDetail(habitId)
   const logsQuery = useHabitLogs(habitId)
   const metricsQuery = useHabitMetrics(habitId)
@@ -247,7 +249,6 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     includeGeneral: true,
   })
   const allHabitsQuery = useHabits({})
-  const { profile } = useProfile()
   const logHabit = useLogHabit()
   const updateHabit = useUpdateHabit()
   const updateChecklist = useUpdateChecklist()

@@ -13,7 +13,6 @@ import {
   canNavigateHabitHistoryForward,
   canLogHabitOnDate,
   computeHabitFrequencyLabel,
-  formatAPIDate,
   formatLocaleDate,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
@@ -55,6 +54,7 @@ import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useChatStore } from '@/stores/chat-store'
+import { useCurrentDate } from '@/app/(tabs)/use-today-date'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
 
@@ -211,9 +211,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  const today = useMemo(() => new Date(), [])
-  const todayStr = formatAPIDate(today)
-  const dateStr = date ?? formatAPIDate(today)
+  const { profile } = useProfile()
+  const todayStr = useCurrentDate(profile?.timeZone)
+  const today = useMemo(() => parseAPIDate(todayStr), [todayStr])
+  const dateStr = date ?? todayStr
   const selectedDate = useMemo(() => parseAPIDate(dateStr), [dateStr])
   const detailQuery = useHabitDetail(habitId)
   const logsQuery = useHabitLogs(habitId)
@@ -225,7 +226,6 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     includeGeneral: true,
   })
   const allHabitsQuery = useHabits({})
-  const { profile } = useProfile()
   const logHabit = useLogHabit()
   const updateHabit = useUpdateHabit()
   const updateChecklist = useUpdateChecklist()

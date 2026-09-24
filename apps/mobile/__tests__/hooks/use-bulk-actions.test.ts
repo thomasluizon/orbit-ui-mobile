@@ -43,6 +43,7 @@ function renderBulkActions(
   completionReadOnly = false,
   habitsById = new Map<string, NormalizedHabit>(),
 ) {
+  let currentCompletionReadOnly = completionReadOnly
   const onSuccess = vi.fn()
   const onPartialFailure = vi.fn()
   const settleBulkHabitResolutions = vi.fn()
@@ -54,7 +55,7 @@ function renderBulkActions(
     captured.current = useBulkActions({
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
-      completionReadOnly,
+      completionReadOnly: currentCompletionReadOnly,
       habitsById,
       habitListRef,
       onSuccess,
@@ -62,10 +63,17 @@ function renderBulkActions(
     })
     return null
   }
+  let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => {
-    TestRenderer.create(React.createElement(Probe))
+    tree = TestRenderer.create(React.createElement(Probe))
   })
-  return { captured, onSuccess, onPartialFailure, settleBulkHabitResolutions }
+  return {
+    captured, onSuccess, onPartialFailure, settleBulkHabitResolutions,
+    setCompletionReadOnly(value: boolean) {
+      currentCompletionReadOnly = value
+      TestRenderer.act(() => tree.update(React.createElement(Probe)))
+    },
+  }
 }
 
 function bulkSuccess(ids: string[]) {
@@ -307,6 +315,24 @@ describe('useBulkActions reversibility boundary', () => {
     expect(bulkSkip.mutateAsync).toHaveBeenLastCalledWith([
       { habitId: 'h-2', date: VIEWED_DATE },
     ])
+  })
+
+  it.each(['log', 'skip'] as const)('refuses a queued %s retry after rollover', async (action) => {
+    const mutation = action === 'log' ? bulkLog.mutateAsync : bulkSkip.mutateAsync
+    mutation.mockResolvedValueOnce({ results: [{ habitId: 'h-1', status: 'Failed' }] })
+    const { captured, setCompletionReadOnly } = renderBulkActions(new Set(['h-1']))
+    await TestRenderer.act(async () => {
+      if (action === 'log') await captured.current!.confirmBulkLog()
+      else await captured.current!.confirmBulkSkip()
+    })
+    const retry = showToast.mock.calls[0]?.[0]?.onAction as (() => void) | undefined
+    expect(retry).toBeTypeOf('function')
+    setCompletionReadOnly(true)
+    await TestRenderer.act(async () => {
+      retry?.()
+      await Promise.resolve()
+    })
+    expect(mutation).toHaveBeenCalledTimes(1)
   })
 
   it('deletes only selected roots so one request covers each server-side subtree', async () => {

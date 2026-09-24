@@ -30,6 +30,7 @@ function renderBulkActions(
   completionReadOnly = false,
   habitsById = new Map<string, NormalizedHabit>(),
 ) {
+  let currentCompletionReadOnly = completionReadOnly
   const onSuccess = vi.fn()
   const onPartialFailure = vi.fn()
   const settleBulkHabitResolutions = vi.fn()
@@ -37,11 +38,11 @@ function renderBulkActions(
     current: { settleBulkHabitResolutions },
   } as unknown as React.RefObject<HabitListHandle | null>
 
-  const { result } = renderHook(() =>
+  const { result, rerender } = renderHook(() =>
     useBulkActions({
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
-      completionReadOnly,
+      completionReadOnly: currentCompletionReadOnly,
       habitsById,
       habitListRef,
       onSuccess,
@@ -49,7 +50,13 @@ function renderBulkActions(
     }),
   )
 
-  return { result, onSuccess, onPartialFailure, settleBulkHabitResolutions }
+  return {
+    result, onSuccess, onPartialFailure, settleBulkHabitResolutions,
+    setCompletionReadOnly(value: boolean) {
+      currentCompletionReadOnly = value
+      rerender()
+    },
+  }
 }
 
 function bulkSuccess(ids: string[]) {
@@ -157,6 +164,24 @@ describe('useBulkActions reversibility boundary', () => {
     expect(bulkLog.mutateAsync).toHaveBeenLastCalledWith([
       { habitId: 'h-2', date: VIEWED_DATE },
     ])
+  })
+
+  it.each(['log', 'skip'] as const)('refuses a queued %s retry after rollover', async (action) => {
+    const mutation = action === 'log' ? bulkLog.mutateAsync : bulkSkip.mutateAsync
+    mutation.mockResolvedValueOnce({ results: [{ habitId: 'h-1', status: 'Failed' }] })
+    const { result, setCompletionReadOnly } = renderBulkActions(new Set(['h-1']))
+    await act(async () => {
+      if (action === 'log') await result.current.confirmBulkLog()
+      else await result.current.confirmBulkSkip()
+    })
+    const retry = showQueued.mock.calls[0]?.[2] as (() => void) | undefined
+    expect(retry).toBeTypeOf('function')
+    setCompletionReadOnly(true)
+    await act(async () => {
+      retry?.()
+      await Promise.resolve()
+    })
+    expect(mutation).toHaveBeenCalledTimes(1)
   })
 
   it('deletes only selected roots so one request covers each server-side subtree', async () => {
