@@ -9,9 +9,8 @@ import {
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
 
-vi.mock('@/lib/auth-api', () => ({
-  AUTH_COOKIE: 'auth_token',
-  REFRESH_COOKIE: 'refresh_token',
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-api')>(),
   clearSessionCookies: vi.fn(),
   resolveSessionTokens: vi.fn(),
   setSessionCookies: vi.fn(),
