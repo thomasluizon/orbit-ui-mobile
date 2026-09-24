@@ -224,6 +224,7 @@ export default function UpgradePage() {
           isLoadingPlans={isLoadingPlans}
           isPlansError={isPlansError}
           isOnline={isOnline}
+          accountReady={heldAccountId !== null}
           trialDaysLeft={trialDaysLeft}
           checkoutLoading={checkoutLoading}
           checkoutError={checkoutError}
@@ -242,6 +243,7 @@ export default function UpgradePage() {
         <PlayBillingDashboard
           state={model.state}
           onManagePlay={() => void handleOpenPortal()}
+          accountReady={heldAccountId !== null}
           status={status}
           locale={locale}
           usagePercent={usagePercent}
@@ -262,6 +264,7 @@ export default function UpgradePage() {
           usageUrgent={usagePercent >= 80}
           onOpenPortal={() => void handleOpenPortal()}
           onRetryPortal={() => void handleOpenPortal()}
+          accountReady={heldAccountId !== null}
           t={t}
         />
       </div>

@@ -137,6 +137,63 @@ describe('UpgradePage across an account change', () => {
     vi.clearAllMocks()
   })
 
+  it.each(['stripe', 'play'] as const)(
+    'waits for the first session owner before opening the %s portal',
+    async (source) => {
+      status = { ...STRIPE_PRO_STATUS, source }
+      act(() => { useAuthStore.getState().adoptAccountFromSignal(null) })
+      let finishSession!: (response: Response) => void
+      vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {
+        finishSession = resolve
+      }))
+      mocks.openCustomerPortal.mockResolvedValue({ url: 'https://billing.example.test/user-1' })
+      vi.stubGlobal('location', { href: '' })
+      render(<UpgradePage />)
+      const manage = screen.getByRole('button', {
+        name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage',
+      })
+      expect(manage).toBeDisabled()
+      fireEvent.click(manage)
+      expect(mocks.openCustomerPortal).not.toHaveBeenCalled()
+      expect(globalThis.location.href).toBe('')
+
+      let sessionCheck!: Promise<void>
+      act(() => { sessionCheck = useAuthStore.getState().checkSession() })
+      await act(async () => {
+        finishSession(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
+        await sessionCheck
+      })
+      expect(manage).toBeEnabled()
+      fireEvent.click(manage)
+      await waitFor(() => expect(globalThis.location.href).not.toBe(''))
+    },
+  )
+
+  it('waits for the first session owner before starting checkout', async () => {
+    act(() => { useAuthStore.getState().adoptAccountFromSignal(null) })
+    let finishSession!: (response: Response) => void
+    vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {
+      finishSession = resolve
+    }))
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
+    expect(checkoutButton()).toBeDisabled()
+    fireEvent.click(checkoutButton())
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+
+    let sessionCheck!: Promise<void>
+    act(() => { sessionCheck = useAuthStore.getState().checkSession() })
+    await act(async () => {
+      finishSession(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
+      await sessionCheck
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
+    expect(checkoutButton()).toBeEnabled()
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(Response.json({}))
+    fireEvent.click(checkoutButton())
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2))
+  })
+
   it('shows the next account their own lapse notice rather than the previous pitch', async () => {
     render(<UpgradePage />)
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))

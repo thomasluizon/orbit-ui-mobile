@@ -20,6 +20,7 @@ interface PricingSectionProps {
   isLoadingPlans: boolean
   isPlansError: boolean
   isOnline: boolean
+  accountReady: boolean
   trialDaysLeft: number | null
   checkoutLoading: SubscriptionInterval | null
   checkoutError: string
@@ -37,6 +38,7 @@ export function PricingSection({
   isLoadingPlans,
   isPlansError,
   isOnline,
+  accountReady,
   trialDaysLeft,
   checkoutLoading,
   checkoutError,
@@ -119,7 +121,7 @@ export function PricingSection({
           isOnline={isOnline}
           discountedAmount={discountedAmount}
           checkoutLoading={checkoutLoading}
-          checkoutDisabled={!isOnline}
+          checkoutDisabled={!isOnline || !accountReady}
           onCheckout={onCheckout}
           onRetry={onRetryPlans}
           t={t}
