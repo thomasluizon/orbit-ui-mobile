@@ -302,39 +302,62 @@ module.exports = {
 
     function scanStyleObject(node, ignored = new Set()) {
       node = unwrapStyleExpression(node)
-      if (!node) return
+      if (!node) return null
       if (node.type === 'Identifier') {
         const variable = findBinding(node)
-        if (!variable || activeStyleBindings.has(variable)) return
+        if (!variable || activeStyleBindings.has(variable)) return null
         const definition = variable.defs[0]
         if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const') {
           activeStyleBindings.add(variable)
           const ignoredHere = new Set([...ignored, ...(mutatedStyleProperties.get(variable) ?? [])])
-          scanStyleObject(definition.node.init, ignoredHere)
+          const keys = scanStyleObject(definition.node.init, ignoredHere)
           activeStyleBindings.delete(variable)
+          return ignoredHere.has('*') ? null : keys
         }
-        return
+        return null
       }
       if (node.type === 'ArrayExpression') {
         for (const element of node.elements) scanStyleObject(element, ignored)
-        return
+        return null
       }
       if (node.type === 'ConditionalExpression') {
         scanStyleObject(node.consequent, ignored)
         scanStyleObject(node.alternate, ignored)
-        return
+        return null
       }
-      if (node.type !== 'ObjectExpression') return
-      for (const property of node.properties) {
+      if (node.type !== 'ObjectExpression') return null
+      const knownKeys = new Set()
+      const shadowed = new Set(ignored)
+      let hasUnknownKey = false
+      for (let index = node.properties.length - 1; index >= 0; index--) {
+        const property = node.properties[index]
         if (property.type === 'SpreadElement') {
-          scanStyleObject(property.argument, ignored)
+          const spreadKeys = scanStyleObject(property.argument, shadowed)
+          if (spreadKeys === null) {
+            shadowed.add('*')
+            hasUnknownKey = true
+          } else {
+            for (const key of spreadKeys) {
+              knownKeys.add(key)
+              shadowed.add(key)
+            }
+          }
           continue
         }
         const name = propertyName(property)
-        if (name === null || !SPACING_PROPS.has(name) || ignored.has('*') || ignored.has(name) || scannedStyleProperties.has(property)) continue
-        scannedStyleProperties.add(property)
-        reportStyleValue(property.value, name)
+        if (name === null) {
+          shadowed.add('*')
+          hasUnknownKey = true
+          continue
+        }
+        knownKeys.add(name)
+        if (!shadowed.has('*') && !shadowed.has(name) && SPACING_PROPS.has(name) && !scannedStyleProperties.has(property)) {
+          scannedStyleProperties.add(property)
+          reportStyleValue(property.value, name)
+        }
+        shadowed.add(name)
       }
+      return hasUnknownKey ? null : knownKeys
     }
 
     function scanClassString(node, text, offset) {

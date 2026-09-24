@@ -486,6 +486,9 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     'const row = { gap: 14 }; row.gap++; <div style={row} />',
     'const row = { gap: 14 }; delete row.gap; <div style={row} />',
     'const row = { gap: 14 }; row[propertyName] = runtimeValue; <div style={row} />',
+    'const base = { gap: 14 }; const row = { ...base, gap: 12 }; <div style={row} />',
+    'const base = { gap: 14 }; const row = { ...base, ...runtimeStyle }; <div style={row} />',
+    'const base = { gap: 14 }; const row = { ...base, [dynamicKey]: 8 }; <div style={row} />',
     'const row = { gap: 14 }; function Item() { const row = getStyle(); return <div style={row} /> }',
     'import { row } from "./styles"; <div style={row} />',
     'const first = second; const second = first; <div style={first} />',
@@ -535,6 +538,16 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     },
     {
       code: 'const row = { gap: 14 }; const copy = { ...row }; copy.gap = runtimeGap; <><div style={copy} /><div style={row} /></>',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle', data: { value: '14', prop: 'gap', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '12' } }],
+    },
+    {
+      code: 'const base = { gap: 14, padding: 20 }; const row = { ...base, gap: 12 }; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle', data: { value: '20', prop: 'padding', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '16' } }],
+    },
+    {
+      code: 'const base = { gap: 14 }; const row = { gap: 12, ...base }; <div style={row} />',
       output: null,
       errors: [{ messageId: 'offScaleStyle', data: { value: '14', prop: 'gap', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '12' } }],
     },
