@@ -53,11 +53,15 @@ function DrillEmptyMessage({
   if (!drill.hasUnfilteredChildren) {
     return <Text style={styles.drillEmptyText}>{t('habits.noSubHabits')}</Text>
   }
-  if (!drill.canRevealCompletedChildren || !onShowCompleted) return null
   return (
-    <PillButton variant="ghost" onClick={onShowCompleted}>
-      {t('habits.showCompleted')}
-    </PillButton>
+    <View>
+      <Text style={styles.drillEmptyText}>{t('habits.filterEmptySubHabits')}</Text>
+      {drill.canRevealCompletedChildren && onShowCompleted ? (
+        <PillButton variant="ghost" onClick={onShowCompleted}>
+          {t('habits.showCompleted')}
+        </PillButton>
+      ) : null}
+    </View>
   )
 }
 

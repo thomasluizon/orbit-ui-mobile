@@ -467,6 +467,7 @@
     "allDoneHint": "Tudo que vencia hoje está feito.",
     "seeUpcoming": "Ver hábitos de amanhã",
     "noSubHabits": "Nenhum sub-hábito ainda",
+    "filterEmptySubHabits": "Nenhum sub-hábito corresponde a esta visualização.",
     "moveParent": {
       "button": "Mover para...",
       "title": "Mover hábito",

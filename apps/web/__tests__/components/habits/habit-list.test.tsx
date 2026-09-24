@@ -2493,8 +2493,38 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList filters={defaultFilters} onShowCompleted={onShowCompleted} />)
 
     expect(screen.queryByText('habits.noSubHabits')).not.toBeInTheDocument()
+    expect(screen.getByText('habits.filterEmptySubHabits')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'habits.showCompleted' }))
     expect(onShowCompleted).toHaveBeenCalledTimes(1)
+  })
+
+  it('explains when the selected date hides every drilled child', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.hasUnfilteredChildren = true
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    expect(screen.getByText('habits.filterEmptySubHabits')).toBeInTheDocument()
+    expect(screen.queryByText('habits.showCompleted')).not.toBeInTheDocument()
+  })
+
+  it('keeps the true empty drill message when the habit has no children', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent' })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    expect(screen.getByText('habits.noSubHabits')).toBeInTheDocument()
+    expect(screen.queryByText('habits.filterEmptySubHabits')).not.toBeInTheDocument()
   })
 
   it('stores drill edit onSaved callback without invoking refresh eagerly', async () => {

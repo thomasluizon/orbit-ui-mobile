@@ -36,12 +36,16 @@ function DrillEmptyMessage({
       </p>
     )
   }
-  if (!drill.canRevealCompletedChildren || !onShowCompleted) return null
   return (
     <div className="px-4 py-2">
-      <PillButton variant="ghost" onClick={onShowCompleted}>
-        {t('habits.showCompleted')}
-      </PillButton>
+      <p style={{ margin: 0, color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.5 }}>
+        {t('habits.filterEmptySubHabits')}
+      </p>
+      {drill.canRevealCompletedChildren && onShowCompleted ? (
+        <PillButton variant="ghost" onClick={onShowCompleted}>
+          {t('habits.showCompleted')}
+        </PillButton>
+      ) : null}
     </div>
   )
 }

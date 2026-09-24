@@ -467,6 +467,7 @@
     "allDoneHint": "Everything due today is done.",
     "seeUpcoming": "See tomorrow's habits",
     "noSubHabits": "No sub-habits yet",
+    "filterEmptySubHabits": "No sub-habits match this view.",
     "moveParent": {
       "button": "Move to...",
       "title": "Move Habit",

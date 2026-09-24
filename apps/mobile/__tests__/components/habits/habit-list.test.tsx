@@ -176,6 +176,8 @@ const mockDrillState = {
   currentParentId: null as string | null,
   currentParent: null as NormalizedHabit | null,
   drillChildren: [] as NormalizedHabit[],
+  hasUnfilteredChildren: false,
+  canRevealCompletedChildren: false,
   drillStack: [] as string[],
   drillLoading: false,
   drillError: null as string | null,
@@ -471,6 +473,8 @@ describe('HabitList', () => {
     mockDrillState.currentParentId = null
     mockDrillState.currentParent = null
     mockDrillState.drillChildren = []
+    mockDrillState.hasUnfilteredChildren = false
+    mockDrillState.canRevealCompletedChildren = false
     mockDrillState.drillStack = []
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
@@ -1540,6 +1544,79 @@ describe('HabitList', () => {
 
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(1)
+  })
+
+  it('explains filtered empty drills and offers Show completed when it can reveal children', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const onShowCompleted = vi.fn()
+    seedHabits([parent])
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.hasUnfilteredChildren = true
+    mockDrillState.canRevealCompletedChildren = true
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted={false} onShowCompleted={onShowCompleted} onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const flatList = tree.root.findByType('FlatList')
+    let emptyStateTree: any
+    TestRenderer.act(() => {
+      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+    })
+    expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('habits.filterEmptySubHabits')
+    expect(flattenRenderedText(emptyStateTree.toJSON())).not.toContain('habits.noSubHabits')
+
+    const showCompletedButton = emptyStateTree.root.findAll(
+      (node: any) => flattenText(node.props?.children) === 'habits.showCompleted' && typeof node.props?.onPress === 'function',
+    )[0]
+    TestRenderer.act(() => showCompletedButton.props.onPress())
+    expect(onShowCompleted).toHaveBeenCalledTimes(1)
+  })
+
+  it('explains date-filtered drills without offering Show completed', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    seedHabits([parent])
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.hasUnfilteredChildren = true
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+    })
+    const flatList = tree.root.findByType('FlatList')
+    let emptyStateTree: any
+    TestRenderer.act(() => {
+      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+    })
+    expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('habits.filterEmptySubHabits')
+    expect(flattenRenderedText(emptyStateTree.toJSON())).not.toContain('habits.showCompleted')
+  })
+
+  it('keeps the true empty drill message when the habit has no children', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent' })
+    seedHabits([parent])
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = ['parent']
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+    })
+    const flatList = tree.root.findByType('FlatList')
+    let emptyStateTree: any
+    TestRenderer.act(() => {
+      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+    })
+    expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('habits.noSubHabits')
+    expect(flattenRenderedText(emptyStateTree.toJSON())).not.toContain('habits.filterEmptySubHabits')
   })
 
   it('retries loading drill children from the drill error state', () => {
