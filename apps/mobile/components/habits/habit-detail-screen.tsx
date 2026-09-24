@@ -14,6 +14,8 @@ import {
   canLogHabitOnDate,
   computeHabitFrequencyLabel,
   formatLocaleDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
   isHabitHistoryMonthLoaded,
@@ -293,6 +295,11 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
       )
     : Promise.resolve(false)
   const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog') => {
+    const currentDate = new Date()
+    const accountToday = profile?.timeZone === undefined
+      ? formatAPIDate(currentDate)
+      : formatAPIDateInTimeZone(currentDate, profile.timeZone)
+    if (getTodayBoundary(dateStr, accountToday) === 'read-only') return false
     const toggleKey = `habit-toggle:${targetHabitId}:${dateStr}`
     const pendingToggleKeys = pendingToggleKeysRef.current
     if (

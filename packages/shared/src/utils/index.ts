@@ -6,6 +6,7 @@ export {
   formatAPIDate,
   formatAPIDateInTimeZone,
   getAccountDateTime,
+  millisecondsUntilNextDay,
   nowDate,
   resolveHabitDetailRouteDate,
   type AccountDateTime,

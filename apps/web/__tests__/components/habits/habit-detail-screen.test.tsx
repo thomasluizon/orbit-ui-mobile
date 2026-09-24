@@ -496,7 +496,37 @@ describe('HabitDetailScreen', () => {
     vi.setSystemTime(new Date('2026-08-30T12:00:00Z'))
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
     expect(screen.getByRole('button', { name: 'log' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'log' })).toHaveAttribute('data-disabled-reason', 'habits.todayBoundary.readOnly')
     expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-completion-read-only', 'true')
+  })
+
+  it.each(['log', 'unlog'] as const)('refuses stale detail %s and child log immediately after account midnight', (intent) => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    if (intent === 'unlog') mocks.logs.push({ id: 'selected', date: '2026-08-23', value: 1, createdAtUtc: '2026-08-23T12:00:00Z' })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    expect(screen.getByRole('button', { name: intent })).toBeEnabled()
+
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+    fireEvent.click(screen.getByRole('button', { name: intent }))
+    fireEvent.click(screen.getByTestId('child-child-1'))
+
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('refuses checklist completion confirmation after account midnight', async () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+    expect(screen.getByTestId('confirm-habits.checklistCompleteTitle')).toBeInTheDocument()
+
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
+    expect(mocks.log).not.toHaveBeenCalled()
   })
 
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {

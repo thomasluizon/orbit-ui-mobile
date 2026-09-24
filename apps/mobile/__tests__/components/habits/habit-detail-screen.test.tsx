@@ -280,7 +280,7 @@ vi.mock('@/components/habits/habit-checklist', () => ({
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
 vi.mock('@/components/habits/habit-form-fields/styles', () => ({ createStyles: () => ({}) }))
 vi.mock('@/components/habits/habit-log-button', () => ({
-  HabitLogButton: ({ label, logged, onPress, disabled }: { label: string; logged: boolean; onPress: () => void; disabled: boolean }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled }),
+  HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled: boolean; disabledReason?: string }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled, disabledReason }),
 }))
 vi.mock('@/components/habits/habit-row', () => ({
   HabitRow: ({ habit, selectedDate, completionReadOnly, actions }: { habit: NormalizedHabit; selectedDate: Date; completionReadOnly: boolean; actions: { onLog: () => void; onUnlog: () => void } }) => React.createElement('HabitRow', {
@@ -1021,18 +1021,61 @@ describe('HabitDetailScreen', () => {
 
   it('uses the account day and disables completion after rollover while mounted', () => {
     mocks.timeZone = 'Pacific/Kiritimati'
-    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
     })
     expect(tree!.root.findByProps({ testID: 'header-log' }).props.disabled).toBe(false)
     TestRenderer.act(() => {
-      vi.setSystemTime(new Date('2026-08-30T12:00:00Z'))
-      vi.advanceTimersByTime(60_000)
+      vi.advanceTimersByTime(2_000)
     })
     expect(tree!.root.findByProps({ testID: 'header-log' }).props.disabled).toBe(true)
+    expect(tree!.root.findByProps({ testID: 'header-log' }).props.disabledReason).toBe('habits.todayBoundary.readOnly')
     expect(tree!.root.findByProps({ testID: 'child-child-1' }).props.completionReadOnly).toBe(true)
+  })
+
+  it.each(['log', 'unlog'] as const)('refuses stale detail %s and child log immediately after account midnight', (intent) => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    if (intent === 'unlog') mocks.logs.push({ id: 'selected', date: '2026-08-23', value: 1, createdAtUtc: '2026-08-23T12:00:00Z' })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    })
+    const headerLog = tree!.root.findByProps({ testID: 'header-log' }).props.onPress
+    const childLog = tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onLog
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+
+    TestRenderer.act(() => {
+      headerLog()
+      childLog()
+    })
+
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('refuses checklist completion confirmation after account midnight', async () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    const confirmLog = tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteTitle' }).props.onConfirm
+
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+    await TestRenderer.act(async () => {
+      confirmLog()
+      await Promise.resolve()
+    })
+    expect(mocks.log).not.toHaveBeenCalled()
   })
 
   it('clears a checklist only after confirmation', async () => {
