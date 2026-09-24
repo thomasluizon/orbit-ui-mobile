@@ -980,8 +980,13 @@ spends nothing. If the batch has only FILE or not-applicable findings, perform t
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
 
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
-broader suite, reports the commit SHA and stops without pushing. The orchestrator replies to and
-resolves every identified thread on that commit, then pushes once. That push starts Pullfrog's
+broader suite, reports the commit SHA and stops without pushing. **Its final report is the batch's
+handoff, and the orchestrator consumes it before anything else.** Read the report's
+`## Test evidence`, `## Assumptions` and `## Manual steps` sections and any `NEEDS_DECISION` line at
+the step 7 worker-exit gate, adjudicate the assumptions there exactly as for an initial worker, and
+write all three sections into the existing pull request body with `gh pr edit --body-file`. Only then
+the orchestrator replies to and resolves every identified thread on that commit, then pushes once. A
+report that lacks the evidence the order required is a failed batch, never a push. That push starts Pullfrog's
 review with the fixes and resolved threads together. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
 rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands

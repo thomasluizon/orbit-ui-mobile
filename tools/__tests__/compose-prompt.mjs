@@ -374,6 +374,26 @@ export const cases = () => {
       !/A worker cannot keep that order\s+under today's contract/.test(orchestrateSkill),
     orchestrateSkill,
   )
+  T(
+    `${TOOL}: orchestration writes a review batch's report into the pull request body before resolving`,
+    /Its final report is the batch's\s+handoff/.test(orchestrateSkill) &&
+      /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(orchestrateSkill) &&
+      /into the existing pull request body with `gh pr edit --body-file`\. Only then/.test(orchestrateSkill),
+    orchestrateSkill,
+  )
+  const sleepSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")
+  T(
+    `${TOOL}: the sleep entry policy selects --review-batch for review fixes and keeps resolve-before-push`,
+    /composed with `--review-batch`/.test(sleepSkill) && /stops WITHOUT pushing/.test(sleepSkill) &&
+      /resolves every thread on that commit, then pushes once/.test(sleepSkill),
+    sleepSkill,
+  )
+  const toolsCatalog = readFileSync(join(REPO_ROOT, "tools", "README.md"), "utf8")
+  T(
+    `${TOOL}: the tools catalog documents --review-batch in the compose-prompt usage`,
+    /--review-batch \\\| --cloud\]/.test(toolsCatalog) && /`--review-batch` selects a local review fix/.test(toolsCatalog),
+    "tools/README.md compose-prompt row",
+  )
   for (const [mode, order, heading] of [
     ["local", prompt, "## Finishing contract"],
     ["Cloud", cloudPrompt, "## Cloud finishing contract"],
