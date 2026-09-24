@@ -20,9 +20,8 @@ allowance, the machine stopping, or Thomas saying stop ends the run.
 
 ## What to do, in order
 
-1. **Merge `ui#1035`** (the Mac harness port, into `redesign/main`) as soon as Pullfrog approves head
-   `4e2ccb47`. A re-review was requested after the PR-body evidence fix. If it finds more, fix and
-   repeat. Nothing else can launch a worker on this Mac until it merges.
+1. `ui#1035` is **merged** into `redesign/main` as `1b6ebc8e` (Pullfrog APPROVED at `4e2ccb47`).
+   The harness runs on this Mac.
 2. **`#633` is the top priority, ahead of every batch.** It covers the dead three-dot menu (root cause
    proven, GPT-6 Sol agreed) and the drill ignoring Show completed. Run it as one PR against `main`,
    merge it to `main`, then run `/android-release`. Thomas asked for exactly this.
@@ -36,8 +35,8 @@ allowance, the machine stopping, or Thomas saying stop ends the run.
 
 | item | state | disposition |
 |---|---|---|
-| `ui#1035` | open, head `4e2ccb47`, Pullfrog re-review requested | merge on approval (step 1) |
-| `#633` | ticket created, no branch yet | step 2 |
+| `ui#1035` | MERGED `1b6ebc8e` | done |
+| `#633` | worktree `~/orca/workspaces/orbit-ui-mobile/ticket-633-menu-drill`, branch `fix/ticket-633-menu-drill` off `main` `959381da`, deps installed, NO worker launched, order at the old session's scratchpad `ticket-633-prompt.md` (recompose it) | step 2: compose the order, launch the worker |
 | `ui#1029`, `ui#1030`, `ui#1033` | open on `redesign/main`, untouched today | step 4, as the spec says |
 | `ui#1034`, `ui#801`, `ui#799`, `ui#798` | dependabot PRs on `main`, never triaged | triage in step 4; `ui#798` has a red `Contract Drift` |
 | `api#521`, `api#534` | earlier APPROVED, waiting on Thomas's manual deploy | leave for Thomas |
