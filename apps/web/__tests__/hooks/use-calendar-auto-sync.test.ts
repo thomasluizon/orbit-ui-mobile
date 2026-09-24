@@ -8,6 +8,7 @@ import {
   useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
 import { calendarKeys } from '@orbit/shared/query'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import type {
   CalendarAutoSyncState,
   CalendarSyncSuggestion,
@@ -226,6 +227,32 @@ describe('useSetCalendarAutoSync', () => {
       expect(cached?.enabled).toBe(false)
     })
   })
+
+  it('does not restore the previous account state after a late toggle failure', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    client.setQueryData(calendarKeys.autoSyncState(), sampleState)
+    const { Wrapper } = createWrapper(client)
+    let finishRequest!: (response: unknown) => void
+    mockFetch.mockReturnValueOnce(new Promise((resolve) => { finishRequest = resolve }))
+    const { result } = renderHook(() => useSetCalendarAutoSync(), { wrapper: Wrapper })
+
+    act(() => result.current.mutate({ enabled: true }))
+    await waitFor(() => expect(client.getQueryData<CalendarAutoSyncState>(
+      calendarKeys.autoSyncState(),
+    )?.enabled).toBe(true))
+    const accountBState = { ...sampleState, status: 'Idle' as const, hasGoogleConnection: false }
+    act(() => {
+      client.clear()
+      advanceAccountGeneration()
+      client.setQueryData(calendarKeys.autoSyncState(), accountBState)
+      finishRequest({ ok: false, status: 500, json: () => Promise.resolve({ error: 'failed' }) })
+    })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(client.getQueryData(calendarKeys.autoSyncState())).toEqual(accountBState)
+  })
 })
 
 describe('useDismissCalendarSuggestion', () => {
@@ -288,5 +315,31 @@ describe('useDismissCalendarSuggestion', () => {
       )
       expect(cached?.map((s) => s.id)).toEqual(['sugg-1', 'sugg-2'])
     })
+  })
+
+  it('does not restore the previous account suggestions after a late failure', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    client.setQueryData(calendarKeys.syncSuggestions(), sampleSuggestions)
+    const { Wrapper } = createWrapper(client)
+    let finishRequest!: (response: unknown) => void
+    mockFetch.mockReturnValueOnce(new Promise((resolve) => { finishRequest = resolve }))
+    const { result } = renderHook(() => useDismissCalendarSuggestion(), { wrapper: Wrapper })
+
+    act(() => result.current.mutate({ id: 'sugg-1' }))
+    await waitFor(() => expect(client.getQueryData<CalendarSyncSuggestion[]>(
+      calendarKeys.syncSuggestions(),
+    )).toHaveLength(1))
+    const accountBSuggestions = [sampleSuggestions[1]]
+    act(() => {
+      client.clear()
+      advanceAccountGeneration()
+      client.setQueryData(calendarKeys.syncSuggestions(), accountBSuggestions)
+      finishRequest({ ok: false, status: 500, json: () => Promise.resolve({ error: 'failed' }) })
+    })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(client.getQueryData(calendarKeys.syncSuggestions())).toEqual(accountBSuggestions)
   })
 })

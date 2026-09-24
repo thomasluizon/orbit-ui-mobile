@@ -303,7 +303,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   );
 
   const openFilePicker = useCallback(async () => {
+    const startingAccountGeneration = getAccountGeneration();
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (getAccountGeneration() !== startingAccountGeneration) return;
     if (!permission.granted) {
       setSendError(t("chat.imagePermissionError"));
       return;
@@ -314,6 +316,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       allowsMultipleSelection: false,
       quality: 0.7,
     });
+    if (getAccountGeneration() !== startingAccountGeneration) return;
 
     if (result.canceled) return;
 
@@ -337,11 +340,13 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   }, []);
 
   const openTextFilePicker = useCallback(async () => {
+    const startingAccountGeneration = getAccountGeneration();
     const result = await DocumentPicker.getDocumentAsync({
       type: [...CHAT_TEXT_FILE_PICKER_MIME_TYPES],
       copyToCacheDirectory: true,
       multiple: false,
     });
+    if (getAccountGeneration() !== startingAccountGeneration) return;
     if (result.canceled) return;
 
     const asset = result.assets[0];
@@ -364,9 +369,11 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
     try {
       const content = await file.text();
+      if (getAccountGeneration() !== startingAccountGeneration) return;
       setSendError(null);
       setSelectedTextFile({ name: asset.name, content });
     } catch {
+      if (getAccountGeneration() !== startingAccountGeneration) return;
       setSendError(t("chat.fileReadError"));
     }
   }, [t]);

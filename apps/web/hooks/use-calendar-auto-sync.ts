@@ -15,6 +15,7 @@ import type {
 } from '@orbit/shared/types/calendar'
 import { z } from 'zod'
 import { fetchJson } from '@/lib/api-fetch'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   dismissCalendarSuggestion as dismissCalendarSuggestionAction,
   runCalendarSyncNow as runCalendarSyncNowAction,
@@ -68,13 +69,20 @@ export function useCalendarSyncSuggestions(options?: CalendarQueryOptions) {
 export function useSetCalendarAutoSync() {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, { enabled: boolean }, { previous: CalendarAutoSyncState | undefined }>({
+  return useMutation<void, Error, { enabled: boolean }, {
+    previous: CalendarAutoSyncState | undefined
+    accountGeneration: number
+  }>({
     mutationFn: async ({ enabled }) => {
       await setCalendarAutoSyncAction(enabled)
     },
 
     onMutate: async ({ enabled }) => {
+      const accountGeneration = getAccountGeneration()
       await queryClient.cancelQueries({ queryKey: calendarKeys.autoSyncState() })
+      if (getAccountGeneration() !== accountGeneration) {
+        return { previous: undefined, accountGeneration }
+      }
 
       const previous = queryClient.getQueryData<CalendarAutoSyncState>(
         calendarKeys.autoSyncState(),
@@ -87,16 +95,17 @@ export function useSetCalendarAutoSync() {
         )
       }
 
-      return { previous }
+      return { previous, accountGeneration }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
+      if (context?.accountGeneration === getAccountGeneration() && context.previous) {
         queryClient.setQueryData(calendarKeys.autoSyncState(), context.previous)
       }
     },
 
-    onSettled: () => {
+    onSettled: (_result, _error, _vars, context) => {
+      if (context?.accountGeneration !== getAccountGeneration()) return
       void queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
     },
   })
@@ -129,13 +138,20 @@ export function useRunCalendarSyncNow() {
 export function useDismissCalendarSuggestion() {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, { id: string }, { previous: CalendarSyncSuggestion[] | undefined }>({
+  return useMutation<void, Error, { id: string }, {
+    previous: CalendarSyncSuggestion[] | undefined
+    accountGeneration: number
+  }>({
     mutationFn: async ({ id }) => {
       await dismissCalendarSuggestionAction(id)
     },
 
     onMutate: async ({ id }) => {
+      const accountGeneration = getAccountGeneration()
       await queryClient.cancelQueries({ queryKey: calendarKeys.syncSuggestions() })
+      if (getAccountGeneration() !== accountGeneration) {
+        return { previous: undefined, accountGeneration }
+      }
 
       const previous = queryClient.getQueryData<CalendarSyncSuggestion[]>(
         calendarKeys.syncSuggestions(),
@@ -148,16 +164,17 @@ export function useDismissCalendarSuggestion() {
         )
       }
 
-      return { previous }
+      return { previous, accountGeneration }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
+      if (context?.accountGeneration === getAccountGeneration() && context.previous) {
         queryClient.setQueryData(calendarKeys.syncSuggestions(), context.previous)
       }
     },
 
-    onSettled: () => {
+    onSettled: (_result, _error, _vars, context) => {
+      if (context?.accountGeneration !== getAccountGeneration()) return
       void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
     },
   })

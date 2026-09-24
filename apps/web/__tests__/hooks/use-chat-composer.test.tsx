@@ -1087,6 +1087,31 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.selectedTextFile).toBeNull()
   })
 
+  it('discards a text file that finishes reading after account replacement', async () => {
+    signInAs('user-1')
+    let finishRead!: (content: string) => void
+    const file = textFile('account-a.txt', 'unused')
+    Object.defineProperty(file, 'text', {
+      configurable: true,
+      value: () => new Promise<string>((resolve) => { finishRead = resolve }),
+    })
+    const { result } = renderHook(() => useChatComposer())
+
+    let read!: Promise<void>
+    act(() => { read = result.current.handleTextFileSelect(fileChangeEvent(file)) })
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
+      await useAuthStore.getState().checkSession()
+    })
+    await act(async () => {
+      finishRead('Account A secret')
+      await read
+    })
+
+    expect(result.current.selectedTextFile).toBeNull()
+    expect(result.current.sendError).toBeNull()
+  })
+
   it('keeps the text file when the same account recovers from a rejected refresh', async () => {
     signInAs('user-1')
     const { result } = renderHook(() => useChatComposer())

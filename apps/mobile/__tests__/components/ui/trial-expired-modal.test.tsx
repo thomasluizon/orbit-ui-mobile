@@ -120,12 +120,48 @@ describe('TrialExpiredModal (mobile)', () => {
   })
 
   it('shows the notice to the next account after the previous one dismissed it', async () => {
-    storedFlags({ [ACCOUNT_A_TRIAL_KEY]: '1' })
-    holdAccount('user-2')
     vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    const tree = await renderModal()
+    const continueFree = tree?.root.findAll(
+      (node) => String(node.type) === 'Pressable' && node.findAll(
+        (child) => String(child.type) === 'Text' && child.props.children === 'trial.expired.continueFree',
+      ).length > 0,
+    )[0]
+    if (!continueFree) throw new Error('Continue Free action not found')
+    await act(() => (continueFree.props as { onPress: () => void }).onPress())
+    expect(renderedText(tree)).not.toContain('trial.expired.astraCeiling')
 
-    expect(renderedText(await renderModal())).toContain('trial.expired.astraCeiling')
+    await act(async () => {
+      holdAccount('user-2')
+      await Promise.resolve()
+    })
+
+    expect(renderedText(tree)).toContain('trial.expired.astraCeiling')
     expect(ACCOUNT_B_TRIAL_KEY).not.toBe(ACCOUNT_A_TRIAL_KEY)
+  })
+
+  it('waits for the next account seen flag before showing the notice', async () => {
+    let finishRead!: (value: [string, string | null][]) => void
+    vi.spyOn(AsyncStorage, 'multiGet').mockImplementation((keys) => {
+      if (keys[0] === ACCOUNT_B_TRIAL_KEY) {
+        return new Promise((resolve) => { finishRead = resolve })
+      }
+      return Promise.resolve(keys.map((key): [string, string | null] => [key, null]))
+    })
+    const tree = await renderModal()
+    expect(renderedText(tree)).toContain('trial.expired.astraCeiling')
+
+    await act(async () => {
+      holdAccount('user-2')
+      await Promise.resolve()
+    })
+    expect(renderedText(tree)).not.toContain('trial.expired.astraCeiling')
+
+    await act(async () => {
+      finishRead([[ACCOUNT_B_TRIAL_KEY, '1'], [LEGACY_TRIAL_KEY, null]])
+      await Promise.resolve()
+    })
+    expect(renderedText(tree)).not.toContain('trial.expired.astraCeiling')
   })
 
   it('gives the pre-rename dismissal to the account signed in now and then consumes it', async () => {

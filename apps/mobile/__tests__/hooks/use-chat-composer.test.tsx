@@ -1310,6 +1310,50 @@ describe('mobile useChatComposer', () => {
     expect(mocks.queryClient.setQueryData).toHaveBeenCalledOnce()
   })
 
+  it('discards a text file read after account replacement', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [documentPickerAsset()] })
+    let finishRead!: (content: string) => void
+    mocks.readFileText.mockReturnValueOnce(new Promise<string>((resolve) => { finishRead = resolve }))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.composerProps.onAttachFile?.())
+    await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+    TestRenderer.act(() => advanceAccountGeneration())
+    await TestRenderer.act(async () => {
+      finishRead('Account A secret')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(composer.current.selectedTextFile).toBeNull()
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it('discards an image picker result after account replacement', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    let finishPicker!: (result: unknown) => void
+    mocks.launchImageLibraryAsync.mockReturnValueOnce(new Promise((resolve) => {
+      finishPicker = resolve
+    }))
+    const composer = await renderComposer()
+
+    let pick!: Promise<void>
+    TestRenderer.act(() => { pick = composer.current.openFilePicker() })
+    await vi.waitFor(() => expect(mocks.launchImageLibraryAsync).toHaveBeenCalledOnce())
+    TestRenderer.act(() => advanceAccountGeneration())
+    await TestRenderer.act(async () => {
+      finishPicker({
+        canceled: false,
+        assets: [{ uri: 'file:///account-a.jpg', mimeType: 'image/jpeg', fileName: 'account-a.jpg', fileSize: 2048 }],
+      })
+      await pick
+    })
+
+    expect(composer.current.selectedImage).toBeNull()
+    expect(composer.current.imagePreview).toBeNull()
+    expect(composer.current.sendError).toBeNull()
+  })
+
   it('keeps the retry and the attachment when only the session epoch moves', async () => {
     mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
     mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })

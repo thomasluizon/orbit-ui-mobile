@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next'
 import { buildAccountScopedStorageKey, readAccountScopedFlag } from '@orbit/shared/utils'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -34,9 +36,17 @@ export function TrialExpiredModal() {
   const styles = useMemo(createStyles, [])
   const { sheetRef, closeSheet } = useSheetHost()
   const trialExpired = useTrialExpired()
-  const [dismissed, setDismissed] = useState(false)
-  const [alreadySeen, setAlreadySeen] = useState(true)
   const accountId = useAuthStore((state) => state.user?.userId ?? null)
+  const accountGeneration = useAccountGeneration()
+  const [noticeState, setNoticeState] = useState({
+    accountId,
+    dismissed: false,
+    alreadySeen: true,
+  })
+  const currentNoticeState = noticeState.accountId === accountId
+    ? noticeState
+    : { accountId, dismissed: false, alreadySeen: true }
+  if (noticeState.accountId !== accountId) setNoticeState(currentNoticeState)
   const scopedKey = accountId === null ? null : buildAccountScopedStorageKey(STORAGE_KEY, accountId)
 
   /**
@@ -54,20 +64,26 @@ export function TrialExpiredModal() {
         void AsyncStorage.setItem(scopedKey, '1')
         void AsyncStorage.removeItem(STORAGE_KEY)
       }
-      setAlreadySeen(flag.seen)
+      setNoticeState((current) => current.accountId === accountId
+        ? { ...current, alreadySeen: flag.seen }
+        : current)
     })
     return () => {
       cancelled = true
     }
-  }, [scopedKey])
+  }, [accountId, scopedKey])
 
   const isOpen =
-    pathname !== '/upgrade' && !dismissed && trialExpired && !alreadySeen
+    pathname !== '/upgrade' && !currentNoticeState.dismissed && trialExpired &&
+    !currentNoticeState.alreadySeen
 
   const hide = useCallback(() => {
-    setDismissed(true)
+    if (getAccountGeneration() !== accountGeneration) return
+    setNoticeState((current) => current.accountId === accountId
+      ? { ...current, dismissed: true }
+      : current)
     if (scopedKey !== null) void AsyncStorage.setItem(scopedKey, '1')
-  }, [scopedKey])
+  }, [accountGeneration, accountId, scopedKey])
 
   if (!isOpen) return null
 
@@ -82,6 +98,7 @@ export function TrialExpiredModal() {
           <PillButton
             onClick={() =>
               closeSheet(() => {
+                if (getAccountGeneration() !== accountGeneration) return
                 hide()
                 router.push(buildUpgradeHref(pathname || '/'))
               })

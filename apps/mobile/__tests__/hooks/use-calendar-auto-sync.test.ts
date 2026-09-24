@@ -5,6 +5,7 @@ import type {
   CalendarAutoSyncResult,
   CalendarSyncSuggestion,
 } from '@orbit/shared/types/calendar'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import {
   useCalendarAutoSyncState,
@@ -228,6 +229,24 @@ describe('mobile calendar auto-sync hooks', () => {
     expect(mocks.store.state).toEqual(initialState)
   })
 
+  it('does not restore the previous account state after a late toggle failure', async () => {
+    const mutation = useSetCalendarAutoSync() as unknown as MutationConfig<
+      void,
+      { enabled: boolean },
+      { previous: CalendarAutoSyncState | undefined }
+    >
+    const context = await mutation.onMutate?.({ enabled: true })
+    const accountBState = buildState({ hasGoogleConnection: false })
+    advanceAccountGeneration()
+    mocks.store.state = accountBState
+
+    mutation.onError?.(new Error('Account A failure'), { enabled: true }, context)
+    mutation.onSettled?.(undefined, new Error('Account A failure'), { enabled: true }, context)
+
+    expect(mocks.store.state).toEqual(accountBState)
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
   it('useRunCalendarSyncNow invalidates calendar and notification queries on settle', async () => {
     const mutation = (await import('@/hooks/use-calendar-auto-sync')).useRunCalendarSyncNow() as unknown as MutationConfig<
       CalendarAutoSyncResult,
@@ -292,5 +311,23 @@ describe('mobile calendar auto-sync hooks', () => {
     mutation.onError?.(new Error('Dismiss failed'), { id: 's-1' }, context)
 
     expect(mocks.store.suggestions.map((s) => s.id)).toEqual(['s-1', 's-2'])
+  })
+
+  it('does not restore the previous account suggestions after a late failure', async () => {
+    const mutation = useDismissCalendarSuggestion() as unknown as MutationConfig<
+      void,
+      { id: string },
+      { previous: CalendarSyncSuggestion[] | undefined }
+    >
+    const context = await mutation.onMutate?.({ id: 's-1' })
+    const accountBSuggestions = [buildSuggestion('account-b')]
+    advanceAccountGeneration()
+    mocks.store.suggestions = accountBSuggestions
+
+    mutation.onError?.(new Error('Account A failure'), { id: 's-1' }, context)
+    mutation.onSettled?.(undefined, new Error('Account A failure'), { id: 's-1' }, context)
+
+    expect(mocks.store.suggestions).toEqual(accountBSuggestions)
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
   })
 })
