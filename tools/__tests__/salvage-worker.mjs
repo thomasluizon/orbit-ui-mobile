@@ -95,6 +95,23 @@ export const cases = () => {
     JSON.stringify(missingReceipt),
   )
 
+  if (process.platform !== "win32") {
+    const interruptedOrder = stage("salvage-worker/interrupted-command.json", JSON.stringify({ command: process.execPath, args: ["-e", "process.kill(process.pid, 'SIGTERM')"] }))
+    check(
+      TOOL,
+      "a workspace test terminated by a signal has its own message and exit code",
+      [...common, "--test-command", interruptedOrder],
+      { status: 6, stderr: /workspace test interrupted by signal SIGTERM[\s\S]*suite never reported/ },
+      { path: staged.path },
+    )
+    const interruptedReceipt = JSON.parse(readFileSync(receipt, "utf8"))
+    T(
+      `${TOOL}: a signal termination is recorded as interrupted, not a red suite`,
+      interruptedReceipt.outcome === "interrupted" && interruptedReceipt.exitCode === 6 && interruptedReceipt.status === null && interruptedReceipt.signal === "SIGTERM" && interruptedReceipt.timedOut === false && interruptedReceipt.overflowed === false && interruptedReceipt.spawnError === null,
+      JSON.stringify(interruptedReceipt),
+    )
+  }
+
   check(
     TOOL,
     process.platform === "win32"

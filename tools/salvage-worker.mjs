@@ -27,7 +27,8 @@ Name the package entry point instead, as in
 
 exit codes: 0 committed and pushed, 1 the workspace test ran and reported red, or the commit/push
 failed, 2 usage or environment error, 3 the workspace test never started, 4 the workspace test
-exceeded its time bound, 5 the workspace test exceeded its output bound`
+exceeded its time bound, 5 the workspace test exceeded its output bound, 6 the workspace test
+was interrupted by a signal before reporting a verdict`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -156,8 +157,7 @@ const tailOf = (text) => {
   const trimmed = String(text ?? "").trim()
   return trimmed === "" ? "" : `\nlast output:\n${trimmed.slice(-2000)}`
 }
-// Four outcomes, four exit codes: only "failed" reports a red branch. The other three say the
-// suite never reported, which is a harness or command problem and is no evidence about the code.
+// Only "failed" reports a red branch. The other non-passing outcomes carry no suite verdict.
 const OUTCOMES = {
   passed: { exitCode: 0, message: () => null },
   failed: {
@@ -176,8 +176,12 @@ const OUTCOMES = {
     exitCode: 5,
     message: () => `workspace test exceeded the ${MAX_OUTPUT_BYTES} byte output bound; the complete child process tree was terminated. The suite never reported, so nothing here says the branch is red. Nothing was staged or pushed.\ncommand: ${printableCommand}`,
   },
+  interrupted: {
+    exitCode: 6,
+    message: () => `workspace test interrupted by signal ${testRun.signal}; the suite never reported, so nothing here says the branch is red. Nothing was staged or pushed.\ncommand: ${printableCommand}`,
+  },
 }
-const outcome = testRun.error ? "did-not-start" : testRun.timedOut ? "timed-out" : testRun.overflowed ? "overflowed" : testRun.status === 0 ? "passed" : "failed"
+const outcome = testRun.error ? "did-not-start" : testRun.timedOut ? "timed-out" : testRun.overflowed ? "overflowed" : testRun.status === null && testRun.signal !== null ? "interrupted" : testRun.status === 0 ? "passed" : "failed"
 const mutatedPaths = normalizedPaths.filter((path) => fingerprintPath(path) !== testedPathFingerprints[path])
 const testExitCode = mutatedPaths.length > 0 ? 1 : OUTCOMES[outcome].exitCode
 const testReceipt = {
