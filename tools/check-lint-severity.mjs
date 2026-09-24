@@ -121,6 +121,36 @@ const scopedOffAllowlist = [
 ]
 
 const nextIgnores = [".next/**", "out/**", "build/**", "next-env.d.ts"]
+const webRules = [
+  "local/no-comments", "local/no-fullbleed-button", "local/animate-presence-stable-key",
+  "local/no-arbitrary-zindex", "local/no-calc-percentage-width", "local/no-dead-href",
+  "local/no-double-assertion", "local/no-gradient-text", "local/no-jsx-logical-and",
+  "local/no-nested-component-definition", "local/no-overshoot-easing", "local/no-placeholder-alt",
+  "local/no-raw-font-feature-tag", "local/no-side-stripe-border", "local/no-unjustified-disable",
+  "local/no-user-scalable-no", "local/require-dialog-title", "local/will-change-discipline",
+  "local/no-decorative-glow", "local/no-raw-gradient", "local/animate-presence-exit",
+  "local/no-dynamic-tailwind-class", "local/no-scroll-listener-motion", "local/no-space-x-y",
+  "local/react19-api", "local/require-focus-replacement", "local/no-sparkle-ai-marker",
+  "local/icon-size-grid", "local/no-pill-radius-on-static", "local/max-button-words",
+  "local/spacing-scale",
+]
+const mobileRules = [
+  "local/no-comments", "local/spacing-scale", "local/no-gorhom-sheet",
+  "local/no-fullbleed-button", "local/animate-presence-exit", "local/animate-presence-stable-key",
+  "local/no-arbitrary-zindex", "local/no-double-assertion", "local/no-draggable-onscroll",
+  "local/no-jsx-logical-and", "local/no-dynamic-tailwind-class", "local/no-space-x-y",
+  "local/require-focus-replacement", "local/will-change-discipline", "local/no-sparkle-ai-marker",
+  "local/icon-size-grid", "local/no-pill-radius-on-static", "local/no-oklch-outside-web-tokens",
+  "local/no-overshoot-easing", "local/no-raw-font-feature-tag", "local/no-scroll-listener-motion",
+  "local/no-side-stripe-border", "local/no-unjustified-disable", "local/no-decorative-glow",
+  "local/no-raw-gradient", "local/max-button-words",
+]
+const sharedRules = [
+  "local/no-comments", "local/no-double-assertion", "local/spacing-scale",
+  "local/no-fullbleed-button", "local/no-unjustified-disable", "local/no-decorative-glow",
+  "local/no-overshoot-easing", "local/no-raw-font-feature-tag", "local/no-raw-gradient",
+  "local/no-oklch-outside-web-tokens",
+]
 const scopeInventory = [
   {
     config: "apps/web/eslint.config.mjs",
@@ -129,9 +159,9 @@ const scopeInventory = [
       [".next/**", "node_modules/**", "coverage/**", "public/**", "*.config.{js,mjs,cjs,ts}"],
     ],
     localBlocks: [
-      { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"] },
-      { files: scopedOffAllowlist[0].files, ignores: [] },
-      { files: scopedOffAllowlist[1].files, ignores: [] },
+      { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"], rules: webRules },
+      { files: scopedOffAllowlist[0].files, ignores: [], rules: ["local/no-fullbleed-button"] },
+      { files: scopedOffAllowlist[1].files, ignores: [], rules: scopedOffAllowlist[1].rules },
     ],
   },
   {
@@ -141,18 +171,18 @@ const scopeInventory = [
       ["dist/**", ".expo/**", "android/**", "ios/**", "modules/*/android/build/**", "eslint.config.js"],
     ],
     localBlocks: [
-      { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"] },
-      { files: scopedOffAllowlist[2].files, ignores: [] },
-      { files: ["**/supabase.ts"], ignores: [] },
-      { files: scopedOffAllowlist[3].files, ignores: [] },
+      { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"], rules: mobileRules },
+      { files: scopedOffAllowlist[2].files, ignores: [], rules: ["local/no-fullbleed-button"] },
+      { files: ["**/supabase.ts"], ignores: [], rules: ["local/mobile-supabase-lazy"] },
+      { files: scopedOffAllowlist[3].files, ignores: [], rules: scopedOffAllowlist[3].rules },
     ],
   },
   {
     config: "packages/shared/eslint.config.mjs",
     globalIgnores: [["node_modules/**", "dist/**", "coverage/**", "src/types/__generated__/**", "*.config.{js,mjs,cjs,ts}"]],
     localBlocks: [
-      { files: ["src/**/*.{ts,tsx}"], ignores: ["**/*.d.ts"] },
-      { files: scopedOffAllowlist[4].files, ignores: [] },
+      { files: ["src/**/*.{ts,tsx}"], ignores: ["**/*.d.ts"], rules: sharedRules },
+      { files: scopedOffAllowlist[4].files, ignores: [], rules: scopedOffAllowlist[4].rules },
     ],
   },
 ]
@@ -211,9 +241,12 @@ for (const configPath of configPaths) {
   }
   const blocks = flattenConfigs(exported).filter((block) => block && typeof block === "object")
   const inventory = scopeInventory.find((entry) => entry.config === configName)
+  const globalIgnores = blocks.filter((block) => block.ignores !== undefined && block.files === undefined && block.rules === undefined)
+  const localBlocks = blocks.filter((block) => Object.keys(block.rules ?? {}).some((rule) => rule.startsWith("local/")))
+  if (!inventory && (globalIgnores.length > 0 || localBlocks.length > 0)) {
+    scopeProblems.push(`${configName}: undeclared scope for ${globalIgnores.length} top-level ignores block(s) and ${localBlocks.length} local rule block(s)`)
+  }
   if (inventory) {
-    const globalIgnores = blocks.filter((block) => block.ignores !== undefined && block.files === undefined && block.rules === undefined)
-    const localBlocks = blocks.filter((block) => Object.keys(block.rules ?? {}).some((rule) => rule.startsWith("local/")))
     if (globalIgnores.length !== inventory.globalIgnores.length) {
       scopeProblems.push(`${configName}: expected ${inventory.globalIgnores.length} top-level ignores block(s), found ${globalIgnores.length}`)
     }
@@ -234,6 +267,11 @@ for (const configPath of configPaths) {
       if (block.basePath !== undefined) scopeProblems.push(`${configName} local rule block ${index + 1}: undeclared basePath ${block.basePath}`)
       compareScope(configName, `local rule block ${index + 1} files`, block.files, declared.files)
       compareScope(configName, `local rule block ${index + 1} ignores`, block.ignores ?? [], declared.ignores)
+      for (const rule of declared.rules) {
+        if (!Object.hasOwn(block.rules, rule)) {
+          scopeProblems.push(`${configName} local rule block ${index + 1}: missing declared ${rule}`)
+        }
+      }
     })
   }
   blocks.forEach((block, index) => {

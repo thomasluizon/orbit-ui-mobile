@@ -1,10 +1,19 @@
 import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
 
 import { BASH, check, REPO_ROOT, root, T } from "./_harness.mjs"
 
 const TOOL = "check-lint-severity.mjs"
+const localSettings = async (path) => {
+  const { default: config } = await import(pathToFileURL(join(REPO_ROOT, path)).href)
+  return config.flat(Infinity)
+    .filter((block) => Object.keys(block?.rules ?? {}).some((rule) => rule.startsWith("local/")))
+    .map((block) => Object.fromEntries(Object.entries(block.rules).filter(([rule]) => rule.startsWith("local/"))))
+}
+const [webMainRules, webScreenRules, webTestRules] = await localSettings("apps/web/eslint.config.mjs")
+const [sharedMainRules] = await localSettings("packages/shared/eslint.config.mjs")
 
 const stageConfig = (label, body, relativePath = "eslint.config.mjs") => {
   const repository = join(root, "lint-severity", label)
@@ -19,8 +28,8 @@ const run = (name, repository, expected) => check(TOOL, name, ["--root", reposit
 const sharedFiles = ["src/**/*.{ts,tsx}"]
 const sharedIgnores = ["node_modules/**", "dist/**", "coverage/**", "src/types/__generated__/**", "*.config.{js,mjs,cjs,ts}"]
 const sharedTestFiles = ["src/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"]
-const sharedConfig = ({ files = sharedFiles, ignores = sharedIgnores, testFiles = sharedTestFiles, testBasePath } = {}) => `export default [
-  { files: ${JSON.stringify(files)}, ignores: ["**/*.d.ts"], rules: { "local/no-comments": "error" } },
+const sharedConfig = ({ files = sharedFiles, ignores = sharedIgnores, testFiles = sharedTestFiles, testBasePath, mainRules = sharedMainRules } = {}) => `export default [
+  { files: ${JSON.stringify(files)}, ignores: ["**/*.d.ts"], rules: ${JSON.stringify(mainRules)} },
   { ${testBasePath ? `basePath: ${JSON.stringify(testBasePath)}, ` : ""}files: ${JSON.stringify(testFiles)}, rules: { "local/no-double-assertion": "off" } },
   { ignores: ${JSON.stringify(ignores)} },
 ]\n`
@@ -34,17 +43,17 @@ const webScreenFiles = [
   "**/onboarding/**", "**/(auth)/**", "**/*empty-state.tsx", "**/*-no-data-state.tsx",
 ]
 const webTestFiles = ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"]
-const webConfig = ({ ignores = webIgnores, screenFiles = webScreenFiles } = {}) => `export default [
+const webConfig = ({ ignores = webIgnores, screenFiles = webScreenFiles, mainRules = webMainRules, screenRules = webScreenRules } = {}) => `export default [
   ...Array.from({ length: 3 }, () => ({ ignores: ${JSON.stringify(webNextIgnores)} })),
-  { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"], rules: { "local/no-comments": "error" } },
-  { files: ${JSON.stringify(screenFiles)}, rules: { "local/no-fullbleed-button": "off" } },
-  { files: ${JSON.stringify(webTestFiles)}, rules: { "local/no-fullbleed-button": "off", "local/max-button-words": "off", "local/no-double-assertion": "off" } },
+  { files: ["**/*.{ts,tsx}"], ignores: ["**/*.d.ts"], rules: ${JSON.stringify(mainRules)} },
+  { files: ${JSON.stringify(screenFiles)}, rules: ${JSON.stringify(screenRules)} },
+  { files: ${JSON.stringify(webTestFiles)}, rules: ${JSON.stringify(webTestRules)} },
   { ignores: ${JSON.stringify(ignores)} },
 ]\n`
 
 export const cases = () => {
-  const clean = stageConfig("clean", 'export default [{ rules: { "local/example": "error" } }]\n')
-  run("accepts local rules at error", clean, { status: 0, stdout: /checked 1 local rule setting/ })
+  const clean = stageConfig("clean", sharedConfig(), "packages/shared/eslint.config.mjs")
+  run("accepts local rules at error", clean, { status: 0, stdout: /checked \d+ local rule setting/ })
 
   const warning = stageConfig("warning", 'export default [{ rules: { "local/example": ["warn", {}] } }]\n')
   run("rejects a local rule at warn", warning, { status: 1, stderr: /local\/example is warn/ })
@@ -80,6 +89,36 @@ export const cases = () => {
   )
   run("accepts the allowlisted full-screen off scope", fullScreen, { status: 0 })
 
+  const addedConfig = stageConfig("added-config", webConfig(), "apps/web/eslint.config.mjs")
+  stageConfig("added-config", 'export default [{ ignores: ["hidden/**"] }, { files: ["hidden/**/*.ts"], rules: { "local/example": "error" } }]\n', "apps/extra/eslint.config.mjs")
+  run("rejects an added config with undeclared ignores and local scope", addedConfig, {
+    status: 1,
+    stderr: /apps\/extra\/eslint\.config\.mjs.*undeclared scope/,
+  })
+
+  const renamedConfig = stageConfig(
+    "renamed-config",
+    'export default [{ ignores: ["hidden/**"] }, { files: ["hidden/**/*.ts"], rules: { "local/example": "error" } }]\n',
+    "apps/renamed/eslint.config.mjs",
+  )
+  run("rejects a renamed config with undeclared ignores and local scope", renamedConfig, {
+    status: 1,
+    stderr: /apps\/renamed\/eslint\.config\.mjs.*undeclared scope/,
+  })
+
+  const movedRule = stageConfig(
+    "moved-rule",
+    webConfig({
+      mainRules: Object.fromEntries(Object.entries(webMainRules).filter(([rule]) => rule !== "local/no-comments")),
+      screenRules: { ...webScreenRules, "local/no-comments": "error" },
+    }),
+    "apps/web/eslint.config.mjs",
+  )
+  run("rejects moving an existing local rule into a narrower block", movedRule, {
+    status: 1,
+    stderr: /apps\/web\/eslint\.config\.mjs.*local\/no-comments/,
+  })
+
   const broadenedFiles = [...allowedFiles, "src/**/*.ts"]
   const broadened = stageConfig(
     "broadened-off",
@@ -97,7 +136,7 @@ export const cases = () => {
   const narrowedFiles = stageConfig("narrowed-files", sharedConfig({ files: ["matches-nothing/**/*.ts"] }), "packages/shared/eslint.config.mjs")
   run("rejects a narrowed local rule block", narrowedFiles, { status: 1, stderr: /packages\/shared\/eslint\.config\.mjs.*matches-nothing/ })
 
-  const addedRule = stageConfig("added-rule", sharedConfig().replace('"local/no-comments": "error"', '"local/no-comments": "error", "local/new-rule": "error"'), "packages/shared/eslint.config.mjs")
+  const addedRule = stageConfig("added-rule", sharedConfig({ mainRules: { ...sharedMainRules, "local/new-rule": "error" } }), "packages/shared/eslint.config.mjs")
   run("accepts a new local rule at error in an existing block", addedRule, { status: 0 })
 
   const namedBaseline = stageConfig("named-baseline", 'export default [{ rules: { "local/example": "error" } }]\n')
