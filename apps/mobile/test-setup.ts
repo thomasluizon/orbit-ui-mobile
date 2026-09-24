@@ -1,6 +1,16 @@
 import { vi } from 'vitest'
 import React from 'react'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const icons = await importOriginal<typeof import('@/components/ui/icons')>()
+  return Object.fromEntries(
+    Object.keys(icons).map((name) => [
+      name,
+      (props: Record<string, unknown>) => React.createElement(name, props),
+    ]),
+  )
+})
+
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 ;(globalThis as { __DEV__?: boolean }).__DEV__ = true

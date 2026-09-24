@@ -1476,3 +1476,87 @@ helpers, on web and mobile. `redesign/main` deleted `anchored-menu.tsx` and `dri
   live one (a lower one hits the forced-update screen) and `versionCode` above 90, then zipalign and
   re-sign with `~/.android/debug.keystore`. `adb install -r -d` does not work on this user image.
 - The Gmail connector is Thomas's WORK account. Sign-in codes for his Orbit account need him.
+
+## What the 2026-09-24 sleep run added (session `dd9211b6`)
+
+**Durable because** it pins the models every future change and review runs on, changes how the
+orchestrator waits on reviews, and records five merges and the open set the next run drives.
+
+### Thomas's instructions, 2026-09-24 afternoon, in his words
+
+- "please let me know when the bugs that are going to the main branch gets merged, also i want you
+  to run /android-release after they are merged. to the open beta track". That is `ui#1041` (`#633`).
+  Merge it, tell him, run `/android-release` to the open track, tell him again.
+- "yes, pullfrog at medium, workers at high, both at gpt-6 sol". **This supersedes every earlier
+  model or effort note.** Codex workers: `gpt-6-sol`, `high` on the default tier, `medium` on the
+  mechanical tier (unchanged in `.claude/orchestrator.json`). Pullfrog: `model: openai/gpt-6-sol`,
+  `effort: medium` on the primary step, through PRs `ui#1046`, `api#537`, `landing#80` (tickets
+  `#635`, `#636`, `#637`). Until they merge, reviews still run `gpt-5.6-sol` at `xhigh`: the
+  `pullfrog/pullfrog@v0` tag (`ce127b38`) maps "GPT Sol" to `openai/gpt-5.6-sol`, and the console
+  setting is effort 0.75. Read from the run log of Pullfrog run `36029721894`.
+- "brain is private. no need to rotate it." Do not raise the Render token in `brain/.mcp.json` again.
+- On usage: weekly Codex usage went 4% to 11% in one day. The run log showed about 40 Pullfrog runs in
+  2.5 hours, a third of them duplicates. Keep reviews single (below) and do not open new fronts while
+  more than about ten PRs wait for review.
+
+### How to wait on Pullfrog without paying twice
+
+`list-bot-threads.mjs` posts `@pullfrog review` when no review of the head exists yet, which is
+always true right after a push, so every poll after a push bought a second full run. **Always pass
+`--no-request`** to a waiting poll; Pullfrog reviews every push on its own. Use `--re-review` only
+for a same-head re-adjudication (a body finding filed, or threads resolved after a worker pushed).
+Resolve threads BEFORE pushing whenever the orchestrator pushes; `ui#1044` (`#542`) makes review
+workers stop before pushing so that holds for worker rounds too.
+
+**Every merge into `redesign/main` puts every other open PR one commit behind**, and the readiness
+recorder refuses `OUT_OF_DATE`, so each merge costs a merge-forward and a short re-review per open
+PR. Merge approved PRs back to back when several are ready, and merge-forward the rest once after.
+
+**Review-fix fixes may be done by the orchestrator itself** (orchestrate step 8). Doing small ones
+inline spends Claude, not the shared OpenAI allowance. This run did five inline.
+
+### The Mac, as set up this run
+
+- System sleep is 1 minute after the display turns off, on AC and battery. A session keeps the Mac
+  awake with `caffeinate -i -w <claude pid>` as a background task; the display still sleeps. The lid
+  must stay open.
+- `/brain` MCP: the `obsidian` and `vault-fs` servers now live at USER scope in `~/.claude.json`
+  (backup in `~/.claude/backups/`), with the Mac plugin's current key, so every project loads them.
+  The stale Windows key was removed from `brain/.mcp.json` (brain commit `c9b2e05`, pushed by the
+  Obsidian Git plugin). Both servers were smoke tested. A session started before that change has no
+  `mcp__obsidian__*` tools; the handoff that wrote this section was one of them, so its brain reads
+  fell back to files.
+
+### Merged this run
+
+| PR | into | merge | what a person gets |
+|---|---|---|---|
+| `api#534` (`#599`) | `orbit-api` `main` | `313b74b8` | MCP step-up tools stop being permanently refused (deploy on Render not verified) |
+| `ui#1036` (`#627`) | `redesign/main` | `5ee77ba9` | the create-worktree test no longer goes red on a busy machine |
+| `ui#1037` (`#634`) | `redesign/main` | `a7fac5f4` | `/handoff --sleep` ends the session |
+| `ui#1043` (`#546`) | `redesign/main` | `7fb0ca56` | Gate Charter installs its dependency and runs |
+| `ui#1038` (`#613`) | `redesign/main` | `759a243a` | two guards really run on pull requests |
+
+Tickets closed: `#599`, `#627`, `#634`, `#546`, `#613`, `#560` (already done by PR 991), `#521`
+(cancelled; its 2026-09-12 closure comment was never applied). Filed: `#634`, `#635`, `#636`, `#637`,
+`#638` (lint gate misses a removed config), `#639` (Windows dangling file link).
+
+### Open pull requests at the end of the run, each with its state
+
+| PR | base | head | state |
+|---|---|---|---|
+| `ui#1041` (`#633`) | `main` | `89bb9be5` | **APPROVED, checks green, `mergeStateStatus` BLOCKED at handoff.** Find why, merge, release. |
+| `ui#1046` (`#635`), `api#537` (`#636`), `landing#80` (`#637`) | `main` | `a361067a`, `0040b790`, `9bd718ce` | Pullfrog pin to gpt-6-sol medium; review owed |
+| `ui#1030` (`#615`) | `redesign/main` | `02d3ce91` | APPROVED at `dbcdedfc`; CI fix pushed (gate charter entry, manifest); re-review owed |
+| `ui#1033` (`#610`) | `redesign/main` | `ddd6ebf2` | APPROVED at `40e40e26`; merge-forward pushed; review cap spent, follow-up `#639` |
+| `ui#1029` (`#612`) | `redesign/main` | `de0539e2` | round 4 pushed, both threads resolved, re-review owed |
+| `ui#1039` (`#624`) | `redesign/main` | `2eb56ad3` | APPROVED at `ed38fba4`; merge-forward pushed, re-review owed |
+| `ui#1040` (`#611`) | `redesign/main` | `c9496511` | round 3 pushed, threads resolved, re-review owed |
+| `ui#1042` (`#618`) | `redesign/main` | `7fd04155` | body finding FILED as `#638`, same-head re-review requested |
+| `ui#1044` (`#542`) | `redesign/main` | `25be139a` | fix pushed after resolving, review owed |
+| `ui#1045` (`#541`) | `redesign/main` | `fd039109` | fix pushed after resolving, review owed |
+| `ui#1047` (`#530`), `ui#1048` (`#528`), `ui#1049` (`#559`), `ui#1050` (`#525`), `ui#1051` (`#455`) | `redesign/main` | | new, first review owed |
+| `api#521` (`#526`) | `orbit-api` `main` | `64ebb3eb` | round 7 pushed (year-long date and clock proof, originalStartTime, legacy refresh), re-review owed |
+
+Unchanged and untriaged: dependabot `ui#1034`, `#801`, `#799`, `#798`; `api#536`, `#535`, `#530`;
+`landing#73` to `#79`. Older `api#528`, `#531`, `#532`, `#533` still owe their rounds (batches 1, 2a, 6).
