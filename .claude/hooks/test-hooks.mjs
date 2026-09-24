@@ -527,6 +527,32 @@ T("sleep-stop: the BLOCKED banner names the pull request and its blocker", stop(
 // Without the recorded blocker the very same entry still blocks, which is what keeps the state honest.
 T("sleep-stop: the same entry with NO recorded blocker still blocks the stop", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: null }] } })), true)
 T("sleep-stop: an empty blocker string is not a blocker", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: "" }] } })), true)
+/*
+ * A MACHINE RESOURCE is never a blocker, it is a reason to use fewer workers.
+ *
+ * Measured 2026-09-19: the low-memory guard reaped two workers mid-round, the run wrote that down as
+ * a blocker on both rows, and this hook let it end BLOCKED with a pull request approved and one body
+ * edit from merging. Thomas: "YOU CANT END A RUN BECAUSE OF A MEMORY HOOK ... just use less workers".
+ *
+ * An exhausted API allowance resets on a clock and no care brings it back sooner. Memory, disk and
+ * CPU are consequences of how much the run started at once, so the answer is to start less and keep
+ * going. Each case below is a real reap message shape.
+ */
+const pressureRun = (blocker) => ({ ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker }] })
+for (const blocker of [
+  "BLOCKED ON MACHINE MEMORY: the low-memory guard reaped the worker mid-round, 5.6 GB free of 32 GB",
+  "stopped because the system is running low on memory",
+  "worker killed, out of memory",
+  "the background shell was reaped while the session was idle",
+  "ENOSPC writing the build output",
+]) {
+  T(`sleep-stop: a machine-resource blocker never ends the run (${blocker.slice(0, 28)})`, blocks(stop({ state: pressureRun(blocker) })), true)
+}
+T("sleep-stop: the machine-pressure refusal says to use fewer workers rather than to stop", stop({ state: pressureRun("reaped for low memory") })?.message.includes("FEWER WORKERS"), true)
+T("sleep-stop: the machine-pressure refusal names the pull request carrying it", stop({ state: pressureRun("reaped for low memory") })?.message.includes("ui#698"), true)
+// And a real external limit still ends the run, or the rule above would have eaten the honest ending.
+T("sleep-stop: an exhausted allowance is still a legitimate blocker", blocks(stop({ state: pressureRun("Codex and Pullfrog share one OpenAI allowance and it is exhausted until 2026-09-22") })), false)
+T("sleep-stop: a review verdict is still a legitimate blocker", blocks(stop({ state: pressureRun("REQUEST CHANGES at f07ddcaf, two false body sentences") })), false)
 // A finished run must stay silent, or a BLOCKED banner on every ending means nothing.
 T("sleep-stop: a genuinely READY queue reports no terminal banner", checkSleepStop({ state: blockedRun, sessionId: "s1", isWakeSourceAlive: dead, receiptVerdict: () => "READY" }), null)
 // A live wake source means the TURN is ending, not the RUN. Announcing a final state there would be
@@ -1157,6 +1183,14 @@ childProcess.spawnSync = (command, args, options) => {
   const result = spawn(command, args, options)
   if (command === "powershell.exe" && args.some((arg) => arg.includes("Get-Process -Id ${process.pid} "))) {
     result.stdout = replaceIdentity(result.stdout.trim()) + "\\r\\n"
+  }
+  // macOS: the identity is the lstart second, so the swap moves the start time and prints it back.
+  if (command === "ps" && args.includes("${process.pid}")) {
+    const [state, ...lstart] = result.stdout.trim().split(/\\s+/)
+    const seconds = Date.parse(lstart.join(" ") + " GMT") / 1000
+    const moved = new Date(Number(replaceIdentity(String(seconds))) * 1000).toUTCString()
+    const [, weekday, day, month, year, time] = /^(\\w{3}), (\\d{2}) (\\w{3}) (\\d{4}) ([\\d:]{8}) GMT$/.exec(moved)
+    result.stdout = state + "   " + weekday + " " + month + " " + String(Number(day)).padStart(2) + " " + time + " " + year + "\\n"
   }
   return result
 }

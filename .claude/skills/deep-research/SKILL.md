@@ -98,7 +98,7 @@ Findings first, then the call, and **be opinionated** (don't hand back an un-ran
 
 Offer (don't do unsolicited):
 
-- **Memory**, save the decision + the durable facts to `C:\Users\thoma\.claude\projects\C--Users-thoma-Documents-Programming-Projects-orbit-ui-mobile\memory\` (check for an existing memory to update first), with a one-line pointer in `MEMORY.md`.
+- **Memory**, save the decision + the durable facts to `~/.claude/projects/-Users-thomaslrgregoriogmail-com-Developer-orbit-ui-mobile/memory/` (check for an existing memory to update first), with a one-line pointer in `MEMORY.md`.
 - **Report**, write the findings to the **brain vault**. A decision goes to `brain/2 Areas/20-29 Orbit Engineering/Decisions/<Title>.md` as an ADR (or the matching area for a non-engineering topic); researched-but-undecided findings go to the area root and get linked from its MOC. Use `/brain save` or write the file directly, matching the vault's frontmatter convention.
 - **Issue**, open a tracking issue if the result is actionable work. Prefer this over a report for anything with `file:line` refs, which rot in a vault but stay verifiable in an issue.
 
