@@ -21,8 +21,9 @@ saying stop ends the run.
 ## What to do, in order
 
 1. **`ui#1041` (`#633`, the dead three-dot menu and the drill) to `main`.** Pullfrog APPROVED at
-   `89bb9be5`, every check green, but GitHub read `BLOCKED` at handoff. Find the missing required
-   check or rule, fix it, merge with `--match-head-commit`, **tell Thomas it merged**, then run
+   `89bb9be5`, every check green, but GitHub read `BLOCKED` at handoff, and `verify-delivery.mjs
+   --wait-ci 1500` ended `CI_PENDING` after the handoff, so a required check on `main` never reported
+   within 25 minutes. Find that check, get it to report, merge with `--match-head-commit`, **tell Thomas it merged**, then run
    `/android-release` to the **open** track and tell him when it is live. He asked for both messages.
 2. Drive the three Pullfrog pin PRs to merge (`ui#1046`, `api#537`, `landing#80`, all against
    `main`). After the first review under the pin, confirm its log prints `openai/gpt-6-sol` and
