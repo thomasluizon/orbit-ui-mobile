@@ -385,11 +385,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const reorderHabitsMutation = useReorderHabits()
     const moveParentMutation = useMoveHabitParent()
     const { showInterstitialIfDue } = useAdMob()
-    const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
-
-    useEffect(() => {
-      onSurfaceOpenChange?.(drill.currentParentId !== null)
-    }, [drill.currentParentId, onSurfaceOpenChange])
     const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
@@ -397,6 +392,18 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<
       Set<string>
     >(new Set())
+    const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
+      habitsById,
+      childrenByParent,
+      selectedDate: selectedDateStr,
+      searchQuery: searchQuery ?? '',
+      showCompleted,
+      recentlyCompletedIds,
+    }, view)
+
+    useEffect(() => {
+      onSurfaceOpenChange?.(drill.currentParentId !== null)
+    }, [drill.currentParentId, onSurfaceOpenChange])
     const pendingToggleKeysRef = useRef(new Set<string>())
     const promptedParentIdsRef = useRef(new Set<string>())
     const confirmedResolutionsRef = useRef(

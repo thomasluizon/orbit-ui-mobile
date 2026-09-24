@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -57,7 +57,7 @@ function makeHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
   } as NormalizedHabit
 }
 
-function makeDetailResponse() {
+function makeDetailResponse(): HabitDetail {
   return {
     id: 'parent1',
     title: 'Parent',
@@ -110,6 +110,40 @@ describe('useDrillNavigation', () => {
 
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  it('hides completed one-time and logged recurring children until Show completed is enabled', async () => {
+    const date = '2025-01-15'
+    const detail = makeDetailResponse()
+    detail.children = [
+      { ...detail.children[0]!, id: 'one-time', isCompleted: true },
+      { ...detail.children[0]!, id: 'recurring', frequencyUnit: 'Day' },
+    ]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(detail) })
+    const byId = new Map<string, NormalizedHabit>([
+      ['one-time', makeHabit({ id: 'one-time', parentId: 'parent1', isCompleted: true,
+        scheduledDates: [date], isLoggedInRange: true })],
+      ['recurring', makeHabit({ id: 'recurring', parentId: 'parent1', frequencyUnit: 'Day',
+        scheduledDates: [date], isLoggedInRange: true })],
+    ])
+    const options = {
+      habitsById: byId, childrenByParent: new Map([['parent1', ['one-time', 'recurring']]]),
+      selectedDate: date, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    const hidden = renderHook(() => useDrillNavigation(byId, 0, options, 'today'))
+    await act(async () => { await hidden.result.current.drillInto('parent1') })
+    expect(hidden.result.current.drillChildren).toEqual([])
+    hidden.unmount()
+
+    const shown = renderHook(() => useDrillNavigation(byId, 0, {
+      ...options, showCompleted: true,
+    }, 'today'))
+    await act(async () => { await shown.result.current.drillInto('parent1') })
+    expect(shown.result.current.drillChildren.map((child) => child.id)).toEqual([
+      'one-time', 'recurring',
+    ])
   })
 
   it('starts with empty drill stack', () => {

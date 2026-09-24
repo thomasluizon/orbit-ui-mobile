@@ -5,6 +5,11 @@ import type {
 } from '../types/habit'
 import { formatAPIDate } from './dates'
 import { fallbackChildOverdue } from './habit-normalization'
+import {
+  createHabitVisibilityHelpers,
+  type HabitVisibilityOptions,
+  type HabitVisibilityView,
+} from './habit-visibility'
 
 export interface NormalizedDrillDetail {
   parent: NormalizedHabit
@@ -36,6 +41,43 @@ export function mergeDrillChildrenMap(
     next.set(parentId, children)
   }
   return next
+}
+
+export function getVisibleDrillChildren(
+  parentId: string,
+  drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
+  options: HabitVisibilityOptions,
+  view: HabitVisibilityView,
+  today: string,
+): NormalizedHabit[] {
+  const isSelectedDateToday = !options.selectedDate || options.selectedDate === today
+  const habitsById = new Map(options.habitsById)
+  const childrenByParent = new Map(options.childrenByParent)
+
+  for (const [id, children] of drillChildrenMap) {
+    childrenByParent.set(id, children.map((child) => child.id))
+    for (const child of children) {
+      const listChild = options.habitsById.get(child.id)
+      habitsById.set(child.id, {
+        ...child,
+        ...(!listChild && !isSelectedDateToday ? { isOverdue: false } : {}),
+        ...(listChild ? {
+          scheduledDates: listChild.scheduledDates,
+          isLoggedInRange: listChild.isLoggedInRange,
+          instances: listChild.instances,
+          searchMatches: listChild.searchMatches,
+          isOverdue: listChild.isOverdue,
+          ...(listChild.isGeneral ? { isCompleted: listChild.isCompleted } : {}),
+        } : {}),
+      })
+    }
+  }
+
+  return createHabitVisibilityHelpers({
+    ...options,
+    habitsById,
+    childrenByParent,
+  }).getVisibleChildren(parentId, view)
 }
 
 export function normalizeDrillDetailChild(

@@ -425,7 +425,14 @@ export function HabitList({
     [visibility, view],
   )
 
-  const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
+  const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
+    habitsById,
+    childrenByParent,
+    selectedDate: selectedDateStr,
+    searchQuery,
+    showCompleted,
+    recentlyCompletedIds,
+  }, view)
 
   const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
 

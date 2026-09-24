@@ -3,11 +3,13 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import {
+  getVisibleDrillChildren,
   loadDrillChildren,
   mergeDrillChildrenMap,
 } from '@orbit/shared/utils/drill-navigation'
+import type { HabitVisibilityOptions, HabitVisibilityView } from '@orbit/shared/utils/habit-visibility'
 import { API } from '@orbit/shared/api'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { hasOpenOverlay } from '@/lib/overlay-stack'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
@@ -53,6 +55,8 @@ export interface DrillNavigationState {
 export function useDrillNavigation(
   habitsById: Map<string, NormalizedHabit>,
   lastUpdated: number,
+  visibilityOptions?: HabitVisibilityOptions,
+  view: HabitVisibilityView = 'all',
 ): DrillNavigationState {
   const t = useTranslations()
   const [drillStack, setDrillStack] = useState<string[]>([])
@@ -71,8 +75,12 @@ export function useDrillNavigation(
   }, [currentParentId, habitsById, drillParentInfo])
 
   const drillChildren = useMemo(
-    () => (currentParentId ? drillChildrenMap.get(currentParentId) ?? [] : []),
-    [currentParentId, drillChildrenMap],
+    () => currentParentId
+      ? visibilityOptions
+        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+        : drillChildrenMap.get(currentParentId) ?? []
+      : [],
+    [currentParentId, drillChildrenMap, visibilityOptions, view],
   )
 
   const fetchDrillChildren = useCallback(
@@ -123,9 +131,11 @@ export function useDrillNavigation(
 
   const getDrillChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
-      return drillChildrenMap.get(parentId) ?? []
+      return visibilityOptions
+        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+        : drillChildrenMap.get(parentId) ?? []
     },
-    [drillChildrenMap],
+    [drillChildrenMap, visibilityOptions, view],
   )
 
   const lastUpdatedRef = useRef(lastUpdated)
