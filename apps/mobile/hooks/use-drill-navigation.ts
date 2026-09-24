@@ -48,6 +48,7 @@ export function useDrillNavigation(
   const currentParentId = drillStack.at(-1) ?? null
   const activeParentIdRef = useRef<string | null>(null)
   const requestIdRef = useRef(0)
+  const feedbackPendingRef = useRef(false)
   useEffect(() => {
     activeParentIdRef.current = currentParentId
   }, [currentParentId])
@@ -80,7 +81,9 @@ export function useDrillNavigation(
     async (habitId: string, silent = false) => {
       if (activeParentIdRef.current !== habitId) return
       const requestId = ++requestIdRef.current
-      if (!silent) setDrillLoading(true)
+      const showFeedback = !silent || feedbackPendingRef.current
+      feedbackPendingRef.current = showFeedback
+      if (showFeedback) setDrillLoading(true)
       try {
         const detail = await fetchHabitDetail(habitId)
         const today = formatAPIDate(new Date())
@@ -97,11 +100,14 @@ export function useDrillNavigation(
         })
         setDrillError('')
       } catch (err: unknown) {
-        if (!silent && requestIdRef.current === requestId && activeParentIdRef.current === habitId) {
+        if (showFeedback && requestIdRef.current === requestId && activeParentIdRef.current === habitId) {
           setDrillError(getFriendlyErrorMessage(err, t, 'errors.fetchSubHabits', 'subHabit'))
         }
       } finally {
-        if (!silent && requestIdRef.current === requestId) setDrillLoading(false)
+        if (requestIdRef.current === requestId) {
+          feedbackPendingRef.current = false
+          if (showFeedback) setDrillLoading(false)
+        }
       }
     },
     [t],
@@ -110,6 +116,7 @@ export function useDrillNavigation(
   const drillInto = useCallback(
     async (habitId: string) => {
       requestIdRef.current += 1
+      feedbackPendingRef.current = false
       setDrillError('')
       setDrillLoading(false)
       activeParentIdRef.current = habitId
@@ -123,6 +130,7 @@ export function useDrillNavigation(
 
   const drillBack = useCallback(() => {
     requestIdRef.current += 1
+    feedbackPendingRef.current = false
     activeParentIdRef.current = null
     setDrillLoading(false)
     setDrillStack((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev))
@@ -130,6 +138,7 @@ export function useDrillNavigation(
 
   const drillReset = useCallback(() => {
     requestIdRef.current += 1
+    feedbackPendingRef.current = false
     activeParentIdRef.current = null
     setDrillLoading(false)
     setDrillStack([])

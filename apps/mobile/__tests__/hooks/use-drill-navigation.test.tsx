@@ -265,6 +265,58 @@ describe('mobile useDrillNavigation', () => {
     expect(holder.current.drillLoading).toBe(false)
   })
 
+  it('finishes loading when an automatic refresh supersedes the initial fetch', async () => {
+    const stale: { resolve: (detail: HabitDetail) => void } = { resolve: () => undefined }
+    mocks.apiClient.mockImplementationOnce(() => new Promise<HabitDetail>((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce(makeDetail({ children: [makeChild({ id: 'fresh' })] }))
+    const habitsById = new Map<string, NormalizedHabit>()
+    const { holder, rerender } = renderDrill(habitsById, 1)
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    TestRenderer.act(() => { staleDrill = holder.current.drillInto('p1') })
+    expect(holder.current.drillLoading).toBe(true)
+    await actAsync(async () => {
+      rerender(habitsById, 2)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['fresh'])
+    expect(holder.current.drillLoading).toBe(false)
+
+    await actAsync(async () => {
+      stale.resolve(makeDetail({ children: [makeChild({ id: 'stale' })] }))
+      await staleDrill
+    })
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['fresh'])
+    expect(holder.current.drillLoading).toBe(false)
+  })
+
+  it('shows an automatic refresh failure while the initial fetch is pending', async () => {
+    const stale: { resolve: (detail: HabitDetail) => void } = { resolve: () => undefined }
+    mocks.apiClient.mockImplementationOnce(() => new Promise<HabitDetail>((resolve) => { stale.resolve = resolve }))
+      .mockRejectedValueOnce(new Error('network'))
+    const habitsById = new Map<string, NormalizedHabit>()
+    const { holder, rerender } = renderDrill(habitsById, 1)
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    TestRenderer.act(() => { staleDrill = holder.current.drillInto('p1') })
+    await actAsync(async () => {
+      rerender(habitsById, 2)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(holder.current.drillError).not.toBe('')
+    expect(holder.current.drillLoading).toBe(false)
+
+    await actAsync(async () => {
+      stale.resolve(makeDetail({ children: [makeChild({ id: 'stale' })] }))
+      await staleDrill
+    })
+    expect(holder.current.drillError).not.toBe('')
+    expect(holder.current.drillChildren).toEqual([])
+  })
+
   it('clears a failed drill after Retry loads its children', async () => {
     mocks.apiClient.mockRejectedValueOnce(new Error('network'))
       .mockResolvedValueOnce(makeDetail({ children: [makeChild({ id: 'recovered' })] }))
