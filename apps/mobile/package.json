@@ -20,6 +20,7 @@
     "test": "vitest run",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
+    "generate:widget-colors": "tsx scripts/generate-widget-colors.ts",
     "clean": "rm -rf .expo",
     "android": "node scripts/run-android.js",
     "android:apk:emulator": "node scripts/android-release-apk.js --emulator"
@@ -110,6 +111,7 @@
     "saxes": "^6.0.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.62.1",
+    "tsx": "^4.20.6",
     "vitest": "^4.1.9",
     "yoga-layout": "^3.2.1"
   }
