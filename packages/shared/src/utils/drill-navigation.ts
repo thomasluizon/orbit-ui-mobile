@@ -43,6 +43,11 @@ export function mergeDrillChildrenMap(
   return next
 }
 
+/** The detail endpoint scores a general child's completion for today; the dated list scores it for the selected date. */
+function selectedDateGeneralCompletion(listChild: NormalizedHabit): Partial<NormalizedHabit> {
+  return listChild.isGeneral ? { isCompleted: listChild.isCompleted } : {}
+}
+
 export function getVisibleDrillChildren(
   parentId: string,
   drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
@@ -66,6 +71,7 @@ export function getVisibleDrillChildren(
           instances: listChild.instances,
           searchMatches: listChild.searchMatches,
           isOverdue: listChild.isOverdue,
+          ...selectedDateGeneralCompletion(listChild),
         } : {}),
       })
     }

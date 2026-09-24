@@ -267,6 +267,32 @@ describe('getVisibleDrillChildren', () => {
     }, 'today', '2025-01-03').map((child) => child.id)).toEqual(['overdue-child'])
   })
 
+  it('uses the dated list completion for general children on a past selected date', () => {
+    const selectedDate = '2025-01-01'
+    const today = '2025-01-03'
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({ id: 'done-then', isGeneral: true, isCompleted: false }),
+      makeDetailChild({ id: 'done-today', isGeneral: true, isCompleted: true }),
+    ] }), today)
+    const doneThen = createMockHabit({
+      id: 'done-then', parentId: 'parent-1', isGeneral: true, isCompleted: true,
+    })
+    const doneToday = createMockHabit({
+      id: 'done-today', parentId: 'parent-1', isGeneral: true, isCompleted: false,
+    })
+    const options = {
+      habitsById: new Map([[doneThen.id, doneThen], [doneToday.id, doneToday]]),
+      childrenByParent: new Map([['parent-1', [doneThen.id, doneToday.id]]]),
+      selectedDate, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    for (const view of ['today', 'general'] as const) {
+      expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, options, view, today)
+        .map((child) => child.id)).toEqual(['done-today'])
+    }
+  })
+
   it('uses list completion data for one-time and recurring children on the selected date', () => {
     const date = '2025-01-02'
     const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
