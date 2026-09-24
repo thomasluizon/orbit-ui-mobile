@@ -2,7 +2,7 @@ import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useState } from 'react'
 import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import { ApiClientError } from '@orbit/shared/utils'
+import { ApiClientError, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
@@ -48,12 +48,17 @@ export function useApiKeyManagement({
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
   const [createGrantAvailable, setCreateGrantAvailable] = useState(hasApiKeyCreationGrant)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
+  const [revokeKeyError, setRevokeKeyError] = useState<string | null>(null)
 
   const revokeKeyMutation = useAccountScopedMutation({
     mutationFn: (keyId: string, intendedAccountId) => revokeApiKey(keyId, intendedAccountId),
     onSuccess: () => {
       setRevokingKeyId(null)
+      setRevokeKeyError(null)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+    },
+    onError: (error) => {
+      setRevokeKeyError(getFriendlyErrorMessage(error, t, 'orbitMcp.apiKeysError'))
     },
   })
 
@@ -79,8 +84,8 @@ export function useApiKeyManagement({
       setCreateGrantAvailable(false)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result.response
-    } catch {
-      setCreateKeyError(t('orbitMcp.createKeyError'))
+    } catch (error) {
+      setCreateKeyError(getFriendlyErrorMessage(error, t, 'orbitMcp.createKeyError'))
       return null
     }
   }
@@ -93,6 +98,8 @@ export function useApiKeyManagement({
     createKeyError,
     clearCreateKeyError: () => setCreateKeyError(null),
     revokingKeyId,
+    revokeKeyError,
+    clearRevokeKeyError: () => setRevokeKeyError(null),
     setRevokingKeyId,
     revokeKeyMutation,
     handleCreateKey,

@@ -12,6 +12,7 @@ import {
   isStepUpOperation,
   type StepUpPhase,
   type StepUpTimingRecord,
+  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
@@ -41,6 +42,7 @@ const getServerNotReady = () => false
 
 export function StepUpScreen() {
   const t = useTranslations('stepUp')
+  const translate = useTranslations()
   const router = useRouter()
   const searchParams = useSearchParams()
   const operationParam = searchParams.get('operation')
@@ -112,8 +114,8 @@ export function StepUpScreen() {
       setFieldError(null)
       setPhase(getStepUpPhaseFromTiming(next, Date.now()))
       setNow(Date.now())
-    } catch {
-      setRequestError(t('requestError'))
+    } catch (error) {
+      setRequestError(getFriendlyErrorMessage(error, translate, 'stepUp.requestError'))
     } finally {
       setRequesting(false)
     }
@@ -145,8 +147,8 @@ export function StepUpScreen() {
       clearStepUpTiming(operation)
       setScheduledDeletionAt(result.response.scheduledDeletionAt)
       setPhase('deactivated')
-    } catch {
-      setFieldError(t('genericError'))
+    } catch (error) {
+      setFieldError(getFriendlyErrorMessage(error, translate, 'stepUp.genericError'))
       setPhase('challenge')
     }
   }

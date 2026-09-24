@@ -13,6 +13,7 @@ import {
   resolveHabitTags,
   setHabitTags,
   updateTagInList,
+  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { assignTags, createTag, deleteTag, getTags, restoreTag, suggestTags, updateTag } from '@/lib/actions/tags'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
@@ -229,8 +230,8 @@ export function useRestoreTag() {
       showSuccess(t('undo.restored'))
     },
 
-    onError: () => {
-      showError(t('undo.restoreFailed'))
+    onError: (error) => {
+      showError(getFriendlyErrorMessage(error, t, 'undo.restoreFailed'))
     },
   })
 }

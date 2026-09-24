@@ -2281,6 +2281,7 @@
     "fetchSubHabits": "Não foi possível carregar os sub-hábitos",
     "offline": "Reconecte-se à internet e tente de novo.",
     "api": {
+      "accountChanged": "Sua conta mudou. Recarregue esta página antes de tentar de novo.",
       "noPermission": "Você não tem permissão para isso.",
       "sessionExpired": "Sua sessão expirou. Entre de novo.",
       "duplicateTag": "Você já tem uma tag com esse nome.",
@@ -3004,6 +3005,7 @@
     "title": "O pedido não terminou",
     "body": "Tente de novo, e se continuar, saia e entre de novo na conta.",
     "retry": "Tentar novamente",
+    "reload": "Recarregar página",
     "reference": "ref {requestId}",
     "throttleTitle": "Muitos pedidos em pouco tempo",
     "throttleBody": "O servidor pediu para esperar antes do próximo pedido."

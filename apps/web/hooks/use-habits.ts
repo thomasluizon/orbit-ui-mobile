@@ -16,6 +16,7 @@ import {
   optimisticSetCalendarHabitLog,
   removeHabitDetailChild,
   rollbackOptimisticCalendarHabitLog,
+  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import {
   optimisticPatchHabit,
@@ -426,8 +427,8 @@ export function useRestoreHabit() {
       showSuccess(t('undo.restored'))
     },
 
-    onError: () => {
-      showError(t('undo.restoreFailed'))
+    onError: (error) => {
+      showError(getFriendlyErrorMessage(error, t, 'undo.restoreFailed'))
     },
   })
 }
@@ -491,11 +492,11 @@ export function useReorderHabits() {
       return { previousLists }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (error, _vars, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
-      showError(t('habits.reorderFailed'))
+      showError(getFriendlyErrorMessage(error, t, 'habits.reorderFailed'))
     },
 
     onSettled: () => {

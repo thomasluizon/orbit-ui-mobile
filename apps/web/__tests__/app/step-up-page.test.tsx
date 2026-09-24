@@ -209,6 +209,20 @@ describe('web step up screen', () => {
     expect(screen.getByRole('alert')).not.toHaveTextContent('attemptsMany')
   })
 
+  it('tells the person to reload when the account changes during confirmation', async () => {
+    mocks.serverAuthMutate.mockRejectedValueOnce({
+      status: 409,
+      code: 'ACCOUNT_CHANGED',
+      message: 'The signed in account changed before this request ran',
+    })
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(screen.getByRole('alert')).not.toHaveTextContent('genericError')
+  })
+
   it('moves the third wrong code to the persisted exhausted boundary', async () => {
     mocks.serverAuthMutate.mockRejectedValue(
       backendError('INVALID_VERIFICATION_CODE', 'Invalid code'),

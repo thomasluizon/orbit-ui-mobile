@@ -8,6 +8,8 @@ import {
   resolveHabitDetailRouteDate,
 } from '../utils/dates'
 import { getTimezoneList } from '../utils/timezones'
+import en from '../i18n/en.json'
+import pt from '../i18n/pt-BR.json'
 import { isValidEmail } from '../utils/email'
 import {
   buildClientTimeZoneHeaders,
@@ -422,6 +424,18 @@ describe('translateErrorKey', () => {
 
 
 describe('getFriendlyErrorKey', () => {
+  it('routes an account switch refusal to reload guidance in both locales', () => {
+    const err = createApiClientError(409, {
+      error: 'The signed in account changed before this request ran',
+      errorCode: 'ACCOUNT_CHANGED',
+    }, 'fallback')
+    expect(getFriendlyErrorKey(err, 'auth.genericError')).toBe('errors.api.accountChanged')
+    expect(getFriendlyErrorMessage(err, (key) => key === 'errors.api.accountChanged' ? en.errors.api.accountChanged : '', 'auth.genericError'))
+      .toBe('Your account changed. Reload this page before trying again.')
+    expect(getFriendlyErrorMessage(err, (key) => key === 'errors.api.accountChanged' ? pt.errors.api.accountChanged : '', 'auth.genericError'))
+      .toBe('Sua conta mudou. Recarregue esta página antes de tentar de novo.')
+  })
+
   it('maps tag color validation errors', () => {
     const err = createApiClientError(
       400,

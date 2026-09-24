@@ -90,6 +90,25 @@ describe('useChatPendingOperations', () => {
     expect(outcome).toMatchObject({ ok: false, error: 'chat.sendError' })
   })
 
+  it('shows reload guidance when confirmation was refused after an account switch', async () => {
+    mocks.confirmPendingOperation.mockResolvedValue({
+      ok: false,
+      error: 'The signed in account changed before this request ran',
+      status: 409,
+      code: 'ACCOUNT_CHANGED',
+      sessionRefreshFailed: false,
+    })
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
+
+    let outcome: Awaited<ReturnType<typeof result.current.confirmAndExecutePendingOperation>> | null = null
+    await act(async () => {
+      outcome = await result.current.confirmAndExecutePendingOperation('pending-1')
+    })
+
+    expect(outcome).toEqual({ ok: false, error: 'errors.api.accountChanged' })
+    expect(mocks.executePendingOperation).not.toHaveBeenCalled()
+  })
+
   it('prepares a step-up by confirming then issuing a challenge with the active locale', async () => {
     mocks.confirmPendingOperation.mockResolvedValue({
       ok: true,

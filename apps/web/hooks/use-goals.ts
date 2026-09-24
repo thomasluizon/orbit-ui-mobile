@@ -12,7 +12,7 @@ import type {
   UpdateGoalStatusRequest,
   GoalPositionItem,
 } from '@orbit/shared/types/goal'
-import { updateGoalProgressDetail, updateGoalProgressItem } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage, updateGoalProgressDetail, updateGoalProgressItem } from '@orbit/shared/utils'
 import {
   createGoal as createGoalAction,
   updateGoal as updateGoalAction,
@@ -74,8 +74,8 @@ export function useRestoreGoal() {
       showSuccess(t('undo.restored'))
     },
 
-    onError: () => {
-      showError(t('undo.restoreFailed'))
+    onError: (error) => {
+      showError(getFriendlyErrorMessage(error, t, 'undo.restoreFailed'))
     },
   })
 }
