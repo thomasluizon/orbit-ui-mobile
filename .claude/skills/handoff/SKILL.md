@@ -1,15 +1,16 @@
 ---
 name: handoff
-description: Carry a long-running effort into a fresh session. Updates the effort's spec file in this repo with everything durable the session established, then writes a short prompt that points at it. Use at the end of a session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. Pass --sleep to continue unattended in this session instead of handing to a person. It writes a spec and a prompt; it never does the work they describe.
+description: Carry a long-running effort into a fresh session. Updates the effort's spec file in this repo with everything durable the session established, then writes a short prompt that points at it. Use at the end of a session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. Pass --sleep to prepare NEXT.md for an unattended next session entered through /sleep. It writes a spec and a prompt, then ends the session without doing the work they describe.
 argument-hint: "[--sleep] [extra instructions for the NEXT session]"
 effort: high
 ---
 
 # /handoff
 
-**Input**: `$ARGUMENTS`. Empty means continue what this session was doing. `--sleep` or `/sleep`
-anywhere in it means the run continues unattended, in this session, rather than waiting for a person
-to paste anything. Anything else is extra work for the NEXT session. You never do that work now.
+**Input**: `$ARGUMENTS`. Empty means the next session continues what this session was doing.
+`--sleep` or `/sleep` anywhere in it means `NEXT.md` must be a complete prompt for an unattended
+next session whose entry point is `/sleep`. Nobody has to add anything before it runs. Anything else
+is extra work for the NEXT session. You never do that work now.
 
 Two outputs, both committed files in this repo:
 
@@ -39,9 +40,8 @@ that is work the next session cannot see.
 so many words. "Do this now, then /handoff." Anything less direct is not the exception. If you are
 weighing whether a message qualifies, it does not.
 
-Under `--sleep` this reads differently: the run continues in this session by design, and the section
-at the end of this file says how. The rule above is about an ATTENDED handoff, where a person is
-going to open `NEXT.md` later.
+This rule also applies under `--sleep`. The next session enters through `/sleep`; the handing-off
+session ends after writing and committing the files.
 
 **The prompt path never changes.** Thomas, 2026-09-15: "i want one handoff, always, just combine
 both in one ... you need to put always in the same place, in a way that i can just ctrl + click and
@@ -210,6 +210,8 @@ skill itself, so the prompt must not present the two as siblings.
 
 ## The goal is always the same: finish the spec
 
+This section sets the next session's goal. It does not extend the session performing `/handoff`.
+
 **Every run ends when its spec is done, and at no other point.** This is not a `--sleep` rule and it
 is not about any one effort. A session working a spec is not finished while that spec has work left.
 
@@ -264,19 +266,16 @@ Then reply with one line: `.claude/handoffs/NEXT.md` and the branch it is on. If
 unrelated uncommitted work, that fact belongs in the same line, because he is about to act on the
 handoff and needs to know his tree is not clean. Nothing else, before or after.
 
-### Under `--sleep`, do not stop there
+### Under `--sleep`, prepare the next session's prompt
 
-`--sleep` means nobody is going to open that file. If this run ends after writing it, the night ends
-silently and what it leaves behind looks exactly like a finished run, so nobody goes looking.
-
-So after committing, continue in THIS session: read and execute `.claude/skills/sleep/SKILL.md`,
-including writing run state under this session's own id and leaving a live wake source before the
-turn ends. The files are the durable record; the sleep skill is what keeps the work moving.
+Set `/sleep` as the prompt's only entry point. State the goal, the in-flight inventory, and the next
+actions completely enough for an unattended next session to start without anyone adding instructions.
+`--sleep` changes `NEXT.md`; after committing, reply and end this session as usual.
 
 ## What this skill never does
 
 The work. No code, no tickets, no board writes, and nothing `$ARGUMENTS` describes. If the session
 left something half done, the spec records it and the prompt assigns it.
 
-And after it runs, neither does the session. See the second section of this file: an attended
-`/handoff` is the end. Whatever he asks next goes into `NEXT.md`.
+And after it runs, neither does the session. See the second section of this file: `/handoff` is the
+end with or without `--sleep`. Whatever he asks next goes into `NEXT.md`.
