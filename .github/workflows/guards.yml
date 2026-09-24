@@ -129,9 +129,13 @@ jobs:
         # release note's en dashes blocked a security-relevant NuGet bump.
         if: github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot'
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: node tools/check-dashes.mjs --text "$PR_TITLE $PR_BODY"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          PR_TITLE=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.title')
+          PR_BODY=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""')
+          node tools/check-dashes.mjs --text "$PR_TITLE $PR_BODY"
 
   mobile-fonts:
     name: Mobile Font Guard
@@ -296,12 +300,11 @@ jobs:
           node-version: 22
       - name: A UI pull request on redesign/main records what the review skills found
         env:
-          # Through the environment, never argv: a body is untrusted text and interpolating it into a
-          # run block is a shell injection. The same reason check-dashes.mjs reads the title this way.
-          PR_BODY: ${{ github.event.pull_request.body }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""' > "$RUNNER_TEMP/pr-body.md"
           git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD > "$RUNNER_TEMP/changed.txt"
           node tools/check-review-harness.mjs \
             --base '${{ github.base_ref }}' \

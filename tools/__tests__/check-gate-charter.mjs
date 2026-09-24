@@ -118,6 +118,21 @@ export const cases = () => {
     { status: 1, stderr: /snapshot must be none or a regeneration command/ },
   )
 
+  const frozenBodyWorkflow = "jobs:\n  existing:\n    steps:\n      - env:\n          PR_BODY: ${{ github.event.pull_request.body }}\n        run: |\n          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed.txt\n          node gate.mjs --changed-files-file changed.txt\n"
+  check(
+    "check-gate-charter.mjs",
+    "rejects a gate that reads the frozen event pull request body",
+    ["--root", stageRepository("frozen-pr-body", completeCharter(), { guardWorkflow: frozenBodyWorkflow })],
+    { status: 1, stderr: /frozen pull request body/ },
+  )
+  const frozenTitleWorkflow = frozenBodyWorkflow.replace("pull_request.body", "pull_request.title")
+  check(
+    "check-gate-charter.mjs",
+    "rejects a gate that reads the frozen event pull request title",
+    ["--root", stageRepository("frozen-pr-title", completeCharter(), { guardWorkflow: frozenTitleWorkflow })],
+    { status: 1, stderr: /frozen pull request title/ },
+  )
+
   const blockingAdvisory = completeCharter()
   blockingAdvisory[".github/workflows/guards.yml#existing"] = entry({ scope: "whole-tree-advisory" })
   check(

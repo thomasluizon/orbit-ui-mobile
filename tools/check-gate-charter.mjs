@@ -297,6 +297,14 @@ function run(repositoryRoot) {
       }
     }
   }
+  for (const [jobId, job] of Object.entries(guardJobs)) {
+    const jobSource = JSON.stringify(job)
+    for (const field of ["body", "title"]) {
+      if (jobSource.includes(`github.event.pull_request.${field}`)) {
+        problems.push(`.github/workflows/guards.yml#${jobId}: frozen pull request ${field} must be read from the API at run time`)
+      }
+    }
+  }
   const changedFileRules = declared.filter((id) => id.startsWith("eslint-rules/") && charter[id]?.scope === "changed-files")
   if (changedFileRules.length > 0 && !lintCallerUsesChangedFiles(repositoryRoot)) {
     changedFileRules.forEach((id) => problems.push(`${id}: pull request lint must pass only changed workspace files to ESLint`))
