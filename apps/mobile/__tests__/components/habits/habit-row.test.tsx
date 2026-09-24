@@ -1,4 +1,4 @@
-import { afterEach, describe, it, expect, vi } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
@@ -8,6 +8,11 @@ import {
   __setHostRefsNull,
   __setMeasureInWindowImpl,
 } from '@/test-mocks/react-native'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const TestRenderer = require('react-test-renderer')
 

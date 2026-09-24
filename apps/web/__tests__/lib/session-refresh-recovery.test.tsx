@@ -1,9 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import { runServerAction } from '@/lib/client-action'
 import { useAuthStore } from '@/stores/auth-store'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn() },

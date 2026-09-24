@@ -1,9 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useRepairStreak } from '@/hooks/use-gamification'
 import { useAuthStore } from '@/stores/auth-store'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const repairStreakGapAction = vi.fn()
 
