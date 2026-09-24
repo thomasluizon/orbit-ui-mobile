@@ -9,6 +9,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/lib/actions/profile'
 
@@ -50,14 +51,17 @@ export function MarketingConsentPrompt() {
   const mutation = useMutation({
     mutationFn: (enabled: boolean) => updateMarketingConsent({ enabled }),
     onMutate: (enabled) => {
+      const accountGeneration = getAccountGeneration()
       const previous = profile?.marketingEmailConsent ?? null
       patchProfile({ marketingEmailConsent: enabled })
-      return { previous }
+      return { previous, accountGeneration }
     },
     onError: (_error, _enabled, context) => {
-      patchProfile({ marketingEmailConsent: context?.previous ?? null })
+      if (context?.accountGeneration !== getAccountGeneration()) return
+      patchProfile({ marketingEmailConsent: context.previous })
     },
-    onSettled: () => {
+    onSettled: (_data, _error, _enabled, context) => {
+      if (context?.accountGeneration !== getAccountGeneration()) return
       invalidate()
     },
   })
@@ -79,7 +83,9 @@ export function MarketingConsentPrompt() {
   }, [armedPrompt, celebrationInFlight, isArmed, markEngagementPrompted, setVisible, visible])
 
   function answer(enabled: boolean) {
+    const accountGeneration = getAccountGeneration()
     closeSheet(() => {
+      if (getAccountGeneration() !== accountGeneration) return
       setVisible(false)
       mutation.mutate(enabled)
     })

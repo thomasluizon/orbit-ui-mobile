@@ -92,6 +92,7 @@ describe('MarketingConsentPrompt', () => {
     vi.stubGlobal('fetch', vi.fn())
     resetStores()
     patchProfile.mockClear()
+    invalidate.mockClear()
     updateMarketingConsent.mockClear()
     profileValue = { marketingEmailConsent: null }
     holdAccount('user-1')
@@ -172,6 +173,26 @@ describe('MarketingConsentPrompt', () => {
     expect(updateMarketingConsent).toHaveBeenCalledWith({ enabled: false })
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: false })
     expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('does not roll back or invalidate the next account after an old consent failure', async () => {
+    let failConsent!: (error: Error) => void
+    updateMarketingConsent.mockImplementationOnce(() => new Promise((_resolve, reject) => { failConsent = reject }))
+    renderPrompt()
+    await armConsent()
+    await settle()
+    await act(async () => {
+      fireEvent.click(screen.getByText('marketingConsent.prompt.accept'))
+      await Promise.resolve()
+    })
+    expect(updateMarketingConsent).toHaveBeenCalledOnce()
+    expect(patchProfile).toHaveBeenCalledTimes(1)
+
+    await replaceAccountWith('user-2')
+    await act(async () => { failConsent(new Error('old account request failed')) })
+
+    expect(patchProfile).toHaveBeenCalledTimes(1)
+    expect(invalidate).not.toHaveBeenCalled()
   })
 
   it('takes the prompt off the screen when another account replaces the tab', async () => {
