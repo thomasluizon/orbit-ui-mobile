@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
 const heldAccount = vi.hoisted(() => ({ id: null as string | null }))
+const accountGeneration = vi.hoisted(() => ({ current: 0 }))
 const showPersistentError = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError }) }))
 vi.mock('@/stores/auth-store', () => ({ getHeldAccountId: () => heldAccount.id }))
+vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => accountGeneration.current }))
 
 vi.mock('@/lib/actions/profile', () => ({
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
@@ -72,6 +74,7 @@ describe('useColorScheme', () => {
   beforeEach(() => {
     mockCookies = {}
     heldAccount.id = null
+    accountGeneration.current = 0
     showPersistentError.mockClear()
     mockSetProperty.mockClear()
     mockClassList.add.mockClear()
@@ -151,6 +154,23 @@ describe('useColorScheme', () => {
 
     expect(mockCookies['orbit_theme_mode']).toBe('light')
     expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
+  })
+
+  it('does not restore an old theme after re-login to the same account', async () => {
+    const { updateThemePreference } = await import('@/lib/actions/profile')
+    let rejectUpdate: ((error: unknown) => void) | undefined
+    vi.mocked(updateThemePreference).mockImplementationOnce(() => new Promise((_resolve, reject) => {
+      rejectUpdate = reject
+    }))
+    heldAccount.id = 'account-a'
+    const { result } = renderHook(() => useColorScheme())
+
+    act(() => result.current.applyTheme('light'))
+    accountGeneration.current += 1
+    await act(async () => rejectUpdate?.(new Error('Network failed')))
+
+    expect(mockCookies['orbit_theme_mode']).toBe('light')
+    expect(result.current.currentTheme).toBe('light')
   })
 
   it('toggleTheme switches between dark and light', () => {

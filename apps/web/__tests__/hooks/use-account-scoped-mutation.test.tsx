@@ -4,6 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const heldAccount = { id: 'account-a' as string | null }
+const accountGeneration = { current: 0 }
 const showPersistentError = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -12,6 +13,7 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentEr
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => heldAccount.id,
 }))
+vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => accountGeneration.current }))
 
 const { useAccountScopedMutation } = await import('@/hooks/use-account-scoped-mutation')
 
@@ -27,6 +29,7 @@ function createWrapper() {
 describe('useAccountScopedMutation', () => {
   beforeEach(() => {
     heldAccount.id = 'account-a'
+    accountGeneration.current = 0
   })
 
   it('carries the account the tab held when mutate was called', async () => {
@@ -96,6 +99,52 @@ describe('useAccountScopedMutation', () => {
     expect(queryClient.getQueryData(['profile'])).toBe('account-b-profile')
     expect(onSettled).not.toHaveBeenCalled()
     expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
+  })
+
+  it('removes an optimistic write resumed after another account loaded', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    let releaseCancel: (() => void) | undefined
+    const cancelFinished = new Promise<void>((resolve) => { releaseCancel = resolve })
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async () => undefined,
+      onMutate: async () => {
+        await cancelFinished
+        queryClient.setQueryData(['templates'], (old: string[] | undefined) =>
+          [...(old ?? []), 'account-a-placeholder'])
+      },
+    }), { wrapper })
+
+    result.current.mutate(undefined)
+    heldAccount.id = 'account-b'
+    accountGeneration.current += 1
+    queryClient.clear()
+    queryClient.setQueryData(['templates'], ['account-b-template'])
+    releaseCancel?.()
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(queryClient.getQueryData<string[]>(['templates']) ?? []).not.toContain('account-a-placeholder')
+  })
+
+  it('reconciles a completed write after re-login to the same account', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    queryClient.setQueryData(['goals'], ['old-goal'])
+    let releaseWrite: (() => void) | undefined
+    const writeFinished = new Promise<void>((resolve) => { releaseWrite = resolve })
+    const { result } = renderHook(() => useAccountScopedMutation({
+      mutationFn: async () => { await writeFinished },
+      onSettled: () => { void queryClient.invalidateQueries({ queryKey: ['goals'] }) },
+    }), { wrapper })
+
+    result.current.mutate(undefined)
+    accountGeneration.current += 1
+    releaseWrite?.()
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(queryClient.getQueryState(['goals'])?.isInvalidated).toBe(true)
   })
 
   it('removes optimistic account A cache when the cookie changed before this tab learned', async () => {

@@ -104,7 +104,16 @@ export function useAccountScopedMutation<
   }
 
   if (onMutate) {
-    scopedOptions.onMutate = (variables, context) => onMutate(variables.input, context)
+    scopedOptions.onMutate = async (variables, context) => {
+      try {
+        return await onMutate(variables.input, context)
+      } finally {
+        if (getAccountGeneration() !== variables.accountGeneration
+          || getHeldAccountId() !== variables.intendedAccountId) {
+          void queryClient.resetQueries()
+        }
+      }
+    }
   }
   if (onSuccess) {
     scopedOptions.onSuccess = (data, variables, onMutateResult, context) =>
@@ -118,9 +127,13 @@ export function useAccountScopedMutation<
     }
     if (stillHeld(variables)) return onError?.(error, variables.input, onMutateResult, context)
   }
-  if (onSettled) {
-    scopedOptions.onSettled = (data, error, variables, onMutateResult, context) =>
-      stillHeld(variables, error) ? onSettled(data, error, variables.input, onMutateResult, context) : undefined
+  scopedOptions.onSettled = (data, error, variables, onMutateResult, context) => {
+    if (stillHeld(variables, error)) {
+      return onSettled?.(data, error, variables.input, onMutateResult, context)
+    }
+    if (getHeldAccountId() === variables.intendedAccountId) {
+      return queryClient.invalidateQueries()
+    }
   }
 
   const mutation = useMutation(scopedOptions)

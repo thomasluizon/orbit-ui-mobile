@@ -19,6 +19,7 @@ import {
 import { getHeldAccountId } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
@@ -61,6 +62,7 @@ export function useColorScheme() {
 
   const applyTheme = useCallback((theme: ThemeMode, persistToDb = true) => {
     const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     const prev = currentTheme
     setCookie('orbit_theme_mode', theme)
     setCurrentTheme(theme)
@@ -72,7 +74,7 @@ export function useColorScheme() {
           showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
           return
         }
-        if (getHeldAccountId() !== intendedAccountId) return
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
         setCookie('orbit_theme_mode', prev)
         setCurrentTheme(prev)
         applyThemeTokensToDOM(currentScheme, prev, true)

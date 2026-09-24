@@ -450,6 +450,18 @@ describe('auth store', () => {
       expect(queryClient.getQueryCache().getAll()).toEqual([])
     })
 
+    it('empties retained queries when the same account starts a new session', async () => {
+      const { getQueryClient } = await import('@/lib/query-client')
+      const { goalKeys } = await import('@orbit/shared/query')
+      const queryClient = getQueryClient()
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      queryClient.setQueryData(goalKeys.lists(), ['old-goal'])
+
+      useAuthStore.getState().setAuth(makeLoginResponse())
+
+      expect(queryClient.getQueryData(goalKeys.lists())).toBeUndefined()
+    })
+
     it('empties the Astra conversation the replaced account left', async () => {
       useAuthStore.getState().setAuth(makeLoginResponse())
       useChatStore.getState().addMessage(makeChatMessage())
