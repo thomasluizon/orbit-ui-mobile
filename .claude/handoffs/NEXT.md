@@ -28,7 +28,13 @@ allowance, the machine stopping, or Thomas saying stop ends the run.
 3. Backport the `#633` fixes to `redesign/main` as a separate PR. The redesign deleted
    `anchored-menu.tsx` and `drill-view.tsx`; `habit-drill.tsx` needs the drill fix, and the redesign's
    menu needs checking for the same state-rollback class.
-4. Then continue the spec's batch order: `#627` first in batch 0b, `ui#1029` round 4, the
+4. **Fix `/handoff --sleep` so it ends the session.** Thomas, 2026-09-24, after a `/handoff --sleep` run
+   kept working: "i ran /handoff, why are you continuing? handoff explicitly says that this session is
+   over." Change `.claude/skills/handoff/SKILL.md` ("Under `--sleep`, do not stop there", and the
+   `--sleep` lines in its Input and first sections) so `--sleep` only makes `NEXT.md` a prompt for an
+   unattended next session. The handing-off session always ends. Check `.claude/skills/wrap-up/SKILL.md`
+   and `.claude/skills/sleep/SKILL.md` for the same assumption, then run both harnesses.
+5. Then continue the spec's batch order: `#627` first in batch 0b, `ui#1029` round 4, the
    `ui#1030` re-review, the `ui#1033` first review, the rest of 0b, then 0c, then batch 1.
 
 ## In flight, each with a disposition
