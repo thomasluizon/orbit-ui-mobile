@@ -17,6 +17,7 @@ class OrbitWidgetModule : Module() {
     private const val PREFS_NAME = "orbit_widget_prefs"
     private const val KEY_TOKEN = "auth_token"
     private const val CACHE_PREFS_NAME = "orbit_widget_cache"
+    internal val accountRenderLock = Any()
     const val COLOR_KEY_PREFIX = "color_"
     private val NAME_IDENTIFIER_CLAIMS = listOf(
       "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
@@ -139,14 +140,18 @@ class OrbitWidgetModule : Module() {
 
     AsyncFunction("saveToken") { token: String ->
       val context = moduleContext()
-      getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply()
+      synchronized(accountRenderLock) {
+        getEncryptedPrefs(context).edit().putString(KEY_TOKEN, token).apply()
+      }
       refreshWidgets(context)
     }
 
     AsyncFunction("clearToken") {
       val context = moduleContext()
-      getEncryptedPrefs(context).edit().remove(KEY_TOKEN).apply()
-      clearWidgetCache(context)
+      synchronized(accountRenderLock) {
+        getEncryptedPrefs(context).edit().remove(KEY_TOKEN).apply()
+        clearWidgetCache(context)
+      }
       refreshWidgets(context)
     }
 
