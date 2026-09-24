@@ -1,6 +1,6 @@
 ---
 name: wrap-up
-description: Close a working session in one command. Runs /progress, then /questions, then /handoff, in that order, and stops. Use when Thomas says /wrap-up, wrap up, close out the session, or is about to stop for the day. Pass --sleep to hand --sleep to /handoff so the run continues unattended instead of waiting for a person. It runs three skills; it never does the work they surface.
+description: Close a working session in one command. Runs /progress, then /questions, then /handoff, in that order, and stops. Use when Thomas says /wrap-up, wrap up, close out the session, or is about to stop for the day. Pass --sleep through to /handoff to prepare NEXT.md for an unattended next session entered through /sleep. It runs three skills; it never does the work they surface.
 argument-hint: "[--sleep] [extra instructions for the NEXT session]"
 effort: medium
 ---
@@ -44,8 +44,8 @@ answer about, and nothing `$ARGUMENTS` describes. All of it goes into the handof
 Thomas asks goes into `.claude/handoffs/NEXT.md`, not into the tree. The only exception is his
 explicit "do this now, then hand off".
 
-Under `--sleep` the run does continue, in this session, exactly as the handoff skill's own `--sleep`
-section describes. That is the one case where work follows a wrap-up.
+Under `--sleep`, `/handoff` prepares `NEXT.md` for an unattended next session entered through
+`/sleep`. This session still ends after step 3.
 
 ## Stopping early
 
@@ -82,9 +82,9 @@ indistinguishable from never having looked. Then the step-2 handover line. Then 
 **Step 3 starts only after he has said proceed to it.** If you find yourself writing the spec in the
 same turn as the progress answer, stop and go back.
 
-Under `--sleep` the gates still hold. `--sleep` changes what happens AFTER `/handoff`, never whether
-he reads the first two steps. A `--sleep` run that writes the spec without showing him progress and
-questions has skipped the two steps he asked for.
+Under `--sleep` the gates still hold. It changes the `NEXT.md` prompt, never whether he reads the
+first two steps. A `--sleep` run that writes the spec without showing him progress and questions has
+skipped the two steps he asked for.
 
 ### This skill failed this way on the day it shipped
 
