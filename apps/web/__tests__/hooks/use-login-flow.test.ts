@@ -30,7 +30,10 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks
 
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 
-vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => ({ setAuth: mocks.setAuth }) }))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: () => ({ setAuth: mocks.setAuth }),
+  waitForPendingLogoutResponses: vi.fn().mockResolvedValue(undefined),
+}))
 
 vi.mock('@/lib/supabase', () => ({
   getSupabaseClient: () => ({ auth: { signInWithOAuth: vi.fn() } }),
