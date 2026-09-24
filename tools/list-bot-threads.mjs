@@ -61,19 +61,23 @@ default is a carry-over bound that nobody has measured for Pullfrog. The one tim
 (2026-08-12).
 
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, reviewBody,
-checkConclusion, progressMarkers, threads[]. Errors go to stderr.
+checkConclusion, checkStatus, progressMarkers, threads[]. Errors go to stderr.
 
   verdict  REVIEWED      a Pullfrog verdict OF THE CURRENT HEAD exists; threads[] may be empty,
                          and a non-null reviewBody can still carry a finding
            CHANGES_REQUESTED  a review of the current head exists and requests changes
            CHECK_FAILED  the latest completed pullfrog-approval check did not succeed
+           CHECK_PENDING an APPROVED review of this head exists but its pullfrog-approval check is
+                         still running at the end of the budget; the review fields are kept
            NO_REVIEW     no review of this head inside the budget. staleReviewCommit names
                          the commit an older review WAS given on, when there is one
 
 COMMENTED or CHANGES_REQUESTED with an empty body and no threads of its own is a progress marker.
 It increments progressMarkers and never supplies a review verdict. A completed pullfrog-approval
 check ends the wait and reports its conclusion. A clean pass requires the latest review of this
-head to be APPROVED and checkConclusion to be SUCCESS. Triage a non-null reviewBody like a thread.
+head to be APPROVED and checkConclusion to be SUCCESS. checkStatus is COMPLETED, PENDING or ABSENT;
+an APPROVED review with an ABSENT check is REVIEWED, because an unprotected base publishes no check
+and the exact-head approval is its evidence. Triage a non-null reviewBody like a thread.
 
 A review is evidence about the commit it was given on and nothing else. One pinned to an older
 head is NOT accepted: after a push the newest review names the old commit until the re-review
@@ -86,7 +90,7 @@ A draft pull request is read exactly like any other one, because Pullfrog review
 Pullfrog publishes no severity, so every thread reports P1. The caller treats each finding as
 blocking until the caller triages it.
 
-exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW or CHECK_FAILED, 2 usage or environment error`
+exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, CHECK_FAILED or CHECK_PENDING, 2 usage or environment error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -462,8 +466,8 @@ while (!finished() && Date.now() < deadline) {
 }
 
 const checkConclusion = completedCheck() ? check.conclusion : null
+const checkStatus = !check ? "ABSENT" : completedCheck() ? "COMPLETED" : "PENDING"
 const progressMarkers = progressMarkersOf(node)
-if (review?.state === "APPROVED" && checkConclusion === null) review = null
 
 const threads = (node.reviewThreads?.nodes ?? [])
   .filter((thread) => thread.comments?.nodes?.[0]?.author?.login === botLogin)
@@ -506,7 +510,7 @@ if (!review) {
     : `no completed ${botLogin} review of this head arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict: checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED" : "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, checkConclusion, progressMarkers, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
+      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict: checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED" : "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, checkConclusion, checkStatus, progressMarkers, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
       null,
       2,
     ),
@@ -514,7 +518,9 @@ if (!review) {
   process.exit(1)
 }
 
-const verdict = checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED" : review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
+const verdict = checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED"
+  : review.state === "APPROVED" && checkStatus === "PENDING" ? "CHECK_PENDING"
+  : review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
 
 /**
  * The body of every accepted state EXCEPT APPROVED, because a review that did not approve states
@@ -547,6 +553,7 @@ console.log(
       headRefOid: node.headRefOid,
       reviewBody,
       checkConclusion,
+      checkStatus,
       progressMarkers,
       threadsComplete: node.reviewThreads.complete === true,
       counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length, pages: node.reviewThreads.pages },
@@ -556,4 +563,4 @@ console.log(
     2,
   ),
 )
-process.exit(verdict === "CHECK_FAILED" ? 1 : 0)
+process.exit(verdict === "CHECK_FAILED" || verdict === "CHECK_PENDING" ? 1 : 0)

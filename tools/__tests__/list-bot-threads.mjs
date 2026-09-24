@@ -228,9 +228,22 @@ export const cases = () => {
 
   const approvedPending = readPr(payload({ reviews: [botReview()], checks: [approvalCheck("IN_PROGRESS", null)] }))
   T(
-    `${TOOL}: an APPROVED review with a pending check is not a clean verdict`,
-    approvedPending.status === 1 && parsed(approvedPending)?.verdict === "NO_REVIEW",
+    `${TOOL}: an APPROVED review with a pending check is CHECK_PENDING and keeps its review evidence`,
+    approvedPending.status === 1 && parsed(approvedPending)?.verdict === "CHECK_PENDING" &&
+      parsed(approvedPending)?.reviewState === "APPROVED" && parsed(approvedPending)?.reviewedAt === "2026-08-04T23:16:35Z" &&
+      parsed(approvedPending)?.reviewedCommit === HEAD && parsed(approvedPending)?.checkStatus === "PENDING" &&
+      parsed(approvedPending)?.checkConclusion === null,
     approvedPending.stdout || approvedPending.stderr,
+  )
+
+  const approvedWithoutCheck = readPr(payload({ reviews: [botReview()], checks: [] }))
+  T(
+    `${TOOL}: an exact-head APPROVED review with no check is REVIEWED, the unprotected-base evidence`,
+    approvedWithoutCheck.status === 0 && parsed(approvedWithoutCheck)?.verdict === "REVIEWED" &&
+      parsed(approvedWithoutCheck)?.reviewState === "APPROVED" && parsed(approvedWithoutCheck)?.reviewedAt === "2026-08-04T23:16:35Z" &&
+      parsed(approvedWithoutCheck)?.reviewedCommit === HEAD && parsed(approvedWithoutCheck)?.checkStatus === "ABSENT" &&
+      parsed(approvedWithoutCheck)?.checkConclusion === null,
+    approvedWithoutCheck.stdout || approvedWithoutCheck.stderr,
   )
 
   const markerWithOwnThread = readPr(payload({ reviews: [botReview("COMMENTED")], threads: [thread()], checks: [approvalCheck("IN_PROGRESS", null)] }))
