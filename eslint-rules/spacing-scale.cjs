@@ -23,6 +23,11 @@
  * deletes spacing rather than correcting it.
  *
  * https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+ * Local constants: analyse object literals, `as const`, `satisfies`, non-null
+ * wrappers, identifier aliases, arrays with later-entry precedence, spreads
+ * copied at evaluation time, Object.assign with static sources, and conditional
+ * branches. A shape outside this list is not analysed, so it neither reports
+ * nor suppresses spacing on that value.
  */
 
 // DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
@@ -265,7 +270,7 @@ module.exports = {
     }
 
     function unwrapStyleExpression(node) {
-      while (node && (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression')) node = node.expression
+      while (node && (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression' || node.type === 'TSNonNullExpression')) node = node.expression
       return node
     }
 
@@ -279,18 +284,18 @@ module.exports = {
       return null
     }
 
-    function markMutatedBinding(node, name, visited = new WeakSet()) {
+    function markMutatedBinding(node, name, position, visited = new WeakSet()) {
       node = unwrapStyleExpression(node)
       if (node?.type !== 'Identifier') return
       const variable = findBinding(node)
       if (!variable || visited.has(variable)) return
       visited.add(variable)
-      const names = mutatedStyleProperties.get(variable) ?? new Set()
-      names.add(name)
-      mutatedStyleProperties.set(variable, names)
+      const mutations = mutatedStyleProperties.get(variable) ?? []
+      mutations.push({ name, position })
+      mutatedStyleProperties.set(variable, mutations)
       const definition = variable.defs[0]
       if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const') {
-        markMutatedBinding(definition.node.init, name, visited)
+        markMutatedBinding(definition.node.init, name, position, visited)
       }
     }
 
@@ -300,7 +305,41 @@ module.exports = {
       return '*'
     }
 
-    function scanStyleObject(node, ignored = new Set()) {
+    function staticSourceKeys(node, visited = new WeakSet()) {
+      node = unwrapStyleExpression(node)
+      if (!node) return null
+      if (node.type === 'Identifier') {
+        const variable = findBinding(node)
+        if (!variable || visited.has(variable)) return null
+        const definition = variable.defs[0]
+        if (variable.defs.length !== 1 || definition?.type !== 'Variable' || definition.parent.kind !== 'const') return null
+        visited.add(variable)
+        const keys = staticSourceKeys(definition.node.init, visited)
+        visited.delete(variable)
+        return keys
+      }
+      if (node.type === 'ConditionalExpression') {
+        const left = staticSourceKeys(node.consequent, visited)
+        const right = staticSourceKeys(node.alternate, visited)
+        return left && right ? new Set([...left, ...right]) : null
+      }
+      if (node.type !== 'ObjectExpression') return null
+      const keys = new Set()
+      for (const property of node.properties) {
+        if (property.type === 'SpreadElement') {
+          const spreadKeys = staticSourceKeys(property.argument, visited)
+          if (!spreadKeys) return null
+          for (const key of spreadKeys) keys.add(key)
+        } else {
+          const name = propertyName(property)
+          if (name === null) return null
+          keys.add(name)
+        }
+      }
+      return keys
+    }
+
+    function scanStyleObject(node, ignored = new Set(), cutoff = Infinity) {
       node = unwrapStyleExpression(node)
       if (!node) return null
       if (node.type === 'Identifier') {
@@ -309,20 +348,33 @@ module.exports = {
         const definition = variable.defs[0]
         if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const') {
           activeStyleBindings.add(variable)
-          const ignoredHere = new Set([...ignored, ...(mutatedStyleProperties.get(variable) ?? [])])
-          const keys = scanStyleObject(definition.node.init, ignoredHere)
+          const ignoredHere = new Set(ignored)
+          for (const mutation of mutatedStyleProperties.get(variable) ?? []) {
+            if (mutation.position < cutoff) ignoredHere.add(mutation.name)
+          }
+          const keys = scanStyleObject(definition.node.init, ignoredHere, cutoff)
           activeStyleBindings.delete(variable)
           return ignoredHere.has('*') ? null : keys
         }
         return null
       }
       if (node.type === 'ArrayExpression') {
-        for (const element of node.elements) scanStyleObject(element, ignored)
-        return null
+        const knownKeys = new Set()
+        const shadowed = new Set(ignored)
+        let hasUnknownKey = false
+        for (let index = node.elements.length - 1; index >= 0; index--) {
+          const elementKeys = scanStyleObject(node.elements[index], shadowed, cutoff)
+          if (elementKeys === null) hasUnknownKey = true
+          else for (const key of elementKeys) {
+            knownKeys.add(key)
+            shadowed.add(key)
+          }
+        }
+        return hasUnknownKey ? null : knownKeys
       }
       if (node.type === 'ConditionalExpression') {
-        const consequentKeys = scanStyleObject(node.consequent, ignored)
-        const alternateKeys = scanStyleObject(node.alternate, ignored)
+        const consequentKeys = scanStyleObject(node.consequent, ignored, cutoff)
+        const alternateKeys = scanStyleObject(node.alternate, ignored, cutoff)
         if (consequentKeys === null || alternateKeys === null) return null
         return new Set([...consequentKeys].filter((key) => alternateKeys.has(key)))
       }
@@ -333,7 +385,7 @@ module.exports = {
       for (let index = node.properties.length - 1; index >= 0; index--) {
         const property = node.properties[index]
         if (property.type === 'SpreadElement') {
-          const spreadKeys = scanStyleObject(property.argument, shadowed)
+          const spreadKeys = scanStyleObject(property.argument, shadowed, Math.min(cutoff, property.range[0]))
           if (spreadKeys === null) {
             shadowed.add('*')
             hasUnknownKey = true
@@ -450,7 +502,11 @@ module.exports = {
       },
       CallExpression(node) {
         if (node.callee.type === 'MemberExpression' && !node.callee.computed && node.callee.object.type === 'Identifier' && node.callee.object.name === 'Object' && node.callee.property.type === 'Identifier' && node.callee.property.name === 'assign') {
-          markMutatedBinding(node.arguments[0], '*')
+          for (const source of node.arguments.slice(1)) {
+            const keys = staticSourceKeys(source)
+            if (keys === null) markMutatedBinding(node.arguments[0], '*', node.range[0])
+            else for (const key of keys) markMutatedBinding(node.arguments[0], key, node.range[0])
+          }
         }
         if (!isStyleSheetCreate(node)) return
         const argument = node.arguments[0]
@@ -461,13 +517,13 @@ module.exports = {
         }
       },
       AssignmentExpression(node) {
-        if (node.left.type === 'MemberExpression') markMutatedBinding(node.left.object, mutationPropertyName(node.left))
+        if (node.left.type === 'MemberExpression') markMutatedBinding(node.left.object, mutationPropertyName(node.left), node.range[0])
       },
       UpdateExpression(node) {
-        if (node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, mutationPropertyName(node.argument))
+        if (node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, mutationPropertyName(node.argument), node.range[0])
       },
       UnaryExpression(node) {
-        if (node.operator === 'delete' && node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, mutationPropertyName(node.argument))
+        if (node.operator === 'delete' && node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, mutationPropertyName(node.argument), node.range[0])
       },
       'Program:exit'() {
         for (const expression of jsxStyleExpressions) scanStyleObject(expression)

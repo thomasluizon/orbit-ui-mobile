@@ -483,6 +483,11 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     'const row = { gap: 14 }; row.gap = runtimeGap; <div style={row} />',
     'const row = { gap: 14 }; const alias = row; alias.gap = runtimeGap; <div style={row} />',
     'const row = { gap: 14 }; Object.assign(row, runtimeStyle); <div style={row} />',
+    'const row = { gap: 14 }; Object.assign(row, { gap: 12 }); <div style={row} />',
+    'const base = { gap: 14 }; base.gap = 12; const row = { ...base }; <div style={row} />',
+    'const row = [{ gap: 14 }, { gap: 12 }]; <View style={row} />',
+    'const row = [{ gap: 14 }, { ...{ gap: 12 } }]; <View style={row} />',
+    'const row = getStyle(); <div style={row!} />',
     'const row = { gap: 14 }; row.gap++; <div style={row} />',
     'const row = { gap: 14 }; delete row.gap; <div style={row} />',
     'const row = { gap: 14 }; row[propertyName] = runtimeValue; <div style={row} />',
@@ -536,6 +541,36 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
       code: 'const row = { gap: 14, padding: 20 }; row.gap = runtimeGap; <div style={row} />',
       output: null,
       errors: [{ messageId: 'offScaleStyle', data: { value: '20', prop: 'padding', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '16' } }],
+    },
+    {
+      code: 'const row = { gap: 14 }; <div style={row!} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; Object.assign(row, { color: "red" }); <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14, padding: 20 }; Object.assign(row, { gap: 12 }); <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle', data: { value: '20', prop: 'padding', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '16' } }],
+    },
+    {
+      code: 'const base = { gap: 14 }; const row = { ...base }; base.gap = 12; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = [{ gap: 14, padding: 20 }, { gap: 12 }]; <View style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle', data: { value: '20', prop: 'padding', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '16' } }],
+    },
+    {
+      code: 'const row = [{ gap: 14 }, getStyle()]; <View style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
     },
     {
       code: 'const row = { gap: 14 }; const copy = { ...row }; copy.gap = runtimeGap; <><div style={copy} /><div style={row} /></>',
