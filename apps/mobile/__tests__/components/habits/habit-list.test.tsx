@@ -512,6 +512,10 @@ describe('HabitList', () => {
     expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
     TestRenderer.act(() => { tree.update(renderList(TODAY)) })
     expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(false)
+    TestRenderer.act(() => { ref.current?.markRecentlyCompleted(habit.id) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
+    TestRenderer.act(() => { tree.update(renderList(YESTERDAY)) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
   })
 
   it('hides one-time tasks completed before the selected day when completed items are shown', () => {

@@ -179,7 +179,7 @@ describe('mobile useDrillNavigation', () => {
     expect(pastCompletion.holder.current.drillChildren.map((child) => child.id)).toEqual(['container'])
     expect(pastCompletion.holder.current.completedCount).toBe(0)
 
-    const recentCompletionDates = new Map([['container', date]])
+    const recentCompletionDates = new Map([['container', new Set([date])]])
     const justCompletedOptions = {
       ...options, recentlyCompletedIds: new Set(['container']),
       recentlyCompletedDates: recentCompletionDates,
@@ -190,6 +190,11 @@ describe('mobile useDrillNavigation', () => {
     justCompleted.rerender(byId, 1, { ...justCompletedOptions, selectedDate: '2026-07-14' })
     expect(justCompleted.holder.current.drillChildren.map((child) => child.id)).toEqual(['container'])
     expect(justCompleted.holder.current.completedCount).toBe(0)
+    recentCompletionDates.set('container', new Set([date, '2026-07-14']))
+    justCompleted.rerender(byId, 1, { ...justCompletedOptions, selectedDate: '2026-07-14' })
+    expect(justCompleted.holder.current.completedCount).toBe(1)
+    justCompleted.rerender(byId, 1, { ...justCompletedOptions, selectedDate: date })
+    expect(justCompleted.holder.current.completedCount).toBe(1)
   })
 
   it('drills into a habit, fetching and normalizing its children', async () => {

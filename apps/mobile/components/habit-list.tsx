@@ -54,7 +54,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
-import { getRecentlyCompletedIdsForDate } from '@orbit/shared/utils/drill-navigation'
+import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
@@ -393,7 +393,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
     const [recentlyCompletedDates, setRecentlyCompletedDates] = useState(
-      new Map<string, string>(),
+      new Map<string, Set<string>>(),
     )
     const recentlyCompletedIds = useMemo(
       () => getRecentlyCompletedIdsForDate(recentlyCompletedDates, selectedDateStr),
@@ -500,7 +500,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [])
 
     const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
-      setRecentlyCompletedDates((previous) => new Map(previous).set(habitId, date))
+      setRecentlyCompletedDates((previous) => addRecentCompletion(previous, habitId, date))
       const timers = recentlyCompletedTimersRef.current
       const timerKey = `${habitId}:${date}`
       const existing = timers.get(timerKey)
@@ -509,12 +509,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         timerKey,
         setTimeout(() => {
           timers.delete(timerKey)
-          setRecentlyCompletedDates((previous) => {
-            if (previous.get(habitId) !== date) return previous
-            const next = new Map(previous)
-            next.delete(habitId)
-            return next
-          })
+          setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
         }, 1400),
       )
     }, [selectedDateStr])
@@ -527,12 +522,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         clearTimeout(existing)
         timers.delete(timerKey)
       }
-      setRecentlyCompletedDates((previous) => {
-        if (previous.get(habitId) !== date) return previous
-        const next = new Map(previous)
-        next.delete(habitId)
-        return next
-      })
+      setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
     }, [selectedDateStr])
 
     const getVisibleChildren = useCallback(

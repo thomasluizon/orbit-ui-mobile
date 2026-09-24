@@ -2,13 +2,16 @@ import { describe, expect, it, vi } from 'vitest'
 import type { HabitDetail, HabitDetailChild, NormalizedHabit } from '../types/habit'
 import { createMockHabit } from './factories'
 import {
+  addRecentCompletion,
   canRevealCompletedDrillChildren,
   countCompletedDrillChildren,
+  getRecentlyCompletedIdsForDate,
   getVisibleDrillChildren,
   loadDrillChildren,
   mergeDrillChildrenMap,
   normalizeDrillDetailChild,
   normalizeHabitDetailForDrill,
+  removeRecentCompletion,
 } from '../utils/drill-navigation'
 
 function makeDetailChild(overrides: Partial<HabitDetailChild> = {}): HabitDetailChild {
@@ -178,6 +181,17 @@ describe('drill navigation utils', () => {
 })
 
 describe('getVisibleDrillChildren', () => {
+  it('keeps each date marker until its own feedback timer expires', () => {
+    const onA = addRecentCompletion(new Map(), 'child', '2025-01-01')
+    const onBoth = addRecentCompletion(onA, 'child', '2025-01-02')
+
+    expect(getRecentlyCompletedIdsForDate(onBoth, '2025-01-01').has('child')).toBe(true)
+    expect(getRecentlyCompletedIdsForDate(onBoth, '2025-01-02').has('child')).toBe(true)
+    const afterAExpires = removeRecentCompletion(onBoth, 'child', '2025-01-01')
+    expect(getRecentlyCompletedIdsForDate(afterAExpires, '2025-01-01').has('child')).toBe(false)
+    expect(getRecentlyCompletedIdsForDate(afterAExpires, '2025-01-02').has('child')).toBe(true)
+  })
+
   it.each(['today', 'general'] as const)('filters a completed general child in %s', (view) => {
     const date = '2025-01-02'
     const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
@@ -275,7 +289,7 @@ describe('getVisibleDrillChildren', () => {
     const visible = getVisibleDrillChildren('parent-1', detail.childrenByParent, options, 'today', selectedDate)
     expect(visible.map((child) => child.id)).toEqual(['container'])
     expect(countCompletedDrillChildren(visible, selectedDate)).toBe(0)
-    const recentCompletionDates = new Map([['container', selectedDate]])
+    const recentCompletionDates = new Map([['container', new Set([selectedDate])]])
     expect(countCompletedDrillChildren(visible, selectedDate, recentCompletionDates)).toBe(1)
     expect(countCompletedDrillChildren(visible, '2025-01-03', recentCompletionDates)).toBe(0)
   })

@@ -106,24 +106,49 @@ export function canRevealCompletedDrillChildren(
 export function countCompletedDrillChildren(
   children: readonly NormalizedHabit[],
   selectedDate: string,
-  recentlyCompletedDates?: ReadonlyMap<string, string>,
+  recentlyCompletedDates?: ReadonlyMap<string, ReadonlySet<string>>,
 ): number {
   return children.filter((child) =>
     isHabitLoggedOnDate(child, selectedDate) ||
     (child.isGeneral && child.isCompleted) ||
-    recentlyCompletedDates?.get(child.id) === selectedDate,
+    (recentlyCompletedDates?.get(child.id)?.has(selectedDate) ?? false),
   ).length
 }
 
 export function getRecentlyCompletedIdsForDate(
-  recentlyCompletedDates: ReadonlyMap<string, string>,
+  recentlyCompletedDates: ReadonlyMap<string, ReadonlySet<string>>,
   selectedDate: string,
 ): Set<string> {
   const ids = new Set<string>()
-  for (const [id, date] of recentlyCompletedDates) {
-    if (date === selectedDate) ids.add(id)
+  for (const [id, dates] of recentlyCompletedDates) {
+    if (dates.has(selectedDate)) ids.add(id)
   }
   return ids
+}
+
+export function addRecentCompletion(
+  previous: ReadonlyMap<string, Set<string>>,
+  habitId: string,
+  date: string,
+): Map<string, Set<string>> {
+  const next = new Map(previous)
+  next.set(habitId, new Set(previous.get(habitId)).add(date))
+  return next
+}
+
+export function removeRecentCompletion(
+  previous: Map<string, Set<string>>,
+  habitId: string,
+  date: string,
+): Map<string, Set<string>> {
+  const dates = previous.get(habitId)
+  if (!dates?.has(date)) return previous
+  const next = new Map(previous)
+  const remainingDates = new Set(dates)
+  remainingDates.delete(date)
+  if (remainingDates.size > 0) next.set(habitId, remainingDates)
+  else next.delete(habitId)
+  return next
 }
 
 export function normalizeDrillDetailChild(

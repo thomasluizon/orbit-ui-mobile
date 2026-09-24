@@ -182,7 +182,7 @@ describe('useDrillNavigation', () => {
     expect(pastCompletion.result.current.completedCount).toBe(0)
     pastCompletion.unmount()
 
-    const recentCompletionDates = new Map([['container', date]])
+    const recentCompletionDates = new Map([['container', new Set([date])]])
     const justCompleted = renderHook(({ selectedDate }) => useDrillNavigation(byId, 0, {
       ...options, selectedDate, recentlyCompletedIds: new Set(['container']),
       recentlyCompletedDates: recentCompletionDates,
@@ -192,6 +192,11 @@ describe('useDrillNavigation', () => {
     justCompleted.rerender({ selectedDate: '2025-01-16' })
     expect(justCompleted.result.current.drillChildren.map((child) => child.id)).toEqual(['container'])
     expect(justCompleted.result.current.completedCount).toBe(0)
+    recentCompletionDates.set('container', new Set([date, '2025-01-16']))
+    justCompleted.rerender({ selectedDate: '2025-01-16' })
+    expect(justCompleted.result.current.completedCount).toBe(1)
+    justCompleted.rerender({ selectedDate: date })
+    expect(justCompleted.result.current.completedCount).toBe(1)
   })
 
   it('starts with empty drill stack', () => {

@@ -394,6 +394,10 @@ describe('HabitList', () => {
     expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
     rendered.rerenderWithProviders(renderList(TODAY))
     expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(false)
+    act(() => { ref.current?.markRecentlyCompleted(habit.id) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
+    rendered.rerenderWithProviders(renderList(YESTERDAY))
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
   })
 
   it('keeps sortable descriptions stable through hydration', async () => {

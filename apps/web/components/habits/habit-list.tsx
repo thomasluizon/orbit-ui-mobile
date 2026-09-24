@@ -61,7 +61,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
-import { getRecentlyCompletedIdsForDate } from '@orbit/shared/utils/drill-navigation'
+import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import {
   DndContext,
@@ -346,7 +346,7 @@ export function HabitList({
   const todayStr = formatAPIDate(new Date())
 
   const [recentlyCompletedDates, setRecentlyCompletedDates] = useState(
-    new Map<string, string>(),
+    new Map<string, Set<string>>(),
   )
   const recentlyCompletedIds = useMemo(
     () => getRecentlyCompletedIdsForDate(recentlyCompletedDates, selectedDateStr),
@@ -380,7 +380,7 @@ export function HabitList({
   }, [recentlyCompletedTimersRef])
 
   const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
-    setRecentlyCompletedDates((prev) => new Map(prev).set(habitId, date))
+    setRecentlyCompletedDates((prev) => addRecentCompletion(prev, habitId, date))
     const timers = recentlyCompletedTimersRef.current
     const timerKey = `${habitId}:${date}`
     const existing = timers.get(timerKey)
@@ -389,12 +389,7 @@ export function HabitList({
       timerKey,
       setTimeout(() => {
         timers.delete(timerKey)
-        setRecentlyCompletedDates((prev) => {
-          if (prev.get(habitId) !== date) return prev
-          const next = new Map(prev)
-          next.delete(habitId)
-          return next
-        })
+        setRecentlyCompletedDates((prev) => removeRecentCompletion(prev, habitId, date))
       }, 1400),
     )
   }, [recentlyCompletedTimersRef, selectedDateStr])
@@ -407,12 +402,7 @@ export function HabitList({
       clearTimeout(existing)
       timers.delete(timerKey)
     }
-    setRecentlyCompletedDates((prev) => {
-      if (prev.get(habitId) !== date) return prev
-      const next = new Map(prev)
-      next.delete(habitId)
-      return next
-    })
+    setRecentlyCompletedDates((prev) => removeRecentCompletion(prev, habitId, date))
   }, [recentlyCompletedTimersRef, selectedDateStr])
 
   useEffect(() => {
