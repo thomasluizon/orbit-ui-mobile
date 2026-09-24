@@ -10,6 +10,7 @@ import {
   recoverSameAccount,
   replaceAccountWith,
 } from '@/__tests__/support/account-change'
+import { useAuthStore } from '@/stores/auth-store'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -349,6 +350,28 @@ describe('useSpeechToText', () => {
 
       await replaceAccountWith('user-2')
       act(() => {
+        recorder.ondataavailable?.({ data: new Blob(['old audio'], { type: 'audio/webm' }) })
+        recorder.onstop?.()
+      })
+
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+      expect(result.current.transcript).toBe('')
+    })
+
+    it('does not post a queued stop event before account-change effects run', async () => {
+      const fetchMock = vi.fn(async () => Response.json({ text: 'old words' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      const recorder = MockMediaRecorder.instances.at(-1)!
+      recorder.stop = vi.fn(() => { recorder.state = 'inactive' })
+      act(() => { result.current.stopRecording() })
+
+      act(() => {
+        useAuthStore.getState().setAuth({
+          userId: 'user-2', name: 'Next account', email: 'next@example.com',
+        })
         recorder.ondataavailable?.({ data: new Blob(['old audio'], { type: 'audio/webm' }) })
         recorder.onstop?.()
       })

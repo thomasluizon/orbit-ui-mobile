@@ -82,8 +82,8 @@ export function useSpeechToText() {
   }, [])
 
   const transcribe = useCallback(
-    async (blob: Blob) => {
-      const transcribingAccount = getAccountGeneration()
+    async (blob: Blob, transcribingAccount: number) => {
+      if (getAccountGeneration() !== transcribingAccount) return
       setIsTranscribing(true)
       try {
         const formData = new FormData()
@@ -186,15 +186,20 @@ export function useSpeechToText() {
       mediaRecorderRef.current = recorder
 
       recorder.ondataavailable = (event) => {
+        if (getAccountGeneration() !== recordingAccount) return
         if (event.data.size > 0) chunksRef.current.push(event.data)
       }
       recorder.onstop = () => {
+        if (getAccountGeneration() !== recordingAccount) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
         clearTimer()
         stopSilenceMonitor()
         stopStream()
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
         chunksRef.current = []
-        if (blob.size > 0) void transcribe(blob)
+        if (blob.size > 0) void transcribe(blob, recordingAccount)
       }
 
       recorder.start()
