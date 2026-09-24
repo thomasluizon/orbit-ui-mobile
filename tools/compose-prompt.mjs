@@ -31,6 +31,7 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --worktree <path> worktree the worker will run in, named in the brief
   --branch <name>   branch already checked out for the worker
   --base <ref>      base branch the pull request targets (default: main)
+  --review-batch    stop a local review fix after a tested commit
   --cloud          compose the container contract instead of local PR delivery
   --help, -h        print this usage and exit 0
 
@@ -59,6 +60,7 @@ const worktree = argOf("--worktree")
 const branch = argOf("--branch")
 const baseBranch = argOf("--base") ?? "main"
 const cloud = process.argv.includes("--cloud")
+const reviewBatch = !cloud && process.argv.includes("--review-batch")
 if (!issue || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
 
 const config = readOrchestratorConfig()
@@ -113,13 +115,17 @@ const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for y
 const locationInstruction = cloud
   ? `Use the current container checkout for repository \`${repoKey}\`. Local materialization paths belong to the orchestrator.`
   : `Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}`
-const decisionDelivery = cloud ? "commit" : "commit and push"
+const decisionDelivery = cloud || reviewBatch ? "commit" : "commit and push"
 const baseInstruction = cloud
   ? `Base branch \`${baseBranch}\`: the orchestrator owns pull request delivery outside the container.`
-  : `Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.`
+  : reviewBatch
+    ? `Base branch \`${baseBranch}\`: the existing pull request targets it. Do not create another branch.`
+    : `Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.`
 const outputInstruction = cloud
   ? `Committed implementation in the container, including \`.claude/cloud-handoff.json\` as specified by the Cloud finishing contract. The orchestrator preserves that artifact in the receipt and reads it before delivery, carrying its assumptions and manual steps into the PR for ${ticketReference}. Also report the commit and tests in your final output. Never push or open a pull request.`
-  : `One commit series on your branch, pushed, with exactly one open pull request that links
+  : reviewBatch
+    ? `One tested commit on your branch. Report the commit SHA and test results, then stop. The orchestrator replies to and resolves the review threads before it pushes once to start review. Do not push or open a pull request.`
+    : `One commit series on your branch, pushed, with exactly one open pull request that links
 ${ticketReference}. The orchestrator verifies delivery from git and GitHub artifacts with
 tools/verify-delivery.mjs; your own exit code counts for nothing. It owns CI waiting after handoff.`
 
@@ -204,13 +210,21 @@ because every reader afterwards was accurate about a tree that nobody had change
  * guess surfaced only when the pull request existed. NEEDS_DECISION is the worker's half of the
  * channel; /orchestrate step 7 reads it from the worker log and carries the question to Thomas.
  */
+const assumptionDestination = cloud
+  ? "the committed handoff's `assumptions` array"
+  : reviewBatch ? "your final report's `## Assumptions` section" : "the PR body's `## Assumptions` section"
+const testEvidenceDestination = cloud
+  ? "Record both observations in the committed handoff's `testResults` for the orchestrator to carry into the PR body's `## Test evidence` section."
+  : reviewBatch
+    ? "Put both observations in your final report's `## Test evidence` section for the orchestrator to carry into the pull request body."
+    : "Put both observations in the PR body's `## Test evidence` section."
 const brief = `## Orchestrator's brief
 
 **Objective.** Implement ${ticketReference} in the ${repoKey} repository, and nothing else. The
 ticket above is the specification.
 
 **Ambiguity has two tiers, and only one of them is yours.** A mechanical ambiguity (a file name, an
-import shape, where a test lives) you resolve yourself and record in ${cloud ? "the committed handoff's `assumptions` array" : "the PR body's `## Assumptions` section"},
+import shape, where a test lives) you resolve yourself and record in ${assumptionDestination},
 one line per assumption naming the alternative you rejected. A decision that is
 Thomas's is NEVER yours to guess: a product, brand, copy, price or design call; a tool or process
 the ticket names two contradictory ways; a dependency or capability the ticket presumes that turns
@@ -266,9 +280,7 @@ requires.
 Drive the production path: advance replay timers, enter the affected mode, assert accepted destinations as well as rejected ones, mount the owning composition, and derive fixtures from the real producer where applicable.
 
 Both observations must reach the pull request body: unchanged test with the defect present, and strengthened test failing before the fix. Name the test, exact commands, and observed outcomes, including the passing result after the fix. If either observation cannot be obtained, report why; never claim an unobserved result.
-${cloud
-  ? "Record both observations in the committed handoff's `testResults` for the orchestrator to carry into the PR body's `## Test evidence` section."
-  : "Put both observations in the PR body's `## Test evidence` section."}`
+${testEvidenceDestination}`
 
 const finishing = `## Finishing contract
 
@@ -310,9 +322,21 @@ migration or backfill), each naming the exact key, the exact console or screen, 
 took effect. The harness reads both sections mechanically at handover; prose elsewhere in the body
 does not reach it.`
 
+const reviewBatchFinishing = `## Finishing contract
+
+Before committing, if your change alters routes, endpoints, or module structure,
+run \`node tools/arch-map.mjs\`. Stage \`architecture.json\` and \`architecture.html\` only if the generator changed them;
+include the changed artifacts in the same commit as the source change.
+
+**Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
+
+Stop after the tested commit. Report the commit SHA, the focused and broader test results, and any
+assumptions or manual steps to the orchestrator. Do not push or open a pull request. The orchestrator
+replies to and resolves every identified thread on this commit, then pushes once to start review.`
+
 const finishingContract = cloud
   ? [cloudUiReviewHandoff, CLOUD_FINISHING_CONTRACT].filter(Boolean).join("\n\n")
-  : [uiReviewSweep, finishing].filter(Boolean).join("\n\n")
+  : [uiReviewSweep, reviewBatch ? reviewBatchFinishing : finishing].filter(Boolean).join("\n\n")
 
 writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${finishingContract}\n`, "utf8")
 console.log(resolve(out))

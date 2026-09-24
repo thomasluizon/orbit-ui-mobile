@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
+import { createHash } from "node:crypto"
 import { join } from "node:path"
 import { isDeepStrictEqual } from "node:util"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
@@ -219,6 +220,33 @@ export const cases = () => {
       !/gh pr checks|must be GREEN before you report|## Cloud finishing contract/.test(prompt),
     prompt,
   )
+  const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract")).trimEnd()
+  T(
+    `${TOOL}: original implementation keeps its finishing section byte for byte`,
+    createHash("sha256").update(originalFinishing).digest("hex") === "ef72748f7de6e4593619ea7c1221e25fd83b5ee770b721a48871dc1f9770b6d5",
+    originalFinishing,
+  )
+  const reviewOut = join(root, "compose-prompt", "review-batch.md")
+  check(
+    TOOL,
+    "composes a local review batch",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewOut, "--review-batch"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const reviewPrompt = composed(reviewOut)
+  T(
+    `${TOOL}: review batch ends after a tested commit and reports its SHA without delivery instructions`,
+    /Run the broader suite/.test(reviewPrompt) &&
+      /Report the commit SHA/.test(reviewPrompt) &&
+      /Stop after the tested commit/.test(reviewPrompt) &&
+      /Do not push or open a pull request/.test(reviewPrompt) &&
+      !/Then, in order: run the broader suite, push/.test(reviewPrompt) &&
+      !/open or update exactly one pull request/.test(reviewPrompt) &&
+      !/One commit series on your branch, pushed/.test(reviewPrompt) &&
+      !/The pull request must NOT be a draft/.test(reviewPrompt),
+    reviewPrompt,
+  )
   T(
     `${TOOL}: a main-based UI order carries no redesign review sweep`,
     !prompt.includes("## UI review sweep"),
@@ -288,6 +316,19 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const cloudPrompt = composed(cloudOut)
+  const reviewCloudOut = join(root, "compose-prompt", "review-cloud.md")
+  check(
+    TOOL,
+    "composes Cloud with the review batch flag",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewCloudOut, "--cloud", "--review-batch", "--base", "redesign/main", "--worktree", REPO_PATH, "--branch", "feature/local-materialization"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  T(
+    `${TOOL}: Cloud order is byte-identical with the review batch flag`,
+    composed(reviewCloudOut) === cloudPrompt,
+    composed(reviewCloudOut),
+  )
   T(
     `${TOOL}: Cloud leaves the owed redesign sweep to local post-materialization delivery`,
     /The Cloud container must not run or claim this sweep/.test(cloudPrompt) &&
@@ -323,6 +364,14 @@ export const cases = () => {
   T(
     `${TOOL}: the Cloud materialization skill mirrors the canonical review sweep contract`,
     orchestrateSkill.includes(reviewSweepContract),
+    orchestrateSkill,
+  )
+  T(
+    `${TOOL}: orchestration resolves review batch threads before its single push`,
+    /compose its order with `--review-batch`/.test(orchestrateSkill) &&
+      /worker commits, runs the\s+broader suite, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
+      /resolves every identified thread on that commit, then pushes once/.test(orchestrateSkill) &&
+      !/A worker cannot keep that order\s+under today's contract/.test(orchestrateSkill),
     orchestrateSkill,
   )
   for (const [mode, order, heading] of [
