@@ -480,6 +480,11 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     'let row = { gap: 14 }; <div style={row} />',
     'const row = getStyle(); <div style={row} />',
     'const row = { gap: tokens.gap }; <div style={row} />',
+    'const row = { gap: 14 }; row.gap = runtimeGap; <div style={row} />',
+    'const row = { gap: 14 }; const alias = row; alias.gap = runtimeGap; <div style={row} />',
+    'const row = { gap: 14 }; Object.assign(row, runtimeStyle); <div style={row} />',
+    'const row = { gap: 14 }; row.gap++; <div style={row} />',
+    'const row = { gap: 14 }; delete row.gap; <div style={row} />',
     'const row = { gap: 14 }; function Item() { const row = getStyle(); return <div style={row} /> }',
     'import { row } from "./styles"; <div style={row} />',
     'const first = second; const second = first; <div style={first} />',
@@ -511,6 +516,11 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
       code: 'const row = { gap: 14 }; const alias = row; <><div style={alias} /><span style={row} /><button style={{ ...alias }} /></>',
       output: null,
       errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; const other = { gap: 10 }; other.gap = runtimeGap; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle', data: { value: '14', prop: 'gap', scale: '0 4 8 12 16 24 32 48 64 96', nearest: '12' } }],
     },
     {
       code: "const CONTROL_STYLE = { padding: '15px 16px' } as const; <><input style={{ ...CONTROL_STYLE }} /><textarea style={{ ...CONTROL_STYLE }} /></>",

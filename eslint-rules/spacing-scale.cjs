@@ -172,6 +172,8 @@ module.exports = {
     const scaleSet = new Set(scale)
     const scannedStyleObjects = new WeakSet()
     const scannedStyleBindings = new WeakSet()
+    const mutatedStyleBindings = new WeakSet()
+    const jsxStyleExpressions = []
 
     function isOnScale(px, prop) {
       const magnitude = Math.abs(px)
@@ -262,25 +264,44 @@ module.exports = {
       }
     }
 
-    function scanStyleObject(node) {
-      if (!node) return
-      if (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression') {
-        scanStyleObject(node.expression)
-        return
+    function unwrapStyleExpression(node) {
+      while (node && (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression')) node = node.expression
+      return node
+    }
+
+    function findBinding(node) {
+      let scope = context.sourceCode.getScope(node)
+      while (scope) {
+        const variable = scope.set.get(node.name)
+        if (variable) return variable
+        scope = scope.upper
       }
+      return null
+    }
+
+    function markMutatedBinding(node, visited = new WeakSet()) {
+      node = unwrapStyleExpression(node)
+      if (node?.type !== 'Identifier') return
+      const variable = findBinding(node)
+      if (!variable || visited.has(variable)) return
+      visited.add(variable)
+      mutatedStyleBindings.add(variable)
+      const definition = variable.defs[0]
+      if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const') {
+        markMutatedBinding(definition.node.init, visited)
+      }
+    }
+
+    function scanStyleObject(node) {
+      node = unwrapStyleExpression(node)
+      if (!node) return
       if (node.type === 'Identifier') {
-        let scope = context.sourceCode.getScope(node)
-        while (scope) {
-          const variable = scope.set.get(node.name)
-          if (variable) {
-            const definition = variable.defs[0]
-            if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const' && !scannedStyleBindings.has(variable)) {
-              scannedStyleBindings.add(variable)
-              scanStyleObject(definition.node.init)
-            }
-            return
-          }
-          scope = scope.upper
+        const variable = findBinding(node)
+        if (!variable || mutatedStyleBindings.has(variable)) return
+        const definition = variable.defs[0]
+        if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const' && !scannedStyleBindings.has(variable)) {
+          scannedStyleBindings.add(variable)
+          scanStyleObject(definition.node.init)
         }
         return
       }
@@ -387,7 +408,7 @@ module.exports = {
       JSXAttribute(node) {
         const name = node.name.type === 'JSXIdentifier' ? node.name.name : null
         if (name === 'style' && node.value?.type === 'JSXExpressionContainer') {
-          scanStyleObject(node.value.expression)
+          jsxStyleExpressions.push(node.value.expression)
           return
         }
         if (name !== 'className' && name !== 'class') return
@@ -395,6 +416,9 @@ module.exports = {
         else if (node.value?.type === 'JSXExpressionContainer') scanClassExpression(node.value.expression)
       },
       CallExpression(node) {
+        if (node.callee.type === 'MemberExpression' && !node.callee.computed && node.callee.object.type === 'Identifier' && node.callee.object.name === 'Object' && node.callee.property.type === 'Identifier' && node.callee.property.name === 'assign') {
+          markMutatedBinding(node.arguments[0])
+        }
         if (!isStyleSheetCreate(node)) return
         const argument = node.arguments[0]
         if (argument?.type !== 'ObjectExpression') return
@@ -402,6 +426,18 @@ module.exports = {
           if (property.type !== 'Property') continue
           scanStyleObject(property.value)
         }
+      },
+      AssignmentExpression(node) {
+        if (node.left.type === 'MemberExpression') markMutatedBinding(node.left.object)
+      },
+      UpdateExpression(node) {
+        if (node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object)
+      },
+      UnaryExpression(node) {
+        if (node.operator === 'delete' && node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object)
+      },
+      'Program:exit'() {
+        for (const expression of jsxStyleExpressions) scanStyleObject(expression)
       },
     }
   },
