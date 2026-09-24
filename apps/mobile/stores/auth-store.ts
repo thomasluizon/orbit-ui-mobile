@@ -545,9 +545,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (!teardown) return false
-    if (!isCurrentSessionTeardown(teardown.epoch)) return true
+    if (!isCurrentSessionTeardown(teardown.epoch)) return false
     await clearStoredAuthReturnUrl()
-    if (!isCurrentSessionTeardown(teardown.epoch)) return true
+    if (!isCurrentSessionTeardown(teardown.epoch)) return false
     return true
   },
 

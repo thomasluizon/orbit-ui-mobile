@@ -65,6 +65,26 @@ describe('auth store', () => {
     })
   })
 
+  it('keeps a replacement login when an older logout response arrives', async () => {
+    let releaseLogout!: () => void
+    const logoutResponse = new Promise<{ ok: boolean }>((resolve) => {
+      releaseLogout = () => resolve({ ok: true })
+    })
+    mockFetch.mockReturnValue(logoutResponse)
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'user-2', email: 'new@example.com' }))
+    releaseLogout()
+    await oldLogout
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: { userId: 'user-2', email: 'new@example.com' },
+    })
+  })
+
   it('marks the session as signed out after confirming a refresh rejection', async () => {
     mockFetch.mockResolvedValue({
       ok: false,

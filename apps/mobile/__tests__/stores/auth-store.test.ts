@@ -1,4 +1,7 @@
+import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { API } from '@orbit/shared/api'
+import { useLogout } from '@/hooks/use-logout'
 
 import {
   clearSessionAndResetAuth,
@@ -10,6 +13,8 @@ import {
   whenProfileHydrated,
 } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+
+const TestRenderer = require('react-test-renderer')
 
 const {
   replaceMock,
@@ -65,6 +70,7 @@ vi.mock('expo-router', () => ({
   router: {
     replace: replaceMock,
   },
+  useRouter: () => ({ replace: replaceMock }),
 }))
 
 vi.mock('@/lib/secure-store', () => ({
@@ -146,6 +152,18 @@ function makeJwtWithClaims(expirySeconds: number, userId = 'jwt-user', email = '
     'utf8',
   ).toString('base64')
   return `${header}.${payload}.`
+}
+
+function renderHookValue<T>(hook: () => T): T {
+  let value!: T
+  function Probe() {
+    value = hook()
+    return null
+  }
+  TestRenderer.act(() => {
+    TestRenderer.create(React.createElement(Probe))
+  })
+  return value
 }
 
 describe('mobile auth store security paths', () => {
@@ -908,6 +926,64 @@ describe('mobile auth store security paths', () => {
     expect(offlineQueueClearMock).toHaveBeenCalledTimes(1)
     expect(clearOfflineStateMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  })
+
+  it('does not navigate an old logout after a replacement login during revocation', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    let releaseRevocation!: () => void
+    const revocation = new Promise<void>((resolve) => {
+      releaseRevocation = resolve
+    })
+    getRefreshTokenMock.mockResolvedValue('old-refresh-token')
+    await useAuthStore.getState().login('old-access-token', 'old-refresh-token', oldUser)
+    apiClientMock.mockImplementation((endpoint: string) =>
+      endpoint === API.auth.logout ? revocation : Promise.resolve(undefined))
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    const oldLogout = logoutAndRedirect()
+    await vi.waitFor(() => expect(apiClientMock).toHaveBeenCalledWith(
+      API.auth.logout,
+      expect.objectContaining({ method: 'POST' }),
+    ))
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+
+    await useAuthStore.getState().login('new-access-token', 'new-refresh-token', newUser)
+    releaseRevocation()
+    await oldLogout
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: newUser,
+    })
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('does not navigate an old logout after a replacement login during return URL cleanup', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    let releaseReturnUrlCleanup!: () => void
+    const returnUrlCleanup = new Promise<void>((resolve) => {
+      releaseReturnUrlCleanup = resolve
+    })
+    getRefreshTokenMock.mockResolvedValue(null)
+    await useAuthStore.getState().login('old-access-token', null, oldUser)
+    clearStoredAuthReturnUrlMock.mockReturnValue(returnUrlCleanup)
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    const oldLogout = logoutAndRedirect()
+    await vi.waitFor(() => expect(clearStoredAuthReturnUrlMock).toHaveBeenCalledTimes(1))
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+
+    await useAuthStore.getState().login('new-access-token', 'new-refresh-token', newUser)
+    releaseReturnUrlCleanup()
+    await oldLogout
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: newUser,
+    })
+    expect(replaceMock).not.toHaveBeenCalled()
   })
 
   it('dismisses the persistent reminder on logout so a signed-out tray shows no streak data', async () => {

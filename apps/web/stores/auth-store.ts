@@ -5,6 +5,7 @@ import { useOnboardingDraftStore } from './onboarding-draft-store'
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+let sessionOwnershipEpoch = 0
 
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
   const next = sessionRevalidationQueue.then(task, task)
@@ -64,6 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
+    sessionOwnershipEpoch += 1
     sessionRecoveryUser = null
     set({
       isAuthenticated: true,
@@ -176,10 +178,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    const logoutEpoch = sessionOwnershipEpoch
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {
     }
+
+    if (logoutEpoch !== sessionOwnershipEpoch) return
 
     sessionRecoveryUser = null
     set({
