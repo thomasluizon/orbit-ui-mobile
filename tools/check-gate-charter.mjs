@@ -98,7 +98,10 @@ function conditionalRanges(script) {
 function derivedVariables(script) {
   const variables = new Set()
   for (const match of script.matchAll(/\b([a-zA-Z_][a-zA-Z0-9_]*)=\$\(([\s\S]*?)\)/g)) {
-    if (/\bgit\s+diff\s+--name-only\b/.test(match[2])) variables.add(match[1])
+    if (/\bgit\s+diff\s+--name-only\b/.test(match[2]) ||
+        /\b(?:cat|grep\s+-zE)\b[\s\S]*?\$RUNNER_TEMP\/changed-paths\.(?:txt|nul)|\$RUNNER_TEMP\/changed-paths-present\.nul/.test(match[2])) {
+      variables.add(match[1])
+    }
   }
   let changed = true
   while (changed) {
@@ -115,6 +118,8 @@ function derivedVariables(script) {
 
 function commandUsesRedirectedChangedFiles(script, command) {
   const before = script.slice(0, command.index)
+  const preparedCopy = /\bcp\s+"\$RUNNER_TEMP\/changed-paths\.(?:txt|nul)"\s+"([^"]+)"/.exec(before)
+  if (preparedCopy && command.line.includes(`--changed-files-file "${preparedCopy[1]}"`)) return true
   for (const match of before.matchAll(/\bgit\s+diff\s+--name-only\b[^\n]*(?:\\\r?\n[^\n]*)*?>\s*(?:"([^"]+)"|'([^']+)'|([^\s;]+))/g)) {
     const target = match[1] ?? match[2] ?? match[3]
     if (new RegExp(`--changed-files-file\\s+["']?${target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(command.line)) return true
@@ -123,6 +128,8 @@ function commandUsesRedirectedChangedFiles(script, command) {
 }
 
 function commandUsesChangedFilePipeline(script, command) {
+  if (/\bxargs\s+-0\s+--no-run-if-empty\s+node\b/.test(command.line) &&
+      script.includes('< "$RUNNER_TEMP/changed-paths-present.nul"')) return true
   const before = script.slice(0, command.index)
   const diff = before.lastIndexOf("git diff --name-only")
   if (diff < 0) return false
@@ -131,6 +138,7 @@ function commandUsesChangedFilePipeline(script, command) {
 }
 
 function conditionUsesChangedFiles(condition) {
+  if (/\bgrep\s+-Eq\s+['"][^\n]+['"]\s+"\$RUNNER_TEMP\/changed-paths\.txt"/.test(condition)) return true
   const diff = condition.indexOf("git diff --name-only")
   if (diff < 0) return false
   const beforeDiff = condition.slice(0, diff)
@@ -168,7 +176,15 @@ function blockingRunUsesChangedFiles(script) {
 
 function guardJobUsesChangedFiles(job) {
   const blockingRuns = runSteps(job).filter((step) => step["continue-on-error"] !== true)
-  return blockingRuns.length > 0 && blockingRuns.every((step) => blockingRunUsesChangedFiles(step.run))
+  const preparation = blockingRuns.findIndex((step) =>
+    step.name === "Resolve pull request changed paths" &&
+    step.if === "github.event_name == 'pull_request'" &&
+    step.run === 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"' &&
+    step.env?.BASE_REF === "${{ github.base_ref }}")
+  if (preparation < 0 && blockingRuns.some((step) => step.run.includes("$RUNNER_TEMP/changed-paths"))) return false
+  if (preparation >= 0 && blockingRuns.slice(0, preparation).some((step) => !isPrerequisiteRun(step.run))) return false
+  return blockingRuns.length > 0 && blockingRuns.every((step, index) =>
+    index === preparation || blockingRunUsesChangedFiles(step.run))
 }
 
 function guardJobIsAdvisory(job) {
@@ -176,15 +192,27 @@ function guardJobIsAdvisory(job) {
   return runs.length > 0 && runs.every((step) => isPrerequisiteRun(step.run) || step["continue-on-error"] === true)
 }
 
+function preparesChangedPaths(job) {
+  const runs = runSteps(job)
+  const preparation = runs.findIndex((step) =>
+    step.name === "Resolve pull request changed paths" &&
+    step.if === "github.event_name == 'pull_request'" &&
+    step["continue-on-error"] !== true &&
+    step.env?.BASE_REF === "${{ github.base_ref }}" &&
+    step.run === 'bash .github/scripts/changed-paths.sh "$BASE_REF" "$RUNNER_TEMP"')
+  return preparation >= 0 && runs.slice(0, preparation).every((step) => isPrerequisiteRun(step.run))
+}
+
 function lintCallerUsesChangedFiles(repositoryRoot) {
   const lintJob = workflowJobs(repositoryRoot, ".github/workflows/test.yml").lint
+  if (!preparesChangedPaths(lintJob)) return false
   const lintRuns = runSteps(lintJob)
     .filter((step) => /\beslint\b|\b(?:npm|npx|turbo)\b[^\n]*\blint\b/.test(step.run))
   if (lintRuns.length !== 1) return false
   const script = lintRuns[0].run
   if (/\b(?:npm|npx|turbo)\b[^\n]*\b(?:run\s+)?lint\b/.test(script)) return false
-  if (!/\bgit\s+diff\s+--name-only\b[\s\S]*?origin\/\$\{\{\s*github\.base_ref\s*\}\}\.\.\.HEAD/.test(script)) return false
-  const loop = /\bwhile\b[\s\S]*?;\s*do([\s\S]*?)\bdone\s*<\s*<\((\s*git\s+diff\s+--name-only\b[\s\S]*?)\)/.exec(script)
+  if (/\bgit\s+diff\s+--name-only\b/.test(script)) return false
+  const loop = /\bwhile\b[\s\S]*?;\s*do([\s\S]*?)\bdone\s*<\s*"\$RUNNER_TEMP\/changed-paths-present\.nul"/.exec(script)
   if (!loop) return false
   return ["web", "mobile", "shared"].every((workspace) => {
     const sourcePath = workspace === "shared" ? "packages/shared/" : `apps/${workspace}/`
@@ -193,6 +221,18 @@ function lintCallerUsesChangedFiles(repositoryRoot) {
     return initializationCount === 1 && append.test(loop[1]) &&
       new RegExp(`eslint\\s+--\\s+"\\$\\{${workspace}\\[@\\]\\}"`).test(script)
   })
+}
+
+function designGuardUsesChangedFiles(repositoryRoot) {
+  const designJob = workflowJobs(repositoryRoot, ".github/workflows/test.yml")["design-guard"]
+  if (!preparesChangedPaths(designJob)) return false
+  const runs = runSteps(designJob)
+  const tokenStep = runs.find((step) => step.name === "Ban raw --slate-*, transition-all, h-screen in app code")
+  const gradientStep = runs.find((step) => step.name === "Ban decorative gradients in app code")
+  if (!tokenStep || !gradientStep || tokenStep["continue-on-error"] === true || gradientStep["continue-on-error"] === true) return false
+  if ([tokenStep.run, gradientStep.run].some((script) => /\bgit\s+diff\s+--name-only\b/.test(script))) return false
+  return /\bgrep\s+-zE\b[^\n]*"\$RUNNER_TEMP\/changed-paths-present\.nul"/.test(tokenStep.run) &&
+    /\bgrep\s+-Eq\b[^\n]*"\$RUNNER_TEMP\/changed-paths\.txt"/.test(gradientStep.run)
 }
 
 function gateCharterRunsForPath(guardJobs, path) {
@@ -314,8 +354,12 @@ function run(repositoryRoot) {
     }
   }
   const changedFileRules = declared.filter((id) => id.startsWith("eslint-rules/") && charter[id]?.scope === "changed-files")
-  if (changedFileRules.length > 0 && !lintCallerUsesChangedFiles(repositoryRoot)) {
+  if (!lintCallerUsesChangedFiles(repositoryRoot)) {
+    problems.push(".github/workflows/test.yml#lint: Lint must prepare changed paths before consuming them")
     changedFileRules.forEach((id) => problems.push(`${id}: pull request lint must pass only changed workspace files to ESLint`))
+  }
+  if (!designGuardUsesChangedFiles(repositoryRoot)) {
+    problems.push(".github/workflows/test.yml#design-guard: Design Token Guard must prepare changed paths before consuming them")
   }
   if (!gateCharterRunsForPath(guardJobs, ".github/workflows/test.yml")) {
     problems.push(".github/workflows/guards.yml#gate-charter: Gate Charter must run when .github/workflows/test.yml changes")

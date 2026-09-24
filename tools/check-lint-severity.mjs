@@ -9,8 +9,8 @@ const USAGE = `usage: check-lint-severity.mjs [--root <path>]
 
   A local/* rule ships at error with zero violations, or it does not ship. Fails when an
   eslint config sets a local/* rule to warn, sets one to off outside a declared scoped
-  exception, changes a declared ignore or local-rule file scope, or finds a lint-suppression
-  baseline: an eslint-suppressions.json anywhere in the tree, or any file a
+  exception, changes a declared ignore or local-rule file scope, loses an inventoried config,
+  or finds a lint-suppression baseline: an eslint-suppressions.json anywhere in the tree, or any file a
   --suppressions-location flag names.
 
   --root <path>  repository root (defaults to the parent of this tool's directory)
@@ -79,7 +79,6 @@ try {
 
 const configPattern = /^eslint\.config\.(?:cjs|cts|js|mjs|mts|ts)$/
 const configPaths = repositoryFiles.filter((path) => configPattern.test(basename(path))).sort()
-if (configPaths.length === 0) fail(2, `check-lint-severity: ${repositoryRoot} holds no eslint.config file, so this gate would prove nothing`)
 
 const scopedOffAllowlist = [
   {
@@ -287,6 +286,13 @@ for (const configPath of configPaths) {
       }
     }
   })
+}
+
+const discoveredConfigs = new Set(configPaths.map(normalizedRelativePath))
+for (const entry of scopeInventory) {
+  if (!discoveredConfigs.has(entry.config)) {
+    scopeProblems.push(`${entry.config}: inventoried config is missing, so its declared local rule scopes are no longer enforced`)
+  }
 }
 
 const suppressionFiles = new Set(
