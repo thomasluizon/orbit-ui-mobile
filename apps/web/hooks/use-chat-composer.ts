@@ -178,7 +178,10 @@ export function useChatComposer() {
    * attempted send would otherwise stay armed behind Retry and post its text under the next
    * account's cookie. The store reset cannot reach React state, so it follows the session itself.
    */
-  useResetOnAccountChange(() => setLastFailedSend(null))
+  useResetOnAccountChange(() => {
+    setLastFailedSend(null)
+    useUIStore.getState().setAstraConversationOpen(false)
+  })
 
   const isOnline = useSyncExternalStore(
     subscribeToNetworkStatus,

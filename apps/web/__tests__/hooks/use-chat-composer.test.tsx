@@ -996,6 +996,7 @@ describe('web useChatComposer streaming send', () => {
     signInAs('user-1')
     mocks.fetch.mockRejectedValue(new Error('network unavailable'))
     const { result } = renderHook(() => useChatComposer())
+    useUIStore.getState().setAstraConversationOpen(true, 'support')
 
     await act(async () => {
       await result.current.sendMessage('cancel my 9pm meds reminder')
@@ -1010,6 +1011,7 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.canRetryLastSend).toBe(false)
     expect(result.current.composerProps.onRetry).toBeUndefined()
+    expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined()
   })
 
   it('keeps the retry armed when the same account recovers from a rejected refresh', async () => {

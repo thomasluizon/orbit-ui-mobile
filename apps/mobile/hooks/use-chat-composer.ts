@@ -176,6 +176,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     setSelectedImage(null);
     setImagePreview(null);
     setSelectedTextFile(null);
+    useUIStore.getState().setAstraConversationOpen(false);
   });
 
   const hasProAccess = profile?.hasProAccess ?? false;
@@ -521,13 +522,13 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       formData.append("history", JSON.stringify(recentHistory));
       const entryPointIntent = useUIStore.getState().astraEntryPointIntent;
       const clientContext = {
-          platform: "mobile",
-          locale: i18n.language,
-          timeFormat: detectDefaultTimeFormat(i18n.language),
-          currentAppArea: "chat",
-          supportsHabitListCard: true,
-          supportsGoalListCard: true,
-          ...(entryPointIntent ? { entryPointIntent } : {}),
+        platform: "mobile",
+        locale: i18n.language,
+        timeFormat: detectDefaultTimeFormat(i18n.language),
+        currentAppArea: "chat",
+        supportsHabitListCard: true,
+        supportsGoalListCard: true,
+        ...(entryPointIntent ? { entryPointIntent } : {}),
       } satisfies ChatClientContext;
       formData.append("clientContext", JSON.stringify(clientContext));
       return formData;

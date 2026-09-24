@@ -1269,6 +1269,7 @@ describe('mobile useChatComposer', () => {
       ],
     })
     const composer = await renderComposer()
+    useUIStore.getState().setAstraConversationOpen(true, 'support')
 
     await TestRenderer.act(async () => {
       await composer.current.sendMessage('cancel my 9pm meds reminder')
@@ -1285,6 +1286,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.canRetryLastSend).toBe(false)
     expect(composer.current.selectedImage).toBeNull()
     expect(composer.current.imagePreview).toBeNull()
+    expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined()
   })
 
   it('keeps the retry and the attachment when only the session epoch moves', async () => {
