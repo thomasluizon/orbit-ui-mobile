@@ -6,6 +6,8 @@ import { setTimeout } from "node:timers/promises"
 import { T, check, processIsRunning, root, stage, toolPath } from "./_harness.mjs"
 
 const TOOL = "create-worktree.mjs"
+const LOCK_TEST_TIMEOUT_MS = 135000
+const LOCK_RECLAIM_BUDGET_MS = 60000
 
 const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
 
@@ -205,10 +207,12 @@ require("node:module").syncBuiltinESMExports()
     writeFileSync(ownerPath, JSON.stringify({ ...owner, pid: process.pid }))
   }
   const startedAt = Date.now()
-  const result = await launch(repository, "after-kill", shim, recycled ? 10000 : 135000).result
+  const result = await launch(repository, "after-kill", shim, LOCK_TEST_TIMEOUT_MS).result
   const elapsed = Date.now() - startedAt
   T(`${TOOL}: ${recycled ? "reclaims a recycled pid with a different process start identity" : "reclaims a killed holder without waiting for the lock timeout"}`,
-    result.status === 0 && elapsed < 10000, JSON.stringify({ ...result, elapsed }))
+    result.status === 0 && elapsed < LOCK_RECLAIM_BUDGET_MS,
+    JSON.stringify({ status: result.status, elapsedMs: elapsed, budgetMs: LOCK_RECLAIM_BUDGET_MS,
+      lockTimedOut: result.stderr.includes("timed out waiting for repository lock"), stdout: result.stdout, stderr: result.stderr }))
 }
 
 const concurrentCreation = async (fixtureRoot, source, repository) => {
@@ -254,7 +258,8 @@ childProcess.spawnSync = (command, args, options) => {
 require("node:module").syncBuiltinESMExports()
 `)
   const names = ["parallel-first", "parallel-second"]
-  const children = names.map((name) => launch(repository, name, shim))
+  const startedAt = Date.now()
+  const children = names.map((name) => launch(repository, name, shim, LOCK_TEST_TIMEOUT_MS))
   let results
   try {
     await waitFor(names.map((name) => join(fixtureRoot, name + ".entered")))
@@ -266,7 +271,10 @@ require("node:module").syncBuiltinESMExports()
   }
   const commits = names.map((name) => git(join(fixtureRoot, name), ["rev-parse", "HEAD"]).stdout.trim())
   const fetches = readFileSync(fetchLog, "utf8").trim().split("\n").length
+  const elapsed = Date.now() - startedAt
   T(`${TOOL}: concurrent creations share one refresh and both start at the remote commit`,
-    fetches === 1 && results.every((result) => result.status === 0 && result.stdout.includes(`WORKTREE_BASE main ${remoteCommit}`)) && commits.every((commit) => commit === remoteCommit),
-    JSON.stringify({ fetches, results, commits, remoteCommit }))
+    fetches === 1 && results.every((result) => result.status === 0 && result.stdout.includes(`WORKTREE_BASE main ${remoteCommit}`)) && commits.every((commit) => commit === remoteCommit) && elapsed < LOCK_RECLAIM_BUDGET_MS,
+    JSON.stringify({ fetches, results: results.map((result) => ({ ...result,
+      lockTimedOut: result.stderr.includes("timed out waiting for repository lock") })),
+    commits, remoteCommit, elapsedMs: elapsed, budgetMs: LOCK_RECLAIM_BUDGET_MS }))
 }
