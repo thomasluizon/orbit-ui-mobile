@@ -8,6 +8,11 @@ import {
 import { API } from '@orbit/shared/api'
 import StepUpScreen from '@/app/step-up'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 const TestRenderer = require('react-test-renderer')
 
 type TestNode = {

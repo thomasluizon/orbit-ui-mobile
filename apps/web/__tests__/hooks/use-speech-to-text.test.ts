@@ -12,6 +12,11 @@ import {
 } from '@/__tests__/support/account-change'
 import { useAuthStore } from '@/stores/auth-store'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))

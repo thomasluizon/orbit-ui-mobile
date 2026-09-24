@@ -11,6 +11,11 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 function getMockAccountDateKey(): string {

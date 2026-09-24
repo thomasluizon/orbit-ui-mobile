@@ -5,6 +5,11 @@ import { readStepUpTiming } from '@/lib/step-up-storage'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import type { Profile } from '@orbit/shared/types/profile'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 const management = vi.hoisted(() => ({ handleCreateKey: vi.fn(), push: vi.fn() }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: management.push }) }))

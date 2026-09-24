@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -7,6 +7,11 @@ import { useAuthStore } from '@/stores/auth-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 import { gamificationKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const repairStreakGapAction = vi.fn()
 

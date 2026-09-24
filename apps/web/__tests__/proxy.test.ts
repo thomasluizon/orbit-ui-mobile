@@ -9,6 +9,11 @@ import {
 } from '@/lib/auth-api'
 import nextConfig from '../next.config'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 vi.mock('@/lib/auth-api', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/auth-api')>(),
   clearSessionCookies: vi.fn(),

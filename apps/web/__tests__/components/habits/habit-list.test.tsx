@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
 import React from 'react'
 import { renderToString } from 'react-dom/server'
@@ -7,6 +7,11 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
@@ -757,7 +762,7 @@ describe('HabitList', () => {
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
     mockHabitsData.habitsById.set('h-1', habit)
     mockHabitsData.topLevelHabits = [habit]
-    const selectedDate = new Date('2026-04-08T00:00:00')
+    const selectedDate = new Date('2026-04-08T09:00:00Z')
 
     renderWithProviders(
       <HabitList filters={defaultFilters} selectedDate={selectedDate} />,
@@ -797,7 +802,7 @@ describe('HabitList', () => {
     renderWithProviders(
       <HabitList
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1277,7 +1282,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1344,7 +1349,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1420,7 +1425,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1502,7 +1507,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1585,7 +1590,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1647,7 +1652,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
       />
     )
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
@@ -1707,7 +1712,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
       />
     )
     const renderResult = renderWithProviders(renderList(YESTERDAY))
@@ -1783,7 +1788,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+        selectedDate={new Date(`${TODAY}T09:00:00Z`)}
       />,
     )
 
@@ -1847,7 +1852,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
       />
     )
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
@@ -2085,7 +2090,7 @@ describe('HabitList', () => {
     renderWithProviders(
       <HabitList
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -2139,7 +2144,7 @@ describe('HabitList', () => {
     renderWithProviders(
       <HabitList
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -2458,7 +2463,7 @@ describe('HabitList', () => {
     const renderList = (date: string) => (
       <HabitList
         filters={defaultFilters}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
       />
     )
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
@@ -2622,7 +2627,7 @@ describe('HabitList', () => {
     mockHabitsData.topLevelHabits = [habit]
 
     renderWithProviders(
-      <HabitList filters={defaultFilters} selectedDate={new Date(`${TODAY}T12:00:00Z`)} />,
+      <HabitList filters={defaultFilters} selectedDate={new Date(`${TODAY}T09:00:00Z`)} />,
     )
 
     await act(async () => {
@@ -2723,7 +2728,7 @@ describe('HabitList', () => {
       <HabitList
         view="today"
         filters={{ dateFrom: TOMORROW, dateTo: TOMORROW }}
-        selectedDate={new Date(`${TOMORROW}T00:00:00`)}
+        selectedDate={new Date(`${TOMORROW}T09:00:00Z`)}
       />,
     )
 

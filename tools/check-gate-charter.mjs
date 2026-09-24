@@ -269,6 +269,15 @@ function validateEntry(id, entry) {
   return problems
 }
 
+function stringValues(value) {
+  if (typeof value === "string") return [value]
+  if (Array.isArray(value)) return value.flatMap(stringValues)
+  if (value !== null && typeof value === "object") return Object.values(value).flatMap(stringValues)
+  return []
+}
+
+const FROZEN_PULL_REQUEST_FIELD = /\bgithub\s*(?:\.\s*event|\[\s*['"]event['"]\s*\])\s*(?:\.\s*pull_request|\[\s*['"]pull_request['"]\s*\])\s*(?:\.\s*(body|title)\b|\[\s*['"](body|title)['"]\s*\])/g
+
 function run(repositoryRoot) {
   const charterPath = resolve(repositoryRoot, "tools/gate-charter.json")
   const charter = JSON.parse(readFileSync(charterPath, "utf8"))
@@ -295,6 +304,13 @@ function run(repositoryRoot) {
           !guardJobIsAdvisory(guardJobs[guardJob])) {
         problems.push(`${id}: whole-tree-advisory job must make its reporting step continue-on-error`)
       }
+    }
+  }
+  for (const [jobId, job] of Object.entries(guardJobs)) {
+    const fields = new Set(stringValues(job).flatMap((value) =>
+      [...value.matchAll(FROZEN_PULL_REQUEST_FIELD)].map((match) => match[1] ?? match[2])))
+    for (const field of fields) {
+      problems.push(`.github/workflows/guards.yml#${jobId}: frozen pull request ${field} must be read from the API at run time`)
     }
   }
   const changedFileRules = declared.filter((id) => id.startsWith("eslint-rules/") && charter[id]?.scope === "changed-files")
