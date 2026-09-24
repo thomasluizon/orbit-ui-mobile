@@ -330,9 +330,12 @@ include the changed artifacts in the same commit as the source change.
 
 **Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
 
-Stop after the tested commit. Report the commit SHA, the focused and broader test results, and any
-assumptions or manual steps to the orchestrator. Do not push or open a pull request. The orchestrator
-replies to and resolves every identified thread on this commit, then pushes once to start review.`
+Stop after the tested commit. Do not push or open a pull request. Report the commit SHA, then end
+your final report with these literal sections, each one present even when it is empty:
+\`## Test evidence\`, \`## Assumptions\` and \`## Manual steps\`, in the shapes the pull request body
+uses, plus \`## Review harness\` whenever this order carries the UI review sweep. The orchestrator
+copies those sections into the pull request body, replies to and resolves every identified thread on
+this commit, then pushes once to start review.`
 
 const finishingContract = cloud
   ? [cloudUiReviewHandoff, CLOUD_FINISHING_CONTRACT].filter(Boolean).join("\n\n")

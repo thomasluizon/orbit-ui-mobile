@@ -248,6 +248,13 @@ export const cases = () => {
     reviewPrompt,
   )
   T(
+    `${TOOL}: review batch report ends with the literal sections the orchestrator copies into the body`,
+    /these literal sections, each one present even when it is empty/.test(reviewPrompt) &&
+      /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(reviewPrompt) &&
+      /`## Review harness` whenever this order carries the UI review sweep/.test(reviewPrompt),
+    reviewPrompt,
+  )
+  T(
     `${TOOL}: a main-based UI order carries no redesign review sweep`,
     !prompt.includes("## UI review sweep"),
     prompt,
@@ -378,7 +385,8 @@ export const cases = () => {
     `${TOOL}: orchestration writes a review batch's report into the pull request body before resolving`,
     /Its final report is the batch's\s+handoff/.test(orchestrateSkill) &&
       /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(orchestrateSkill) &&
-      /into the existing pull request body with `gh pr edit --body-file`\. Only then/.test(orchestrateSkill),
+      /into the existing pull request body with `gh pr edit --body-file`\. Only then/.test(orchestrateSkill) &&
+      /its `## Review harness` block\s+whenever the order carried the UI review sweep/.test(orchestrateSkill),
     orchestrateSkill,
   )
   const sleepSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")
