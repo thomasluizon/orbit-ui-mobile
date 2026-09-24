@@ -336,6 +336,10 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const ticketRepository = hermeticConfig.tickets.repository
   for (const [name, reference, title, body, linked] of [
     ["canonical closing reference alone links the ticket", "#393", "Fix delivery linking", "Closes thomasluizon/orbit-tickets#393", true],
+    ["a full issue URL alone links the ticket", "#393", "Fix delivery linking", `Ticket: https://github.com/${ticketRepository}/issues/393`, true],
+    ["a full issue URL with a longer number does not link", "#393", "Fix delivery linking", `https://github.com/${ticketRepository}/issues/3931`, false],
+    ["a full issue URL for another repository does not link", "#393", "Fix delivery linking", "https://github.com/thomasluizon/orbit-ui-mobile/issues/393", false],
+    ["a full issue URL for another owner does not link", "#393", "Fix delivery linking", "https://github.com/other-owner/orbit-tickets/issues/393", false],
     ["a qualified numeric suffix does not link the ticket", "#393", "Fix delivery linking", "thomasluizon/orbit-tickets#3931", false],
     ["a qualified alphabetic suffix does not link the ticket", "#393", "Fix delivery linking", `${ticketRepository}#393a`, false],
     ["a bare reference remains accepted for compatibility", "#393", "Fix delivery linking", "Implements #393.", true],
