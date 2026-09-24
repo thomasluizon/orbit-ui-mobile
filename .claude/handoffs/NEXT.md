@@ -1,119 +1,59 @@
 # NEXT
 
-## Before you start
+**Read `.claude/specs/orbit-prod-release.md` first**, and its last section, "What 2026-09-24 added",
+before anything else.
 
-This is a fresh clone on a new machine. Two things first:
+## Entry point
 
-1. `git checkout redesign/main && git pull`. A fresh clone lands on `main`, and every UI change
-   belongs on `redesign/main`.
-2. `npm install` at the repository root. No `node_modules` exists yet, and each new worktree needs
-   its own install.
+`/sleep`. It runs `/orchestrate` itself. Codex (`gpt-6-sol`) writes every code change through
+`node tools/launch-worker.mjs`, never a Claude subagent.
 
----
+## The goal: finish the spec
 
-**Read `.claude/specs/orbit-prod-release.md` first.** It is the living spec for this effort and it
-was rebuilt on 2026-09-19: the batch order now covers all 103 open tickets, every one placed in
-exactly one batch, and it ends with a section on what the night of 2026-09-18 into 09-19 taught.
+The goal is an empty board and a production release, exactly as the spec defines it. Re-derive what
+is left rather than trusting this file:
 
-This session started cold. Nothing is running, no worker exists, and the machine was powered off
-between then and now.
+    gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
 
-## The task
+That query returned 247 on 2026-09-24. A blocker is the next piece of work. Only an exhausted
+allowance, the machine stopping, or Thomas saying stop ends the run.
 
-Finish `.claude/specs/orbit-prod-release.md`: an empty board and a production release. **Re-derive
-what is left rather than trusting any list here**, because a ticket that reads blocked or fixed is a
-lead and not a fact.
+## What to do, in order
 
-## The operating contract
+1. **Merge `ui#1035`** (the Mac harness port, into `redesign/main`) as soon as Pullfrog approves head
+   `4e2ccb47`. A re-review was requested after the PR-body evidence fix. If it finds more, fix and
+   repeat. Nothing else can launch a worker on this Mac until it merges.
+2. **`#633` is the top priority, ahead of every batch.** It covers the dead three-dot menu (root cause
+   proven, GPT-6 Sol agreed) and the drill ignoring Show completed. Run it as one PR against `main`,
+   merge it to `main`, then run `/android-release`. Thomas asked for exactly this.
+3. Backport the `#633` fixes to `redesign/main` as a separate PR. The redesign deleted
+   `anchored-menu.tsx` and `drill-view.tsx`; `habit-drill.tsx` needs the drill fix, and the redesign's
+   menu needs checking for the same state-rollback class.
+4. Then continue the spec's batch order: `#627` first in batch 0b, `ui#1029` round 4, the
+   `ui#1030` re-review, the `ui#1033` first review, the rest of 0b, then 0c, then batch 1.
 
-Enter through `/orchestrate`. **Codex is out until 2026-09-22**, so the worker is Claude headless
-through `node tools/launch-worker.mjs`, which is the only path, and whose LAUNCHER pid is the wake
-source rather than the worker's. **Never use a Claude subagent as a worker.** A subagent IS the right
-tool for a review, pointed at the worktree carrying the exact head.
+## In flight, each with a disposition
 
-**One worker at a time on this machine.** Two plus review subagents exhausted it on 2026-09-19 and
-the low-memory guard reaped both mid-round.
-
-**A machine resource is never a reason to stop.** Use fewer workers and keep going. Only an exhausted
-allowance, every batch finished, or Thomas saying stop is an ending. `require-wake-source.mjs` now
-enforces this.
-
-Every UI pull request targets `redesign/main`, which is unprotected. `design/canvas/` and `DESIGN.md`
-under D42 stay authoritative, D95 keeps a broken gate out of the run it judges, and D103's redesign
-gate stands: when every screen ticket is done, **stop** and ship a closed Play INTERNAL build for
-Thomas rather than merging to `main`.
-
-Take every decision yourself, always the best approach and never the easiest, and log each one.
-
-## In flight, with a disposition for each
-
-| What | State | Disposition |
+| item | state | disposition |
 |---|---|---|
-| `ui#1029` (`#612`) | open at `210b8f7e`, **P1** | Round 4 needed. Round 3 broke a cold load of `/step-up`: `useHeldAccountId` is null there because the route is not under `(app)`, so 13 tests fail with an empty body. **Do not fix by reverting to an unnamespaced key.** The work that sat dirty was committed and pushed on 2026-09-22 as `210b8f7e` on `fix/ticket-612-web-overlays`: an attempt to hold the screen until the account resolves, plus a new `step-up-cold-load.test.tsx`. **It is unverified. No test ran against it.** Run the suite before you trust that commit. |
-| `ui#1030` (`#615`) | open, round 2 delivered | Needs a re-review at its head. It took the `ReadInit` type narrowing, so a mutating call through the read function is now a compile error. |
-| `ui#1033` (`#610`) | open at `db19b29b` | **Never reviewed at any head.** |
-| `ui#1032` (`#586`) | **CLOSED unmerged** | Cancelled by Thomas. The 3 dirty files were committed and pushed on 2026-09-22 as `e9b2fe4d` on `fix/ticket-586-widget-destination`, only so the work did not die with the machine. **Unverified.** The ticket stays cancelled: do not reopen it unless Thomas asks. |
-| `api#521` | **APPROVED** at `774f26b1` | Thomas merges and deploys by hand on or after 2026-09-22. |
-| `api#534` (`#599`) | **APPROVED**, five rounds | Same. Round 5 was declared the last round there; do not open a sixth. |
-| `api#528` (`#529`) | built, inert | Deploy, then flip `RequireApiKeyCreationStepUp` to `true` **only after `api#534` deploys**, and read the row back. |
-| `api#531`, `api#533` | open | Reviews owed at their exact heads. |
-| `.claude/orchestrator.json` | one uncommitted line | **Revert on 2026-09-22**, worker back to `codex`. |
+| `ui#1035` | open, head `4e2ccb47`, Pullfrog re-review requested | merge on approval (step 1) |
+| `#633` | ticket created, no branch yet | step 2 |
+| `ui#1029`, `ui#1030`, `ui#1033` | open on `redesign/main`, untouched today | step 4, as the spec says |
+| `ui#1034`, `ui#801`, `ui#799`, `ui#798` | dependabot PRs on `main`, never triaged | triage in step 4; `ui#798` has a red `Contract Drift` |
+| `api#521`, `api#534` | earlier APPROVED, waiting on Thomas's manual deploy | leave for Thomas |
+| `api#528` | CHANGES_REQUESTED | spec batch 6 |
+| `api#531`, `api#532`, `api#533` | open, reviews owed | spec batches 1 and 2a |
+| `api#530`, `api#535`, `api#536` | dependabot | triage with the ui ones |
+| `landing#73` to `#79` | dependabot | triage with the ui ones |
+| scratch worktree `menu-probe` | detached at `959381da` in this session's scratchpad, instrumented with `[DEBUG-m3n7]` | debug only, never a PR. Remove with `git worktree remove --force` once `#633` is verified |
+| emulator | running `Orbit_Pixel_9_API_35` with the instrumented probe build (versionCode 91), logged in as Thomas | install the `#633` build over it to verify, same re-sign steps as the spec |
+| background `adb logcat` | streaming to the scratchpad | stop it when the probe is removed |
 
-## The tools gate has four known reds, and they are not defects
+Checked and empty in all three repos: stashes, unpushed commits, dirty trees. The only detached HEAD
+is the scratch `menu-probe` worktree. No worker was running when this was written.
 
-`node tools/test-tools.mjs` reports `FAILED (4)`, 1823 assertions, about nine minutes:
+Every identifier here came from a previous session. Treat each as a lead to verify.
 
-```
-launch-worker.mjs: the default tier resolves gpt-5.6-sol at high reasoning effort
-launch-worker.mjs: each tier reports itself and resolves a different argument vector
-orchestrator-config.mjs: the shipped default implementer is gpt-5.6-sol at high reasoning effort
-orchestrator-config.mjs: the shipped mechanical implementer keeps the model and lowers reasoning effort
-```
+## --sleep
 
-All four pin `gpt-5.6-sol` as the shipped worker, and all four are red only because of the
-uncommitted `"worker": "claude"` line in `.claude/orchestrator.json`, which exists while Codex is
-out. **Reverting that line on 2026-09-22 should clear all four.** That was not driven to proof, so
-confirm it rather than assuming it, and do not chase them as defects before you do.
-
-Separately, `#627`'s `create-worktree` flake can add two more reds under load. It passes 9 of 9 under
-`--only create-worktree`.
-
-## The full in-flight inventory, run on 2026-09-19, including the empty results
-
-Every command below was RUN in all three repositories, `orbit-ui-mobile`, `orbit-api` and
-`orbit-landing-page`. An empty result is stated as empty rather than omitted.
-
-| what | result |
-|---|---|
-| `git stash list` | **none, in all three.** |
-| `git log @{u}..HEAD` | **none, in all three.** Nothing is committed-but-unpushed on any checked-out branch. |
-| detached HEADs (`git worktree list`) | **none.** |
-| running workers | **none.** Every worker was stopped on Thomas's instruction and no worker process remains. The wake-source directory is empty. |
-| uncommitted work | **two worktrees, both deliberate**: `ticket-612-web-overlays` 6 files, `ticket-586-widget-destination` 4 files. The other worktrees are clean. |
-| ignored paths worth knowing | `apps/mobile/android/` exists again, left by an `expo prebuild` during review. It is generated and safe to delete. |
-| open pull requests | ui: 1029, 1030, 1033 on `redesign/main`, plus 881, 801, 799, 798 on `main` which **predate this effort and nobody has triaged them**. api: 521, 528, 531, 532, 533, 534. |
-| branches ahead of `redesign/main` with no open pull request | **32.** Almost all are squash-merged branches, which always read as ahead because the squash rewrote their commits. The two that are not: `fix/ticket-586-widget-destination`, whose pull request was closed unmerged on purpose, and any branch listed here that a `gh pr list --state merged --head <branch>` does not explain. Reproduce with: `git for-each-ref --format='%(refname:short)' refs/heads/ \| grep -E '^(feature\|fix\|chore)/'` then compare against `gh pr list --state all --head <branch>`. |
-| open tickets this effort owns | **103.** Reproduce with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 200`. Every one is placed in a batch in the spec. |
-
-**The four `main`-targeted ui pull requests, 881, 801, 799 and 798, have no disposition.** No session
-this week has touched them. Triage them early rather than letting them sit another week.
-
-## Start here
-
-1. **`#627`**, first in batch 0b. Two `create-worktree` cases use one number as both the kill
-   deadline and the pass budget, so the tools gate throws a false red under load. Fixing it makes
-   every other harness ticket verifiable.
-2. **`ui#1029` round 4**, then **`ui#1030`'s re-review**, then **`ui#1033`'s first review**.
-3. Then batch 0b proper, then 0c's live Android defects, then batch 1.
-
-## The two worth knowing about before you touch anything
-
-- **`#631`** is the most serious thing filed that night. `localStorage` keeps the last Google
-  signer's Supabase session, `supabase.auth.signOut()` appears nowhere in `apps/web`, and the public
-  `/auth-callback` accepts `INITIAL_SESSION`. So a later visit from history or a bookmark silently
-  signs that browser back in as them. Verified on all three legs.
-- **A pull request body squashes into history.** Five were blocked or corrected on 2026-09-19 for a
-  false claim in one. Name the body as part of the deliverable in every order.
-
-The full decision log for that night, 155 entries, is in that session's scratchpad at
-`sleep-decisions.md`.
+This run continues unattended in the same session through `/sleep`, with this spec's goal.

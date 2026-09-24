@@ -1402,3 +1402,66 @@ change: **21 contexts, `Lint Severity` present, `Suppressions Ratchet` gone, `st
 `pullfrog-approval` untouched.** It had been filed as a request under D95, and Thomas overrode that
 directly. `gh api -f strict=true` sends a string and is rejected; the payload must go in as JSON
 through `--input`.
+
+## What 2026-09-24 added: the new Mac, the dead three-dot menu found, and a priority insert
+
+**Durable because** it changes the order of work, the machine every tool runs on, and the cause of a
+bug that three earlier fixes missed.
+
+### Thomas's instructions, 2026-09-24, in his words
+
+- "change the default worker to codex, and make it use GPT-6 Sol as the model." Done in `ui#1035`.
+- "this is a macbook pro with m5 pro and 64gb of ram, which means we can probably use a lot more
+  workers." `caps.parallelTickets` is 6 in `ui#1035`.
+- "IOS will come later, forget this right now." Do not file iOS tickets. He wants to TALK about iOS
+  when he raises it again; the explanation already given is in that session's transcript only.
+- **Priority insert, ahead of the whole batch order:** "the god damn 3 dots bug ... FIX IT, FOREVER,
+  WITH THE BEST APPROACH POSSIBLE" and "when we click 'go to sub habits' (the drill) ... the 'show
+  completed' toggle is not working on the drill." "i want both fixed in one pr per repo, prioritized
+  and merged to main, and then you run the /android-release skill. after that, continue the original
+  run." Also: "run /second-opinion, make sure you and codex agree on the problem and the fix." Done:
+  GPT-6 Sol returned AGREE, high confidence.
+
+### `ui#1035`: the harness now runs on macOS
+
+The harness was Windows-only in four ways, each proven by a harness failure on the Mac: process
+start identity had no darwin branch (every wake source read dead, `create-worktree` aborted), the
+CPU progress probe was Windows-only, `/var -> /private/var` made one repo read as two roots (39
+hook failures, one hung tools test), and Windows paths sat in the config, workflows and seven
+skills. **Until `ui#1035` merges, `create-worktree`, `launch-worker` and `list-bot-threads` fail on
+this Mac** (they read `C:\Users\thoma\...` from `.claude/orchestrator.json`). Pullfrog's third review
+asked only for consistent zombie evidence in the PR body; that was fixed at the same head `4e2ccb47`
+and a re-review was requested. Both harnesses were green at that head: 1822 tools assertions in 203 s,
+hooks OK.
+
+### The three-dot menu: root cause, proven (ticket `#633`, also `#134`)
+
+Reproduced on the emulator on the exact shipped 1.3.31 bundle, then captured with an instrumented
+release build of `main`. `anchored-menu.tsx` sets `shouldRender` during render and also from a
+mount-time exit-animation callback. React queues that stale `false` update at Default lane, the tap
+renders at Sync lane, and `rerenderReducer` never writes the render-phase `true` into the base state,
+so React reverts it 1 ms later while `visible` stays `true`. Every later `open()` is a no-op for that
+row. Full chain, log and renderer lines are in `#633`. It only fails when the tap is the row's first
+render after mount, which is why adb taps passed 12 of 12 and Thomas's real taps failed.
+**The next fix to this menu must be proven the same way: a failing run on a real build first.**
+
+### The drill (also `#633`)
+
+Drill children come straight from the detail endpoint and never pass through the shared visibility
+helpers, on web and mobile. `redesign/main` deleted `anchored-menu.tsx` and `drill-view.tsx`; its
+`habit-drill.tsx` needs the same drill fix as a separate backport PR after `#633` merges to `main`.
+
+### Android tooling on this Mac, all set up and verified
+
+- SDK at `~/Library/Android/sdk` (platform-tools, emulator, build-tools 36.0.0, cmdline-tools,
+  `system-images;android-35;google_apis_playstore;arm64-v8a`). AVD `Orbit_Pixel_9_API_35`, arm64,
+  logged in as Thomas. `tools/android-emulator.mjs` still hard-codes the x86_64 image: a Mac port
+  item for its own ticket.
+- A local release APK builds in about 9 minutes cold and 2.5 minutes warm with `npm run android:apk`,
+  given `apps/mobile/google-services.json` (gitignored; rebuilt from the public values inside the
+  shipped bundle) and `EXPO_PUBLIC_API_BASE`, `EXPO_PUBLIC_SUPABASE_URL`,
+  `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in the environment.
+- To install over the Play-signed build and keep the login: set `app.json` `version` at or above the
+  live one (a lower one hits the forced-update screen) and `versionCode` above 90, then zipalign and
+  re-sign with `~/.android/debug.keystore`. `adb install -r -d` does not work on this user image.
+- The Gmail connector is Thomas's WORK account. Sign-in codes for his Orbit account need him.
