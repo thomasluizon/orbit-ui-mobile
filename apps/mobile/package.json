@@ -19,7 +19,7 @@
     "android:apk": "node scripts/android-release-apk.js",
     "test": "vitest run",
     "type-check": "tsc --noEmit",
-    "lint": "expo lint .",
+    "lint": "eslint .",
     "clean": "rm -rf .expo",
     "android": "node scripts/run-android.js",
     "android:apk:emulator": "node scripts/android-release-apk.js --emulator"
