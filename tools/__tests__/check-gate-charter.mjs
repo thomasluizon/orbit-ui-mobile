@@ -1,7 +1,9 @@
-import { mkdirSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
+import yaml from "js-yaml"
 
-import { check, root } from "./_harness.mjs"
+import { BASH, REPO_ROOT, T, check, root } from "./_harness.mjs"
 
 const entry = (overrides = {}) => ({
   scope: "changed-files",
@@ -132,6 +134,38 @@ export const cases = () => {
     ["--root", stageRepository("frozen-pr-title", completeCharter(), { guardWorkflow: frozenTitleWorkflow })],
     { status: 1, stderr: /frozen pull request title/ },
   )
+  for (const [field, access] of [
+    ["body", "github.event.pull_request['body']"],
+    ["title", "github['event'][\"pull_request\"][\"title\"]"],
+  ]) {
+    const workflow = frozenBodyWorkflow.replace("github.event.pull_request.body", access)
+    check(
+      "check-gate-charter.mjs",
+      `rejects index access to the frozen event pull request ${field}`,
+      ["--root", stageRepository(`frozen-index-${field}`, completeCharter(), { guardWorkflow: workflow })],
+      { status: 1, stderr: new RegExp(`frozen pull request ${field}`) },
+    )
+  }
+
+  const guards = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8"))
+  for (const [jobId, stepName] of [
+    ["dashes", "PR title and body carry no dashes"],
+    ["review-harness", "A UI pull request on redesign/main records what the review skills found"],
+  ]) {
+    const step = guards.jobs[jobId].steps.find((candidate) => candidate.name === stepName)
+    const script = `gh() { [[ "$2" == "repos/example/repo/pulls/1050" ]] || return 88; printf 'text'; }\nnode() { :; }\ngit() { :; }\n${step.run.replaceAll("${{ github.base_ref }}", "redesign/main")}`
+    const result = spawnSync(BASH, ["-c", script], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GITHUB_REF: "refs/pull/1050/merge",
+        GITHUB_REPOSITORY: "example/repo",
+        RUNNER_TEMP: root,
+      },
+    })
+    T(`check-gate-charter.mjs: ${jobId} derives the PR number from a fork-safe merge ref`, result.status === 0,
+      `status=${result.status} stderr=${result.stderr}`)
+  }
 
   const blockingAdvisory = completeCharter()
   blockingAdvisory[".github/workflows/guards.yml#existing"] = entry({ scope: "whole-tree-advisory" })

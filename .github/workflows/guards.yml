@@ -130,9 +130,10 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+          [[ "$GITHUB_REF" =~ ^refs/pull/([0-9]+)/merge$ ]]
+          PR_NUMBER="${BASH_REMATCH[1]}"
           PR_TITLE=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.title')
           PR_BODY=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""')
           node tools/check-dashes.mjs --text "$PR_TITLE $PR_BODY"
@@ -301,9 +302,10 @@ jobs:
       - name: A UI pull request on redesign/main records what the review skills found
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
+          [[ "$GITHUB_REF" =~ ^refs/pull/([0-9]+)/merge$ ]]
+          PR_NUMBER="${BASH_REMATCH[1]}"
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""' > "$RUNNER_TEMP/pr-body.md"
           git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD > "$RUNNER_TEMP/changed.txt"
           node tools/check-review-harness.mjs \
