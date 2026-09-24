@@ -2063,24 +2063,6 @@
         "referralsTitle": "Links de convite",
         "referralsDesc": "Seu link pessoal de convite fica no Perfil. Compartilhe quando quiser convidar alguém para o Orbit."
       },
-      "settingsSection": {
-        "languageTitle": "Idioma",
-        "languageDesc": "Alterne entre inglês e português. O app, as respostas da IA e os e-mails se adaptam ao idioma escolhido.",
-        "aiSummaryTitle": "Resumo diário da IA",
-        "aiSummaryDesc": "Ativa um cartão de resumo diário feito pela IA na sua página Hoje, com insights sobre seus hábitos e uma dose de incentivo. Recurso Pro.",
-        "timezoneTitle": "Fuso horário",
-        "timezoneDesc": "Seu fuso horário é detectado automaticamente no primeiro login. Ele define quando os hábitos vencem e o que é 'hoje' para a sua agenda.",
-        "supportTitle": "Suporte",
-        "supportDesc": "Tem uma dúvida, encontrou um bug ou quer dar um feedback? Use a página de Suporte (no seu Perfil) para falar com a gente.",
-        "pushNotificationsTitle": "Notificações push",
-        "pushNotificationsDesc": "Ative ou desative as notificações push nas Configurações. Use o botão 'Enviar notificação de teste' para conferir se estão funcionando. Os lembretes chegam como notificações push, com base no horário de cada hábito.",
-        "subscriptionTitle": "Assinatura e Pro",
-        "subscriptionDesc": "O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário, a retrospectiva periódica e a análise de metas por IA.",
-        "weekStartDayTitle": "Início da semana",
-        "weekStartDayDesc": "Escolha se a sua semana começa na segunda ou no domingo. Isso vale para todos os calendários, seletores de dias e exibições de frequência semanal no app.",
-        "showGeneralTodayTitle": "Mostrar gerais no Hoje",
-        "showGeneralTodayDesc": "Ative para mostrar os hábitos gerais (os que não têm agendamento) no Hoje. Quando ativado, eles aparecem numa seção separada, abaixo dos hábitos agendados."
-      },
       "remindersSection": {
         "bellTitle": "Sua caixa de entrada",
         "bellDesc": "O sino abre tudo o que o Orbit envia: lembretes que dispararam, atualizações de sequência e de nível, atividade de amigos, resultados do calendário e prazos de metas. O badge conta os não lidos.",
