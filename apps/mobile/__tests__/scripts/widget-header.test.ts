@@ -86,11 +86,9 @@ function selectedSizeKey(keysDp: readonly NamedSizeDp[], hostDp: SizeDp) {
  * other call site: `renderWidgets()` also appears in `renderPlaceholder` and in the exception path,
  * so deleting the successful sync's own render left every widget test green.
  */
-function kotlinFunctionBody(source: string, name: string) {
-  const declaration = source.search(new RegExp(`(?:(?:private|internal) )?fun ${name}\\(`))
-  if (declaration < 0) throw new Error(`Missing Kotlin function: ${name}`)
-
-  const open = source.indexOf('{', declaration)
+function kotlinBlockBody(source: string, start: number) {
+  if (start < 0) throw new Error('Missing Kotlin block')
+  const open = source.indexOf('{', start)
   let depth = 0
   for (let index = open; index < source.length; index += 1) {
     if (source[index] === '{') depth += 1
@@ -99,7 +97,13 @@ function kotlinFunctionBody(source: string, name: string) {
       if (depth === 0) return source.slice(open + 1, index)
     }
   }
-  throw new Error(`Unbalanced braces in Kotlin function: ${name}`)
+  throw new Error('Unbalanced braces in Kotlin block')
+}
+
+function kotlinFunctionBody(source: string, name: string) {
+  const declaration = source.search(new RegExp(`(?:(?:private|internal) )?fun ${name}\\(`))
+  if (declaration < 0) throw new Error(`Missing Kotlin function: ${name}`)
+  return kotlinBlockBody(source, declaration)
 }
 
 function kotlinFloatConstant(source: string, name: string) {
@@ -757,21 +761,31 @@ describe('Android widget header', () => {
     const save = module.slice(module.indexOf('AsyncFunction("saveToken")'), module.indexOf('AsyncFunction("clearToken")'))
     const clear = module.slice(module.indexOf('AsyncFunction("clearToken")'), module.indexOf('AsyncFunction("syncTheme")'))
 
-    expect(update).toMatch(/synchronized\(OrbitWidgetModule\.accountRenderLock\) \{[\s\S]*renderWidget\(context, appWidgetManager, appWidgetId\)[\s\S]*updateAppWidget\(appWidgetId, fallback\)/)
-    expect(save).toMatch(/synchronized\(accountRenderLock\) \{[\s\S]*putString\(KEY_TOKEN, token\)\.apply\(\)/)
-    expect(clear).toMatch(/synchronized\(accountRenderLock\) \{[\s\S]*remove\(KEY_TOKEN\)\.apply\(\)/)
+    const publication = kotlinBlockBody(update, update.indexOf('synchronized(OrbitWidgetModule.accountRenderLock)'))
+    const tokenWrite = kotlinBlockBody(save, save.indexOf('synchronized(accountRenderLock)'))
+    const tokenClear = kotlinBlockBody(clear, clear.indexOf('synchronized(accountRenderLock)'))
+
+    expect(publication).toContain('renderWidget(context, appWidgetManager, appWidgetId)')
+    expect(publication).toContain('appWidgetManager.updateAppWidget(appWidgetId, fallback)')
+    expect(tokenWrite).toContain('putString(KEY_TOKEN, token).apply()')
+    expect(tokenClear).toContain('remove(KEY_TOKEN).apply()')
+    expect(tokenClear).toContain('clearWidgetCache(context)')
   })
 
   it('keeps a newer render when an older factory resumes after an account switch', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
     const load = kotlinFunctionBody(service, 'loadWidgetData')
-    const differentAccount = load.slice(
-      load.indexOf('if (OrbitWidgetModule.sessionKey(currentToken) != OrbitWidgetModule.sessionKey(token))'),
-      load.indexOf('if (currentToken != token)'),
+    const afterFetch = load.slice(load.indexOf('val widgetData = resolveWidgetData(token)'))
+    const publication = kotlinBlockBody(afterFetch, afterFetch.indexOf('synchronized(OrbitWidgetModule.accountRenderLock)'))
+    const differentAccount = kotlinBlockBody(
+      publication,
+      publication.indexOf('if (OrbitWidgetModule.sessionKey(currentToken) != OrbitWidgetModule.sessionKey(token))'),
     )
 
     expect(load).toMatch(/val token = synchronized\(OrbitWidgetModule\.accountRenderLock\) \{[\s\S]*if \(currentToken == null\) \{\s*renderPlaceholder\(showSkeleton = false, signedOut = true\)/)
-    expect(load).toMatch(/val widgetData = resolveWidgetData\(token\)[\s\S]*synchronized\(OrbitWidgetModule\.accountRenderLock\) \{[\s\S]*val currentToken = OrbitWidgetModule\.getToken\(context\)/)
+    expect(publication).toContain('val currentToken = OrbitWidgetModule.getToken(context)')
+    expect(publication).toContain('.putString("render_session", OrbitWidgetModule.sessionKey(token))')
+    expect(publication).toContain('renderWidgets()')
     expect(differentAccount).toContain('habits = emptyList()')
     expect(differentAccount).toContain('habitsSession = null')
     expect(differentAccount).not.toContain('renderPlaceholder(')
