@@ -292,6 +292,21 @@ export const cases = async () => {
   )
 
   const capped = launch("branch-cap", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 2 } }))
+  const occupiedLaunch = launch("occupied-worktree", launchConfig({ ...stubEngine(SLEEPER), timeouts: { hardCeilingMinutes: 0.03, noProgressMinutes: 5, pollSeconds: 0.2 } }))
+  const occupiedArgv = ["--issue", "ORB-201", "--worktree", occupiedLaunch.worktree, "--prompt", occupiedLaunch.prompt]
+  const firstOccupied = launchAsync(occupiedLaunch.path, occupiedArgv, githubAuthEnv())
+  const occupiedRecord = join(occupiedLaunch.base, ".git", "orbit-wake-sources", `${firstOccupied.child.pid}.json`)
+  let runningWorkerPid = null
+  const occupiedDeadline = Date.now() + 5000
+  while (!runningWorkerPid && Date.now() < occupiedDeadline) {
+    if (existsSync(occupiedRecord)) runningWorkerPid = JSON.parse(readFileSync(occupiedRecord, "utf8")).workerPid
+    if (!runningWorkerPid) await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+  const refusedOccupied = run(TOOL, occupiedArgv, { path: occupiedLaunch.path, env: githubAuthEnv() })
+  T(`${TOOL}: a second launch into a live worker's worktree is refused with its pid`,
+    Number.isInteger(runningWorkerPid) && refusedOccupied.status === 2 && refusedOccupied.stderr.includes(`live worker pid ${runningWorkerPid}`),
+    JSON.stringify({ runningWorkerPid, status: refusedOccupied.status, stderr: refusedOccupied.stderr }))
+  discardLog((await firstOccupied.result).stdout)
   const cappedArgs = ["--issue", "ORB-201", "--worktree", capped.worktree, "--prompt", capped.prompt]
   const firstLaunch = check(TOOL, "the first launch below the branch cap succeeds", cappedArgs, { status: 0 }, { path: capped.path, env: githubAuthEnv() })
   const secondLaunch = check(TOOL, "the second launch at the branch cap succeeds", [...cappedArgs, "--tier", "mechanical"], { status: 0 }, { path: capped.path, env: githubAuthEnv() })

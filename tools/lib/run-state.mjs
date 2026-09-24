@@ -87,12 +87,17 @@ export const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url))
 export const runStatePath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-orchestrate-run.json")
 export const wakeSourceDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-wake-sources")
 export const workerLaunchDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-worker-launches")
+const occupiedWorktreePath = (repoRoot) => join(workerLaunchDirectory(repoRoot), "occupied-worktree.json")
+const processIsMissing = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return true
+  try { process.kill(pid, 0); return false } catch (error) { return error?.code === "ESRCH" }
+}
 
 const readWorkerLaunchRecords = (repoRoot = REPO_ROOT) => {
   const directory = workerLaunchDirectory(repoRoot)
   let names
   try {
-    names = readdirSync(directory).filter((name) => name.endsWith(".json"))
+    names = readdirSync(directory).filter((name) => name.endsWith(".json") && (name.includes("-slot-") || name.includes("-override-")))
   } catch {
     return []
   }
@@ -147,6 +152,58 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   } catch {
     return { allowed: true, earlierLaunches: [], recorded: false }
   }
+  if (Number.isInteger(launch.launcherPid)) {
+    const wakeStates = readWakeSourceStates(repoRoot)
+    const occupied = [...wakeStates.live, ...wakeStates.orphaned].find((source) =>
+      isWakeSourceAlive({ pid: source.workerPid, processStartIdentity: source.workerProcessStartIdentity }))
+    if (occupied) return { allowed: false, occupiedWorkerPid: occupied.workerPid, earlierLaunches: [], recorded: false }
+    const path = occupiedWorktreePath(repoRoot)
+    let claimed = false
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const claim = claimLaunchFile(path, {
+        launcherPid: launch.launcherPid,
+        launcherProcessStartIdentity: processStartIdentity(launch.launcherPid),
+      })
+      if (claim.claimed) {
+        if (!claim.recorded) {
+          rmSync(path, { force: true })
+          return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
+        }
+        claimed = true
+        break
+      }
+      if (!claim.occupied) return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
+      let previous
+      let previousContents
+      try {
+        previousContents = readFileSync(path, "utf8")
+        previous = JSON.parse(previousContents)
+      } catch { previous = null }
+      if (!previous) return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
+      if (isWakeSourceAlive({ pid: previous.workerPid, processStartIdentity: previous.workerProcessStartIdentity })) {
+        return { allowed: false, occupiedWorkerPid: previous.workerPid, earlierLaunches: [], recorded: false }
+      }
+      if (isWakeSourceAlive({ pid: previous.launcherPid, processStartIdentity: previous.launcherProcessStartIdentity })) {
+        return { allowed: false, occupiedLauncherPid: previous.launcherPid, earlierLaunches: [], recorded: false }
+      }
+      if (!processIsMissing(previous.launcherPid) || !processIsMissing(previous.workerPid)) {
+        return { allowed: false, occupiedLauncherPid: previous.launcherPid, earlierLaunches: [], recorded: false }
+      }
+      const reclaimPath = `${path}.reclaim`
+      let reclaimDescriptor
+      try { reclaimDescriptor = openSync(reclaimPath, "wx") } catch {
+        return { allowed: false, occupiedLauncherPid: previous.launcherPid, earlierLaunches: [], recorded: false }
+      }
+      try {
+        if (readFileSync(path, "utf8") === previousContents) rmSync(path)
+      } catch { /* the next claim observes the current occupant */ }
+      finally {
+        closeSync(reclaimDescriptor)
+        rmSync(reclaimPath, { force: true })
+      }
+    }
+    if (!claimed) return { allowed: false, occupiedLauncherPid: null, earlierLaunches: [], recorded: false }
+  }
   const branchKey = createHash("sha256").update(`${launch.repositoryKey}\0${launch.branch}`).digest("hex")
   const slotPaths = Array.from({ length: cap }, (_, index) => join(directory, `${branchKey}-slot-${index + 1}.json`))
   for (let index = 0; index < slotPaths.length; index++) {
@@ -160,11 +217,29 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   }
   const earlierLaunches = readLaunchFiles(slotPaths)
   if (launch.relaunchReason === null) {
+    if (Number.isInteger(launch.launcherPid)) clearWorkerLaunchReservation(launch.launcherPid, repoRoot)
     return { allowed: false, earlierLaunches, recorded: false }
   }
   const overridePath = join(directory, `${branchKey}-override-${randomUUID()}.json`)
   const override = claimLaunchFile(overridePath, launch)
   return { allowed: true, earlierLaunches, recorded: override.recorded }
+}
+
+export const recordReservedWorkerPid = (launcherPid, workerPid, repoRoot = REPO_ROOT) => {
+  const path = occupiedWorktreePath(repoRoot)
+  try {
+    const reservation = JSON.parse(readFileSync(path, "utf8"))
+    if (reservation.launcherPid !== launcherPid) return
+    writeFileSync(path, `${JSON.stringify({ ...reservation, workerPid, workerProcessStartIdentity: processStartIdentity(workerPid) })}\n`)
+  } catch { /* the wake registration still records the child */ }
+}
+
+export const clearWorkerLaunchReservation = (launcherPid, repoRoot = REPO_ROOT) => {
+  const path = occupiedWorktreePath(repoRoot)
+  try {
+    const reservation = JSON.parse(readFileSync(path, "utf8"))
+    if (reservation.launcherPid === launcherPid) rmSync(path)
+  } catch { /* an unreadable reservation cannot be safely claimed */ }
 }
 
 /** The orchestrator's own run record, or null when no run has written one. */
@@ -288,41 +363,48 @@ const isPendingWakeSourceFresh = (source) => {
 }
 
 /** Only registrations that still identify their live process. Sweep only proven missing pids. */
-export const readWakeSources = (repoRoot = REPO_ROOT) => {
+export const readWakeSourceStates = (repoRoot = REPO_ROOT) => {
   const directory = wakeSourceDirectory(repoRoot)
   let names
   try {
     names = readdirSync(directory)
   } catch {
-    return []
+    return { live: [], orphaned: [] }
   }
-  const sources = []
+  const live = []
+  const orphaned = []
   for (const name of names) {
     if (!name.endsWith(".json")) continue
     try {
       const source = JSON.parse(readFileSync(join(directory, name), "utf8"))
       if (!Number.isInteger(source?.pid) || source.pid <= 0) continue
-      try {
-        process.kill(source.pid, 0)
-      } catch (error) {
-        if (error?.code === "ESRCH") rmSync(join(directory, name), { force: true })
-        // A denied or otherwise failed probe proves neither death nor a matching identity.
-        continue
+      const probe = (pid) => {
+        if (!Number.isInteger(pid) || pid <= 0) return false
+        try { process.kill(pid, 0); return true } catch (error) { return error?.code === "ESRCH" ? false : null }
       }
-      if (isPendingWakeSourceFresh(source) && isWakeSourceAlive(source)) sources.push(source)
+      const launcherExists = probe(source.pid)
+      const workerExists = probe(source.workerPid)
+      if (launcherExists === null || workerExists === null) continue
+      const launcherAlive = launcherExists && isWakeSourceAlive(source)
+      const workerAlive = workerExists && isWakeSourceAlive({ pid: source.workerPid, processStartIdentity: source.workerProcessStartIdentity })
+      if (launcherAlive && isPendingWakeSourceFresh(source)) live.push(source)
+      else if (!launcherAlive && workerAlive) orphaned.push(source)
+      else if (launcherExists === false && workerExists === false) rmSync(join(directory, name), { force: true })
     } catch {
       /* an unreadable entry is not a live wake source, and must not mask the readable ones */
     }
   }
-  return sources
+  return { live, orphaned }
 }
+export const readWakeSources = (repoRoot = REPO_ROOT) => readWakeSourceStates(repoRoot).live
 
 export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {
     if (!Number.isInteger(source?.pid) || source.pid <= 0) return
     const identity = processStartIdentity(source.pid)
     mkdirSync(wakeSourceDirectory(repoRoot), { recursive: true })
-    writeFileSync(join(wakeSourceDirectory(repoRoot), `${source.pid}.json`), `${JSON.stringify({ ...source, processStartIdentity: identity }, null, 2)}\n`)
+    const workerProcessStartIdentity = Number.isInteger(source.workerPid) ? processStartIdentity(source.workerPid) : null
+    writeFileSync(join(wakeSourceDirectory(repoRoot), `${source.pid}.json`), `${JSON.stringify({ ...source, processStartIdentity: identity, workerProcessStartIdentity }, null, 2)}\n`)
   } catch {
     /* a status file is never worth failing a launch over */
   }

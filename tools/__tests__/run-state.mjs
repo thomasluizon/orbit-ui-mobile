@@ -199,6 +199,12 @@ export const cases = async () => {
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 
   const launch = { repositoryKey: "ui", branch: "chore/test", headSha: "a".repeat(40), tier: "default", timestamp: "2026-09-14T00:00:00.000Z", relaunchReason: null }
+  const occupiedRoot = stageCheckout("occupied-worker")
+  registerWakeSource({ pid: process.ppid, what: "worker ORB-1", workerPid: process.pid }, occupiedRoot)
+  const occupiedReservation = reserveWorkerLaunch({ ...launch, launcherPid: process.pid }, 2, occupiedRoot)
+  T(`${TOOL}: a live worker in the worktree refuses another launch and names its pid`,
+    occupiedReservation.allowed === false && occupiedReservation.occupiedWorkerPid === process.pid,
+    JSON.stringify(occupiedReservation))
   const firstReservation = reserveWorkerLaunch(launch, 1, repoRoot)
   const refusedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:01:00.000Z" }, 1, repoRoot)
   const reasonedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:02:00.000Z", relaunchReason: "known conflict list" }, 1, repoRoot)

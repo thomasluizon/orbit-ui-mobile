@@ -20,7 +20,7 @@ import { delimiter, dirname, extname, join, resolve } from "node:path"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, registerWakeSource, reserveWorkerLaunch } from "./lib/run-state.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -286,6 +286,7 @@ if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository con
 
 const timestamp = new Date().toISOString()
 const reservation = reserveWorkerLaunch({
+  launcherPid: process.pid,
   repositoryKey,
   branch,
   headSha: startHead,
@@ -294,6 +295,8 @@ const reservation = reserveWorkerLaunch({
   relaunchReason: relaunchReasonArgument,
 }, config.caps.workerLaunchesPerBranch, runDirectory)
 if (!reservation.allowed) {
+  if (reservation.occupiedWorkerPid) fail(2, `worktree ${runDirectory} already has a live worker pid ${reservation.occupiedWorkerPid}`)
+  if (reservation.occupiedLauncherPid !== undefined) fail(2, `worktree ${runDirectory} already has a launcher pid ${reservation.occupiedLauncherPid ?? "unknown"}`)
   const earlier = reservation.earlierLaunches.map((launch, index) =>
     `  ${index + 1}. ${launch.timestamp} tier=${launch.tier} head=${launch.headSha}`).join("\n")
   fail(2, `worker launch cap ${config.caps.workerLaunchesPerBranch} reached for ${repositoryKey} branch ${branch}. Earlier launches:\n${earlier}\nPass --relaunch-reason "<text>" to record and allow another launch.`)
@@ -338,6 +341,7 @@ const child = spawn(executable, workerArgs, {
     ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
   },
 })
+if (child.pid) recordReservedWorkerPid(process.pid, child.pid, runDirectory)
 
 /**
  * THIS process, not the child, is what the orchestrator backgrounds and what its exit re-invokes the
@@ -353,6 +357,7 @@ const finish = (outcome, exitCode) => {
   if (finishing) return
   finishing = true
   clearWakeSource(process.pid)
+  clearWorkerLaunchReservation(process.pid, runDirectory)
   closeSync(logFd)
   /**
    * What the run left in the tree, read once here so the orchestrator does not have to call git to
