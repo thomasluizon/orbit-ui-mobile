@@ -150,6 +150,45 @@ describe('useDrillNavigation', () => {
     expect(shown.result.current.completedCount).toBe(2)
   })
 
+  it('counts a visible completed container only with selected-date evidence', async () => {
+    const date = '2025-01-15'
+    const detail = makeDetailResponse()
+    const active = { ...detail.children[0]!, id: 'active', dueDate: date }
+    const container = {
+      ...detail.children[0]!, id: 'container', isCompleted: true,
+      dueDate: '2025-01-14', children: [active],
+    }
+    detail.children = [container]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(detail) })
+    const byId = new Map<string, NormalizedHabit>([
+      ['container', makeHabit({
+        id: 'container', parentId: 'parent1', isCompleted: true,
+        dueDate: '2025-01-14', isLoggedInRange: false,
+      })],
+      ['active', makeHabit({
+        id: 'active', parentId: 'container', dueDate: date, scheduledDates: [date],
+      })],
+    ])
+    const options = {
+      habitsById: byId,
+      childrenByParent: new Map([['parent1', ['container']], ['container', ['active']]]),
+      selectedDate: date, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    const pastCompletion = renderHook(() => useDrillNavigation(byId, 0, options, 'today'))
+    await act(async () => { await pastCompletion.result.current.drillInto('parent1') })
+    expect(pastCompletion.result.current.drillChildren.map((child) => child.id)).toEqual(['container'])
+    expect(pastCompletion.result.current.completedCount).toBe(0)
+    pastCompletion.unmount()
+
+    const justCompleted = renderHook(() => useDrillNavigation(byId, 0, {
+      ...options, recentlyCompletedIds: new Set(['container']),
+    }, 'today'))
+    await act(async () => { await justCompleted.result.current.drillInto('parent1') })
+    expect(justCompleted.result.current.completedCount).toBe(1)
+  })
+
   it('starts with empty drill stack', () => {
     const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
     expect(result.current.drillStack).toEqual([])

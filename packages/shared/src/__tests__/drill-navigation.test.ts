@@ -249,6 +249,35 @@ describe('getVisibleDrillChildren', () => {
     expect(countCompletedDrillChildren(revealed, date)).toBe(0)
   })
 
+  it('does not count a one-time container completed on another date when its child is active', () => {
+    const selectedDate = '2025-01-02'
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({
+        id: 'container', isCompleted: true, dueDate: '2025-01-01',
+        children: [makeDetailChild({ id: 'active', dueDate: selectedDate })],
+      }),
+    ] }), selectedDate)
+    const container = createMockHabit({
+      id: 'container', parentId: 'parent-1', isCompleted: true,
+      dueDate: '2025-01-01', scheduledDates: [], isLoggedInRange: false,
+    })
+    const active = createMockHabit({
+      id: 'active', parentId: 'container', dueDate: selectedDate,
+      scheduledDates: [selectedDate], isCompleted: false,
+    })
+    const options = {
+      habitsById: new Map([[container.id, container], [active.id, active]]),
+      childrenByParent: new Map([['parent-1', [container.id]], [container.id, [active.id]]]),
+      selectedDate, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    const visible = getVisibleDrillChildren('parent-1', detail.childrenByParent, options, 'today', selectedDate)
+    expect(visible.map((child) => child.id)).toEqual(['container'])
+    expect(countCompletedDrillChildren(visible, selectedDate)).toBe(0)
+    expect(countCompletedDrillChildren(visible, selectedDate, new Set(['container']))).toBe(1)
+  })
+
   it('keeps a completed detail-only child hidden before its due date', () => {
     const today = '2025-01-03'
     const selectedDate = '2025-01-01'

@@ -150,6 +150,41 @@ describe('mobile useDrillNavigation', () => {
     expect(shown.holder.current.completedCount).toBe(2)
   })
 
+  it('counts a visible completed container only with selected-date evidence', async () => {
+    const date = '2026-07-13'
+    const active = makeChild({ id: 'active', dueDate: date })
+    const container = makeChild({
+      id: 'container', isCompleted: true, dueDate: '2026-07-12', children: [active],
+    })
+    const byId = new Map<string, NormalizedHabit>([
+      ['container', createMockHabit({
+        id: 'container', parentId: 'p1', isCompleted: true,
+        dueDate: '2026-07-12', isLoggedInRange: false,
+      })],
+      ['active', createMockHabit({
+        id: 'active', parentId: 'container', dueDate: date, scheduledDates: [date],
+      })],
+    ])
+    const options = {
+      habitsById: byId,
+      childrenByParent: new Map([['p1', ['container']], ['container', ['active']]]),
+      selectedDate: date, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+    mocks.apiClient.mockResolvedValue(makeDetail({ children: [container] }))
+
+    const pastCompletion = renderDrill(byId, 1, options)
+    await actAsync(() => pastCompletion.holder.current.drillInto('p1'))
+    expect(pastCompletion.holder.current.drillChildren.map((child) => child.id)).toEqual(['container'])
+    expect(pastCompletion.holder.current.completedCount).toBe(0)
+
+    const justCompleted = renderDrill(byId, 1, {
+      ...options, recentlyCompletedIds: new Set(['container']),
+    })
+    await actAsync(() => justCompleted.holder.current.drillInto('p1'))
+    expect(justCompleted.holder.current.completedCount).toBe(1)
+  })
+
   it('drills into a habit, fetching and normalizing its children', async () => {
     mocks.apiClient.mockResolvedValue(
       makeDetail({ children: [makeChild({ id: 'c1' }), makeChild({ id: 'c2' })] }),
