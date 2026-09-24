@@ -58,7 +58,6 @@
     "expo-dev-menu-interface": "57.0.0",
     "expo-structured-headers": "57.0.0",
     "react-native-device-info": "10.3.0",
-    "decode-uri-component": "0.5.0",
     "@puppeteer/browsers": "3.2.3",
     "undici@7": "^7.29.1"
   }
