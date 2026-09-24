@@ -172,6 +172,29 @@ it('retires the server account after a cross-tab sign-out', async () => {
   expect(mocks.router.replace).toHaveBeenCalledWith('/login')
 })
 
+it('keeps a cold step-up signed out when an older session check finishes after the signal', async () => {
+  holdAccount('user-1')
+  useAuthStore.getState().adoptAccountFromSignal(null)
+  useAuthStore.setState({ sessionInactive: false })
+  storeChallenge('user-1')
+  const pending = deferred<Response>()
+  vi.mocked(globalThis.fetch).mockImplementation(() => pending.promise)
+
+  await act(async () => { render(<StepUpScreen serverAccountId="user-1" />) })
+  expect(screen.getByLabelText('codeLabel')).toBeInTheDocument()
+  act(() => { useAuthStore.getState().adoptAccountFromSignal(null) })
+  expect(screen.queryByLabelText('codeLabel')).not.toBeInTheDocument()
+  expect(mocks.router.replace).toHaveBeenCalledWith('/login')
+
+  await act(async () => {
+    pending.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
+    await pending.promise
+  })
+  expect(getHeldAccountId()).toBeNull()
+  expect(screen.queryByLabelText('codeLabel')).not.toBeInTheDocument()
+  expect(mocks.router.replace).toHaveBeenCalledWith('/login')
+})
+
 it('keeps the challenge and typed code through same-account recovery', async () => {
   await renderChallenge()
   fireEvent.change(screen.getByLabelText('codeLabel'), { target: { value: '123456' } })

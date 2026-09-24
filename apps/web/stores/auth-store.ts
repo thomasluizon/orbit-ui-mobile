@@ -16,6 +16,7 @@ import { useOnboardingDraftStore } from './onboarding-draft-store'
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+let sessionReadVersion = 0
 
 let lastObservedAccountId: string | null = null
 
@@ -45,6 +46,7 @@ let lastObservedAccountId: string | null = null
  * reset itself because a sign out is a definite end rather than a wobble.
  */
 function startAccountScopedSession(nextAccountId: string | null): void {
+  if (nextAccountId !== null) sessionReadVersion += 1
   const previousAccountId = lastObservedAccountId
   const accountChanged = nextAccountId !== null && previousAccountId !== nextAccountId
 
@@ -83,6 +85,7 @@ function clearAccountScopedSessionState(): void {
  * so the two callers cannot drift, which is how the support draft once outlived the Astra one.
  */
 function endSessionLocally(): void {
+  sessionReadVersion += 1
   clearAccountScopedSessionState()
   forgetPreviousAccountContent()
   getQueryClient().clear()
@@ -231,7 +234,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   adoptAccountFromSignal: (accountId: string | null) => {
     if (accountId === null) {
-      if (!get().isAuthenticated && !get().sessionRefreshFailed) return
+      if (get().sessionInactive) return
 
       endSessionLocally()
       set({
@@ -318,7 +321,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }),
 
   checkSession: async () => {
+    const requestVersion = sessionReadVersion
     const session = await readCurrentSession()
+    if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'rejected') {
       await get().confirmSessionRefreshFailure()
       return
