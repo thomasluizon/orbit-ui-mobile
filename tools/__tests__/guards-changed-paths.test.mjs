@@ -9,6 +9,7 @@ import yaml from "js-yaml"
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const workflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"))
+const testWorkflow = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/test.yml"), "utf8"))
 const cases = [
   ["root-allowlist", "Workspace packages declare no ignored overrides", "package.json"],
   ["root-allowlist", "The brand lockup's viewBox is exactly its ink", "design/brand/orbit-lockup.svg"],
@@ -23,7 +24,7 @@ function git(directory, ...arguments_) {
   return execFileSync("git", arguments_, { cwd: directory, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim()
 }
 
-function runCase(jobId, stepName, changedPath, mode) {
+function runCase(jobId, stepName, changedPath, mode, options = {}) {
   const directory = mkdtempSync(join(tmpdir(), "guards-changed-paths-"))
   try {
     git(directory, "init", "-q")
@@ -36,7 +37,7 @@ function runCase(jobId, stepName, changedPath, mode) {
     if (mode === "fetchable") git(directory, "branch", "base", base)
     const path = mode === "unowned" ? "unowned.txt" : changedPath
     mkdirSync(dirname(join(directory, path)), { recursive: true })
-    writeFileSync(join(directory, path), "changed\n")
+    writeFileSync(join(directory, path), options.content ?? "changed\n")
     git(directory, "add", path)
     git(directory, "commit", "-qm", "change")
     const origin = join(directory, "origin.git")
@@ -51,7 +52,7 @@ function runCase(jobId, stepName, changedPath, mode) {
     if (mode === "owned" || mode === "unowned") git(directory, "update-ref", "refs/remotes/origin/base", base)
     if (mode === "unfetched") git(directory, "update-ref", "refs/heads/base", base)
     const baseRef = mode === "missing" ? "missing" : "base"
-    const job = workflow.jobs[jobId]
+    const job = (options.workflow ?? workflow).jobs[jobId]
     const prepare = job.steps.find((step) => step.name === "Resolve pull request changed paths")
     assert.ok(prepare?.run, `${jobId} must prepare changed paths in its own step`)
     const gate = job.steps.find((step) => step.name === stepName)
@@ -71,12 +72,14 @@ function runCase(jobId, stepName, changedPath, mode) {
       return
     }
     assert.equal(first.status, 0, `${jobId}: changed paths must resolve: ${first.stderr}`)
-    const second = spawnSync("bash", ["-e", "-c", `node() { echo GATE_RAN; }\n${substitute(gate.run)}`], {
+    const second = spawnSync("bash", ["-e", "-c", `${options.stubs ?? "node() { echo GATE_RAN; }"}\n${substitute(gate.run)}`], {
       cwd: directory, env: environment, encoding: "utf8",
     })
-    assert.equal(second.status, 0, `${jobId}: gate step must exit zero: ${second.stderr}`)
+    assert.equal(second.status, mode === "owned" ? (options.ownedStatus ?? 0) : 0,
+      `${jobId}: gate step exit: ${second.stderr}`)
     const shouldRun = mode === "owned" || mode === "fetchable"
-    assert.equal(second.stdout.includes("GATE_RAN"), shouldRun, `${jobId}: ${mode} must ${shouldRun ? "run" : "skip"} the gate`)
+    assert.equal(`${second.stdout}${second.stderr}`.includes(options.marker ?? "GATE_RAN"), shouldRun,
+      `${jobId}: ${mode} must ${shouldRun ? "run" : "skip"} the gate`)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
@@ -85,6 +88,20 @@ function runCase(jobId, stepName, changedPath, mode) {
 for (const [jobId, stepName, path] of cases) {
   test(`${jobId}: ${stepName}`, () => {
     for (const mode of ["missing", "unfetched", "owned", "unowned", "fetchable"]) runCase(jobId, stepName, path, mode)
+  })
+}
+
+for (const [jobId, stepName, path, options] of [
+  ["lint", "Lint only files changed by this pull request", "apps/web/app/page.tsx",
+    { stubs: "npm() { echo GATE_RAN; }" }],
+  ["design-guard", "Ban raw --slate-*, transition-all, h-screen in app code", "apps/web/app/page.tsx",
+    { content: "transition-all\n", ownedStatus: 1, marker: "DESIGN.md ban" }],
+  ["design-guard", "Ban decorative gradients in app code", "tools/check-gradients.mjs", {}],
+]) {
+  test(`${jobId}: ${stepName} resolves before consuming changed paths`, () => {
+    for (const mode of ["missing", "unfetched", "owned", "unowned"]) {
+      runCase(jobId, stepName, path, mode, { workflow: testWorkflow, ...options })
+    }
   })
 }
 
