@@ -37,9 +37,11 @@ describe('widget color generator', () => {
     }))
 
     try {
+      const npmCli = process.env.npm_execpath
+      expect(npmCli, 'run this suite through npm so npm_execpath names the npm CLI').toBeDefined()
       const run = spawnSync(
-        process.platform === 'win32' ? 'npm.cmd' : 'npm',
-        ['run', 'generate:widget-colors', '-w', '@orbit/mobile'],
+        process.execPath,
+        [String(npmCli), 'run', 'generate:widget-colors', '-w', '@orbit/mobile'],
         { cwd: repositoryRoot, encoding: 'utf8' },
       )
 
