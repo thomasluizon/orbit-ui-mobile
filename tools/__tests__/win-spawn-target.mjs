@@ -1,6 +1,7 @@
-import { resolve } from "node:path"
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs"
+import { join, resolve } from "node:path"
 
-import { T } from "./_harness.mjs"
+import { T, root } from "./_harness.mjs"
 import { resolveSpawnTarget } from "../lib/win-spawn-target.mjs"
 
 export const cases = () => {
@@ -34,4 +35,30 @@ export const cases = () => {
     isFile: (candidate) => candidate === resolve("/virtual/worktree/early/tool.CMD") || candidate === relativeExe,
   })
   T("win-spawn-target.mjs: relative PATH entries resolve against the child cwd", relativeTarget === relativeExe, `resolved ${relativeTarget}`)
+
+  const quotedExe = resolve("/virtual/Program Files;x/bin/tool.exe")
+  const quotedTarget = resolveSpawnTarget("tool", {
+    platform: "win32",
+    cwd: "/virtual/worktree",
+    pathValue: "/virtual/shim;\"/virtual/Program Files;x/bin\"",
+    pathExt: ".CMD;.EXE",
+    isFile: (candidate) => candidate === resolve("/virtual/shim/tool.CMD") || candidate === quotedExe,
+  })
+  T("win-spawn-target.mjs: a quoted PATH entry is one directory without its quotes, even holding a separator",
+    quotedTarget === quotedExe, `resolved ${quotedTarget}`)
+
+  const sandbox = mkdtempSync(join(root, "win-spawn-target-"))
+  mkdirSync(join(sandbox, "linked"))
+  mkdirSync(join(sandbox, "shim"))
+  writeFileSync(join(sandbox, "real.exe"), "")
+  symlinkSync(join(sandbox, "real.exe"), join(sandbox, "linked", "tool.exe"))
+  writeFileSync(join(sandbox, "shim", "tool.CMD"), "")
+  const linkedTarget = resolveSpawnTarget("tool", {
+    platform: "win32",
+    cwd: sandbox,
+    pathValue: `${join(sandbox, "linked")};${join(sandbox, "shim")}`,
+    pathExt: ".CMD;.EXE",
+  })
+  T("win-spawn-target.mjs: an earlier symlinked executable wins over a later command shim",
+    linkedTarget === join(sandbox, "linked", "tool.exe"), `resolved ${linkedTarget}`)
 }
