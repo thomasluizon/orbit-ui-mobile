@@ -117,8 +117,8 @@ Parse `$ARGUMENTS` into one `{scope}` token, forwarded to every child audit:
 
 | Repo | Root |
 |---|---|
-| `orbit-ui-mobile` | `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile` |
-| `orbit-api` | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` |
+| `orbit-ui-mobile` | `/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile` |
+| `orbit-api` | `/Users/thomaslrgregoriogmail.com/Developer/orbit-api` |
 
 ---
 

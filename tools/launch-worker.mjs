@@ -313,10 +313,10 @@ const logFd = openSync(logFile, "a")
  * `codex exec` forever on Windows (openai/codex#20919). The marker in the env is what lets the
  * orchestrator hook tell this launcher's `codex exec` from a hand-typed one.
  *
- * ORCA_CLI_COMMAND is the orca-linear skill's FIRST binary-resolution rule, and setting it here is
- * what keeps a worker off its last one: bare `orca`, which is not on PATH on this machine. Measured
- * on ORB-87, where the worker resolved bare `orca`, hit "not recognized as a name of a cmdlet", and
- * correctly stopped rather than falling through to another executable. It delivered nothing in 54s.
+ * ORCA_CLI_COMMAND is the orca-linear skill's FIRST binary-resolution rule. The default is bare
+ * `orca`, the same default create-worktree.mjs uses: on the Mac it resolves through PATH to the
+ * Homebrew link `/opt/homebrew/bin/orca` into Orca.app (checked 2026-09-24). The Windows machine
+ * had no `orca` on PATH (ORB-87), so a machine without one sets ORCA_BIN.
  */
 let githubAuth
 try {
@@ -335,7 +335,7 @@ const child = spawn(executable, workerArgs, {
   env: {
     ...githubAuth.environment,
     ORBIT_LAUNCH_WORKER: "1",
-    ORCA_CLI_COMMAND: process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca",
+    ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
   },
 })
 
@@ -431,28 +431,47 @@ const progressFingerprint = () => `${gitIn(["rev-parse", "HEAD"])}:${newestMtime
  * and an orphaned burner, are what the log signal covers, since the worker narrates work to its
  * log; a kill still requires every signal silent for the whole cap.
  *
- * Windows only, deliberately: this launcher runs on one Windows machine, and a POSIX `ps` parser
- * written here could not be confirmed against any real system (code standard 8). A null probe fails
- * toward the historical signals, never toward keeping a worker alive.
+ * Windows and macOS only. macOS re-parents an orphan to launchd, so the same break applies there.
+ * Linux stays null because no Linux `ps` was read for this parser (code standard 8). A null probe
+ * fails toward the historical signals, never toward keeping a worker alive.
  */
-const cpuMillisecondsOfTree = (rootPid) => {
-  if (process.platform !== "win32" || !Number.isInteger(rootPid)) return null
+const processRows = () => {
+  if (process.platform === "darwin") {
+    // BSD ps `time` is user plus system CPU as minutes:seconds.hundredths. Read on the M5 Pro
+    // (2026-09-24): `0:17.22`, and `66:23.41` from an 18-thread burner, so minutes never roll into
+    // hours. A row in any other shape is skipped; the sampler clamps a drop, never a rise.
+    const result = spawnSync("ps", ["-A", "-o", "pid=,ppid=,time="], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } })
+    if (result.status !== 0) return null
+    const rows = []
+    for (const line of result.stdout.split("\n")) {
+      const match = /^\s*(\d+)\s+(\d+)\s+(\d+):(\d{2}\.\d{2})\s*$/.exec(line)
+      if (match) rows.push({ pid: Number(match[1]), parentPid: Number(match[2]), cpuMilliseconds: (Number(match[3]) * 60 + Number(match[4])) * 1000 })
+    }
+    return rows
+  }
   const query = "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,KernelModeTime,UserModeTime | ConvertTo-Json -Compress"
   const result = spawnSync("powershell", ["-NoProfile", "-Command", query], { encoding: "utf8", windowsHide: true })
   if (result.status !== 0) return null
-  let rows
   try {
-    rows = JSON.parse(result.stdout)
+    const rows = JSON.parse(result.stdout)
+    return Array.isArray(rows)
+      ? rows.map((row) => ({ pid: row.ProcessId, parentPid: row.ParentProcessId, cpuMilliseconds: ((row.KernelModeTime ?? 0) + (row.UserModeTime ?? 0)) / 10_000 }))
+      : null
   } catch {
     return null
   }
-  if (!Array.isArray(rows)) return null
+}
+
+const cpuMillisecondsOfTree = (rootPid) => {
+  if (!["win32", "darwin"].includes(process.platform) || !Number.isInteger(rootPid)) return null
+  const rows = processRows()
+  if (rows === null) return null
   const childrenOf = new Map()
   const cpuOf = new Map()
   for (const row of rows) {
-    cpuOf.set(row.ProcessId, ((row.KernelModeTime ?? 0) + (row.UserModeTime ?? 0)) / 10_000)
-    if (!childrenOf.has(row.ParentProcessId)) childrenOf.set(row.ParentProcessId, [])
-    childrenOf.get(row.ParentProcessId).push(row.ProcessId)
+    cpuOf.set(row.pid, row.cpuMilliseconds)
+    if (!childrenOf.has(row.parentPid)) childrenOf.set(row.parentPid, [])
+    childrenOf.get(row.parentPid).push(row.pid)
   }
   let total = 0
   const queue = [rootPid]

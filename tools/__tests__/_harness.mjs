@@ -8,7 +8,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 
@@ -60,7 +60,10 @@ export const T = (name, ok, detail = "") => {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `\n     ${detail}`}`)
 }
 
-export const root = mkdtempSync(join(tmpdir(), "orbit-tools-gate-"))
+// macOS serves tmpdir() through the /var -> /private/var symlink while git reports real paths, so a
+// fixture holding the symlinked spelling never matched the lock path a tool computed and one
+// deadline case waited forever (2026-09-24). Real repositories live on real paths.
+export const root = mkdtempSync(join(realpathSync(tmpdir()), "orbit-tools-gate-"))
 
 process.on("exit", () => {
   try {
