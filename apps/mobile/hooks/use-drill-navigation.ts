@@ -2,7 +2,8 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { BackHandler } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
+import { getVisibleDrillChildren, normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
+import type { HabitVisibilityOptions, HabitVisibilityView } from '@orbit/shared/utils/habit-visibility'
 import { API } from '@orbit/shared/api'
 
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
@@ -29,6 +30,8 @@ export interface DrillNavigationState {
 export function useDrillNavigation(
   habitsById: Map<string, NormalizedHabit>,
   lastUpdated: number,
+  visibilityOptions?: HabitVisibilityOptions,
+  view: HabitVisibilityView = 'all',
 ): DrillNavigationState {
   const { t } = useTranslation()
   const [drillStack, setDrillStack] = useState<string[]>([])
@@ -47,8 +50,12 @@ export function useDrillNavigation(
   }, [currentParentId, habitsById, drillParentInfo])
 
   const drillChildren = useMemo(
-    () => (currentParentId ? drillChildrenMap.get(currentParentId) ?? [] : []),
-    [currentParentId, drillChildrenMap],
+    () => currentParentId
+      ? visibilityOptions
+        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view)
+        : drillChildrenMap.get(currentParentId) ?? []
+      : [],
+    [currentParentId, drillChildrenMap, visibilityOptions, view],
   )
 
   const fetchDrillChildren = useCallback(
@@ -106,15 +113,13 @@ export function useDrillNavigation(
 
   const getDrillChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
-      return drillChildrenMap.get(parentId) ?? []
+      return visibilityOptions
+        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view)
+        : drillChildrenMap.get(parentId) ?? []
     },
-    [drillChildrenMap],
+    [drillChildrenMap, visibilityOptions, view],
   )
 
-  // Auto-refresh drill children when store data updates. Defer to a microtask
-  // so the synchronous portion of fetchDrillChildren (the optimistic loading
-  // setState) doesn't fire inside the effect body — React 19 forbids cascading
-  // setState calls in effects. The fetch still happens promptly (next tick).
   const lastUpdatedRef = useRef(lastUpdated)
   useEffect(() => {
     if (lastUpdated === lastUpdatedRef.current) return

@@ -55,18 +55,18 @@ export function StatusDot({
   const fill = resolveStatusDotFill(isFilled, color)
   const interactive = !disabled && !!onToggle
 
-  const [prevState, setPrevState] = useState(state)
-  const [playing, setPlaying] = useState(false)
-  if (state !== prevState) {
-    setPrevState(state)
-    setPlaying(
-      prevState !== 'done' && state === 'done' && interactive && !prefersReducedMotion(),
-    )
-  }
+  const [sweepState, setSweepState] = useState({ state, playing: false })
+  const playing = state === sweepState.state
+    ? sweepState.playing
+    : sweepState.state !== 'done' && state === 'done' && interactive && !prefersReducedMotion()
+  useEffect(() => {
+    if (state === sweepState.state) return
+    void Promise.resolve().then(() => setSweepState({ state, playing }))
+  }, [playing, state, sweepState.state])
 
   useEffect(() => {
     if (!playing) return
-    const id = setTimeout(() => setPlaying(false), SWEEP_MS + 40)
+    const id = setTimeout(() => setSweepState((current) => ({ ...current, playing: false })), SWEEP_MS + 40)
     return () => clearTimeout(id)
   }, [playing])
 

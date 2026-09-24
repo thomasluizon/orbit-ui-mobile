@@ -1,4 +1,4 @@
-import { memo, useEffect, useState, useCallback, useRef } from "react";
+import { memo, useEffect, useState, useCallback } from "react";
 import { type StyleProp, type TextStyle } from "react-native";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 
@@ -34,15 +34,17 @@ export const BufferedSheetInput = memo(function BufferedSheetInput({
   ...props
 }: Readonly<BufferedSheetInputProps>) {
   const [draft, setDraft] = useState(value);
-  const [prevValue, setPrevValue] = useState(value);
-  const isFocusedRef = useRef(false);
+  const [previousValue, setPreviousValue] = useState(value);
+  const [isFocused, setIsFocused] = useState(false);
+  const displayValue = value !== previousValue && !isFocused ? value : draft;
 
-  if (value !== prevValue) {
-    setPrevValue(value);
-    if (!isFocusedRef.current) {
-      setDraft(value);
-    }
-  }
+  useEffect(() => {
+    if (value === previousValue) return;
+    void Promise.resolve().then(() => {
+      setPreviousValue(value);
+      if (!isFocused) setDraft(value);
+    });
+  }, [isFocused, previousValue, value]);
 
   const commitDraft = useCallback(() => {
     if (draft !== value) {
@@ -65,14 +67,14 @@ export const BufferedSheetInput = memo(function BufferedSheetInput({
   return (
     <BottomSheetAppTextInput
       {...props}
-      value={draft}
+      value={displayValue}
       onChangeText={handleChangeText}
       onFocus={() => {
-        isFocusedRef.current = true;
+        setIsFocused(true);
         onFocus?.();
       }}
       onBlur={() => {
-        isFocusedRef.current = false;
+        setIsFocused(false);
         commitDraft();
         onBlur?.();
       }}

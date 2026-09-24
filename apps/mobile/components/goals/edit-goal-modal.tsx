@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ActivityIndicator, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -107,20 +107,21 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     return errs
   }, [submitted, description, targetValue, unit, translate])
 
-  const [prevResetKey, setPrevResetKey] = useState<string | null>(null)
+  const previousResetKey = useRef<string | null>(null)
   const resetKey = open
     ? `${goal.title}:${goal.targetValue}:${goal.unit}:${goal.deadline ?? ''}`
     : null
-  if (resetKey !== prevResetKey) {
-    setPrevResetKey(resetKey)
-    if (open) {
+  useEffect(() => {
+    if (resetKey === previousResetKey.current) return
+    previousResetKey.current = resetKey
+    if (open) void Promise.resolve().then(() => {
       setDescription(goal.title)
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
-    }
-  }
+    })
+  }, [goal.deadline, goal.targetValue, goal.title, goal.unit, open, resetKey])
 
   const onSubmit = useCallback(async () => {
     setSubmitted(true)

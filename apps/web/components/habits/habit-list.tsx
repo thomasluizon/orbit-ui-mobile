@@ -236,7 +236,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     [visibility, view],
   )
 
-  const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
+  const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
+    habitsById,
+    childrenByParent,
+    selectedDate: selectedDateStr,
+    searchQuery,
+    showCompleted,
+    recentlyCompletedIds,
+  }, view)
 
   const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
 
@@ -986,7 +993,7 @@ const isPostponeAction = useMemo(() => {
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {drill.drillChildren.filter((c) => c.isCompleted).length}/
+                {drill.drillChildren.filter((c) => c.isCompleted || c.isLoggedInRange).length}/
                 {drill.drillChildren.length} {t('habits.completed')}
               </p>
             </div>

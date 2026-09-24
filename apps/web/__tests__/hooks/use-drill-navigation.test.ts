@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -110,6 +110,43 @@ describe('useDrillNavigation', () => {
 
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  it('filters completed one-time and recurring drill children with the selected date', async () => {
+    const date = '2025-01-15'
+    const response: HabitDetail = makeDetailResponse()
+    const child = response.children[0]!
+    response.children = [
+      { ...child, id: 'one-time', isCompleted: true },
+      { ...child, id: 'recurring', frequencyUnit: 'Day', isCompleted: true },
+    ]
+    const byId = new Map<string, NormalizedHabit>(response.children.map((child) => [
+      child.id,
+      makeHabit({
+        id: child.id, parentId: 'parent1', frequencyUnit: child.frequencyUnit,
+        isCompleted: child.isCompleted, isLoggedInRange: true,
+        scheduledDates: [date],
+      }),
+    ]))
+    const options = {
+      habitsById: byId,
+      childrenByParent: new Map([['parent1', response.children.map((child) => child.id)]]),
+      selectedDate: date, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(response) })
+    const hidden = renderHook(() => useDrillNavigation(byId, 0, options, 'today'))
+    await act(async () => { await hidden.result.current.drillInto('parent1') })
+    expect(hidden.result.current.drillChildren).toEqual([])
+    hidden.unmount()
+
+    const shown = renderHook(() => useDrillNavigation(byId, 0, {
+      ...options, showCompleted: true,
+    }, 'today'))
+    await act(async () => { await shown.result.current.drillInto('parent1') })
+    expect(shown.result.current.drillChildren.map((child) => child.id)).toEqual([
+      'one-time', 'recurring',
+    ])
   })
 
   it('starts with empty drill stack', () => {

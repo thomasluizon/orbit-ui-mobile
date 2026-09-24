@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -26,14 +26,16 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
 
   const [name, setName] = useState(() => profile?.name ?? '')
   const [error, setError] = useState('')
-  const [prevOpen, setPrevOpen] = useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) {
+  const previousOpen = useRef(open)
+  useEffect(() => {
+    const wasOpen = previousOpen.current
+    previousOpen.current = open
+    if (!open || wasOpen) return
+    void Promise.resolve().then(() => {
       setName(profile?.name ?? '')
       setError('')
-    }
-  }
+    })
+  }, [open, profile?.name])
 
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- Deliberate optimistic update: patchProfile() in onMutate writes the exact submitted name to the profile cache and rolls back on error; the server stores it verbatim, so no post-success refetch is needed. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const mutation = useMutation<unknown, Error, string, { previous: string | undefined }>({

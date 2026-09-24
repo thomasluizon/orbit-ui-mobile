@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the dialog transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
@@ -65,20 +65,22 @@ export function ConfirmDialog({
   )
   const dialogMotion = useResolvedMotionPreset('dialog')
   const progress = useMemo(() => new Animated.Value(0), [])
-  const [visible, setVisible] = useState(open)
+  const [visibleDuringExit, setVisibleDuringExit] = useState(false)
+  const visible = open || visibleDuringExit
+  const transitionToken = useRef(0)
+  const hasOpened = useRef(false)
 
   const destructive = variant === 'danger'
   const infoOnly = variant === 'info'
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
-  const [prevOpen, setPrevOpen] = useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) setVisible(true)
-  }
-
   useEffect(() => {
+    const token = ++transitionToken.current
     if (open) {
+      hasOpened.current = true
+      void Promise.resolve().then(() => {
+        if (transitionToken.current === token) setVisibleDuringExit(true)
+      })
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,
@@ -88,14 +90,17 @@ export function ConfirmDialog({
       return
     }
 
+    if (!hasOpened.current) return
+
     Animated.timing(progress, {
       toValue: 0,
       duration: dialogMotion.exitDuration,
       easing: toAnimatedEasing(dialogMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) {
-        setVisible(false)
+      if (finished && transitionToken.current === token) {
+        hasOpened.current = false
+        setVisibleDuringExit(false)
       }
     })
   }, [

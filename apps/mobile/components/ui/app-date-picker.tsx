@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the dialog transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
@@ -219,21 +219,23 @@ export function AppDatePicker({
   const weekStartsOn = profile?.weekStartDay ?? 0
   const locale = i18n.language
   const [isOpen, setIsOpen] = useState(false)
-  const [visible, setVisible] = useState(false)
+  const [visibleDuringExit, setVisibleDuringExit] = useState(false)
+  const visible = isOpen || visibleDuringExit
+  const transitionToken = useRef(0)
+  const hasOpened = useRef(false)
   const [pickerMode, setPickerMode] = useState<'days' | 'years'>('days')
   const [viewDate, setViewDate] = useState(new Date())
   const dialogMotion = useResolvedMotionPreset('dialog')
   const progress = useMemo(() => new Animated.Value(0), [])
 
-  const [prevOpen, setPrevOpen] = useState(isOpen)
-  if (isOpen !== prevOpen) {
-    setPrevOpen(isOpen)
-    if (isOpen) setVisible(true)
-  }
-
   // react-doctor-disable-next-line no-event-handler -- mount/exit-animation orchestration: `visible` keeps the Modal mounted through the exit timing driven by the isOpen transition; not a synthetic event handler https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
+    const token = ++transitionToken.current
     if (isOpen) {
+      hasOpened.current = true
+      void Promise.resolve().then(() => {
+        if (transitionToken.current === token) setVisibleDuringExit(true)
+      })
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,
@@ -243,14 +245,17 @@ export function AppDatePicker({
       return
     }
 
+    if (!hasOpened.current) return
+
     Animated.timing(progress, {
       toValue: 0,
       duration: dialogMotion.exitDuration,
       easing: toAnimatedEasing(dialogMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) {
-        setVisible(false)
+      if (finished && transitionToken.current === token) {
+        hasOpened.current = false
+        setVisibleDuringExit(false)
       }
     })
   }, [
@@ -264,11 +269,12 @@ export function AppDatePicker({
 
   const selectedDate = value ? parseISO(value) : null
 
-  const [previousValue, setPreviousValue] = useState(value)
-  if (value !== previousValue) {
-    setPreviousValue(value)
-    if (value) setViewDate(parseISO(value))
-  }
+  const previousValue = useRef(value)
+  useEffect(() => {
+    if (value === previousValue.current) return
+    previousValue.current = value
+    if (value) void Promise.resolve().then(() => setViewDate(parseISO(value)))
+  }, [value])
 
   const { lead: monthLead, year: yearLabel } = splitMonthYear(viewDate, locale)
   const styles = useMemo(() => createStyles(tokens), [tokens])

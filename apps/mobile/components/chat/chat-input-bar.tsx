@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import {
   Image as ImageIcon,
@@ -72,9 +72,9 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
     const { t } = useTranslation();
 
     const [draft, setDraft] = useState("");
-    const [prevIsRecording, setPrevIsRecording] = useState(false);
+    const previousRecording = useRef(false);
     const [pendingVoiceCommit, setPendingVoiceCommit] = useState(false);
-    const [prevResetSignal, setPrevResetSignal] = useState(composerResetSignal);
+    const previousResetSignal = useRef(composerResetSignal);
 
     useEffect(() => {
       let isMounted = true;
@@ -91,24 +91,28 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
       };
     }, []);
 
-    if (isRecording !== prevIsRecording) {
-      setPrevIsRecording(isRecording);
-      if (isRecording) setPendingVoiceCommit(true);
-    }
-
-    if (pendingVoiceCommit && !isRecording && transcript.trim()) {
-      setPendingVoiceCommit(false);
-      setDraft((current) =>
-        current ? `${current} ${transcript.trim()}` : transcript.trim(),
-      );
-    }
-
-    if (composerResetSignal !== prevResetSignal) {
-      setPrevResetSignal(composerResetSignal);
-      setDraft("");
-    }
+    useEffect(() => {
+      if (isRecording === previousRecording.current) return;
+      previousRecording.current = isRecording;
+      if (isRecording) void Promise.resolve().then(() => setPendingVoiceCommit(true));
+    }, [isRecording]);
 
     useEffect(() => {
+      if (!pendingVoiceCommit || isRecording || !transcript.trim()) return;
+      const committedTranscript = transcript.trim();
+      void Promise.resolve().then(() => {
+        setPendingVoiceCommit(false);
+        setDraft((current) =>
+          current ? `${current} ${committedTranscript}` : committedTranscript,
+        );
+      });
+    }, [isRecording, pendingVoiceCommit, transcript]);
+
+    useEffect(() => {
+      if (composerResetSignal !== previousResetSignal.current) {
+        previousResetSignal.current = composerResetSignal;
+        void Promise.resolve().then(() => setDraft(""));
+      }
       void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
     }, [composerResetSignal]);
 

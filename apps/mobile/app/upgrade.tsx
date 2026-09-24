@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Linking,
   ScrollView,
@@ -69,13 +69,16 @@ export default function UpgradeScreen() {
   const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalError, setPortalError] = useState('')
-  const [prevProcessing, setPrevProcessing] = useState(false)
+  const previousProcessing = useRef(false)
   const fallbackRoute = getUpgradeFallbackRoute(from, '/profile')
 
-  if (prevProcessing !== playBilling.isProcessing) {
-    setPrevProcessing(playBilling.isProcessing)
-    if (!playBilling.isProcessing) setCheckoutLoading(null)
-  }
+  useEffect(() => {
+    if (previousProcessing.current === playBilling.isProcessing) return
+    previousProcessing.current = playBilling.isProcessing
+    if (!playBilling.isProcessing) {
+      void Promise.resolve().then(() => setCheckoutLoading(null))
+    }
+  }, [playBilling.isProcessing])
 
   const checkoutError = playBilling.errorKey ? t(playBilling.errorKey) : ''
 

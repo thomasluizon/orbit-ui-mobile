@@ -5,6 +5,11 @@ import type {
 } from '../types/habit'
 import { formatAPIDate } from './dates'
 import { fallbackChildOverdue } from './habit-normalization'
+import {
+  createHabitVisibilityHelpers,
+  type HabitVisibilityOptions,
+  type HabitVisibilityView,
+} from './habit-visibility'
 
 export interface NormalizedDrillDetail {
   parent: NormalizedHabit
@@ -36,6 +41,27 @@ export function mergeDrillChildrenMap(
     next.set(parentId, children)
   }
   return next
+}
+
+export function getVisibleDrillChildren(
+  parentId: string,
+  drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
+  options: HabitVisibilityOptions,
+  view: HabitVisibilityView,
+): NormalizedHabit[] {
+  const habitsById = new Map(options.habitsById)
+  const childrenByParent = new Map(options.childrenByParent)
+  for (const [id, children] of drillChildrenMap) {
+    childrenByParent.set(id, children.map((child) => child.id))
+    for (const child of children) {
+      habitsById.set(child.id, { ...child, ...options.habitsById.get(child.id) })
+    }
+  }
+  return createHabitVisibilityHelpers({
+    ...options,
+    habitsById,
+    childrenByParent,
+  }).getVisibleChildren(parentId, view)
 }
 
 export function normalizeDrillDetailChild(

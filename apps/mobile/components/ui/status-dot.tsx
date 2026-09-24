@@ -58,14 +58,16 @@ export function StatusDot({
 
   const sweep = useMemo(() => new Animated.Value(0), [])
 
-  const [prevState, setPrevState] = useState(state)
-  const [playing, setPlaying] = useState(false)
+  const [sweepState, setSweepState] = useState({ state, playing: false })
   // react-doctor-disable-next-line rerender-state-only-in-handlers -- reduceMotion is read during render (it gates the completion-sweep via `playing` on the next state transition), so it is behavioral state, not display-only https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const [reduceMotion, setReduceMotion] = useState(false)
-  if (state !== prevState) {
-    setPrevState(state)
-    setPlaying(prevState !== 'done' && state === 'done' && interactive && !reduceMotion)
-  }
+  const playing = state === sweepState.state
+    ? sweepState.playing
+    : sweepState.state !== 'done' && state === 'done' && interactive && !reduceMotion
+  useEffect(() => {
+    if (state === sweepState.state) return
+    void Promise.resolve().then(() => setSweepState({ state, playing }))
+  }, [playing, state, sweepState.state])
 
   useEffect(() => {
     let active = true
@@ -91,7 +93,7 @@ export function StatusDot({
       easing: toAnimatedEasing(easings.out),
       useNativeDriver: false,
     }).start()
-    const id = setTimeout(() => setPlaying(false), SWEEP_MS + 40)
+    const id = setTimeout(() => setSweepState((current) => ({ ...current, playing: false })), SWEEP_MS + 40)
     return () => clearTimeout(id)
   }, [playing, sweep])
 
