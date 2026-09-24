@@ -246,7 +246,7 @@ vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({ title, description, value, trailing, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => React.createElement('ListRow', { title, description, value, onClick }, trailing),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => React.createElement('PillButton', { disabled, label, onClick }, children),
+  PillButton: ({ children, disabled, label, onClick, hint }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void; hint?: string }) => React.createElement('PillButton', { disabled, label, onClick, hint }, children),
 }))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
@@ -995,6 +995,26 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
   })
 
+  it('keeps checklist edits without offering old-day completion', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
+    })
+
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+
+    expect(mocks.checklist).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      items: [{ text: 'First', isChecked: true }],
+    })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
   it('clears a checklist only after confirmation', async () => {
     mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
     mocks.checklist.mockResolvedValueOnce(undefined)
@@ -1260,5 +1280,28 @@ describe('HabitDetailScreen', () => {
 
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.rescheduleWriteError')
     expect(accept).toBeDefined()
+  })
+
+  it('explains and blocks rescheduling on an old day', async () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
+    mocks.suggestion = {
+      frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null,
+      days: [], rationale: 'Try tomorrow',
+    }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
+    })
+    const accept = tree!.root.findAllByType('PillButton')
+      .find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'habits.detail.rescheduleAccept')
+
+    expect(accept!.props.disabled).toBe(true)
+    expect(accept!.props.hint).toBe('habits.todayBoundary.readOnly')
+    await TestRenderer.act(async () => {
+      accept!.props.onClick()
+      await Promise.resolve()
+    })
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 })

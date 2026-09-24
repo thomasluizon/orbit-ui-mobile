@@ -56,7 +56,7 @@ function BulkBtn({ icon: Icon, label, color, onClick, disabled = false, reason }
       onClick={() => { if (!disabled) onClick() }}
       aria-label={label}
       disabled={disabled && !reason}
-      aria-disabled={disabled || undefined}
+      aria-disabled={disabled && reason ? true : undefined}
       aria-describedby={disabled && reason ? reasonId : undefined}
       title={disabled ? reason : undefined}
       className={`appearance-none border-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${

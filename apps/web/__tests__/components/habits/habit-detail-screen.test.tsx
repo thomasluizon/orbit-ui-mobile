@@ -123,7 +123,7 @@ vi.mock('@/components/ui/list-row', () => ({
     : <div data-testid={`list-row-${title}`} data-description={description} data-value={value}>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>{children}</button>,
+  PillButton: ({ children, disabled, label, onClick, descriptionId }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void; descriptionId?: string }) => <button type="button" disabled={disabled} aria-label={label} aria-describedby={descriptionId} onClick={onClick}>{children}</button>,
 }))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
@@ -167,10 +167,10 @@ vi.mock('@/components/habits/habit-checklist', () => ({
 }))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
 vi.mock('@/components/habits/habit-log-button', () => ({
-  HabitLogButton: ({ label, logged, onPress }: { label: string; logged: boolean; onPress: () => void }) => <button type="button" aria-label={label} data-logged={logged} onClick={onPress}>{label}</button>,
+  HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled?: boolean; disabledReason?: string }) => <button type="button" aria-label={label} data-logged={logged} data-disabled-reason={disabledReason} disabled={disabled} onClick={onPress}>{label}</button>,
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, state, canLog, completionReadOnly, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
+  HabitRow: ({ habit, state, canLog, completionReadOnly, completionReason, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; completionReason?: string; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
     <div>
       <button
         type="button"
@@ -178,6 +178,7 @@ vi.mock('@/components/habits/habit-row', () => ({
         data-state={state}
         data-can-log={canLog}
         data-completion-read-only={completionReadOnly}
+        data-completion-reason={completionReason}
         aria-label={state === 'done' ? 'unlog-child' : 'log-child'}
         onClick={state === 'done' ? actions.onUnlog : actions.onLog}
       >
@@ -466,6 +467,16 @@ describe('HabitDetailScreen', () => {
       date: '2026-08-28',
       intent: 'unlog',
     })
+  })
+
+  it('explains disabled completion in old-day detail and child rows', () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
+
+    expect(screen.getByRole('button', { name: 'log' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'log' }))
+      .toHaveAttribute('data-disabled-reason', 'habits.todayBoundary.readOnly')
+    expect(screen.getByTestId('child-child-1'))
+      .toHaveAttribute('data-completion-reason', 'habits.todayBoundary.readOnly')
   })
 
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
@@ -784,6 +795,21 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
   })
 
+  it('keeps checklist edits without offering old-day completion', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.checklist).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      items: [{ text: 'First', isChecked: true }],
+    })
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
   it('clears a checklist only after confirmation', async () => {
     mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
     mocks.checklist.mockResolvedValueOnce(undefined)
@@ -868,5 +894,21 @@ describe('HabitDetailScreen', () => {
     await act(async () => { await Promise.resolve() })
     expect(mocks.showError).toHaveBeenCalledWith('rescheduleWriteError')
     expect(screen.getByRole('button', { name: 'rescheduleAccept' })).toBeInTheDocument()
+  })
+
+  it('explains and blocks rescheduling on an old day', () => {
+    mocks.logs = []
+    mocks.metrics = { ...mocks.metrics, currentStreak: 0, weeklyCompletionRate: 0, monthlyCompletionRate: 40, lastCompletedDate: '2026-08-20' }
+    mocks.suggestion = {
+      frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-30', dueTime: null,
+      days: [], rationale: 'Try tomorrow',
+    }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
+
+    const accept = screen.getByRole('button', { name: 'rescheduleAccept' })
+    expect(accept).toBeDisabled()
+    expect(accept).toHaveAccessibleDescription('habits.todayBoundary.readOnly')
+    fireEvent.click(accept)
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 })

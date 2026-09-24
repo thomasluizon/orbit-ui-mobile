@@ -159,7 +159,7 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
   )
 }
 
-function RescheduleBlock({ habit, slipping, hasPro, locale, tokens }: Readonly<{ habit: NormalizedHabit; slipping: boolean; hasPro: boolean; locale: string; tokens: ReturnType<typeof createTokensV2> }>) {
+function RescheduleBlock({ habit, slipping, hasPro, locale, tokens, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; slipping: boolean; hasPro: boolean; locale: string; tokens: ReturnType<typeof createTokensV2>; completionDisabled: boolean; completionReason?: string }>) {
   const { t } = useTranslation()
   const router = useRouter()
   const updateHabit = useUpdateHabit()
@@ -170,7 +170,7 @@ function RescheduleBlock({ habit, slipping, hasPro, locale, tokens }: Readonly<{
     return <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><ListRow title={t('habits.detail.slipping')} value={t('habits.detail.proGate')} onClick={() => router.push('/upgrade')} /></Surface>
   }
   const accept = async () => {
-    if (!query.suggestion) return
+    if (completionDisabled || !query.suggestion) return
     try {
       await updateHabit.mutateAsync({ habitId: habit.id, data: buildRescheduleUpdateRequest(habit, query.suggestion) })
     } catch {
@@ -182,12 +182,17 @@ function RescheduleBlock({ habit, slipping, hasPro, locale, tokens }: Readonly<{
       <View style={styles.proposedBlock}>
         <View style={styles.sectionHeading}>
           <Text style={[styles.proposedTitle, { color: tokens.fg1 }]}>{t('habits.detail.slipping')}</Text>
-          <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.suggestion?.rationale ?? (query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading'))}</Text>
+          <Text style={[styles.muted, { color: tokens.fg3 }]}>{completionDisabled ? completionReason : query.suggestion?.rationale ?? (query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading'))}</Text>
         </View>
-        <View style={styles.proposedAction}><PillButton variant="secondary" size="sm" disabled={!query.suggestion} loading={updateHabit.isPending} onClick={() => void accept()}>{t('habits.detail.rescheduleAccept')}</PillButton></View>
+        <View style={styles.proposedAction}><PillButton variant="secondary" size="sm" disabled={completionDisabled || !query.suggestion} hint={completionDisabled ? completionReason : undefined} loading={updateHabit.isPending} onClick={() => void accept()}>{t('habits.detail.rescheduleAccept')}</PillButton></View>
       </View>
     </Proposed>
   )
+}
+
+function completionDisabledOnDetail(habit: NormalizedHabit | null, date: string, today: string): boolean {
+  const boundary = getTodayBoundary(date, today)
+  return boundary === 'read-only' || (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, date, today)))
 }
 
 function HabitDetailNavigation({ parentId, onBack }: Readonly<{ parentId?: string | null; onBack: () => void }>) {
@@ -236,6 +241,11 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
   const hasPro = profile?.hasProAccess ?? false
   const headerSummary = habit?.dueTime && !summary.includes(habit.dueTime) ? `${summary} · ${habit.dueTime}` : summary
+  const boundary = getTodayBoundary(dateStr, todayStr)
+  const completionDisabled = completionDisabledOnDetail(habit, dateStr, todayStr)
+  const completionReason = boundary === 'read-only'
+    ? t('habits.todayBoundary.readOnly')
+    : boundary === 'future' ? t('habits.todayBoundary.future') : undefined
   const [detailChevron] = useState(() => new Animated.Value(0))
   const [detailOpacity] = useState(() => new Animated.Value(0))
   useEffect(() => {
@@ -309,9 +319,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const toggleItem = async (index: number) => {
     if (!habit) return
     const items = habit.checklistItems.map((item, itemIndex) => itemIndex === index ? { ...item, isChecked: !item.isChecked } : item)
-    if (await setItems(items) && items.length > 0 && items.every((item) => item.isChecked) && !logged) setConfirm('log')
+    if (await setItems(items) && items.length > 0 && items.every((item) => item.isChecked) && !logged && !completionDisabled) setConfirm('log')
   }
   const confirmLog = async () => {
+    if (completionDisabled) { setConfirm(null); return }
     if (await writeLog(habitId, 'log')) setConfirm(null)
   }
   const confirmDelete = async () => {
@@ -335,11 +346,6 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} header={appBar}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></FlowShell>
   if (detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} header={appBar}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
 
-  const completionDisabled = !canLogHabitOnDate(habit, dateStr, todayStr)
-  const boundary = getTodayBoundary(dateStr, todayStr)
-  const completionReason = boundary === 'read-only'
-    ? t('habits.todayBoundary.readOnly')
-    : boundary === 'future' ? t('habits.todayBoundary.future') : undefined
   const children = (normalizeHabitDetailForDrill(detailQuery.data, dateStr)
     .childrenByParent.get(habit.id) ?? [])
     .map((child) => buildHabitDetailChildDateModel(
@@ -351,7 +357,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   return (
     <FlowShell nav={false} header={appBar}>
       <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} tokens={tokens} onPatch={patch} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
-      <RescheduleBlock habit={habit} slipping={slipping} hasPro={hasPro} locale={profile?.language ?? i18n.language} tokens={tokens} />
+      <RescheduleBlock habit={habit} slipping={slipping} hasPro={hasPro} locale={profile?.language ?? i18n.language} tokens={tokens} completionDisabled={completionDisabled} completionReason={completionReason} />
       {strip ? <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeader}><SectionTitle color={tokens.fg1}>{t('habits.detail.lastThirtyDays')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{strip.days.filter((value) => value === 'done').length}/30</Text></View><ScrollView horizontal showsHorizontalScrollIndicator={false}><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></ScrollView><Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} /></Surface> : null}
       <History habit={habit} logs={logsQuery.data} today={today} locale={profile?.language ?? i18n.language} weekStartsOn={profile?.weekStartDay ?? 0} tokens={tokens} />
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />{children.map(({ habit: child, completionReadOnly }) => <HabitRow key={child.id} habit={child} selectedDate={selectedDate} completionReadOnly={completionReadOnly} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} value={!hasPro ? t('habits.detail.proGate') : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>

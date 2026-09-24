@@ -38,7 +38,7 @@ export function CheckCircle({ state, onToggle, disabled, ariaLabel, disabledReas
         onToggle()
       }}
       disabled={disabled && !disabledReason}
-      aria-disabled={disabled || undefined}
+      aria-disabled={disabled && disabledReason ? true : undefined}
       aria-label={ariaLabel}
       aria-describedby={disabled && disabledReason ? reasonId : undefined}
       title={disabled ? disabledReason : undefined}

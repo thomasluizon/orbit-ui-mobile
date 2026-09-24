@@ -143,7 +143,7 @@ export function HabitRowTrailing({
               aria-label={parentRingLabel(statusLabel, toggleLabel, habit.title, childProgress)}
               onClick={(event) => triggerParentCompletion(event, completionDisabled, isDone, actions)}
               disabled={completionDisabled && !completionReason}
-              aria-disabled={completionDisabled || undefined}
+              aria-disabled={completionDisabled && completionReason ? true : undefined}
               aria-describedby={completionReasonId(completionDisabled, completionReason, reasonId)}
               title={completionDisabled ? completionReason : undefined}
               className={`appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${completionDisabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}
