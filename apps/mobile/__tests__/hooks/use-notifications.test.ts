@@ -1,6 +1,6 @@
 import React from 'react'
 import { focusManager } from '@tanstack/query-core'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NOTIFICATIONS_REFETCH_INTERVAL, notificationKeys } from '@orbit/shared/query'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import { i18n } from '@/lib/i18n'
@@ -12,6 +12,11 @@ import {
   useMarkNotificationRead,
   useNotifications,
 } from '@/hooks/use-notifications'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const TestRenderer = require('react-test-renderer')
 const feedback = vi.hoisted(() => ({ showError: vi.fn() }))
