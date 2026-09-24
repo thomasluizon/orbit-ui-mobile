@@ -176,6 +176,56 @@ describe('drill navigation utils', () => {
 })
 
 describe('getVisibleDrillChildren', () => {
+  it.each(['today', 'general'] as const)('filters a completed general child in %s', (view) => {
+    const date = '2025-01-02'
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({ id: 'general-child', isGeneral: true, isCompleted: true }),
+    ] }), date)
+    const listChild = createMockHabit({
+      id: 'general-child', parentId: 'parent-1', isGeneral: true, isCompleted: true,
+    })
+    const options = {
+      habitsById: new Map([[listChild.id, listChild]]),
+      childrenByParent: new Map([['parent-1', [listChild.id]]]),
+      selectedDate: date, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, options, view, date)).toEqual([])
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
+      ...options, showCompleted: true,
+    }, view, date).map((child) => child.id)).toEqual(['general-child'])
+  })
+
+  it.each(['today', 'general'] as const)('uses dated list completion when general child detail disagrees in %s', (view) => {
+    const selectedDate = '2025-01-01'
+    const today = '2025-01-03'
+    const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
+      makeDetailChild({ id: 'done-then', isGeneral: true, isCompleted: false }),
+      makeDetailChild({ id: 'done-today', isGeneral: true, isCompleted: true }),
+    ] }), today)
+    const doneThen = createMockHabit({
+      id: 'done-then', parentId: 'parent-1', isGeneral: true, isCompleted: true,
+    })
+    const doneToday = createMockHabit({
+      id: 'done-today', parentId: 'parent-1', isGeneral: true, isCompleted: false,
+    })
+    const options = {
+      habitsById: new Map([[doneThen.id, doneThen], [doneToday.id, doneToday]]),
+      childrenByParent: new Map([['parent-1', [doneThen.id, doneToday.id]]]),
+      selectedDate, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, options, view, today)
+      .map((child) => child.id)).toEqual(['done-today'])
+    expect(getVisibleDrillChildren('parent-1', detail.childrenByParent, {
+      ...options, showCompleted: true,
+    }, view, today).map((child) => [child.id, child.isCompleted])).toEqual([
+      ['done-then', true], ['done-today', false],
+    ])
+  })
+
   it('shows a completed detail-only one-time child when Show completed is on', () => {
     const date = '2025-01-02'
     const detail = normalizeHabitDetailForDrill(makeDetail({ children: [
