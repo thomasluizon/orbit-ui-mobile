@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
+import { createHash } from "node:crypto"
 import { join } from "node:path"
 import { isDeepStrictEqual } from "node:util"
 import { cloudOrder } from "../lib/cloud-worker.mjs"
@@ -219,6 +220,46 @@ export const cases = () => {
       !/gh pr checks|must be GREEN before you report|## Cloud finishing contract/.test(prompt),
     prompt,
   )
+  const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract"), prompt.indexOf("\n\n---\n\n## Orchestrator's brief")).trimEnd()
+  T(
+    `${TOOL}: original implementation keeps its finishing section byte for byte`,
+    createHash("sha256").update(originalFinishing).digest("hex") === "4dc1cb5d62215f363ac2173dc740caf1ab1f2a47c055273989af1ad0ae0a4205",
+    originalFinishing,
+  )
+  const reviewOut = join(root, "compose-prompt", "review-batch.md")
+  check(
+    TOOL,
+    "composes a local review batch",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewOut, "--review-batch"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const reviewPrompt = composed(reviewOut)
+  T(
+    `${TOOL}: review batch ends after a tested commit and reports its SHA without delivery instructions`,
+    /Run the broader suite/.test(reviewPrompt) &&
+      /Report the commit SHA/.test(reviewPrompt) &&
+      /Stop after the tested commit/.test(reviewPrompt) &&
+      /Do not push or open a pull request/.test(reviewPrompt) &&
+      !/Then, in order: run the broader suite, push/.test(reviewPrompt) &&
+      !/open or update exactly one pull request/.test(reviewPrompt) &&
+      !/One commit series on your branch, pushed/.test(reviewPrompt) &&
+      !/The pull request must NOT be a draft/.test(reviewPrompt),
+    reviewPrompt,
+  )
+  T(
+    `${TOOL}: review batch report ends with the literal sections the orchestrator copies into the body`,
+    /these literal sections, each one present even when it is empty/.test(reviewPrompt) &&
+      /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(reviewPrompt) &&
+      /`## Review harness` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern/.test(reviewPrompt),
+    reviewPrompt,
+  )
+  T(
+    `${TOOL}: review batch manual steps require the exact key, screen, and proof`,
+    /`## Manual steps`: every action outside the repository/.test(reviewPrompt) &&
+      /each naming the exact key, the exact console or screen, and what proves it\s+took effect/.test(reviewPrompt),
+    reviewPrompt,
+  )
   const localFinishing = prompt.slice(prompt.indexOf("## Finishing contract"))
   const deliverySentences = [
     "Commit after each coherent piece of work, even if imperfect: a ceiling kill keeps commits and loses an uncommitted index.",
@@ -253,6 +294,29 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const redesignPrompt = composed(redesignOut)
+  const reviewRedesignOut = join(root, "compose-prompt", "review-redesign.md")
+  check(
+    TOOL,
+    "composes a redesign review batch",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewRedesignOut, "--base", "redesign/main", "--review-batch"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const reviewRedesignPrompt = composed(reviewRedesignOut)
+  T(
+    `${TOOL}: review batch UI sweep uses only paths in its own commit`,
+    /paths changed by this batch's commit/.test(reviewRedesignPrompt) &&
+      !/After implementation, inspect the complete diff/.test(reviewRedesignPrompt) &&
+      /After implementation, inspect the complete diff/.test(redesignPrompt),
+    reviewRedesignPrompt,
+  )
+  T(
+    `${TOOL}: redesign review batch requires harness evidence only for a UI-scope diff`,
+    /If no changed path matches, skip this sweep and omit the Review harness block/.test(reviewRedesignPrompt) &&
+      /`## Review harness` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern/.test(reviewRedesignPrompt) &&
+      /When a changed path matches, include the complete `## Review harness` block/.test(reviewRedesignPrompt),
+    reviewRedesignPrompt,
+  )
   T(
     `${TOOL}: redesign delivery appears before the review sweep`,
     redesignPrompt.indexOf("## Finishing contract") < redesignPrompt.indexOf("## UI review sweep"),
@@ -312,6 +376,19 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const cloudPrompt = composed(cloudOut)
+  const reviewCloudOut = join(root, "compose-prompt", "review-cloud.md")
+  check(
+    TOOL,
+    "composes Cloud with the review batch flag",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewCloudOut, "--cloud", "--review-batch", "--base", "redesign/main", "--worktree", REPO_PATH, "--branch", "feature/local-materialization"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  T(
+    `${TOOL}: Cloud order is byte-identical with the review batch flag`,
+    composed(reviewCloudOut) === cloudPrompt,
+    composed(reviewCloudOut),
+  )
   T(
     `${TOOL}: Cloud keeps its existing standalone commit instruction without local delivery text`,
     cloudPrompt.includes("## Cloud finishing contract\n\n**Commit the implementation. Without a commit there is no diff and the work is lost.**\n\n-") &&
@@ -354,6 +431,45 @@ export const cases = () => {
     `${TOOL}: the Cloud materialization skill mirrors the canonical review sweep contract`,
     orchestrateSkill.includes(reviewSweepContract),
     orchestrateSkill,
+  )
+  T(
+    `${TOOL}: orchestration resolves review batch threads before its single push`,
+    /compose its order with `--review-batch`/.test(orchestrateSkill) &&
+      /worker commits, runs the\s+broader suite, reports the commit SHA and stops without pushing/.test(orchestrateSkill) &&
+      /resolve every identified thread on that commit, then push once/.test(orchestrateSkill) &&
+      !/A worker cannot keep that order\s+under today's contract/.test(orchestrateSkill),
+    orchestrateSkill,
+  )
+  T(
+    `${TOOL}: orchestration writes a review batch's report into the pull request body before resolving`,
+    /Its final report is the batch's\s+handoff/.test(orchestrateSkill) &&
+      /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(orchestrateSkill) &&
+      /node tools\/merge-review-batch-body\.mjs --body-file <current-body> --report-file <worker-report> --out <merged-body>/.test(orchestrateSkill) &&
+      /gh pr edit <n> --body-file <merged-body>/.test(orchestrateSkill) &&
+      /its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools\/lib\/review-harness\.mjs`/.test(orchestrateSkill) &&
+      /For a batch with no matching path, accept a report without that block and preserve any existing PR-body block/.test(orchestrateSkill) &&
+      /For a batch with a matching path, require the complete block and replace the PR-body block/.test(orchestrateSkill),
+    orchestrateSkill,
+  )
+  T(
+    `${TOOL}: orchestration preserves earlier handoff entries across two review batches`,
+    /Merge new entries into the existing `## Test evidence`, `## Assumptions` and `## Manual steps` sections/.test(orchestrateSkill) &&
+      /An empty second batch section preserves the first batch's entries/.test(orchestrateSkill) &&
+      /Deduplicate repeated evidence/.test(orchestrateSkill),
+    orchestrateSkill,
+  )
+  const sleepSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")
+  T(
+    `${TOOL}: the sleep entry policy selects --review-batch for review fixes and keeps resolve-before-push`,
+    /composed with `--review-batch`/.test(sleepSkill) && /stops WITHOUT pushing/.test(sleepSkill) &&
+      /resolves every thread on that commit, then pushes once/.test(sleepSkill),
+    sleepSkill,
+  )
+  const toolsCatalog = readFileSync(join(REPO_ROOT, "tools", "README.md"), "utf8")
+  T(
+    `${TOOL}: the tools catalog documents --review-batch in the compose-prompt usage`,
+    /--review-batch \\\| --cloud\]/.test(toolsCatalog) && /`--review-batch` selects a local review fix/.test(toolsCatalog),
+    "tools/README.md compose-prompt row",
   )
   for (const [mode, order, heading] of [
     ["local", prompt, "## Finishing contract"],
