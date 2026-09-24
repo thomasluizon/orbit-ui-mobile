@@ -55,20 +55,22 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            try {
-                renderWidget(context, appWidgetManager, appWidgetId)
-            } catch (_: Exception) {
-                runCatching {
-                    val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
-                    applyOpenAppActions(context, fallback)
-                    fallback.setViewVisibility(R.id.widget_list, View.GONE)
-                    if (isSignedOut(context)) {
-                        applySignedOutCard(context, fallback)
-                    } else {
-                        showRefresh(fallback)
-                        fallback.setViewVisibility(R.id.widget_loading, View.VISIBLE)
+            synchronized(OrbitWidgetModule.accountRenderLock) {
+                try {
+                    renderWidget(context, appWidgetManager, appWidgetId)
+                } catch (_: Exception) {
+                    runCatching {
+                        val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
+                        applyOpenAppActions(context, fallback)
+                        fallback.setViewVisibility(R.id.widget_list, View.GONE)
+                        if (isSignedOut(context)) {
+                            applySignedOutCard(context, fallback)
+                        } else {
+                            showRefresh(fallback)
+                            fallback.setViewVisibility(R.id.widget_loading, View.VISIBLE)
+                        }
+                        appWidgetManager.updateAppWidget(appWidgetId, fallback)
                     }
-                    appWidgetManager.updateAppWidget(appWidgetId, fallback)
                 }
             }
         }
