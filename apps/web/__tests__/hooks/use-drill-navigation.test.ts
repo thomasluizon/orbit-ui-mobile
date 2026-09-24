@@ -293,6 +293,31 @@ describe('useDrillNavigation', () => {
     expect(result.current.drillLoading).toBe(false)
   })
 
+  it('keeps the latest same-parent success when an older visit succeeds later', async () => {
+    const stale: { resolve: (response: unknown) => void } = { resolve: () => undefined }
+    const freshDetail = makeDetailResponse()
+    freshDetail.title = 'Fresh Parent'
+    freshDetail.children[0]!.id = 'fresh'
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(freshDetail) })
+    const { result } = renderHook(() => useDrillNavigation(new Map(), 0))
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    act(() => { staleDrill = result.current.drillInto('parent1') })
+    act(() => { result.current.drillBack() })
+    await act(async () => { await result.current.drillInto('parent1') })
+    expect(result.current.currentParent?.title).toBe('Fresh Parent')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['fresh'])
+
+    await act(async () => {
+      stale.resolve({ ok: true, json: () => Promise.resolve(makeDetailResponse()) })
+      await staleDrill
+    })
+    expect(result.current.currentParent?.title).toBe('Fresh Parent')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['fresh'])
+    expect(result.current.drillLoading).toBe(false)
+  })
+
   it('finishes loading when an automatic refresh supersedes the initial fetch', async () => {
     const stale: { resolve: (response: unknown) => void } = { resolve: () => undefined }
     const freshDetail = makeDetailResponse()

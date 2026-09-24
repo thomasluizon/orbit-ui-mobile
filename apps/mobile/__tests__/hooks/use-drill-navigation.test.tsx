@@ -265,6 +265,30 @@ describe('mobile useDrillNavigation', () => {
     expect(holder.current.drillLoading).toBe(false)
   })
 
+  it('keeps the latest same-parent success when an older visit succeeds later', async () => {
+    const stale: { resolve: (detail: HabitDetail) => void } = { resolve: () => undefined }
+    mocks.apiClient.mockImplementationOnce(() => new Promise<HabitDetail>((resolve) => { stale.resolve = resolve }))
+      .mockResolvedValueOnce(makeDetail({
+        title: 'Fresh Parent', children: [makeChild({ id: 'fresh' })],
+      }))
+    const { holder } = renderDrill()
+
+    let staleDrill: Promise<void> = Promise.resolve()
+    TestRenderer.act(() => { staleDrill = holder.current.drillInto('p1') })
+    TestRenderer.act(() => holder.current.drillBack())
+    await actAsync(() => holder.current.drillInto('p1'))
+    expect(holder.current.currentParent?.title).toBe('Fresh Parent')
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['fresh'])
+
+    await actAsync(async () => {
+      stale.resolve(makeDetail({ children: [makeChild({ id: 'stale' })] }))
+      await staleDrill
+    })
+    expect(holder.current.currentParent?.title).toBe('Fresh Parent')
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['fresh'])
+    expect(holder.current.drillLoading).toBe(false)
+  })
+
   it('finishes loading when an automatic refresh supersedes the initial fetch', async () => {
     const stale: { resolve: (detail: HabitDetail) => void } = { resolve: () => undefined }
     mocks.apiClient.mockImplementationOnce(() => new Promise<HabitDetail>((resolve) => { stale.resolve = resolve }))
