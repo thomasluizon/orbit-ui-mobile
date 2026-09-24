@@ -95,7 +95,7 @@ const VERDICTS = {
   ".claude/skills/drift-review/SKILL.md":
     "undeclared, inherits the session: it judges repeated evidence against the current workflow files, but every result remains a staged candidate for human review.",
   ".claude/skills/handoff/SKILL.md":
-    "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four. Reseeded 2026-09-16 when it gained the rule that an attended handoff ENDS the session, which needs the same judgement to apply: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong.",
+    "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four. The rule that handoff always ENDS the session needs the same judgement: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong.",
   ".claude/skills/investigate/SKILL.md":
     "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate.",
   ".claude/skills/lesson/SKILL.md":

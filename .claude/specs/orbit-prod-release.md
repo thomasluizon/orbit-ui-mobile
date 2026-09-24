@@ -107,7 +107,8 @@ These stay until he changes them. Keep his words.
   matter if it will break (for now)." This narrows deploy-API-first while the fleet is him alone. It
   does NOT narrow "always the best implementation": it buys a simpler deploy order, never simpler code.
 - **Standing** Ticket `#74` owns existing copy.
-- **2026-09-16** **An attended `/handoff` ENDS the session.** "after i run /handoff, the session is
+- **2026-09-16, clarified 2026-09-24** **`/handoff` always ENDS the session.** "after i run /handoff,
+  the session is
   FINISHED, you cant continue working, anything i ask, you put on the handoff prompt, not now." The
   one exception is an explicit "do this now, then /handoff". `/wrap-up` shipped the same day and runs
   `/progress`, then `/questions`, then `/handoff`, passing `--sleep` through to the last one only.
