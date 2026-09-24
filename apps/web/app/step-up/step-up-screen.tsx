@@ -61,23 +61,43 @@ const getServerNotReady = () => false
  * date on screen.
  */
 export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: string | null }>) {
+  const heldAccountId = useHeldAccountId()
+  const sessionInactive = useAuthStore((state) => state.sessionInactive)
+  const accountId = sessionInactive ? null : heldAccountId ?? serverAccountId
+
+  useEffect(() => {
+    const stopMonitor = useAuthStore.getState().startExpiryMonitor()
+    return stopMonitor
+  }, [])
+
+  return (
+    <StepUpScreenContent
+      key={accountId ?? 'inactive'}
+      accountId={accountId}
+      serverAccountId={serverAccountId}
+      sessionInactive={sessionInactive}
+    />
+  )
+}
+
+function StepUpScreenContent({
+  accountId,
+  serverAccountId,
+  sessionInactive,
+}: Readonly<{
+  accountId: string | null
+  serverAccountId: string | null
+  sessionInactive: boolean
+}>) {
   const t = useTranslations('stepUp')
   const router = useRouter()
   const searchParams = useSearchParams()
   const operationParam = searchParams.get('operation')
   const operation = isStepUpOperation(operationParam) ? operationParam : null
   const { profile } = useProfile()
-  const heldAccountId = useHeldAccountId()
-  const sessionInactive = useAuthStore((state) => state.sessionInactive)
-  const accountId = sessionInactive ? null : heldAccountId ?? serverAccountId
   const userEmail = useAuthStore((state) => state.user?.email)
   const logout = useAuthStore((state) => state.logout)
   const { displayDate } = useDateFormat()
-
-  useEffect(() => {
-    const stopMonitor = useAuthStore.getState().startExpiryMonitor()
-    return stopMonitor
-  }, [])
 
   const [recordOverride, setRecord] = useAccountScopedState<StepUpTimingRecord | null>(null)
   const clientReady = useSyncExternalStore(

@@ -181,3 +181,26 @@ it('keeps the challenge and typed code through same-account recovery', async () 
   expect(screen.getByLabelText('codeLabel')).toHaveValue('123456')
   expect(mocks.router.replace).not.toHaveBeenCalledWith('/login')
 })
+
+it('drops server-account code when the first client session names another account', async () => {
+  holdAccount('user-1')
+  useAuthStore.getState().adoptAccountFromSignal(null)
+  useAuthStore.setState({ sessionInactive: false })
+  expect(getHeldAccountId()).toBeNull()
+  storeChallenge('user-1')
+  storeChallenge('user-2')
+  const pending = deferred<Response>()
+  vi.mocked(globalThis.fetch).mockImplementation(() => pending.promise)
+
+  await act(async () => { render(<StepUpScreen serverAccountId="user-1" />) })
+  fireEvent.change(screen.getByLabelText('codeLabel'), { target: { value: '123456' } })
+  expect(screen.getByLabelText('codeLabel')).toHaveValue('123456')
+
+  await act(async () => {
+    pending.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-2' }))
+    await pending.promise
+  })
+
+  expect(getHeldAccountId()).toBe('user-2')
+  expect(screen.getByLabelText('codeLabel')).toHaveValue('')
+})
