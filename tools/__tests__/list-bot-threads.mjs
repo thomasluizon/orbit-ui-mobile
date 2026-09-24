@@ -22,20 +22,26 @@ let testedToolPath = null
  */
 const THREAD_BODY = "**Honor the configured timeout for every GitHub child**\n\nWhen the poller runs, this still uses the default bound.\n\n<!-- Pullfrog review metadata -->"
 
-const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", isResolved = false, isOutdated = false, path = "tools/launch-worker.mjs", line = 42, body = THREAD_BODY, login = BOT } = {}) => ({
+const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", reviewId = "PRR_kwDOR5Siws8AAAABNo7WdA", isResolved = false, isOutdated = false, path = "tools/launch-worker.mjs", line = 42, body = THREAD_BODY, login = BOT } = {}) => ({
   id,
   isResolved,
   isOutdated,
   path,
   line,
-  comments: { nodes: [{ author: { login }, body }] },
+  comments: { nodes: [{ author: { login }, body, pullRequestReview: { id: reviewId } }] },
 })
 
 const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
 const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
 const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
 
-const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], headRefOid = HEAD, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
+const approvalCheck = (status = "COMPLETED", conclusion = "SUCCESS", startedAt = "2026-08-12T20:36:00Z") => ({
+  __typename: "CheckRun", name: "pullfrog-approval", status, conclusion, startedAt,
+  completedAt: status === "COMPLETED" ? startedAt : null,
+  checkSuite: { app: { databaseId: 1768019 } },
+})
+
+const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], checks = [approvalCheck()], headRefOid = HEAD, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
   JSON.stringify({
     data: {
       repository: {
@@ -44,6 +50,7 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], h
           isDraft,
           baseRefOid: BASE,
           headRefOid,
+          statusCheckRollup: { contexts: { nodes: checks } },
           reviews: { nodes: reviews },
           comments: { nodes: comments },
           reviewThreads: { pageInfo, nodes: threads },
@@ -53,7 +60,7 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], h
   })
 
 /** APPROVED is the state Pullfrog really used for its clean pass on pull request 711. */
-const botReview = (state = "APPROVED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "") => ({ author: { login: BOT }, state, submittedAt, body, commit: { oid } })
+const botReview = (state = "APPROVED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "", id = "PRR_kwDOR5Siws8AAAABNo7WdA") => ({ id, author: { login: BOT }, state, submittedAt, body, commit: { oid } })
 const ghPlan = (stdout, exit = 0) => ({
   ...orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
@@ -191,15 +198,75 @@ export const cases = () => {
     commentedWithBody.status === 0 && commentedPlan?.verdict === "REVIEWED" && commentedPlan.reviewState === "COMMENTED" && commentedPlan.counts.total === 0 && commentedPlan.reviewBody === COMMENTED_BODY,
     commentedWithBody.stdout || commentedWithBody.stderr,
   )
-  /**
-   * The empty-body case, kept exactly as it was. `null` now means the body held nothing to read,
-   * never that a COMMENTED body is dropped, so a caller can tell the two apart.
-   */
-  const commented = readPr(payload({ reviews: [botReview("COMMENTED")] }))
+  const commented = readPr(payload({ reviews: [botReview("COMMENTED")], checks: [approvalCheck("IN_PROGRESS", null)] }))
   T(
-    `${TOOL}: a COMMENTED review with an empty body is REVIEWED and reports no body to read`,
-    commented.status === 0 && parsed(commented)?.verdict === "REVIEWED" && parsed(commented)?.reviewBody === null,
+    `${TOOL}: an empty COMMENTED review is a progress marker, never a verdict`,
+    commented.status === 1 && parsed(commented)?.verdict === "NO_REVIEW" && parsed(commented)?.progressMarkers === 1,
     commented.stdout || commented.stderr,
+  )
+
+  const markerSequence = stage("list-bot-threads/marker-sequence", "0")
+  const markerThenBody = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "3", "--poll-seconds", "1", "--no-request"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "api graphql", stdoutSequence: [
+      payload({ reviews: [botReview("COMMENTED")], checks: [approvalCheck("IN_PROGRESS", null)] }),
+      payload({ reviews: [botReview("COMMENTED"), botReview("COMMENTED", "2026-08-05T10:00:00Z", HEAD, "A real finding.", "PRR_later_review")], checks: [approvalCheck("IN_PROGRESS", null)] }),
+    ], sequenceFile: markerSequence },
+  ]) })
+  T(
+    `${TOOL}: a marker followed by a body waits and returns the body`,
+    markerThenBody.status === 0 && parsed(markerThenBody)?.reviewBody === "A real finding." && parsed(markerThenBody)?.progressMarkers === 1,
+    markerThenBody.stdout || markerThenBody.stderr,
+  )
+
+  const completedOverMarkers = readPr(payload({ reviews: [botReview("COMMENTED")], checks: [approvalCheck("COMPLETED", "FAILURE")] }))
+  T(
+    `${TOOL}: a completed approval check ends the wait and reports failure over markers`,
+    completedOverMarkers.status === 1 && parsed(completedOverMarkers)?.verdict === "CHECK_FAILED" && parsed(completedOverMarkers)?.checkConclusion === "FAILURE" && parsed(completedOverMarkers)?.progressMarkers === 1,
+    completedOverMarkers.stdout || completedOverMarkers.stderr,
+  )
+
+  const approvedPending = readPr(payload({ reviews: [botReview()], checks: [approvalCheck("IN_PROGRESS", null)] }))
+  T(
+    `${TOOL}: an APPROVED review with a pending check is CHECK_PENDING and keeps its review evidence`,
+    approvedPending.status === 1 && parsed(approvedPending)?.verdict === "CHECK_PENDING" &&
+      parsed(approvedPending)?.reviewState === "APPROVED" && parsed(approvedPending)?.reviewedAt === "2026-08-04T23:16:35Z" &&
+      parsed(approvedPending)?.reviewedCommit === HEAD && parsed(approvedPending)?.checkStatus === "PENDING" &&
+      parsed(approvedPending)?.checkConclusion === null,
+    approvedPending.stdout || approvedPending.stderr,
+  )
+
+  const approvedWithoutCheck = readPr(payload({ reviews: [botReview()], checks: [] }))
+  T(
+    `${TOOL}: an exact-head APPROVED review with no check is REVIEWED, the unprotected-base evidence`,
+    approvedWithoutCheck.status === 0 && parsed(approvedWithoutCheck)?.verdict === "REVIEWED" &&
+      parsed(approvedWithoutCheck)?.reviewState === "APPROVED" && parsed(approvedWithoutCheck)?.reviewedAt === "2026-08-04T23:16:35Z" &&
+      parsed(approvedWithoutCheck)?.reviewedCommit === HEAD && parsed(approvedWithoutCheck)?.checkStatus === "ABSENT" &&
+      parsed(approvedWithoutCheck)?.checkConclusion === null,
+    approvedWithoutCheck.stdout || approvedWithoutCheck.stderr,
+  )
+
+  const markerWithOwnThread = readPr(payload({ reviews: [botReview("COMMENTED")], threads: [thread()], checks: [approvalCheck("IN_PROGRESS", null)] }))
+  T(
+    `${TOOL}: an empty COMMENTED review with its own thread carries a verdict`,
+    markerWithOwnThread.status === 0 && parsed(markerWithOwnThread)?.verdict === "REVIEWED" && parsed(markerWithOwnThread)?.progressMarkers === 0,
+    markerWithOwnThread.stdout || markerWithOwnThread.stderr,
+  )
+  const markerWithOtherThread = readPr(payload({ reviews: [botReview("COMMENTED")], threads: [thread({ reviewId: "PRR_another_review" })], checks: [approvalCheck("IN_PROGRESS", null)] }))
+  T(
+    `${TOOL}: another review's thread does not turn a marker into a verdict`,
+    markerWithOtherThread.status === 1 && parsed(markerWithOtherThread)?.progressMarkers === 1,
+    markerWithOtherThread.stdout || markerWithOtherThread.stderr,
+  )
+
+  const superseded = readPr(payload({
+    reviews: [botReview("APPROVED"), botReview("COMMENTED", "2026-08-05T10:00:00Z", HEAD, "A later P1 finding.", "PRR_later_review")],
+    checks: [approvalCheck("COMPLETED", "SUCCESS", "2026-08-05T10:01:00Z"), approvalCheck("COMPLETED", "FAILURE", "2026-08-05T10:02:00Z")],
+  }))
+  T(
+    `${TOOL}: a later same-head finding and latest failing check supersede approval`,
+    superseded.status === 1 && parsed(superseded)?.verdict === "CHECK_FAILED" && parsed(superseded)?.reviewState === "COMMENTED" && parsed(superseded)?.reviewBody === "A later P1 finding." && parsed(superseded)?.checkConclusion === "FAILURE",
+    superseded.stdout || superseded.stderr,
   )
   /**
    * --re-review is the ONLY transition that can clear a finding carried in a review body, because
@@ -259,6 +326,8 @@ export const cases = () => {
       `reviews selection was "${reviewsSelection}"`,
     )
   }
+  T(`${TOOL}: the query selects check run identity, status, conclusion, and time`, ["statusCheckRollup", "checkSuite{app{databaseId}}", "status", "conclusion", "startedAt", "completedAt"].every((field) => querySource.includes(field)), querySource)
+  T(`${TOOL}: the query selects each thread's owning review`, querySource.includes("pullRequestReview{id}"), querySource)
 
   const REQUEST_URL = "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-2026081201"
   const requestComment = (createdAt) => ({ author: { login: "thomasluizon" }, body: "@pullfrog review", createdAt, url: REQUEST_URL })
