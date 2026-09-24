@@ -77,7 +77,6 @@ const bulkLogMutateAsync = vi.fn()
 const bulkSkipMutateAsync = vi.fn()
 let mockHabitsDataUpdatedAt = 1
 let useActualHabitVisibility = false
-let mockSearchResults = false
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
 const colorProxy: Record<string, string> = new Proxy(
@@ -238,19 +237,8 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
-  useHabits: (filters: HabitsFilter) => ({
-    data: mockSearchResults && filters.search
-      ? (() => {
-          const matching = mockHabitsData.topLevelHabits.filter((habit) =>
-            habit.title.toLowerCase().includes(filters.search!.toLowerCase()),
-          )
-          return {
-            ...mockHabitsData,
-            habitsById: new Map(matching.map((habit) => [habit.id, habit])),
-            topLevelHabits: matching,
-          }
-        })()
-      : mockHabitsData,
+  useHabits: (_filters: HabitsFilter) => ({
+    data: mockHabitsData,
     isLoading: false,
     isFetching: false,
     dataUpdatedAt: mockHabitsDataUpdatedAt,
@@ -500,7 +488,6 @@ describe('HabitList', () => {
     offlineMocks.setOnline(false)
     mockHabitsDataUpdatedAt = 1
     useActualHabitVisibility = false
-    mockSearchResults = false
     habitListRefetch.mockReset()
     habitListRefetch.mockResolvedValue(undefined)
     logMutateAsync.mockReset()
@@ -561,21 +548,35 @@ describe('HabitList', () => {
     expect(tokenBuilds.count).toBe(previousBuilds)
   })
 
-  it('renders only changed rows through a 60-habit Today search, clear, and log', async () => {
+  it('renders only changed rows through a 60-habit Today log, completed toggle, and date change', async () => {
     const habits = Array.from({ length: 60 }, (_, index) => createMockHabit({
       id: `render-habit-${index}`,
-      title: index === 0 ? 'Needle habit' : `Other habit ${index}`,
+      title: `Habit ${index}`,
       position: index,
       dueDate: TODAY,
-      scheduledDates: [TODAY],
+      scheduledDates: [TODAY, TOMORROW],
     }))
     const onCreatePress = vi.fn()
-    const renderList = (search = '') => (
+    const selectedDate = new Date(`${TODAY}T09:00:00Z`)
+    const nextDate = new Date(`${TOMORROW}T09:00:00Z`)
+    const todayFilters = {
+      dateFrom: TODAY,
+      dateTo: TODAY,
+      includeOverdue: true,
+      includeGeneral: undefined,
+    }
+    const nextDateFilters = {
+      dateFrom: TOMORROW,
+      dateTo: TOMORROW,
+      includeOverdue: false,
+      includeGeneral: undefined,
+    }
+    const renderList = (date = selectedDate, showCompleted = false) => (
       <HabitList
         view="today"
-        filters={{ search: search || undefined }}
-        searchQuery={search}
-        showCompleted
+        filters={date === selectedDate ? todayFilters : nextDateFilters}
+        selectedDate={date}
+        showCompleted={showCompleted}
         onCreatePress={onCreatePress}
       />
     )
@@ -584,22 +585,17 @@ describe('HabitList', () => {
         .reduce((sum, count) => sum + count, 0)
 
     seedHabits(habits)
-    mockSearchResults = true
     rowRenderCounts.clear()
     let tree: any
     TestRenderer.act(() => { tree = TestRenderer.create(renderList()) })
     const initial = totalSince(new Map())
-
-    const beforeSearch = new Map(rowRenderCounts)
-    TestRenderer.act(() => { tree.update(renderList('n')) })
-    expect(tree.root.findAllByType(HabitRow).map((row: any) => row.props.habit.id))
-      .toEqual([habits[0]!.id])
-    const searched = totalSince(beforeSearch)
-
-    const beforeClear = new Map(rowRenderCounts)
-    TestRenderer.act(() => { tree.update(renderList()) })
     expect(tree.root.findAllByType(HabitRow)).toHaveLength(60)
-    const cleared = totalSince(beforeClear)
+    expect(tree.root.findByType(HabitList).props).toMatchObject({
+      view: 'today',
+      filters: todayFilters,
+      selectedDate,
+      showCompleted: false,
+    })
 
     const beforeLog = new Map(rowRenderCounts)
     const firstRow = tree.root.findAll((node: any) =>
@@ -614,11 +610,19 @@ describe('HabitList', () => {
     TestRenderer.act(() => { tree.update(renderList()) })
     const logged = totalSince(beforeLog)
 
-    expect({ initial, searched, cleared, logged }).toEqual({
+    const beforeCompletedToggle = new Map(rowRenderCounts)
+    TestRenderer.act(() => { tree.update(renderList(selectedDate, true)) })
+    const completedToggle = totalSince(beforeCompletedToggle)
+
+    const beforeDateChange = new Map(rowRenderCounts)
+    TestRenderer.act(() => { tree.update(renderList(nextDate, true)) })
+    const dateChange = totalSince(beforeDateChange)
+
+    expect({ initial, logged, completedToggle, dateChange }).toEqual({
       initial: 60,
-      searched: 0,
-      cleared: 59,
       logged: 1,
+      completedToggle: 0,
+      dateChange: 60,
     })
   })
 
