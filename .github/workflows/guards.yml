@@ -313,11 +313,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Changed performance machinery matches its generated workflow
         run: |
+          set -e
+          if [ '${{ github.event_name }}' = 'pull_request' ]; then
+            git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD > /dev/null
+          fi
           if [ '${{ github.event_name }}' != 'pull_request' ] || \
              git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
                | grep -Eq '^tools/(generate-performance-workflow\.mjs|lib/performance-measurement\.mjs)$|^\.claude/workflows/audit\.mjs$'; then
@@ -359,11 +365,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Changed gates obey the charter
         run: |
+          set -e
+          if [ '${{ github.event_name }}' = 'pull_request' ]; then
+            git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD > /dev/null
+          fi
           if [ '${{ github.event_name }}' != 'pull_request' ] || \
              git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
                | grep -Eq '^\.github/workflows/(guards|test)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$|^package(-lock)?\.json$'; then

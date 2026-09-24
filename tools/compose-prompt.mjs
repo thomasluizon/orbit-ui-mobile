@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * One worker prompt = the ticket body verbatim + its comments + an orchestrator's brief + the
- * finishing contract.
+ * One worker prompt = the ticket body verbatim + its comments, then the finishing contract and the
+ * orchestrator's brief. A local order puts the finishing contract (and any redesign sweep) BEFORE the
+ * brief, so the delivery steps are read first (#624); a Cloud order keeps brief, then finishing.
  *
  * WHY the comments are here, added 2026-08-13: three places claimed this file already passed them
  * through, and it did not. It read `liveTicket.body` alone. That silently broke the conversation
@@ -272,16 +273,13 @@ ${cloud
 
 const finishing = `## Finishing contract
 
+**Commit after each coherent piece of work, even if imperfect: a ceiling kill keeps commits and loses an uncommitted index. If unsure, commit the piece and fix it forward. A pushed branch without a pull request is invisible to review; open the pull request and correct its body, which becomes \`main\`'s squash commit message, before reporting success.**
+
 Before committing, if your change alters routes, endpoints, or module structure,
 run \`node tools/arch-map.mjs\`. Stage \`architecture.json\` and \`architecture.html\` only if the generator changed them;
 include the changed artifacts in the same commit as the source change.
 
-**Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
-
-That order is the contract, not a preference. Measured: one worker spent its entire 45-minute
-deadline running and rerunning tests, passed every check, and timed out without ever committing. The
-work was lost. Committing first means a timeout can only ever cost you the last verification step,
-never the work itself.
+For each piece, compile and run focused tests, then commit before broader verification.
 
 Then, in order: run the broader suite, push, and open or update exactly one pull request. Stop there
 and report its URL and test results. Do not wait on CI or poll GitHub Actions. The orchestrator owns
@@ -312,7 +310,8 @@ does not reach it.`
 
 const finishingContract = cloud
   ? [cloudUiReviewHandoff, CLOUD_FINISHING_CONTRACT].filter(Boolean).join("\n\n")
-  : [uiReviewSweep, finishing].filter(Boolean).join("\n\n")
+  : [finishing, uiReviewSweep].filter(Boolean).join("\n\n")
 
-writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${finishingContract}\n`, "utf8")
+const order = cloud ? `${brief}\n\n---\n\n${finishingContract}` : `${finishingContract}\n\n---\n\n${brief}`
+writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${order}\n`, "utf8")
 console.log(resolve(out))
