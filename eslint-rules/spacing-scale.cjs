@@ -330,22 +330,32 @@ module.exports = {
       const shadowed = new Set(ignored)
       const knownKeys = new Set()
       const deletedKeys = new Set()
+      const conditionalShadows = new Map()
       let hasUnknownKey = false
       const mutations = (mutatedStyleProperties.get(variable) ?? [])
         .filter((mutation) => mutation.position < cutoff && executionContext(mutation.node) === executionContext(variable.defs[0].node))
         .sort((left, right) => right.position - left.position)
       for (const mutation of mutations) {
         const definite = isDefiniteMutation(mutation, variable)
+        const statement = mutation.node.parent
+        const block = statement.type === 'ExpressionStatement' && statement.parent.type === 'BlockStatement' ? statement.parent : null
+        const branchShadow = !definite && block ? conditionalShadows.get(block) ?? new Set() : null
+        if (branchShadow) conditionalShadows.set(block, branchShadow)
         if (mutation.kind === 'assign') {
+          const callShadow = new Set([...shadowed, ...(branchShadow ?? [])])
           for (let index = mutation.sources.length - 1; index >= 0; index--) {
-            const keys = scanStyleObject(mutation.sources[index], shadowed, mutation.position)
+            const keys = scanStyleObject(mutation.sources[index], callShadow, mutation.position)
             if (keys === null) {
-              shadowed.add('*')
+              callShadow.add('*')
+              if (definite) shadowed.add('*')
+              else branchShadow?.add('*')
               hasUnknownKey = true
             } else {
               for (const key of keys) {
+                callShadow.add(key)
                 if (definite && !deletedKeys.has(key)) knownKeys.add(key)
                 if (definite) shadowed.add(key)
+                else branchShadow?.add(key)
               }
             }
           }
@@ -360,14 +370,15 @@ module.exports = {
           if (definite) {
             if (!knownKeys.has(mutation.name)) deletedKeys.add(mutation.name)
             shadowed.add(mutation.name)
-          }
+          } else branchShadow?.add(mutation.name)
         } else {
           if (definite && !deletedKeys.has(mutation.name)) knownKeys.add(mutation.name)
-          if (!deletedKeys.has(mutation.name) && !shadowed.has('*') && !shadowed.has(mutation.name) && SPACING_PROPS.has(mutation.name) && mutation.value && !scannedMutationValues.has(mutation.node)) {
+          if (!deletedKeys.has(mutation.name) && !shadowed.has('*') && !shadowed.has(mutation.name) && !branchShadow?.has('*') && !branchShadow?.has(mutation.name) && SPACING_PROPS.has(mutation.name) && mutation.value && !scannedMutationValues.has(mutation.node)) {
             scannedMutationValues.add(mutation.node)
             reportStyleValue(mutation.value, mutation.name)
           }
           if (definite) shadowed.add(mutation.name)
+          else branchShadow?.add(mutation.name)
         }
       }
       const initialKeys = scanStyleObject(initializer, shadowed, cutoff)
