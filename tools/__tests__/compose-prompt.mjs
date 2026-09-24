@@ -223,7 +223,7 @@ export const cases = () => {
   const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract"), prompt.indexOf("\n\n---\n\n## Orchestrator's brief")).trimEnd()
   T(
     `${TOOL}: original implementation keeps its finishing section byte for byte`,
-    createHash("sha256").update(originalFinishing).digest("hex") === "ef72748f7de6e4593619ea7c1221e25fd83b5ee770b721a48871dc1f9770b6d5",
+    createHash("sha256").update(originalFinishing).digest("hex") === "4dc1cb5d62215f363ac2173dc740caf1ab1f2a47c055273989af1ad0ae0a4205",
     originalFinishing,
   )
   const reviewOut = join(root, "compose-prompt", "review-batch.md")
@@ -251,7 +251,13 @@ export const cases = () => {
     `${TOOL}: review batch report ends with the literal sections the orchestrator copies into the body`,
     /these literal sections, each one present even when it is empty/.test(reviewPrompt) &&
       /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(reviewPrompt) &&
-      /`## Review harness` whenever this order carries the UI review sweep/.test(reviewPrompt),
+      /`## Review harness` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern/.test(reviewPrompt),
+    reviewPrompt,
+  )
+  T(
+    `${TOOL}: review batch manual steps require the exact key, screen, and proof`,
+    /`## Manual steps`: every action outside the repository/.test(reviewPrompt) &&
+      /each naming the exact key, the exact console or screen, and what proves it\s+took effect/.test(reviewPrompt),
     reviewPrompt,
   )
   const localFinishing = prompt.slice(prompt.indexOf("## Finishing contract"))
@@ -288,6 +294,22 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const redesignPrompt = composed(redesignOut)
+  const reviewRedesignOut = join(root, "compose-prompt", "review-redesign.md")
+  check(
+    TOOL,
+    "composes a redesign review batch",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", reviewRedesignOut, "--base", "redesign/main", "--review-batch"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const reviewRedesignPrompt = composed(reviewRedesignOut)
+  T(
+    `${TOOL}: redesign review batch requires harness evidence only for a UI-scope diff`,
+    /If no changed path matches, skip this sweep and omit the Review harness block/.test(reviewRedesignPrompt) &&
+      /`## Review harness` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern/.test(reviewRedesignPrompt) &&
+      /When a changed path matches, include the complete `## Review harness` block/.test(reviewRedesignPrompt),
+    reviewRedesignPrompt,
+  )
   T(
     `${TOOL}: redesign delivery appears before the review sweep`,
     redesignPrompt.indexOf("## Finishing contract") < redesignPrompt.indexOf("## UI review sweep"),
@@ -416,7 +438,9 @@ export const cases = () => {
     /Its final report is the batch's\s+handoff/.test(orchestrateSkill) &&
       /`## Test evidence`, `## Assumptions` and `## Manual steps`/.test(orchestrateSkill) &&
       /into the existing pull request body with `gh pr edit --body-file`\. Only then/.test(orchestrateSkill) &&
-      /its `## Review harness` block\s+whenever the order carried the UI review sweep/.test(orchestrateSkill),
+      /its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools\/lib\/review-harness\.mjs`/.test(orchestrateSkill) &&
+      /For a batch with no matching path, accept a report without that block and preserve any existing PR-body block/.test(orchestrateSkill) &&
+      /For a batch with a matching path, require the complete block and replace the PR-body block/.test(orchestrateSkill),
     orchestrateSkill,
   )
   const sleepSkill = readFileSync(join(REPO_ROOT, ".claude", "skills", "sleep", "SKILL.md"), "utf8")

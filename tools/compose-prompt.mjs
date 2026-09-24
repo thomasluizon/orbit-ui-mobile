@@ -330,8 +330,13 @@ include the changed artifacts in the same commit as the source change.
 
 Stop after the tested commit. Do not push or open a pull request. Report the commit SHA, then end
 your final report with these literal sections, each one present even when it is empty:
-\`## Test evidence\`, \`## Assumptions\` and \`## Manual steps\`, in the shapes the pull request body
-uses, plus \`## Review harness\` whenever this order carries the UI review sweep. The orchestrator
+\`## Test evidence\`, \`## Assumptions\` and \`## Manual steps\`. In \`## Manual steps\`: every action outside the repository
+your change needs before it takes effect (an environment variable, a dashboard or console setting,
+a secret, a store listing, a manual migration or backfill),
+each naming the exact key, the exact console or screen, and what proves it took effect.
+Include \`## Review harness\` only when this order carries the UI review sweep and a changed path matches its UI_SCOPE pattern.
+When a changed path matches, include the complete \`## Review harness\` block. Otherwise omit it.
+The orchestrator
 copies those sections into the pull request body, replies to and resolves every identified thread on
 this commit, then pushes once to start review.`
 

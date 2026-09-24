@@ -984,12 +984,13 @@ resolve and same-head re-review transitions without launching a worker or invent
 When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
 broader suite, reports the commit SHA and stops without pushing. **Its final report is the batch's
 handoff, and the orchestrator consumes it before anything else.** Read the report's
-`## Test evidence`, `## Assumptions` and `## Manual steps` sections, its `## Review harness` block
-whenever the order carried the UI review sweep, and any `NEEDS_DECISION` line at the step 7
+`## Test evidence`, `## Assumptions` and `## Manual steps` sections, its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools/lib/review-harness.mjs`,
+and any `NEEDS_DECISION` line at the step 7
 worker-exit gate, adjudicate the assumptions there exactly as for an initial worker, and write every
 one of those sections into the existing pull request body with `gh pr edit --body-file`. Only then
 the orchestrator replies to and resolves every identified thread on that commit, then pushes once. A
-report that lacks the evidence the order required is a failed batch, never a push. That push starts Pullfrog's
+report that lacks the evidence the order required is a failed batch, never a push. For a batch with no matching path, accept a report without that block and preserve any existing PR-body block.
+For a batch with a matching path, require the complete block and replace the PR-body block before continuing. That push starts Pullfrog's
 review with the fixes and resolved threads together. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
 rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands
