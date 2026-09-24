@@ -121,7 +121,7 @@ These interfaces are fixed. Do not invent flags or variants.
 node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format markdown] [--sleep]
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
-node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--cloud]
+node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--review-batch] [--cloud]
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
@@ -505,6 +505,11 @@ Cloud order keeps ticket, brief, finishing contract.
    CI. The orchestrator owns CI waiting, review fixes and final readiness verification.
    Cross-platform parity and i18n key parity land in the same commit.
    **The worker never merges and never opens a second PR.**
+
+For a local review-fix worker, add `--review-batch` to the compose command. Its order stops after
+the broader suite and a tested commit. The worker reports the commit SHA and test results without
+pushing or updating the pull request. The orchestrator replies to and resolves the batch's threads,
+pushes once, and lets that push request the review.
 
 Write it to the scratchpad. A prompt file inside the worktree gets committed by the worker.
 
@@ -976,16 +981,23 @@ the batch's single commit spends one `caps.reviewFixAttempts` attempt; a batch t
 spends nothing. If the batch has only FILE or not-applicable findings, perform their existing reply,
 resolve and same-head re-review transitions without launching a worker or inventing a commit.
 
-When the batch needs a worker, its existing contract commits, tests and pushes before it stops and
-returns control. The orchestrator then replies to and resolves every identified thread on the new
-head and requests the fresh review that supplies the verdict:
-
-```bash
-node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds <n> --re-review
-```
-
-`--re-review` may accept any current-head review submitted after the request, including one whose
-run started from the worker's push. Acceptance is progress, not the verdict. A registered
+When the batch needs a worker, compose its order with `--review-batch`. The worker commits, runs the
+broader suite, reports the commit SHA and stops without pushing. **Its final report is the batch's
+handoff, and the orchestrator consumes it before anything else.** Read the report's
+`## Test evidence`, `## Assumptions` and `## Manual steps` sections, its `## Review harness` block only when the order carried the UI review sweep and a path changed by this batch matches `UI_SCOPE` in `tools/lib/review-harness.mjs`,
+and any `NEEDS_DECISION` line at the step 7
+worker-exit gate, adjudicate the assumptions there exactly as for an initial worker, and write every
+one of those sections into the existing pull request body before delivery. Merge new entries into the existing `## Test evidence`, `## Assumptions` and `## Manual steps` sections.
+An empty second batch section preserves the first batch's entries. Deduplicate repeated evidence.
+Save the current PR body from `gh pr view <n> --json body --jq .body` and the worker's final report
+to separate files. Run `node tools/merge-review-batch-body.mjs --body-file <current-body> --report-file <worker-report> --out <merged-body>`.
+Add `--ui-scope` only when a path changed by this batch's commit matches `UI_SCOPE`, so the tool
+requires and replaces the complete `## Review harness` block for a UI batch. Without it, the tool
+preserves the previous block. Then run `gh pr edit <n> --body-file <merged-body>`. Only then does
+the orchestrator reply to and resolve every identified thread on that commit, then push once. A
+report that lacks the evidence the order required is a failed batch, never a push. For a batch with no matching path, accept a report without that block and preserve any existing PR-body block.
+For a batch with a matching path, require the complete block and replace the PR-body block before continuing. That push starts Pullfrog's
+review with the fixes and resolved threads together. A registered
 `pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
 rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands
 in for it. When Pullfrog produced neither, the branch decides what else may: on protected `main`
@@ -995,11 +1007,8 @@ the pull request comment names the substitution, says Pullfrog could not run, an
 a reader can check**, alongside green checks at the exact head and zero unresolved threads. That is
 the same rule `§5.4.1` and Hard prohibitions state, in the same words. A green check alone is never
 an approval on either branch. A `COMMENTED` review is not a verdict, regardless of when it arrived
-or what triggered it, and a review with an empty body is a progress marker rather than a review. An
-early push-triggered run cannot approve a head whose threads were open when it ran; the requested review
-supplies the verdict because it can approve after resolution. The stop-after-commit contract that
-would remove this race is filed as thomasluizon/orbit-tickets#542 and does not exist yet. Then rerun
-delivery verification on the new head.
+or what triggered it, and a review with an empty body is a progress marker rather than a review.
+Then rerun delivery verification on the new head.
 
 Route a fully specified reviewer-directed test-strengthening batch to `--tier mechanical` only when
 the order names the exact experiment. Route any batch needing product, design, architecture,
@@ -1056,8 +1065,8 @@ write unless the node's own `repository.nameWithOwner` equals what `--repo` reso
 repository the node actually resolved to. Read that name before you retry anything.
 
 **For a fix the orchestrator writes, resolve FIRST, then push.** The push fires the incremental
-re-review, which reads the fixes and resolved threads together. A worker cannot keep that order
-under today's contract, so use the explicit post-resolution re-review sequence above instead.
+re-review, which reads the fixes and resolved threads together. Use the same order for a worker's
+`--review-batch` commit: resolve its threads, then push.
 
 After the push, re-run `node tools/verify-delivery.mjs`. The fix moved the head, so the earlier
 `DELIVERED` is stale until this re-runs. `DELIVERED` continues; `STALE_PR` means the push did not

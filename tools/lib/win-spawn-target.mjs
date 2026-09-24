@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process"
 import { lstatSync, statSync } from "node:fs"
 import { resolve } from "node:path"
 
@@ -24,12 +25,26 @@ const windowsPathDirectories = (pathValue) => {
 }
 
 /**
- * libuv accepts a candidate when `GetFileAttributesW` finds it and it is not a directory. A live
- * link is judged by its target, which carries the same type as the link. A DANGLING link is never
- * spawnable: libuv skips a dangling directory link, and a dangling file link that libuv would pick
- * cannot start either, so skipping it lets the search reach the documented shim diagnostic.
+ * .NET's File.GetAttributes reads the link's attributes on Windows, including the Directory bit.
+ * See https://learn.microsoft.com/en-us/windows/win32/fileio/symbolic-link-effects-on-file-systems-functions
  */
-const isSpawnableFile = (candidate) => {
+const danglingLinkIsDirectoryOnWindows = (candidate) => {
+  const script = "$ErrorActionPreference = 'Stop'; $attributes = [IO.File]::GetAttributes($env:ORBIT_SPAWN_LINK_PATH); if (($attributes -band [IO.FileAttributes]::Directory) -ne 0) { 'directory' } else { 'file' }"
+  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+    encoding: "utf8",
+    env: { ...process.env, ORBIT_SPAWN_LINK_PATH: candidate },
+    windowsHide: true,
+    timeout: 5000,
+  })
+  const kind = result.stdout?.trim()
+  if (result.error || result.status !== 0 || !["directory", "file"].includes(kind)) {
+    throw new Error(`could not read Windows link attributes for ${candidate}: ${result.error?.message ?? result.stderr.trim()}`)
+  }
+  return kind === "directory"
+}
+
+/** libuv selects the first non-directory candidate, even when its link target is missing. */
+const isSpawnableFile = (candidate, danglingLinkIsDirectory) => {
   let link
   try {
     link = lstatSync(candidate)
@@ -40,7 +55,7 @@ const isSpawnableFile = (candidate) => {
   try {
     return !statSync(candidate).isDirectory()
   } catch {
-    return false
+    return !danglingLinkIsDirectory(candidate)
   }
 }
 
@@ -50,6 +65,7 @@ export const resolveSpawnTarget = (command, {
   pathValue = process.env.PATH ?? "",
   pathExt = process.env.PATHEXT ?? "",
   isFile = isSpawnableFile,
+  danglingLinkIsDirectory = danglingLinkIsDirectoryOnWindows,
 } = {}) => {
   const pathDirectories = platform === "win32" ? windowsPathDirectories(pathValue) : pathValue.split(":").filter(Boolean)
   const directories = /[\\/]/.test(command) ? [cwd] : [cwd, ...pathDirectories.map((directory) => resolve(cwd, directory))]
@@ -61,7 +77,7 @@ export const resolveSpawnTarget = (command, {
   for (const directory of directories) {
     for (const extension of directExtensions) {
       const candidate = resolve(directory, candidateName(extension))
-      if (isFile(candidate)) return candidate
+      if (isFile(candidate, danglingLinkIsDirectory)) return candidate
     }
   }
   // libuv ignores PATHEXT for direct spawn. Search it only after every spawnable candidate
@@ -70,7 +86,7 @@ export const resolveSpawnTarget = (command, {
     for (const directory of directories) {
       for (const extension of pathExt.split(";").filter((value) => [".cmd", ".bat"].includes(value.toLowerCase()))) {
         const candidate = resolve(directory, candidateName(extension))
-        if (isFile(candidate)) return candidate
+        if (isFile(candidate, danglingLinkIsDirectory)) return candidate
       }
     }
   }
