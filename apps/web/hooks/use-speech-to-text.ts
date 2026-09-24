@@ -108,7 +108,7 @@ export function useSpeechToText() {
         if (getAccountGeneration() !== transcribingAccount) return
         setError(t('errors.api.transcriptionFailed'))
       } finally {
-        setIsTranscribing(false)
+        if (getAccountGeneration() === transcribingAccount) setIsTranscribing(false)
       }
     },
     [setError, setIsTranscribing, setTranscript, t],
@@ -169,6 +169,7 @@ export function useSpeechToText() {
   const startRecording = useCallback(async () => {
     if (!isSupported || isRecording) return
     if ((getErrorSurface(useThrottleStore.getState().error).retryAt ?? 0) > Date.now()) return
+    const recordingAccount = getAccountGeneration()
     setError(null)
     setTranscript('')
     setRecordingDuration(0)
@@ -176,6 +177,10 @@ export function useSpeechToText() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (getAccountGeneration() !== recordingAccount) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       streamRef.current = stream
       const recorder = new MediaRecorder(stream)
       mediaRecorderRef.current = recorder
@@ -197,6 +202,7 @@ export function useSpeechToText() {
       timerRef.current = setInterval(() => setRecordingDuration((prev) => prev + 1), 1000)
       startSilenceMonitor(stream)
     } catch (err: unknown) {
+      if (getAccountGeneration() !== recordingAccount) return
       stopStream()
       const denied =
         err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'SecurityError')

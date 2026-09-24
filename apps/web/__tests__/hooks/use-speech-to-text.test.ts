@@ -336,6 +336,48 @@ describe('useSpeechToText', () => {
       expect(result.current.transcript).toBe('')
     })
 
+    it('does not post audio when the stop event arrives after account replacement', async () => {
+      const fetchMock = vi.fn(async () => Response.json({ text: 'old words' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      const recorder = MockMediaRecorder.instances.at(-1)!
+      recorder.stop = vi.fn(() => { recorder.state = 'inactive' })
+      act(() => { result.current.stopRecording() })
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+
+      await replaceAccountWith('user-2')
+      act(() => {
+        recorder.ondataavailable?.({ data: new Blob(['old audio'], { type: 'audio/webm' }) })
+        recorder.onstop?.()
+      })
+
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+      expect(result.current.transcript).toBe('')
+    })
+
+    it('closes a microphone granted after the account changes before recording begins', async () => {
+      let grantMicrophone!: (stream: MediaStream) => void
+      getUserMedia.mockImplementationOnce(() => new Promise<MediaStream>((resolve) => {
+        grantMicrophone = resolve
+      }))
+      const fetchMock = vi.fn(async () => Response.json({ text: 'old words' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      let startPromise!: Promise<void>
+      act(() => { startPromise = result.current.startRecording() })
+      await replaceAccountWith('user-2')
+      const stream = makeStream()
+      await act(async () => { grantMicrophone(stream); await startPromise })
+
+      expect(result.current.isRecording).toBe(false)
+      expect(openMicrophone().stop).toHaveBeenCalled()
+      expect(MockMediaRecorder.instances).toHaveLength(0)
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+    })
+
     it('drops a transcription still in flight when another account replaces the tab', async () => {
       let settleTranscription!: (response: Response) => void
       const fetchMock = vi.fn((input: unknown) =>
