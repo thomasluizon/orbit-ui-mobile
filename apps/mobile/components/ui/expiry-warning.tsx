@@ -56,17 +56,14 @@ export function ExpiryWarning() {
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
 
-  const [prevExpiresAt, setPrevExpiresAt] = useState(expiresAt)
-  if (expiresAt !== prevExpiresAt) {
-    setPrevExpiresAt(expiresAt)
-    if (!expiresAt) {
-      setMinutesLeft(null)
-      setIsExpired(false)
-    }
-  }
-
   useEffect(() => {
-    if (!expiresAt) return
+    if (!expiresAt) {
+      void Promise.resolve().then(() => {
+        setMinutesLeft(null)
+        setIsExpired(false)
+      })
+      return
+    }
 
     const sessionExpiresAt = expiresAt
 

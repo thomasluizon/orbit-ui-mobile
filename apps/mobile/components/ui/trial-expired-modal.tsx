@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the dialog transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -43,7 +43,9 @@ export function TrialExpiredModal() {
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useState(false)
   const [alreadySeen, setAlreadySeen] = useState(true)
-  const [visible, setVisible] = useState(false)
+  const [visibleDuringExit, setVisibleDuringExit] = useState(false)
+  const transitionToken = useRef(0)
+  const hasOpened = useRef(false)
 
   useEffect(() => {
     void AsyncStorage.getItem(STORAGE_KEY).then((value) => {
@@ -54,14 +56,15 @@ export function TrialExpiredModal() {
   const isOpen =
     pathname !== '/upgrade' && !dismissed && trialExpired && !alreadySeen
 
-  const [prevOpen, setPrevOpen] = useState(isOpen)
-  if (isOpen !== prevOpen) {
-    setPrevOpen(isOpen)
-    if (isOpen) setVisible(true)
-  }
+  const visible = isOpen || visibleDuringExit
 
   useEffect(() => {
+    const token = ++transitionToken.current
     if (isOpen) {
+      hasOpened.current = true
+      void Promise.resolve().then(() => {
+        if (transitionToken.current === token) setVisibleDuringExit(true)
+      })
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,
@@ -71,13 +74,18 @@ export function TrialExpiredModal() {
       return
     }
 
+    if (!hasOpened.current) return
+
     Animated.timing(progress, {
       toValue: 0,
       duration: dialogMotion.exitDuration,
       easing: toAnimatedEasing(dialogMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) setVisible(false)
+      if (finished && transitionToken.current === token) {
+        hasOpened.current = false
+        setVisibleDuringExit(false)
+      }
     })
   }, [
     dialogMotion.enterDuration,

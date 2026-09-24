@@ -111,15 +111,21 @@ export default function TodayScreen() {
   const {
     anchorRef: controlsButtonRef,
     visible: showControlsMenu,
+    isClosing: isControlsMenuClosing,
+    openRevision: controlsMenuOpenRevision,
     anchorRect: controlsMenuAnchorRect,
     close: closeControlsMenu,
+    finishClose: finishControlsMenuClose,
     toggle: toggleControlsMenu,
   } = useAnchoredMenu();
   const {
     anchorRef: freqMenuButtonRef,
     visible: showFreqMenu,
+    isClosing: isFreqMenuClosing,
+    openRevision: freqMenuOpenRevision,
     anchorRect: freqMenuAnchorRect,
     close: closeFreqMenu,
+    finishClose: finishFreqMenuClose,
     toggle: toggleFreqMenu,
   } = useAnchoredMenu();
   const {
@@ -490,8 +496,12 @@ export default function TodayScreen() {
         isFetching={habitsQuery.isFetching}
         allCollapsed={habitListAllCollapsed}
         showControlsMenu={showControlsMenu}
+        isControlsMenuClosing={isControlsMenuClosing}
+        controlsMenuOpenRevision={controlsMenuOpenRevision}
         controlsMenuAnchorRect={controlsMenuAnchorRect}
         showFreqMenu={showFreqMenu}
+        isFreqMenuClosing={isFreqMenuClosing}
+        freqMenuOpenRevision={freqMenuOpenRevision}
         freqMenuAnchorRect={freqMenuAnchorRect}
         controlsButtonRef={controlsButtonRef}
         freqMenuButtonRef={freqMenuButtonRef}
@@ -506,7 +516,9 @@ export default function TodayScreen() {
         onToggleFreqMenu={toggleFreqMenu}
         onToggleControlsMenu={toggleControlsMenu}
         onCloseControlsMenu={closeControlsMenu}
+        onFinishControlsMenuClose={finishControlsMenuClose}
         onCloseFreqMenu={closeFreqMenu}
+        onFinishFreqMenuClose={finishFreqMenuClose}
         onToggleSelect={handleToggleSelectMode}
         onToggleCollapse={handleToggleCollapse}
         onRefresh={handleRefresh}
@@ -516,6 +528,7 @@ export default function TodayScreen() {
     ),
     [
       controlsMenuAnchorRect,
+      controlsMenuOpenRevision,
       controlsButtonRef,
       currentActiveView,
       dateLabel,
@@ -524,6 +537,7 @@ export default function TodayScreen() {
       dayProgress,
       filtersAnimatedStyle,
       freqMenuButtonRef,
+      freqMenuOpenRevision,
       frequencyOptions,
       goToNextDay,
       goToPreviousDay,
@@ -540,6 +554,8 @@ export default function TodayScreen() {
       isSearchFocused,
       isSearchOpen,
       isSelectMode,
+      isControlsMenuClosing,
+      isFreqMenuClosing,
       searchQueryStore,
       selectedDate,
       selectedFrequency,
@@ -548,6 +564,8 @@ export default function TodayScreen() {
       setSearchQueryStore,
       closeControlsMenu,
       closeFreqMenu,
+      finishControlsMenuClose,
+      finishFreqMenuClose,
       sharedHeader,
       showCompleted,
       showControlsMenu,

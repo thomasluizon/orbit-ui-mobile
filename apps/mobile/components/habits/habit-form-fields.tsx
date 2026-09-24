@@ -147,11 +147,14 @@ export function HabitFormFields({
   );
 
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded);
-  const [prevExpandSignal, setPrevExpandSignal] = useState(expandAdvancedSignal);
-  if (expandAdvancedSignal !== prevExpandSignal) {
-    setPrevExpandSignal(expandAdvancedSignal);
-    if (expandAdvancedSignal > 0) setShowAdvanced(true);
-  }
+  const previousExpandSignal = useRef(expandAdvancedSignal);
+  useEffect(() => {
+    if (expandAdvancedSignal === previousExpandSignal.current) return;
+    previousExpandSignal.current = expandAdvancedSignal;
+    if (expandAdvancedSignal > 0) {
+      void Promise.resolve().then(() => setShowAdvanced(true));
+    }
+  }, [expandAdvancedSignal]);
 
   function toggleAdvanced() {
     setShowAdvanced((prev) => !prev);

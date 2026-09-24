@@ -36,7 +36,7 @@ export function PushPrompt() {
     registrationStatus,
     requestPermission,
   } = usePushNotifications()
-  const [show, setShow] = useState(false)
+  const [isExiting, setIsExiting] = useState(false)
   const [isDismissed, setIsDismissed] = useState<boolean | null>(null)
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [slideAnim] = useState(() => new Animated.Value(20))
@@ -65,11 +65,7 @@ export function PushPrompt() {
       registrationStatus,
     })
 
-  const [prevShouldShow, setPrevShouldShow] = useState(shouldShow)
-  if (shouldShow !== prevShouldShow) {
-    setPrevShouldShow(shouldShow)
-    setShow(shouldShow)
-  }
+  const show = shouldShow || isExiting
 
   useEffect(() => {
     if (!shouldShow) return
@@ -89,6 +85,7 @@ export function PushPrompt() {
   }, [fadeAnim, shouldShow, slideAnim])
 
   const dismiss = useCallback(() => {
+    setIsExiting(true)
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -101,7 +98,7 @@ export function PushPrompt() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setShow(false)
+      setIsExiting(false)
     })
     setIsDismissed(true)
     void AsyncStorage.setItem(STORAGE_KEY, '1')

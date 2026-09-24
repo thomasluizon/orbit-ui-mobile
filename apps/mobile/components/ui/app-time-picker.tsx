@@ -140,21 +140,23 @@ export function AppTimePicker({
   const { profile } = useProfile()
   const is24Hour = profile?.uses24HourClock ?? detectDefaultTimeFormat(locale) === '24h'
   const [isOpen, setIsOpen] = useState(false)
-  const [visible, setVisible] = useState(false)
+  const [visibleDuringExit, setVisibleDuringExit] = useState(false)
+  const visible = isOpen || visibleDuringExit
+  const transitionToken = useRef(0)
+  const hasOpened = useRef(false)
   const [openNonce, setOpenNonce] = useState(0)
   const [draft, setDraft] = useState({ hour24: 9, minute: 0 })
   const dialogMotion = useResolvedMotionPreset('dialog')
   const progress = useMemo(() => new Animated.Value(0), [])
 
-  const [prevOpen, setPrevOpen] = useState(isOpen)
-  if (isOpen !== prevOpen) {
-    setPrevOpen(isOpen)
-    if (isOpen) setVisible(true)
-  }
-
   // react-doctor-disable-next-line no-event-handler -- mount/exit-animation orchestration: `visible` keeps the Modal mounted through the exit timing driven by the isOpen transition; not a synthetic event handler https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
+    const token = ++transitionToken.current
     if (isOpen) {
+      hasOpened.current = true
+      void Promise.resolve().then(() => {
+        if (transitionToken.current === token) setVisibleDuringExit(true)
+      })
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,
@@ -164,14 +166,17 @@ export function AppTimePicker({
       return
     }
 
+    if (!hasOpened.current) return
+
     Animated.timing(progress, {
       toValue: 0,
       duration: dialogMotion.exitDuration,
       easing: toAnimatedEasing(dialogMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) {
-        setVisible(false)
+      if (finished && transitionToken.current === token) {
+        hasOpened.current = false
+        setVisibleDuringExit(false)
       }
     })
   }, [

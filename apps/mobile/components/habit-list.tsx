@@ -267,7 +267,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const reorderHabitsMutation = useReorderHabits()
     const moveParentMutation = useMoveHabitParent()
     const { showInterstitialIfDue } = useAdMob()
-    const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
     const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
@@ -340,6 +339,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       showCompleted,
       recentlyCompletedIds,
     })
+    const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
+      habitsById,
+      childrenByParent,
+      selectedDate: selectedDateStr,
+      searchQuery: searchQuery ?? '',
+      showCompleted,
+      recentlyCompletedIds,
+    }, view)
 
     const isAncestorSelected = useCallback(
       (habitId: string): boolean => {

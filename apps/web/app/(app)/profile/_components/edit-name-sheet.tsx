@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
@@ -22,14 +22,16 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
 
   const [name, setName] = useState(() => profile?.name ?? '')
   const [error, setError] = useState('')
-  const [prevOpen, setPrevOpen] = useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) {
+  const previousOpen = useRef(open)
+  useEffect(() => {
+    const wasOpen = previousOpen.current
+    previousOpen.current = open
+    if (!open || wasOpen) return
+    void Promise.resolve().then(() => {
       setName(profile?.name ?? '')
       setError('')
-    }
-  }
+    })
+  }, [open, profile?.name])
 
   const mutation = useMutation<void, Error, string, { previous: string | undefined }>({
     mutationFn: (nextName) => updateName({ name: nextName }),

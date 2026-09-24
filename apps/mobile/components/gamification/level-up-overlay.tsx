@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback, useEffectEvent } from 'react'
+import { useEffect, useMemo, useRef, useCallback, useEffectEvent } from 'react'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
@@ -43,14 +43,14 @@ export function LevelUpOverlay({
   const activeCelebration = useUIStore((s) => s.activeCelebration)
   const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
   const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
-  const [level, setLevel] = useState(0)
-  const [shouldRender, setShouldRender] = useState(false)
 
   const overlayOpacity = useMemo(() => new Animated.Value(0), [])
   const ringRotation = useMemo(() => new Animated.Value(0), [])
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const activeLevelUp =
     activeCelebration?.kind === 'level-up' ? activeCelebration : null
+  const level = activeLevelUp?.payload.level ?? 0
+  const shouldRender = activeLevelUp !== null
   const { orbStyle, titleStyle, subtitleStyle } = useCelebrationEntrance(
     Boolean(activeLevelUp),
   )
@@ -89,7 +89,6 @@ export function LevelUpOverlay({
         easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }).start(() => {
-        setShouldRender(false)
         completeActiveCelebration(id)
         onClear()
       })
@@ -100,15 +99,6 @@ export function LevelUpOverlay({
   const dismissAfterTimeout = useEffectEvent((id: string) => {
     dismiss(id)
   })
-
-  const [prevActiveLevelUp, setPrevActiveLevelUp] = useState(activeLevelUp)
-  if (activeLevelUp !== prevActiveLevelUp) {
-    setPrevActiveLevelUp(activeLevelUp)
-    if (activeLevelUp) {
-      setLevel(activeLevelUp.payload.level)
-      setShouldRender(true)
-    }
-  }
 
   useEffect(() => {
     if (!activeLevelUp) return
@@ -148,7 +138,7 @@ export function LevelUpOverlay({
     >
       <Pressable
         style={styles.pressable}
-        onPress={() => dismiss(activeLevelUp?.id)}
+        onPress={() => dismiss(activeLevelUp.id)}
         accessibilityRole="button"
         accessibilityLabel={t('gamification.levelUp.title')}
       >

@@ -76,8 +76,11 @@ export function GoalsView({
   const {
     anchorRef: filterMenuButtonRef,
     visible: showFilterMenu,
+    isClosing: isFilterMenuClosing,
+    openRevision: filterMenuOpenRevision,
     anchorRect: filterMenuAnchorRect,
     close: closeFilterMenu,
+    finishClose: finishFilterMenuClose,
     toggle: toggleFilterMenu,
   } = useAnchoredMenu();
 
@@ -193,8 +196,11 @@ export function GoalsView({
 
       <AnchoredMenu
         visible={showFilterMenu}
+        isClosing={isFilterMenuClosing}
+        openRevision={filterMenuOpenRevision}
         anchorRect={filterMenuAnchorRect}
         onClose={closeFilterMenu}
+        onCloseComplete={finishFilterMenuClose}
         width={200}
         estimatedHeight={200}
       >

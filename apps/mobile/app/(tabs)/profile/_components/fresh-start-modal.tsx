@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -102,17 +102,17 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
-  const [prevOpen, setPrevOpen] = useState(open)
-
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) {
+  const previousOpen = useRef(open)
+  useEffect(() => {
+    const wasOpen = previousOpen.current
+    previousOpen.current = open
+    if (open && !wasOpen) void Promise.resolve().then(() => {
       setResetStep('info')
       setResetConfirmText('')
       setResetError('')
       setResetLoading(false)
-    }
-  }
+    })
+  }, [open])
 
   const isResetConfirmed = resetConfirmText.trim().toUpperCase() === 'ORBIT'
 
