@@ -4,10 +4,10 @@ import { clearGoogleAuthStarted, markGoogleAuthStarted } from '@/lib/google-auth
 
 export async function connectGoogle(): Promise<void> {
   const supabase = getSupabaseClient()
-  const redirectTo = `${globalThis.location.origin}/auth-callback`
   sessionStorage.setItem('auth_return_url', '/calendar-sync')
 
-  markGoogleAuthStarted()
+  const attemptId = markGoogleAuthStarted()
+  const redirectTo = `${globalThis.location.origin}/auth-callback?authAttempt=${attemptId}`
   try {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

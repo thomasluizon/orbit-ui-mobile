@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { uuid } from 'expo-modules-core'
 
 export const AUTH_CALLBACK_URL = 'https://app.useorbit.org/auth-callback'
 
@@ -25,6 +26,7 @@ let pendingGoogleAuthSession: PendingGoogleAuthSessionState = {
   callbackUrl: null,
   isPending: false,
 }
+let pendingAttemptId: string | null = null
 
 const pendingGoogleAuthListeners = new Set<() => void>()
 
@@ -51,23 +53,35 @@ export function usePendingGoogleAuthSession() {
   )
 }
 
-export function markPendingGoogleAuthSession() {
+export function markPendingGoogleAuthSession(): string {
+  pendingAttemptId = uuid.v4()
   pendingGoogleAuthSession = {
     callbackUrl: null,
     isPending: true,
   }
   emitPendingGoogleAuthSession()
+  return pendingAttemptId
 }
 
-export function setPendingGoogleAuthCallbackUrl(callbackUrl: string) {
+export function setPendingGoogleAuthCallbackUrl(callbackUrl: string): boolean {
+  const url = new URL(callbackUrl)
+  if (!pendingAttemptId || `${url.origin}${url.pathname}` !== AUTH_CALLBACK_URL
+    || url.searchParams.getAll('authAttempt').length !== 1
+    || url.searchParams.get('authAttempt') !== pendingAttemptId) {
+    clearPendingGoogleAuthSession()
+    return false
+  }
+  pendingAttemptId = null
   pendingGoogleAuthSession = {
     callbackUrl,
     isPending: false,
   }
   emitPendingGoogleAuthSession()
+  return true
 }
 
 export function clearPendingGoogleAuthSession() {
+  pendingAttemptId = null
   if (!pendingGoogleAuthSession.callbackUrl && !pendingGoogleAuthSession.isPending) {
     return
   }

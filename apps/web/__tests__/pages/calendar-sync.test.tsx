@@ -350,7 +350,7 @@ describe('CalendarSyncPage', () => {
     expect(mockSignInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: {
-        redirectTo: 'http://localhost:3000/auth-callback',
+        redirectTo: expect.stringMatching(/^http:\/\/localhost:3000\/auth-callback\?authAttempt=[a-f0-9-]{36}$/),
         scopes: 'https://www.googleapis.com/auth/calendar.readonly',
         queryParams: {
           access_type: 'offline',

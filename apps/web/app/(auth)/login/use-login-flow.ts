@@ -175,10 +175,10 @@ export function useLoginFlow() {
     setIsGoogleLoading(true)
     setErrorKey(null)
     try {
-      markGoogleAuthStarted()
+      const attemptId = markGoogleAuthStarted()
       const { error } = await getSupabaseClient().auth.signInWithOAuth({
         provider: 'google',
-        options: buildGoogleCalendarOAuthOptions({ redirectTo: `${globalThis.location.origin}/auth-callback` }),
+        options: buildGoogleCalendarOAuthOptions({ redirectTo: `${globalThis.location.origin}/auth-callback?authAttempt=${attemptId}` }),
       })
       if (!error) return
       clearGoogleAuthStarted()

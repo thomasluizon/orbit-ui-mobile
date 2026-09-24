@@ -33,7 +33,7 @@ function AuthCallbackContent() {
     const query = new URLSearchParams(globalThis.location.search)
     const hash = new URLSearchParams(globalThis.location.hash.substring(1))
     const redirectAccessToken = hash.get('access_token')
-    recentGoogleAuthStart.current ??= consumeRecentGoogleAuthStart()
+    recentGoogleAuthStart.current ??= consumeRecentGoogleAuthStart(query.get('authAttempt'))
     if (!recentGoogleAuthStart.current || !redirectAccessToken) {
       router.replace('/login')
       return

@@ -99,10 +99,10 @@ export async function startMobileGoogleAuth({
     await storeAuthReturnUrl(returnUrl)
   }
 
-  markPendingGoogleAuthSession()
+  const attemptId = markPendingGoogleAuthSession()
 
   try {
-    const redirectTo = getGoogleAuthRedirectUrl()
+    const redirectTo = `${getGoogleAuthRedirectUrl()}?authAttempt=${attemptId}`
     const { data, error } = await getSupabaseClient().auth.signInWithOAuth({
       provider: 'google',
       options: buildGoogleCalendarOAuthOptions({
@@ -134,7 +134,9 @@ export async function startMobileGoogleAuth({
       return { type: WebBrowser.WebBrowserResultType.CANCEL }
     }
 
-    setPendingGoogleAuthCallbackUrl(result.url)
+    if (!setPendingGoogleAuthCallbackUrl(result.url)) {
+      return { type: WebBrowser.WebBrowserResultType.DISMISS }
+    }
     return {
       type: 'success',
       url: result.url,

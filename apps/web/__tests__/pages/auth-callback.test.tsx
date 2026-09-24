@@ -78,8 +78,8 @@ describe('Google auth callback', () => {
   })
 
   it('refuses a restored session that differs from the redirect token', async () => {
-    window.history.replaceState(null, '', '/auth-callback#access_token=another-account&refresh_token=fresh-refresh')
-    markGoogleAuthStarted()
+    const attemptId = markGoogleAuthStarted()
+    window.history.replaceState(null, '', `/auth-callback?authAttempt=${attemptId}#access_token=another-account&refresh_token=fresh-refresh`)
     render(<AuthCallbackPage />)
 
     await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
@@ -88,12 +88,25 @@ describe('Google auth callback', () => {
     expect(mocks.replace).not.toHaveBeenCalled()
   })
 
+  it('refuses an old callback while a different Google attempt is active', async () => {
+    const oldAttemptId = markGoogleAuthStarted()
+    markGoogleAuthStarted()
+    window.history.replaceState(null, '', `/auth-callback?authAttempt=${oldAttemptId}#access_token=account-a-access&refresh_token=old-refresh`)
+    render(<AuthCallbackPage />)
+
+    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
+
+    expect(mocks.exchange).not.toHaveBeenCalled()
+    expect(mocks.verify).not.toHaveBeenCalled()
+    expect(mocks.replace).toHaveBeenCalledWith('/login')
+  })
+
   it.each([
     ['Google sign in', null, '/'],
     ['Google Calendar connection', '/calendar-sync', '/calendar-sync'],
   ])('accepts a fresh %s redirect', async (_flow, returnUrl, expectedReturnUrl) => {
-    window.history.replaceState(null, '', '/auth-callback#access_token=account-a-access&refresh_token=fresh-refresh')
-    markGoogleAuthStarted()
+    const attemptId = markGoogleAuthStarted()
+    window.history.replaceState(null, '', `/auth-callback?authAttempt=${attemptId}#access_token=account-a-access&refresh_token=fresh-refresh`)
     if (returnUrl) sessionStorage.setItem('auth_return_url', returnUrl)
     render(<AuthCallbackPage />)
 

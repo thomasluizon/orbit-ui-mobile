@@ -96,11 +96,13 @@ describe('pending google auth session store', () => {
   it('marks the session pending then resolves it with the callback url', () => {
     const session = renderPendingSession()
 
-    TestRenderer.act(() => markPendingGoogleAuthSession())
+    let attemptId = ''
+    TestRenderer.act(() => { attemptId = markPendingGoogleAuthSession() })
     expect(session.current).toEqual({ callbackUrl: null, isPending: true })
 
-    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl('orbit://cb#token=1'))
-    expect(session.current).toEqual({ callbackUrl: 'orbit://cb#token=1', isPending: false })
+    const callbackUrl = `${AUTH_CALLBACK_URL}?authAttempt=${attemptId}#token=1`
+    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl(callbackUrl))
+    expect(session.current).toEqual({ callbackUrl, isPending: false })
   })
 
   it('clears an active session and no-ops when already idle', () => {
