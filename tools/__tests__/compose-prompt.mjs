@@ -220,7 +220,7 @@ export const cases = () => {
       !/gh pr checks|must be GREEN before you report|## Cloud finishing contract/.test(prompt),
     prompt,
   )
-  const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract")).trimEnd()
+  const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract"), prompt.indexOf("\n\n---\n\n## Orchestrator's brief")).trimEnd()
   T(
     `${TOOL}: original implementation keeps its finishing section byte for byte`,
     createHash("sha256").update(originalFinishing).digest("hex") === "ef72748f7de6e4593619ea7c1221e25fd83b5ee770b721a48871dc1f9770b6d5",
@@ -254,6 +254,25 @@ export const cases = () => {
       /`## Review harness` whenever this order carries the UI review sweep/.test(reviewPrompt),
     reviewPrompt,
   )
+  const localFinishing = prompt.slice(prompt.indexOf("## Finishing contract"))
+  const deliverySentences = [
+    "Commit after each coherent piece of work, even if imperfect: a ceiling kill keeps commits and loses an uncommitted index.",
+    "If unsure, commit the piece and fix it forward.",
+    "A pushed branch without a pull request is invisible to review; open the pull request and correct its body, which becomes `main`'s squash commit message, before reporting success.",
+  ]
+  T(
+    `${TOOL}: local finishing leads with three standalone delivery sentences`,
+    localFinishing.startsWith(`## Finishing contract\n\n**${deliverySentences.join(" ")}**\n\n`),
+    localFinishing.slice(0, 600),
+  )
+  T(
+    `${TOOL}: local delivery appears before the long brief and review sweep`,
+    prompt.indexOf("## Finishing contract") < prompt.indexOf("## Orchestrator's brief"),
+    prompt.slice(0, 800),
+  )
+  for (const [index, sentence] of deliverySentences.entries()) {
+    T(`${TOOL}: local delivery sentence ${index + 1} survives composition`, localFinishing.includes(sentence), localFinishing.slice(0, 600))
+  }
   T(
     `${TOOL}: a main-based UI order carries no redesign review sweep`,
     !prompt.includes("## UI review sweep"),
@@ -269,6 +288,11 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const redesignPrompt = composed(redesignOut)
+  T(
+    `${TOOL}: redesign delivery appears before the review sweep`,
+    redesignPrompt.indexOf("## Finishing contract") < redesignPrompt.indexOf("## UI review sweep"),
+    redesignPrompt.slice(0, 800),
+  )
   T(
     `${TOOL}: a redesign UI order requires the complete review inventory, in-scope fixes, and the PR block`,
     redesignPrompt.includes("## UI review sweep") &&
@@ -335,6 +359,12 @@ export const cases = () => {
     `${TOOL}: Cloud order is byte-identical with the review batch flag`,
     composed(reviewCloudOut) === cloudPrompt,
     composed(reviewCloudOut),
+  )
+  T(
+    `${TOOL}: Cloud keeps its existing standalone commit instruction without local delivery text`,
+    cloudPrompt.includes("## Cloud finishing contract\n\n**Commit the implementation. Without a commit there is no diff and the work is lost.**\n\n-") &&
+      deliverySentences.every((sentence) => !cloudPrompt.includes(sentence)),
+    cloudPrompt.slice(-1200),
   )
   T(
     `${TOOL}: Cloud leaves the owed redesign sweep to local post-materialization delivery`,

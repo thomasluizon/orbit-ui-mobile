@@ -492,7 +492,9 @@ construction: the child's branch cannot exist until the parent's does.
 node tools/compose-prompt.mjs --issue "<ticket-ref>" --repo <key> --out <scratchpad>/<ticket-slug>-prompt.md \n  --worktree <worktree path> --branch <contract branch> --base <base branch>
 ```
 
-The file carries, in order:
+The file carries three parts. A local order puts them in the order ticket, finishing contract (with
+any redesign review sweep), brief, so the worker reads its delivery steps before the brief (#624). A
+Cloud order keeps ticket, brief, finishing contract.
 
 1. The ticket body VERBATIM plus every chronological comment.
 2. **The orchestrator's brief:** target repo and its absolute path, the branch already checked out,

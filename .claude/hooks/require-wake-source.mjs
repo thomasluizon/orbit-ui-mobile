@@ -22,7 +22,7 @@
 import { readFileSync } from "node:fs"
 
 import { readinessReport } from "../../tools/lib/readiness-receipt.mjs"
-import { isWakeSourceAlive, readRunState, readWakeSources } from "../../tools/lib/run-state.mjs"
+import { isWakeSourceAlive, readRunState, readWakeSourceStates } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 
@@ -38,9 +38,11 @@ const receiptVerdict = (entry) => {
 
 try {
   const input = readStdinJson()
+  const wakeSourceStates = readWakeSourceStates()
   const verdict = checkSleepStop({
     state: readRunState(),
-    wakeSources: readWakeSources(),
+    wakeSources: wakeSourceStates.live,
+    orphanedWakeSources: wakeSourceStates.orphaned,
     sessionId: input?.session_id ?? "",
     stopHookActive: input?.stop_hook_active === true,
     isWakeSourceAlive,
