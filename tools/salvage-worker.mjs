@@ -2,14 +2,15 @@
 /** Finish a dead worker's already-written changes without broad staging or an invented test receipt. */
 
 import { createHash } from "node:crypto"
-import { existsSync, lstatSync, readFileSync, readlinkSync, statSync, writeFileSync } from "node:fs"
-import { delimiter, extname, isAbsolute, relative, resolve } from "node:path"
+import { lstatSync, readFileSync, readlinkSync, statSync, writeFileSync } from "node:fs"
+import { extname, isAbsolute, relative, resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { MAX_OUTPUT_BYTES, runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readinessReceiptPath } from "./lib/readiness-receipt.mjs"
 import { readRunState, writeRunState } from "./lib/run-state.mjs"
+import { resolveSpawnTarget } from "./lib/win-spawn-target.mjs"
 
 const USAGE = `usage: salvage-worker.mjs --issue <ORB-N|#N|N> --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...] [--command-timeout-seconds <s>]
 
@@ -105,23 +106,11 @@ try {
 if (typeof testOrder?.command !== "string" || !testOrder.command || !Array.isArray(testOrder.args) || testOrder.args.some((value) => typeof value !== "string")) fail(2, "test command must contain command:string and args:string[]")
 
 /**
- * Resolve the file Node would really spawn, so a refusal can name it. Measured on node v24.19.0:
- * an explicit .cmd target throws EINVAL, and a bare name whose only PATH match is a .cmd fails
- * ENOENT, because the CVE-2024-27980 fix drops both from the search.
+ * Resolve Node's direct-spawn target before looking for a Windows command shim. An explicit
+ * .cmd target is refused, while a bare name with only a .cmd match gets an actionable diagnostic.
  */
-const resolveSpawnTarget = (command) => {
-  const directories = /[\\/]/.test(command) ? [worktree] : [worktree, ...(process.env.PATH ?? "").split(delimiter).filter(Boolean)]
-  const extensions = extname(command) ? [""] : (process.env.PATHEXT ?? "").split(";").filter(Boolean)
-  for (const directory of directories) {
-    for (const extension of extensions) {
-      const candidate = resolve(directory, `${command}${extension}`)
-      if (existsSync(candidate) && lstatSync(candidate).isFile()) return candidate
-    }
-  }
-  return null
-}
 if (process.platform === "win32") {
-  const spawnTarget = resolveSpawnTarget(testOrder.command)
+  const spawnTarget = resolveSpawnTarget(testOrder.command, { cwd: worktree })
   if (spawnTarget !== null && [".cmd", ".bat"].includes(extname(spawnTarget).toLowerCase())) {
     fail(2, [
       `--test-command names a Windows command shim this tool cannot spawn: ${spawnTarget}`,
