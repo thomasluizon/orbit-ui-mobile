@@ -157,7 +157,6 @@ vi.mock('@/components/navigation/destination-tab-bar', () => ({
 }))
 vi.mock('@/components/search/search-header-action', () => ({ SearchHeader: () => null }))
 vi.mock('@/components/ui/fab', () => ({ Fab: () => null }))
-vi.mock('@/components/ui/icons', () => ({ Plus: () => null }))
 vi.mock('@/components/global-overlays', () => ({ OverlayLayer: () => null }))
 vi.mock('@/components/offline-notice', () => ({ OfflineNotice: () => null }))
 vi.mock('@/components/gamification/celebration-panel', () => ({
