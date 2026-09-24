@@ -2,6 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { ChangeEvent, ClipboardEvent } from 'react'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))

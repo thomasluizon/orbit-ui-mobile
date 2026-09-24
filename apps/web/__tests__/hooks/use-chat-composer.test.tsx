@@ -7,6 +7,11 @@ import { goalKeys, habitKeys, tagKeys } from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 const mocks = vi.hoisted(() => ({
   state: {
     profile: undefined as Profile | undefined,

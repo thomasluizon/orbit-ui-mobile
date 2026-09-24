@@ -4,6 +4,11 @@ import { z } from 'zod'
 import { serverAuthFetch, serverAuthMutate, serverPublicFetch } from '@/lib/server-fetch'
 import { API } from '@orbit/shared/api'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 /**
  * vi.hoisted, because vi.mock is hoisted above the static import and a plain `const` would not be
  * initialized when the factory runs. The dynamic imports this file used to carry hid that ordering.

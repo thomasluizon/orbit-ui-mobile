@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
@@ -13,6 +13,11 @@ import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
 import { createQueryClient } from '@/lib/query-client'
 import { useThrottleStore } from '@/stores/throttle-store'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 vi.mock('@/lib/actions/api-keys', () => ({ createApiKey: vi.fn(), revokeApiKey: vi.fn() }))
 
