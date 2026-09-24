@@ -158,6 +158,7 @@ export default function UpgradePage() {
 
   const handleOpenPortal = useCallback(async () => {
     if (!isOnline) return
+    const portalAccount = getAccountGeneration()
     setPortalState('opening')
     try {
       if (status?.source === 'play') {
@@ -166,9 +167,11 @@ export default function UpgradePage() {
         return
       }
       const data = await openCustomerPortal()
+      if (getAccountGeneration() !== portalAccount) return
       globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
       globalThis.location.href = data.url
     } catch {
+      if (getAccountGeneration() !== portalAccount) return
       setPortalState('failed')
     }
   }, [isOnline, setPortalState, status])

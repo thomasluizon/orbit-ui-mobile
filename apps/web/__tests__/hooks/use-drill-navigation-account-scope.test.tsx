@@ -107,3 +107,21 @@ it('keeps the drilled habit when the same account recovers from a rejected refre
   expect(result.current.drillStack).toEqual(['parent-a'])
   expect(result.current.currentParent?.title).toBe(ACCOUNT_A_PARENT_TITLE)
 })
+
+it('ignores old habit detail received after the account changes', async () => {
+  let releaseDetail!: (response: Response) => void
+  vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {
+    releaseDetail = resolve
+  }))
+  const { result } = renderHook(() => useDrillNavigation(EMPTY_HABITS_BY_ID, 0))
+  act(() => { void result.current.drillInto('parent-a') })
+
+  await replaceAccountWith('user-2')
+  await act(async () => {
+    releaseDetail(Response.json(accountAHabitDetail()))
+    await Promise.resolve()
+  })
+
+  expect(result.current.getDrillChildren('parent-a')).toEqual([])
+  expect(result.current.currentParent).toBeNull()
+})

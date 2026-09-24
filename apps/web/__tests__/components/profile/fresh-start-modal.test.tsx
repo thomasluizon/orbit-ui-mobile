@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 
 vi.mock('next-intl', () => ({
@@ -302,6 +302,24 @@ describe('FreshStartModal across an account change', () => {
     await recoverSameAccount('user-1')
 
     expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toHaveValue('ORBIT')
+  })
+
+  it('does not clear the next account after a delayed reset completes', async () => {
+    let releaseReset!: () => void
+    mockResetAccount.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      releaseReset = resolve
+    }))
+    const nextNoticeKey = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-2')
+    localStorage.setItem(nextNoticeKey, '1')
+    armTheErasure()
+    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+
+    await replaceAccountWith('user-2')
+    await act(async () => { releaseReset(); await Promise.resolve() })
+
+    expect(localStorage.getItem(nextNoticeKey)).toBe('1')
+    expect(mockQueryClientClear).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
   })
 })
 

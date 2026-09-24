@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -66,6 +67,8 @@ export function useResetOnAccountChange(reset: () => void): void {
  * argument, so the same value runs the same way at the mount and at the reset. Pass a function
  * wherever the initial value is a fresh object, for the reason React already documents: an eagerly
  * built one is shared between the mount and every later reset.
+ * Setters from an earlier render also carry that render's account generation. A request started
+ * under one account cannot repopulate the next account's state when it resolves later.
  */
 export function useAccountScopedState<S>(
   initialState: S | (() => S),
@@ -79,5 +82,10 @@ export function useAccountScopedState<S>(
     setValue(initialState)
   }
 
-  return [value, setValue]
+  const setAccountValue = useCallback<Dispatch<SetStateAction<S>>>((nextValue) => {
+    if (getAccountGeneration() !== accountGeneration) return
+    setValue(nextValue)
+  }, [accountGeneration])
+
+  return [value, setAccountValue]
 }

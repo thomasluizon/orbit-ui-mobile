@@ -672,6 +672,31 @@ describe('CalendarSyncPage', () => {
     expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
   })
 
+  it('ignores an old import callback after account replacement', async () => {
+    const events = [
+      { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: () => Promise.resolve(events),
+    }) as unknown as typeof fetch
+    holdAccount('user-1')
+    let finishImport!: (result: { results: { status: string; habitId: string | null; title: string | null; error: string | null }[] }) => void
+    mockBulkMutate.mockImplementation((_variables: unknown, options: { onSuccess: typeof finishImport }) => {
+      finishImport = options.onSuccess
+    })
+    renderPage()
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
+
+    await replaceAccountWith('user-2')
+    finishImport({ results: [
+      { status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null },
+      { status: 'Failed', habitId: null, title: 'Account A event', error: 'failed' },
+    ] })
+
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
+  })
+
   it('invalidates sync suggestions after a review-mode import', async () => {
     mockSearchParams.set('mode', 'review')
     mockSuggestions = {

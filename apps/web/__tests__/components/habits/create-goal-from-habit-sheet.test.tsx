@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -205,5 +205,23 @@ describe('CreateGoalFromHabitSheet across an account change', () => {
     await recoverSameAccount('user-1')
 
     expect(screen.getByLabelText(/goals.form.description/)).toHaveValue('Run a half marathon')
+  })
+
+  it('does not close the next account sheet after an old create completes', async () => {
+    let finishCreate!: (value: object) => void
+    mockMutateAsync.mockImplementationOnce(() => new Promise((resolve) => { finishCreate = resolve }))
+    const onClose = vi.fn()
+    render(<CreateGoalFromHabitSheet open onClose={onClose} />)
+    fireEvent.change(screen.getByLabelText(/goals.form.description/), { target: { value: 'Read' } })
+    fireEvent.change(screen.getByLabelText('goals.form.targetValue'), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('goals.form.unit'), { target: { value: 'books' } })
+    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
+    expect(mockMutateAsync).toHaveBeenCalledOnce()
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishCreate({}) })
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(mockShowError).not.toHaveBeenCalled()
   })
 })

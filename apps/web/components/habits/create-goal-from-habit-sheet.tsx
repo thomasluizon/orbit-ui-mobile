@@ -10,6 +10,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   getFriendlyErrorMessage,
   translateErrorKey,
@@ -135,11 +136,14 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
   const { sheetRef, closeSheet } = useSheetHost()
   const dismissGuard = useDismissGuard({
     isDirty,
-    onDismiss: () =>
+    onDismiss: () => {
+      const accountGeneration = getAccountGeneration()
       closeSheet(() => {
+        if (getAccountGeneration() !== accountGeneration) return
         resetForm()
         onClose()
-      }),
+      })
+    },
   })
 
   const fieldErrors = useMemo(
@@ -182,6 +186,7 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
 
       const parsedTargetValue = parseGoalTargetValue(targetValue)
       if (parsedTargetValue === null) return
+      const accountGeneration = getAccountGeneration()
 
       try {
         const title = buildGoalTitle(description, targetValue, unit)
@@ -194,11 +199,14 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         )
 
         await createGoal.mutateAsync(request)
+        if (getAccountGeneration() !== accountGeneration) return
         closeSheet(() => {
+          if (getAccountGeneration() !== accountGeneration) return
           onClose()
           resetForm()
         })
       } catch (error: unknown) {
+        if (getAccountGeneration() !== accountGeneration) return
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
       }
     },

@@ -24,8 +24,26 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.clearAllMocks()
+})
+
+it('does not download a delayed export after another account replaces the tab', async () => {
+  let releaseExport!: (value: object) => void
+  mocks.exportUserData.mockImplementationOnce(() => new Promise((resolve) => {
+    releaseExport = resolve
+  }))
+  const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  const { result } = renderHook(() => useDataExport())
+  let exportPromise!: Promise<void>
+  act(() => { exportPromise = result.current.exportData() })
+
+  await replaceAccountWith('user-2')
+  await act(async () => { releaseExport({ account: 'user-1' }); await exportPromise })
+
+  expect(download).not.toHaveBeenCalled()
+  expect(result.current.exportDone).toBe(false)
 })
 
 it('drops the export notice when another account replaces the tab', async () => {

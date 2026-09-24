@@ -84,3 +84,13 @@ it('commits no render that still carries the value of the account it left', asyn
     rendersUnderTheNextAccount.map(() => ''),
   )
 })
+
+it('ignores a setter captured by a request from the previous account', async () => {
+  const { result } = renderHook(() => useAccountScopedState(''))
+  const previousAccountSetter = result.current[1]
+
+  await replaceAccountWith('user-2')
+  act(() => previousAccountSetter('old request result'))
+
+  expect(result.current[0]).toBe('')
+})

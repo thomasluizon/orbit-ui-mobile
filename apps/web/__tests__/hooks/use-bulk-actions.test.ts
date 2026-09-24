@@ -88,6 +88,21 @@ describe('useBulkActions reversibility boundary', () => {
     expect(bulkDelete.mutateAsync).not.toHaveBeenCalled()
   })
 
+  it('does not apply an old bulk result after another account replaces the tab', async () => {
+    let finishLog!: (value: ReturnType<typeof bulkSuccess>) => void
+    bulkLog.mutateAsync.mockImplementationOnce(() => new Promise((resolve) => { finishLog = resolve }))
+    const { result, onSuccess, settleBulkHabitResolutions } = renderBulkActions(new Set(['h-1']))
+    act(() => { void result.current.confirmBulkLog() })
+    expect(bulkLog.mutateAsync).toHaveBeenCalledOnce()
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishLog(bulkSuccess(['h-1'])) })
+
+    expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(showToast).not.toHaveBeenCalled()
+  })
+
   it('keeps the delete confirmation when the same account recovers from a rejected refresh', async () => {
     const { result } = renderBulkActions(new Set(['h-1', 'h-2']))
     act(() => result.current.setShowBulkDeleteConfirm(true))

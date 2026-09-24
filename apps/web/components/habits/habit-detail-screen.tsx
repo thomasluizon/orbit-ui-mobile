@@ -49,6 +49,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
@@ -276,11 +277,12 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     else router.push(`/?date=${dateStr}`)
   }, [dateStr, fromToday, parentId, router])
   const runWrite = useCallback(async (write: () => Promise<unknown>, errorMessage: string): Promise<boolean> => {
+    const accountGeneration = getAccountGeneration()
     try {
       await write()
-      return true
+      return getAccountGeneration() === accountGeneration
     } catch {
-      showError(errorMessage)
+      if (getAccountGeneration() === accountGeneration) showError(errorMessage)
       return false
     }
   }, [showError])

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { getStepUpPhaseFromTiming, getStepUpStorageKey } from '@orbit/shared/utils'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -102,4 +102,19 @@ it('leaves each account its own record and writes nothing to the unscoped key', 
   expect(localStorage.getItem(getStepUpStorageKey('delete', 'user-1'))).not.toBeNull()
   expect(localStorage.getItem(getStepUpStorageKey('delete', 'user-2'))).not.toBeNull()
   expect(localStorage.getItem('orbit.step-up.delete')).toBeNull()
+})
+
+it('does not route the next account into a delayed deletion challenge', async () => {
+  let releaseRequest!: () => void
+  mocks.requestDeletion.mockImplementationOnce(() => new Promise<void>((resolve) => {
+    releaseRequest = resolve
+  }))
+  render(<DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />)
+  fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+
+  await replaceAccountWith('user-2')
+  await act(async () => { releaseRequest(); await Promise.resolve() })
+
+  expect(mocks.push).not.toHaveBeenCalled()
+  expect(readStepUpTiming('delete', 'user-1')).toBeNull()
 })

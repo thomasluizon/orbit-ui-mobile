@@ -261,4 +261,24 @@ describe('UpgradePage across an account change', () => {
 
     expect(screen.getByText('upgrade.billing.portalFailed')).toBeInTheDocument()
   })
+
+  it('does not open the previous account portal after replacement', async () => {
+    status = STRIPE_PRO_STATUS
+    let releasePortal!: (value: { url: string }) => void
+    mocks.openCustomerPortal.mockImplementationOnce(() => new Promise((resolve) => {
+      releasePortal = resolve
+    }))
+    vi.stubGlobal('location', { href: '' })
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
+
+    await replaceAccountWith('user-2')
+    await act(async () => {
+      releasePortal({ url: 'https://billing.example.test/user-1' })
+      await Promise.resolve()
+    })
+
+    expect(globalThis.location.href).toBe('')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
+  })
 })

@@ -1,8 +1,15 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { cleanup, renderHook } from '@testing-library/react'
+import { act, cleanup, renderHook } from '@testing-library/react'
 import { QueryClient } from '@tanstack/react-query'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
-import { clearStepUpState, markStepUpVerified } from '@/lib/step-up-storage'
+import { clearStepUpState, hasApiKeyCreationGrant, markStepUpVerified } from '@/lib/step-up-storage'
+
+const mocks = vi.hoisted(() => ({ createApiKey: vi.fn() }))
+
+vi.mock('@/lib/actions/api-keys', () => ({
+  createApiKey: (...args: unknown[]) => mocks.createApiKey(...args),
+  revokeApiKey: vi.fn(),
+}))
 import {
   holdAccount,
   recoverSameAccount,
@@ -54,4 +61,25 @@ it('keeps the grant when the same account recovers from a rejected refresh', asy
   await recoverSameAccount('user-1')
 
   expect(result.current.createGrantAvailable).toBe(true)
+})
+
+it('does not return an old key or consume the next account grant', async () => {
+  let releaseCreate!: (value: object) => void
+  mocks.createApiKey.mockImplementationOnce(() => new Promise((resolve) => {
+    releaseCreate = resolve
+  }))
+  const { result } = renderManagement()
+  let creation!: Promise<unknown>
+  act(() => { creation = result.current.handleCreateKey({ name: 'A key' }, async () => {}) })
+
+  await replaceAccountWith('user-2')
+  markStepUpVerified('keys')
+  let returned: unknown
+  await act(async () => {
+    releaseCreate({ success: true, response: { id: 'account-a-key', key: 'orbit_sk_account_a' } })
+    returned = await creation
+  })
+
+  expect(returned).toBeNull()
+  expect(hasApiKeyCreationGrant()).toBe(true)
 })

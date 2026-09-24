@@ -6,6 +6,7 @@ import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/s
 import { apiKeyKeys } from '@orbit/shared/query'
 import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   clearApiKeyCreationGrant,
   consumeApiKeyCreationGrant,
@@ -59,6 +60,7 @@ export function useApiKeyManagement({
     request: ApiKeyCreateRequest,
     onCreateGrantRequired: () => Promise<void>,
   ): Promise<ApiKeyCreateResponse | null> {
+    const creationAccount = getAccountGeneration()
     setCreateKeyError(null)
     if (!createGrantAvailable) {
       await onCreateGrantRequired()
@@ -66,6 +68,7 @@ export function useApiKeyManagement({
     }
     try {
       const result = await createApiKey(request)
+      if (getAccountGeneration() !== creationAccount) return null
       if (!result.success) {
         clearApiKeyCreationGrant()
         setCreateGrantAvailable(false)
@@ -77,6 +80,7 @@ export function useApiKeyManagement({
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result.response
     } catch {
+      if (getAccountGeneration() !== creationAccount) return null
       setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
     }

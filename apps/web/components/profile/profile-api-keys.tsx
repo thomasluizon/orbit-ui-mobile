@@ -17,7 +17,8 @@ import { RowList } from '@/components/ui/row-list'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { StepUp } from '@/components/ui/step-up'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
-import { useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { useHeldAccountId } from '@/stores/auth-store'
 
@@ -180,7 +181,7 @@ interface ApiKeyGateProps {
 
 function ApiKeyGate({ busy, error, onStartStepUp }: Readonly<ApiKeyGateProps>) {
   const t = useTranslations()
-  const [showStepUp, setShowStepUp] = useState(false)
+  const [showStepUp, setShowStepUp] = useAccountScopedState(false)
 
   if (!showStepUp) {
     return (
@@ -287,18 +288,21 @@ function ApiKeyCreateControls({
 function useApiKeyStepUp() {
   const router = useRouter()
   const accountId = useHeldAccountId()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(false)
+  const [busy, setBusy] = useAccountScopedState(false)
+  const [error, setError] = useAccountScopedState(false)
 
   async function start() {
     if (busy) return
+    const challengeAccount = getAccountGeneration()
     setBusy(true)
     setError(false)
     try {
       await requestApiKeyCreationChallenge()
+      if (getAccountGeneration() !== challengeAccount) return
       beginStepUpChallenge('keys', accountId)
       router.push('/step-up?operation=keys')
     } catch {
+      if (getAccountGeneration() !== challengeAccount) return
       setError(true)
       setBusy(false)
     }
@@ -326,15 +330,10 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const router = useRouter()
   const queryClient = useQueryClient()
   const hasProAccess = profile?.hasProAccess ?? false
-  const [scopeOpen, setScopeOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
+  const [scopeOpen, setScopeOpen] = useAccountScopedState(false)
+  const [creating, setCreating] = useAccountScopedState(false)
+  const [createdKey, setCreatedKey] = useAccountScopedState<ApiKeyCreateResponse | null>(null)
   const stepUp = useApiKeyStepUp()
-
-  useResetOnAccountChange(() => {
-    setCreatedKey(null)
-    setScopeOpen(false)
-  })
 
   const management = useApiKeyManagement({
     hasProAccess: hasProAccess && unlocked,
@@ -346,11 +345,13 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
     request: ApiKeyCreateRequest,
     onCreateGrantRequired: () => Promise<void> = stepUp.start,
   ) {
+    const creationAccount = getAccountGeneration()
     setCreating(true)
     try {
-      return await management.handleCreateKey(request, onCreateGrantRequired)
+      const result = await management.handleCreateKey(request, onCreateGrantRequired)
+      return getAccountGeneration() === creationAccount ? result : null
     } finally {
-      setCreating(false)
+      if (getAccountGeneration() === creationAccount) setCreating(false)
     }
   }
 

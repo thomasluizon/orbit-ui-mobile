@@ -22,6 +22,7 @@ import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
@@ -185,28 +186,33 @@ function CalendarSyncPageContent() {
   }
 
   async function handleDismissSuggestion(suggestionId: string) {
+    const requestAccount = getAccountGeneration()
     try {
       await dismissSuggestion.mutateAsync({ id: suggestionId })
     } catch (err: unknown) {
+      if (getAccountGeneration() !== requestAccount) return
       toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
     }
   }
 
   async function handleConnect() {
     if (!isOnline || isConnecting) return
+    const requestAccount = getAccountGeneration()
     setIsConnecting(true)
     try {
       await connectGoogle()
     } catch {
+      if (getAccountGeneration() !== requestAccount) return
       toast.error(t('auth.googleError'))
     } finally {
-      setIsConnecting(false)
+      if (getAccountGeneration() === requestAccount) setIsConnecting(false)
     }
   }
 
   function importSelected() {
     if (!isOnline) return
     if (selectedIds.size === 0) return
+    const importAccount = getAccountGeneration()
     setWizardStage('importing')
 
     try {
@@ -220,6 +226,7 @@ function CalendarSyncPageContent() {
         { habits },
         {
           onSuccess: (result) => {
+            if (getAccountGeneration() !== importAccount) return
             const successCount = result.results.filter((r) => r.status === 'Success').length
             const failedItems = result.results.filter((r) => r.status !== 'Success')
             if (failedItems.length > 0 && successCount === 0) {
@@ -252,12 +259,14 @@ function CalendarSyncPageContent() {
             }
           },
           onError: (err: unknown) => {
+            if (getAccountGeneration() !== importAccount) return
             setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
             setWizardStage('error')
           },
         },
       )
     } catch (err: unknown) {
+      if (getAccountGeneration() !== importAccount) return
       setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
       setWizardStage('error')
     }

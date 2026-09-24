@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/lib/actions/profile'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { getHeldAccountId } from '@/stores/auth-store'
 
 const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
@@ -109,10 +110,12 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   async function handleReset() {
     if (!isConfirmed) return
+    const resetAccountGeneration = getAccountGeneration()
     setLoading(true)
     setError('')
     try {
       await resetAccount()
+      if (getAccountGeneration() !== resetAccountGeneration) return
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem(TRIAL_EXPIRED_SEEN_STORAGE_KEY)
@@ -121,15 +124,17 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
         localStorage.removeItem(buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId))
       }
       closeSheet(() => {
+        if (getAccountGeneration() !== resetAccountGeneration) return
         handleOpenChange(false)
         queryClient.clear()
         router.push('/')
         router.refresh()
       })
     } catch (err: unknown) {
+      if (getAccountGeneration() !== resetAccountGeneration) return
       setError(getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic'))
     } finally {
-      setLoading(false)
+      if (getAccountGeneration() === resetAccountGeneration) setLoading(false)
     }
   }
 

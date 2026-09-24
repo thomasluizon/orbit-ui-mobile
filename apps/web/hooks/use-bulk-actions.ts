@@ -7,6 +7,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface UseBulkActionsOptions {
@@ -80,9 +81,13 @@ export function useBulkActions({
   async function executeDelete(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
+    const accountGeneration = getAccountGeneration()
     try {
       const result = await bulkDelete.mutateAsync(ids)
-      finish(result, (failedIds) => void executeDelete(failedIds))
+      if (getAccountGeneration() !== accountGeneration) return
+      finish(result, (failedIds) => {
+        if (getAccountGeneration() === accountGeneration) void executeDelete(failedIds)
+      })
     } finally {
       setShowBulkDeleteConfirm(false)
     }
@@ -91,21 +96,29 @@ export function useBulkActions({
   async function executeLog(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
+    const accountGeneration = getAccountGeneration()
     const result = await bulkLog.mutateAsync(
       ids.map((id) => ({ habitId: id, date: selectedDateStr })),
     )
+    if (getAccountGeneration() !== accountGeneration) return
     applyBulkMutationSuccesses(result.results, 'log')
-    finish(result, (failedIds) => void executeLog(failedIds))
+    finish(result, (failedIds) => {
+      if (getAccountGeneration() === accountGeneration) void executeLog(failedIds)
+    })
   }
 
   async function executeSkip(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
+    const accountGeneration = getAccountGeneration()
     const result = await bulkSkip.mutateAsync(
       ids.map((id) => ({ habitId: id, date: selectedDateStr })),
     )
+    if (getAccountGeneration() !== accountGeneration) return
     applyBulkMutationSuccesses(result.results, 'skip')
-    finish(result, (failedIds) => void executeSkip(failedIds))
+    finish(result, (failedIds) => {
+      if (getAccountGeneration() === accountGeneration) void executeSkip(failedIds)
+    })
   }
 
   const confirmBulkDelete = () => executeDelete(
