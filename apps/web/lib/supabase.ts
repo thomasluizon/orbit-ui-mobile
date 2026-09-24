@@ -11,3 +11,11 @@ export function getSupabaseClient(): SupabaseClient {
   }
   return client
 }
+
+export function clearSupabaseSession(): void {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!url) throw new Error('Supabase config missing')
+  const projectRef = new URL(url).hostname.split('.')[0]
+  globalThis.localStorage.removeItem(`sb-${projectRef}-auth-token`)
+  void getSupabaseClient().auth.signOut({ scope: 'local' }).catch(() => {})
+}

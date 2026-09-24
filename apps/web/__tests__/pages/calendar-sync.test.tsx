@@ -345,6 +345,8 @@ describe('CalendarSyncPage', () => {
     const connectButton = await screen.findByText('auth.signInWithGoogle')
     fireEvent.click(connectButton)
 
+    expect(sessionStorage.getItem('orbit_google_auth_started_at')).not.toBeNull()
+
     expect(mockSignInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: {

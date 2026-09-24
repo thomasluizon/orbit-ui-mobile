@@ -42,7 +42,7 @@ vi.mock('@/stores/auth-store', () => ({
 }))
 
 vi.mock('@/lib/supabase', () => ({
-  getSupabaseClient: () => ({ auth: { signInWithOAuth: vi.fn() } }),
+  getSupabaseClient: () => ({ auth: { signInWithOAuth: vi.fn().mockResolvedValue({ error: null }) } }),
 }))
 
 vi.mock('@/lib/profile-presentation', () => ({
@@ -128,8 +128,19 @@ beforeEach(() => {
   mocks.isOnline = true
   setNavigatorOnline(true)
   localStorage.clear()
+  sessionStorage.clear()
   document.cookie = 'referral_code=;max-age=0;path=/'
   wireAuthNetwork()
+})
+
+describe('Google sign in', () => {
+  it('marks the browser tab before starting OAuth', async () => {
+    const { result } = renderHook(() => useLoginFlow())
+
+    await act(async () => { await result.current.signInWithGoogle() })
+
+    expect(sessionStorage.getItem('orbit_google_auth_started_at')).not.toBeNull()
+  })
 })
 
 afterEach(() => {

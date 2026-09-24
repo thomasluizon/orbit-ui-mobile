@@ -1,0 +1,117 @@
+import { act, render, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
+
+const mocks = vi.hoisted(() => ({
+  callback: null as ((event: AuthChangeEvent, session: Session | null) => void) | null,
+  exchange: vi.fn(),
+  verify: vi.fn(),
+  setAuth: vi.fn(),
+  push: vi.fn(),
+  unsubscribe: vi.fn(),
+}))
+
+vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mocks.push }),
+  useSearchParams: () => new URLSearchParams(),
+}))
+vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => ({ setAuth: mocks.setAuth }) }))
+vi.mock('@/lib/supabase', () => ({
+  getSupabaseClient: () => ({
+    auth: {
+      onAuthStateChange: (callback: typeof mocks.callback) => {
+        mocks.callback = callback
+        return { data: { subscription: { unsubscribe: mocks.unsubscribe } } }
+      },
+    },
+  }),
+}))
+vi.mock('@/lib/throttle-fetch', () => ({ fetchWithThrottle: mocks.exchange }))
+vi.mock('@/app/(auth)/login/login-form-helpers', () => ({
+  getCookieValue: () => undefined,
+  handleVerifySuccess: mocks.verify,
+}))
+vi.mock('@/app/(auth)/login/login-content', () => ({ LoginContent: () => null }))
+
+import AuthCallbackPage from '@/app/(auth)/auth-callback/page'
+import { markGoogleAuthStarted } from '@/lib/google-auth-session'
+
+const restoredSession = { access_token: 'account-a-access', provider_token: 'google-token' } as Session
+
+describe('Google auth callback', () => {
+  beforeEach(() => {
+    mocks.callback = null
+    mocks.exchange.mockReset().mockResolvedValue({
+      ok: true,
+      json: async () => ({ userId: 'account-a', name: 'A', email: 'a@example.com' }),
+    })
+    mocks.verify.mockReset().mockResolvedValue(undefined)
+    mocks.push.mockReset()
+    mocks.setAuth.mockReset()
+    mocks.unsubscribe.mockReset()
+    sessionStorage.clear()
+    window.history.replaceState(null, '', '/auth-callback')
+  })
+
+  it.each(['INITIAL_SESSION', 'SIGNED_IN'] as const)(
+    'refuses a %s event restored without an OAuth redirect', async (event) => {
+      render(<AuthCallbackPage />)
+      await act(async () => { mocks.callback?.(event, restoredSession) })
+
+      expect(mocks.exchange).not.toHaveBeenCalled()
+      expect(mocks.verify).not.toHaveBeenCalled()
+    },
+  )
+
+  it('refuses a saved OAuth link without an auth attempt in this tab', async () => {
+    window.history.replaceState(null, '', '/auth-callback#access_token=account-a-access&refresh_token=old-refresh')
+    render(<AuthCallbackPage />)
+
+    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
+
+    expect(mocks.exchange).not.toHaveBeenCalled()
+  })
+
+  it('refuses a restored session that differs from the redirect token', async () => {
+    window.history.replaceState(null, '', '/auth-callback#access_token=another-account&refresh_token=fresh-refresh')
+    markGoogleAuthStarted()
+    render(<AuthCallbackPage />)
+
+    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
+
+    expect(mocks.exchange).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Google sign in', null, '/'],
+    ['Google Calendar connection', '/calendar-sync', '/calendar-sync'],
+  ])('accepts a fresh %s redirect', async (_flow, returnUrl, expectedReturnUrl) => {
+    window.history.replaceState(null, '', '/auth-callback#access_token=account-a-access&refresh_token=fresh-refresh')
+    markGoogleAuthStarted()
+    if (returnUrl) sessionStorage.setItem('auth_return_url', returnUrl)
+    render(<AuthCallbackPage />)
+
+    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
+
+    await waitFor(() => expect(mocks.verify).toHaveBeenCalledOnce())
+    expect(mocks.exchange).toHaveBeenCalledWith('/api/auth/google', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('account-a-access'),
+    }))
+    expect(mocks.verify.mock.calls[0]?.[4]()).toBe(expectedReturnUrl)
+  })
+
+  it('refuses a redirect after the pending auth window expires', async () => {
+    window.history.replaceState(null, '', '/auth-callback#access_token=account-a-access&refresh_token=old-refresh')
+    markGoogleAuthStarted()
+    vi.setSystemTime(Date.now() + 11 * 60 * 1000)
+    try {
+      render(<AuthCallbackPage />)
+      await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
+      expect(mocks.exchange).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

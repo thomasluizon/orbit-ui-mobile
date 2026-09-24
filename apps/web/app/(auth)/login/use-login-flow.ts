@@ -9,6 +9,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getSupabaseClient } from '@/lib/supabase'
+import { clearGoogleAuthStarted, markGoogleAuthStarted } from '@/lib/google-auth-session'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import { fetchAuthEndpoint, getCookieValue, handleVerifySuccess, isOfflinePreflight, resolveLoginErrorState } from './login-form-helpers'
 import type { LoginResponse } from '@orbit/shared/types/auth'
@@ -174,13 +175,15 @@ export function useLoginFlow() {
     setIsGoogleLoading(true)
     setErrorKey(null)
     try {
+      markGoogleAuthStarted()
       const { error } = await getSupabaseClient().auth.signInWithOAuth({
         provider: 'google',
         options: buildGoogleCalendarOAuthOptions({ redirectTo: `${globalThis.location.origin}/auth-callback` }),
       })
       if (!error) return
+      clearGoogleAuthStarted()
       setErrorKey('auth.errors.googleError')
-    } catch { setErrorKey('auth.errors.googleError') }
+    } catch { clearGoogleAuthStarted(); setErrorKey('auth.errors.googleError') }
     busy.current = false
     setIsGoogleLoading(false)
   }

@@ -16,6 +16,16 @@ import {
   retryFailedNotificationDelete,
 } from '@/lib/pending-notification-deletes'
 
+const SUPABASE_STORAGE_KEY = 'sb-wdscxamegetmhqldqsdg-auth-token'
+const { signOutSupabase } = vi.hoisted(() => ({ signOutSupabase: vi.fn() }))
+vi.mock('@/lib/supabase', () => ({
+  clearSupabaseSession: () => {
+    globalThis.localStorage.removeItem(SUPABASE_STORAGE_KEY)
+    void signOutSupabase({ scope: 'local' })
+  },
+  getSupabaseClient: () => ({ auth: { signOut: signOutSupabase } }),
+}))
+
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
@@ -27,6 +37,10 @@ vi.stubGlobal('fetch', mockFetch)
 
 describe('auth store', () => {
   beforeEach(() => {
+    signOutSupabase.mockReset().mockImplementation(async () => {
+      globalThis.localStorage.removeItem(SUPABASE_STORAGE_KEY)
+      return { error: null }
+    })
     resetPendingNotificationDeletesForTests()
     clearStepUpState()
     useAuthStore.setState({
@@ -44,6 +58,7 @@ describe('auth store', () => {
   })
 
   afterEach(() => {
+    globalThis.localStorage.removeItem(SUPABASE_STORAGE_KEY)
     globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
     globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     useChatStore.setState({
@@ -90,6 +105,26 @@ describe('auth store', () => {
     expect(state.isAuthenticated).toBe(false)
     expect(state.user).toBeNull()
     expect(state.expiresAt).toBeNull()
+  })
+
+  it('removes the Supabase session after Orbit sign out', async () => {
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    globalThis.localStorage.setItem(SUPABASE_STORAGE_KEY, 'account-a-session')
+
+    await useAuthStore.getState().logout()
+
+    expect(signOutSupabase).toHaveBeenCalledWith({ scope: 'local' })
+    expect(globalThis.localStorage.getItem(SUPABASE_STORAGE_KEY)).toBeNull()
+  })
+
+  it('removes the previous Supabase session when Orbit replaces the account', async () => {
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+    globalThis.localStorage.setItem(SUPABASE_STORAGE_KEY, 'account-a-session')
+
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
+
+    await vi.waitFor(() => expect(globalThis.localStorage.getItem(SUPABASE_STORAGE_KEY)).toBeNull())
+    expect(signOutSupabase).toHaveBeenCalledWith({ scope: 'local' })
   })
 
   it('sets authenticated state from LoginResponse', () => {
