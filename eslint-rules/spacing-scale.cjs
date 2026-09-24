@@ -31,6 +31,8 @@
  * entry within an analysed array, spread, or Object.assign may overwrite
  * earlier keys.
  * A mutation is definite only when its statement shares the declaration block.
+ * Nested writes in that function keep earlier values possible; writes in other
+ * function or class bodies are outside the analysis.
  */
 
 // DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
@@ -316,6 +318,13 @@ module.exports = {
       return (block.type === 'Program' || block.type === 'BlockStatement') && statement.type === 'ExpressionStatement' && statement.parent === block
     }
 
+    function executionContext(node) {
+      for (let parent = node; parent; parent = parent.parent) {
+        if (parent.type === 'Program' || parent.type === 'ClassBody' || parent.type === 'FunctionDeclaration' || parent.type === 'FunctionExpression' || parent.type === 'ArrowFunctionExpression') return parent
+      }
+      return null
+    }
+
     function scanBinding(variable, initializer, ignored, cutoff) {
       activeStyleBindings.add(variable)
       const shadowed = new Set(ignored)
@@ -323,12 +332,11 @@ module.exports = {
       const deletedKeys = new Set()
       let hasUnknownKey = false
       const mutations = (mutatedStyleProperties.get(variable) ?? [])
-        .filter((mutation) => mutation.position < cutoff)
+        .filter((mutation) => mutation.position < cutoff && executionContext(mutation.node) === executionContext(variable.defs[0].node))
         .sort((left, right) => right.position - left.position)
       for (const mutation of mutations) {
         const definite = isDefiniteMutation(mutation, variable)
         if (mutation.kind === 'assign') {
-          if (!definite) hasUnknownKey = true
           for (let index = mutation.sources.length - 1; index >= 0; index--) {
             const keys = scanStyleObject(mutation.sources[index], shadowed, mutation.position)
             if (keys === null) {
@@ -337,7 +345,7 @@ module.exports = {
             } else {
               for (const key of keys) {
                 if (definite && !deletedKeys.has(key)) knownKeys.add(key)
-                shadowed.add(key)
+                if (definite) shadowed.add(key)
               }
             }
           }
@@ -352,17 +360,14 @@ module.exports = {
           if (definite) {
             if (!knownKeys.has(mutation.name)) deletedKeys.add(mutation.name)
             shadowed.add(mutation.name)
-          } else {
-            hasUnknownKey = true
           }
         } else {
-          if (!definite) hasUnknownKey = true
           if (definite && !deletedKeys.has(mutation.name)) knownKeys.add(mutation.name)
           if (!deletedKeys.has(mutation.name) && !shadowed.has('*') && !shadowed.has(mutation.name) && SPACING_PROPS.has(mutation.name) && mutation.value && !scannedMutationValues.has(mutation.node)) {
             scannedMutationValues.add(mutation.node)
             reportStyleValue(mutation.value, mutation.name)
           }
-          shadowed.add(mutation.name)
+          if (definite) shadowed.add(mutation.name)
         }
       }
       const initialKeys = scanStyleObject(initializer, shadowed, cutoff)

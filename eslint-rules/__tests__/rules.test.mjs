@@ -484,8 +484,9 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     'const row = { gap: 14 }; const alias = row; alias.gap = runtimeGap; <div style={row} />',
     'const row = { gap: 14 }; Object.assign(row, runtimeStyle); <div style={row} />',
     'const row = { gap: 14 }; Object.assign(row, { gap: 12 }); <div style={row} />',
-    'const row = { gap: 14 }; if (cond) row.gap = 12; <div style={row} />',
-    'const row = { gap: 14 }; if (cond) Object.assign(row, { gap: 12 }); <div style={row} />',
+    'const row = { gap: 12 }; function update() { row.gap = 14; } <div style={row} />',
+    'const row = { gap: 12 }; const update = () => Object.assign(row, { gap: 14 }); <div style={row} />',
+    'const row = { gap: 12 }; class Update { change() { row.gap = 14; } } <div style={row} />',
     'const base = { gap: 14 }; base.gap = 12; const row = { ...base }; <div style={row} />',
     'const row = [{ gap: 14 }, { gap: 12 }]; <View style={row} />',
     'const row = [{ gap: 14 }, { ...{ gap: 12 } }]; <View style={row} />',
@@ -520,6 +521,51 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
   ],
   invalid: [
     {
+      code: 'const row = { gap: 14 }; if (cond) row.gap = 12; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 12 }; if (cond) row.gap = 14; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; if (cond) Object.assign(row, { gap: 12 }); <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const source = { gap: 12, padding: 20 }; if (cond) source.gap = 14; const row = { margin: 20, ...source }; <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const source = { gap: 12, padding: 20 }; if (cond) source.gap = 14; const row = { margin: 20 }; Object.assign(row, source); <div style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; for (const value of values) row.gap = 12; <View style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; switch (value) { case 1: row.gap = 12; } <View style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; try { row.gap = 12; } catch (error) {} <View style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const row = { gap: 14 }; labelled: { row.gap = 12; } <View style={row} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
       code: 'const source = {}; Object.assign(source, { gap: 12 }); delete source.gap; const row = { gap: 14, ...source }; <div style={row} />',
       output: null,
       errors: [{ messageId: 'offScaleStyle' }],
@@ -531,11 +577,6 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     },
     {
       code: 'const row = {}; row.gap = 14; <><div style={row} /><span style={row} /></>',
-      output: null,
-      errors: [{ messageId: 'offScaleStyle' }],
-    },
-    {
-      code: 'const row = { gap: 12 }; if (cond) row.gap = 14; <div style={row} />',
       output: null,
       errors: [{ messageId: 'offScaleStyle' }],
     },
