@@ -112,6 +112,25 @@ describe('useDrillNavigation', () => {
     mockFetch.mockReset()
   })
 
+  it('hides current-day overdue detail-only children on an earlier selected date', async () => {
+    const response: HabitDetail = makeDetailResponse()
+    response.children = [{
+      ...response.children[0]!, id: 'overdue-child',
+      dueDate: '2025-01-02', isOverdue: true,
+    }]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(response) })
+    const options = {
+      habitsById: new Map<string, NormalizedHabit>(),
+      childrenByParent: new Map<string, string[]>(),
+      selectedDate: '2025-01-01', searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+    const { result } = renderHook(() => useDrillNavigation(new Map(), 0, options, 'today'))
+    await act(async () => { await result.current.drillInto('parent1') })
+
+    expect(result.current.drillChildren).toEqual([])
+  })
+
   it('filters completed one-time and recurring drill children with the selected date', async () => {
     const date = '2025-01-15'
     const response: HabitDetail = makeDetailResponse()

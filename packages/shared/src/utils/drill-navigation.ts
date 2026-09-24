@@ -48,13 +48,20 @@ export function getVisibleDrillChildren(
   drillChildrenMap: ReadonlyMap<string, NormalizedHabit[]>,
   options: HabitVisibilityOptions,
   view: HabitVisibilityView,
+  today: string,
 ): NormalizedHabit[] {
+  const isSelectedDateToday = !options.selectedDate || options.selectedDate === today
   const habitsById = new Map(options.habitsById)
   const childrenByParent = new Map(options.childrenByParent)
   for (const [id, children] of drillChildrenMap) {
     childrenByParent.set(id, children.map((child) => child.id))
     for (const child of children) {
-      habitsById.set(child.id, { ...child, ...options.habitsById.get(child.id) })
+      const listChild = options.habitsById.get(child.id)
+      habitsById.set(child.id, {
+        ...child,
+        ...(!listChild && !isSelectedDateToday ? { isOverdue: false } : {}),
+        ...listChild,
+      })
     }
   }
   return createHabitVisibilityHelpers({

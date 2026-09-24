@@ -112,6 +112,22 @@ describe('mobile useDrillNavigation', () => {
     mocks.apiClient.mockReset()
   })
 
+  it('hides current-day overdue detail-only children on an earlier selected date', async () => {
+    mocks.apiClient.mockResolvedValue(makeDetail({ children: [
+      makeChild({ id: 'overdue-child', dueDate: '2025-01-02', isOverdue: true }),
+    ] }))
+    const options = {
+      habitsById: new Map<string, NormalizedHabit>(),
+      childrenByParent: new Map<string, string[]>(),
+      selectedDate: '2025-01-01', searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+    const { holder } = renderDrill(new Map(), 1, options)
+    await actAsync(() => holder.current.drillInto('p1'))
+
+    expect(holder.current.drillChildren).toEqual([])
+  })
+
   it('hides completed detail children and shows them when requested', async () => {
     const date = '2026-07-13'
     const children = [

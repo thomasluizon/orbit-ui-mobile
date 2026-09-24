@@ -9,7 +9,7 @@ import {
 } from '@orbit/shared/utils/drill-navigation'
 import type { HabitVisibilityOptions, HabitVisibilityView } from '@orbit/shared/utils/habit-visibility'
 import { API } from '@orbit/shared/api'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { hasOpenOverlay } from '@/lib/overlay-stack'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
@@ -77,7 +77,7 @@ export function useDrillNavigation(
   const drillChildren = useMemo(
     () => currentParentId
       ? visibilityOptions
-        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view)
+        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
         : drillChildrenMap.get(currentParentId) ?? []
       : [],
     [currentParentId, drillChildrenMap, visibilityOptions, view],
@@ -132,7 +132,7 @@ export function useDrillNavigation(
   const getDrillChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
       return visibilityOptions
-        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view)
+        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
         : drillChildrenMap.get(parentId) ?? []
     },
     [drillChildrenMap, visibilityOptions, view],

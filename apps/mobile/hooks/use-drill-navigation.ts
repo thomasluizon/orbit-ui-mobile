@@ -52,7 +52,7 @@ export function useDrillNavigation(
   const drillChildren = useMemo(
     () => currentParentId
       ? visibilityOptions
-        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view)
+        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
         : drillChildrenMap.get(currentParentId) ?? []
       : [],
     [currentParentId, drillChildrenMap, visibilityOptions, view],
@@ -114,7 +114,7 @@ export function useDrillNavigation(
   const getDrillChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
       return visibilityOptions
-        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view)
+        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
         : drillChildrenMap.get(parentId) ?? []
     },
     [drillChildrenMap, visibilityOptions, view],
