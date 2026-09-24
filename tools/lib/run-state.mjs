@@ -34,6 +34,26 @@ const GITDIR_LINE = /^gitdir:[ \t]*(.+?)[ \t]*$/m
 // Linux proc_pid_stat(5): Z is zombie; x is the historical spelling of dead state X.
 const LINUX_DEAD_PROCESS_STATES = new Set(["Z", "X", "x"])
 export const PENDING_WAKE_SOURCE_MAX_AGE_MS = 45_000
+const DARWIN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+// BSD ps prints `Ss   Thu Sep 24 14:06:02 2026` for `stat=,lstart=` under LC_ALL=C and TZ=UTC0.
+const DARWIN_PS_LINE = /^(\S+)\s+[A-Z][a-z]{2} ([A-Z][a-z]{2}) +(\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})\s*$/
+
+/**
+ * macOS has no /proc, so its start identity comes from `ps`. Read on the M5 Pro for this port
+ * (2026-09-24): a live pid prints one line, a missing pid prints nothing and exits 1. `lstart` has
+ * one-second resolution and is absolute time, so a reboot cannot repeat it, and exec keeps it.
+ * Returns the BSD state string and the start in epoch seconds, or null when the probe fails.
+ */
+export const darwinProcessStart = (pid) => {
+  const result = spawnSync("ps", ["-o", "stat=,lstart=", "-p", String(pid)], {
+    encoding: "utf8", timeout: 3000, env: { ...process.env, LC_ALL: "C", TZ: "UTC0" },
+  })
+  const match = result.status === 0 ? DARWIN_PS_LINE.exec(result.stdout.trim()) : null
+  const month = match ? DARWIN_MONTHS.indexOf(match[2]) : -1
+  if (month < 0) return null
+  const [, state, , day, hours, minutes, seconds, year] = match
+  return { state, startSeconds: Date.UTC(Number(year), month, Number(day), Number(hours), Number(minutes), Number(seconds)) / 1000 }
+}
 /**
  * A ledger row's `merged` value must LOOK like a merge commit sha, because the whole safety
  * argument for that field is that a reader can check it against GitHub. A `blocker` may be any
@@ -224,7 +244,8 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
 /**
  * OS start identity, never the launcher's wall-clock timestamp. Windows emits UTC .NET ticks as a
  * decimal string; Linux combines /proc stat field 22 with boot_id so a reboot cannot repeat it.
- * Both sources were read on this machine for #437. A failed probe supplies no identity evidence.
+ * Both sources were read for #437; macOS uses `darwinProcessStart`, whose BSD state Z is a zombie.
+ * A failed probe supplies no identity evidence.
  */
 const processStartIdentity = (pid) => {
   try {
@@ -242,6 +263,10 @@ const processStartIdentity = (pid) => {
       const bootId = readFileSync("/proc/sys/kernel/random/boot_id", "utf8").trim()
       return !LINUX_DEAD_PROCESS_STATES.has(fields[0]) && /^\d+$/.test(fields[19]) && /^[0-9a-f-]{36}$/.test(bootId)
         ? `linux:${bootId}:${fields[19]}` : null
+    }
+    if (process.platform === "darwin") {
+      const start = darwinProcessStart(pid)
+      return start !== null && !start.state.startsWith("Z") ? `darwin:${start.startSeconds}` : null
     }
   } catch {
     /* unreadable process metadata cannot identify a wake source */

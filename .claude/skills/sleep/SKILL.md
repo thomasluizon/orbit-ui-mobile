@@ -128,10 +128,12 @@ above is complete.
 
 ## 5. Worker capacity follows D89
 
-D89 (2026-09-05) sizes the local pool at about **3**, through `caps.parallelTickets`, against the
-serial lane. `materialize-cloud-result.mjs` is serial across the fleet: local test, build, signed
-commit, push and pull request delivery happen on one laptop, one ticket at a time. Core count does
-not set the local pool, and sleep mode does not raise it.
+D89 (2026-09-05) sized the local pool at about 3, through `caps.parallelTickets`, on a 32 GB,
+8-core Windows laptop that reaped two workers at 5.6 GB free (2026-09-19). The pool is now **6** on
+the MacBook Pro M5 Pro: 64 GB and 18 cores, read with `sysctl hw.memsize hw.ncpu` on 2026-09-24.
+One capped worker measured 1.5 to 5.4 GB (spec, "The machine", 2026-09-18), so six peak near 33 GB.
+`materialize-cloud-result.mjs` stays serial across the fleet, so Cloud delivery still runs one
+ticket at a time. Sleep mode does not raise the pool. Memory pressure lowers it, and never ends a run.
 
 Cloud implementations are unavailable while `cloud.enabled` is false. When enabled, they use
 `caps.cloudParallelTasks`, currently **8**, and remain bound to `ui` by `cloud.repositoryKey`.

@@ -272,8 +272,8 @@ export const cases = async () => {
     JSON.stringify(plan),
   )
   T(
-    `${TOOL}: the default tier resolves gpt-5.6-sol at high reasoning effort`,
-    plan !== null && plan.model === "gpt-5.6-sol" && plan.args.includes('model_reasoning_effort="high"'),
+    `${TOOL}: the default tier resolves gpt-6-sol at high reasoning effort`,
+    plan !== null && plan.model === "gpt-6-sol" && plan.args.includes('model_reasoning_effort="high"'),
     JSON.stringify(plan?.args),
   )
   const mechanicalDryRun = check(TOOL, "--dry-run resolves the mechanical tier", [...argv, "--tier", "mechanical", "--dry-run"], { status: 0 }, options)
@@ -348,18 +348,19 @@ export const cases = async () => {
    * silent on the OLD signals, so with the tiny no-progress cap it survives to the hard ceiling
    * only if its one live signal is being counted.
    */
-  /** The CPU probe is deliberately Windows-only (its POSIX shape could never be confirmed against a
-   * real system), so off Windows the burner is INVISIBLE to every signal and the correct outcome is
-   * the no-progress kill. The branch here asserts that contract instead of skipping the case. */
+  /** The CPU probe covers Windows and macOS, the two systems whose process tables were read for it.
+   * On Linux the burner is INVISIBLE to every signal and the correct outcome is the no-progress
+   * kill. The branch here asserts that contract instead of skipping the case. */
+  const cpuProbed = ["win32", "darwin"].includes(process.platform)
   const BURNER = stage("launch-worker/burning-worker.js", "const stop = Date.now() + 60000\nwhile (Date.now() < stop) {}\n")
   const cpuProgress = launch("cpu-progress", launchConfig({ ...stubEngine(BURNER), timeouts: { hardCeilingMinutes: 0.15, noProgressMinutes: 0.05, pollSeconds: 0.2 } }))
   const burned = check(
     TOOL,
-    process.platform === "win32"
+    cpuProbed
       ? "a worker burning CPU while writing nothing anywhere is NOT killed as stalled"
-      : "without the Windows CPU probe, a silent CPU burner still dies on the no-progress clock",
+      : "without a CPU probe, a silent CPU burner still dies on the no-progress clock",
     ["--issue", "ORB-201", "--worktree", cpuProgress.worktree, "--prompt", cpuProgress.prompt],
-    { status: 1, stdout: process.platform === "win32" ? /"outcome": "KILLED_HARD_CEILING"/ : /"outcome": "KILLED_NO_PROGRESS"/ },
+    { status: 1, stdout: cpuProbed ? /"outcome": "KILLED_HARD_CEILING"/ : /"outcome": "KILLED_NO_PROGRESS"/ },
     { path: cpuProgress.path, env: githubAuthEnv() },
   )
   discardLog(burned.stdout)

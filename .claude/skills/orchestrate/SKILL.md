@@ -1358,10 +1358,10 @@ the switch explains.** `tools/__tests__/_harness.mjs:127` reads the live config 
 two in each of two files:
 
 - `tools/__tests__/orchestrator-config.mjs:98-102`, the shipped-default pin, which asserts
-  `gpt-5.6-sol` at high reasoning effort.
+  `gpt-6-sol` at high reasoning effort.
 - `tools/__tests__/orchestrator-config.mjs:103-108`, which asserts the mechanical tier keeps the
   default tier's model, false because the two claude tiers name different models.
-- `tools/__tests__/launch-worker.mjs:274-277`, which pins `gpt-5.6-sol` and
+- `tools/__tests__/launch-worker.mjs:274-277`, which pins `gpt-6-sol` and
   `model_reasoning_effort="high"` through `--dry-run` against the real config.
 - `tools/__tests__/launch-worker.mjs:279-286`, which pins `model_reasoning_effort="medium"` on the
   mechanical tier the same way.
@@ -1510,11 +1510,11 @@ THIS session. That part is still yours, which is why the invariant says to name 
 A no-flag single ticket still runs locally. Cloud remains bound to `ui` through
 `cloud.repositoryKey`, so `orbit-api` and `orbit-landing-page` tickets use the small local pool:
 **`--parallel` runs up to `caps.parallelTickets`
-local tickets at once**, currently **3**, one worktree each.
+local tickets at once**, currently **6**, one worktree each (64 GB, 18-core M5 Pro, 2026-09-24).
 
 Size that pool against the serial materialization lane. `materialize-cloud-result.mjs` is serial
 across the whole fleet: local test, build, signed commit, push and pull request run on this laptop,
-one ticket at a time, with GitHub-calling readiness work capped at 3. Filling all eight cores with local implementers
+one ticket at a time, with GitHub-calling readiness work capped at 3. Filling every core with local implementers
 starves that lane. This cap applies during both attended and `--sleep` runs (D89 supersedes D81).
 
 Measured 2026-09-05: Intel Core Ultra 7 258V, 8 physical and 8 logical cores, 31.5 GB RAM; two live

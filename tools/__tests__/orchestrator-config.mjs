@@ -96,8 +96,8 @@ export const cases = async () => {
     JSON.stringify(invocation),
   )
   T(
-    `${NAME}: the shipped default implementer is gpt-5.6-sol at high reasoning effort`,
-    invocation.model === "gpt-5.6-sol" && invocation.args.includes('model_reasoning_effort="high"'),
+    `${NAME}: the shipped default implementer is gpt-6-sol at high reasoning effort`,
+    invocation.model === "gpt-6-sol" && invocation.args.includes('model_reasoning_effort="high"'),
     `.claude/orchestrator.json resolved ${invocation.model} with ${JSON.stringify(invocation.args)}`,
   )
   const mechanicalInvocation = resolveWorkerInvocation(engineName, engine, "mechanical")
@@ -354,7 +354,7 @@ export const cases = async () => {
     "a cloud environment without a configured repository was accepted",
   )
   T(
-    `${NAME}: the shipped cloud configuration carries the measured environment and D89 caps`,
+    `${NAME}: the shipped cloud configuration carries the measured environment and the M5 Pro caps`,
     real.cloud.environmentId === "6a95b419b608819199eb78d9eabc9579" &&
       real.cloud.repositoryKey === "ui" &&
       real.timeouts.cloudCeilingMinutes === 45 &&
@@ -362,7 +362,8 @@ export const cases = async () => {
       real.timeouts.gitRemoteSeconds === 30 &&
       real.timeouts.receiptLockSeconds === 1 &&
       real.caps.cloudParallelTasks === 8 &&
-      real.caps.parallelTickets === 3 &&
+      // Six on the 64 GB, 18-core M5 Pro (2026-09-24); see the sleep skill, section 5.
+      real.caps.parallelTickets === 6 &&
       real.caps.workerLaunchesPerBranch === 2 &&
       real.caps.workerLogMegabytes === 512,
     JSON.stringify({ cloud: real.cloud, timeouts: real.timeouts, caps: real.caps }),

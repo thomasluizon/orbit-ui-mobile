@@ -53,8 +53,8 @@
       "url": "https://mcp.posthog.com/mcp"
     },
     "csharp-lsp": {
-      "command": "C:/Users/thoma/.dotnet/tools/cwm-roslyn-navigator.exe",
-      "args": ["--solution", "C:/Users/thoma/Documents/Programming/Projects/orbit-api/Orbit.slnx"],
+      "command": "/Users/thomaslrgregoriogmail.com/.dotnet/tools/cwm-roslyn-navigator",
+      "args": ["--solution", "/Users/thomaslrgregoriogmail.com/Developer/orbit-api/Orbit.slnx"],
       "timeout": 60000
     },
     "chrome-devtools": {
