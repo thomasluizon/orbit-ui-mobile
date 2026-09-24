@@ -30,6 +30,11 @@ on:
   push:
     branches: [main, redesign/main]
 
+# Pushes to main and redesign/main use separate refs; only a newer same-branch push cancels a run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: read

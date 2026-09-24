@@ -208,6 +208,13 @@ update exactly one non-draft pull request against the supplied base. Report its 
 stop. Do not wait on CI or poll GitHub Actions; the orchestrator owns CI waiting and readiness.
 Opening the pull request remains part of the worker's job.
 
+**Local review-fix order:** a worker that answers a Pullfrog batch on an existing pull request is
+composed with `--review-batch`. It commits and tests, reports the commit SHA and its evidence, and
+stops WITHOUT pushing. The orchestrator carries the report's evidence, assumptions and manual steps
+into the pull request body, resolves every thread on that commit, then pushes once, exactly as
+`/orchestrate` step 8 says. A push before the threads are resolved starts a review that cannot
+approve and spends a second one.
+
 **Cloud order:** the required finishing text must lead with this standalone instruction, before
 any edit/test bullet, as encoded by `CLOUD_FINISHING_CONTRACT` in `tools/lib/cloud-worker.mjs`:
 

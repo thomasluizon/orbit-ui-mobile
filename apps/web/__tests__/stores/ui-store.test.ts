@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useUIStore } from '@/stores/ui-store'
 import { formatAPIDate } from '@orbit/shared/utils'
 
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))

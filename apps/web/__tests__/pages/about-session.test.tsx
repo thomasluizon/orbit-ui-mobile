@@ -1,10 +1,15 @@
 import type { ReactNode } from 'react'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, vi, afterEach } from 'vitest'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import RootLayout from '@/app/layout'
 import AppLayout from '@/app/(app)/layout'
 import { useAuthStore } from '@/stores/auth-store'
+
+const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+vi.setSystemTime(PINNED_TEST_TIME)
+beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
+afterEach(() => vi.useRealTimers())
 
 const mocks = vi.hoisted(() => ({ cookie: '', fetch: vi.fn(), router: { prefetch: vi.fn() } }))
 vi.mock('next/headers', () => ({ headers: async () => new Headers(), cookies: async () => new RequestCookies(new Headers({ cookie: mocks.cookie })) }))
