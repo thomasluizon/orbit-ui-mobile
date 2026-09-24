@@ -144,9 +144,9 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "7d5208953f5b58ed",
+      "digest": "aaf98d0ead23c387",
       "calibratedAt": "2026-09-24",
-      "verdict": "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four. Reseeded 2026-09-16 when it gained the rule that an attended handoff ENDS the session, which needs the same judgement to apply: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong."
+      "verdict": "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four. The rule that handoff always ENDS the session needs the same judgement: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong."
     },
     ".claude/skills/investigate/SKILL.md": {
       "model": null,
@@ -228,7 +228,7 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "7bbdfe9493568860",
+      "digest": "3212556044724b43",
       "calibratedAt": "2026-09-24",
       "verdict": "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded, and 2026-09-17 made it stricter: each step now ENDS THE TURN on a literal handover line and waits for Thomas to say proceed, so the skill has to hold the order across three turns rather than one, and it must not let --sleep collapse the first two. Low would round that gate away, which is the one thing this skill exists to enforce."
     },
