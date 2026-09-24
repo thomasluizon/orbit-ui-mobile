@@ -490,6 +490,8 @@ T("sleep-stop: a live wake source allows", checkSleepStop({ state: sleeping, wak
 // A leaked file from a crashed launcher is not a wake source, which is why liveness is checked at
 // all rather than the file's existence being trusted.
 T("sleep-stop: a registered but DEAD wake source is not one", blocks(stop({ state: sleeping, wakeSources: [{ pid: 1 }] })), true)
+T("sleep-stop: a dead launcher with a live worker is reported separately",
+  checkSleepStop({ state: sleeping, orphanedWakeSources: [{ pid: 100, workerPid: 200 }], sessionId: "s1", isWakeSourceAlive: dead })?.message.includes("orphaned worker pid 200"), true)
 T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isWakeSourceAlive: dead }), null)
 // A salvaged pull request with no READY final-head receipt is unfinished work, not a finished
 // queue. PR #690 was opened by hand and reported as done while two required checks were red,
@@ -1078,7 +1080,7 @@ T("adapter identifier: the ledger is restored, so the id blocks again -> 2", run
  * a session id that does not match is treated as a previous run's and ignored.
  */
 const WAKE_HOOK = "require-wake-source.mjs"
-const { PENDING_WAKE_SOURCE_MAX_AGE_MS, clearWakeSource, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
+const { PENDING_WAKE_SOURCE_MAX_AGE_MS, clearWakeSource, readWakeSources, readWakeSourceStates, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
 // The reader and the final predicate each prove the persisted process identity.
@@ -1275,6 +1277,13 @@ try {
 }
 const exitedProcess = spawnSync(process.execPath, ["-e", ""], { windowsHide: true })
 const deadWakeFile = join(wakeSourceDirectory(wakeCheckout), `${exitedProcess.pid}.json`)
+registerWakeSource({ pid: exitedProcess.pid, workerPid: process.pid, what: "orphaned worker" }, wakeCheckout)
+T("wake identity: a dead launcher and live worker have a distinct state", readWakeSourceStates(wakeCheckout).orphaned.map((source) => source.workerPid), [process.pid])
+T("wake identity: the orphaned registration remains for recovery", existsSync(deadWakeFile), true)
+clearWakeSource(process.pid, wakeCheckout)
+const orphanedStop = spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], { input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true })
+T("wake identity: the real Stop adapter names the orphaned worker", orphanedStop.status === 2 && orphanedStop.stderr.includes(`orphaned worker pid ${process.pid}`), true)
+registerWakeSource({ pid: process.pid, what: "hook identity regression" }, wakeCheckout)
 writeFileSync(deadWakeFile, JSON.stringify({ pid: exitedProcess.pid, what: "exited launcher" }))
 T("wake identity: sweeping a dead registration keeps the live one", readWakeSources(wakeCheckout).map((source) => source.pid), [process.pid])
 T("wake identity: a proven dead registration is removed", existsSync(deadWakeFile), false)

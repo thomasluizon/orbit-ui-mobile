@@ -114,6 +114,7 @@ const CASE_MODULES = [
   ["lib/review-harness.mjs", "review-harness"],
   ["lib/run-state.mjs", "run-state"],
   ["lib/ticket-executability.mjs", "ticket-executability"],
+  ["lib/win-spawn-target.mjs", "win-spawn-target"],
   ["list-bot-threads.mjs", "list-bot-threads"],
   ["orca-web-port.mjs", "orca-web-port"],
   ["plan-queue.mjs", "plan-queue"],

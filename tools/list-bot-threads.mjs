@@ -8,7 +8,7 @@
  * this tool to clear that review: it fixes the blocking findings, files the rest as tickets, and
  * replies to every thread it did not fix.
  *
- * Two shapes make a naive reading wrong, and both are handled here rather than documented:
+ * Three shapes make a naive reading wrong, and all are handled here:
  *
  *   1. An empty thread list is ambiguous between "reviewed, found nothing" and "has not reviewed
  *      yet". The verdict is therefore derived from a current-head Pullfrog review, never from the
@@ -17,6 +17,8 @@
  *   2. A review that did not approve states its complaint in the review BODY and can open no review
  *      thread at all, so zero unresolved threads is not proof of a clean pull request. Both surfaces
  *      are read in one query, and both are reported.
+ *   3. Pullfrog submits empty COMMENTED progress markers and can submit an APPROVED review before
+ *      its final check. The newest review and the latest pullfrog-approval check decide readiness.
  *
  * It reads. It never replies, resolves, or fixes: tools/resolve-bot-thread.mjs owns the mutations.
  */
@@ -59,17 +61,23 @@ default is a carry-over bound that nobody has measured for Pullfrog. The one tim
 (2026-08-12).
 
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, reviewBody,
-threads[]. Errors go to stderr.
+checkConclusion, checkStatus, progressMarkers, threads[]. Errors go to stderr.
 
-  verdict  REVIEWED      a Pullfrog review OF THE CURRENT HEAD exists; threads[] may be empty,
+  verdict  REVIEWED      a Pullfrog verdict OF THE CURRENT HEAD exists; threads[] may be empty,
                          and a non-null reviewBody can still carry a finding
            CHANGES_REQUESTED  a review of the current head exists and requests changes
+           CHECK_FAILED  the latest completed pullfrog-approval check did not succeed
+           CHECK_PENDING an APPROVED review of this head exists but its pullfrog-approval check is
+                         still running at the end of the budget; the review fields are kept
            NO_REVIEW     no review of this head inside the budget. staleReviewCommit names
                          the commit an older review WAS given on, when there is one
 
-reviewBody carries the review body for EVERY accepted state except APPROVED, and is null when the
-body is empty. Triage it exactly like a thread: counts{} describes threads only, so "REVIEWED with
-zero threads" is a clean pull request only when reviewBody is null too.
+COMMENTED or CHANGES_REQUESTED with an empty body and no threads of its own is a progress marker.
+It increments progressMarkers and never supplies a review verdict. A completed pullfrog-approval
+check ends the wait and reports its conclusion. A clean pass requires the latest review of this
+head to be APPROVED and checkConclusion to be SUCCESS. checkStatus is COMPLETED, PENDING or ABSENT;
+an APPROVED review with an ABSENT check is REVIEWED, because an unprotected base publishes no check
+and the exact-head approval is its evidence. Triage a non-null reviewBody like a thread.
 
 A review is evidence about the commit it was given on and nothing else. One pinned to an older
 head is NOT accepted: after a push the newest review names the old commit until the re-review
@@ -82,7 +90,7 @@ A draft pull request is read exactly like any other one, because Pullfrog review
 Pullfrog publishes no severity, so every thread reports P1. The caller treats each finding as
 blocking until the caller triages it.
 
-exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, 2 usage or environment error`
+exit codes: 0 REVIEWED or CHANGES_REQUESTED, 1 NO_REVIEW, CHECK_FAILED or CHECK_PENDING, 2 usage or environment error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -178,13 +186,14 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
   repository(owner:$owner,name:$repo){
     pullRequest(number:$pr){
       number isDraft baseRefOid headRefOid
-      reviews(last:50){nodes{author{login} state submittedAt body commit{oid}}}
+      reviews(last:50){nodes{id author{login} state submittedAt body commit{oid}}}
       comments(last:100){nodes{createdAt url}}
+      statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion startedAt completedAt checkSuite{app{databaseId}}}}}}
       reviewThreads(first:100,after:$threadsAfter){
         pageInfo{hasNextPage endCursor}
         nodes{
           id isResolved isOutdated path line
-          comments(first:1){nodes{author{login} body}}
+          comments(first:1){nodes{author{login} body pullRequestReview{id}}}
         }
       }
     }
@@ -225,6 +234,7 @@ const readPullRequest = async () => {
     const pageInfo = node.reviewThreads?.pageInfo
     if (typeof pageInfo?.hasNextPage !== "boolean" || !(typeof pageInfo.endCursor === "string" || pageInfo.endCursor === null)) fail(2, "gh api graphql returned no complete reviewThreads pageInfo")
     if (!Array.isArray(node.reviewThreads?.nodes)) fail(2, "gh api graphql returned no reviewThreads nodes array")
+    if (node.statusCheckRollup !== null && !Array.isArray(node.statusCheckRollup?.contexts?.nodes)) fail(2, "gh api graphql returned no statusCheckRollup contexts array")
     console.error(JSON.stringify({ event: "REVIEW_THREAD_PAGE_READ", pr: Number(pullRequest), page, headRefOid: node.headRefOid, hasNextPage: pageInfo.hasNextPage }))
     return node
   }
@@ -331,18 +341,25 @@ progress("REVIEW_STATE_READ", node, startedAt, deadline)
  * does not count, and the wait continues.
  */
 const COMPLETED_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
-const botReviewOf = (payload) =>
+const currentHeadReviews = (payload) =>
   (payload.reviews?.nodes ?? [])
     .filter((review) => review.author?.login === botLogin)
     .filter((review) => review.commit?.oid && review.commit.oid === payload.headRefOid)
-    // Confirmed live ReviewState enum: APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED, PENDING.
-    // APPROVED is the state Pullfrog used for its clean pass on pull request 711 (2026-08-12). A
-    // pending or dismissed review is not a completed pass and must never become evidence.
-    // COMMENTED stays accepted because it IS a completed review, and it is safe to accept only
-    // because the body of every non-APPROVED state is reported below. Drop that and a COMMENTED
-    // review whose whole finding lives in its body reads here as a clean pass.
-    .filter((review) => COMPLETED_REVIEW_STATES.has(review.state))
-    .at(-1)
+    .sort((left, right) => submittedAtOf(left) - submittedAtOf(right))
+
+const reviewThreadsOf = (payload, review) => (payload.reviewThreads?.nodes ?? [])
+  .filter((thread) => thread.comments?.nodes?.[0]?.pullRequestReview?.id === review.id)
+
+const isProgressMarker = (payload, review) =>
+  review.state !== "APPROVED" && !(review.body ?? "").trim() && reviewThreadsOf(payload, review).length === 0
+
+const latestReviewOf = (payload) => currentHeadReviews(payload).at(-1)
+const progressMarkersOf = (payload) => currentHeadReviews(payload).filter((review) => COMPLETED_REVIEW_STATES.has(review.state) && isProgressMarker(payload, review)).length
+
+const approvalCheckOf = (payload) => (payload.statusCheckRollup?.contexts?.nodes ?? [])
+  .filter((check) => check?.__typename === "CheckRun" && check.name === "pullfrog-approval" && check.checkSuite?.app?.databaseId === 1768019)
+  .sort((left, right) => Date.parse(left.startedAt ?? "") - Date.parse(right.startedAt ?? ""))
+  .at(-1) ?? null
 
 /**
  * A missing or unparseable submittedAt sorts BELOW every real timestamp, so a review whose age
@@ -378,12 +395,17 @@ const answersTheRequest = (review) => requestCreatedAt !== null && submittedAtOf
  * converges.
  */
 const currentReviewOf = (payload) => {
-  const found = botReviewOf(payload)
-  if (!reReview || !found) return found
+  const found = latestReviewOf(payload)
+  if (!found || !COMPLETED_REVIEW_STATES.has(found.state)) return null
+  if (!reReview) return found
   return answersTheRequest(found) ? found : null
 }
 
 let review = currentReviewOf(node)
+if (review && isProgressMarker(node, review)) review = null
+let check = approvalCheckOf(node)
+const completedCheck = () => check?.status === "COMPLETED" && (!reReview || (requestCreatedAt !== null && Date.parse(check.completedAt ?? "") > requestCreatedAt))
+const finished = () => completedCheck() || (review && review.state !== "APPROVED")
 
 /**
  * Ask BEFORE waiting, not after.
@@ -428,16 +450,24 @@ const bindRequestBoundary = (payload) => {
 }
 
 bindRequestBoundary(node)
+review = currentReviewOf(node)
+if (review && isProgressMarker(node, review)) review = null
 
-while (!review && Date.now() < deadline) {
+while (!finished() && Date.now() < deadline) {
   await sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   await awaitGraphqlBudget(deadline)
   if (Date.now() >= deadline) break
   node = await readPullRequest()
   bindRequestBoundary(node)
   review = currentReviewOf(node)
-  progress(review ? "REVIEW_ARRIVED" : "REVIEW_WAITING", node, startedAt, deadline)
+  if (review && isProgressMarker(node, review)) review = null
+  check = approvalCheckOf(node)
+  progress(finished() ? "REVIEW_ARRIVED" : "REVIEW_WAITING", node, startedAt, deadline)
 }
+
+const checkConclusion = completedCheck() ? check.conclusion : null
+const checkStatus = !check ? "ABSENT" : completedCheck() ? "COMPLETED" : "PENDING"
+const progressMarkers = progressMarkersOf(node)
 
 const threads = (node.reviewThreads?.nodes ?? [])
   .filter((thread) => thread.comments?.nodes?.[0]?.author?.login === botLogin)
@@ -475,12 +505,12 @@ if (!review) {
   const asked = requested
     ? '"@pullfrog review" WAS posted on this run and no review arrived inside the budget, so the absence is the reviewer\'s, not ours'
     : 'no "@pullfrog review" was posted on this run, so the reviewer may simply never have been triggered'
-  const note = stale
+  const note = stale && stale.commit?.oid !== node.headRefOid
     ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
-    : `no ${botLogin} review arrived; ${asked}; do not report this pull request as clean`
+    : `no completed ${botLogin} review of this head arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
+      { pr: Number(pullRequest), isDraft: Boolean(node.isDraft), verdict: checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED" : "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, checkConclusion, checkStatus, progressMarkers, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
       null,
       2,
     ),
@@ -488,7 +518,9 @@ if (!review) {
   process.exit(1)
 }
 
-const verdict = review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
+const verdict = checkConclusion && checkConclusion !== "SUCCESS" ? "CHECK_FAILED"
+  : review.state === "APPROVED" && checkStatus === "PENDING" ? "CHECK_PENDING"
+  : review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
 
 /**
  * The body of every accepted state EXCEPT APPROVED, because a review that did not approve states
@@ -501,12 +533,8 @@ const verdict = review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "RE
  * and then summarized the diff. So the body is the reviewer's own statement of the verdict, not a
  * preamble.
  *
- * COMMENTED is the one state nobody measured, because Pullfrog posted none yet. An earlier comment
- * here said a commenting review puts boilerplate in the body and the findings in the threads. That
- * shape was measured against the ChatGPT Codex connector, never against Pullfrog, so it does not
- * transfer. A COMMENTED review that states its finding in the body and opens no thread otherwise
- * reaches the caller as REVIEWED with zero findings. APPROVED is the single state whose body says
- * there is nothing to act on, so it alone stays null.
+ * A COMMENTED review can put the whole finding in its body without opening a thread. An empty
+ * COMMENTED review with no thread is a progress marker and never reaches this branch.
  *
  * An empty body normalizes to null, so null always means "nothing to read" and never "dropped".
  */
@@ -524,6 +552,9 @@ console.log(
       baseRefOid: node.baseRefOid,
       headRefOid: node.headRefOid,
       reviewBody,
+      checkConclusion,
+      checkStatus,
+      progressMarkers,
       threadsComplete: node.reviewThreads.complete === true,
       counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length, pages: node.reviewThreads.pages },
       threads,
@@ -532,4 +563,4 @@ console.log(
     2,
   ),
 )
-process.exit(0)
+process.exit(verdict === "CHECK_FAILED" || verdict === "CHECK_PENDING" ? 1 : 0)

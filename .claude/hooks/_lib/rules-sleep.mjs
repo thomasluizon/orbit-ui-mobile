@@ -19,7 +19,7 @@
  * `isWakeSourceAlive(source)` must compare the persisted identity with a fresh OS observation.
  * @returns `{ block, message }` when an unattended run is about to go quiet, else null
  */
-export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHookActive = false, isWakeSourceAlive = () => false, receiptVerdict = () => null } = {}) {
+export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = [], sessionId = "", stopHookActive = false, isWakeSourceAlive = () => false, receiptVerdict = () => null } = {}) {
   // A blocked stop that blocks again is an infinite loop, and Claude Code sets this flag on the
   // second pass for exactly that reason.
   if (stopHookActive) return null
@@ -111,6 +111,12 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
   const unwrittenReceipts = openPullRequests.filter((entry) => entry.receiptWritten === false)
   const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length + unwrittenReceipts.length
   const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isWakeSourceAlive(source))
+  if (orphanedWakeSources.length > 0) {
+    return {
+      block: true,
+      message: `A launcher exited while orphaned worker pid ${orphanedWakeSources.map((source) => source.workerPid).join(", ")} remains live. Do not start another worker in its worktree. Inspect that process and recover its work before ending this run.`,
+    }
+  }
 
   if (remaining.length === 0 && pendingPullRequests.length === 0 && invalidPullRequestIdentities === 0) {
     /**
