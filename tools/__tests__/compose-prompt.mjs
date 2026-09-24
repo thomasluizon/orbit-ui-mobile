@@ -230,6 +230,11 @@ export const cases = () => {
     localFinishing.startsWith(`## Finishing contract\n\n**${deliverySentences.join(" ")}**\n\n`),
     localFinishing.slice(0, 600),
   )
+  T(
+    `${TOOL}: local delivery appears before the long brief and review sweep`,
+    prompt.indexOf("## Finishing contract") < prompt.indexOf("## Orchestrator's brief"),
+    prompt.slice(0, 800),
+  )
   for (const [index, sentence] of deliverySentences.entries()) {
     T(`${TOOL}: local delivery sentence ${index + 1} survives composition`, localFinishing.includes(sentence), localFinishing.slice(0, 600))
   }
@@ -248,6 +253,11 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const redesignPrompt = composed(redesignOut)
+  T(
+    `${TOOL}: redesign delivery appears before the review sweep`,
+    redesignPrompt.indexOf("## Finishing contract") < redesignPrompt.indexOf("## UI review sweep"),
+    redesignPrompt.slice(0, 800),
+  )
   T(
     `${TOOL}: a redesign UI order requires the complete review inventory, in-scope fixes, and the PR block`,
     redesignPrompt.includes("## UI review sweep") &&

@@ -309,7 +309,8 @@ does not reach it.`
 
 const finishingContract = cloud
   ? [cloudUiReviewHandoff, CLOUD_FINISHING_CONTRACT].filter(Boolean).join("\n\n")
-  : [uiReviewSweep, finishing].filter(Boolean).join("\n\n")
+  : [finishing, uiReviewSweep].filter(Boolean).join("\n\n")
 
-writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${finishingContract}\n`, "utf8")
+const order = cloud ? `${brief}\n\n---\n\n${finishingContract}` : `${finishingContract}\n\n---\n\n${brief}`
+writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${order}\n`, "utf8")
 console.log(resolve(out))
