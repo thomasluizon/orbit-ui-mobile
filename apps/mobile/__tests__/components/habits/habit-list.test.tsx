@@ -771,7 +771,7 @@ describe('HabitList', () => {
   it('logs a habit immediately from the card action', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
-    const selectedDate = new Date('2026-04-08T00:00:00')
+    const selectedDate = new Date('2026-04-08T09:00:00Z')
 
     let tree: any
 
@@ -829,7 +829,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
-          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -931,7 +931,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
-          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          selectedDate={new Date(`${TODAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -951,7 +951,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
-          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          selectedDate={new Date(`${TODAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -991,7 +991,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
-          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          selectedDate={new Date(`${TODAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -1007,7 +1007,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
-          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          selectedDate={new Date(`${TODAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -1062,7 +1062,7 @@ describe('HabitList', () => {
       <HabitList
         view="today"
         filters={{}}
-        selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+        selectedDate={new Date(`${TODAY}T09:00:00Z`)}
         showCompleted
         onCreatePress={vi.fn()}
       />
@@ -1113,7 +1113,7 @@ describe('HabitList', () => {
       <HabitList
         view="today"
         filters={{}}
-        selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+        selectedDate={new Date(`${TODAY}T09:00:00Z`)}
         showCompleted
         onCreatePress={vi.fn()}
       />
@@ -1171,7 +1171,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
-          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          selectedDate={new Date(`${TODAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -1193,7 +1193,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
-          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          selectedDate={new Date(`${TODAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -2238,7 +2238,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
-          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -2301,7 +2301,7 @@ describe('HabitList', () => {
         <HabitList
           view="today"
           filters={{}}
-          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -2639,7 +2639,7 @@ describe('HabitList', () => {
       <HabitList
         view="today"
         filters={{}}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
         showCompleted
         onCreatePress={vi.fn()}
       />
@@ -3164,7 +3164,7 @@ describe('HabitList', () => {
           ref={ref}
           view="today"
           filters={{}}
-          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -3230,7 +3230,7 @@ describe('HabitList', () => {
           ref={ref}
           view="today"
           filters={{}}
-          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -3305,7 +3305,7 @@ describe('HabitList', () => {
           ref={ref}
           view="today"
           filters={{}}
-          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -3386,7 +3386,7 @@ describe('HabitList', () => {
           ref={ref}
           view="today"
           filters={{}}
-          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -3468,7 +3468,7 @@ describe('HabitList', () => {
           ref={ref}
           view="today"
           filters={{}}
-          selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+          selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -3529,7 +3529,7 @@ describe('HabitList', () => {
         ref={ref}
         view="today"
         filters={{}}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
         showCompleted
         onCreatePress={vi.fn()}
       />
@@ -3593,7 +3593,7 @@ describe('HabitList', () => {
         ref={ref}
         view="today"
         filters={{}}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
         showCompleted
         onCreatePress={vi.fn()}
       />
@@ -3675,7 +3675,7 @@ describe('HabitList', () => {
           ref={ref}
           view="today"
           filters={{}}
-          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          selectedDate={new Date(`${TODAY}T09:00:00Z`)}
           showCompleted
           onCreatePress={vi.fn()}
         />,
@@ -3740,7 +3740,7 @@ describe('HabitList', () => {
         ref={ref}
         view="today"
         filters={{}}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
         showCompleted
         onCreatePress={vi.fn()}
       />

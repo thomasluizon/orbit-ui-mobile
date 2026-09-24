@@ -373,7 +373,7 @@ function getCalendarStatus(
   habitId = 'habit-1',
 ) {
   const calendar = mocks.queryClient.getQueryData(key) as CalendarMonthResponse
-  return buildCalendarDayMap(calendar, new Date('2025-01-16T12:00:00Z'))
+  return buildCalendarDayMap(calendar, new Date('2025-01-16T09:00:00Z'))
     .get(date)?.find((entry) => entry.habitId === habitId)?.status
 }
 
@@ -877,7 +877,7 @@ describe('mobile habit hooks', () => {
 
   it('optimistically postpones one-time child skips instead of completing them', async () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2025-01-15T12:00:00Z'))
+    vi.setSystemTime(new Date('2025-01-15T09:00:00Z'))
     seedHabitState([
       makeHabit({
         id: 'parent-1',
@@ -964,7 +964,7 @@ describe('mobile habit hooks', () => {
 
   it('falls back to today for optimistic offline creates when the payload dueDate is an empty string', async () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2025-02-14T12:00:00Z'))
+    vi.setSystemTime(new Date('2025-02-14T09:00:00Z'))
 
     try {
       const mutation = useCreateHabit() as unknown as MutationConfig<

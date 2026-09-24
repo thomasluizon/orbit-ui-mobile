@@ -754,7 +754,7 @@ describe('HabitList', () => {
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
     mockHabitsData.habitsById.set('h-1', habit)
     mockHabitsData.topLevelHabits = [habit]
-    const selectedDate = new Date('2026-04-08T00:00:00')
+    const selectedDate = new Date('2026-04-08T09:00:00Z')
 
     renderWithProviders(
       <HabitList filters={defaultFilters} selectedDate={selectedDate} />,
@@ -794,7 +794,7 @@ describe('HabitList', () => {
     renderWithProviders(
       <HabitList
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1274,7 +1274,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1341,7 +1341,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1417,7 +1417,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1499,7 +1499,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1582,7 +1582,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -1644,7 +1644,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
       />
     )
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
@@ -1704,7 +1704,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
       />
     )
     const renderResult = renderWithProviders(renderList(YESTERDAY))
@@ -1780,7 +1780,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+        selectedDate={new Date(`${TODAY}T09:00:00Z`)}
       />,
     )
 
@@ -1844,7 +1844,7 @@ describe('HabitList', () => {
       <HabitList
         ref={ref}
         filters={defaultFilters}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
       />
     )
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
@@ -2082,7 +2082,7 @@ describe('HabitList', () => {
     renderWithProviders(
       <HabitList
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -2136,7 +2136,7 @@ describe('HabitList', () => {
     renderWithProviders(
       <HabitList
         filters={defaultFilters}
-        selectedDate={new Date(`${YESTERDAY}T12:00:00Z`)}
+        selectedDate={new Date(`${YESTERDAY}T09:00:00Z`)}
       />,
     )
 
@@ -2455,7 +2455,7 @@ describe('HabitList', () => {
     const renderList = (date: string) => (
       <HabitList
         filters={defaultFilters}
-        selectedDate={new Date(`${date}T12:00:00Z`)}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
       />
     )
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
@@ -2619,7 +2619,7 @@ describe('HabitList', () => {
     mockHabitsData.topLevelHabits = [habit]
 
     renderWithProviders(
-      <HabitList filters={defaultFilters} selectedDate={new Date(`${TODAY}T12:00:00Z`)} />,
+      <HabitList filters={defaultFilters} selectedDate={new Date(`${TODAY}T09:00:00Z`)} />,
     )
 
     await act(async () => {
@@ -2720,7 +2720,7 @@ describe('HabitList', () => {
       <HabitList
         view="today"
         filters={{ dateFrom: TOMORROW, dateTo: TOMORROW }}
-        selectedDate={new Date(`${TOMORROW}T00:00:00`)}
+        selectedDate={new Date(`${TOMORROW}T09:00:00Z`)}
       />,
     )
 
