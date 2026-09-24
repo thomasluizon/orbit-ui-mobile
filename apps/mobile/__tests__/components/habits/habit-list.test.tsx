@@ -32,17 +32,24 @@ const tokenBuilds = vi.hoisted(() => ({ count: 0 }))
 vi.mock('@/components/habits/habit-row', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/habits/habit-row')>()
   const React = await import('react')
-  const MemoTrackedHabitRow = React.memo(function MemoTrackedHabitRow(
-    props: React.ComponentProps<typeof actual.HabitRow>,
+  type RowProps = React.ComponentProps<typeof actual.HabitRow>
+  const row = actual.HabitRow as unknown as
+    | ((props: RowProps) => React.ReactNode)
+    | { type: (props: RowProps) => React.ReactNode }
+  const renderRow = typeof row === 'function' ? row : row.type
+  const trackedRenderRow = function TrackedHabitRow(
+    props: RowProps,
   ) {
     const id = props.habit.id
     rowRenderCounts.set(id, (rowRenderCounts.get(id) ?? 0) + 1)
-    return React.createElement(actual.HabitRow, props)
-  })
+    return renderRow(props)
+  }
+  const trackedRow = typeof row === 'function' ? trackedRenderRow : row
+  if (typeof row !== 'function') row.type = trackedRenderRow
   return {
     ...actual,
-    HabitRow: function TrackedHabitRow(props: React.ComponentProps<typeof actual.HabitRow>) {
-      return React.createElement(MemoTrackedHabitRow, props)
+    HabitRow: function ObservedHabitRow(props: RowProps) {
+      return React.createElement(trackedRow as React.ElementType, props)
     },
   }
 })
