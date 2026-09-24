@@ -169,6 +169,8 @@ it('waits for the first account check before requesting an API key challenge', a
   fireEvent.click(screen.getByText('Open the keys'))
   const sendButton = screen.getByText('Sign in again').closest('button')!
   expect(sendButton).toBeDisabled()
+  expect(sendButton).not.toHaveAttribute('data-loading')
+  expect(sendButton.closest('section')).not.toHaveAttribute('aria-busy')
   fireEvent.click(sendButton)
   expect(requestApiKeyCreationChallenge).not.toHaveBeenCalled()
 

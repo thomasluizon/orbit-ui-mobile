@@ -199,12 +199,14 @@ function ApiKeyGate({ busy, accountReady, error, onStartStepUp }: Readonly<ApiKe
 
   return (
     <>
-      <StepUp
-        message={t('profile.apiKeys.stepUpBody')}
-        actionLabel={t('profile.apiKeys.stepUpAction')}
-        busy={busy || !accountReady}
-        onAction={() => void onStartStepUp()}
-      />
+      <fieldset disabled={!accountReady} className="m-0 min-w-0 border-0 p-0">
+        <StepUp
+          message={t('profile.apiKeys.stepUpBody')}
+          actionLabel={t('profile.apiKeys.stepUpAction')}
+          busy={busy}
+          onAction={() => void onStartStepUp()}
+        />
+      </fieldset>
       {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('stepUp.requestError')}</p> : null}
     </>
   )

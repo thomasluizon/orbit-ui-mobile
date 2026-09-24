@@ -133,9 +133,14 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   const isResetConfirmed = resetConfirmText.trim().toUpperCase() === 'ORBIT'
 
   async function handleResetAccount() {
-    if (!isResetConfirmed) return
     const resetAccount = getAccountGeneration()
     const accountId = useAuthStore.getState().user?.userId ?? null
+    const isCurrentAccount = () => {
+      const auth = useAuthStore.getState()
+      return getAccountGeneration() === resetAccount &&
+        auth.sessionPhase === 'signed-in' && (auth.user?.userId ?? null) === accountId
+    }
+    if (!isResetConfirmed || accountId === null || !isCurrentAccount()) return
     setResetLoading(true)
     setResetError('')
     try {
@@ -154,8 +159,12 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
       const result = await queueOrExecute<ResetMutationResult, ResetMutationResult>({
         mutation: queuedResetMutation,
+        isCurrent: isCurrentAccount,
         execute: async (mutation) => {
-          await apiClient(mutation.endpoint, { method: mutation.method })
+          await apiClient(mutation.endpoint, {
+            method: mutation.method,
+            isCurrent: isCurrentAccount,
+          })
           return {
             queued: false,
             queuedMutationId: queuedResetMutation.id,
@@ -163,37 +172,37 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         },
         queuedResult: createQueuedAck(queuedResetMutation.id),
       })
-      if (getAccountGeneration() !== resetAccount) return
+      if (!isCurrentAccount()) return
 
       offlineQueue.clear()
       await useOfflineSyncStore.getState().clearDrops()
-      if (getAccountGeneration() !== resetAccount) return
+      if (!isCurrentAccount()) return
       if (isQueuedResult(result)) {
         offlineQueue.enqueue(queuedResetMutation)
       }
       await useOfflineSyncStore.getState().clearDrops()
-      if (getAccountGeneration() !== resetAccount) return
+      if (!isCurrentAccount()) return
 
       await Promise.all([
         clearChecklistTemplates(),
         removeScopedTrialExpiredFlag(accountId),
       ])
-      if (getAccountGeneration() !== resetAccount) return
+      if (!isCurrentAccount()) return
       queryClient.clear()
       await clearPersistedQueryCache()
-      if (getAccountGeneration() !== resetAccount) return
+      if (!isCurrentAccount()) return
       closeSheet(() => {
-        if (getAccountGeneration() !== resetAccount) return
+        if (!isCurrentAccount()) return
         onClose()
         queryClient.clear()
         router.replace('/')
       })
     } catch (err: unknown) {
-      if (getAccountGeneration() !== resetAccount) return
+      if (!isCurrentAccount()) return
       const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
       setResetError(msg)
     } finally {
-      if (getAccountGeneration() === resetAccount) setResetLoading(false)
+      if (isCurrentAccount()) setResetLoading(false)
     }
   }
 

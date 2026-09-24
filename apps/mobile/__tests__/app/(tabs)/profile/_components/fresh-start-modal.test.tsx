@@ -2,8 +2,9 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-modal'
 import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
+import { API } from '@orbit/shared/api'
 import { useAuthStore } from '@/stores/auth-store'
-import { advanceAccountGeneration } from '@/lib/session-epoch'
+import { advanceAccountGeneration, getAccountGeneration } from '@/lib/session-epoch'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -126,6 +127,11 @@ describe('FreshStartModal', () => {
   beforeEach(() => {
     storage.clear()
     useOfflineSyncStore.setState({ drops: [] })
+    useAuthStore.setState({
+      sessionPhase: 'signed-in',
+      isAuthenticated: true,
+      user: { userId: 'user-1', name: 'Ada', email: 'ada@example.com' },
+    })
     replace.mockClear()
     queryClientClear.mockClear()
   })
@@ -162,11 +168,19 @@ await Promise.resolve()
     const onClose = vi.fn()
     sheetTestControls.defer(true)
     const { apiClient } = await import('@/lib/api-client')
+    const offlineMutations = await import('@/lib/offline-mutations')
     const offlineQueue = await import('@/lib/offline-queue')
     const tree = await render(<FreshStartModal open onClose={onClose} />)
     await confirmReset(tree)
 
     expect(vi.mocked(apiClient)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(offlineMutations.queueOrExecute)).toHaveBeenCalledWith(
+      expect.objectContaining({ isCurrent: expect.any(Function) }),
+    )
+    expect(vi.mocked(apiClient)).toHaveBeenCalledWith(
+      API.profile.reset,
+      { method: 'POST', isCurrent: expect.any(Function) },
+    )
     expect(vi.mocked(offlineQueue.clear)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(offlineQueue.enqueue)).not.toHaveBeenCalled()
     expect(queryClientClear).toHaveBeenCalled()
@@ -219,6 +233,44 @@ await Promise.resolve()
     expect(storage.get(nextAccountKey)).toBe('1')
     expect(queryClientClear).not.toHaveBeenCalled()
     expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('leaves the next account untouched when it changes during reset cleanup', async () => {
+    let finishCleanup!: () => void
+    const clearDrops = useOfflineSyncStore.getState().clearDrops
+    useOfflineSyncStore.setState({
+      clearDrops: vi.fn()
+        .mockImplementationOnce(() => new Promise<void>((resolve) => { finishCleanup = resolve }))
+        .mockImplementation(() => clearDrops()),
+    })
+    try {
+      useAuthStore.setState({ user: { userId: 'user-1', name: 'Ada', email: 'ada@example.com' } })
+      const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+      await confirmReset(tree)
+      const nextAccountKey = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-2')
+      storage.set(nextAccountKey, '1')
+      const startingGeneration = getAccountGeneration()
+
+      await TestRenderer.act(async () => {
+        useAuthStore.setState({
+          sessionPhase: 'establishing',
+          isAuthenticated: false,
+          user: { userId: 'user-2', name: 'Bea', email: 'bea@example.com' },
+        })
+        finishCleanup()
+        await Promise.resolve()
+      })
+
+      expect(getAccountGeneration()).toBe(startingGeneration)
+      expect(storage.get(nextAccountKey)).toBe('1')
+      expect(queryClientClear).not.toHaveBeenCalled()
+      expect(replace).not.toHaveBeenCalled()
+      const offlineMutations = await import('@/lib/offline-mutations')
+      const request = vi.mocked(offlineMutations.queueOrExecute).mock.calls[0]![0]
+      expect(request.isCurrent?.()).toBe(false)
+    } finally {
+      useOfflineSyncStore.setState({ clearDrops })
+    }
   })
 
   it('enqueues the reset when it is queued offline', async () => {
