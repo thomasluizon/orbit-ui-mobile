@@ -40,6 +40,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val COMPACT_IDEAL_WIDTH_DP = 110f
         internal const val CACHE_REFRESHING = "refresh_loading"
         internal const val CACHE_LOADING_SKELETON = "loading_skeleton"
+        internal fun renderSessionKey(appWidgetId: Int, widgetHeightDp: Float, showTime: Boolean): String =
+            "render_session_${appWidgetId}_${widgetHeightDp}_${showTime}"
         // Every region that opens the app. The whole card is one tap target, per the drawing's
         // touch note, and only the refresh is its own.
         private val OPEN_APP_TARGETS = intArrayOf(
@@ -55,18 +57,22 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            try {
-                renderWidget(context, appWidgetManager, appWidgetId)
-            } catch (_: Exception) {
-                runCatching {
-                    val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
-                    applyOpenAppActions(context, fallback)
-                    if (isSignedOut(context)) {
-                        applySignedOutCard(context, fallback)
-                    } else {
-                        showRefresh(fallback)
+            synchronized(OrbitWidgetModule.accountRenderLock) {
+                try {
+                    renderWidget(context, appWidgetManager, appWidgetId)
+                } catch (_: Exception) {
+                    runCatching {
+                        val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
+                        applyOpenAppActions(context, fallback)
+                        fallback.setViewVisibility(R.id.widget_list, View.GONE)
+                        if (isSignedOut(context)) {
+                            applySignedOutCard(context, fallback)
+                        } else {
+                            showRefresh(fallback)
+                            fallback.setViewVisibility(R.id.widget_loading, View.VISIBLE)
+                        }
+                        appWidgetManager.updateAppWidget(appWidgetId, fallback)
                     }
-                    appWidgetManager.updateAppWidget(appWidgetId, fallback)
                 }
             }
         }
@@ -279,15 +285,21 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             // Read cached header from SharedPreferences
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             val lang = cachedLanguage(context)
-            val headerLabel = prefs.getString("header_label", null)
+            val ownsRows = !signedOut && OrbitWidgetModule.getToken(context)?.let {
+                OrbitWidgetModule.sessionKey(it) == prefs.getString(
+                    renderSessionKey(appWidgetId, widgetHeightDp, showTime), null
+                )
+            } == true
+            val headerLabel = if (ownsRows) prefs.getString("header_label", null) else null
+            val safeHeaderLabel = headerLabel
                 ?: OrbitWidgetFactory.tr(context, lang, WidgetString.TODAY)
-            val habitCount = prefs.getInt("habit_count", 0)
-            val completedCount = prefs.getInt("completed_count", 0)
-            val streak = prefs.getInt("user_streak", 0)
+            val habitCount = if (ownsRows) prefs.getInt("habit_count", 0) else 0
+            val completedCount = if (ownsRows) prefs.getInt("completed_count", 0) else 0
+            val streak = if (ownsRows) prefs.getInt("user_streak", 0) else 0
             val emptyReason = prefs.getString("empty_reason", null)
-            val syncedOnce = prefs.getLong("habits_updated_at", 0L) > 0L
+            val syncedOnce = ownsRows && prefs.getLong("habits_updated_at", 0L) > 0L
             val refreshing = prefs.getBoolean(CACHE_REFRESHING, false)
-            val showSkeleton = prefs.getBoolean(CACHE_LOADING_SKELETON, !syncedOnce)
+            val showSkeleton = !signedOut && (!ownsRows || prefs.getBoolean(CACHE_LOADING_SKELETON, !syncedOnce))
 
             // Apply dynamic text colors
             // The drawing renders the day label in fg-3 and the subtitle below it in fg-4. fg-4
@@ -323,7 +335,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 // card, and a refresh that cannot sign anyone in is a control that does not work.
                 applySignedOutCard(context, views)
             } else {
-                views.setTextViewText(R.id.widget_header, headerLabel)
+                views.setTextViewText(R.id.widget_header, safeHeaderLabel)
                 val subtitleText = if (syncedOnce) {
                     "$completedCount ${OrbitWidgetFactory.tr(context, lang, WidgetString.OF)} " +
                         "$habitCount ${OrbitWidgetFactory.tr(context, lang, WidgetString.COMPLETED)}"
@@ -349,6 +361,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 R.id.widget_loading,
                 if (!signedOut && showSkeleton) View.VISIBLE else View.GONE
             )
+            views.setViewVisibility(R.id.widget_list, if (ownsRows && !showSkeleton) View.VISIBLE else View.GONE)
 
             // Set up the RemoteViews adapter for the list
             val serviceIntent = Intent(context, OrbitWidgetService::class.java).apply {
