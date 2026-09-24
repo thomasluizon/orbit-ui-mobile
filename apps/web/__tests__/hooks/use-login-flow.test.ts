@@ -32,7 +32,7 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isO
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({ setAuth: mocks.setAuth }),
-  waitForPendingLogoutResponses: vi.fn().mockResolvedValue(undefined),
+  withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
 }))
 
 vi.mock('@/lib/supabase', () => ({

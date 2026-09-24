@@ -1,18 +1,18 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
 let sessionOwnershipEpoch = 0
-const pendingLogoutResponses = new Set<Promise<Response>>()
 let loginsWaitingForLogout = 0
 
-export async function waitForPendingLogoutResponses(): Promise<void> {
+export async function withCookieSettingLogin<T>(task: () => Promise<T>): Promise<T> {
   loginsWaitingForLogout += 1
   try {
-    await Promise.allSettled(pendingLogoutResponses)
+    return await withSessionCookieLock(task)
   } finally {
     loginsWaitingForLogout -= 1
   }
@@ -191,14 +191,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     const logoutEpoch = sessionOwnershipEpoch
     try {
-      const logoutResponse = fetch('/api/auth/logout', { method: 'POST' })
-      pendingLogoutResponses.add(logoutResponse)
-      try {
-        await logoutResponse
-      } finally {
-        pendingLogoutResponses.delete(logoutResponse)
-      }
+      await withSessionCookieLock(async () => {
+        if (logoutEpoch !== sessionOwnershipEpoch) return
+        try {
+          await fetch('/api/auth/logout', { method: 'POST' })
+        } catch {
+        }
+      })
     } catch {
+      return
     }
 
     if (logoutEpoch !== sessionOwnershipEpoch) return
