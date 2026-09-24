@@ -224,8 +224,17 @@ for (const file of files) {
   }
 }
 
+const classifierDigest = createHash("sha256").update(readFileSync(join(root, "tools/lib/ticket-classifier-prompt.md"), "utf8").replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
+const classifierVerdict = "gpt-6-luna matched all 41 recorded ticket cases on 2026-09-24, including a delegated choice the former phrase matcher missed"
+const classifierUnchanged = previous.classifier?.model === config.classifier.model && previous.classifier.promptDigest === classifierDigest && previous.classifier.verdict === classifierVerdict
 const stamp = {
   calibratedAt,
+  classifier: {
+    model: config.classifier.model,
+    promptDigest: classifierDigest,
+    calibratedAt: classifierUnchanged ? previous.classifier.calibratedAt : calibratedAt,
+    verdict: classifierVerdict,
+  },
   workerEngine,
   workerCommand,
   workerTiers,

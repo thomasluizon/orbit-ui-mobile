@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
@@ -8,6 +9,7 @@ const TOOL = "reseed-calibration.mjs"
 const AGENT = ["---", "name: design-reviewer", "model: sonnet", "effort: medium", "---", "", "body", ""].join("\n")
 const SKILL = ["---", "name: ticket", "effort: high", "---", "", "body", ""].join("\n")
 const POINTER = ["---", "name: ticket", "description: pointer", "---", "", "The canonical definition is .claude/skills/ticket/SKILL.md.", ""].join("\n")
+const CLASSIFIER_PROMPT = "Classify the ticket.\n"
 
 const write = (path, body) => {
   mkdirSync(dirname(path), { recursive: true })
@@ -52,10 +54,11 @@ let A_POINTER = null
 const stage = (label, stamp) => {
   const fixture = join(root, "reseed-calibration", label)
   for (const file of FILES) write(join(fixture, ...file.path.split("/")), file.body)
+  write(join(fixture, "tools", "lib", "ticket-classifier-prompt.md"), CLASSIFIER_PROMPT)
   write(
     join(fixture, ".claude", "orchestrator.json"),
     `${JSON.stringify(
-      { worker: "codex", workers: { codex: { command: "codex", args: ["exec"], models: { default: { model: "gpt-5.6-sol", args: [] }, mechanical: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="medium"'] } } } } },
+      { worker: "codex", classifier: { model: "gpt-6-luna" }, workers: { codex: { command: "codex", args: ["exec"], models: { default: { model: "gpt-5.6-sol", args: [] }, mechanical: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="medium"'] } } } } },
       null,
       2,
     )}\n`,
@@ -101,6 +104,7 @@ export const cases = () => {
     stdout: new RegExp(`stamped ${COUNT} file\\(s\\)`),
   })
   const first = stampOf(fresh)
+  T(`${TOOL}: a first pass stamps the classifier model and prompt`, first.classifier?.model === "gpt-6-luna" && first.classifier.promptDigest === createHash("sha256").update(CLASSIFIER_PROMPT).digest("hex").slice(0, 16) && typeof first.classifier.verdict === "string")
   T(
     `${TOOL}: the first pass stamped the .agents host entrypoints, not only the .claude definitions`,
     Object.keys(first.entries).includes(A_POINTER),
@@ -117,7 +121,7 @@ export const cases = () => {
    * ordinary prompt churn hold the whole stamp permanently under the 90-day alias backstop, so an
    * untouched verdict has to come back with the date it already had.
    */
-  const aged = stage("aged", backdated(first, 200))
+  const aged = stage("aged", backdated(first, 200, { classifier: { ...first.classifier, calibratedAt: daysAgo(30) } }))
   check(TOOL, "an unchanged verdict keeps its own date rather than being renewed", ["--root", aged], {
     status: 0,
     stdout: new RegExp(`0 verdict\\(s\\) renewed, ${COUNT} carried forward`),
@@ -127,6 +131,7 @@ export const cases = () => {
     stampOf(aged).entries[A_SKILL].calibratedAt === daysAgo(200),
     `the entry date was ${stampOf(aged).entries[A_SKILL].calibratedAt}, expected ${daysAgo(200)}`,
   )
+  T(`${TOOL}: an unchanged classifier keeps its own calibration date`, stampOf(aged).classifier.calibratedAt === daysAgo(30))
 
   /** A file whose CONTENT moved is the one case that must be renewed, and only that file. */
   const edited = stage("edited", backdated(first, 200))
