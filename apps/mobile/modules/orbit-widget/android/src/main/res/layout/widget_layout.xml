@@ -106,6 +106,7 @@
                     android:layout_marginStart="6dp"
                     android:src="@drawable/widget_refresh_icon"
                     android:padding="12dp"
+                    android:accessibilityLiveRegion="polite"
                     android:contentDescription="@string/widget_refresh" />
 
                 <!-- Loading spinner (shown during refresh, hidden by default) -->
@@ -116,6 +117,7 @@
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:indeterminateTint="@color/widget_fg_3"
+                    android:accessibilityLiveRegion="polite"
                     android:visibility="gone" />
             </LinearLayout>
 
