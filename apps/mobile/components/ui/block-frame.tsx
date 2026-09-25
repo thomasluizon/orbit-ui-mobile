@@ -41,12 +41,14 @@ function StatusView({ status, label, tokens }: Readonly<{
   tokens: AppTokensV2
 }>) {
   const Glyph = status === 'done' ? CheckCircle2 : status === 'failed' ? XCircle : RefreshCw
-  const iconColor = status === 'failed' ? tokens.statusBad : status === 'done' ? tokens.fg1 : tokens.fg2
+  const statusColors = {
+    iconColor: status === 'failed' ? tokens.statusBad : status === 'done' ? tokens.fg1 : tokens.fg2,
+  }
   const labelColor = status === 'failed' ? tokens.statusBadText : status === 'done' ? tokens.fg1 : tokens.fg2
 
   return (
     <View style={styles.status}>
-      <Glyph accessible={false} color={iconColor} size={20} strokeWidth={1.5} />
+      <Glyph accessible={false} color={statusColors.iconColor} size={20} strokeWidth={1.5} />
       <Text style={[styles.statusLabel, { color: labelColor }]}>{label}</Text>
     </View>
   )

@@ -54,7 +54,7 @@ function TagPickerRow({ tag, selected, atLimit, disabled, onToggle, onEdit, onDe
     <div className="orbit-list-row flex h-12 items-center rounded-[12px]">
       <button type="button" aria-pressed={selected} disabled={disabled || (!selected && atLimit)} className="habit-control-motion flex h-12 min-w-0 flex-1 items-center justify-between px-3 text-left active:scale-[0.96] disabled:opacity-40" onClick={() => onToggle(tag.id)}><span className="truncate">{tag.name}</span><span className="shrink-0 text-sm text-[var(--fg-3)]">{selected ? '✓' : ''}</span></button>
       <button type="button" aria-label={`${editLabel}: ${tag.name}`} disabled={disabled} className="habit-control-motion grid size-11 shrink-0 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40" onClick={() => onEdit(tag)}><Pencil size={16} strokeWidth={1.8} aria-hidden="true" /></button>
-      <button type="button" aria-label={`${deleteLabel}: ${tag.name}`} disabled={disabled} className="habit-control-motion grid size-11 shrink-0 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] active:scale-[0.96] disabled:opacity-40" onClick={() => onDelete(tag.id)}><Trash2 size={16} strokeWidth={1.8} aria-hidden="true" /></button>
+      <button type="button" aria-label={`${deleteLabel}: ${tag.name}`} disabled={disabled} className="habit-control-motion group/delete grid size-11 shrink-0 place-items-center rounded-full text-[var(--fg-3)] active:scale-[0.96] disabled:opacity-40" onClick={() => onDelete(tag.id)}><Trash2 size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[240ms] ease-[var(--ease-standard)] group-hover/delete:text-[var(--status-bad)]" /></button>
     </div>
   )
 }

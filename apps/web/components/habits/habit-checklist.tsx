@@ -160,11 +160,11 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.clearChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--status-bad)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
               style={{ width: 36, height: 36 }}
               onClick={onClear}
             >
-              <X size={16} strokeWidth={1.8} aria-hidden="true" />
+              <X size={16} strokeWidth={1.8} aria-hidden="true" className="text-[var(--status-bad)]" />
             </button>
           )}
         </div>
@@ -348,11 +348,11 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
-        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--bg-elev)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        className="touch-target group/remove shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-elev)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
         style={{ width: 36, height: 36 }}
         onClick={() => onRemove(index)}
       >
-        <X size={16} strokeWidth={1.8} aria-hidden="true" />
+        <X size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-fast)] group-hover/remove:text-[var(--status-bad)]" />
       </button>
     </div>
   )
