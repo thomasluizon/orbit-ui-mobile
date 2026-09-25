@@ -4,9 +4,11 @@ import {
   clearStoredAuthReturnUrl,
   clearStoredReferralCode,
   consumeStoredAuthReturnUrl,
+  createAuthReturnUrlAttempt,
   getSafeReturnUrl,
   getStoredAuthReturnUrl,
   getStoredReferralCode,
+  isAuthReturnUrlAttemptCurrent,
   isSafeReturnUrl,
   isValidReferralCode,
   isValidVerificationCode,
@@ -68,9 +70,10 @@ describe('mobile auth flow helpers', () => {
     getItemMock.mockResolvedValueOnce('/dashboard')
     getItemMock.mockResolvedValueOnce('/dashboard')
 
-    await storeAuthReturnUrl('/dashboard')
-    await expect(getStoredAuthReturnUrl()).resolves.toBe('/dashboard')
-    await expect(consumeStoredAuthReturnUrl()).resolves.toBe('/dashboard')
+    const attemptId = createAuthReturnUrlAttempt()
+    await storeAuthReturnUrl('/dashboard', attemptId)
+    await expect(getStoredAuthReturnUrl(attemptId)).resolves.toBe('/dashboard')
+    await expect(consumeStoredAuthReturnUrl(attemptId)).resolves.toBe('/dashboard')
     await clearStoredAuthReturnUrl()
 
     expect(setItemMock).toHaveBeenCalledWith('auth_return_url', '/dashboard')
@@ -78,6 +81,7 @@ describe('mobile auth flow helpers', () => {
   })
 
   it('keeps a replacement return URL when the old removal is pending', async () => {
+    const oldAttemptId = createAuthReturnUrlAttempt()
     let storedUrl: string | null = '/old'
     let releaseRemoval!: () => void
     let currentLogin = true
@@ -90,10 +94,11 @@ describe('mobile auth flow helpers', () => {
       releaseRemoval = () => { storedUrl = null; resolve() }
     }))
 
-    const oldCleanup = clearStoredAuthReturnUrl(() => currentLogin)
+    const oldCleanup = clearStoredAuthReturnUrl(oldAttemptId, () => currentLogin)
     await vi.waitFor(() => expect(removeItemMock).toHaveBeenCalledTimes(1))
     currentLogin = false
-    const replacementStorage = storeAuthReturnUrl('/replacement')
+    const replacementAttemptId = createAuthReturnUrlAttempt()
+    const replacementStorage = storeAuthReturnUrl('/replacement', replacementAttemptId)
     releaseRemoval()
     await Promise.all([oldCleanup, replacementStorage])
 
@@ -101,6 +106,7 @@ describe('mobile auth flow helpers', () => {
   })
 
   it('reads the replacement URL after a pending old removal', async () => {
+    const oldAttemptId = createAuthReturnUrlAttempt()
     let storedUrl: string | null = '/old'
     let releaseRemoval!: () => void
     let currentLogin = true
@@ -116,19 +122,41 @@ describe('mobile auth flow helpers', () => {
       return Promise.resolve()
     })
 
-    const oldCleanup = clearStoredAuthReturnUrl(() => currentLogin)
+    const oldCleanup = clearStoredAuthReturnUrl(oldAttemptId, () => currentLogin)
     await vi.waitFor(() => expect(removeItemMock).toHaveBeenCalledTimes(1))
     currentLogin = false
-    const replacementStorage = storeAuthReturnUrl('/replacement')
-    const replacementRead = getStoredAuthReturnUrl()
+    const replacementAttemptId = createAuthReturnUrlAttempt()
+    const replacementStorage = storeAuthReturnUrl('/replacement', replacementAttemptId)
+    const replacementRead = getStoredAuthReturnUrl(replacementAttemptId)
     releaseRemoval()
     const destination = await replacementRead
     await replacementStorage
-    await clearStoredAuthReturnUrl(() => true)
+    await clearStoredAuthReturnUrl(replacementAttemptId, () => true)
     await oldCleanup
 
     expect(getSafeReturnUrl(destination)).toBe('/replacement')
     expect(storedUrl).toBeNull()
+  })
+
+  it('does not consume a newer return URL after its attempt replaces an older queued read', async () => {
+    let storedUrl: string | null = '/older'
+    let releaseRead!: (url: string | null) => void
+    getItemMock.mockImplementationOnce(() => new Promise<string | null>((resolve) => { releaseRead = resolve }))
+      .mockImplementation(() => Promise.resolve(storedUrl))
+    setItemMock.mockImplementation((_key: string, url: string) => { storedUrl = url; return Promise.resolve() })
+    removeItemMock.mockImplementation(() => { storedUrl = null; return Promise.resolve() })
+    const oldAttemptId = createAuthReturnUrlAttempt()
+    const oldConsume = consumeStoredAuthReturnUrl(oldAttemptId)
+    await vi.waitFor(() => expect(getItemMock).toHaveBeenCalledTimes(1))
+    const newAttemptId = createAuthReturnUrlAttempt()
+    const newStore = storeAuthReturnUrl('/newer', newAttemptId)
+    releaseRead('/older')
+    await expect(oldConsume).resolves.toBeNull()
+    await newStore
+
+    expect(isAuthReturnUrlAttemptCurrent(oldAttemptId)).toBe(false)
+    expect(removeItemMock).not.toHaveBeenCalled()
+    await expect(getStoredAuthReturnUrl(newAttemptId)).resolves.toBe('/newer')
   })
 
   it('clears the stored referral code', async () => {

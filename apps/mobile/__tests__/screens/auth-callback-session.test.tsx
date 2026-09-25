@@ -14,6 +14,11 @@ const mocks = vi.hoisted(() => ({
   consumeStoredAuthReturnUrl: vi.fn(),
   getStoredAuthReturnUrl: vi.fn(),
   clearStoredAuthReturnUrl: vi.fn(),
+  createAuthReturnUrlAttempt: vi.fn(),
+  isAuthReturnUrlAttemptCurrent: vi.fn(),
+  pendingGoogleSession: { callbackUrl: null as string | null, isPending: false,
+    returnUrlAttemptId: null as number | null },
+  rawCallbackUrl: 'https://app.useorbit.org/auth-callback?code=old',
   continueAccount: null as null | (() => void),
   callbackState: 'pending',
 }))
@@ -37,14 +42,17 @@ vi.mock('@/lib/auth-flow', () => ({
   consumeStoredAuthReturnUrl: mocks.consumeStoredAuthReturnUrl,
   getStoredAuthReturnUrl: mocks.getStoredAuthReturnUrl,
   clearStoredAuthReturnUrl: mocks.clearStoredAuthReturnUrl,
+  createAuthReturnUrlAttempt: mocks.createAuthReturnUrlAttempt,
+  isAuthReturnUrlAttemptCurrent: mocks.isAuthReturnUrlAttemptCurrent,
   getSafeReturnUrl: (url: string | null) => url ?? '/',
 }))
 vi.mock('@/lib/google-auth-callback', () => ({
   AUTH_CALLBACK_URL: 'https://app.useorbit.org/auth-callback',
   clearPendingGoogleAuthSession: vi.fn(),
   extractGoogleAuthParams: () => ({}),
-  resolveGoogleAuthCallbackUrl: () => 'https://app.useorbit.org/auth-callback?code=old',
-  usePendingGoogleAuthSession: () => ({ callbackUrl: null, isPending: false }),
+  resolveGoogleAuthCallbackUrl: ({ sessionCallbackUrl }: { sessionCallbackUrl: string | null }) =>
+    sessionCallbackUrl ?? mocks.rawCallbackUrl,
+  usePendingGoogleAuthSession: () => mocks.pendingGoogleSession,
 }))
 vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: mocks.completeGoogleAuthFromUrl }))
 vi.mock('@/stores/auth-store', () => ({
@@ -64,6 +72,10 @@ beforeEach(() => {
   mocks.getStoredReferralCode.mockResolvedValue(null)
   mocks.consumeStoredAuthReturnUrl.mockResolvedValue('/home')
   mocks.getStoredAuthReturnUrl.mockResolvedValue('/home')
+  mocks.createAuthReturnUrlAttempt.mockReturnValue(1)
+  mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
+  mocks.pendingGoogleSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
+  mocks.rawCallbackUrl = 'https://app.useorbit.org/auth-callback?code=old'
 })
 
 function trackLoginEpoch() {
@@ -99,6 +111,49 @@ it('stops Google callback effects when a replacement login lands during referral
   expect(mocks.replace).not.toHaveBeenCalled()
 })
 
+it('keeps a newer flow return URL while the older callback waits for login', async () => {
+  mocks.pendingGoogleSession = { callbackUrl: 'https://app.useorbit.org/auth-callback?code=old',
+    isPending: false, returnUrlAttemptId: 1 }
+  let currentAttemptId = 1
+  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: number) => id === currentAttemptId)
+  let releaseLogin!: () => void
+  mocks.login.mockImplementation(() => new Promise<() => boolean>((resolve) => {
+    releaseLogin = () => resolve(() => true)
+  }))
+  let storedUrl = '/older'
+  mocks.getStoredAuthReturnUrl.mockImplementation(() => Promise.resolve(storedUrl))
+  mocks.clearStoredAuthReturnUrl.mockImplementation(() => { storedUrl = ''; return Promise.resolve() })
+
+  await mountCallback()
+  await vi.waitFor(() => expect(mocks.login).toHaveBeenCalledTimes(1))
+  currentAttemptId = 2
+  storedUrl = '/newer'
+  await TestRenderer.act(async () => { releaseLogin(); await Promise.resolve() })
+
+  expect(mocks.getStoredAuthReturnUrl).not.toHaveBeenCalled()
+  expect(mocks.clearStoredAuthReturnUrl).not.toHaveBeenCalled()
+  expect(mocks.replace).not.toHaveBeenCalledWith('/newer')
+  expect(storedUrl).toBe('/newer')
+})
+
+it('waits for the pending Google session before claiming a raw callback', async () => {
+  mocks.pendingGoogleSession = { callbackUrl: null, isPending: true, returnUrlAttemptId: 2 }
+  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: number) => id === 2)
+  mocks.login.mockResolvedValue(() => true)
+  let renderer!: { update: (element: React.ReactElement) => void }
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(<AuthCallbackScreen />)
+    await Promise.resolve()
+  })
+  expect(mocks.completeGoogleAuthFromUrl).not.toHaveBeenCalled()
+
+  const newCallbackUrl = 'https://app.useorbit.org/auth-callback?code=new'
+  mocks.pendingGoogleSession = { callbackUrl: newCallbackUrl, isPending: false, returnUrlAttemptId: 2 }
+  await TestRenderer.act(async () => { renderer.update(<AuthCallbackScreen />); await Promise.resolve() })
+  await vi.waitFor(() => expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledWith(newCallbackUrl, 'en', undefined))
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/home'))
+})
+
 it('keeps the return URL when a replacement login lands during its storage read', async () => {
   trackLoginEpoch()
   let releaseReturnUrl!: (url: string) => void
@@ -127,13 +182,13 @@ it('passes login ownership through pending Google return URL removal', async () 
 
   await mountCallback()
   await vi.waitFor(() => expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledTimes(1))
-  expect(typeof mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]).toBe('function')
+  expect(typeof mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[1]).toBe('function')
   await TestRenderer.act(async () => {
     await mocks.login('new-access', 'new-refresh', { userId: 'new-user' })
     releaseRemoval()
   })
 
-  expect(mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]()).toBe(false)
+  expect(mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[1]()).toBe(false)
   expect(mocks.replace).not.toHaveBeenCalled()
 })
 
@@ -148,12 +203,12 @@ it('keeps the replacement return URL during reactivated Google continuation clea
   await vi.waitFor(() => expect(mocks.callbackState).toBe('account'))
   await TestRenderer.act(() => { mocks.continueAccount?.() })
   await vi.waitFor(() => expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledTimes(1))
-  expect(typeof mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]).toBe('function')
+  expect(typeof mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[1]).toBe('function')
   await TestRenderer.act(async () => {
     await mocks.login('new-access', 'new-refresh', { userId: 'new-user' })
     releaseRemoval()
   })
 
-  expect(mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]()).toBe(false)
+  expect(mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[1]()).toBe(false)
   expect(mocks.replace).not.toHaveBeenCalled()
 })

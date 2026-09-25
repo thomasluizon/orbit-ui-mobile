@@ -7,11 +7,20 @@ import {
 const REFERRAL_CODE_KEY = 'referral_code'
 const AUTH_RETURN_URL_KEY = 'auth_return_url'
 let returnUrlMutationTail: Promise<void> = Promise.resolve()
+let returnUrlAttempt = 0
 
 function queueReturnUrlMutation<T>(mutation: () => Promise<T>): Promise<T> {
   const result = returnUrlMutationTail.then(mutation, mutation)
   returnUrlMutationTail = result.then(() => {}, () => {})
   return result
+}
+
+export function createAuthReturnUrlAttempt(): number {
+  return ++returnUrlAttempt
+}
+
+export function isAuthReturnUrlAttemptCurrent(attemptId: number): boolean {
+  return returnUrlAttempt === attemptId
 }
 
 export function isValidReferralCode(value: string | null | undefined): value is string {
@@ -44,34 +53,42 @@ export async function clearStoredReferralCode(): Promise<void> {
   await AsyncStorage.removeItem(REFERRAL_CODE_KEY)
 }
 
-export async function getStoredAuthReturnUrl(): Promise<string | null> {
+export async function getStoredAuthReturnUrl(attemptId: number): Promise<string | null> {
   return queueReturnUrlMutation(async () => {
+    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return null
     const value = await AsyncStorage.getItem(AUTH_RETURN_URL_KEY)
-    return isSafeReturnUrl(value) ? value : null
+    return isAuthReturnUrlAttemptCurrent(attemptId) && isSafeReturnUrl(value) ? value : null
   })
 }
 
-export async function storeAuthReturnUrl(returnUrl: string): Promise<void> {
+export async function storeAuthReturnUrl(returnUrl: string, attemptId: number): Promise<void> {
   if (!isSafeReturnUrl(returnUrl)) return
-  await queueReturnUrlMutation(() => AsyncStorage.setItem(AUTH_RETURN_URL_KEY, returnUrl))
-}
-
-export async function consumeStoredAuthReturnUrl(): Promise<string | null> {
-  return queueReturnUrlMutation(async () => {
-    const storedUrl = await AsyncStorage.getItem(AUTH_RETURN_URL_KEY)
-    await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
-    return isSafeReturnUrl(storedUrl) ? storedUrl : null
+  await queueReturnUrlMutation(async () => {
+    if (isAuthReturnUrlAttemptCurrent(attemptId)) await AsyncStorage.setItem(AUTH_RETURN_URL_KEY, returnUrl)
   })
 }
 
-export async function clearStoredAuthReturnUrl(isCurrentLoginSession?: () => boolean): Promise<void> {
-  await queueReturnUrlMutation(async () => {
+export async function consumeStoredAuthReturnUrl(attemptId: number): Promise<string | null> {
+  return queueReturnUrlMutation(async () => {
+    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return null
+    const storedUrl = await AsyncStorage.getItem(AUTH_RETURN_URL_KEY)
+    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return null
+    await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
+    return isAuthReturnUrlAttemptCurrent(attemptId) && isSafeReturnUrl(storedUrl) ? storedUrl : null
+  })
+}
+
+export async function clearStoredAuthReturnUrl(
+  attemptId?: number,
+  isCurrentLoginSession?: () => boolean,
+): Promise<void> {
+  if (attemptId === undefined) {
     if (isCurrentLoginSession && !isCurrentLoginSession()) return
-    const storedUrl = isCurrentLoginSession ? await AsyncStorage.getItem(AUTH_RETURN_URL_KEY) : null
+    returnUrlAttempt += 1
+  }
+  await queueReturnUrlMutation(async () => {
+    if (attemptId !== undefined && !isAuthReturnUrlAttemptCurrent(attemptId)) return
     if (isCurrentLoginSession && !isCurrentLoginSession()) return
     await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
-    if (isCurrentLoginSession && !isCurrentLoginSession() && storedUrl !== null) {
-      await AsyncStorage.setItem(AUTH_RETURN_URL_KEY, storedUrl)
-    }
   })
 }
