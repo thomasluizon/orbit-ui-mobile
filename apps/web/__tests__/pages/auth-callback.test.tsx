@@ -128,12 +128,15 @@ describe('Google auth callback', () => {
     expect(mocks.replace).toHaveBeenCalledTimes(1)
   })
 
-  it('clears a malformed marker with an empty attempt id', async () => {
+  it.each([
+    ['an empty attempt id', () => `${Date.now()}:`, 'unmatched'],
+    ['a non-numeric start', () => 'not-a-time:attempt-1', 'attempt-1'],
+  ])('clears a malformed marker with %s', async (_shape, malformedMarker, callbackAttemptId) => {
     markGoogleAuthStarted()
     const markerKey = sessionStorage.key(0)
     expect(markerKey).not.toBeNull()
-    sessionStorage.setItem(markerKey!, `${Date.now()}:`)
-    window.history.replaceState(null, '', '/auth-callback?authAttempt=unmatched#access_token=account-a-access&refresh_token=old-refresh')
+    sessionStorage.setItem(markerKey!, malformedMarker())
+    window.history.replaceState(null, '', `/auth-callback?authAttempt=${callbackAttemptId}#access_token=account-a-access&refresh_token=old-refresh`)
     render(<AuthCallbackPage />)
 
     await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
