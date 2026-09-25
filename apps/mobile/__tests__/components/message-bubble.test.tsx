@@ -43,7 +43,8 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/theme')>(),
   createTokensV2: () =>
     new Proxy(
       {},
