@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { useMutation } from '@tanstack/react-query'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -12,6 +11,7 @@ import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-sess
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/lib/actions/profile'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 
 const SETTLE_DELAY_MS = 500
 
@@ -48,8 +48,9 @@ export function MarketingConsentPrompt() {
     retiredPromptRef.current = armedPrompt
   })
 
-  const mutation = useMutation({
-    mutationFn: (enabled: boolean) => updateMarketingConsent({ enabled }),
+  const mutation = useAccountScopedMutation({
+    mutationFn: (enabled: boolean, intendedAccountId) =>
+      updateMarketingConsent({ enabled }, intendedAccountId),
     onMutate: (enabled) => {
       const accountGeneration = getAccountGeneration()
       const previous = profile?.marketingEmailConsent ?? null

@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -58,6 +59,10 @@ function renderPage() {
   )
 }
 
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
+
 describe('AiSettingsPage', () => {
   beforeEach(() => {
     push.mockClear()
@@ -83,7 +88,7 @@ describe('AiSettingsPage', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'toggle-summary' }))
     expect(patchProfile).toHaveBeenCalledWith({ aiSummaryEnabled: true })
-    await waitFor(() => expect(updateAiSummary).toHaveBeenCalledWith({ enabled: true }))
+    await waitFor(() => expect(updateAiSummary).toHaveBeenCalledWith({ enabled: true }, 'account-a'))
   })
 
   it('routes free users to upgrade from a locked surviving row', () => {

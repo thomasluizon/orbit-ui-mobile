@@ -2,12 +2,18 @@ import React from 'react'
 import { Pressable } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { DateField } from '@/components/ui/date-field'
+import { Calendar } from '@/components/ui/icons'
+import { createTokensV2 } from '@/lib/theme'
 
 /** The global setup stubs DateField away; this suite tests the real one. */
 vi.unmock('@/components/ui/date-field')
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 0 } }),
+}))
+
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
 
 const TestRenderer = require('react-test-renderer')
@@ -33,6 +39,16 @@ function dayTargets(tree: any) {
 }
 
 describe('DateField (mobile)', () => {
+  it('uses the approved graphic role on its field trigger', () => {
+    const tree = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
+    const tokens = createTokensV2('purple', 'dark')
+    const trigger = tree.root.findByType(Pressable)
+    const triggerStyle = flatten(trigger.props.style({ pressed: false }))
+
+    expect(triggerStyle.backgroundColor).toBe(tokens.bgField)
+    expect(tree.root.findByType(Calendar).props.color).toBe(tokens.fg3)
+  })
+
   it('gives every day control a 44 by 44 target around its 36px circle', () => {
     const tree = render(<DateField value="2025-06-15" onChange={vi.fn()} />)
 

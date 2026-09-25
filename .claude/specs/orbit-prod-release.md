@@ -193,6 +193,14 @@ These stay until he changes them. Keep his words.
   `/handoff`: "handoff fixes the ci congestion, merge the prs and continue the work in sleep mode."
   The evidence and the candidate fixes are in `### The CI congestion, measured` under the
   2026-09-24 night section at the end of this file.
+- **2026-09-25** **Route by subject, and never ask about it again.** "i already said a million times
+  anything related to the redesign stays on redesign/main anything NOT RELATED to the redesign goes to
+  main, as simple as that". Asked anyway about `api#531`: "this is related to the redesign, so keep on
+  the redesign/main branch on the backend, stop asking me about this". This restates the 2026-09-14
+  `orbit-api` line above and extends it to every repository. A bug fix to shipped behaviour, a harness
+  or CI change and a security fix target `main`; redesign-only work targets `redesign/main`. When a
+  non-redesign fix depends on redesign-only code, it lands on `redesign/main` AND gets a `main`
+  backport PR (the `ui#1057` / `ui#1052` pattern). Brain ADR D80 carries the amendment.
 
 ## The order: the batches to a production release
 
@@ -1817,3 +1825,80 @@ No Android release this run: `ui#1057` did not merge.
 | `api#531`, `#532`, `#533` | `main` | older rounds owed | batches 1, 2a, 6 |
 | `api#535`, `#530` (Dependabot) | `main` | `#530` CHANGES_REQUESTED | merge each when approved and green |
 | `ui#1046`, `api#537`, `landing#80` (pins) | `main` | wait for Pullfrog 0.1.83 | re-review after the release |
+
+## What the 2026-09-25 sleep run added (session `707e6949`)
+
+**Durable because** it records the CI admission design, the branch rule Thomas restated, and the
+merge-order mistake this run paid for. The decision log (D1 to D126) was in the session scratchpad
+and is gone; everything durable from it is here.
+
+### The CI congestion fix
+
+- **`api#555` (`#659`) merged** as `dc68392f`: every `orbit-api` `pull_request` workflow now has a
+  `concurrency` group with `cancel-in-progress`.
+- **`ui#1091` (`#658`) is OPEN, not merged.** It adds `tools/lib/admission.mjs` and
+  `tools/wait-ci.mjs`. `launch-worker.mjs` refuses a NEW ticket worker (exit 8) above 10 open PRs or
+  30 queued runs in the last 24 hours; a branch that already has an open PR is exempt, and the gate
+  fails closed. `wait-ci.mjs` is a registered wake source that settles only when no check is pending,
+  no workflow run for the head is queued or running, and the same completed set holds on two quiet
+  polls. Harnesses at `bdcad824`: tools 2,151 OK, hooks OK. Last review COMMENTED at `15a0747d`.
+  **It targets `redesign/main`, and by the 2026-09-25 rule it belongs on `main`.**
+- Brain ADR D133: `An unattended run caps its own CI demand in code and waits on CI through a
+  registered wake source.md`.
+- CI queue at handoff: 8 queued on `ui`, 0 on `api` (was 259 at the previous wrap-up).
+- Multipliers still open, each a ticket: `#661` (rerun a required check cancelled by concurrency),
+  `#663` (every merge invalidates every PR's surface manifest), `#667` (serve web fonts from the repo;
+  the `next/font` Google fetch fails `Build` at random), `#668` (every `orbit-api` contract merge turns
+  Contract Drift red on every open `ui` PR).
+
+### Rules this run paid for
+
+- **Type-check the merge result before merging a PR whose base moved (D115).** `ui#1069` renamed
+  `readOnly` to `completionReadOnly`; `ui#1052` merged after it with a test still passing `readOnly`
+  and broke `redesign/main` type-check for every open PR. `#669` / `ui#1094` fixed it. Merging with
+  `git merge --no-commit origin/redesign/main` then `npx tsc --noEmit` in both apps catches it.
+- **Contract Drift on `redesign/main` is advisory when the PR touches no
+  `packages/shared/src/types/`** (core rule 4: it regenerates from `orbit-api` live `main`, not from
+  the PR). On `main` it is required; re-baseline the snapshot with `npx --yes orval@8.37.0` (main's
+  lock), never the local 8.20.
+- **Read the diff before replying on a thread.** Two replies this run claimed behaviour the code did
+  not have and needed corrections.
+- **Codex hung twice on one auth merge** (`KILLED_NO_PROGRESS`, zero tool calls). The second launch
+  ran on the Claude engine per `orchestrate/SKILL.md` §5.4.1, config reverted after.
+- **A bare `Fixes #N` in an `orbit-api` PR body points at an `orbit-api` issue.** Rewrite it to
+  `thomasluizon/orbit-tickets#N` before merge, and run `node tools/complete-ticket.mjs` after.
+
+### Shipped
+
+- **Live:** Android 1.3.33 (92) on the Play open track from `main` `1ea4baab` (`ui#1057`, `#557`:
+  an expired Android session recovers instead of signing out). `orbit-api` `main` merged and deployed
+  by Render: `api#539` (bulk week interval), `#540` (freeze source), `#541` (support tool on the
+  support entry), `#542` (repairable streak gap dates), `#543` (sub-habit title), `#546` (MCP emoji),
+  `#547` (a crisis turn in Astra returns the fixed 988 / CVV 188 reply before any AI call), `#553`
+  (logout revokes the whole refresh-token family, deployed 2026-09-25 03:41 UTC), `#533` (onboarding
+  repeat interval), `#555` (concurrency). `#660` becomes due 168 hours after `#553`'s deploy.
+- **Built on `redesign/main`, not shipped:** `ui#1029` (`#612` shared-browser account leak), `#1052`,
+  `#1064`, `#1067`, `#1068`, `#1069`, `#1071` to `#1083`, `#1085`, `#1087`, `#1092` to `#1094`.
+  Landing `redesign/main`: `landing#82`.
+
+### Decided this run, recorded on the tickets
+
+- `#392`: a bad-habit slip never sets `lastCompletionDate`; an empty Today shows returning guidance.
+  `#665` carries recording the slip at write time.
+- `api#547`: any detected crisis turn, even a figurative one, gets the fixed support reply. Safety
+  over false positives.
+- `ui#1080`: `DESIGN.md` ListRow chevron moved from `fg-4` to `fg-3` (`fg-4` on `bgElev` measures
+  2.59:1, under the 3:1 graphic floor).
+- `api#531` (`#367`, colour-scheme collapse) is redesign work: it moves to `orbit-api`
+  `redesign/main` (Thomas, 2026-09-25). Recorded on the PR.
+
+### Items that need a person, each with what was tried (rule 8)
+
+- **Cloudflare Turnstile** for `api#550`: a widget for `useorbit.org` and Render
+  `BotProtection__SecretKey`. Tried: `wrangler`, `cloudflared`, `flarectl` (none installed),
+  `CLOUDFLARE*` / `CF_*` / `TURNSTILE*` env (none), keychain `cloudflare` (none), Render `orbit-api`
+  env (52 vars, no Cloudflare key). `api#550` merges and deploys inert (`BotProtection__Enabled`
+  unset), so it does not wait on this.
+- **Supabase redirect allowlist** for `ui#1066`: unchanged from the previous section.
+- **Live check of the crisis reply**: send a crisis message to Astra in production and confirm
+  988 / 188 shows.

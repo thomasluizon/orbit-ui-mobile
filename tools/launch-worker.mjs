@@ -19,6 +19,7 @@ import { delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
+import { ADMISSION_REFUSED_EXIT, checkAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch } from "./lib/run-state.mjs"
@@ -50,7 +51,8 @@ outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY o
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, 3 the worker executable could not be resolved,
-            4 this launcher killed it but the tree holds commits it made, so the work may be salvageable`
+            4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
+            8 admission refused new ticket work before reservation`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -285,6 +287,20 @@ const repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =
   typeof repository === "string" && gitRepositoryIdentity(repository) === repositoryIdentity)?.[0]
 if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
 
+let githubAuth
+try {
+  githubAuth = await githubEnvironment(runDirectory)
+} catch (error) {
+  const result = { admitted: false, reason: "ADMISSION_REFUSED", counts: { openPullRequests: null, queuedRuns: null }, limits: { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }, error: redactSecrets(error.message) }
+  console.log(JSON.stringify(result))
+  process.exit(ADMISSION_REFUSED_EXIT)
+}
+const admission = await checkAdmission({ config, repositoryKey, branch, environment: githubAuth.environment })
+if (!admission.admitted) {
+  console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
+  process.exit(ADMISSION_REFUSED_EXIT)
+}
+
 const timestamp = new Date().toISOString()
 const reservation = reserveWorkerLaunch({
   launcherPid: process.pid,
@@ -325,12 +341,6 @@ const logFd = openSync(logFile, "a")
  * Homebrew link `/opt/homebrew/bin/orca` into Orca.app (checked 2026-09-24). The Windows machine
  * had no `orca` on PATH (ORB-87), so a machine without one sets ORCA_BIN.
  */
-let githubAuth
-try {
-  githubAuth = await githubEnvironment(runDirectory)
-} catch (error) {
-  fail(3, redactSecrets(error.message))
-}
 // The gate cannot enter the worktree until both records name its pid. If this launcher dies
 // beforehand, its IPC channel closes and the gate exits without starting the real worker.
 const gatePath = fileURLToPath(new URL("./lib/worker-gate.cjs", import.meta.url))

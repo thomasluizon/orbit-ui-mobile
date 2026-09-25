@@ -1,11 +1,16 @@
 import { useSyncExternalStore } from 'react'
+import * as SecureStore from 'expo-secure-store'
+import { createAuthReturnUrlAttempt } from './auth-flow'
 
 export const AUTH_CALLBACK_URL = 'https://app.useorbit.org/auth-callback'
+const GOOGLE_AUTH_ATTEMPT_KEY = 'google_auth_attempt'
+/** A pending OAuth return expires 10 minutes after its browser attempt starts. */
+const GOOGLE_AUTH_ATTEMPT_WINDOW_MS = 10 * 60 * 1000
 
 interface PendingGoogleAuthSessionState {
   callbackUrl: string | null
   isPending: boolean
-  returnUrlAttemptId: number | null
+  returnUrlAttemptId: string | null
 }
 
 export interface GoogleAuthParams {
@@ -34,6 +39,7 @@ let pendingGoogleAuthSession: PendingGoogleAuthSessionState = {
   isPending: false,
   returnUrlAttemptId: null,
 }
+let pendingAttemptOperation = Promise.resolve()
 
 const pendingGoogleAuthListeners = new Set<() => void>()
 
@@ -60,37 +66,77 @@ export function usePendingGoogleAuthSession() {
   )
 }
 
-export function markPendingGoogleAuthSession(returnUrlAttemptId: number) {
-  pendingGoogleAuthSession = {
-    callbackUrl: null,
-    isPending: true,
-    returnUrlAttemptId,
-  }
-  emitPendingGoogleAuthSession()
+function withPendingAttemptLock<T>(operation: () => Promise<T>): Promise<T> {
+  const result = pendingAttemptOperation.then(operation)
+  pendingAttemptOperation = result.then(() => {}, () => {})
+  return result
 }
 
-export function setPendingGoogleAuthCallbackUrl(callbackUrl: string, returnUrlAttemptId: number) {
-  if (pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return
-  pendingGoogleAuthSession = {
-    callbackUrl,
-    isPending: false,
-    returnUrlAttemptId,
-  }
-  emitPendingGoogleAuthSession()
+async function readStoredAttempt(): Promise<{ startedAt: number; attemptId: string } | null> {
+  const raw = await SecureStore.getItemAsync(GOOGLE_AUTH_ATTEMPT_KEY)
+  if (!raw) return null
+  const separator = raw.indexOf(':')
+  if (separator < 0) return null
+  const startedAt = Number(raw.slice(0, separator))
+  const attemptId = raw.slice(separator + 1)
+  if (!attemptId || !Number.isFinite(startedAt)) return null
+  return { startedAt, attemptId }
 }
 
-export function clearPendingGoogleAuthSession(returnUrlAttemptId?: number) {
-  if (returnUrlAttemptId !== undefined && pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return
-  if (!pendingGoogleAuthSession.callbackUrl && !pendingGoogleAuthSession.isPending) {
-    return
-  }
+export function markPendingGoogleAuthSession(returnUrlAttemptId: string): Promise<void> {
+  return withPendingAttemptLock(async () => {
+    await SecureStore.setItemAsync(GOOGLE_AUTH_ATTEMPT_KEY, `${Date.now()}:${returnUrlAttemptId}`)
+    pendingGoogleAuthSession = { callbackUrl: null, isPending: true, returnUrlAttemptId }
+    emitPendingGoogleAuthSession()
+  })
+}
 
-  pendingGoogleAuthSession = {
-    callbackUrl: null,
-    isPending: false,
-    returnUrlAttemptId: null,
-  }
-  emitPendingGoogleAuthSession()
+/**
+ * Publishes a callback URL only when the persisted attempt marker proves this app opened it, within
+ * the window, once. The marker outlives the process, so a cold start recovers its own redirect while
+ * a bookmark, a back button or a stale link never resolves to a session.
+ */
+export function setPendingGoogleAuthCallbackUrl(
+  callbackUrl: string,
+  returnUrlAttemptId?: string,
+): Promise<boolean> {
+  return withPendingAttemptLock(async () => {
+    if (returnUrlAttemptId !== undefined
+      && pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return false
+
+    const url = new URL(callbackUrl)
+    if (`${url.origin}${url.pathname}` !== AUTH_CALLBACK_URL
+      || url.searchParams.getAll('authAttempt').length !== 1) return false
+
+    const stored = await readStoredAttempt()
+    if (!stored) return false
+    if (stored.startedAt > Date.now()
+      || Date.now() - stored.startedAt >= GOOGLE_AUTH_ATTEMPT_WINDOW_MS) {
+      await SecureStore.deleteItemAsync(GOOGLE_AUTH_ATTEMPT_KEY)
+      return false
+    }
+    if (url.searchParams.get('authAttempt') !== stored.attemptId) return false
+
+    await SecureStore.deleteItemAsync(GOOGLE_AUTH_ATTEMPT_KEY)
+    pendingGoogleAuthSession = {
+      callbackUrl,
+      isPending: false,
+      returnUrlAttemptId: pendingGoogleAuthSession.returnUrlAttemptId ?? createAuthReturnUrlAttempt(),
+    }
+    emitPendingGoogleAuthSession()
+    return true
+  })
+}
+
+export function clearPendingGoogleAuthSession(returnUrlAttemptId?: string): Promise<void> {
+  return withPendingAttemptLock(async () => {
+    if (returnUrlAttemptId !== undefined
+      && pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return
+    await SecureStore.deleteItemAsync(GOOGLE_AUTH_ATTEMPT_KEY)
+    if (!pendingGoogleAuthSession.callbackUrl && !pendingGoogleAuthSession.isPending) return
+    pendingGoogleAuthSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
+    emitPendingGoogleAuthSession()
+  })
 }
 
 export function extractGoogleAuthParams(rawUrl: string): GoogleAuthParams {

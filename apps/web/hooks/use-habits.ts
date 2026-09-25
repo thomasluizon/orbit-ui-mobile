@@ -2,10 +2,7 @@
 
 import type { HabitListKey } from '@orbit/shared/query'
 
-import {
-  useMutation,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import { isStreakCelebrationMilestone } from '@orbit/shared/stores'
@@ -19,6 +16,7 @@ import {
   optimisticSetCalendarHabitLog,
   removeHabitDetailChild,
   rollbackOptimisticCalendarHabitLog,
+  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import {
   optimisticPatchHabit,
@@ -72,6 +70,8 @@ import {
   bulkSkipHabits as bulkSkipHabitsAction,
 } from '@/lib/actions/habits'
 import { getMilestoneShareStreakKey } from '@orbit/shared/stores'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -130,7 +130,7 @@ export function useLogHabit() {
   const queryClient = useQueryClient()
   const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       habitId,
       date,
@@ -138,7 +138,7 @@ export function useLogHabit() {
       habitId: string
       date?: string
       intent: 'log' | 'unlog'
-    }) => logHabitAction(habitId, date ? { date } : undefined),
+    }, intendedAccountId) => logHabitAction(habitId, date ? { date } : undefined, intendedAccountId),
 
     onMutate: ({ habitId, date, intent }) => {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -302,9 +302,9 @@ export function useLogHabit() {
 export function useSkipHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: ({ habitId, date }: { habitId: string; date?: string }) =>
-      skipHabitAction(habitId, date),
+  return useAccountScopedMutation({
+    mutationFn: ({ habitId, date }: { habitId: string; date?: string }, intendedAccountId) =>
+      skipHabitAction(habitId, date, intendedAccountId),
 
     onMutate: async ({ habitId, date }) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -351,8 +351,9 @@ export function useSkipHabit() {
 export function useCreateHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: (data: CreateHabitRequest) => createHabitAction(data),
+  return useAccountScopedMutation({
+    mutationFn: (data: CreateHabitRequest, intendedAccountId) =>
+      createHabitAction(data, intendedAccountId),
 
     onSuccess: (result) => {
       useUIStore.getState().setLastCreatedHabitId(result.id)
@@ -371,9 +372,9 @@ export function useCreateHabit() {
 export function useUpdateHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: ({ habitId, data }: { habitId: string; data: UpdateHabitRequest }) =>
-      updateHabitAction(habitId, data),
+  return useAccountScopedMutation({
+    mutationFn: ({ habitId, data }: { habitId: string; data: UpdateHabitRequest }, intendedAccountId) =>
+      updateHabitAction(habitId, data, intendedAccountId),
 
     onMutate: async ({ habitId, data }) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -418,16 +419,17 @@ export function useRestoreHabit() {
   const t = useTranslations()
   const { showSuccess, showError } = useAppToast()
 
-  return useMutation({
-    mutationFn: (habitId: string) => restoreHabitAction(habitId),
+  return useAccountScopedMutation({
+    mutationFn: (habitId: string, intendedAccountId) =>
+      restoreHabitAction(habitId, intendedAccountId),
 
     onSuccess: () => {
       invalidateHabitDeleteQueries(queryClient)
       showSuccess(t('undo.restored'))
     },
 
-    onError: () => {
-      showError(t('undo.restoreFailed'))
+    onError: (error) => {
+      showError(getFriendlyErrorMessage(error, t, 'undo.restoreFailed'))
     },
   })
 }
@@ -438,8 +440,9 @@ export function useDeleteHabit() {
   const restoreHabit = useRestoreHabit()
   const showUndoToast = useUndoToast()
 
-  return useMutation({
-    mutationFn: (habitId: string) => deleteHabitAction(habitId),
+  return useAccountScopedMutation({
+    mutationFn: (habitId: string, intendedAccountId) =>
+      deleteHabitAction(habitId, intendedAccountId),
 
     onMutate: async (habitId) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.details() })
@@ -475,8 +478,9 @@ export function useReorderHabits() {
   const t = useTranslations()
   const { showError } = useAppToast()
 
-  return useMutation({
-    mutationFn: (data: ReorderHabitsRequest) => reorderHabitsAction(data),
+  return useAccountScopedMutation({
+    mutationFn: (data: ReorderHabitsRequest, intendedAccountId) =>
+      reorderHabitsAction(data, intendedAccountId),
 
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
@@ -489,11 +493,11 @@ export function useReorderHabits() {
       return { previousLists }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (error, _vars, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
-      showError(t('habits.reorderFailed'))
+      showError(getFriendlyErrorMessage(error, t, 'habits.reorderFailed'))
     },
 
     onSettled: () => {
@@ -507,8 +511,9 @@ export function useReorderHabits() {
 export function useDuplicateHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: (habitId: string) => duplicateHabitAction(habitId),
+  return useAccountScopedMutation({
+    mutationFn: (habitId: string, intendedAccountId) =>
+      duplicateHabitAction(habitId, intendedAccountId),
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
@@ -522,14 +527,14 @@ export function useDuplicateHabit() {
 export function useUpdateChecklist() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       habitId,
       items,
     }: {
       habitId: string
       items: ChecklistItem[]
-    }) => updateChecklistAction(habitId, items),
+    }, intendedAccountId) => updateChecklistAction(habitId, items, intendedAccountId),
 
     onMutate: async ({ habitId, items }) => {
       await Promise.all([
@@ -587,14 +592,14 @@ export function useUpdateChecklist() {
 export function useCreateSubHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       parentId,
       data,
     }: {
       parentId: string
       data: CreateSubHabitRequest
-    }) => createSubHabitAction(parentId, data),
+    }, intendedAccountId) => createSubHabitAction(parentId, data, intendedAccountId),
 
     onMutate: async ({ parentId, data }) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.detail(parentId) })
@@ -625,14 +630,14 @@ export function useCreateSubHabit() {
 export function useMoveHabitParent() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       habitId,
       data,
     }: {
       habitId: string
       data: MoveHabitParentRequest
-    }) => moveHabitParentAction(habitId, data),
+    }, intendedAccountId) => moveHabitParentAction(habitId, data, intendedAccountId),
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
@@ -646,8 +651,9 @@ export function useMoveHabitParent() {
 export function useBulkCreateHabits() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: (data: BulkCreateRequest) => bulkCreateHabitsAction(data),
+  return useAccountScopedMutation({
+    mutationFn: (data: BulkCreateRequest, intendedAccountId) =>
+      bulkCreateHabitsAction(data, intendedAccountId),
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
@@ -662,13 +668,23 @@ export function useBulkCreateHabits() {
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: async (habitIds: string[]): Promise<BulkMutationOutcome<BulkDeleteResponse>> => {
+  return useAccountScopedMutation({
+    mutationFn: async (
+      habitIds: string[],
+      intendedAccountId,
+    ): Promise<BulkMutationOutcome<BulkDeleteResponse>> => {
       const results: BulkDeleteResponse['results'] = []
       const ambiguousIds: string[] = []
       for (let index = 0; index < habitIds.length; index += 4) {
         const chunk = habitIds.slice(index, index + 4)
-        const outcomes = await Promise.allSettled(chunk.map((habitId) => deleteHabitAction(habitId)))
+        const outcomes = await Promise.allSettled(
+          chunk.map((habitId) => deleteHabitAction(habitId, intendedAccountId)),
+        )
+        for (const outcome of outcomes) {
+          if (outcome.status === 'rejected' && reportsAccountChanged(outcome.reason)) {
+            throw outcome.reason
+          }
+        }
         outcomes.forEach((outcome, itemIndex) => {
           const habitId = chunk[itemIndex]
           if (!habitId) return
@@ -701,14 +717,18 @@ export function useBulkDeleteHabits() {
 export function useBulkLogHabits() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: async (items: BulkLogItemRequest[]): Promise<BulkLogResult> => {
+  return useAccountScopedMutation({
+    mutationFn: async (items: BulkLogItemRequest[], intendedAccountId): Promise<BulkLogResult> => {
       const results: BulkLogResult['results'] = []
       for (let index = 0; index < items.length; index += 100) {
         try {
-          const response = await bulkLogHabitsAction(items.slice(index, index + 100))
+          const response = await bulkLogHabitsAction(
+            items.slice(index, index + 100),
+            intendedAccountId,
+          )
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
         } catch (error) {
+          if (reportsAccountChanged(error)) throw error
           results.push(...buildUnresolvedBulkFailures(
             items.slice(index),
             index,
@@ -762,16 +782,20 @@ export function useBulkLogHabits() {
 export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: async (items: BulkSkipItemRequest[]): Promise<BulkMutationOutcome<BulkSkipResult>> => {
+  return useAccountScopedMutation({
+    mutationFn: async (
+      items: BulkSkipItemRequest[],
+      intendedAccountId,
+    ): Promise<BulkMutationOutcome<BulkSkipResult>> => {
       const results: BulkSkipResult['results'] = []
       const ambiguousIds: string[] = []
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
         try {
-          const response = await bulkSkipHabitsAction(chunk)
+          const response = await bulkSkipHabitsAction(chunk, intendedAccountId)
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
-        } catch {
+        } catch (error) {
+          if (reportsAccountChanged(error)) throw error
           ambiguousIds.push(...chunk.map((item) => item.habitId))
         }
       }

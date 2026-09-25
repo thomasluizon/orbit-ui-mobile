@@ -36,7 +36,7 @@ describe('web uploadFile', () => {
     expect(signUploadMock).toHaveBeenCalledWith({
       contentType: 'image/png',
       sizeBytes: file.size,
-    })
+    }, null)
     expect(fetchMock).toHaveBeenCalledWith(signed.signedUrl, expect.objectContaining({
       method: 'PUT',
       body: file,

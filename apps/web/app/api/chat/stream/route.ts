@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
-import { resolveServerSession } from '@/lib/auth-api'
+import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
+import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
 
@@ -36,10 +37,21 @@ function unauthorizedResponse(refreshFailed: boolean): Response {
   )
 }
 
+function accountChangedResponse(): Response {
+  return Response.json(
+    { error: 'Account changed', errorCode: ACCOUNT_CHANGED_ERROR_CODE },
+    { status: 409, headers: { 'cache-control': 'private, no-store, max-age=0' } },
+  )
+}
+
 export async function POST(request: NextRequest) {
   const session = await resolveServerSession()
   if (!session.token) {
     return unauthorizedResponse(session.refreshFailed)
+  }
+  const heldAccountId = request.headers.get('x-orbit-held-account-id')
+  if (!heldAccountId || getAccountIdFromToken(session.token) !== heldAccountId) {
+    return accountChangedResponse()
   }
 
   const formData = await request.formData()
@@ -49,6 +61,9 @@ export async function POST(request: NextRequest) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (!refreshedSession.token) {
       return unauthorizedResponse(refreshedSession.refreshFailed)
+    }
+    if (getAccountIdFromToken(refreshedSession.token) !== heldAccountId) {
+      return accountChangedResponse()
     }
     upstream = await forwardStream(request, formData, refreshedSession.token)
   }

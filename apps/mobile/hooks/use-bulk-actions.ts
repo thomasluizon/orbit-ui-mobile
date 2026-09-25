@@ -109,6 +109,7 @@ export function useBulkActions({
       ids.map((habitId) => ({ habitId, date })),
     )
     applyBulkMutationSuccesses(result.results, 'log', date)
+    if (currentPermission.current.selectedDateStr !== date) return
     finish(result, (failedIds) => void executeLog(failedIds))
   }
 
@@ -120,6 +121,7 @@ export function useBulkActions({
       ids.map((habitId) => ({ habitId, date })),
     )
     applyBulkMutationSuccesses(result.results, 'skip', date)
+    if (currentPermission.current.selectedDateStr !== date) return
     finish(result, (failedIds) => void executeSkip(failedIds))
   }
 

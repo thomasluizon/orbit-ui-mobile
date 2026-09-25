@@ -4,6 +4,7 @@ import {
   type StoredFile,
 } from '@orbit/shared'
 import { signUpload } from '@/lib/actions/uploads'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 type AllowedContentType = (typeof UPLOAD_ALLOWED_CONTENT_TYPES)[number]
 
@@ -19,12 +20,13 @@ function assertAllowedContentType(contentType: string): asserts contentType is A
  */
 export async function uploadFile(file: File): Promise<StoredFile> {
   assertAllowedContentType(file.type)
+  const intendedAccountId = getHeldAccountId()
 
   const signed = SignUploadResponseSchema.parse(
     await signUpload({
       contentType: file.type,
       sizeBytes: file.size,
-    }),
+    }, intendedAccountId),
   )
 
   const response = await fetch(signed.signedUrl, {

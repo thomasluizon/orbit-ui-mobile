@@ -16,8 +16,14 @@ const profileRef = vi.hoisted(() => ({
   value: {} as { hasProAccess: boolean; weekStartDay: 0 | 1; colorScheme: string; timeZone: string } | undefined,
 }))
 const authRef = vi.hoisted(() => ({ isAuthenticated: true }))
+const heldAccount = vi.hoisted(() => ({ id: null as string | null }))
+const showPersistentError = vi.hoisted(() => vi.fn())
 
-vi.mock('next-intl', () => ({ useLocale: () => 'en' }))
+vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
+  useTranslations: () => (key: string) => key,
+}))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError }) }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: profileRef.value, patchProfile: mockPatchProfile }),
 }))
@@ -35,6 +41,7 @@ vi.mock('@/stores/auth-store', () => {
     recoverSessionRefreshFailure: vi.fn(),
   })
   return {
+    getHeldAccountId: () => heldAccount.id,
     useAuthStore: Object.assign(
       (selector: (state: { isAuthenticated: boolean }) => unknown) => selector(getState()),
       { getState },
@@ -85,6 +92,7 @@ describe('usePreferenceControls', () => {
     localStorage.clear()
     profileRef.value = { hasProAccess: true, weekStartDay: 0, colorScheme: 'purple', timeZone: 'UTC' }
     authRef.isAuthenticated = true
+    heldAccount.id = 'account-a'
     Object.defineProperty(globalThis, 'location', {
       configurable: true,
       value: { reload: reloadMock, href: 'http://localhost/', pathname: '/' },
@@ -113,7 +121,7 @@ describe('usePreferenceControls', () => {
       await result.current.handleLanguageChange('pt-BR')
     })
 
-    expect(updateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' })
+    expect(updateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' }, 'account-a')
     expect(document.cookie).toContain('i18n_locale=pt-BR')
     expect(reloadMock).toHaveBeenCalledTimes(1)
     expect(result.current.selectedLanguage).toBe('pt-BR')
@@ -130,6 +138,27 @@ describe('usePreferenceControls', () => {
 
     expect(reloadMock).not.toHaveBeenCalled()
     await waitFor(() => expect(result.current.selectedLanguage).toBe('en'))
+  })
+
+  it('keeps the next account locale after an account switch refusal', async () => {
+    const { updateLanguage } = await import('@/lib/actions/profile')
+    let rejectUpdate: ((error: unknown) => void) | undefined
+    vi.mocked(updateLanguage).mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectUpdate = reject
+    }))
+    heldAccount.id = 'account-a'
+    const { result } = renderHook(() => usePreferenceControls(), { wrapper })
+
+    let change: Promise<void> | undefined
+    act(() => { change = result.current.handleLanguageChange('pt-BR') })
+    heldAccount.id = 'account-b'
+    await act(async () => {
+      rejectUpdate?.({ code: 'ACCOUNT_CHANGED', status: 409 })
+      await change
+    })
+
+    expect(document.cookie).toContain('i18n_locale=pt-BR')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload')
   })
 
   it('skips the backend call but still reloads when unauthenticated', async () => {
@@ -155,7 +184,7 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenCalledWith({ weekStartDay: 1 })
-    expect(updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 1 })
+    expect(updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 1 }, 'account-a')
   })
 
   it('rolls the week-start day back on error', async () => {
@@ -180,7 +209,7 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
-    expect(updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' }, 'account-a')
   })
 
   it('refetches every calendar event timezone after the timezone write settles', async () => {

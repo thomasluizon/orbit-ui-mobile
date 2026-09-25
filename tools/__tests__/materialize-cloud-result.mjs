@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url"
 import {
   REPO_ROOT,
   T,
+  orcaEnv,
   realOrchestratorConfig,
   run,
   stage,
@@ -65,6 +66,13 @@ const recoveryPathOf = (entry) => join(
 )
 
 export const cases = () => {
+  const admissionEnvironment = orcaEnv([
+    { match: "remote get-url origin", stdout: "https://github.com/test-owner/cloud.git" },
+    { match: "auth token --user test-owner", stdout: "test-github-token" },
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: "[]" },
+    { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
+  ])
   const handoff = {
     needsDecision: null,
     assumptions: ["Used the existing adapter; rejected a second API."],
@@ -90,7 +98,7 @@ export const cases = () => {
     const submitted = run("submit-cloud-worker.mjs", [
       "--issue", "#398", "--env", entry.config.cloud.environmentId, "--branch", "main",
       "--order", orderPath, "--worktree", entry.repo.path,
-    ], { path: submitPath, env: { ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${entry.receipt.taskId}` } })
+    ], { path: submitPath, env: { ...admissionEnvironment, GIT_BIN: process.execPath, ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${entry.receipt.taskId}` } })
     T(`${TOOL}: ${label} handoff starts with a real submission receipt`, submitted.status === 0, submitted.stdout || submitted.stderr)
     if (submitted.status !== 0) continue
     entry.receipt = JSON.parse(submitted.stdout)

@@ -109,11 +109,12 @@ describe('a notification write formed under a replaced account', () => {
     },
   )
 
-  it('sends a write that names no account, because nothing proves a mismatch', async () => {
+  it('sends a write with null intent because no account mismatch is proven', async () => {
     holdCookieForAccount('account-b')
 
     await deleteAllNotifications(null)
 
+    expect(mockFetch).toHaveBeenCalledTimes(1)
     const [url] = mockFetch.mock.calls[0]!
     expect(url).toContain('/api/notifications/all')
   })

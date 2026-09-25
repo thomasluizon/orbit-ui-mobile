@@ -1,5 +1,7 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+
 
 
 vi.mock('next-intl', () => ({
@@ -186,6 +188,27 @@ describe('FreshStartModal', () => {
       expect(mockRouterPush).toHaveBeenCalledWith('/')
       expect(mockRouterRefresh).toHaveBeenCalledTimes(1)
     })
+  })
+
+  it('keeps the next account intact when reset finishes after an account switch', async () => {
+    let finishReset!: () => void
+    mockResetAccount.mockReturnValueOnce(new Promise<void>((resolve) => { finishReset = resolve }))
+    const onOpenChange = vi.fn()
+    render(<FreshStartModal open={true} onOpenChange={onOpenChange} />)
+    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.change(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder'), { target: { value: 'ORBIT' } })
+    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    await waitFor(() => expect(mockResetAccount).toHaveBeenCalledOnce())
+
+    await act(async () => {
+      advanceAccountGeneration()
+      finishReset()
+    })
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(mockQueryClientClear).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
   it('shows error when resetAccount fails', async () => {

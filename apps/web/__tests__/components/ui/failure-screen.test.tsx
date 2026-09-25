@@ -57,6 +57,12 @@ describe('FailureScreen', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button')) })
     expect(retry).toHaveBeenCalledOnce()
   })
+  it.each(['en', 'pt-BR'])('shows account switch guidance instead of retry copy in %s', (locale) => {
+    const { messages } = mount({ status: 409, code: 'ACCOUNT_CHANGED' }, vi.fn(), locale)
+    expect(screen.getByText(messages.errors.api.accountChanged)).toBeInTheDocument()
+    expect(screen.queryByText(messages.errorScreen.body)).not.toBeInTheDocument()
+    expect(screen.getByRole('button')).toHaveTextContent(messages.errorScreen.reload)
+  })
   it('shows busy until the retry resolves and prevents duplicate activation', async () => {
     let finish = () => {}
     const retry = vi.fn(() => new Promise<void>((resolve) => { finish = resolve }))
