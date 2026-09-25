@@ -1795,6 +1795,7 @@
         "astraRead": "This is how I read it. Tap to correct it.",
         "direct": "Pick the days and the time.",
         "proposedBy": "Proposed by Astra",
+        "emojiLabel": "Emoji proposed by Astra",
         "correctSchedule": "Correct schedule",
         "scheduleDetails": "{title}. {cadence}. Time: {time}",
         "anyTime": "Any time",

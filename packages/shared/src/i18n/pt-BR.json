@@ -1795,6 +1795,7 @@
         "astraRead": "Entendi assim. Toque para corrigir.",
         "direct": "Escolha os dias e a hora.",
         "proposedBy": "Proposto pelo Astra",
+        "emojiLabel": "Emoji proposto pelo Astra",
         "correctSchedule": "Corrigir agenda",
         "scheduleDetails": "{title}. {cadence}. Hora: {time}",
         "anyTime": "Qualquer hora",
