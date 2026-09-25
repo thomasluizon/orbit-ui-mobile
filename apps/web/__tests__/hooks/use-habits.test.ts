@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import React from 'react'
-import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import { buildCalendarDayMap, getReturningInterval } from '@orbit/shared/utils'
@@ -1654,6 +1654,38 @@ describe('useBulkLogHabits', () => {
       .getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.children
     expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
     expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
+  })
+})
+
+describe('returning profile after other completion writes', () => {
+  it.each([
+    ['skip', () => useSkipHabit(), { habitId: 'h-1' }],
+    ['edit bad-habit flag', () => useUpdateHabit(), { habitId: 'h-1', data: { isBadHabit: true } }],
+    ['delete', () => useDeleteHabit(), 'h-1'],
+    ['restore', () => useRestoreHabit(), 'h-1'],
+    ['checklist', () => useUpdateChecklist(), { habitId: 'h-1', items: [] }],
+    ['bulk delete', () => useBulkDeleteHabits(), ['h-1']],
+    ['bulk skip', () => useBulkSkipHabits(), [{ habitId: 'h-1' }]],
+  ] as const)('refreshes profile after %s', async (_name, useWrite, variables) => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.updateHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.deleteHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.restoreHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.updateChecklist).mockResolvedValue(undefined)
+    vi.mocked(actions.bulkSkipHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(profileKeys.detail(), { lastCompletionDate: '2026-08-20' })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(
+      () => useWrite() as unknown as { mutateAsync: (input: never) => Promise<unknown> },
+      { wrapper: createWrapper(queryClient) },
+    )
+
+    await act(async () => { await result.current.mutateAsync(variables as never) })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    queryClient.clear()
   })
 })
 

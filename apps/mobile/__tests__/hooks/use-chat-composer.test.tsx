@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { habitKeys } from '@orbit/shared/query'
+import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { DocumentPickerAsset } from 'expo-document-picker'
@@ -1339,6 +1339,17 @@ describe('mobile useChatComposer', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.lists(),
     })
+  })
+
+  it('refreshes the returning profile after a successful live log action', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse({
+      actions: [{ type: 'LogHabit', status: 'Success' }],
+    }))))
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => { await composer.current.sendMessage('log water') })
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('disarms the previous account retry and attachments when the account changes', async () => {

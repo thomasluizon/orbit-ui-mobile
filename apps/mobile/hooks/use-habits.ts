@@ -580,7 +580,7 @@ export function useUpdateHabit() {
     },
 
     onSettled: (data, error, { habitId }) =>
-      finalizeHabitMutation(queryClient, data, error, { habitId }),
+      finalizeHabitMutation(queryClient, data, error, { habitId, includeProfile: true }),
   })
 }
 
@@ -613,6 +613,7 @@ export function useRestoreHabit() {
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
         includeCount: true,
+        includeProfile: true,
       }),
   })
 }
@@ -680,6 +681,7 @@ export function useDeleteHabit() {
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
         includeCount: true,
+        includeProfile: true,
       })
     },
   })
@@ -832,7 +834,7 @@ export function useUpdateChecklist() {
     },
 
     onSettled: (data, error, variables) =>
-      finalizeHabitMutation(queryClient, data, error, { habitId: variables.habitId }),
+      finalizeHabitMutation(queryClient, data, error, { habitId: variables.habitId, includeProfile: true }),
   })
 }
 
@@ -1113,6 +1115,7 @@ export function useBulkDeleteHabits() {
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
         includeCount: true,
+        includeProfile: true,
       }),
   })
 }
@@ -1294,6 +1297,6 @@ export function useBulkSkipHabits() {
       restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
+    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error, { includeProfile: true }),
   })
 }

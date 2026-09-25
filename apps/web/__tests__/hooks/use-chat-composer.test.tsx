@@ -3,7 +3,7 @@ import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-li
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
-import { goalKeys, habitKeys, tagKeys } from '@orbit/shared/query'
+import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -1278,6 +1278,17 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: tagKeys.lists() })
+  })
+
+  it('refreshes the returning profile after a successful live log action', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse({
+      actions: [{ type: 'LogHabit', status: 'Success' }],
+    }))))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => { await result.current.sendMessage('log water') })
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('keeps a final policy denial in the conversation without upgrade routing', async () => {

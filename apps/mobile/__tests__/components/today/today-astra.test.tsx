@@ -1,7 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { TodayAstra } from '@/components/today/today-astra'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useUIStore } from '@/stores/ui-store'
@@ -117,6 +117,11 @@ describe('mobile Today Astra', () => {
     const tree = await renderTodayAstra()
     const action = tree.root.findAll((node) => node.props.accessibilityRole === 'link')[0]
     if (!action) throw new Error('Returning action did not render')
+    expect(action.props.hitSlop).toEqual({ top: 12, right: 12, bottom: 12, left: 12 })
+    expect(StyleSheet.flatten(action.props.style) as Record<string, unknown>).toMatchObject({ minWidth: 44, minHeight: 44 })
+    expect(tree.root.findAll((node) => node.type === Text &&
+      node.findAll((child) => child.props.accessibilityRole === 'link').length > 0,
+    ).length).toBeGreaterThan(0)
     await TestRenderer.act(async () => {
       ;(action.props.onPress as () => void)()
       await Promise.resolve()
@@ -138,7 +143,8 @@ describe('mobile Today Astra', () => {
 
     expect(hasText(tree, 'todayAstra.returningElapsed:3')).toBe(true)
     expect(tree.root.findAll((node) =>
-      node.props.accessibilityRole === 'link' && node.props.children === 'todayAstra.viewProgress',
+      node.props.accessibilityRole === 'link' &&
+      node.findAll((child) => child.props.children === 'todayAstra.viewProgress').length > 0,
     ).length).toBeGreaterThan(0)
   })
 
@@ -157,11 +163,12 @@ describe('mobile Today Astra', () => {
 
     expect(hasText(tree, 'Check in')).toBe(true)
     const action = tree.root.findAll((node) =>
-      typeof node.props.onPress === 'function' &&
-      node.props.children === 'todayAstra.openConversation',
+      node.props.accessibilityRole === 'link' &&
+      node.findAll((child) => child.props.children === 'todayAstra.openConversation').length > 0,
     )[0]
     if (!action) throw new Error('Proactive conversation action did not render')
-    expect(StyleSheet.flatten(action.props.style) as Record<string, unknown>).toMatchObject({
+    const label = action.findAll((node) => node.props.children === 'todayAstra.openConversation')[0]
+    expect(StyleSheet.flatten(label?.props.style) as Record<string, unknown>).toMatchObject({
       textDecorationLine: 'underline',
     })
     expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).backgroundColor).toBeUndefined()
@@ -172,14 +179,15 @@ describe('mobile Today Astra', () => {
       await Promise.resolve()
     })
     const pressedAction = tree.root.findAll((node) =>
-      typeof node.props.onPress === 'function' &&
-      node.props.children === 'todayAstra.openConversation',
+      node.props.accessibilityRole === 'link' &&
+      node.findAll((child) => child.props.children === 'todayAstra.openConversation').length > 0,
     )[0]
     if (!pressedAction) throw new Error('Pressed proactive action did not render')
     expect((StyleSheet.flatten(pressedAction.props.style) as Record<string, unknown>)).toMatchObject({
       backgroundColor: '#333333',
-      color: '#ffffff',
     })
+    const pressedLabel = pressedAction.findAll((node) => node.props.children === 'todayAstra.openConversation')[0]
+    expect((StyleSheet.flatten(pressedLabel?.props.style) as Record<string, unknown>)).toMatchObject({ color: '#ffffff' })
     const onPressOut = pressedAction.props.onPressOut
     if (typeof onPressOut !== 'function') throw new Error('Proactive action cannot release press feedback')
     await TestRenderer.act(async () => {

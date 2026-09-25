@@ -26,6 +26,24 @@ import {
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 
+describe('returning profile after other completion writes', () => {
+  it.each([
+    ['skip', () => useSkipHabit()],
+    ['edit bad-habit flag', () => useUpdateHabit()],
+    ['delete', () => useDeleteHabit()],
+    ['restore', () => useRestoreHabit()],
+    ['checklist', () => useUpdateChecklist()],
+    ['bulk delete', () => useBulkDeleteHabits()],
+    ['bulk skip', () => useBulkSkipHabits()],
+  ] as const)('refreshes profile after %s', (_name, useWrite) => {
+    mocks.queryClient.invalidateQueries.mockClear()
+    const mutation = useWrite() as unknown as MutationConfig<unknown, unknown, unknown>
+    mutation.onSettled?.({}, null, {}, undefined)
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+})
+
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))

@@ -93,6 +93,7 @@ describe('web Today Astra', () => {
 
     renderTodayAstra()
     expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
+    expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveClass('today-astra-action')
 
     expect(mocks.markRead).not.toHaveBeenCalled()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)

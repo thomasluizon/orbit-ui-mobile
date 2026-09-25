@@ -67,7 +67,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
             {line.notificationId ? (
               <button
                 type="button"
-                className="orbit-link-action orbit-link-action-persistent border-0 bg-transparent p-0 text-inherit"
+                className="orbit-link-action orbit-link-action-persistent today-astra-action border-0 bg-transparent p-0 text-inherit"
                 onClick={() => {
                   markRead.mutate(line.notificationId)
                   openConversation()
@@ -76,7 +76,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
                 {line.action}
               </button>
             ) : (
-              <a className="orbit-link-action orbit-link-action-persistent text-inherit" href="/progress">
+              <a className="orbit-link-action orbit-link-action-persistent today-astra-action text-inherit" href="/progress">
                 {line.action}
               </a>
             )}

@@ -356,6 +356,7 @@ export function useChatComposer() {
     }
     if (invalidations.habits) {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     }
     if (invalidations.goals) {
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })

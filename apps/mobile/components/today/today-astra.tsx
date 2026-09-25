@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import {
@@ -58,11 +58,12 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
       <AstraGlyph size={20} color={tokens.fg3} />
       <Text style={[styles.text, { color: tokens.fg2 }]}>
         {line.text}{' '}
-        <Text
+        <Pressable
           accessibilityRole="link"
+          hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
           style={[
-            styles.action,
-            actionPressed ? { backgroundColor: tokens.bgHover, color: tokens.fg1 } : null,
+            styles.actionTarget,
+            actionPressed ? { backgroundColor: tokens.bgHover } : null,
           ]}
           onPressIn={() => setActionPressed(true)}
           onPressOut={() => setActionPressed(false)}
@@ -75,15 +76,16 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
             }
           }}
         >
-          {line.action}
-        </Text>
+          <Text style={[styles.action, { color: actionPressed ? tokens.fg1 : tokens.fg2 }]}>{line.action}</Text>
+        </Pressable>
       </Text>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  line: { minHeight: 42, flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 0, paddingBottom: 12, paddingTop: 8 },
+  line: { minHeight: 44, flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 0, paddingBottom: 12, paddingTop: 8 },
   text: { minWidth: 0, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  action: { textDecorationLine: 'underline' },
+  actionTarget: { minWidth: 44, minHeight: 44, justifyContent: 'flex-end' },
+  action: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, textDecorationLine: 'underline' },
 })

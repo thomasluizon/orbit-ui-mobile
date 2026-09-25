@@ -401,6 +401,7 @@ export function useUpdateHabit() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }
@@ -412,6 +413,7 @@ function invalidateHabitDeleteQueries(queryClient: ReturnType<typeof useQueryCli
   void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
   void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+  void queryClient.invalidateQueries({ queryKey: profileKeys.all })
 }
 
 export function useRestoreHabit() {
@@ -581,6 +583,7 @@ export function useUpdateChecklist() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }
@@ -695,6 +698,7 @@ export function useBulkDeleteHabits() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }
@@ -808,6 +812,7 @@ export function useBulkSkipHabits() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }

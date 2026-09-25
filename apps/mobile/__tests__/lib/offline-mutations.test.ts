@@ -5,7 +5,7 @@ import type {
   QueuedMutation,
 } from '@orbit/shared/types/sync'
 import { logHabitResponseSchema } from '@orbit/shared/types/habit'
-import { calendarKeys, habitKeys } from '@orbit/shared/query'
+import { calendarKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { ApiClientError } from '@orbit/shared/utils'
 
@@ -424,6 +424,18 @@ describe('offline mutations', () => {
       API.profile.timezone, API.habits.delete('habit-old'),
     ])
     expect(mocks.queued).toHaveLength(0)
+  })
+
+  it('refreshes the returning profile after replaying a habit delete', async () => {
+    mocks.queued.push(buildQueuedMutation({
+      type: 'deleteHabit', scope: 'habits', endpoint: API.habits.delete('habit-old'),
+      method: 'DELETE', payload: undefined,
+    }))
+    mocks.setOnline(true)
+
+    await flushQueuedMutations()
+
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('allows a replay-blocked bulk action online while a timezone write waits', async () => {
