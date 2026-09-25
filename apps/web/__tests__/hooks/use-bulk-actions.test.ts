@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+import { useLayoutEffect } from 'react'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitListHandle } from '@/components/habits/habit-list'
@@ -28,9 +29,11 @@ vi.mock('next-intl', () => ({
 
 function renderBulkActions(
   selectedHabitIds: Set<string>,
-  readOnly = false,
+  completionReadOnly = false,
   habitsById = new Map<string, NormalizedHabit>(),
+  onReadOnlyCommit?: () => void,
 ) {
+  let currentCompletionReadOnly = completionReadOnly
   const onSuccess = vi.fn()
   const onPartialFailure = vi.fn()
   const settleBulkHabitResolutions = vi.fn()
@@ -38,19 +41,29 @@ function renderBulkActions(
     current: { settleBulkHabitResolutions },
   } as unknown as React.RefObject<HabitListHandle | null>
 
-  const { result } = renderHook(() =>
-    useBulkActions({
+  const { result, rerender } = renderHook(() => {
+    const actions = useBulkActions({
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
-      readOnly,
+      completionReadOnly: currentCompletionReadOnly,
       habitsById,
       habitListRef,
       onSuccess,
       onPartialFailure,
-    }),
-  )
+    })
+    useLayoutEffect(() => {
+      if (currentCompletionReadOnly) onReadOnlyCommit?.()
+    })
+    return actions
+  })
 
-  return { result, onSuccess, onPartialFailure, settleBulkHabitResolutions }
+  return {
+    result, onSuccess, onPartialFailure, settleBulkHabitResolutions,
+    setCompletionReadOnly(value: boolean) {
+      currentCompletionReadOnly = value
+      rerender()
+    },
+  }
 }
 
 function bulkSuccess(ids: string[]) {
@@ -130,7 +143,7 @@ describe('useBulkActions reversibility boundary', () => {
     expect(settleBulkHabitResolutions).toHaveBeenCalledWith([
       { habitId: 'h-1', mode: 'skip' },
       { habitId: 'h-2', mode: 'skip' },
-    ])
+    ], VIEWED_DATE)
     expect(onSuccess).toHaveBeenCalledTimes(1)
   })
 
@@ -152,8 +165,52 @@ describe('useBulkActions reversibility boundary', () => {
     expect(settleBulkHabitResolutions).toHaveBeenCalledWith([
       { habitId: 'h-1', mode: 'log' },
       { habitId: 'h-2', mode: 'log' },
-    ])
+    ], VIEWED_DATE)
     expect(onSuccess).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog', 'log'],
+    ['skip', bulkSkip, 'confirmBulkSkip', 'skip'],
+  ] as const)('keeps a delayed bulk %s result on its mutation date', async (
+    _name,
+    mutation,
+    action,
+    mode,
+  ) => {
+    let resolveRequest!: (value: ReturnType<typeof bulkSuccess>) => void
+    mutation.mutateAsync.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve
+    }))
+    const settleBulkHabitResolutions = vi.fn()
+    const habitListRef = {
+      current: { settleBulkHabitResolutions },
+    } as unknown as React.RefObject<HabitListHandle | null>
+    let viewedDate = VIEWED_DATE
+    const { result, rerender } = renderHook(() => useBulkActions({
+      selectedHabitIds: new Set(['h-1']),
+      selectedDateStr: viewedDate,
+      completionReadOnly: false,
+      habitsById: new Map(),
+      habitListRef,
+      onSuccess: vi.fn(),
+      onPartialFailure: vi.fn(),
+    }))
+
+    let request!: Promise<void>
+    act(() => { request = result.current[action]() })
+    viewedDate = '2026-04-02'
+    rerender()
+    await act(async () => {
+      resolveRequest(bulkSuccess(['h-1']))
+      await request
+    })
+
+    expect(mutation.mutateAsync).toHaveBeenCalledWith([{ habitId: 'h-1', date: VIEWED_DATE }])
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith(
+      [{ habitId: 'h-1', mode }],
+      VIEWED_DATE,
+    )
   })
 
   it('keeps the confirmation for the irreversible bulk delete', async () => {
@@ -201,6 +258,41 @@ describe('useBulkActions reversibility boundary', () => {
     ])
   })
 
+  it.each(['log', 'skip'] as const)('refuses a queued %s retry after rollover', async (action) => {
+    const mutation = action === 'log' ? bulkLog.mutateAsync : bulkSkip.mutateAsync
+    mutation.mockResolvedValueOnce({ results: [{ habitId: 'h-1', status: 'Failed' }] })
+    const { result, setCompletionReadOnly } = renderBulkActions(new Set(['h-1']))
+    await act(async () => {
+      if (action === 'log') await result.current.confirmBulkLog()
+      else await result.current.confirmBulkSkip()
+    })
+    const retry = showQueued.mock.calls[0]?.[2] as (() => void) | undefined
+    expect(retry).toBeTypeOf('function')
+    setCompletionReadOnly(true)
+    await act(async () => {
+      retry?.()
+      await Promise.resolve()
+    })
+    expect(mutation).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['log', 'skip'] as const)('refuses a queued %s retry before passive effects after rollover', async (action) => {
+    const mutation = action === 'log' ? bulkLog.mutateAsync : bulkSkip.mutateAsync
+    mutation.mockResolvedValueOnce({ results: [{ habitId: 'h-1', status: 'Failed' }] })
+    const retry = { current: undefined as (() => void) | undefined }
+    const { result, setCompletionReadOnly } = renderBulkActions(
+      new Set(['h-1']), false, new Map(), () => retry.current?.(),
+    )
+    await act(async () => {
+      if (action === 'log') await result.current.confirmBulkLog()
+      else await result.current.confirmBulkSkip()
+    })
+    retry.current = showQueued.mock.calls[0]?.[2] as (() => void) | undefined
+    expect(retry.current).toBeTypeOf('function')
+    setCompletionReadOnly(true)
+    expect(mutation).toHaveBeenCalledTimes(1)
+  })
+
   it('deletes only selected roots so one request covers each server-side subtree', async () => {
     const habitsById = new Map<string, NormalizedHabit>([
       ['parent', { id: 'parent', parentId: null } as NormalizedHabit],
@@ -215,7 +307,7 @@ describe('useBulkActions reversibility boundary', () => {
     expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent'])
   })
 
-  it('refuses log, skip, and delete mutations on a read-only date', async () => {
+  it('refuses completion but allows deletion on an old date', async () => {
     const { result, onSuccess, settleBulkHabitResolutions } = renderBulkActions(
       new Set(['h-1']),
       true,
@@ -229,8 +321,8 @@ describe('useBulkActions reversibility boundary', () => {
 
     expect(bulkLog.mutateAsync).not.toHaveBeenCalled()
     expect(bulkSkip.mutateAsync).not.toHaveBeenCalled()
-    expect(bulkDelete.mutateAsync).not.toHaveBeenCalled()
+    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['h-1'])
     expect(settleBulkHabitResolutions).not.toHaveBeenCalled()
-    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledOnce()
   })
 })

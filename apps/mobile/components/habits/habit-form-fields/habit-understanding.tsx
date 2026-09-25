@@ -216,7 +216,7 @@ function createStyles(tokens: AppTokens) {
       textDecorationLine: 'underline',
       textDecorationColor: tokens.hairlineStrong,
     },
-    placeholder: { color: tokens.fg4 },
+    placeholder: { color: tokens.fg3 },
     error: { color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 },
     preview: {
       gap: 16,

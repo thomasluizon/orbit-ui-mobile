@@ -26,8 +26,8 @@ interface HabitRowTrailingProps {
   tokens: ReturnType<typeof createTokensV2>
   onToggleStatus: () => void
   onOpenMenu: () => void
-  readOnly: boolean
   completionReadOnly: boolean
+  completionReason?: string
 }
 
 function resolveParentRingColors(
@@ -61,8 +61,8 @@ export function HabitRowTrailing({
   tokens,
   onToggleStatus,
   onOpenMenu,
-  readOnly,
   completionReadOnly,
+  completionReason,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
   const statusLabel = t(`habits.statusDot.${dotState}` as const)
@@ -85,6 +85,7 @@ export function HabitRowTrailing({
               accessibilityRole="button"
               disabled={completionReadOnly}
               accessibilityState={{ disabled: completionReadOnly }}
+              accessibilityHint={completionReadOnly ? completionReason : undefined}
               accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}, ${childrenDone}/${childrenTotal}`}
               style={({ pressed }) => [
                 styles.parentRingButton,
@@ -106,8 +107,9 @@ export function HabitRowTrailing({
           <CheckCircle
             state={dotState}
             onToggle={onToggleStatus}
-            disabled={readOnly || (!canLog && !isDoneForRange)}
+            disabled={completionReadOnly || (!canLog && !isDoneForRange)}
             accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}`}
+            accessibilityHint={completionReadOnly ? completionReason : undefined}
             tokens={tokens}
             size={depth === 1 ? 24 : 30}
           />
@@ -116,13 +118,11 @@ export function HabitRowTrailing({
         <MenuAnchorHost anchorRef={menuButtonRef}>
           <Pressable
             onPress={onOpenMenu}
-            disabled={readOnly}
             accessibilityRole="button"
             accessibilityLabel={t('habits.actions.more')}
-            accessibilityState={{ disabled: readOnly }}
             style={({ pressed }) => [
               styles.menuButton,
-              pressed && !readOnly
+              pressed
                 ? {
                     backgroundColor: tokens.bgHover,
                     transform: [{ scale: 0.96 }],

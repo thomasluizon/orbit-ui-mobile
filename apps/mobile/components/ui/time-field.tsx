@@ -226,7 +226,7 @@ function TimeEntry({
           accessibilityState={{ disabled }}
           style={styles.icon}
         >
-          <Clock3 size={20} color={tokens.fg4} strokeWidth={1.8} />
+          <Clock3 size={20} color={tokens.fg3} strokeWidth={1.8} />
         </Pressable>
         {canClear ? (
           <Pressable

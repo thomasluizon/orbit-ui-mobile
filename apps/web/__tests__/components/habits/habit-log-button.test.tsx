@@ -36,4 +36,15 @@ describe('HabitLogButton', () => {
     expect(screen.getByRole('button', { name: 'Unlog Read' })).toBeInTheDocument()
     expect(screen.getByTestId('status-ring')).toHaveTextContent('done')
   })
+
+  it('announces why an old-day action is disabled', () => {
+    const onPress = vi.fn()
+    render(<HabitLogButton label="Log Read" logged={false} onPress={onPress}
+      disabled disabledReason="Logging stops 7 days back." />)
+    const button = screen.getByRole('button', { name: 'Log Read' })
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveAccessibleDescription('Logging stops 7 days back.')
+    fireEvent.click(button)
+    expect(onPress).not.toHaveBeenCalled()
+  })
 })

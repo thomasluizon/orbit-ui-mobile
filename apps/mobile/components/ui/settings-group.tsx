@@ -91,7 +91,7 @@ export function SettingsGroupRow({
       <View style={styles.trailingBlock}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
-          <ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} />
+          <ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} />
         ) : null}
       </View>
     </Pressable>

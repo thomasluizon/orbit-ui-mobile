@@ -127,7 +127,7 @@ export function SettingsRow({
         )}
         {children}
         {accessory === 'chevron' && (
-          <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-4)" />
+          <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-3)" />
         )}
       </span>
     </RootTag>

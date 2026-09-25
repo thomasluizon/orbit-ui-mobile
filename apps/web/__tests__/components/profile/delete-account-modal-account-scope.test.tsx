@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { getStepUpPhaseFromTiming, getStepUpStorageKey } from '@orbit/shared/utils'
-import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { holdAccount, replaceAccountWith, retireHeldAccount } from '@/__tests__/support/account-change'
 import { useAuthStore } from '@/stores/auth-store'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
@@ -121,7 +121,7 @@ it('does not route the next account into a delayed deletion challenge', async ()
 })
 
 it('waits for the first account check before requesting a deletion challenge', async () => {
-  useAuthStore.getState().adoptAccountFromSignal(null)
+  await retireHeldAccount()
   useAuthStore.setState({ isAuthenticated: true, sessionInactive: false })
   let finishSession!: (response: Response) => void
   vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {

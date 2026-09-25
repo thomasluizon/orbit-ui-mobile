@@ -3,12 +3,14 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
+import { API } from '@orbit/shared/api'
 import {
   buildOnboardingHabitInput,
   buildOnboardingScheduleFromPhrase,
   buildOnboardingScheduleFromSuggestion,
   changeOnboardingScheduleMode,
   clampOnboardingRepeatWeeks,
+  getClientTimeZone,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
   getOnboardingHabitTitle,
@@ -33,6 +35,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { accountTimezoneDependency, isQueuedResult } from '@/lib/offline-mutations'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -119,7 +123,7 @@ export function OnboardingFlow() {
   const deferredPushFailure = useOnboardingDraftStore((state) => isLive && state.pushRegistrationFailed)
   const deferredHabit = useOnboardingDraftStore((state) => deferredPushFailure ? state.habits[0] : undefined)
   const [resolvingDeferredPush] = useState(deferredPushFailure)
-  const { profile } = useProfile({ enabled: isLive })
+  const { profile, refetch: refetchProfile } = useProfile({ enabled: isLive })
   const suggestion = useHabitSuggestion()
   const push = usePushNotifications()
   const [step, setStep] = useState(resolvingDeferredPush ? ONBOARDING_REMIND_STEP : ONBOARDING_WHAT_STEP)
@@ -177,14 +181,18 @@ export function OnboardingFlow() {
     setCreating(true); setCreateFailed(false)
     const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: false, schedule })
     try {
-      if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
-      else { const result = await actions.createHabit(input); setCreatedId(result.id) }
+      const accountProfile = isLive ? profile ?? (await refetchProfile()).data : undefined
+      if (isLive && !accountProfile) throw new Error('Profile unavailable')
+      const accountTimeZone = accountProfile?.timeZone ?? getClientTimeZone()
+      let timezoneDependency: string | undefined
+      if (isLive && accountProfile?.timeZone == null && accountTimeZone && accountTimeZone !== 'UTC') {
+        const timezoneResult = await performQueuedApiMutation({ type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone, method: 'PUT', payload: { timeZone: accountTimeZone }, dedupeKey: 'profile-timezone-auto' })
+        if (isQueuedResult(timezoneResult)) timezoneDependency = accountTimezoneDependency(timezoneResult.queuedMutationId)
+      }
+      if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible }, ...(timezoneDependency ? [timezoneDependency] : []))
+      else { const result = await actions.createHabit(input, ...(timezoneDependency ? [timezoneDependency] : [])); setCreatedId(result.id) }
       setCreatedTitle(input.title)
-      /**
-       * The device clock decides today here while the API resolves it from the profile time zone, so a
-       * person straddling midnight in another zone can read one day wrong until #602 lands.
-       */
-      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date()))
+      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountTimeZone))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState()); setStep(ONBOARDING_REMIND_STEP)
     } catch { setCreateFailed(true) } finally { setCreating(false) }
