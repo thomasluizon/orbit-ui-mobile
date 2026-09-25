@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 
@@ -27,6 +27,11 @@ vi.mock('@/hooks/use-app-toast', () => ({
 
 import { ChecklistTemplates } from '@/components/habits/checklist-templates'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 function openTemplates() {
   fireEvent.click(screen.getByText('habits.form.templates'))
@@ -210,5 +215,47 @@ describe('ChecklistTemplates', () => {
     const onError = mockDelete.mock.calls[0]![1].onError as () => void
     onError()
     expect(mockShowError).toHaveBeenCalledWith('habits.form.deleteTemplateError')
+  })
+})
+
+describe('ChecklistTemplates across an account change', () => {
+  const ACCOUNT_A_ITEMS: ChecklistItem[] = [{ text: 'Account A step', isChecked: false }]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    mockTemplates.mockReturnValue({ data: [] })
+    mockIsPending = false
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function nameATemplate() {
+    render(<ChecklistTemplates items={ACCOUNT_A_ITEMS} onLoad={vi.fn()} />)
+    openTemplates()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.saveCurrentList' }))
+    const field = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
+    fireEvent.change(field, { target: { value: 'Account A checklist' } })
+    expect(field).toHaveValue('Account A checklist')
+  }
+
+  it('closes the sheet and drops the typed template name on a replacement', async () => {
+    nameATemplate()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByPlaceholderText('habits.form.templateNamePlaceholder')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.form.saveCurrentList')).not.toBeInTheDocument()
+  })
+
+  it('keeps the typed template name when the same account recovers from a rejected refresh', async () => {
+    nameATemplate()
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByPlaceholderText('habits.form.templateNamePlaceholder')).toHaveValue('Account A checklist')
   })
 })

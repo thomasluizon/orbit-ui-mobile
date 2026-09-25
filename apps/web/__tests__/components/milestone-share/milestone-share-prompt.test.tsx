@@ -6,8 +6,15 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ getQueryData: () => undefined }),
+/**
+ * One client for every render, the way the real `useQueryClient` reads one off a context. A fresh
+ * object per render changes the identity of an effect dependency, which re-arms a settle timer
+ * this test exists to prove stays cleared.
+ */
+const queryClientDouble = { getQueryData: () => undefined }
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueryClient: () => queryClientDouble,
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -32,6 +39,7 @@ vi.mock('@/hooks/use-share-card', () => ({
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 function resetStores() {
   useEngagementPromptStore.setState({
@@ -66,13 +74,17 @@ async function settle() {
 describe('MilestoneSharePrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn())
     resetStores()
+    holdAccount('user-1')
   })
 
   afterEach(() => {
     cleanup()
     vi.clearAllTimers()
     vi.useRealTimers()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
   })
 
   it('renders nothing when no milestone is armed', () => {
@@ -126,5 +138,29 @@ describe('MilestoneSharePrompt', () => {
 
     expect(screen.queryByTestId('sheet')).toBeNull()
     expect(useEngagementPromptStore.getState().armedPrompt).toBeNull()
+  })
+
+  it('takes the card off the screen when another account replaces the tab', async () => {
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await settle()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('does not open under the next account from a timer the previous one armed', async () => {
+    render(<MilestoneSharePrompt />)
+    await armMilestoneShare('share-streak-7')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    await replaceAccountWith('user-2')
+    await settle()
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 })

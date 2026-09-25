@@ -567,16 +567,19 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   execute,
   queuedResult,
   queuedResultFactory,
+  isCurrent,
 }: {
   mutation: QueuedMutation
   execute: (resolvedMutation: QueuedMutation) => Promise<TOnlineResult>
   queuedResult?: TQueuedResult
   queuedResultFactory?: (mutationId: string, retained: boolean) => TQueuedResult
+  isCurrent?: () => boolean
 }): Promise<TOnlineResult | TQueuedResult> {
   const [resolvedMutation, online] = await Promise.all([
     resolveMutationReferences(mutation),
     getCurrentConnectivity(),
   ])
+  if (isCurrent?.() === false) throw new Error('Mutation owner changed')
   const hasPendingDependencies = hasPendingOfflineDependencies(resolvedMutation)
   const retainedMutation = findUnfinalizedFirstWrite(resolvedMutation)
 
@@ -606,6 +609,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
       throw error
     }
 
+    if (isCurrent?.() === false) throw new Error('Mutation owner changed')
     const queuedMutationId = await markQueuedMutation(resolvedMutation)
     return queuedResultFactory?.(queuedMutationId, false) ?? queuedResult as TQueuedResult
   } finally {

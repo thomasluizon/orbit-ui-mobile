@@ -2,6 +2,8 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
 import type { CalendarSyncEvent } from "@orbit/shared/utils";
+import { advanceAccountGeneration } from '@/lib/session-epoch';
+import { CalendarAutoSyncSection } from '@/components/calendar-sync/calendar-sync-auto-section';
 
 import CalendarSyncScreen from "@/app/calendar-sync";
 
@@ -10,6 +12,21 @@ const TestRenderer = require("react-test-renderer");
 type TestNode = {
   props: Record<string, unknown>;
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[];
+};
+
+type CalendarSyncTree = {
+  root: TestNode & {
+    findByType: (component: typeof CalendarAutoSyncSection) => {
+      props: {
+        onToggleAutoSync: (enabled: boolean) => void;
+        onSyncNow: () => void;
+        isTogglePending: boolean;
+        isSyncNowPending: boolean;
+      };
+    };
+    find: (predicate: (node: TestNode) => boolean) => TestNode;
+  };
+  update: (element: React.ReactElement) => void;
 };
 
 const colorProxy: any = new Proxy(
@@ -45,6 +62,10 @@ const mocks = vi.hoisted(() => {
     isOnline: true,
     bulkMutateAsync: vi.fn(),
     dismissMutateAsync: vi.fn(),
+    setAutoSyncMutate: vi.fn(),
+    runSyncNowMutate: vi.fn(),
+    isSetPending: false,
+    isRunPending: false,
     showError: vi.fn(),
   };
 });
@@ -102,12 +123,12 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
     error: null,
   }),
   useSetCalendarAutoSync: () => ({
-    mutate: vi.fn(),
-    isPending: false,
+    mutate: mocks.setAutoSyncMutate,
+    isPending: mocks.isSetPending,
   }),
   useRunCalendarSyncNow: () => ({
-    mutate: vi.fn(),
-    isPending: false,
+    mutate: mocks.runSyncNowMutate,
+    isPending: mocks.isRunPending,
   }),
   useDismissCalendarSuggestion: () => ({
     mutateAsync: mocks.dismissMutateAsync,
@@ -229,6 +250,10 @@ describe("CalendarSyncScreen", () => {
     mocks.isOnline = true;
     mocks.bulkMutateAsync.mockReset();
     mocks.dismissMutateAsync.mockReset();
+    mocks.setAutoSyncMutate.mockReset();
+    mocks.runSyncNowMutate.mockReset();
+    mocks.isSetPending = false;
+    mocks.isRunPending = false;
   });
 
   it("refetches calendar events through the cached query once the screen settles", async () => {
@@ -429,6 +454,57 @@ describe("CalendarSyncScreen", () => {
     });
 
     expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: "sug-0" });
+  });
+
+  it('drops a previous account toggle error while the next account can toggle', async () => {
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree; await Promise.resolve(); });
+    const section = tree.root.findByType(CalendarAutoSyncSection);
+    await TestRenderer.act(async () => { section.props.onToggleAutoSync(true); await Promise.resolve(); });
+    const oldOptions = mocks.setAutoSyncMutate.mock.calls[0]![1];
+    mocks.isSetPending = true;
+    await TestRenderer.act(async () => { tree.update(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findByType(CalendarAutoSyncSection).props.isTogglePending).toBe(true);
+    expect(tree.root.find((node) => node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'calendar.autoSync.title').props.accessibilityState).toEqual({ checked: false, disabled: true });
+    mocks.isSetPending = false;
+    await TestRenderer.act(async () => { advanceAccountGeneration(); tree.update(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findByType(CalendarAutoSyncSection).props.isTogglePending).toBe(false);
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'calendar.autoSync.title')).toHaveLength(0);
+    await TestRenderer.act(async () => { section.props.onToggleAutoSync(false); await Promise.resolve(); });
+    expect(mocks.setAutoSyncMutate).toHaveBeenCalledTimes(2);
+    oldOptions.onError(new Error('old failure'));
+    expect(mocks.showError).not.toHaveBeenCalled();
+  });
+
+  it('drops a previous account manual sync error', async () => {
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree; await Promise.resolve(); });
+    const section = tree.root.findByType(CalendarAutoSyncSection);
+    await TestRenderer.act(async () => { section.props.onSyncNow(); await Promise.resolve(); });
+    const oldOptions = mocks.runSyncNowMutate.mock.calls[0]![1];
+    mocks.isRunPending = true;
+    await TestRenderer.act(async () => { tree.update(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findByType(CalendarAutoSyncSection).props.isSyncNowPending).toBe(true);
+    expect(tree.root.find((node) => node.props.accessibilityLabel === 'calendar.autoSync.syncNow').props.disabled).toBe(true);
+    mocks.isRunPending = false;
+    await TestRenderer.act(async () => { advanceAccountGeneration(); tree.update(<CalendarSyncScreen />); await Promise.resolve(); });
+    expect(tree.root.findByType(CalendarAutoSyncSection).props.isSyncNowPending).toBe(false);
+    expect(tree.root.find((node) => node.props.accessibilityLabel === 'calendar.autoSync.syncNow').props.disabled).toBe(false);
+    oldOptions.onError(new Error('old failure'));
+    expect(mocks.showError).not.toHaveBeenCalled();
+  });
+
+  it('drops a previous account suggestion error', async () => {
+    mocks.searchParams = { mode: 'review' };
+    mocks.suggestions = [{ id: 'sug-0', event: buildEvents(1)[0] }];
+    let failDismiss!: (error: Error) => void;
+    mocks.dismissMutateAsync.mockImplementationOnce(() => new Promise((_resolve, reject) => { failDismiss = reject; }));
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />) as CalendarSyncTree; await Promise.resolve(); });
+    const dismiss = tree.root.find((node: TestNode) => node.props.accessibilityLabel === 'calendar.autoSync.dismissSuggestion');
+    await TestRenderer.act(async () => { (dismiss.props.onPress as () => void)(); await Promise.resolve(); });
+    await TestRenderer.act(async () => { advanceAccountGeneration(); failDismiss(new Error('old failure')); await Promise.resolve(); });
+    expect(mocks.showError).not.toHaveBeenCalled();
   });
 
   it("explains and disables a weekday interval suggestion before import", async () => {

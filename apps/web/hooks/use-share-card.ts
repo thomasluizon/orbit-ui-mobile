@@ -1,10 +1,12 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef } from 'react'
 import { toBlob } from 'html-to-image'
 import { ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
 import { SHARE_CARD_FILE_NAME } from '@orbit/shared/utils'
 import { useReportEvent } from '@/hooks/use-gamification'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 interface ShareCardPayload {
   shareTitle: string
@@ -24,9 +26,9 @@ function downloadFile(file: File) {
 /** Captures a ShareCard node to PNG and shares it via the Web Share API (files), falling back to a file download. */
 export function useShareCard() {
   const captureRef = useRef<HTMLDivElement>(null)
-  const [isSharing, setIsSharing] = useState(false)
-  const [hasError, setHasError] = useState(false)
-  const [savedFileName, setSavedFileName] = useState<string | null>(null)
+  const [isSharing, setIsSharing] = useAccountScopedState(false)
+  const [hasError, setHasError] = useAccountScopedState(false)
+  const [savedFileName, setSavedFileName] = useAccountScopedState<string | null>(null)
   const { mutate: reportEvent } = useReportEvent()
 
   const canShareFiles = useMemo(() => {
@@ -54,11 +56,13 @@ export function useShareCard() {
   }
 
   async function share(payload: ShareCardPayload) {
+    const accountGeneration = getAccountGeneration()
     setIsSharing(true)
     setHasError(false)
     setSavedFileName(null)
     try {
       const file = await captureFile()
+      if (getAccountGeneration() !== accountGeneration) return
       if (canShareFiles && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -66,34 +70,38 @@ export function useShareCard() {
           text: payload.shareText,
           url: payload.url,
         })
+        if (getAccountGeneration() !== accountGeneration) return
       } else {
         downloadFile(file)
         setSavedFileName(file.name)
       }
       reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch (error) {
+      if (getAccountGeneration() !== accountGeneration) return
       if (error instanceof DOMException && error.name === 'AbortError') {
         return
       }
       setHasError(true)
     } finally {
-      setIsSharing(false)
+      if (getAccountGeneration() === accountGeneration) setIsSharing(false)
     }
   }
 
   async function download() {
+    const accountGeneration = getAccountGeneration()
     setIsSharing(true)
     setHasError(false)
     setSavedFileName(null)
     try {
       const file = await captureFile()
+      if (getAccountGeneration() !== accountGeneration) return
       downloadFile(file)
       setSavedFileName(file.name)
       reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch {
-      setHasError(true)
+      if (getAccountGeneration() === accountGeneration) setHasError(true)
     } finally {
-      setIsSharing(false)
+      if (getAccountGeneration() === accountGeneration) setIsSharing(false)
     }
   }
 
