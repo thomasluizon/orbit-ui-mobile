@@ -163,7 +163,7 @@ export function HabitDrill({
       initialNumToRender={10}
       maxToRenderPerBatch={5}
       windowSize={5}
-      removeClippedSubviews={true}
+      removeClippedSubviews={false}
     />
   )
 }
