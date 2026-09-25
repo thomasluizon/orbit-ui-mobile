@@ -123,6 +123,17 @@ describe('HabitRow check circle accessible name', () => {
     expect(checkmark).toHaveAttribute('aria-disabled', 'true')
     expect(checkmark).toHaveAccessibleDescription('Logging stops 7 days back.')
   })
+  it('announces the unavailable day reason on a focusable child completion control', () => {
+    const onLog = vi.fn()
+    render(<HabitRow habit={createMockHabit({ title: 'Read' })} child depth={1}
+      completionReadOnly completionReason="We could not load this day's habits."
+      actions={{ onLog }} />)
+    const ring = screen.getByTestId('habit-status-toggle')
+    expect(ring).toHaveAttribute('aria-disabled', 'true')
+    expect(ring).toHaveAccessibleDescription("We could not load this day's habits.")
+    fireEvent.click(ring)
+    expect(onLog).not.toHaveBeenCalled()
+  })
   it('lights the panel only while the enabled body is hovered', () => {
     const panel = renderRowInPanel(
       <HabitRow

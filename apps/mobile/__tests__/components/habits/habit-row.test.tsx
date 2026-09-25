@@ -87,6 +87,31 @@ describe('HabitRow canonical content (mobile)', () => {
 })
 
 describe('HabitRow status control names (mobile)', () => {
+  it('announces why child completion is unavailable while keeping its body openable', () => {
+    const onDetail = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow habit={createMockHabit({ title: 'Read' })} completionReadOnly
+          completionReason="We could not load this day's habits."
+          actions={{ onDetail }} />,
+      )
+    })
+
+    const ring = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityHint === "We could not load this day's habits." &&
+        node.props.accessibilityRole === 'button',
+    )[0]
+    expect(ring.props.accessibilityState).toEqual({ disabled: true })
+    expect(ring.props.accessibilityLabel).toContain('Read')
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    TestRenderer.act(() => body.props.onPress())
+    expect(onDetail).toHaveBeenCalledOnce()
+  })
+
   it('presses the whole card from the body and only the ring from the ring control', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {

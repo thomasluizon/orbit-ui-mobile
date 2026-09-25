@@ -16,6 +16,9 @@ import {
   formatLocaleDate,
   formatAPIDate,
   formatAPIDateInTimeZone,
+  getAvailableHabitDetailScopedChild,
+  getHabitDetailChildCompletionReason,
+  getHabitDetailChildUnavailableReasonKey,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
   isHabitHistoryMonthLoaded,
@@ -73,6 +76,12 @@ function SectionTitle({ children, color }: Readonly<{ children: string; color: s
 
 function Surface({ children, backgroundColor, borderColor }: Readonly<{ children: React.ReactNode; backgroundColor: string; borderColor: string }>) {
   return <View style={[styles.surface, { backgroundColor, borderColor }]}>{children}</View>
+}
+
+function DayHabitsError({ visible, onRetry, tokens }: Readonly<{ visible: boolean; onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation()
+  if (!visible) return null
+  return <View style={styles.dayHabitsError}><Text accessibilityRole="alert" style={[styles.muted, { color: tokens.fg2 }]}>{t('habits.detail.dayHabitsLoadError')}</Text><PillButton variant="secondary" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton></View>
 }
 
 function Metrics({ visible, loading, metrics, isBadHabit, tokens }: Readonly<{ visible: boolean; loading: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
@@ -353,6 +362,9 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     if (detailQuery.isError || !detailQuery.data) void detailQuery.refetch()
     if (allHabitsQuery.isError) void allHabitsQuery.refetch()
   }
+  const childUnavailableReason = t(getHabitDetailChildUnavailableReasonKey(
+    habitsQuery.isError, habitsQuery.isLoading, !!habitsQuery.data,
+  ))
 
   const appBar = <HabitDetailNavigation parentId={parentId} onBack={back} />
   if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} header={appBar}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></FlowShell>
@@ -360,12 +372,15 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data, dateStr)
     .childrenByParent.get(habit.id) ?? [])
-    .map((child) => buildHabitDetailChildDateModel(
-      child,
-      habitsQuery.data?.habitsById.get(child.id),
-      dateStr,
-      todayStr,
-    ))
+    .map((child) => {
+      const scopedChild = getAvailableHabitDetailScopedChild(
+        habitsQuery.data?.habitsById.get(child.id), habitsQuery.isError, habitsQuery.isLoading,
+      )
+      return {
+        ...buildHabitDetailChildDateModel(child, scopedChild, dateStr, todayStr),
+        completionReason: getHabitDetailChildCompletionReason(scopedChild, completionReason, childUnavailableReason),
+      }
+    })
   return (
     <FlowShell nav={false} header={appBar}>
       <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} tokens={tokens} onPatch={patch} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
@@ -373,7 +388,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
       <RescheduleBlock habit={habit} slipping={slipping} hasPro={hasPro} locale={profile?.language ?? i18n.language} tokens={tokens} />
       {strip ? <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeader}><SectionTitle color={tokens.fg1}>{t('habits.detail.lastThirtyDays')}</SectionTitle><Text style={[styles.muted, { color: tokens.fg3 }]}>{strip.days.filter((value) => value === 'done').length}/30</Text></View><ScrollView horizontal showsHorizontalScrollIndicator={false}><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></ScrollView><Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} /></Surface> : null}
       <History habit={habit} logs={logsQuery.data} today={today} locale={profile?.language ?? i18n.language} weekStartsOn={profile?.weekStartDay ?? 0} tokens={tokens} />
-      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />{children.map(({ habit: child, completionReadOnly }) => <HabitRow key={child.id} habit={child} selectedDate={selectedDate} completionReadOnly={completionReadOnly} completionReason={completionReason} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} value={!hasPro ? t('habits.detail.proGate') : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
+      <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.checklist')}</SectionTitle></View><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><DayHabitsError visible={habitsQuery.isError} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} />{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason }) => <HabitRow key={child.id} habit={child} selectedDate={selectedDate} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} value={!hasPro ? t('habits.detail.proGate') : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
       <Surface backgroundColor={tokens.bgCard} borderColor={tokens.hairline}><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><SectionTitle color={tokens.fg1}>{t('habits.detail.moreDetails')}</SectionTitle><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable>{detailsOpen ? <Animated.View style={{ opacity: detailOpacity }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasPro} locale={profile?.language ?? i18n.language} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary} tokens={tokens} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View> : null}</Surface>
       <ListRow icon={<Trash2 size={24} color={tokens.statusBad} />} title={t('habits.detail.delete')} danger onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onClose={() => setCreateOpen(false)} initialDate={dateStr} parentHabit={habit} />
@@ -395,6 +410,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 18, lineHeight: 24 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
   sectionHeading: { gap: 4 },
+  dayHabitsError: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingVertical: 12 },
   historyActions: { flexDirection: 'row', gap: 8 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   metric: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },

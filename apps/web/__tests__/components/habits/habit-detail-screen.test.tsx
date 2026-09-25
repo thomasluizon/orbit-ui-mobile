@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
   allHabitsError: false,
   allHabitsRefetch: vi.fn(),
+  scopedLoading: false,
+  scopedError: false,
+  scopedRefetch: vi.fn(),
   allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
@@ -71,7 +74,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: (filters: { dateFrom?: string }) => ({ data: { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: false, isError: !filters.dateFrom && mocks.allHabitsError, refetch: mocks.allHabitsRefetch }),
+  useHabits: (filters: { dateFrom?: string }) => ({ data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -187,6 +190,7 @@ vi.mock('@/components/habits/habit-row', () => ({
         data-can-log={canLog}
         data-completion-read-only={completionReadOnly}
         data-completion-reason={completionReason}
+        disabled={completionReadOnly}
         aria-label={state === 'done' ? 'unlog-child' : 'log-child'}
         onClick={state === 'done' ? actions.onUnlog : actions.onLog}
       >
@@ -227,6 +231,9 @@ describe('HabitDetailScreen', () => {
     mocks.showError.mockReset()
     mocks.refetch.mockReset()
     mocks.allHabitsRefetch.mockReset()
+    mocks.scopedLoading = false
+    mocks.scopedError = false
+    mocks.scopedRefetch.mockReset()
     mocks.routerBack.mockReset()
     mocks.routerPush.mockReset()
     mocks.routerReplace.mockReset()
@@ -256,6 +263,38 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('habits.detail.loadError')
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
     expect(mocks.refetch).toHaveBeenCalledOnce()
+  })
+
+  it('distinguishes an absent child from unavailable day habits and restores completion after retry', () => {
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const child = screen.getByTestId('child-child-1')
+    expect(child).toBeDisabled()
+    expect(child).toHaveAttribute('data-completion-reason', 'calendar.dayCell.notScheduled')
+
+    mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-28'))
+    mocks.scopedLoading = true
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(child).toBeDisabled()
+    expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoading')
+    expect(screen.getByRole('button', { name: 'open-child-1' })).toBeEnabled()
+
+    mocks.scopedLoading = false
+    mocks.scopedError = true
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(child).toBeDisabled()
+    expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoadError')
+    expect(screen.getByText('habits.detail.dayHabitsLoadError')).toBeVisible()
+    expect(screen.getByText('habits.detail.addSubHabit')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
+    expect(mocks.scopedRefetch).toHaveBeenCalledOnce()
+    expect(mocks.refetch).not.toHaveBeenCalled()
+    expect(mocks.allHabitsRefetch).not.toHaveBeenCalled()
+
+    mocks.scopedError = false
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(child).toBeEnabled()
+    expect(child).not.toHaveAttribute('data-completion-reason')
+    expect(screen.queryByText('habits.detail.dayHabitsLoadError')).not.toBeInTheDocument()
   })
 
   it('retries a list-only load failure', () => {
@@ -480,6 +519,7 @@ describe('HabitDetailScreen', () => {
   })
 
   it('explains disabled completion in old-day detail and child rows', () => {
+    mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-19'))
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
 
     expect(screen.getByRole('button', { name: 'log' })).toBeDisabled()

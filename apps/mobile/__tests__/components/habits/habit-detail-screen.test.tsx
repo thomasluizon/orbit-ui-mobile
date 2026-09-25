@@ -31,6 +31,9 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
   allHabitsError: false,
   allHabitsRefetch: vi.fn(),
+  scopedLoading: false,
+  scopedError: false,
+  scopedRefetch: vi.fn(),
   allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
@@ -77,7 +80,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: (filters: { dateFrom?: string }) => ({ data: { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: false, isError: !filters.dateFrom && mocks.allHabitsError, refetch: mocks.allHabitsRefetch }),
+  useHabits: (filters: { dateFrom?: string }) => ({ data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }),
 }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
@@ -283,7 +286,7 @@ vi.mock('@/components/habits/habit-log-button', () => ({
   HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled: boolean; disabledReason?: string }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled, disabledReason }),
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, selectedDate, completionReadOnly, completionReason, actions }: { habit: NormalizedHabit; selectedDate: Date; completionReadOnly: boolean; completionReason?: string; actions: { onLog: () => void; onUnlog: () => void } }) => React.createElement('HabitRow', {
+  HabitRow: ({ habit, selectedDate, completionReadOnly, completionReason, actions }: { habit: NormalizedHabit; selectedDate: Date; completionReadOnly: boolean; completionReason?: string; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void } }) => React.createElement('HabitRow', {
     testID: `child-${habit.id}`,
     state: habit.isCompleted ? 'done' : 'empty',
     action: habit.isCompleted ? 'unlog' : 'log',
@@ -326,6 +329,9 @@ describe('HabitDetailScreen', () => {
     mocks.showError.mockReset()
     mocks.refetch.mockReset()
     mocks.allHabitsRefetch.mockReset()
+    mocks.scopedLoading = false
+    mocks.scopedError = false
+    mocks.scopedRefetch.mockReset()
     mocks.routerBack.mockReset()
     mocks.routerPush.mockReset()
     mocks.routerReplace.mockReset()
@@ -379,6 +385,42 @@ describe('HabitDetailScreen', () => {
       tree!.root.findByType('PillButton').props.onClick()
     })
     expect(mocks.refetch).toHaveBeenCalledOnce()
+  })
+
+  it('distinguishes an absent child from unavailable day habits and restores completion after retry', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    const child = () => tree!.root.findByProps({ testID: 'child-child-1' })
+    expect(child().props.completionReadOnly).toBe(true)
+    expect(child().props.completionReason).toBe('calendar.dayCell.notScheduled')
+
+    mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-28'))
+    mocks.scopedLoading = true
+    TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />))
+    expect(child().props.completionReadOnly).toBe(true)
+    expect(child().props.completionReason).toBe('habits.detail.dayHabitsLoading')
+
+    mocks.scopedLoading = false
+    mocks.scopedError = true
+    TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />))
+    expect(child().props.completionReadOnly).toBe(true)
+    expect(child().props.completionReason).toBe('habits.detail.dayHabitsLoadError')
+    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoadError')).toBe(true)
+    expect(tree!.root.findAllByType('ListRow').some((node: { props: { title?: string } }) => node.props.title === 'habits.detail.addSubHabit')).toBe(true)
+    TestRenderer.act(() => child().props.actions.onDetail())
+    expect(mocks.routerPush).toHaveBeenCalledOnce()
+    const retry = tree!.root.findAllByType('PillButton').find((node: { props: { children?: string } }) => node.props.children === 'habits.detail.retry')
+    TestRenderer.act(() => retry!.props.onClick())
+    expect(mocks.scopedRefetch).toHaveBeenCalledOnce()
+    expect(mocks.refetch).not.toHaveBeenCalled()
+    expect(mocks.allHabitsRefetch).not.toHaveBeenCalled()
+
+    mocks.scopedError = false
+    TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />))
+    expect(child().props.completionReadOnly).toBe(false)
+    expect(child().props.completionReason).toBeUndefined()
   })
 
   it('retries a list-only load failure', () => {
@@ -1039,6 +1081,7 @@ describe('HabitDetailScreen', () => {
   it('uses the account day and disables completion after rollover while mounted', () => {
     mocks.timeZone = 'Pacific/Kiritimati'
     vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-23'))
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)

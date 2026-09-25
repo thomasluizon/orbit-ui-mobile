@@ -787,6 +787,8 @@
       "screenTitle": "Hábito",
       "loading": "Carregando hábito",
       "loadError": "Não foi possível carregar este hábito.",
+      "dayHabitsLoading": "Carregando os hábitos deste dia",
+      "dayHabitsLoadError": "Não foi possível carregar os hábitos deste dia.",
       "retry": "Tentar novamente",
       "rename": "Renomear hábito",
       "saveName": "Salvar nome",
