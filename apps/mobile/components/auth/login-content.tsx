@@ -25,7 +25,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createLoginStyles(tokens)
-  const flow = useLoginFlow()
+  const flow = useLoginFlow(Boolean(callback))
   const { t } = flow
   const [callbackDismissed, setCallbackDismissed] = useState(false)
   function continueAccount() {

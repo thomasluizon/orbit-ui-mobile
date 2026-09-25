@@ -1,9 +1,11 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { API } from '@orbit/shared/api'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { createTokensV2 } from '@/lib/theme'
+import { accountTimezoneDependency } from '@/lib/offline-mutations'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -23,24 +25,32 @@ function prop<T>(node: TestNode, key: string): T {
   return Reflect.get(node.props, key) as T
 }
 
-const mocks = vi.hoisted(() => ({
-  createHabit: vi.fn(),
-  updateHabit: vi.fn(),
-  finishOnboarding: vi.fn(),
-  suggest: vi.fn(),
-  requestPermission: vi.fn(),
-  requestPermissionOutcome: vi.fn(),
-  navigate: vi.fn(),
-  isLive: true,
-  profile: { aiMessagesLimit: 5, aiMessagesUsed: 0 },
-  push: {
-    isLoading: false,
-    isSupported: true,
-    permissionStatus: 'undetermined',
-    permissionCanAskAgain: true,
-    registrationStatus: 'idle',
-  },
-}))
+const mocks = vi.hoisted(() => {
+  const profile: { aiMessagesLimit: number; aiMessagesUsed: number; timeZone: string | null } = {
+    aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC',
+  }
+  return {
+    createHabit: vi.fn(),
+    updateHabit: vi.fn(),
+    finishOnboarding: vi.fn(),
+    suggest: vi.fn(),
+    requestPermission: vi.fn(),
+    requestPermissionOutcome: vi.fn(),
+    navigate: vi.fn(),
+    refetchProfile: vi.fn(),
+  queueTimezone: vi.fn(),
+    profileAvailable: true,
+    isLive: true,
+    profile,
+    push: {
+      isLoading: false,
+      isSupported: true,
+      permissionStatus: 'undetermined',
+      permissionCanAskAgain: true,
+      registrationStatus: 'idle',
+    },
+  }
+})
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => undefined },
@@ -49,7 +59,8 @@ vi.mock('react-i18next', () => ({
 vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: mocks.navigate, replace: vi.fn() }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 vi.mock('@/stores/ui-store', () => ({ useUIStore: (selector: (state: { astraConversationOpen: boolean }) => unknown) => selector({ astraConversationOpen: false }) }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
+vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: mocks.queueTimezone }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: mocks.suggest, isPending: false }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({
   usePushNotifications: () => ({
@@ -156,10 +167,21 @@ async function selectTab(tree: ReturnType<typeof TestRenderer.create>, id: strin
 }
 
 describe('OnboardingFlow state model', () => {
+  const originalTimeZone = process.env.TZ
+
+  afterEach(() => {
+    if (originalTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalTimeZone
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
     mocks.profile.aiMessagesUsed = 0
+    mocks.profile.timeZone = 'UTC'
+    mocks.profileAvailable = true
+    mocks.refetchProfile.mockResolvedValue({ data: mocks.profile })
+    mocks.queueTimezone.mockResolvedValue(undefined)
     mocks.push.isSupported = true
     mocks.push.permissionStatus = 'undetermined'
     mocks.push.permissionCanAskAgain = true
@@ -260,6 +282,49 @@ describe('OnboardingFlow state model', () => {
     await pressTextAction(tree, 'onboarding.flow.remind.deny')
     expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
     expect(prop<boolean>(oneByType(tree.root, 'Done'), 'general')).toBe(false)
+  })
+
+  it.each([
+    ['UTC', '2026-09-14T02:00:00.000Z', 'America/Sao_Paulo', false],
+    ['America/Sao_Paulo', '2026-09-14T00:30:00.000Z', 'UTC', true],
+  ])('uses the %s device at %s with the %s profile weekday', async (deviceTimeZone, instant, profileTimeZone, dueToday) => {
+    process.env.TZ = deviceTimeZone
+    vi.setSystemTime(new Date(instant))
+    mocks.profile.timeZone = profileTimeZone
+    const tree = await reachDone(true)
+    expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(dueToday)
+  })
+
+  it('waits for the profile timezone before saving a signed-in habit', async () => {
+    process.env.TZ = 'UTC'
+    vi.setSystemTime(new Date('2026-09-14T02:00:00.000Z'))
+    mocks.profile.timeZone = 'America/Sao_Paulo'
+    mocks.profileAvailable = false
+    const tree = await reachDone(true)
+    expect(mocks.refetchProfile).toHaveBeenCalledOnce()
+    expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
+  })
+
+  it('sets a loaded null timezone before creating in the device account day', async () => {
+    process.env.TZ = 'America/Sao_Paulo'
+    vi.setSystemTime(new Date('2026-09-14T00:30:00.000Z'))
+    mocks.profile.timeZone = null
+    const tree = await reachDone(true)
+    expect(mocks.queueTimezone).toHaveBeenCalledWith(expect.objectContaining({ type: 'setTimeZone', endpoint: API.profile.timezone, payload: { timeZone: 'America/Sao_Paulo' } }))
+    expect(mocks.queueTimezone.mock.invocationCallOrder[0]).toBeLessThan(mocks.createHabit.mock.invocationCallOrder[0]!)
+    expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
+  })
+
+  it('queues a null timezone before an offline habit save', async () => {
+    process.env.TZ = 'America/Sao_Paulo'
+    vi.setSystemTime(new Date('2026-09-14T00:30:00.000Z'))
+    mocks.profile.timeZone = null
+    mocks.queueTimezone.mockResolvedValue({ queued: true, queuedMutationId: 'timezone-1' })
+    const tree = await reachDone(true)
+    expect(mocks.queueTimezone).toHaveBeenCalledOnce()
+    expect(mocks.createHabit).toHaveBeenCalledOnce()
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ title: expect.any(String) }), accountTimezoneDependency('timezone-1'))
+    expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
   })
 
   it('never tells the done screen a habit with no day is in the day', async () => {

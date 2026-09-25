@@ -11,7 +11,7 @@ import {
 import { getQueryClient } from '@/lib/query-client'
 import { useTodayHabitsData } from '@/app/(app)/use-today-habits-data'
 import { buildTodayFilters } from '@/app/(app)/today-model'
-import { holdAccount, recoverSameAccount, replaceAccountWith, respondWithAccount } from '@/__tests__/support/account-change'
+import { holdAccount, recoverSameAccount, replaceAccountWith, respondWithAccount, retireHeldAccount } from '@/__tests__/support/account-change'
 import { useAuthStore } from '@/stores/auth-store'
 
 const mocks = vi.hoisted(() => ({ fetchJson: vi.fn() }))
@@ -102,7 +102,7 @@ it('never shows the next account the habits the server rendered for the previous
 })
 
 it('discards server habits when the first client session check finds another account', async () => {
-  useAuthStore.getState().adoptAccountFromSignal(null)
+  await retireHeldAccount()
   const rendered = renderToday()
   expect(titlesOf(rendered.result.current.habitsById)).toEqual(['Take lithium at 9pm'])
   mocks.fetchJson.mockResolvedValue({
