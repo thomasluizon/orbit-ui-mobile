@@ -13,10 +13,16 @@ export function clearGoogleAuthStarted(): void {
 
 export function consumeRecentGoogleAuthStart(attemptId: string | null): boolean {
   const raw = sessionStorage.getItem(GOOGLE_AUTH_STARTED_AT)
-  clearGoogleAuthStarted()
-  if (!raw || !attemptId) return false
+  if (!raw) return false
   const [startedAtRaw, expectedAttemptId] = raw.split(':')
   const startedAt = Number(startedAtRaw)
-  return attemptId === expectedAttemptId && Number.isFinite(startedAt) && startedAt <= Date.now()
-    && Date.now() - startedAt < GOOGLE_AUTH_WINDOW_MS
+  const now = Date.now()
+  if (!Number.isFinite(startedAt) || startedAt > now || now - startedAt >= GOOGLE_AUTH_WINDOW_MS) {
+    clearGoogleAuthStarted()
+    return false
+  }
+  const callbackOwnsMarker = attemptId !== null && attemptId !== '' && attemptId === expectedAttemptId
+  if (!callbackOwnsMarker) return false
+  clearGoogleAuthStarted()
+  return true
 }
