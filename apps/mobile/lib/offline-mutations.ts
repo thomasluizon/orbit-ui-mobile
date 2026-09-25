@@ -20,6 +20,8 @@ import { updateTimezoneRequestSchema, type Profile } from '@orbit/shared/types/p
 import { apiClient } from './api-client'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
+  accountTimezoneDependency,
+  ACCOUNT_TIMEZONE_DEPENDENCY,
   count,
   enqueue,
   findUnfinalizedFirstWrite,
@@ -38,6 +40,7 @@ import { captureError } from './sentry'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
+export { accountTimezoneDependency, ACCOUNT_TIMEZONE_DEPENDENCY } from './offline-queue'
 
 type InvalidationQueryKey = readonly unknown[]
 
@@ -265,10 +268,11 @@ function getPendingOfflineDependencies(mutation: PersistedQueuedMutation): strin
   ].filter((id) => id.startsWith('offline-'))
 }
 
-function releaseAccountTimezoneDependencies(): void {
+function releaseAccountTimezoneDependencies(timezoneMutationId: string): void {
+  const dependency = accountTimezoneDependency(timezoneMutationId)
   for (const queued of getAll()) {
-    if (!queued.dependsOn?.includes(ACCOUNT_TIMEZONE_DEPENDENCY)) continue
-    update(queued.id, { dependsOn: queued.dependsOn.filter((dependency) => dependency !== ACCOUNT_TIMEZONE_DEPENDENCY) })
+    if (!queued.dependsOn?.includes(dependency)) continue
+    update(queued.id, { dependsOn: queued.dependsOn.filter((entry) => entry !== dependency) })
   }
 }
 
@@ -324,7 +328,6 @@ async function resolveMutationReferences<T extends PersistedQueuedMutation>(muta
 const BACKOFF_BASE_DELAY_MS = 2_000
 const BACKOFF_MAX_DELAY_MS = 60_000
 const DEPENDENCY_MAX_AGE_MS = 24 * 60 * 60 * 1000
-export const ACCOUNT_TIMEZONE_DEPENDENCY = 'offline-account-timezone'
 const RECOVERY_KEY = '@orbit/offline-queue-recovery-310'
 
 let installedQueueRecovered = false
@@ -575,14 +578,10 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     getCurrentConnectivity(),
   ])
   const hasPendingDependencies = hasPendingOfflineDependencies(resolvedMutation)
-  const pendingAccountTimezone = resolvedMutation.scope === 'habits' && getAll().some((queued) => queued.type === 'setTimeZone')
-  if (pendingAccountTimezone) {
-    resolvedMutation.dependsOn = [...new Set([...(resolvedMutation.dependsOn ?? []), ACCOUNT_TIMEZONE_DEPENDENCY])]
-  }
   const retainedMutation = findUnfinalizedFirstWrite(resolvedMutation)
 
   if (
-    (!online || hasPendingDependencies || pendingAccountTimezone) &&
+    (!online || hasPendingDependencies) &&
     isAutomaticReplayBlocked(resolvedMutation.type)
   ) {
     throw new OfflineMutationPreflightError()
@@ -592,7 +591,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     return queuedResultFactory?.(retainedMutation.id, true) ?? queuedResult as TQueuedResult
   }
 
-  if (!online || hasPendingDependencies || pendingAccountTimezone) {
+  if (!online || hasPendingDependencies) {
     const queuedMutationId = await markQueuedMutation(resolvedMutation)
     return queuedResultFactory?.(queuedMutationId, false) ?? queuedResult as TQueuedResult
   }
@@ -600,7 +599,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   try {
     setPendingIdempotencyKey(resolvedMutation.id)
     const result = await execute(resolvedMutation)
-    if (resolvedMutation.type === 'setTimeZone') releaseAccountTimezoneDependencies()
+    if (resolvedMutation.type === 'setTimeZone') releaseAccountTimezoneDependencies(resolvedMutation.id)
     return result
   } catch (error: unknown) {
     if (!isTransientNetworkError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
@@ -676,7 +675,7 @@ async function finalizeSuccessfulFlush(
   addTouchedScope(touchedScopes, mutation)
   applySuccessfulProfileMutation(mutation)
   if (mutation.type === 'setTimeZone') {
-    releaseAccountTimezoneDependencies()
+    releaseAccountTimezoneDependencies(mutation.id)
     await queryClient.cancelQueries({ queryKey: calendarKeys.all })
     await queryClient.invalidateQueries({ queryKey: calendarKeys.all })
   }
@@ -791,7 +790,7 @@ type FlushStepResult = {
 function hasExpiredOrphanDependency(mutation: PersistedQueuedMutation, dependencies: string[]): boolean {
   if (Date.now() - mutation.timestamp < DEPENDENCY_MAX_AGE_MS) return false
   const producers = getAll().filter((queued) => queued.id !== mutation.id && queued.clientEntityId)
-  return dependencies.some((id) => id !== ACCOUNT_TIMEZONE_DEPENDENCY && !producers.some((producer) => producer.clientEntityId === id))
+  return dependencies.some((id) => !id.startsWith(`${ACCOUNT_TIMEZONE_DEPENDENCY}:`) && !producers.some((producer) => producer.clientEntityId === id))
 }
 
 async function processQueuedMutationFlush(
@@ -813,10 +812,6 @@ async function processQueuedMutationFlush(
   }
 
   const mutation = await resolveMutationReferences(currentMutation)
-  if (mutation.scope === 'habits' && getAll().some((queued) => queued.type === 'setTimeZone')) {
-    update(mutation.id, { status: 'pending', lastError: null })
-    return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
-  }
   const dependencies = getPendingOfflineDependencies(mutation)
   if (dependencies.length > 0) {
     if (hasExpiredOrphanDependency(mutation, dependencies)) {
@@ -868,10 +863,16 @@ async function runQueueFlush(): Promise<FlushOutcome> {
   const droppedMutations: DroppedMutation[] = []
   const touchedScopes = new Set<MutationScope>()
   const mutations = getAll()
-  const pending = [
-    ...mutations.filter((mutation) => mutation.type === 'setTimeZone'),
-    ...mutations.filter((mutation) => mutation.type !== 'setTimeZone'),
-  ]
+  const pending = [...mutations]
+  for (const mutation of mutations) {
+    const dependencyIndex = pending.reduce((latest, entry, index) =>
+      entry.type === 'setTimeZone' && mutation.dependsOn?.includes(accountTimezoneDependency(entry.id))
+        ? Math.max(latest, index) : latest, -1)
+    const currentIndex = pending.indexOf(mutation)
+    if (dependencyIndex <= currentIndex) continue
+    pending.splice(currentIndex, 1)
+    pending.splice(dependencyIndex, 0, mutation)
+  }
 
   for (const originalMutation of pending) {
     const step = await processQueuedMutationFlush(originalMutation, touchedScopes)

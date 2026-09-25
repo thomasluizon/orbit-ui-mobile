@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     markOnboardingLocallyDone: vi.fn(),
   },
   createHabitMutateAsync: vi.fn(() => Promise.resolve({ id: 'server-id' })),
+  updateHabitMutateAsync: vi.fn(() => Promise.resolve(undefined)),
   bulkCreateHabitsMutateAsync: vi.fn(() => Promise.resolve({ results: [] })),
   logHabitMutateAsync: vi.fn(() => Promise.resolve(undefined)),
   createGoalMutateAsync: vi.fn(() => Promise.resolve({ id: 'goal-id' })),
@@ -55,7 +56,7 @@ vi.mock('@/stores/onboarding-draft-store', () => {
 
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: mocks.createHabitMutateAsync }),
-  useUpdateHabit: () => ({ mutateAsync: vi.fn() }),
+  useUpdateHabit: () => ({ mutateAsync: mocks.updateHabitMutateAsync }),
   useBulkCreateHabits: () => ({ mutateAsync: mocks.bulkCreateHabitsMutateAsync }),
   useLogHabit: () => ({ mutateAsync: mocks.logHabitMutateAsync }),
 }))
@@ -139,6 +140,20 @@ describe('onboarding action provider factories', () => {
     })
 
     expect(actions.onImport).toBeTypeOf('function')
+  })
+
+  it('passes the pending timezone dependency only to an onboarding habit save', async () => {
+    const actions = captureActions(useLiveOnboardingActions)
+
+    await actions.createHabit({ title: 'Run' }, 'offline-account-timezone:timezone-1')
+    expect(mocks.createHabitMutateAsync).toHaveBeenCalledWith({
+      title: 'Run', __offlineDependsOn: ['offline-account-timezone:timezone-1'],
+    })
+
+    await actions.updateHabit('server-id', { title: 'Run' }, 'offline-account-timezone:timezone-1')
+    expect(mocks.updateHabitMutateAsync).toHaveBeenCalledWith(expect.objectContaining({
+      habitId: 'server-id', dependsOn: ['offline-account-timezone:timezone-1'],
+    }))
   })
 
   it('buffers goals in pre-auth mode', async () => {

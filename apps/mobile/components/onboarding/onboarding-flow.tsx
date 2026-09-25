@@ -36,6 +36,7 @@ import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { accountTimezoneDependency, isQueuedResult } from '@/lib/offline-mutations'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -183,11 +184,13 @@ export function OnboardingFlow() {
       const accountProfile = isLive ? profile ?? (await refetchProfile()).data : undefined
       if (isLive && !accountProfile) throw new Error('Profile unavailable')
       const accountTimeZone = accountProfile?.timeZone ?? getClientTimeZone()
+      let timezoneDependency: string | undefined
       if (isLive && accountProfile?.timeZone == null && accountTimeZone && accountTimeZone !== 'UTC') {
-        await performQueuedApiMutation({ type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone, method: 'PUT', payload: { timeZone: accountTimeZone }, dedupeKey: 'profile-timezone-auto' })
+        const timezoneResult = await performQueuedApiMutation({ type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone, method: 'PUT', payload: { timeZone: accountTimeZone }, dedupeKey: 'profile-timezone-auto' })
+        if (isQueuedResult(timezoneResult)) timezoneDependency = accountTimezoneDependency(timezoneResult.queuedMutationId)
       }
-      if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
-      else { const result = await actions.createHabit(input); setCreatedId(result.id) }
+      if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible }, ...(timezoneDependency ? [timezoneDependency] : []))
+      else { const result = await actions.createHabit(input, ...(timezoneDependency ? [timezoneDependency] : [])); setCreatedId(result.id) }
       setCreatedTitle(input.title)
       setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountTimeZone))
       setCreatedGeneral(schedule.isGeneral)

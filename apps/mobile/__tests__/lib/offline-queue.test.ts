@@ -271,6 +271,46 @@ describe('mobile offline queue', () => {
     })
   })
 
+  it('keeps a dependent onboarding habit attached when auto-sync replaces its timezone write', () => {
+    enqueue(makeMutation({
+      id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+    enqueue(makeMutation({
+      id: 'habit-1', type: 'createHabit',
+      dependsOn: ['offline-account-timezone:timezone-1'],
+    }))
+
+    const timezoneId = enqueue(makeMutation({
+      id: 'timezone-2', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/New_York' },
+    }))
+
+    expect(timezoneId).toBe('timezone-1')
+    expect(getAll()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'timezone-1', payload: { timeZone: 'America/Sao_Paulo' } }),
+      expect.objectContaining({ id: 'habit-1', dependsOn: ['offline-account-timezone:timezone-1'] }),
+    ]))
+    expect(getAll()).toHaveLength(2)
+  })
+
+  it('replaces an unreferenced auto-timezone write when the detected zone changes', () => {
+    enqueue(makeMutation({
+      id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+
+    const timezoneId = enqueue(makeMutation({
+      id: 'timezone-2', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/New_York' },
+    }))
+
+    expect(timezoneId).toBe('timezone-2')
+    expect(getAll()).toEqual([expect.objectContaining({
+      id: 'timezone-2', payload: { timeZone: 'America/New_York' },
+    })])
+  })
+
   it('keeps a restored habit toggle as the first write for its habit and date', () => {
     const persistedMutation = makeMutation({
       id: 'persisted-log',

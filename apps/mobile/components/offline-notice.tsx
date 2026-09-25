@@ -13,7 +13,7 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { enqueue, getAll } from '@/lib/offline-queue'
-import { ACCOUNT_TIMEZONE_DEPENDENCY, buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
+import { accountTimezoneDependency, buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
 import { canRetryDroppedMutation, getDroppedItemName, getRecoveryDate, getRecoveryMessage, needsHabitCreation } from '@/lib/offline-recovery'
 
 function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; remaining: number }>) {
@@ -26,7 +26,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   const mutation = drop.mutation
   const needsCreation = needsHabitCreation(mutation)
   const retryable = canRetryDroppedMutation(mutation)
-  const timezoneRecoveryRequired = mutation.type === 'setTimeZone' && getAll().some((queued) => queued.dependsOn?.includes(ACCOUNT_TIMEZONE_DEPENDENCY))
+  const timezoneRecoveryRequired = mutation.type === 'setTimeZone' && getAll().some((queued) => queued.dependsOn?.includes(accountTimezoneDependency(mutation.id)))
   const scope = mutation.scope ?? getMutationScope(mutation.type) ?? 'profile'
   const date = getRecoveryDate(mutation)
   const item = drop.itemName ?? getDroppedItemName(mutation) ?? t(`common.syncEntity.${scope}`)
@@ -41,7 +41,8 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
       return
     }
     if (retryable) {
-      enqueue(buildQueuedMutation({ ...mutation, scope, type: mutationTypeSchema.parse(mutation.type) }))
+      const retry = buildQueuedMutation({ ...mutation, scope, type: mutationTypeSchema.parse(mutation.type) })
+      enqueue(mutation.type === 'setTimeZone' ? { ...retry, id: mutation.id } : retry)
     } else {
       router.push(scope === 'habits' || scope === 'goals' || scope === 'tags' ? '/' : '/preferences')
     }

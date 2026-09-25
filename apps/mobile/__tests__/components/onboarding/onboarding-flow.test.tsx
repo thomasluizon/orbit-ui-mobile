@@ -5,6 +5,7 @@ import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { createTokensV2 } from '@/lib/theme'
+import { accountTimezoneDependency } from '@/lib/offline-mutations'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -322,6 +323,7 @@ describe('OnboardingFlow state model', () => {
     const tree = await reachDone(true)
     expect(mocks.queueTimezone).toHaveBeenCalledOnce()
     expect(mocks.createHabit).toHaveBeenCalledOnce()
+    expect(mocks.createHabit).toHaveBeenCalledWith(expect.objectContaining({ title: expect.any(String) }), accountTimezoneDependency('timezone-1'))
     expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
   })
 

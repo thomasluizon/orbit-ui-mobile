@@ -10,7 +10,7 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
-import { ACCOUNT_TIMEZONE_DEPENDENCY, buildQueuedMutation } from '@/lib/offline-mutations'
+import { accountTimezoneDependency, buildQueuedMutation } from '@/lib/offline-mutations'
 import type { PersistedQueuedMutation } from '@orbit/shared/types/sync'
 
 const TestRenderer = require('react-test-renderer')
@@ -36,7 +36,11 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   removeItem: (key: string) => { mocks.storage.delete(key); return Promise.resolve() },
 } }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => mocks.queue }))
-vi.mock('@/lib/offline-queue', () => ({ enqueue: mocks.enqueue, getAll: () => mocks.queued }))
+vi.mock('@/lib/offline-queue', () => ({
+  enqueue: mocks.enqueue,
+  getAll: () => mocks.queued,
+  accountTimezoneDependency: (timezoneMutationId: string) => `offline-account-timezone:${timezoneMutationId}`,
+}))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/lib/query-client', () => ({ queryClient: {}, persistQueryCache: vi.fn() }))
@@ -131,7 +135,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     })
     mocks.queued.push(buildQueuedMutation({
       type: 'createHabit', scope: 'habits', endpoint: '/api/habits',
-      method: 'POST', payload: { title: 'Walk' }, dependsOn: [ACCOUNT_TIMEZONE_DEPENDENCY],
+      method: 'POST', payload: { title: 'Walk' }, dependsOn: [accountTimezoneDependency(timezoneMutation.id)],
     }))
     update({ pendingCount: 1, isOnline: true })
     await TestRenderer.act(async () => {
@@ -145,7 +149,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(toast().actionLabel).toBe(language.t('common.syncRetryAction'))
     expect(tree.root.findAllByType(Pressable).some((node) => node.props.accessibilityLabel === language.t('common.dismiss'))).toBe(false)
     TestRenderer.act(() => (toast().onAction as () => void)())
-    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ type: 'setTimeZone' }))
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ type: 'setTimeZone', id: timezoneMutation.id }))
   })
 
   it('keeps Undo operable alongside pending queue status and removes the empty host', () => {
