@@ -18,7 +18,10 @@ vi.mock('@/hooks/use-push-notifications', () => ({
 type PermissionResult = ReturnType<typeof useReminderPermission>
 const TestRenderer = require('react-test-renderer') as {
   create: (element: React.ReactNode) => { update: (element: React.ReactNode) => void }
-  act: (callback: () => void) => void
+  act: {
+    (callback: () => Promise<void>): Promise<void>
+    (callback: () => void): void
+  }
 }
 
 function mount(enabled: boolean, onToggle = vi.fn()) {
@@ -75,6 +78,19 @@ describe('useReminderPermission', () => {
     hook.rerender(true)
     expect(hook.onToggle).toHaveBeenCalledOnce()
     expect(mocks.push.requestPermissionOutcome).not.toHaveBeenCalled()
+    expect(hook.result.showNotice).toBe(true)
+  })
+
+  it('shows the settings path when the permission request fails before status loads', async () => {
+    Object.assign(mocks.push, { permissionStatus: null })
+    mocks.push.requestPermissionOutcome.mockResolvedValue('failed')
+    const hook = mount(false)
+    await TestRenderer.act(async () => {
+      hook.result.toggleReminder()
+      await Promise.resolve()
+    })
+    hook.rerender(true)
+    expect(hook.onToggle).toHaveBeenCalledOnce()
     expect(hook.result.showNotice).toBe(true)
   })
 
