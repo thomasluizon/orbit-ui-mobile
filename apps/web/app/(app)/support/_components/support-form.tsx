@@ -7,8 +7,8 @@ import {
 } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGroup, RadioRow } from '@/components/ui/radio-row'
-import { RowList } from '@/components/ui/row-list'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioRow } from '@/components/ui/select-check'
 import { WifiOff } from '@/components/ui/icons'
 
 interface SupportFormProps {
@@ -127,33 +127,32 @@ export function SupportForm({
           {t('profile.support.subject')}
         </span>
         <RadioGroup
+          className="flex flex-col gap-1"
           aria-labelledby="support-subject-label"
           aria-describedby={subjectError ? 'support-subject-error' : undefined}
           aria-invalid={subjectError ? true : undefined}
           onBlur={onSubjectBlur}
         >
-          <RowList>
-            {SUPPORT_SUBJECT_OPTIONS.map((option) => (
-              isSending ? (
-                <RadioRow
-                  key={option.id}
-                  label={t(option.labelKey)}
-                  description={t(option.descriptionKey)}
-                  selected={subject === option.id}
-                  disabled
-                  reason={t('profile.support.subjectSendingReason')}
-                />
-              ) : (
-                <RadioRow
-                  key={option.id}
-                  label={t(option.labelKey)}
-                  description={t(option.descriptionKey)}
-                  selected={subject === option.id}
-                  onSelect={() => onSubjectChange(option.id)}
-                />
-              )
-            ))}
-          </RowList>
+          {SUPPORT_SUBJECT_OPTIONS.map((option) => (
+            isSending ? (
+              <RadioRow
+                key={option.id}
+                label={t(option.labelKey)}
+                description={t(option.descriptionKey)}
+                selected={subject === option.id}
+                disabled
+                reason={t('profile.support.subjectSendingReason')}
+              />
+            ) : (
+              <RadioRow
+                key={option.id}
+                label={t(option.labelKey)}
+                description={t(option.descriptionKey)}
+                selected={subject === option.id}
+                onSelect={() => onSubjectChange(option.id)}
+              />
+            )
+          ))}
         </RadioGroup>
         {subjectError ? (
           <p id="support-subject-error" role="alert" className="text-sm text-[var(--status-bad-text)]">

@@ -41,40 +41,6 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       color: tokens.statusOverdueText,
       marginTop: 8,
     },
-    typeRow: {
-      flexDirection: 'row',
-      gap: 12,
-    },
-    typeOption: {
-      flex: 1,
-      minHeight: 48,
-      borderRadius: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    typeOptionActive: {
-      backgroundColor: tokens.primary,
-    },
-    typeOptionInactive: {
-      backgroundColor: tokens.bgElev,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-    },
-    typeOptionPressed: {
-      transform: [{ scale: 0.98 }],
-    },
-    typeOptionActivePressed: {
-      backgroundColor: tokens.primaryPressed,
-    },
-    typeOptionInactivePressed: {
-      backgroundColor: tokens.bgElev2,
-    },
-    typeOptionText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 15,
-    },
     typeCaption: {
       marginTop: 12,
     },
