@@ -33,6 +33,44 @@ describe('shared source import boundary', () => {
     )
   })
 
+  it.each([
+    'react',
+    'react/jsx-runtime',
+    'react-dom/client',
+    'react-native',
+    'next',
+    'next/navigation',
+  ])('rejects a dynamic import of %s at error severity', async (moduleName) => {
+    const eslint = new ESLint({ cwd: packageRoot })
+    const [result] = await eslint.lintText(`export const load = () => import('${moduleName}')\n`, {
+      filePath: sourcePath,
+    })
+    if (!result) throw new Error('ESLint returned no result for shared source')
+
+    expect(result.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: 'no-restricted-syntax',
+          severity: 2,
+          message: expect.stringContaining('packages/shared/CLAUDE.md'),
+        }),
+      ]),
+    )
+  })
+
+  it.each(['react-i18next', 'next-intl', 'reactive'])(
+    'allows a dynamic import of %s, which only shares a prefix',
+    async (moduleName) => {
+      const eslint = new ESLint({ cwd: packageRoot })
+      const [result] = await eslint.lintText(`export const load = () => import('${moduleName}')\n`, {
+        filePath: sourcePath,
+      })
+      if (!result) throw new Error('ESLint returned no result for shared source')
+
+      expect(result.messages.some((message) => message.ruleId === 'no-restricted-syntax')).toBe(false)
+    },
+  )
+
   it('allows test files to import React', async () => {
     const eslint = new ESLint({ cwd: packageRoot })
     const [result] = await eslint.lintText("import 'react'\n", {
