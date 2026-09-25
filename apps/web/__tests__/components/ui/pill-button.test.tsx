@@ -205,6 +205,13 @@ describe('PillButton', () => {
     expect(transitions).toHaveLength(1)
     expect(transitions[0]).toContain('background-color var(--dur-hover-control) var(--ease-standard)')
     expect(transitions[0]).toContain('transform var(--dur-1) var(--ease-out)')
+    const activeDurations: string[] = []
+    css.walkRules('.orbit-pill-action:active:not(:disabled)', (rule) => {
+      rule.walkDecls('transition-duration', (declaration) => { activeDurations.push(declaration.value) })
+    })
+    expect(activeDurations).toEqual([
+      'var(--dur-hover-control), var(--dur-hover-control), var(--dur-1), var(--dur-1)',
+    ])
   })
 
   it.each(['dark', 'light'] as const)('keeps loading text and focus visible in %s', (mode) => {
@@ -213,10 +220,16 @@ describe('PillButton', () => {
     const label = screen.getByText('Saving')
     const tokens = resolveWebThemeVariables('purple', mode)
 
+    expect(button).not.toHaveClass('disabled:opacity-40')
     expect(label).not.toHaveClass('opacity-60')
     expect(contrastOnSurface(tokens['--fg-on-primary']!, [tokens['--primary']!])).toBeGreaterThanOrEqual(4.5)
     expect(contrastOnSurface(tokens['--primary']!, [tokens['--bg']!])).toBeGreaterThanOrEqual(3)
     expect(button).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('dims explicitly disabled buttons without dimming a loading button', () => {
+    render(<PillButton disabled>Continue</PillButton>)
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('disabled:opacity-40')
   })
 
   it.each(['dark', 'light'] as const)('keeps the destructive hover foreground legible in %s', (mode) => {

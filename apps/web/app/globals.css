@@ -1285,6 +1285,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     transform var(--dur-1) var(--ease-out);
 }
 
+.orbit-pill-action:active:not(:disabled) {
+  transition-duration: var(--dur-hover-control), var(--dur-hover-control), var(--dur-1), var(--dur-1);
+  transition-timing-function: var(--ease-standard), var(--ease-standard), var(--ease-out), var(--ease-out);
+}
+
 /* Reduced motion: keep essential loading feedback while suppressing other motion. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

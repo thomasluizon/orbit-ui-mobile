@@ -30,13 +30,15 @@ const linkInteractionClasses: Record<ButtonVariant, string> = {
   caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] active:scale-[0.96]',
 }
 
-const baseClasses = 'orbit-pill-action inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed disabled:opacity-40'
+const baseClasses = 'orbit-pill-action inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
 
-function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link') {
+function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false) {
   const interactionClasses = element === 'button'
     ? buttonInteractionClasses[variant]
     : linkInteractionClasses[variant]
-  return [baseClasses, variantClasses[variant], interactionClasses, size === 'sm' ? 'touch-target' : undefined]
+  return [baseClasses, variantClasses[variant], interactionClasses,
+    element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
+    size === 'sm' ? 'touch-target' : undefined]
     .filter(Boolean)
     .join(' ')
 }
@@ -81,7 +83,7 @@ export function Button({
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}
-      className={actionClasses(variant, size, 'button')}
+      className={actionClasses(variant, size, 'button', loading)}
       style={actionStyle(size, iconOnly)}
     >
       {loading ? (
