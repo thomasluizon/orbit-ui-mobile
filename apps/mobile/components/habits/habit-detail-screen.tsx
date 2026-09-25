@@ -145,9 +145,9 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
               accessibilityElementsHidden={day.outsideMonth}
               importantForAccessibility={day.outsideMonth ? 'no-hide-descendants' : 'auto'}
               accessibilityLabel={day.outsideMonth ? undefined : `${cellLabel}, ${outcomeWord}, ${t('habits.detail.readOnlyWord')}`}
-              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: day.outsideMonth ? 0 : day.outcome === 'unavailable' ? 0.4 : 1 }}
+              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: day.outsideMonth ? 0 : 1 }}
             >
-              <Text style={{ color: tokens.fg4, fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] }}>{day.day}</Text>
+              <Text style={{ color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] }}>{day.day}</Text>
             </View>
           )
         }
