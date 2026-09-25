@@ -57,7 +57,7 @@ export function usePreferenceControls() {
           await updateLanguage({ language: nextLocale }, intendedAccountId)
         } catch (error) {
           if (reportsAccountChanged(error)) {
-            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
             return
           }
           if (getHeldAccountId() !== intendedAccountId) return

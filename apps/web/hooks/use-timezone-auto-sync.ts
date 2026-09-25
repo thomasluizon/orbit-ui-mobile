@@ -44,7 +44,7 @@ export function useTimezoneAutoSync(profile: Profile | undefined) {
   useEffect(() => {
     const checkAndSync = () => {
       void syncTimezoneIfNeeded(queryClient, () => {
-        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
       })
     }
 

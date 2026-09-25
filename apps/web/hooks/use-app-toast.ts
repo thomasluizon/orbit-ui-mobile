@@ -15,11 +15,12 @@ export function useAppToast() {
     })
   }, [])
 
-  const showPersistentError = useCallback((message: string, dismissLabel: string) => {
+  const showPersistentError = useCallback((message: string, dismissLabel: string, reloadLabel: string) => {
     const toastId = toast.error(message, {
       id: 'account-changed',
       duration: Infinity,
-      action: { label: dismissLabel, onClick: () => toast.dismiss(toastId) },
+      action: { label: reloadLabel, onClick: () => globalThis.location.reload() },
+      cancel: { label: dismissLabel, onClick: () => toast.dismiss(toastId) },
     })
   }, [])
 

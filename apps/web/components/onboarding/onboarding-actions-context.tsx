@@ -164,7 +164,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
         } catch (error) {
           if (reportsAccountChanged(error)) {
             if (getHeldAccountId() === intendedAccountId && getAccountGeneration() === accountGeneration) queryClient.clear()
-            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
           }
           throw error
 
@@ -179,12 +179,12 @@ export function useLiveOnboardingActions(): OnboardingActions {
           await completeOnboarding(intendedAccountId)
         } catch (error) {
           if (reportsAccountChanged(error)) {
-            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
             throw error
           }
         }
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
-          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
           throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 })
         }
         if (getAccountGeneration() !== accountGeneration) return

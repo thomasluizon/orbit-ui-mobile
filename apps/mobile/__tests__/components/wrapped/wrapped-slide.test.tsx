@@ -78,6 +78,28 @@ describe('mobile WrappedSlide', () => {
     ).toHaveLength(0)
   })
 
+  it('keeps the top habit emoji visible but out of the accessibility announcement', () => {
+    const topHabit = buildWrappedSlides(recap).find((slide) => slide.id === 'topHabit')!
+    const tree = renderSlide(topHabit)
+    const parts = tree.root.findAll((node) =>
+      typeof node.type === 'string' && String(node.props.nativeID).startsWith('wrapped-motion-part-'))
+
+    expect(parts.map((part) => part.props.children)).toEqual([
+      'wrapped.slides.topHabit.eyebrow',
+      topHabit.habit.emoji,
+      topHabit.habit.name,
+      'wrapped.slides.topHabit.caption:{"rate":"95%"}',
+    ])
+    expect(parts[1]!.props.importantForAccessibility).toBe('no-hide-descendants')
+    expect(parts[1]!.props.accessibilityElementsHidden).toBe(true)
+    expect(parts.filter((part) => part.props.importantForAccessibility !== 'no-hide-descendants')
+      .map((part) => part.props.children)).toEqual([
+      'wrapped.slides.topHabit.eyebrow',
+      topHabit.habit.name,
+      'wrapped.slides.topHabit.caption:{"rate":"95%"}',
+    ])
+  })
+
   it('renders the weekday average as Monday-first Columns with initials and no date copy', () => {
     const consistency = buildWrappedSlides(recap).find((slide) => slide.id === 'consistency')!
     const tree = renderSlide(consistency)

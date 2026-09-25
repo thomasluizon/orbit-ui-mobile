@@ -202,7 +202,7 @@ describe('live onboarding actions', () => {
 
     expect(mocks.setQueryData).not.toHaveBeenCalled()
     expect(pushMock).not.toHaveBeenCalled()
-    expect(mocks.showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
+    expect(mocks.showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload')
   })
 
   it('does not finish the previous account onboarding in the next account cache', async () => {

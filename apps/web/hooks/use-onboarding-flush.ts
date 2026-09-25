@@ -68,7 +68,7 @@ export function useOnboardingFlush(): void {
       })
       .catch((error: unknown) => {
         if (reportsAccountChanged(error)) {
-          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
           return
         }
         if (!stillCurrent()) return

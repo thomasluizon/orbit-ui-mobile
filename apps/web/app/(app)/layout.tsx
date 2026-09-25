@@ -175,7 +175,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
     })
   }, [setShowCalendarPrompt, showPersistentError, t])
 
@@ -183,7 +183,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleCalendarImport = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
     })
     setRouteTransitionIntent('forward')
     router.push('/calendar-sync')
@@ -202,7 +202,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleDismissImportPrompt = useCallback(() => {
     setShowImportPrompt(false)
     dismissImportPrompt(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
     })
     patchProfile({ hasSeenImportPrompt: true })
   }, [patchProfile, setShowImportPrompt, showPersistentError, t])
@@ -211,7 +211,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleImportWithAstra = useCallback(() => {
     setShowImportPrompt(false)
     dismissImportPrompt(getHeldAccountId()).catch((error: unknown) => {
-      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
     })
     patchProfile({ hasSeenImportPrompt: true })
     if ('localStorage' in globalThis) {

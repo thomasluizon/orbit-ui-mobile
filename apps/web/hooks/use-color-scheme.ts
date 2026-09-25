@@ -54,7 +54,7 @@ export function useColorScheme() {
     if (persistToDb) {
       updateColorSchemeAction({ colorScheme: scheme }, intendedAccountId).catch((error: unknown) => {
         if (reportsAccountChanged(error)) {
-          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
         }
       })
     }
@@ -71,7 +71,7 @@ export function useColorScheme() {
     if (persistToDb) {
       updateThemePreferenceAction({ themePreference: theme }, intendedAccountId).catch((error: unknown) => {
         if (reportsAccountChanged(error)) {
-          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
           return
         }
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
@@ -113,7 +113,7 @@ export function useColorScheme() {
     if (dbColorScheme !== null) return
     updateColorSchemeAction({ colorScheme: currentScheme }, getHeldAccountId()).catch((error: unknown) => {
       if (reportsAccountChanged(error)) {
-        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
       }
     })
   }, [currentScheme, showPersistentError, t])
@@ -148,7 +148,7 @@ export function useColorScheme() {
     applyThemeTokensToDOM(currentScheme, detected)
     updateThemePreferenceAction({ themePreference: detected }, getHeldAccountId()).catch((error: unknown) => {
       if (reportsAccountChanged(error)) {
-        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
       }
     })
   }, [currentScheme, showPersistentError, t])

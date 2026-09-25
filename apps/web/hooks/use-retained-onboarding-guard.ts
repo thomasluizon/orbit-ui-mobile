@@ -77,7 +77,7 @@ export function useRetainedOnboardingGuard(
       })
       .catch((error: unknown) => {
         if (reportsAccountChanged(error)) {
-          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
+          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
         } else if (stillCurrent()) {
           patchProfile({ hasCompletedOnboarding: true })
         }

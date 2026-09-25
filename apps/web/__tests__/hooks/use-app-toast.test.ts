@@ -72,20 +72,22 @@ describe('useAppToast', () => {
     })
   })
 
-  it('keeps reload guidance visible until the person dismisses it', () => {
+  it('offers reload while keeping guidance visible until dismissal', () => {
     mockToastError.mockReturnValueOnce(7)
     const { result } = renderHook(() => useAppToast())
 
     act(() => {
-      result.current.showPersistentError('Your account changed', 'Dismiss')
+      result.current.showPersistentError('Your account changed', 'Dismiss', 'Reload page')
     })
 
     expect(mockToastError).toHaveBeenCalledWith('Your account changed', expect.objectContaining({
       duration: Infinity,
-      action: expect.objectContaining({ label: 'Dismiss' }),
+      action: expect.objectContaining({ label: 'Reload page' }),
+      cancel: expect.objectContaining({ label: 'Dismiss' }),
     }))
-    const options = mockToastError.mock.lastCall?.[1] as { action: { onClick: () => void } }
-    options.action.onClick()
+    const options = mockToastError.mock.lastCall?.[1] as { action: { onClick: () => void }; cancel: { onClick: () => void } }
+    expect(options.action.onClick).toBeTypeOf('function')
+    options.cancel.onClick()
     expect(mockToastDismiss).toHaveBeenCalledWith(7)
   })
 

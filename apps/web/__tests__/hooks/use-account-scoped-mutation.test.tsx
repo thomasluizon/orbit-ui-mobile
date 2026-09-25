@@ -98,7 +98,7 @@ describe('useAccountScopedMutation', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(queryClient.getQueryData(['profile'])).toBe('account-b-profile')
     expect(onSettled).not.toHaveBeenCalled()
-    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload')
   })
 
   it('removes an optimistic write resumed after another account loaded', async () => {
@@ -161,7 +161,7 @@ describe('useAccountScopedMutation', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(queryClient.getQueryData(['profile'])).toBeUndefined()
-    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
+    expect(showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload')
   })
 
   it('hands every callback the caller variables, without the account wrapper', async () => {
@@ -222,7 +222,7 @@ describe('useAccountScopedMutation', () => {
     await waitFor(() => expect(result.current.variables).toBe('habit-1'))
   })
 
-  it('refuses a mutation while the tab holds no account', async () => {
+  it('passes null intent through when the tab has no account to compare', async () => {
     heldAccount.id = null
     const seenAccounts: (string | null)[] = []
     const { result } = renderHook(
@@ -235,8 +235,8 @@ describe('useAccountScopedMutation', () => {
       { wrapper: createWrapper() },
     )
 
-    await expect(result.current.mutateAsync('habit-1')).rejects.toMatchObject({ status: 409 })
+    await expect(result.current.mutateAsync('habit-1')).resolves.toBe('habit-1')
 
-    expect(seenAccounts).toEqual([])
+    expect(seenAccounts).toEqual([null])
   })
 })

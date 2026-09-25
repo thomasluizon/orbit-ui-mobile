@@ -104,12 +104,14 @@ describe('a destructive write formed under a replaced account', () => {
     },
   )
 
-  it('refuses a delete before its account is known', async () => {
+  it('sends a delete that names no account because no mismatch is proven', async () => {
     holdCookieForAccount('account-b')
 
-    await expect(deleteHabit('habit-1', null)).rejects.toMatchObject({ status: 409, code: 'ACCOUNT_CHANGED' })
+    await deleteHabit('habit-1', null)
 
-    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url] = mockFetch.mock.calls[0] as [string]
+    expect(url).toContain(API.habits.delete('habit-1'))
   })
 
   it('reports the refused account deletion as a failure rather than as a wrong code', async () => {
