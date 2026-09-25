@@ -49,6 +49,14 @@ export const cases = async () => {
   const ceilingResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.0001"), { path: ceiling.path, env: ceiling.env })
   T("wait-ci: ceiling exits unsettled", ceilingResult.status === 3 && !JSON.parse(ceilingResult.stdout).pullRequests[0].settled, ceilingResult.stderr)
 
+  const failing = fixture("failing", [{ kind: "checks", stdout: checks([completed("Lint", "failure")]) }])
+  const failingResult = run(TOOL, argumentsFor(), { path: failing.path, env: failing.env })
+  T("wait-ci: settled result names failing checks", failingResult.status === 0 && JSON.parse(failingResult.stdout).pullRequests[0].failingChecks.includes("Lint"), failingResult.stderr)
+
+  const closed = fixture("closed", [{ kind: "pull", stdout: pull(SHA_A, "closed") }])
+  const closedResult = run(TOOL, argumentsFor(), { path: closed.path, env: closed.env })
+  T("wait-ci: closed pull request exits", closedResult.status === 0 && JSON.parse(closedResult.stdout).reason === "PR_CLOSED", closedResult.stderr)
+
   const signalled = fixture("signal", [{ kind: "checks", stdout: checks([queued("Lint")]) }])
   const child = spawn(process.execPath, [signalled.path, ...argumentsFor()], { env: { ...process.env, ...signalled.env } })
   let output = ""

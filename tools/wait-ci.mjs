@@ -95,7 +95,7 @@ try {
   while (!finished) {
     for (const entry of result.pullRequests) {
       const pull = await read(`pulls/${entry.number}`)
-      if (typeof pull?.head?.sha !== "string" || typeof pull.state !== "string") {
+      if (typeof pull?.head?.sha !== "string" || !["open", "closed"].includes(pull.state)) {
         throw new Error(`GitHub pull request #${entry.number} had an unexpected shape`)
       }
       if (entry.head === null) entry.head = pull.head.sha
@@ -111,13 +111,13 @@ try {
       const status = await read(`commits/${entry.head}/status`)
       if (!Array.isArray(status?.statuses)) throw new Error("GitHub commit statuses had an unexpected shape")
       if (checks.some((check) => typeof check.name !== "string" || typeof check.status !== "string" || !("conclusion" in check)) ||
-          status.statuses.some((item) => typeof item.context !== "string" || typeof item.state !== "string")) {
+          status.statuses.some((item) => typeof item.context !== "string" || !["pending", "success", "failure", "error"].includes(item.state))) {
         throw new Error("GitHub checks or statuses had an unexpected shape")
       }
-      const pending = checks.some((check) => check.status !== "completed") ||
+      const pending = checks.some((check) => check.status !== "completed" || check.conclusion === null) ||
         status.statuses.some((item) => item.state === "pending")
       const completedNames = new Set([
-        ...checks.filter((check) => check.status === "completed").map((check) => check.name),
+        ...checks.filter((check) => check.status === "completed" && check.conclusion !== null).map((check) => check.name),
         ...status.statuses.filter((item) => item.state !== "pending").map((item) => item.context),
       ])
       entry.failingChecks = [
