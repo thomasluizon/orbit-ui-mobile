@@ -11,10 +11,17 @@ import {
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
 import { applyServerActionFailure } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { getHeldAccountId } from '@/stores/auth-store'
 
 type PendingExecutionResult =
   | { ok: true; response: AgentExecuteOperationResponse }
   | { ok: false; error: string }
+
+function accountRefusalResult(error: unknown, t: (key: string) => string): PendingExecutionResult {
+  if (!reportsAccountChanged(error)) throw error
+  return { ok: false, error: t('errors.api.accountChanged') }
+}
 
 /**
  * Confirm/execute and step-up verification flows for chat pending operations.
@@ -28,7 +35,9 @@ export function useChatPendingOperations(
   const locale = useLocale()
 
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
-    const confirmation = await confirmPendingOperation(pendingOperationId)
+    try {
+    const intendedAccountId = getHeldAccountId()
+    const confirmation = await confirmPendingOperation(pendingOperationId, intendedAccountId)
     await applyServerActionFailure(confirmation)
     if (!confirmation.ok) {
       return { ok: false, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
@@ -37,6 +46,7 @@ export function useChatPendingOperations(
     const execution = await executePendingOperation(
       pendingOperationId,
       confirmation.data.confirmationToken,
+      intendedAccountId,
     )
     await applyServerActionFailure(execution)
 
@@ -46,17 +56,22 @@ export function useChatPendingOperations(
 
     await onExecuted(execution.data)
     return { ok: true, response: execution.data }
+    } catch (error) {
+      return accountRefusalResult(error, t)
+    }
   }, [onExecuted, t])
 
   const prepareStepUpForBubble = useCallback(
     async (pendingOperationId: string) => {
-      const confirmation = await confirmPendingOperation(pendingOperationId)
+      try {
+      const intendedAccountId = getHeldAccountId()
+      const confirmation = await confirmPendingOperation(pendingOperationId, intendedAccountId)
       await applyServerActionFailure(confirmation)
       if (!confirmation.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
       }
 
-      const challenge = await issuePendingOperationStepUp(pendingOperationId, locale)
+      const challenge = await issuePendingOperationStepUp(pendingOperationId, locale, intendedAccountId)
       await applyServerActionFailure(challenge)
       if (!challenge.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(challenge.error, t, 'chat.sendError', 'generic') }
@@ -66,6 +81,9 @@ export function useChatPendingOperations(
         ok: true as const,
         challengeId: challenge.data.challengeId,
         confirmationToken: confirmation.data.confirmationToken,
+      }
+      } catch (error) {
+        return accountRefusalResult(error, t)
       }
     },
     [locale, t],
@@ -78,10 +96,13 @@ export function useChatPendingOperations(
       code: string,
       confirmationToken: string,
     ) => {
+      try {
+      const intendedAccountId = getHeldAccountId()
       const verification = await verifyPendingOperationStepUp(
         pendingOperationId,
         challengeId,
         code,
+        intendedAccountId,
       )
       await applyServerActionFailure(verification)
 
@@ -89,7 +110,7 @@ export function useChatPendingOperations(
         return { ok: false as const, error: getFriendlyErrorMessage(verification.error, t, 'chat.sendError', 'generic') }
       }
 
-      const execution = await executePendingOperation(pendingOperationId, confirmationToken)
+      const execution = await executePendingOperation(pendingOperationId, confirmationToken, intendedAccountId)
       await applyServerActionFailure(execution)
       if (!execution.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(execution.error, t, 'chat.sendError', 'generic') }
@@ -97,6 +118,9 @@ export function useChatPendingOperations(
 
       await onExecuted(execution.data)
       return { ok: true as const, response: execution.data }
+      } catch (error) {
+        return accountRefusalResult(error, t)
+      }
     },
     [onExecuted, t],
   )

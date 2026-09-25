@@ -43,6 +43,7 @@ import {
 } from '@orbit/shared/stores'
 import { dismissCalendarImport } from '@/lib/actions/calendar'
 import { dismissImportPrompt } from '@/lib/actions/onboarding'
+import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import {
@@ -166,12 +167,12 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
-    dismissCalendarImport().catch(() => {})
+    dismissCalendarImport().catch(reportAccountChangedIfNeeded)
   }, [])
 
   const handleCalendarImport = useCallback(() => {
     setShowCalendarPrompt(false)
-    dismissCalendarImport().catch(() => {})
+    dismissCalendarImport().catch(reportAccountChangedIfNeeded)
     setRouteTransitionIntent('forward')
     router.push('/calendar-sync')
   }, [router])
@@ -187,13 +188,13 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const handleDismissImportPrompt = useCallback(() => {
     setShowImportPrompt(false)
-    dismissImportPrompt().catch(() => {})
+    dismissImportPrompt().catch(reportAccountChangedIfNeeded)
     patchProfile({ hasSeenImportPrompt: true })
   }, [patchProfile])
 
   const handleImportWithAstra = useCallback(() => {
     setShowImportPrompt(false)
-    dismissImportPrompt().catch(() => {})
+    dismissImportPrompt().catch(reportAccountChangedIfNeeded)
     patchProfile({ hasSeenImportPrompt: true })
     if ('localStorage' in globalThis) {
       globalThis.localStorage.setItem(

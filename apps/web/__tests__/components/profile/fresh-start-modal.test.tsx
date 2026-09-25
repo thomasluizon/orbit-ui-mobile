@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 
 vi.mock('next-intl', () => ({
@@ -17,6 +17,11 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 const mockResetAccount = vi.fn()
+const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
+vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => account.id,
+  getAccountGeneration: () => account.generation,
+}))
 vi.mock('@/lib/actions/profile', () => ({
   resetAccount: (...args: unknown[]) => mockResetAccount(...args),
 }))
@@ -64,6 +69,8 @@ import { FreshStartModal } from '@/app/(app)/profile/_components/fresh-start-mod
 describe('FreshStartModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    account.id = 'account-a'
+    account.generation = 1
     mockResetAccount.mockResolvedValue(undefined)
   })
 
@@ -198,6 +205,25 @@ describe('FreshStartModal', () => {
     await waitFor(() => {
       expect(screen.getByTestId('fresh-start-animation')).toBeInTheDocument()
     })
+  })
+
+  it('does not show the old account reset as a success after an account switch', async () => {
+    let finishReset: () => void = () => {}
+    mockResetAccount.mockReturnValue(new Promise<void>((resolve) => { finishReset = resolve }))
+    const onOpenChange = vi.fn()
+    render(<FreshStartModal open={true} onOpenChange={onOpenChange} />)
+    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.change(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder'), {
+      target: { value: 'ORBIT' },
+    })
+    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    expect(mockResetAccount).toHaveBeenCalledTimes(1)
+
+    account.id = 'account-b'
+    account.generation++
+    await act(async () => { finishReset(); await Promise.resolve() })
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('fresh-start-animation')).not.toBeInTheDocument()
   })
 
   it('shows error when resetAccount fails', async () => {

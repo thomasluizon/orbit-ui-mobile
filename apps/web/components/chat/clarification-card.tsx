@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import type { ClarificationRequest } from '@orbit/shared/types'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { safeT } from '@/lib/i18n'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 
 interface ClarificationCardProps {
   clarificationRequest: ClarificationRequest
@@ -49,8 +50,10 @@ export function ClarificationCard({
 
       setResolved(true)
       setResolvedLabel(label)
-    } catch {
-      setErrorKey('habits.clarification.errorGeneric')
+    } catch (error) {
+      setErrorKey(reportsAccountChanged(error)
+        ? 'errors.api.accountChanged'
+        : 'habits.clarification.errorGeneric')
     } finally {
       setActiveValue(null)
     }

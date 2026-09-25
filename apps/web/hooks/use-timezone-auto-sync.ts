@@ -5,6 +5,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { updateTimezone } from '@/lib/actions/profile'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 
 async function syncTimezoneIfNeeded(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -14,14 +16,17 @@ async function syncTimezoneIfNeeded(
 
   const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
   if (!detected || detected === 'UTC' || current.timeZone === detected) return
+  const intent = captureAccountIntent()
 
   try {
-    await updateTimezone({ timeZone: detected })
+    await intent.run(() => updateTimezone({ timeZone: detected }))
+    if (!intent.stillCurrent()) return
     queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
       old ? { ...old, timeZone: detected } : old,
     )
     void queryClient.invalidateQueries({ queryKey: habitKeys.all })
-  } catch {
+  } catch (error) {
+    if (reportsAccountChanged(error)) reportAccountChanged()
   }
 }
 

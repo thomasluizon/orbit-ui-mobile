@@ -312,4 +312,48 @@ describe('PushPrompt enable flow', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('pushPrompt.retryHint')
     await waitFor(() => expect(screen.getByRole('dialog').style.opacity).toBe('1'))
   })
+
+  it('keeps the prompt without a retry hint when the account changed', async () => {
+    vi.spyOn(MockNotification, 'requestPermission').mockResolvedValue('granted')
+    mountEnableFlow({
+      getSubscription: vi.fn().mockResolvedValue(null),
+      subscribe: vi.fn().mockResolvedValue({
+        toJSON: () => ({ endpoint: 'https://push.example.com/new' }),
+        unsubscribe: vi.fn().mockResolvedValue(true),
+      }),
+    })
+    vi.mocked(subscribePush).mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
+    render(<PushPrompt />)
+    fireEvent.click(await screen.findByText('pushPrompt.enable'))
+    await waitFor(() => expect(subscribePush).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog').style.opacity).toBe('1')
+  })
+
+  it('removes the refused browser subscription so a reload offers the prompt again', async () => {
+    let current: { unsubscribe: () => Promise<boolean>; toJSON: () => object } | null = null
+    const created = {
+      toJSON: () => ({ endpoint: 'https://push.example.com/new' }),
+      unsubscribe: vi.fn(async () => {
+        current = null
+        return true
+      }),
+    }
+    const subscribe = vi.fn(async () => {
+      current = created
+      return created
+    })
+    vi.spyOn(MockNotification, 'requestPermission').mockResolvedValue('granted')
+    mountEnableFlow({ getSubscription: vi.fn(async () => current), subscribe })
+    vi.mocked(subscribePush).mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
+
+    const firstMount = render(<PushPrompt />)
+    fireEvent.click(await screen.findByText('pushPrompt.enable'))
+    await waitFor(() => expect(created.unsubscribe).toHaveBeenCalledTimes(1))
+    firstMount.unmount()
+
+    mockNotificationPermission = 'granted'
+    render(<PushPrompt />)
+    expect(await screen.findByText('pushPrompt.enable')).toBeInTheDocument()
+  })
 })

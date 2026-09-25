@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import type { ChatResponse } from '@orbit/shared/types/chat'
@@ -167,6 +167,7 @@ function httpErrorResponse(status: number, errorBody: { error?: string; errorCod
 }
 
 describe('mobile useChatComposer', () => {
+  afterEach(() => vi.restoreAllMocks())
   beforeEach(() => {
     mocks.state.profile = undefined
     mocks.state.speechError = null
@@ -232,6 +233,7 @@ describe('mobile useChatComposer', () => {
   })
 
   it('keeps a newer stream active when the finalized request finishes invalidating', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(123)
     let resolveInvalidations!: () => void
     const invalidations = new Promise<void>((resolve) => {
       resolveInvalidations = resolve
@@ -262,6 +264,7 @@ describe('mobile useChatComposer', () => {
     })
 
     await vi.waitFor(() => expect(useChatStore.getState().messages.at(-1)?.content).toBe('Final list: ['))
+    const firstAiId = useChatStore.getState().messages.at(-1)?.id
     expect(useChatStore.getState().streamingMessageId).toBeNull()
     expect(composer.current.isSending).toBe(false)
 
@@ -285,6 +288,10 @@ describe('mobile useChatComposer', () => {
       await secondSendPromise
     })
     expect(useChatStore.getState().streamingMessageId).toBeNull()
+    const aiMessages = useChatStore.getState().messages.filter((message) => message.role === 'ai')
+    expect(aiMessages).toHaveLength(2)
+    expect(aiMessages[1]?.id).not.toBe(firstAiId)
+    expect(aiMessages[1]?.content).toBe('Second final')
   })
 
   it('clears the streamed draft on reset so the final answer is not duplicated', async () => {

@@ -85,8 +85,8 @@ describe('TourOverlay', () => {
     mocks.store = makeStore({ currentStepIndex: 2 })
     render(<TourOverlay />)
     fireEvent.click(screen.getByRole('button', { name: 'next' }))
-    expect(endTour).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(completeTour).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(endTour).toHaveBeenCalledTimes(1))
     expect(setQueryData).toHaveBeenCalled()
     expect(localStorage.getItem('orbit_tour_sections:v1')).toContain('habits')
   })
@@ -97,5 +97,27 @@ describe('TourOverlay', () => {
     fireEvent.click(screen.getByRole('button', { name: 'skip' }))
     expect(endTour).toHaveBeenCalledTimes(1)
     expect(completeTour).not.toHaveBeenCalled()
+  })
+
+  it('still ends the tour and records completion locally when completion fails for another reason', async () => {
+    completeTour.mockRejectedValue(new Error('network down'))
+    mocks.store = makeStore({ currentStepIndex: 2 })
+    render(<TourOverlay />)
+    fireEvent.click(screen.getByRole('button', { name: 'next' }))
+
+    await waitFor(() => expect(endTour).toHaveBeenCalledTimes(1))
+    expect(setQueryData).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem('orbit_tour_sections:v1')).not.toBeNull()
+  })
+
+  it('does not persist completion when the account changed', async () => {
+    completeTour.mockRejectedValue(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
+    mocks.store = makeStore({ currentStepIndex: 2 })
+    render(<TourOverlay />)
+    fireEvent.click(screen.getByRole('button', { name: 'next' }))
+
+    await waitFor(() => expect(completeTour).toHaveBeenCalledTimes(1))
+    expect(setQueryData).not.toHaveBeenCalled()
+    expect(localStorage.getItem('orbit_tour_sections:v1')).toBeNull()
   })
 })

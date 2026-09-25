@@ -1,16 +1,16 @@
 'use server'
 
 import { API } from '@orbit/shared/api'
-import { serverAuthFetch } from '@/lib/server-fetch'
+import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 /**
  * Request account deletion. Sends a confirmation code to the user's email.
  */
-export async function requestDeletion(): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.auth.requestDeletion, {
+export async function requestDeletion(intendedAccountId: string | null): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.auth.requestDeletion, {
     method: 'POST',
-  }))
+  }, intendedAccountId))
 }
 
 /**
@@ -18,13 +18,13 @@ export async function requestDeletion(): Promise<ServerActionResult<void>> {
  * Returns the scheduled deletion date from the backend response.
  */
 export async function confirmDeletion(
-  code: string,
+  code: string, intendedAccountId: string | null
 ): Promise<ServerActionResult<{ scheduledDeletionAt?: string }>> {
   return wrapServerAction(async () => {
-    const response = await serverAuthFetch(API.auth.confirmDeletion, {
+    const response = await serverAuthMutate(API.auth.confirmDeletion, {
       method: 'POST',
       body: JSON.stringify({ code }),
-    })
+    }, intendedAccountId)
     return response ?? {}
   })
 }

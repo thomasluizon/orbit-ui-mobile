@@ -129,6 +129,14 @@ describe('ClarificationCard', () => {
     })
   })
 
+  it('shows reload guidance instead of already resolved when the account changed', async () => {
+    mutateAsync.mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 }))
+    render(<ClarificationCard clarificationRequest={baseClarification} />, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByText('habits.clarification.quickAction.daily'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(screen.queryByText('habits.clarification.errorAlreadyResolved')).not.toBeInTheDocument()
+  })
+
   it('shows expired error when the resolve returns 410 Gone', async () => {
     mutateAsync.mockResolvedValueOnce({ ok: false, error: 'gone', status: 410 })
 

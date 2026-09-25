@@ -18,6 +18,8 @@ import { useBilling } from '@/hooks/use-billing'
 import { openCustomerPortal } from '@/lib/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { sessionAwareFetch } from '@/lib/api-fetch'
+import { getHeldAccountId } from '@/stores/auth-store'
+import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 
@@ -48,6 +50,7 @@ export default function UpgradePage() {
   const isManageView = hasProAccess && !profile?.isTrialActive
 
   const handleCheckout = useCallback(async (interval: SubscriptionInterval) => {
+    const intendedAccountId = getHeldAccountId()
     setCheckoutLoading(interval)
     setCheckoutError('')
     try {
@@ -57,7 +60,10 @@ export default function UpgradePage() {
         : API.subscription.checkout
       const response = await sessionAwareFetch(checkoutUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(intendedAccountId ? { 'X-Orbit-Held-Account-Id': intendedAccountId } : {}),
+        },
         body: JSON.stringify({ interval }),
       })
       if (!response.ok) {
@@ -69,6 +75,7 @@ export default function UpgradePage() {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
+      reportAccountChangedIfNeeded(err)
       setCheckoutError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
       setCheckoutLoading(null)
@@ -83,6 +90,7 @@ export default function UpgradePage() {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
+      reportAccountChangedIfNeeded(err)
       setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     }
   }, [t])

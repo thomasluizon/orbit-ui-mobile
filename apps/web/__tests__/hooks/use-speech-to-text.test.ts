@@ -2,6 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { VOICE_LEVEL_POLL_MS, VOICE_SILENCE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
+import { toast } from 'sonner'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+
+let heldAccountId: string | null = 'account-a'
+let accountGeneration = 1
+vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => heldAccountId,
+  getAccountGeneration: () => accountGeneration,
+  useAuthStore: { getState: () => ({ recoverSessionRefreshFailure: async () => {} }) },
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -40,6 +52,9 @@ const getUserMedia = vi.fn(async () => makeStream())
 
 describe('useSpeechToText', () => {
   beforeEach(() => {
+    setApiFetchTranslate((key) => key)
+    heldAccountId = 'account-a'
+    accountGeneration = 1
     MockMediaRecorder.instances = []
     vi.clearAllMocks()
     vi.stubGlobal('MediaRecorder', MockMediaRecorder)
@@ -88,6 +103,24 @@ describe('useSpeechToText', () => {
       expect(result.current.error).toBeNull()
     })
 
+    it('releases a microphone granted after the account switches', async () => {
+      let grantMicrophone: (stream: MediaStream) => void = () => {}
+      getUserMedia.mockReturnValueOnce(new Promise<MediaStream>((resolve) => { grantMicrophone = resolve }))
+      const track = { stop: vi.fn() }
+      const stream = { getTracks: () => [track] } as unknown as MediaStream
+      const { result } = renderHook(() => useSpeechToText())
+
+      let recording: Promise<void> = Promise.resolve()
+      act(() => { recording = result.current.startRecording() })
+      heldAccountId = 'account-b'
+      accountGeneration++
+      await act(async () => { grantMicrophone(stream); await recording })
+
+      expect(track.stop).toHaveBeenCalledTimes(1)
+      expect(MockMediaRecorder.instances).toHaveLength(0)
+      expect(result.current.error).toBe('errors.api.accountChanged')
+    })
+
     it('tracks recording duration', async () => {
       vi.useFakeTimers()
       const { result } = renderHook(() => useSpeechToText())
@@ -125,11 +158,61 @@ describe('useSpeechToText', () => {
       expect(result.current.error).toBeNull()
 
       const init = fetchMock.mock.calls[0]?.[1]
+      expect(new Headers(init?.headers).get('x-orbit-held-account-id')).toBe('account-a')
       const body = init?.body
       expect(body).toBeInstanceOf(FormData)
       if (body instanceof FormData) {
         expect(body.get('audio')).toBeInstanceOf(Blob)
       }
+    })
+
+    it('does not transcribe a recording after the held account changes', async () => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      heldAccountId = 'account-b'
+      accountGeneration++
+      await act(async () => { result.current.stopRecording() })
+
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(result.current.error).toBe('errors.api.accountChanged')
+    })
+
+    it('offers reload when transcription is refused by the account fence', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+        error: 'Account changed', errorCode: 'ACCOUNT_CHANGED',
+      }, { status: 409 })))
+      const { result } = renderHook(() => useSpeechToText())
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+
+      await waitFor(() => expect(result.current.error).toBe('errors.api.accountChanged'))
+      expect(toast.error).toHaveBeenCalledWith('errors.api.accountChanged', expect.objectContaining({
+        id: 'account-changed',
+      }))
+      expect(result.current.transcript).toBe('')
+    })
+
+    it('does not show an error from an old account request after the switch', async () => {
+      let failRequest: (error: Error) => void = () => {}
+      const fetchMock = vi.fn(() => new Promise<Response>((_resolve, reject) => { failRequest = reject }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      heldAccountId = 'account-b'
+      accountGeneration++
+      await act(async () => {
+        failRequest(new Error('old account network error'))
+        await Promise.resolve()
+      })
+
+      expect(result.current.transcript).toBe('')
+      expect(result.current.error).toBeNull()
     })
 
     it('surfaces the mapped error key when transcription returns an error code', async () => {

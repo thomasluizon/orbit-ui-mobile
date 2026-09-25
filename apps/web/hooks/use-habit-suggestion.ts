@@ -1,6 +1,8 @@
 'use client'
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
+import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
 import {
   habitSetupSuggestionSchema,
@@ -17,7 +19,7 @@ import { suggestHabitSetup } from '@/lib/actions/habits'
 export function useHabitSuggestion() {
   const queryClient = useQueryClient()
 
-  return useMutation<HabitSetupSuggestion, Error, HabitSetupSuggestionRequest>({
+  return useAccountScopedMutation<HabitSetupSuggestion, Error, HabitSetupSuggestionRequest>({
     mutationFn: async (data) =>
       habitSetupSuggestionSchema.parse(await suggestHabitSetup(data)),
     onSuccess: () => {

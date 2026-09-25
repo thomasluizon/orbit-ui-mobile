@@ -10,6 +10,7 @@ import {
   subscribePush as subscribePushAction,
   unsubscribePush as unsubscribePushAction,
 } from '@/lib/actions/notifications'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 
 export type PushPreferenceStatus = WebPushPreferenceStatus
 
@@ -141,8 +142,9 @@ export async function subscribeToPushNotifications(
 
   try {
     await subscribePushAction(subscription.toJSON())
-  } catch {
+  } catch (error) {
     await subscription.unsubscribe().catch(() => undefined)
+    if (reportsAccountChanged(error)) throw error
     throw new Error('Failed to persist push subscription')
   }
 
@@ -162,9 +164,12 @@ export async function unsubscribeFromPushNotifications(
   if (subscription) {
     try {
       await unsubscribePushAction(subscription.toJSON())
-    } finally {
+    } catch (error) {
+      if (reportsAccountChanged(error)) throw error
       await subscription.unsubscribe().catch(() => undefined)
+      throw error
     }
+    await subscription.unsubscribe().catch(() => undefined)
   }
 
   const nextPermission = permission || Notification.permission
@@ -214,7 +219,11 @@ export function usePushNotificationPreferences(): UsePushNotificationPreferences
         ...snapshot,
         loading: false,
       }))
-    } catch {
+    } catch (error) {
+      if (reportsAccountChanged(error)) {
+        setState((current) => ({ ...current, ...state, loading: false }))
+        return
+      }
       setState((current) => ({
         ...current,
         subscribed: false,
