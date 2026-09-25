@@ -162,7 +162,7 @@ export function DateField({
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
         <span>{displayValue || placeholder || t('common.selectDate')}</span>
-        <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-4)]" />
+        <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </button>
 
       {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker}>

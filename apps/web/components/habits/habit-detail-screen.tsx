@@ -156,8 +156,8 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
                 role="img"
                 aria-hidden={day.outsideMonth || undefined}
                 aria-label={day.outsideMonth ? undefined : `${label}, ${outcomeWord}, ${t('readOnlyWord')}`}
-                className="inline-flex h-11 w-11 items-center justify-center font-[var(--font-mono)] text-sm tabular-nums text-[var(--fg-4)]"
-                style={{ opacity: day.outsideMonth ? 0 : day.outcome === 'unavailable' ? 0.4 : 1 }}
+                className="inline-flex h-11 w-11 items-center justify-center font-[var(--font-mono)] text-sm tabular-nums text-[var(--fg-3)]"
+                style={{ opacity: day.outsideMonth ? 0 : 1 }}
               >
                 {day.day}
               </span>

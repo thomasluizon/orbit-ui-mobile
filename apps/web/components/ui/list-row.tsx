@@ -34,7 +34,7 @@ export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, action, chevron = true, disabled = false, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const interactive = !readOnly && !disabled && (href || onClick)
-  const content = <span className={`flex min-w-0 flex-1 items-center ${interactive ? 'orbit-list-row group-active/list-body:scale-[0.96]' : ''}`} style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-4)" strokeWidth={1.8} /></span> : null}</span>
+  const content = <span className={`flex min-w-0 flex-1 items-center ${interactive ? 'orbit-list-row group-active/list-body:scale-[0.96]' : ''}`} style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const bodyStyle = { minHeight: 76, padding: 16, paddingInlineEnd: action ? 0 : 16 } as const
 
   return (

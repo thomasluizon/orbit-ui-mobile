@@ -195,7 +195,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         onClick={() => {
           if (canSend) props.onSend()
         }}
-        className={`flex size-12 shrink-0 items-center justify-center rounded-full border-0 transition-[background-color,opacity,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)]' : 'bg-[var(--bg-well)] text-[var(--fg-4)]'}`}
+        className={`flex size-12 shrink-0 items-center justify-center rounded-full border-0 transition-[background-color,opacity,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
       >
         <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
       </button>

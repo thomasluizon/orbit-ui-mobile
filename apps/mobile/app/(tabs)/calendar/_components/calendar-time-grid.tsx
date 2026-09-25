@@ -677,7 +677,7 @@ function createStyles(tokens: Tokens) {
       right: 8,
       fontFamily: "GeistMono_400Regular",
       fontSize: 10,
-      color: tokens.fg4,
+      color: tokens.fg3,
       fontVariant: ["tabular-nums"],
     },
     columnsScroll: {

@@ -53,7 +53,7 @@ export default function DeleteAccountPage() {
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 500,
-              color: 'var(--primary-soft)',
+              color: 'var(--primary-text)',
             }}
           >
             {t('deleteAccount.webFallback.button')}
