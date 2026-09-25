@@ -67,6 +67,20 @@ describe('mobile Toast', () => {
     }
   })
 
+  it.each(['dark', 'light'] as const)('shows a high-contrast action focus ring in %s', (mode) => {
+    theme.mode = mode
+    const tree = render(
+      <Toast kind="lost" message="Lost" detail="Try again" actionLabel="Retry" onAction={() => {}} />,
+    )
+    const action = tree.root.findByProps({ testID: 'toast-action' })
+    const tokens = createTokensV2('purple', mode)
+
+    TestRenderer.act(() => action.props.onFocus())
+    const focusedStyle = StyleSheet.flatten(action.props.style)
+    expect(focusedStyle.outlineWidth).toBeGreaterThanOrEqual(2)
+    expect(contrastOnSurface(focusedStyle.outlineColor, [tokens.bg])).toBeGreaterThanOrEqual(3)
+  })
+
   it('expands even a one-character action to a 44px target without reaching the copy', () => {
     const tree = render(
       <Toast kind="lost" message="Lost" detail="Try again" actionLabel="i" onAction={() => {}} />,

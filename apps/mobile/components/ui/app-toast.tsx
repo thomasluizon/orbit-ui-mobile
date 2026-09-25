@@ -27,6 +27,15 @@ function resolveActionColor(
   return kind === 'lost' ? tokens.fg1 : tokens.fg2
 }
 
+function resolveActionOutline(focused: boolean, color: string) {
+  return focused ? {
+    outlineWidth: 2,
+    outlineStyle: 'solid' as const,
+    outlineColor: color,
+    outlineOffset: 2,
+  } : undefined
+}
+
 function useToastLife(
   kind: ToastProps['kind'],
   message: string,
@@ -83,6 +92,7 @@ export function Toast(props: Readonly<ToastProps>) {
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const [actionPressed, setActionPressed] = useState(false)
+  const [actionFocused, setActionFocused] = useState(false)
   const onDone = props.kind === 'done' || props.kind === 'neutral' ? props.onDone : undefined
   const doneAfterMs = props.kind === 'done' || props.kind === 'neutral' ? props.doneAfterMs : undefined
   const lossColors = { background: tokens.bg, action: tokens.primarySoft }
@@ -148,12 +158,12 @@ export function Toast(props: Readonly<ToastProps>) {
           onPress={props.onAction}
           onPressIn={() => setActionPressed(true)}
           onPressOut={() => setActionPressed(false)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => { setFocused(false); setActionPressed(false) }}
+          onFocus={() => { setFocused(true); setActionFocused(true) }}
+          onBlur={() => { setFocused(false); setActionPressed(false); setActionFocused(false) }}
           accessibilityRole="button"
           accessibilityLabel={props.actionLabel}
           hitSlop={8}
-          style={styles.action}
+          style={[styles.action, resolveActionOutline(actionFocused, tokens.fg1)]}
           testID="toast-action"
         >
           <Text style={[styles.actionText, {
