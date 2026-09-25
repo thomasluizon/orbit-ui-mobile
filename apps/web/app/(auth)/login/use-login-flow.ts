@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
@@ -41,6 +41,28 @@ export function useLoginFlow() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileTokenRef = useRef<string | null>(null)
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0)
+  const onTurnstileToken = useCallback((token: string | null) => {
+    turnstileTokenRef.current = token
+    setTurnstileToken(token)
+  }, [])
+
+  useEffect(() => {
+    if (!isOnline) void Promise.resolve().then(() => onTurnstileToken(null))
+  }, [isOnline, onTurnstileToken])
+
+  function takeTurnstileToken() {
+    if (!turnstileSiteKey) return {}
+    const token = turnstileTokenRef.current
+    if (!token) return null
+    turnstileTokenRef.current = null
+    setTurnstileToken(null)
+    setTurnstileResetKey((value) => value + 1)
+    return { turnstileToken: token }
+  }
   const {
     codeDigits,
     setCodeDigits,
@@ -109,11 +131,13 @@ export function useLoginFlow() {
       reportError(t('auth.errors.offline'))
       return
     }
+    const protection = takeTurnstileToken()
+    if (!protection) return
     setIsSubmitting(true)
     setErrorMessage(null)
 
     try {
-      await fetchAuthEndpoint('/api/auth/send-code', { email, language: locale })
+      await fetchAuthEndpoint('/api/auth/send-code', { email, language: locale, ...protection })
       setStep('code')
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
@@ -131,6 +155,8 @@ export function useLoginFlow() {
       reportError(t('auth.errors.offline'))
       return
     }
+    const protection = takeTurnstileToken()
+    if (!protection) return
     setIsSubmitting(true)
     setSuccessMessage(null)
     setErrorMessage(null)
@@ -140,6 +166,7 @@ export function useLoginFlow() {
         email,
         code,
         language: locale,
+        ...protection,
         ...(referralCode ? { referralCode } : {}),
       })) as LoginResponse
       await handleVerifySuccess(
@@ -166,12 +193,14 @@ export function useLoginFlow() {
       reportError(t('auth.errors.offline'))
       return
     }
+    const protection = takeTurnstileToken()
+    if (!protection) return
     setIsSubmitting(true)
     setSuccessMessage(null)
     setErrorMessage(null)
 
     try {
-      await fetchAuthEndpoint('/api/auth/send-code', { email, language: locale })
+      await fetchAuthEndpoint('/api/auth/send-code', { email, language: locale, ...protection })
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
     } catch (err: unknown) {
@@ -227,6 +256,10 @@ export function useLoginFlow() {
     isGoogleLoading,
     errorMessage,
     successMessage,
+    turnstileSiteKey,
+    turnstileToken,
+    turnstileResetKey,
+    onTurnstileToken,
     referralCode,
     fromOnboarding,
     pendingHabitCount,

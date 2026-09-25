@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native'
+import type { ReactNode } from 'react'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { FieldInput } from '@/components/ui/field-input'
@@ -14,6 +15,7 @@ interface EmailStepProps {
   canSubmitEmail: boolean
   isGoogleLoading: boolean
   isOnline: boolean
+  turnstileWidget: ReactNode
   onSendCode: () => void
   onSignInWithGoogle: () => void
   onOpenTerms: () => void
@@ -32,6 +34,7 @@ export function EmailStep({
   canSubmitEmail,
   isGoogleLoading,
   isOnline,
+  turnstileWidget,
   onSendCode,
   onSignInWithGoogle,
   onOpenTerms,
@@ -58,6 +61,8 @@ export function EmailStep({
         returnKeyType="send"
         accessibilityLabel={t('auth.email')}
       />
+
+      {turnstileWidget}
 
       <PillButton
         fullWidth

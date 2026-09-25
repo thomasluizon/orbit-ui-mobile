@@ -3,6 +3,7 @@
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
+import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { useLoginFlow } from './use-login-flow'
 import {
   LoginHeader,
@@ -21,6 +22,10 @@ export default function LoginPage() {
     isGoogleLoading,
     errorMessage,
     successMessage,
+    turnstileSiteKey,
+    turnstileToken,
+    turnstileResetKey,
+    onTurnstileToken,
     referralCode,
     fromOnboarding,
     pendingHabitCount,
@@ -75,6 +80,8 @@ export default function LoginPage() {
               isSubmitting={isSubmitting}
               isGoogleLoading={isGoogleLoading}
               isOnline={isOnline}
+              canSubmitTurnstile={!turnstileSiteKey || Boolean(turnstileToken)}
+              turnstileWidget={turnstileSiteKey && isOnline ? <TurnstileWidget siteKey={turnstileSiteKey} resetKey={turnstileResetKey} onToken={onTurnstileToken} /> : null}
               onSendCode={() => void sendCode()}
               onSignInWithGoogle={() => void signInWithGoogle()}
               t={t}
@@ -93,6 +100,8 @@ export default function LoginPage() {
               codeInputRefs={codeInputRefs}
               errorSignal={errorMessage}
               isOnline={isOnline}
+              canSubmitTurnstile={!turnstileSiteKey || Boolean(turnstileToken)}
+              turnstileWidget={turnstileSiteKey && isOnline ? <TurnstileWidget siteKey={turnstileSiteKey} resetKey={turnstileResetKey} onToken={onTurnstileToken} /> : null}
               onVerifyCode={() => void verifyCode()}
               onCodeInput={onCodeInput}
               onCodeKeydown={onCodeKeydown}

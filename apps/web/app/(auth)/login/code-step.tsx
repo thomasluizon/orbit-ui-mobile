@@ -1,4 +1,5 @@
 import type { useTranslations } from 'next-intl'
+import type { ReactNode } from 'react'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
 import { CodeInput } from '@/components/ui/code-input'
@@ -15,6 +16,8 @@ interface CodeStepProps {
   codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
   errorSignal?: string | null
   isOnline: boolean
+  canSubmitTurnstile: boolean
+  turnstileWidget: ReactNode
   onVerifyCode: () => void
   onCodeInput: (index: number, value: string) => void
   onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
@@ -33,6 +36,8 @@ export function CodeStep({
   codeInputRefs,
   errorSignal = null,
   isOnline,
+  canSubmitTurnstile,
+  turnstileWidget,
   onVerifyCode,
   onCodeInput,
   onCodeKeydown,
@@ -83,11 +88,12 @@ export function CodeStep({
             ariaLabelledBy="code-sent-to"
           />
         </motion.div>
+        {turnstileWidget}
 
         <PillButton
           type="submit"
           fullWidth
-          disabled={isSubmitting || codeDigits.join('').length !== 6}
+          disabled={isSubmitting || codeDigits.join('').length !== 6 || !canSubmitTurnstile || !isOnline}
           busy={isSubmitting}
           leading={isSubmitting ? <Spinner /> : undefined}
           dataTestId="auth-verify-code"
@@ -98,7 +104,7 @@ export function CodeStep({
 
       <div className="flex justify-center">
         {canResend ? (
-          <QuietLink emphasized onClick={onResendCode} disabled={!isOnline}>
+          <QuietLink emphasized onClick={onResendCode} disabled={!isOnline || !canSubmitTurnstile || isSubmitting}>
             {t('auth.resendCode')}
           </QuietLink>
         ) : (

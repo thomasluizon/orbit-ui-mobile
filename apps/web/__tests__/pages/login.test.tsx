@@ -60,6 +60,12 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+vi.mock('@/components/auth/turnstile-widget', () => ({
+  TurnstileWidget: ({ onToken }: { onToken: (token: string) => void }) => (
+    <button type="button" onClick={() => onToken('widget-token')}>Solve security check</button>
+  ),
+}))
+
 const mockPush = vi.fn()
 let searchParamValues: Record<string, string | null> = {
   email: 'person@example.com',
@@ -102,6 +108,7 @@ import LoginPage from '@/app/(auth)/login/page'
 
 describe('LoginPage', () => {
   beforeEach(() => {
+    vi.unstubAllEnvs()
     mockPush.mockClear()
     mockShowError.mockClear()
     mockResolveMotionPreset.mockClear()
@@ -113,6 +120,17 @@ describe('LoginPage', () => {
       code: '123456',
       returnUrl: '/',
     }
+  })
+
+  it('disables send until the widget supplies a token', () => {
+    vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+    searchParamValues = { email: null, code: null, returnUrl: '/' }
+    render(<LoginPage />)
+    fireEvent.input(screen.getByLabelText('auth.email'), { target: { value: 'user@test.com' } })
+
+    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Solve security check' }))
+    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeEnabled()
   })
 
   it('keeps the login card at a wider minimum size on larger small screens', () => {

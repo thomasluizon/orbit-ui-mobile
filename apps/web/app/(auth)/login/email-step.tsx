@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import type { useTranslations } from 'next-intl'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -10,6 +11,8 @@ interface EmailStepProps {
   isSubmitting: boolean
   isGoogleLoading: boolean
   isOnline: boolean
+  canSubmitTurnstile: boolean
+  turnstileWidget: ReactNode
   onSendCode: () => void
   onSignInWithGoogle: () => void
   t: ReturnType<typeof useTranslations>
@@ -22,6 +25,8 @@ export function EmailStep({
   isSubmitting,
   isGoogleLoading,
   isOnline,
+  canSubmitTurnstile,
+  turnstileWidget,
   onSendCode,
   onSignInWithGoogle,
   t,
@@ -51,10 +56,11 @@ export function EmailStep({
           autoComplete="email"
           placeholder={t('auth.emailPlaceholder')}
         />
+        {turnstileWidget}
         <PillButton
           type="submit"
           fullWidth
-          disabled={isSubmitting || !email.trim() || !isOnline}
+          disabled={isSubmitting || !email.trim() || !isOnline || !canSubmitTurnstile}
           busy={isSubmitting}
           leading={isSubmitting ? <Spinner /> : undefined}
           dataTestId="auth-send-code"

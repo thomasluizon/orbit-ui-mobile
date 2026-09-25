@@ -11,6 +11,7 @@ import { useLoginFlow } from './use-login-flow'
 import { LoginHeader, ReferralBanner, LoginSuccessMessage } from './login-sections'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
+import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets()
@@ -29,6 +30,10 @@ export default function LoginScreen() {
     isSubmitting,
     isGoogleLoading,
     successMessage,
+    turnstileSiteKey,
+    turnstileToken,
+    turnstileResetKey,
+    onTurnstileToken,
     showReferralBanner,
     fromOnboarding,
     plannedHabitCount,
@@ -116,6 +121,7 @@ export default function LoginScreen() {
               canSubmitEmail={canSubmitEmail}
               isGoogleLoading={isGoogleLoading}
               isOnline={isOnline}
+              turnstileWidget={turnstileSiteKey && isOnline ? <TurnstileWidget siteKey={turnstileSiteKey} resetKey={turnstileResetKey} onToken={onTurnstileToken} /> : null}
               onSendCode={() => void sendCode()}
               onSignInWithGoogle={() => void signInWithGoogle()}
               onOpenTerms={openTerms}
@@ -141,6 +147,8 @@ export default function LoginScreen() {
               canResend={canResend}
               resendCountdown={resendCountdown}
               isOnline={isOnline}
+              turnstileWidget={turnstileSiteKey && isOnline ? <TurnstileWidget siteKey={turnstileSiteKey} resetKey={turnstileResetKey} onToken={onTurnstileToken} /> : null}
+              canSubmitTurnstile={!turnstileSiteKey || Boolean(turnstileToken)}
               onVerifyCode={() => void verifyCode()}
               onResendCode={() => void resendCode()}
               onBackToEmail={backToEmail}

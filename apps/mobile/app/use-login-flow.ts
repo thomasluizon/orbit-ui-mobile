@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Keyboard, Platform } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -84,6 +84,28 @@ export function useLoginFlow() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const turnstileSiteKey = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileTokenRef = useRef<string | null>(null)
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0)
+  const onTurnstileToken = useCallback((token: string | null) => {
+    turnstileTokenRef.current = token
+    setTurnstileToken(token)
+  }, [])
+
+  useEffect(() => {
+    if (!isOnline) void Promise.resolve().then(() => onTurnstileToken(null))
+  }, [isOnline, onTurnstileToken])
+
+  function takeTurnstileToken() {
+    if (!turnstileSiteKey) return {}
+    const token = turnstileTokenRef.current
+    if (!token) return null
+    turnstileTokenRef.current = null
+    setTurnstileToken(null)
+    setTurnstileResetKey((value) => value + 1)
+    return { turnstileToken: token }
+  }
   const [showReferralBanner, setShowReferralBanner] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const isCodeStep = step === 'code'
@@ -229,13 +251,15 @@ export function useLoginFlow() {
       reportError(t('auth.errors.invalidEmail'))
       return
     }
+    const protection = takeTurnstileToken()
+    if (!protection) return
     setIsSubmitting(true)
     setErrorMessage(null)
 
     try {
       await apiClient(API.auth.sendCode, {
         method: 'POST',
-        body: JSON.stringify({ email: trimmed, language: i18n.language }),
+        body: JSON.stringify({ email: trimmed, language: i18n.language, ...protection }),
       })
       setStep('code')
       setSuccessMessage(t('auth.codeSent'))
@@ -245,6 +269,17 @@ export function useLoginFlow() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  async function finishReferral(
+    referralCode: string,
+    isCurrentLoginSession: () => boolean,
+  ) {
+    await markReferralApplied()
+    if (!isCurrentLoginSession()) return
+    await clearStoredReferralCode()
+    if (!isCurrentLoginSession()) return
+    setShowReferralBanner(false)
   }
 
   async function verifyCode() {
@@ -258,6 +293,8 @@ export function useLoginFlow() {
 
     const code = codeDigits.join('')
     if (code.length !== 6) return
+    const protection = takeTurnstileToken()
+    if (!protection) return
     setIsSubmitting(true)
     setSuccessMessage(null)
     setErrorMessage(null)
@@ -270,6 +307,7 @@ export function useLoginFlow() {
           email: email.trim(),
           code,
           language: i18n.language,
+          ...protection,
           ...(referralCode ? { referralCode } : {}),
         }),
       })
@@ -283,11 +321,7 @@ export function useLoginFlow() {
         setSuccessMessage(t('profile.deleteAccount.reactivated'))
       }
       if (referralCode) {
-        await markReferralApplied()
-        if (!isCurrentLoginSession()) return
-        await clearStoredReferralCode()
-        if (!isCurrentLoginSession()) return
-        setShowReferralBanner(false)
+        await finishReferral(referralCode, isCurrentLoginSession)
       }
       if (!isCurrentLoginSession()) return
       if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
@@ -313,6 +347,8 @@ export function useLoginFlow() {
     }
 
     if (!canResend) return
+    const protection = takeTurnstileToken()
+    if (!protection) return
     setIsSubmitting(true)
     setSuccessMessage(null)
     setErrorMessage(null)
@@ -320,7 +356,7 @@ export function useLoginFlow() {
     try {
       await apiClient(API.auth.sendCode, {
         method: 'POST',
-        body: JSON.stringify({ email: email.trim(), language: i18n.language }),
+        body: JSON.stringify({ email: email.trim(), language: i18n.language, ...protection }),
       })
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
@@ -371,9 +407,10 @@ export function useLoginFlow() {
     router.push('/terms')
   }
 
-  const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline
+  const hasTurnstileToken = !turnstileSiteKey || Boolean(turnstileToken)
+  const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline && hasTurnstileToken
   const canSubmitCode =
-    isVerificationCodeComplete(codeDigits) && !isSubmitting && isOnline
+    isVerificationCodeComplete(codeDigits) && !isSubmitting && isOnline && hasTurnstileToken
 
   return {
     t,
@@ -383,6 +420,10 @@ export function useLoginFlow() {
     isSubmitting,
     isGoogleLoading,
     successMessage,
+    turnstileSiteKey,
+    turnstileToken,
+    turnstileResetKey,
+    onTurnstileToken,
     showReferralBanner,
     fromOnboarding,
     plannedHabitCount,
