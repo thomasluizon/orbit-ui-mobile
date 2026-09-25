@@ -15,9 +15,9 @@ interface TurnstileApi {
     callback: (token: string) => void
     'error-callback': () => boolean
     'expired-callback': () => void
-  }) => string
-  reset: (widgetId: string) => void
-  remove: (widgetId: string) => void
+  }) => unknown
+  reset: (widgetId: unknown) => void
+  remove: (widgetId: unknown) => void
 }
 
 function getTurnstile(): TurnstileApi | undefined {
@@ -66,7 +66,7 @@ export function TurnstileWidget({
 }>) {
   const t = useTranslations()
   const containerRef = useRef<HTMLDivElement>(null)
-  const widgetIdRef = useRef<string | null>(null)
+  const widgetIdRef = useRef<unknown>(null)
   const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
 
@@ -110,7 +110,7 @@ export function TurnstileWidget({
     return () => {
       active = false
       const widgetId = widgetIdRef.current
-      if (widgetId) getTurnstile()?.remove(widgetId)
+      if (widgetId != null) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
   }, [siteKey, theme, attempt, onToken, onStateChange])
@@ -118,7 +118,7 @@ export function TurnstileWidget({
   useEffect(() => {
     if (resetKey === 0) return
     const widgetId = widgetIdRef.current
-    if (widgetId) getTurnstile()?.reset(widgetId)
+    if (widgetId != null) getTurnstile()?.reset(widgetId)
   }, [resetKey])
 
   function retry() {
@@ -126,7 +126,7 @@ export function TurnstileWidget({
     setState('loading')
     onStateChange?.('loading')
     const widgetId = widgetIdRef.current
-    if (widgetId) {
+    if (widgetId != null) {
       getTurnstile()?.reset(widgetId)
     } else {
       setAttempt((value) => value + 1)
