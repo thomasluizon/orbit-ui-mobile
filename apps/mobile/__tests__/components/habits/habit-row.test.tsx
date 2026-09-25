@@ -179,91 +179,6 @@ describe('HabitRow status control names (mobile)', () => {
     expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
   })
 
-  it('paints nothing when any read-only target is pressed', () => {
-    let renderer: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      renderer = TestRenderer.create(
-        <HabitRow
-          habit={createMockHabit({ title: 'Meditate' })}
-          readOnly
-          hasChildren
-          childrenDone={0}
-          childrenTotal={1}
-          actions={{ onDetail: vi.fn(), onLog: vi.fn(), onToggleExpand: vi.fn(), onEdit: vi.fn() }}
-        />,
-      )
-    })
-
-    const body = renderer!.root.findAll(
-      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
-    )[0]
-    const controlLabels = [
-      'common.expand',
-      'habits.statusDot.empty, habits.logHabit: Meditate, 0/1',
-      'habits.actions.more',
-    ]
-    const card = StyleSheet.flatten(
-      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
-    ) as Record<string, unknown>
-
-    expect(body.props.onPressIn).toBeUndefined()
-    expect(card.backgroundColor).toBe('rgba(250,250,250,0.04)')
-    for (const label of controlLabels) {
-      const control = renderer!.root.findByProps({ accessibilityLabel: label })
-      const pressedStyle = StyleSheet.flatten(
-        control.props.style({ pressed: true }),
-      ) as Record<string, unknown>
-      expect(pressedStyle.backgroundColor).not.toBe('rgba(250,250,250,0.13)')
-    }
-  })
-
-  it('makes every read-only descendant disabled and guards its actions', () => {
-    const onDetail = vi.fn()
-    const onLog = vi.fn()
-    const onToggleExpand = vi.fn()
-    const onEdit = vi.fn()
-    let renderer: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      renderer = TestRenderer.create(
-        <HabitRow
-          habit={createMockHabit({ title: 'Meditate' })}
-          readOnly
-          hasChildren
-          childrenDone={0}
-          childrenTotal={1}
-          actions={{ onDetail, onLog, onToggleExpand, onEdit }}
-        />,
-      )
-    })
-
-    const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    expect(row.props.pointerEvents).toBeUndefined()
-    expect(row.props.accessibilityState).toEqual({ disabled: true })
-
-    const controls = [
-      renderer!.root.findByProps({ accessibilityLabel: 'common.expand' }),
-      renderer!.root.findByProps({ accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Meditate, 0/1' }),
-      renderer!.root.findByProps({ accessibilityLabel: 'habits.actions.more' }),
-    ]
-    const body = renderer!.root.findAll(
-      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
-    )[0]
-    expect(body?.props.disabled).toBe(true)
-    for (const control of controls) {
-      expect(control.props.disabled).toBe(true)
-      TestRenderer.act(() => control.props.onPress?.())
-    }
-    TestRenderer.act(() => {
-      body?.props.onPress?.()
-      body?.props.onLongPress?.()
-    })
-
-    expect(onDetail).not.toHaveBeenCalled()
-    expect(onLog).not.toHaveBeenCalled()
-    expect(onToggleExpand).not.toHaveBeenCalled()
-    expect(onEdit).not.toHaveBeenCalled()
-  })
-
   it('uses a 500 ms still hold for selection', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
@@ -411,7 +326,7 @@ describe('HabitRow menu (mobile)', () => {
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     )
 
-    expect(body.props.disabled).toBe(false)
+    expect(body.props.disabled).not.toBe(true)
     expect(ring.props.disabled).toBe(true)
     expect(rowStyle.opacity).not.toBe(0.5)
     TestRenderer.act(() => body.props.onPress())

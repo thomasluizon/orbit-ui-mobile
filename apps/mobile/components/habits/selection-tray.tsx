@@ -20,6 +20,8 @@ interface SelectionTrayProps {
   skipLabel: string
   deleteLabel: string
   closeLabel: string
+  completionReadOnly?: boolean
+  completionReason?: string
 }
 
 /**
@@ -42,10 +44,13 @@ export function SelectionTray({
   skipLabel,
   deleteLabel,
   closeLabel,
+  completionReadOnly = false,
+  completionReason,
 }: Readonly<SelectionTrayProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const disabled = count === 0
+  const completionDisabled = disabled || completionReadOnly
 
   return (
     <View
@@ -85,15 +90,16 @@ export function SelectionTray({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={logLabel}
-          accessibilityState={{ disabled }}
-          disabled={disabled}
+          accessibilityHint={completionReadOnly ? completionReason : undefined}
+          accessibilityState={{ disabled: completionDisabled }}
+          disabled={completionDisabled}
           hitSlop={2}
           onPress={onLog}
           style={({ pressed }) => [
             styles.actionBtn,
             { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
             pressed ? styles.pressedScale : null,
-            disabled ? styles.disabled : null,
+            completionDisabled ? styles.disabled : null,
           ]}
         >
           <CheckCircle2
@@ -105,15 +111,16 @@ export function SelectionTray({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={skipLabel}
-          accessibilityState={{ disabled }}
-          disabled={disabled}
+          accessibilityHint={completionReadOnly ? completionReason : undefined}
+          accessibilityState={{ disabled: completionDisabled }}
+          disabled={completionDisabled}
           hitSlop={2}
           onPress={onSkip}
           style={({ pressed }) => [
             styles.actionBtn,
             { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
             pressed ? styles.pressedScale : null,
-            disabled ? styles.disabled : null,
+            completionDisabled ? styles.disabled : null,
           ]}
         >
           <FastForward
