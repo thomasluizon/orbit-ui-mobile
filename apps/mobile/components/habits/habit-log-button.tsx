@@ -10,17 +10,22 @@ interface HabitLogButtonProps {
   logged: boolean
   onPress: () => void
   progress?: number
+  disabled?: boolean
+  disabledReason?: string
 }
 
-export function HabitLogButton({ label, logged, completed = logged, onPress, progress }: Readonly<HabitLogButtonProps>) {
+export function HabitLogButton({ label, logged, completed = logged, onPress, progress, disabled = false, disabledReason }: Readonly<HabitLogButtonProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={disabled ? disabledReason : undefined}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed ? { backgroundColor: tokens.bgHover } : null]}
+      style={({ pressed }) => [styles.button, disabled ? { opacity: 0.4 } : null, pressed && !disabled ? { backgroundColor: tokens.bgHover } : null]}
     >
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         {progress === undefined || completed ? (

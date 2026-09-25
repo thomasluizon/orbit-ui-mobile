@@ -17,7 +17,7 @@ export function CommandGroups({ query, onSelect, hideCreate = false }: Readonly<
     const entries = commands.filter((command) => command.group === group)
     if (!entries.length) return null
     return <View key={group} style={styles.group}>
-      <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg4 }]}>{t(GROUP_KEYS[group])}</Text>
+      <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg3 }]}>{t(GROUP_KEYS[group])}</Text>
       {entries.map((entry) => { const Icon = ICONS[entry.id]; return <Pressable key={entry.id} role="button" accessibilityRole="button" onPress={() => onSelect(entry.id)} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Icon size={20} color={tokens.fg3} /><Text style={[styles.label, { color: tokens.fg1 }]}>{t(entry.label)}</Text></Pressable> })}
     </View>
   })

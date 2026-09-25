@@ -58,7 +58,7 @@ export interface HabitDetailChildDateModel {
   habit: NormalizedHabit
   completed: boolean
   canLog: boolean
-  readOnly: boolean
+  completionReadOnly: boolean
 }
 
 function monthDifference(date: Date, anchor: Date): number {
@@ -196,7 +196,7 @@ export function buildHabitDetailChildDateModel(
     habit,
     completed,
     canLog,
-    readOnly: scopedChild === undefined
+    completionReadOnly: scopedChild === undefined
       || boundary === 'read-only'
       || (boundary === 'future' && !canLog),
   }

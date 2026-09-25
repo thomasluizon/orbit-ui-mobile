@@ -38,7 +38,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
       </View>
       {value ? <Text style={[styles.value, { color: tokens.fg3 }]} numberOfLines={1}>{value}</Text> : null}
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
-      {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} /></View> : null}
+      {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>
   )
 

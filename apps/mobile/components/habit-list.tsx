@@ -56,6 +56,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
+import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
@@ -94,6 +95,7 @@ interface HabitListProps {
   filters: HabitsFilter
   selectedDate?: Date
   showCompleted: boolean
+  onShowCompleted?: () => void
   searchQuery?: string
   isSelectMode?: boolean
   selectedHabitIds?: Set<string>
@@ -189,7 +191,7 @@ export interface HabitListHandle {
   expandAll: () => void
   markRecentlyCompleted: (habitId: string) => void
   checkAndPromptParentLog: (childHabitId: string) => void
-  settleBulkHabitResolutions: (resolutions: readonly HabitResolution[]) => void
+  settleBulkHabitResolutions: (resolutions: readonly HabitResolution[], date: string) => void
   refetch: () => void
   scrollToOffset: (offset: number) => void
 }
@@ -380,6 +382,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       filters,
       selectedDate,
       showCompleted,
+      onShowCompleted,
       searchQuery,
       isSelectMode,
       selectedHabitIds,
@@ -452,18 +455,30 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const reorderHabitsMutation = useReorderHabits()
     const moveParentMutation = useMoveHabitParent()
     const { showInterstitialIfDue } = useAdMob()
-    const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
-
-    useEffect(() => {
-      onSurfaceOpenChange?.(drill.currentParentId !== null)
-    }, [drill.currentParentId, onSurfaceOpenChange])
     const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
     const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
-    const [recentlyCompletedIds, setRecentlyCompletedIds] = useState<
-      Set<string>
-    >(new Set())
+    const [recentlyCompletedDates, setRecentlyCompletedDates] = useState(
+      new Map<string, Set<string>>(),
+    )
+    const recentlyCompletedIds = useMemo(
+      () => getRecentlyCompletedIdsForDate(recentlyCompletedDates, selectedDateStr),
+      [recentlyCompletedDates, selectedDateStr],
+    )
+    const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
+      habitsById,
+      childrenByParent,
+      selectedDate: selectedDateStr,
+      searchQuery: searchQuery ?? '',
+      showCompleted,
+      recentlyCompletedIds,
+      recentlyCompletedDates,
+    }, view)
+
+    useEffect(() => {
+      onSurfaceOpenChange?.(drill.currentParentId !== null)
+    }, [drill.currentParentId, onSurfaceOpenChange])
     const pendingToggleKeysRef = useRef(new Set<string>())
     const promptedParentIdsRef = useRef(new Set<string>())
     const confirmedResolutionsRef = useRef(
@@ -551,38 +566,31 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
     }, [])
 
-    const markRecentlyCompleted = useCallback((habitId: string) => {
-      setRecentlyCompletedIds((previous) => new Set(previous).add(habitId))
+    const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
+      setRecentlyCompletedDates((previous) => addRecentCompletion(previous, habitId, date))
       const timers = recentlyCompletedTimersRef.current
-      const existing = timers.get(habitId)
+      const timerKey = `${habitId}:${date}`
+      const existing = timers.get(timerKey)
       if (existing) clearTimeout(existing)
       timers.set(
-        habitId,
+        timerKey,
         setTimeout(() => {
-          timers.delete(habitId)
-          setRecentlyCompletedIds((previous) => {
-            const next = new Set(previous)
-            next.delete(habitId)
-            return next
-          })
+          timers.delete(timerKey)
+          setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
         }, 1400),
       )
-    }, [setRecentlyCompletedIds])
+    }, [selectedDateStr])
 
-    const clearRecentlyCompleted = useCallback((habitId: string) => {
+    const clearRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
       const timers = recentlyCompletedTimersRef.current
-      const existing = timers.get(habitId)
+      const timerKey = `${habitId}:${date}`
+      const existing = timers.get(timerKey)
       if (existing) {
         clearTimeout(existing)
-        timers.delete(habitId)
+        timers.delete(timerKey)
       }
-      setRecentlyCompletedIds((previous) => {
-        if (!previous.has(habitId)) return previous
-        const next = new Set(previous)
-        next.delete(habitId)
-        return next
-      })
-    }, [setRecentlyCompletedIds])
+      setRecentlyCompletedDates((previous) => removeRecentCompletion(previous, habitId, date))
+    }, [selectedDateStr])
 
     const getVisibleChildren = useCallback(
       (parentId: string): NormalizedHabit[] =>
@@ -955,7 +963,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
         promptedParentIdsRef.current.add(parentHabit.id)
         operation.confirmedResolutions.activeSettlements += 1
-        markRecentlyCompleted(parentHabit.id)
+        markRecentlyCompleted(parentHabit.id, operation.date)
         void (async () => {
           try {
             try {
@@ -975,7 +983,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             } catch {
               if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
                 promptedParentIdsRef.current.delete(parentHabit.id)
-                clearRecentlyCompleted(parentHabit.id)
+                clearRecentlyCompleted(parentHabit.id, operation.date)
               }
               return
             }
@@ -1011,14 +1019,18 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const settleBulkHabitResolutions = useCallback((
       resolutions: readonly HabitResolution[],
+      date: string,
     ) => {
       const settlementData = promptDataRef.current
       if (!settlementData) return
+      for (const resolution of resolutions) {
+        markRecentlyCompleted(resolution.habitId, date)
+      }
+      if (selectedDateStr !== date || settlementData.selectedDateStr !== date) return
       const confirmedResolutions = confirmedResolutionsRef.current
       const resolvedIds = new Set(resolutions.map((resolution) => resolution.habitId))
       for (const resolution of resolutions) {
         recordHabitResolution(confirmedResolutions, resolution.habitId, resolution.mode)
-        markRecentlyCompleted(resolution.habitId)
       }
 
       const childIdByAffectedParent = new Map<string, string>()
@@ -1032,14 +1044,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
       const operation: ParentSettlementOperation = {
         data: settlementData,
-        date: settlementData.selectedDateStr,
+        date,
         confirmedResolutions,
         requiresLogConfirmation: false,
       }
       for (const childId of childIdByAffectedParent.values()) {
         settleParentAutomatically(childId, operation)
       }
-    }, [habitsById, markRecentlyCompleted, recordHabitResolution, settleParentAutomatically])
+    }, [habitsById, markRecentlyCompleted, recordHabitResolution, selectedDateStr, settleParentAutomatically])
 
     const confirmParentSettlement = useCallback(async () => {
       const settlementData = promptDataRef.current
@@ -1062,7 +1074,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       const { parentId, mode, date } = settlement
       if (!settlementData) return
       confirmedResolutions.activeSettlements += 1
-      markRecentlyCompleted(parentId)
+      markRecentlyCompleted(parentId, date)
       try {
         try {
           if (mode === 'skip') {
@@ -1078,7 +1090,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         } catch {
           if (confirmedResolutionsRef.current === confirmedResolutions) {
             promptedParentIdsRef.current.delete(parentId)
-            clearRecentlyCompleted(parentId)
+            clearRecentlyCompleted(parentId, date)
           }
           return
         }
@@ -1702,6 +1714,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             bulkBarStyle={bulkBarStyle}
             renderHabitCard={renderHabitCard}
             onAddSubHabit={startAddSubHabit}
+            onShowCompleted={onShowCompleted}
           />
           {commonOverlays}
         </>
