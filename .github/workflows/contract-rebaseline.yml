@@ -17,13 +17,14 @@ concurrency:
 jobs:
   rebaseline:
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
+      # No write credential exists before the final step: npm ci runs install scripts and Orval runs
+      # generated code, so neither may see the repository token (review of ui#1097).
       - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
@@ -72,8 +73,11 @@ jobs:
           printf '%s\n' "$api_commit" > src/types/__generated__/api.spec.commit
 
       - name: Commit and open or update one pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          gh auth setup-git --hostname github.com
           snapshot=packages/shared/src/types/__generated__/api.generated.ts
           pin=packages/shared/src/types/__generated__/api.spec.commit
           git add -- "$snapshot" "$pin"
