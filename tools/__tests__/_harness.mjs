@@ -60,7 +60,9 @@ export const T = (name, ok, detail = "") => {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `\n     ${detail}`}`)
 }
 
-// Git reports the real path on macOS, where tmpdir() may return its /var symlink.
+// macOS serves tmpdir() through the /var -> /private/var symlink while git reports real paths, so a
+// fixture holding the symlinked spelling never matched the lock path a tool computed and one
+// deadline case waited forever (2026-09-24). Real repositories live on real paths.
 export const root = mkdtempSync(join(realpathSync(tmpdir()), "orbit-tools-gate-"))
 
 process.on("exit", () => {
