@@ -286,13 +286,14 @@ vi.mock('@/components/habits/habit-log-button', () => ({
   HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled: boolean; disabledReason?: string }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled, disabledReason }),
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, selectedDate, completionReadOnly, completionReason, actions }: { habit: NormalizedHabit; selectedDate: Date; completionReadOnly: boolean; completionReason?: string; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void } }) => React.createElement('HabitRow', {
+  HabitRow: ({ habit, selectedDate, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; selectedDate: Date; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void } }) => React.createElement('HabitRow', {
     testID: `child-${habit.id}`,
     state: habit.isCompleted ? 'done' : 'empty',
     action: habit.isCompleted ? 'unlog' : 'log',
     selectedDate: formatAPIDate(selectedDate),
     completionReadOnly,
     completionReason,
+    completionStatusUnavailable,
     actions,
   }),
 }))
@@ -395,6 +396,7 @@ describe('HabitDetailScreen', () => {
     const child = () => tree!.root.findByProps({ testID: 'child-child-1' })
     expect(child().props.completionReadOnly).toBe(true)
     expect(child().props.completionReason).toBe('calendar.dayCell.notScheduled')
+    expect(child().props.completionStatusUnavailable).toBe(true)
     expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'calendar.dayCell.notScheduled')).toBe(true)
 
     mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-28'))
@@ -402,6 +404,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />))
     expect(child().props.completionReadOnly).toBe(true)
     expect(child().props.completionReason).toBe('habits.detail.dayHabitsLoading')
+    expect(child().props.completionStatusUnavailable).toBe(true)
     expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoading')).toBe(true)
 
     mocks.scopedLoading = false
@@ -409,6 +412,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />))
     expect(child().props.completionReadOnly).toBe(true)
     expect(child().props.completionReason).toBe('habits.detail.dayHabitsLoadError')
+    expect(child().props.completionStatusUnavailable).toBe(true)
     expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoadError')).toBe(true)
     expect(tree!.root.findAllByType('ListRow').some((node: { props: { title?: string } }) => node.props.title === 'habits.detail.addSubHabit')).toBe(true)
     TestRenderer.act(() => child().props.actions.onDetail())
@@ -422,6 +426,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedError = false
     TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />))
     expect(child().props.completionReadOnly).toBe(false)
+    expect(child().props.completionStatusUnavailable).toBe(false)
     expect(child().props.completionReason).toBeUndefined()
   })
 

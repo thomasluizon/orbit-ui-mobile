@@ -181,7 +181,7 @@ vi.mock('@/components/habits/habit-log-button', () => ({
   HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled?: boolean; disabledReason?: string }) => <button type="button" aria-label={label} data-logged={logged} data-disabled-reason={disabledReason} disabled={disabled} onClick={onPress}>{label}</button>,
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, state, canLog, completionReadOnly, completionReason, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; completionReason?: string; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
+  HabitRow: ({ habit, state, canLog, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
     <div>
       <button
         type="button"
@@ -190,6 +190,7 @@ vi.mock('@/components/habits/habit-row', () => ({
         data-can-log={canLog}
         data-completion-read-only={completionReadOnly}
         data-completion-reason={completionReason}
+        data-completion-status-unavailable={completionStatusUnavailable}
         disabled={completionReadOnly}
         aria-label={state === 'done' ? 'unlog-child' : 'log-child'}
         onClick={state === 'done' ? actions.onUnlog : actions.onLog}
@@ -270,6 +271,7 @@ describe('HabitDetailScreen', () => {
     const child = screen.getByTestId('child-child-1')
     expect(child).toBeDisabled()
     expect(child).toHaveAttribute('data-completion-reason', 'calendar.dayCell.notScheduled')
+    expect(child).toHaveAttribute('data-completion-status-unavailable', 'true')
     expect(screen.getByText('calendar.dayCell.notScheduled')).toBeVisible()
 
     mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-28'))
@@ -277,6 +279,7 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(child).toBeDisabled()
     expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoading')
+    expect(child).toHaveAttribute('data-completion-status-unavailable', 'true')
     expect(screen.getByText('habits.detail.dayHabitsLoading')).toBeVisible()
     expect(screen.getByRole('button', { name: 'open-child-1' })).toBeEnabled()
 
@@ -285,6 +288,7 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(child).toBeDisabled()
     expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoadError')
+    expect(child).toHaveAttribute('data-completion-status-unavailable', 'true')
     expect(screen.getByText('habits.detail.dayHabitsLoadError')).toBeVisible()
     expect(screen.getByRole('status')).toHaveTextContent('habits.detail.dayHabitsLoadError')
     expect(screen.getByText('habits.detail.addSubHabit')).toBeVisible()
@@ -296,6 +300,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedError = false
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(child).toBeEnabled()
+    expect(child).toHaveAttribute('data-completion-status-unavailable', 'false')
     expect(child).not.toHaveAttribute('data-completion-reason')
     expect(screen.queryByText('habits.detail.dayHabitsLoadError')).not.toBeInTheDocument()
   })

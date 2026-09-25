@@ -126,10 +126,11 @@ describe('HabitRow check circle accessible name', () => {
   it('announces the unavailable day reason on a focusable child completion control', () => {
     const onLog = vi.fn()
     render(<HabitRow habit={createMockHabit({ title: 'Read' })} child depth={1}
-      completionReadOnly completionReason="We could not load this day's habits."
+      completionReadOnly completionStatusUnavailable completionReason="We could not load this day's habits."
       actions={{ onLog }} />)
     const ring = screen.getByTestId('habit-status-toggle')
     expect(ring).toHaveAttribute('aria-disabled', 'true')
+    expect(ring).toHaveAccessibleName('habits.logHabit: Read')
     expect(ring).toHaveAccessibleDescription("We could not load this day's habits.")
     fireEvent.click(ring)
     expect(onLog).not.toHaveBeenCalled()

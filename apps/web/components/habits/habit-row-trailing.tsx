@@ -23,8 +23,9 @@ function CompletionReason({ id, disabled, reason }: Readonly<{ id: string; disab
   return disabled && reason ? <span id={id} className="sr-only">{reason}</span> : null
 }
 
-function parentRingLabel(status: string, action: string, title: string, progress?: { done: number; total: number }): string {
-  return progress ? `${status}, ${action}: ${title}, ${progress.done}/${progress.total}` : `${status}, ${action}: ${title}`
+function parentRingLabel(status: string | undefined, action: string, title: string, progress?: { done: number; total: number }): string {
+  const actionLabel = progress ? `${action}: ${title}, ${progress.done}/${progress.total}` : `${action}: ${title}`
+  return status ? `${status}, ${actionLabel}` : actionLabel
 }
 
 function triggerParentCompletion(event: React.MouseEvent, disabled: boolean, isDone: boolean, actions: HabitRowActions): void {
@@ -89,6 +90,7 @@ interface HabitRowTrailingProps {
   onToggleStatus: () => void
   completionReadOnly: boolean
   completionReason?: string
+  completionStatusUnavailable: boolean
 }
 
 /** Trailing cluster of a habit row: parent ring or status ring, then overflow. */
@@ -110,6 +112,7 @@ export function HabitRowTrailing({
   onToggleStatus,
   completionReadOnly,
   completionReason,
+  completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const t = useTranslations()
   const {
@@ -128,7 +131,7 @@ export function HabitRowTrailing({
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   const reasonId = useId()
   const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly)
-  const statusLabel = t(statusDotLabelKey)
+  const statusLabel = completionStatusUnavailable ? undefined : t(statusDotLabelKey)
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionDisabled = completionIsDisabled(completionReadOnly, canLog, isDone)
 
@@ -164,7 +167,7 @@ export function HabitRowTrailing({
             disabled={completionDisabled}
             disabledReason={completionReason}
             size={depth === 1 ? 24 : 30}
-            ariaLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}`}
+            ariaLabel={parentRingLabel(statusLabel, toggleLabel, habit.title)}
           />
         ))}
       {!selectMode && hasMenuActions && (
