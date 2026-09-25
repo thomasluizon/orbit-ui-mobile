@@ -4,5 +4,6 @@ declare namespace NodeJS {
     EXPO_PUBLIC_SENTRY_DSN?: string
     EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string
     EXPO_PUBLIC_SUPABASE_URL?: string
+    EXPO_PUBLIC_TURNSTILE_SITE_KEY?: string
   }
 }

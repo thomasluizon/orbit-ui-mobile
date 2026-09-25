@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Lockup } from '@/components/ui/lockup'
 import { PillButton } from '@/components/ui/pill-button'
+import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
 import { useLoginFlow } from './use-login-flow'
@@ -25,6 +26,10 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const account = Boolean(flow.accountBack) || callback?.state === 'account'
   const googlePending = callback?.state === 'pending'
   const googleFailed = callback?.state === 'failed' && !callbackDismissed
+  const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
+  const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
+    ? <TurnstileWidget siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    : null
   return (
     <div className="flex w-full flex-col gap-8 px-2 pb-4 pt-8 min-[336px]:px-4 md:w-[420px] md:rounded-[var(--r-card)] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
       {flow.referralCode && !account && <ReferralBanner t={t} />}
@@ -46,6 +51,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
             errorKey={googleFailed ? 'auth.errors.googleError' : flow.errorKey}
             errorMessage={googleFailed ? t('auth.errors.googleError') : flow.errorMessage}
             isOnline={flow.isOnline} t={t} emailFocusRequest={flow.emailFocusRequest}
+            canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
             onSendCode={() => { setCallbackDismissed(true); void flow.sendCode() }}
               onSignInWithGoogle={() => { setCallbackDismissed(true); void flow.signInWithGoogle() }}
             sendCodeLabel={flow.fromOnboarding ? t('auth.onboarding.continue') : undefined} />
@@ -53,6 +59,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
               canResend={flow.canResend} resendCountdown={flow.resendCountdown} codeFailure={flow.codeFailure}
               lockCountdown={flow.lockCountdown} errorSignal={flow.errorMessage} successMessage={flow.successMessage}
               isOnline={flow.isOnline} onCodeChange={flow.onCodeChange} onBackToEmail={flow.backToEmail} t={t}
+              canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
               onVerifyCode={() => void flow.verifyCode()} onResendCode={() => void flow.resendCode()} />}
         </div>
       </LoginStepStage>}

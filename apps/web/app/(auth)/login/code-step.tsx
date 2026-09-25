@@ -1,4 +1,5 @@
 import type { useTranslations } from 'next-intl'
+import type { ReactNode } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { motionEasings } from '@orbit/shared/theme'
 import { formatLoginCountdown, type LoginCodeFailure } from '@orbit/shared/utils'
@@ -19,6 +20,8 @@ interface CodeStepProps {
   errorSignal: string | null
   successMessage: string | null
   isOnline: boolean
+  canSubmitTurnstile: boolean
+  turnstileWidget: ReactNode
   onVerifyCode: () => void
   onCodeChange: (value: string) => void
   onBackToEmail: () => void
@@ -28,7 +31,7 @@ interface CodeStepProps {
 
 export function CodeStep({ email, codeDigits, isSubmitting, isResending, canResend, resendCountdown, lockCountdown,
   codeFailure, errorSignal, successMessage, isOnline, onVerifyCode, onCodeChange, onBackToEmail,
-  onResendCode, t }: Readonly<CodeStepProps>) {
+  onResendCode, canSubmitTurnstile, turnstileWidget, t }: Readonly<CodeStepProps>) {
   const reduced = useReducedMotion()
   const locked = codeFailure === 'locked'
   const waiting = locked && lockCountdown > 0
@@ -51,16 +54,17 @@ export function CodeStep({ email, codeDigits, isSubmitting, isResending, canRese
           <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')}
             onChange={onCodeChange} error={fieldError}
             hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
-            disabled={isSubmitting || expired || waiting} />
+            disabled={isSubmitting || expired || waiting || !canSubmitTurnstile} />
         </motion.div>
+        {turnstileWidget}
         {!isOnline && <LoginOfflineNotice t={t} />}
-        {!waiting && !expired && <PillButton disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6}
+        {!waiting && !expired && <PillButton disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
           loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
       </form>
       {!waiting && <div className="flex flex-col items-start gap-2">
         {canResend || expired
           ?
-            <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting} loading={isResending}>
+            <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>
               {t('auth.resendCode')}
             </PillButton>
           : <p className="font-mono text-xs tabular-nums text-[var(--fg-3)]">

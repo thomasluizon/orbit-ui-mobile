@@ -6,6 +6,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { Lockup } from '@/components/ui/lockup'
 import { PillButton } from '@/components/ui/pill-button'
+import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { createLoginStyles } from '@/app/login-styles'
 import { useLoginFlow } from '@/app/use-login-flow'
 import { LoginHeader, ReferralBanner, LoginStepStage } from './login-sections'
@@ -38,6 +39,10 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const emailErrorKey = googleFailed ? 'auth.errors.googleError' : flow.errorKey
   const emailErrorMessage = googleFailed ? t('auth.errors.googleError') : flow.errorMessage
   const sendCodeLabel = flow.fromOnboarding ? t('auth.onboarding.continue') : undefined
+  const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
+  const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
+    ? <TurnstileWidget siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    : null
   return <View style={styles.root}>
     <KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
       contentContainerStyle={[styles.scrollContent, wide && styles.scrollWide]} keyboardShouldPersistTaps="always"
@@ -54,6 +59,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
               errorKey={emailErrorKey}
               errorMessage={emailErrorMessage}
               isOnline={flow.isOnline} t={t} tokens={tokens} styles={styles} emailFocusRequest={flow.emailFocusRequest}
+              canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
               onSendCode={() => { setCallbackDismissed(true); void flow.sendCode() }}
               onSignInWithGoogle={() => { setCallbackDismissed(true); void flow.signInWithGoogle() }}
               onOpenPrivacy={flow.openPrivacyPolicy} onOpenTerms={flow.openTerms}
@@ -62,6 +68,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
                 canResend={flow.canResend} resendCountdown={flow.resendCountdown} codeFailure={flow.codeFailure}
                 lockCountdown={flow.lockCountdown} errorSignal={flow.errorMessage} successMessage={flow.successMessage}
                 isOnline={flow.isOnline} onCodeChange={flow.onCodeChange} onBackToEmail={flow.backToEmail} t={t}
+                canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
                 tokens={tokens} styles={styles} onVerifyCode={() => void flow.verifyCode()}
                 onResendCode={() => void flow.resendCode()} />}
           </View>

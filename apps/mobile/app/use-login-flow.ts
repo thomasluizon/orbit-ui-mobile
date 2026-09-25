@@ -14,6 +14,7 @@ import { clearStoredAuthReturnUrl, clearStoredReferralCode, createAuthReturnUrlA
   storeAuthReturnUrl, storeReferralCode } from '@/lib/auth-flow'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useOffline } from '@/hooks/use-offline'
+import { useTurnstileToken } from '@/hooks/use-turnstile-token'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 interface ReturnUrlAttempt {
@@ -43,6 +44,13 @@ export function useLoginFlow(isAuthCallback = false) {
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
   const { isOnline } = useOffline()
+  const turnstileSiteKey = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY
+  const {
+    token: turnstileToken,
+    resetKey: turnstileResetKey,
+    onToken: onTurnstileToken,
+    takeToken: takeTurnstileToken,
+  } = useTurnstileToken(turnstileSiteKey, isOnline)
   const onboardingLocallyDone = useOnboardingDraftStore((s) => s.onboardingLocallyDone)
   const plannedHabitCount = useOnboardingDraftStore((s) => s.habits.length)
   const fromOnboarding = plannedHabitCount > 0 && (
@@ -120,11 +128,13 @@ export function useLoginFlow(isAuthCallback = false) {
       setErrorKey(null)
       return
     }
+    const protection = takeTurnstileToken()
+    if (!protection) return
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
     try {
-      await apiClient(API.auth.sendCode, { method: 'POST', body: JSON.stringify({ email: email.trim(), language: i18n.language }) })
+      await apiClient(API.auth.sendCode, { method: 'POST', body: JSON.stringify({ email: email.trim(), language: i18n.language, ...protection }) })
       entry.resetCodeDigits()
       setCodeFailure(null)
       setStep('code')
@@ -168,6 +178,8 @@ export function useLoginFlow(isAuthCallback = false) {
   async function verifyCode(codeOverride?: string) {
     const code = codeOverride ?? entry.codeDigits.join('')
     if (busy.current || !isOnline || code.length !== 6 || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
+    const protection = takeTurnstileToken()
+    if (!protection) return
     const returnUrlAttempt = getOrCreateReturnUrlAttempt(
       returnUrlAttemptRef, returnUrlAttemptRef.current?.returnUrl,
     )
@@ -179,7 +191,7 @@ export function useLoginFlow(isAuthCallback = false) {
       const referralCode = await getStoredReferralCode()
       const response = await apiClient<BackendLoginResponse>(API.auth.verifyCode, {
         method: 'POST', body: JSON.stringify({ email: email.trim(), code, language: i18n.language,
-          ...(referralCode ? { referralCode } : {}) }),
+          ...protection, ...(referralCode ? { referralCode } : {}) }),
       })
       if (response.wasReactivated) setAccountBack(response)
       else await completeLogin(response, returnUrlAttempt.id)
@@ -189,13 +201,15 @@ export function useLoginFlow(isAuthCallback = false) {
 
   async function resendCode() {
     if (busy.current || !isOnline || (codeFailure === 'locked' && lockCountdown > 0) || (!entry.canResend && codeFailure !== 'expired')) return
+    const protection = takeTurnstileToken()
+    if (!protection) return
     busy.current = true
     setIsSubmitting(true)
     setIsResending(true)
     setSuccessMessage(null)
     setErrorKey(null)
     try {
-      await apiClient(API.auth.sendCode, { method: 'POST', body: JSON.stringify({ email: email.trim(), language: i18n.language }) })
+      await apiClient(API.auth.sendCode, { method: 'POST', body: JSON.stringify({ email: email.trim(), language: i18n.language, ...protection }) })
       entry.resetCodeDigits()
       setCodeFailure(null)
       setSuccessMessage(t('auth.codeResent'))
@@ -244,7 +258,8 @@ export function useLoginFlow(isAuthCallback = false) {
   return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
     errorMessage: errorKey ? t(errorKey) : null, successMessage, showReferralBanner, fromOnboarding,
     plannedHabitCount, isOnline, ...entry, codeFailure, lockCountdown, accountBack,
-    canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline,
-    canSubmitCode: entry.codeDigits.join('').length === 6 && !isSubmitting && isOnline,
+    canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
+    canSubmitCode: entry.codeDigits.join('').length === 6 && !isSubmitting && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
+    turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken,
     sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount, openPrivacyPolicy, openTerms }
 }
