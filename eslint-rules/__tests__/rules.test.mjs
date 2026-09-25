@@ -481,6 +481,9 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     'const base = { gap: 14 }; <div style={{ ...base, gap: 12 }} />',
     'const base = { gap: 14 }; <div style={{ ...base, ...props.style }} />',
     'const base = { gap: 14 }; <View style={[{ ...base }, { gap: 12 }]} />',
+    'const base = { gap: 12 }; <div style={{ gap: 14, ...base }} />',
+    'export const row = { gap: 14 }; <div style={row} />',
+    'const base = { gap: 14 }; const row = { ...base, get gap() { return 12 } }; <div style={row} />',
     'const base = { gap: 14 }; const row = { ...base, gap: 12 }; <div style={row} />',
     'const base = { gap: 14 }; const escaped = { ...base }; consume(escaped); <div style={base} />',
     'const row = { gap: 14 }; row.gap = 12; <div style={row} />',
@@ -527,6 +530,8 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: 'const base = { gap: 14 }; <div style={active ? ({ ...base } as React.CSSProperties) : undefined} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: '<div style={{ gap: 14 } as React.CSSProperties} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const base = { gap: 14 }; <View style={[{ ...base }, { gap: 12 }]} />; <View style={base} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { padding: 12 }; <div style={{ gap: 14, ...base }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 14, ...props.style }} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { ...runtimeStyle, gap: 14 }; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 14 }; <><div style={row} /><span style={row} /></>', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     // DESIGN.md drops 20, 28, 40 and 56. Each is EXACTLY midway between two surviving

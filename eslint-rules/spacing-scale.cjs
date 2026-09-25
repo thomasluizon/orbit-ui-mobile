@@ -322,7 +322,8 @@ module.exports = {
       if (!variable || seen.has(variable)) return null
       const definition = variable?.defs[0]
       if (variable?.defs.length !== 1 || definition?.type !== 'Variable' ||
-        definition.parent.kind !== 'const' || definition.node.id.type !== 'Identifier') return null
+        definition.parent.kind !== 'const' || definition.parent.parent?.type === 'ExportNamedDeclaration' ||
+        definition.node.id.type !== 'Identifier') return null
       const initializer = unwrapStyleExpression(definition.node.init)
       if (initializer?.type !== 'ObjectExpression') return null
       const next = new Set(seen).add(variable)
@@ -358,7 +359,7 @@ module.exports = {
           (property.value.type === 'Literal' || property.value.type === 'UnaryExpression')) {
           values.set(name, property.value)
         } else {
-          values.delete(name)
+          values.set(name, null)
         }
       }
       return values
@@ -368,7 +369,7 @@ module.exports = {
       const values = resolveObject(styleNode, new Set())
       if (!values) return
       for (const [name, value] of values) {
-        if (!SPACING_PROPS.has(name) || reportedLiterals.has(value)) continue
+        if (!value || !SPACING_PROPS.has(name) || reportedLiterals.has(value)) continue
         reportedLiterals.add(value)
         reportStyleValue(value, name)
       }
@@ -387,13 +388,20 @@ module.exports = {
         return
       }
       if (node.type !== 'ObjectExpression') return
-      if (inlineJsx && node.properties.some((property) => property.type === 'SpreadElement')) styleSpreadObjects.push(node)
-      for (const property of node.properties) {
+      const spreads = inlineJsx && node.properties.some((property) => property.type === 'SpreadElement')
+      if (spreads) styleSpreadObjects.push(node)
+      node.properties.forEach((property, index) => {
         const name = propertyName(property)
-        if (name === null || !SPACING_PROPS.has(name)) continue
+        if (name === null || !SPACING_PROPS.has(name)) return
+        if (spreads && laterSpreadSetsKey(node.properties.slice(index + 1), name)) return
         reportedLiterals.add(property.value)
         reportStyleValue(property.value, name)
-      }
+      })
+    }
+
+    function laterSpreadSetsKey(laterProperties, name) {
+      return laterProperties.some((property) =>
+        property.type === 'SpreadElement' && resolveObject(property.argument, new Set())?.has(name))
     }
 
     function scanClassString(node, text, offset) {
