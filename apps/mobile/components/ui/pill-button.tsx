@@ -1,5 +1,4 @@
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
-import { useRouter, type Href } from 'expo-router'
 import {
   ActivityIndicator,
   Pressable,
@@ -108,9 +107,8 @@ export function Button({
 }
 
 /** Native navigation with the same visual contract as PillButton. */
-export function PillLink({ href, children }: Readonly<{ href: Href; children: string }>) {
-  const router = useRouter()
-  return <Button accessibilityRole="link" onClick={() => router.replace(href)}>{children}</Button>
+export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; children: string }>) {
+  return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
 }
 
 const styles = StyleSheet.create({
