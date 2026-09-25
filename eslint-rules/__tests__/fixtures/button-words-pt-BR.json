@@ -1,0 +1,10 @@
+{
+  "nav": { "progress": "Progresso", "today": "Hoje" },
+  "habits": {
+    "detail": { "log": "Registrar {title}" },
+    "search": { "count": "{count, plural, one {# hábito} other {# hábitos}}" }
+  },
+  "chat": { "suggestion": { "exercise": "Criar um hábito de exercício toda manhã" } },
+  "auth": { "signInWithGoogle": "Continuar com o Google" },
+  "upgrade": { "billing": { "invoices": { "downloadDated": "Baixar a fatura de {date}" } } }
+}
