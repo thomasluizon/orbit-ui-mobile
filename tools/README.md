@@ -55,7 +55,7 @@ These back required CI checks. They fail a merge.
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `check-calibration.mjs` | Reports when `.claude/calibration.json` has gone stale: an agent, skill or `.agents` host entrypoint with no verdict, a verdict naming a file that is gone, a recorded `model`, `effort` or content digest the file no longer matches, a worker launch vector the stamp was not taken against, or any single verdict past 90 days. The whole-tree `Harness Calibration` job is advisory because age can change without a pull request changing the stamped file. | `node tools/check-calibration.mjs` |
+| `check-calibration.mjs` | Reports stale agent, skill, worker and ticket classifier model or prompt calibration. The classifier stamp carries its model, prompt digest, verdict and date. | `node tools/check-calibration.mjs` |
 | `check-dashes.mjs` | Fails on an em dash or en dash in a changed file, a PR title, or a PR body. Backs `Dash Ban`. Its baseline may only shrink. | `node tools/check-dashes.mjs --files <path>... \| --check-baseline \| --write-baseline \| --text "<string>"` |
 | `check-gate-charter.mjs` | Enforces the closed gate registry, its two allowed pull request scopes, snapshot regeneration commands and sourced constants. Backs `Gate Charter`. | `node tools/check-gate-charter.mjs` |
 | `check-gradients.mjs` | Fails on decorative gradients in web or mobile source while allowing the named functional masks, calendar lines, loading indicator, and SVG mock. Backs `Design Token Guard`. | `node tools/check-gradients.mjs` |
@@ -74,7 +74,7 @@ These back required CI checks. They fail a merge.
 |---|---|---|
 | `arch-map.mjs` | Generates `architecture.json`, `architecture.html` and the `architecture.mmd` diagram: what an agent reads INSTEAD of exploring the codebase. None of the three is committed (#470), so run it before reading one. `architecture.json` opens with a `provenance` block hashing its input set. `arch-map.yml` proves the generator runs and is deterministic, and publishes the three as a build artifact. | `node tools/arch-map.mjs` |
 | `surface-manifest.mjs` | Derives the visual-surface inventory into `.claude/manifests/surfaces.json`, one cell per surface x theme x locale. Emits no status field on purpose. `--check` writes nothing and exits 1 when the committed inventory no longer describes the tree, which is what the Surface Manifest Drift job in `guards.yml` runs; it compares every surface, its `sourceFile`, its frozen `ownedFiles` and the derived counts, and ignores `generatedFrom`, because a manifest cannot name the commit that carries it. | `npm run surfaces:manifest` (`--check`, `--json`, `--baseline`) |
-| `reseed-calibration.mjs` | The producer of `.claude/calibration.json`, which `check-calibration.mjs` consumes. Reads every `model`, `effort` and content digest from the tree and carries an unchanged verdict's own `calibratedAt` forward, so reseeding one changed prompt cannot renew the untouched verdicts beside it. The verdicts themselves live in the tool, one per file. | `node tools/reseed-calibration.mjs` |
+| `reseed-calibration.mjs` | Produces `.claude/calibration.json`, including the ticket classifier model and prompt digest. It carries valid unchanged verdict dates forward and requires a fresh matching live recorder record before renewing expired classifier calibration. | `node tools/reseed-calibration.mjs` |
 | `redesign-coverage.mjs` | Derives the exact document keys from top-level `design/canvas/*.dc.html`, validates each live manifest surface has one document or a named exclusion, rejects live tombstones, then prints the document-keyed map. | `node tools/redesign-coverage.mjs` (`--json`) |
 | `orca-web-port.mjs` | Assigns a deterministic web port in the 3100-4099 window per Orca worktree and records it in the ignored `.orca/web-port`. Root stays on 3000; the database and API stay shared on 5432 and 5000. | `node tools/orca-web-port.mjs` (`--setup`) |
 | `android-emulator.mjs` | Brings the Orbit Android emulator to a ready state. Creates `Orbit_Pixel_9_API_35` when absent, using only hardware values measured to boot. Every serial is resolved to its own AVD before it counts as ready, so an unrelated emulator is never reported or installed to, and a serial it cannot identify is never used. A running AVD is reused only while it still resolves `--verify-host`; otherwise it is restarted with `--dns`, because an emulator someone else started inherits the host resolver that failed to resolve `api.useorbit.org`. Readiness comes from `sys.boot_completed`, never from the launch succeeding. | `node tools/android-emulator.mjs` (`--status`, `--avd`, `--dns`, `--verify-host`, `--timeout`, `--json`) |
@@ -128,6 +128,7 @@ is what makes landing on login a positive claim.
 |---|---|---|
 | `test-tools.mjs` | Executes every tool in this directory against its contract and fails on any tool with no coverage entry. Review-only evidence is not sufficient: a harness that is read but never run is how a gate reports green over work that never happened. | `node tools/test-tools.mjs` |
 | `record-gh-fixtures.mjs` | Re-records the GitHub issue, label, and Projects v2 response path/type manifest from read-only live `gh` commands. It never creates, edits, comments on, or closes a ticket. | `node tools/record-gh-fixtures.mjs` |
+| `record-classifier-fixtures.mjs` | Runs the signed-in Codex CLI over every classifier replay case and records structured responses, latency, token counts, and a calibration record after complete agreement. | `node tools/record-classifier-fixtures.mjs` |
 
 Its sibling is `node .claude/hooks/test-hooks.mjs`, which proves the nine session hooks block and allow
 as specified, and that every hook wired in `.claude/settings.json` exists on disk and vice versa.
@@ -139,3 +140,8 @@ actually emitted, never against a hand-written shape. Re-record it only with
 `node tools/record-gh-fixtures.mjs`. The recorder is read-only and emits no write envelope. Two measured
 incidents in this repository involved a worker inventing a field while the same commit added a mock that
 agreed with the guess, so the harness stayed green over a real defect.
+
+`__fixtures__/ticket-classifier-cases.json` lists replay tickets and expected verdicts. Capture real
+structured responses in `__fixtures__/ticket-classifier-responses.json` with
+`node tools/record-classifier-fixtures.mjs`; the classifier tests replay those captured responses.
+Complete agreement also writes `__fixtures__/ticket-classifier-calibration.json` beside the response file. Reseeding checks its model, prompt, case and response digests before renewing the classifier verdict.
