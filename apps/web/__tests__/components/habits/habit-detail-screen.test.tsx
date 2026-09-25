@@ -270,12 +270,14 @@ describe('HabitDetailScreen', () => {
     const child = screen.getByTestId('child-child-1')
     expect(child).toBeDisabled()
     expect(child).toHaveAttribute('data-completion-reason', 'calendar.dayCell.notScheduled')
+    expect(screen.getByText('calendar.dayCell.notScheduled')).toBeVisible()
 
     mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-28'))
     mocks.scopedLoading = true
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(child).toBeDisabled()
     expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoading')
+    expect(screen.getByText('habits.detail.dayHabitsLoading')).toBeVisible()
     expect(screen.getByRole('button', { name: 'open-child-1' })).toBeEnabled()
 
     mocks.scopedLoading = false
@@ -284,6 +286,7 @@ describe('HabitDetailScreen', () => {
     expect(child).toBeDisabled()
     expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoadError')
     expect(screen.getByText('habits.detail.dayHabitsLoadError')).toBeVisible()
+    expect(screen.getByRole('status')).toHaveTextContent('habits.detail.dayHabitsLoadError')
     expect(screen.getByText('habits.detail.addSubHabit')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
     expect(mocks.scopedRefetch).toHaveBeenCalledOnce()

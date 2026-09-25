@@ -395,12 +395,14 @@ describe('HabitDetailScreen', () => {
     const child = () => tree!.root.findByProps({ testID: 'child-child-1' })
     expect(child().props.completionReadOnly).toBe(true)
     expect(child().props.completionReason).toBe('calendar.dayCell.notScheduled')
+    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'calendar.dayCell.notScheduled')).toBe(true)
 
     mocks.scopedHabits.set('child-1', makeScopedChild('2026-08-28'))
     mocks.scopedLoading = true
     TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />))
     expect(child().props.completionReadOnly).toBe(true)
     expect(child().props.completionReason).toBe('habits.detail.dayHabitsLoading')
+    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoading')).toBe(true)
 
     mocks.scopedLoading = false
     mocks.scopedError = true
