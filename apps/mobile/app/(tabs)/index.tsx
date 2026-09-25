@@ -148,7 +148,7 @@ export default function TodayScreen() {
       {todayFocused ? (
         <TodayAstra
           isTodaySelected={date.dateStr === date.today}
-          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
+          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data)}
         />
       ) : null}
       <TodayDateControl
