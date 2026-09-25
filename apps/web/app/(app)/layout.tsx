@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useEffect, useCallback, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -38,6 +38,7 @@ import { dismissCalendarImport } from '@/lib/actions/calendar'
 import { dismissImportPrompt } from '@/lib/actions/onboarding'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   useOnboardingDraftHydrated,
   useOnboardingHasPendingAnswers,
@@ -136,23 +137,23 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     router.replace(pathname)
   }, [pathname, router, searchParams, setAstraConversationOpen])
 
-  const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
+  const [showCalendarPrompt, setShowCalendarPrompt] = useAccountScopedState(false)
 
   const calendarPromptCriteriaMet = isCalendarPromptCriteriaMet(profile, pathname)
-  const [previousCriteriaMet, setPreviousCriteriaMet] = useState(calendarPromptCriteriaMet)
+  const [previousCriteriaMet, setPreviousCriteriaMet] = useAccountScopedState(calendarPromptCriteriaMet)
   if (calendarPromptCriteriaMet !== previousCriteriaMet) {
     setPreviousCriteriaMet(calendarPromptCriteriaMet)
     if (calendarPromptCriteriaMet) setShowCalendarPrompt(true)
   }
 
-  const [showImportPrompt, setShowImportPrompt] = useState(false)
+  const [showImportPrompt, setShowImportPrompt] = useAccountScopedState(false)
 
   const importPromptCriteriaMet = isImportPromptCriteriaMet(profile, {
     calendarPromptCriteriaMet,
     showCalendarPrompt,
     hasPendingOnboardingAnswers,
   })
-  const [previousImportCriteriaMet, setPreviousImportCriteriaMet] = useState(importPromptCriteriaMet)
+  const [previousImportCriteriaMet, setPreviousImportCriteriaMet] = useAccountScopedState(importPromptCriteriaMet)
   if (importPromptCriteriaMet !== previousImportCriteriaMet) {
     setPreviousImportCriteriaMet(importPromptCriteriaMet)
     if (importPromptCriteriaMet) setShowImportPrompt(true)
@@ -171,14 +172,14 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport().catch(() => {})
-  }, [])
+  }, [setShowCalendarPrompt])
 
   const handleCalendarImport = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport().catch(() => {})
     setRouteTransitionIntent('forward')
     router.push('/calendar-sync')
-  }, [router])
+  }, [router, setShowCalendarPrompt])
 
   const handleCalendarPromptOpenChange = useCallback(
     (open: boolean) => {
@@ -193,7 +194,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     setShowImportPrompt(false)
     dismissImportPrompt().catch(() => {})
     patchProfile({ hasSeenImportPrompt: true })
-  }, [patchProfile])
+  }, [patchProfile, setShowImportPrompt])
 
   const handleImportWithAstra = useCallback(() => {
     setShowImportPrompt(false)
@@ -207,7 +208,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     }
     setRouteTransitionIntent('forward')
     setAstraConversationOpen(true)
-  }, [patchProfile, setAstraConversationOpen, t])
+  }, [patchProfile, setAstraConversationOpen, setShowImportPrompt, t])
 
   const handleImportPromptOpenChange = useCallback(
     (open: boolean) => {
@@ -225,8 +226,14 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         composer={
           <Composer
             {...chat.composerProps}
-            onOpenConversation={() => setAstraConversationOpen(true)}
+            onOpenConversation={() => setAstraConversationOpen(true, pathname === '/support' ? 'support' : undefined)}
             conversationLabel={t('todayAstra.openConversation')}
+            onSend={() => {
+              if (pathname === '/support' && !astraConversationOpen) {
+                setAstraConversationOpen(true, 'support')
+              }
+              chat.composerProps.onSend()
+            }}
           />
         }
         conversation={<AstraConversation chat={chat} />}

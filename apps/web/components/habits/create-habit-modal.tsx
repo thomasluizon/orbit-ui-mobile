@@ -23,6 +23,8 @@ import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess } from '@/hooks/use-profile'
+import { useAccountGeneration, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
@@ -91,6 +93,13 @@ export function CreateHabitModal({
   initialTitle = '',
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
+  const accountGeneration = useAccountGeneration()
+  const [openedAccountGeneration, setOpenedAccountGeneration] = useState(accountGeneration)
+  const [previousOpen, setPreviousOpen] = useState(open)
+  if (previousOpen !== open) {
+    setPreviousOpen(open)
+    setOpenedAccountGeneration(accountGeneration)
+  }
   const t = useTranslations()
   const router = useRouter()
   const translate = useCallback(
@@ -180,6 +189,15 @@ export function CreateHabitModal({
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
 
+  /**
+   * Closing is the whole reset here, because the effect below rebuilds every field on the next
+   * open. The three owners of this flag are a store, a detail screen and the search page, so the
+   * modal reports the change to whichever one holds it rather than each of them learning it.
+   */
+  useResetOnAccountChange(() => {
+    onOpenChange(false)
+  })
+
   const resetOnOpenRef = useRef({ initialDate, initialTitle, parentHabit, activeView, formHelpers, tags })
   useEffect(() => {
     resetOnOpenRef.current = { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags }
@@ -256,6 +274,7 @@ export function CreateHabitModal({
   const handleSubmit = useCallback(
     async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
+      const submittingAccount = getAccountGeneration()
 
       if (isSubHabitMode && !canUseSubHabits) {
         navigateToUpgrade()
@@ -283,8 +302,12 @@ export function CreateHabitModal({
           const request = buildCreateHabitRequest(data, reminderTimes, tags.selectedTagIds, selectedGoalIds, subHabitValues)
           await createHabit.mutateAsync(request)
         }
-        closeSheet(() => onOpenChange(false))
+        if (getAccountGeneration() !== submittingAccount) return
+        closeSheet(() => {
+          if (getAccountGeneration() === submittingAccount) onOpenChange(false)
+        })
       } catch (error: unknown) {
+        if (getAccountGeneration() !== submittingAccount) return
         showError(
           getFriendlyErrorMessage(
             error,
@@ -429,7 +452,7 @@ export function CreateHabitModal({
   }, [])
 
   function renderCreateSheet() {
-    if (!open) return null
+    if (!open || openedAccountGeneration !== accountGeneration) return null
     return (
       <Sheet
         ref={sheetRef}

@@ -26,7 +26,6 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
     proposed: card.results[habit.id] == null,
     irreversible: card.results[habit.id] == null,
     control: card.results[habit.id] == null ? (
-      /* eslint-disable-next-line local/max-button-words -- #61 owns this existing Astra label. */
       <Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} onPress={() => card.cycleCadence(habit.id)} style={{ minHeight: 40, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(getBreakdownCadenceKey(habit.frequencyUnit))}</Text></Pressable>
     ) : undefined,
   }))

@@ -12,6 +12,7 @@ import {
   buildOnboardingScheduleFromSuggestion,
   changeOnboardingScheduleMode,
   clampOnboardingRepeatWeeks,
+  getClientTimeZone,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
   getOnboardingHabitTitle,
@@ -38,6 +39,7 @@ import { Toast } from '@/components/ui/toast'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
+import { updateTimezone } from '@/lib/actions/profile'
 import { requestWebPushPermission, subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { OnboardingComplete } from './onboarding-complete'
@@ -139,7 +141,7 @@ export function OnboardingFlow() {
   const deferredPushFailure = useOnboardingDraftStore((state) => isLive && state.pushRegistrationFailed)
   const deferredHabit = useOnboardingDraftStore((state) => deferredPushFailure ? state.habits[0] : undefined)
   const [resolvingDeferredPush] = useState(deferredPushFailure)
-  const { profile } = useProfile({ enabled: isLive })
+  const { profile, refetch: refetchProfile } = useProfile({ enabled: isLive })
   const suggestion = useHabitSuggestion()
   const push = usePushNotificationPreferences()
   const [step, setStep] = useState(resolvingDeferredPush ? ONBOARDING_REMIND_STEP : ONBOARDING_WHAT_STEP)
@@ -211,17 +213,19 @@ export function OnboardingFlow() {
     setCreateFailed(false)
     const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: false, schedule })
     try {
+      const accountProfile = isLive ? profile ?? (await refetchProfile()).data : undefined
+      if (isLive && !accountProfile) throw new Error('Profile unavailable')
+      const accountTimeZone = accountProfile?.timeZone ?? getClientTimeZone()
+      if (isLive && accountProfile?.timeZone == null && accountTimeZone && accountTimeZone !== 'UTC') {
+        await updateTimezone({ timeZone: accountTimeZone })
+      }
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else {
         const result = await actions.createHabit(input)
         setCreatedId(result.id)
       }
       setCreatedTitle(input.title)
-      /**
-       * The device clock decides today here while the API resolves it from the profile time zone, so a
-       * person straddling midnight in another zone can read one day wrong until #602 lands.
-       */
-      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date()))
+      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountTimeZone))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState())
       setStep(ONBOARDING_REMIND_STEP)

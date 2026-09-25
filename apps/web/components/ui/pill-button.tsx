@@ -16,27 +16,29 @@ const variantClasses: Record<ButtonVariant, string> = {
 
 const buttonInteractionClasses: Record<ButtonVariant, string> = {
   primary: 'enabled:active:scale-[0.96]',
-  secondary: 'enabled:hover:opacity-90 enabled:active:scale-[0.96] enabled:active:opacity-85',
+  secondary: 'enabled:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] enabled:active:scale-[0.96] enabled:active:opacity-85',
   ghost: 'enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.96]',
-  destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:active:scale-[0.96]',
+  destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] enabled:active:scale-[0.96]',
   caution: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:active:scale-[0.96]',
 }
 
 const linkInteractionClasses: Record<ButtonVariant, string> = {
   primary: 'hover:bg-[var(--primary-hover)] active:scale-[0.96]',
-  secondary: 'hover:opacity-90 active:scale-[0.96] active:opacity-85',
+  secondary: 'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] active:scale-[0.96] active:opacity-85',
   ghost: 'hover:bg-[var(--bg-card)] active:scale-[0.96]',
-  destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] active:scale-[0.96]',
+  destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] active:scale-[0.96]',
   caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] active:scale-[0.96]',
 }
 
-const baseClasses = 'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40'
+const baseClasses = 'orbit-pill-action inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
 
-function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link') {
+function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false) {
   const interactionClasses = element === 'button'
     ? buttonInteractionClasses[variant]
     : linkInteractionClasses[variant]
-  return [baseClasses, variantClasses[variant], interactionClasses, size === 'sm' ? 'touch-target' : undefined]
+  return [baseClasses, variantClasses[variant], interactionClasses,
+    element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
+    size === 'sm' ? 'touch-target' : undefined]
     .filter(Boolean)
     .join(' ')
 }
@@ -81,13 +83,13 @@ export function Button({
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}
-      className={actionClasses(variant, size, 'button')}
+      className={actionClasses(variant, size, 'button', loading)}
       style={actionStyle(size, iconOnly)}
     >
       {loading ? (
-        <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin" aria-hidden="true" />
+        <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
       ) : iconOnly ? children : null}
-      {iconOnly ? null : <span className={loading ? 'opacity-60' : undefined}>{children}</span>}
+      {iconOnly ? null : <span>{children}</span>}
     </button>
   )
 }

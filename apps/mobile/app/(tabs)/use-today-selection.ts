@@ -40,14 +40,13 @@ export function useTodaySelection({
   const clearSelection = useUIStore((s) => s.clearSelection);
 
   const previousActiveViewRef = useRef(activeView);
-  const readOnly = getTodayBoundary(selectedDateStr, today) === "read-only";
+  const completionReadOnly = getTodayBoundary(selectedDateStr, today) === "read-only";
   const previousSelectedDateRef = useRef(selectedDateStr);
-  const previousReadOnlyRef = useRef(readOnly);
 
   const bulkActions = useBulkActions({
     selectedHabitIds,
     selectedDateStr,
-    readOnly,
+    completionReadOnly,
     habitsById,
     habitListRef,
     onSuccess: clearSelection,
@@ -66,17 +65,14 @@ export function useTodaySelection({
 
   useEffect(() => {
     const dateChanged = previousSelectedDateRef.current !== selectedDateStr;
-    const becameReadOnly = !previousReadOnlyRef.current && readOnly;
     previousSelectedDateRef.current = selectedDateStr;
-    previousReadOnlyRef.current = readOnly;
-    if (!dateChanged && !becameReadOnly) return;
+    if (!dateChanged) return;
     closeControlsMenu();
     setShowBulkDeleteConfirm(false);
     clearSelection();
   }, [
     clearSelection,
     closeControlsMenu,
-    readOnly,
     selectedDateStr,
     setShowBulkDeleteConfirm,
   ]);
@@ -141,6 +137,7 @@ export function useTodaySelection({
   }, [confirmBulkSkip, selectedHabitIds]);
 
   return {
+    completionReadOnly,
     ...bulkActions,
     clearSelection,
     allSelected,

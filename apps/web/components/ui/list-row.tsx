@@ -11,13 +11,13 @@ type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
 }
 
 function RowBody({ title, wrapTitle, description, icon, value, danger, trailing }: Readonly<Pick<ListRowProps, 'title' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'danger' | 'trailing'>>) {
-  const iconColor = danger ? 'var(--status-bad)' : 'var(--fg-1)'
+  const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return (
     <>
       {icon ? (
-        <span style={{ width: 28, flexShrink: 0, color: iconColor }}>
-          {typeof icon === 'string' ? <Icon name={icon} size={24} color={iconColor} /> : icon}
+        <span style={{ width: 28, flexShrink: 0, color: rowColors.iconColor }}>
+          {typeof icon === 'string' ? <Icon name={icon} size={24} color={rowColors.iconColor} /> : icon}
         </span>
       ) : null}
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
@@ -34,7 +34,7 @@ export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, action, chevron = true, disabled = false, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const interactive = !readOnly && !disabled && (href || onClick)
-  const content = <span className={`flex min-w-0 flex-1 items-center ${interactive ? 'orbit-list-row group-active/list-body:scale-[0.96]' : ''}`} style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-4)" strokeWidth={1.8} /></span> : null}</span>
+  const content = <span className={`flex min-w-0 flex-1 items-center ${interactive ? 'orbit-list-row group-active/list-body:scale-[0.96]' : ''}`} style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const bodyStyle = { minHeight: 76, padding: 16, paddingInlineEnd: action ? 0 : 16 } as const
 
   return (
@@ -47,9 +47,9 @@ export function ListRow(props: Readonly<WebListRowProps>) {
         <button type="button" aria-label={accessibilityLabel} onClick={onClick} disabled={disabled} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
       )}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action group/list-action flex shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent" style={{ padding: 16, paddingInlineStart: 0, color: action.danger ? 'var(--status-bad)' : 'var(--fg-2)' }}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action group/list-action flex shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent" style={{ padding: 16, paddingInlineStart: 0 }}>
           <span className="habit-control-motion flex shrink-0 items-center justify-center rounded-full group-hover/list-action:bg-[var(--bg-hover)] group-active/list-action:scale-[0.96]" style={{ width: 44, height: 44 }}>
-            <Icon name={action.icon} size={20} color="currentColor" />
+            <Icon name={action.icon} size={20} color={action.danger ? 'var(--status-bad)' : 'var(--fg-2)'} />
           </span>
         </button>
       ) : null}

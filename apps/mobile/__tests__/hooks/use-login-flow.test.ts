@@ -1,10 +1,31 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import { setI18n } from 'react-i18next'
 import { API } from '@orbit/shared/api'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError } from '@orbit/shared/utils'
 
 import { useLoginFlow } from '@/app/use-login-flow'
 import { LoginContent } from '@/components/auth/login-content'
+
+vi.mock('react-i18next', async (importActual) => ({
+  ...(await importActual<typeof import('react-i18next')>()),
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: 'en' },
+  }),
+}))
+
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({
+  resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } },
+  lng: 'en', fallbackLng: 'en', initAsync: false,
+})
+setI18n(testI18n)
 
 const TestRenderer = require('react-test-renderer')
 
@@ -22,8 +43,12 @@ const mocks = vi.hoisted(() => ({
   startResendCountdown: vi.fn(),
   focus: vi.fn(),
   getStoredReferralCode: vi.fn(),
+  getStoredAuthReturnUrl: vi.fn(),
+  createAuthReturnUrlAttempt: vi.fn(),
+  isAuthReturnUrlAttemptCurrent: vi.fn(),
   getSafeReturnUrl: vi.fn(),
   consumeStoredAuthReturnUrl: vi.fn(),
+  clearStoredAuthReturnUrl: vi.fn(),
   clearStoredReferralCode: vi.fn(),
   startMobileGoogleAuth: vi.fn(),
 }))
@@ -64,7 +89,11 @@ vi.mock('expo-router', () => ({
 
 vi.mock('@/lib/auth-flow', () => ({
   clearStoredReferralCode: mocks.clearStoredReferralCode,
+  clearStoredAuthReturnUrl: mocks.clearStoredAuthReturnUrl,
   consumeStoredAuthReturnUrl: mocks.consumeStoredAuthReturnUrl,
+  getStoredAuthReturnUrl: mocks.getStoredAuthReturnUrl,
+  createAuthReturnUrlAttempt: mocks.createAuthReturnUrlAttempt,
+  isAuthReturnUrlAttemptCurrent: mocks.isAuthReturnUrlAttemptCurrent,
   getSafeReturnUrl: mocks.getSafeReturnUrl,
   getStoredReferralCode: mocks.getStoredReferralCode,
   isSafeReturnUrl: () => true,
@@ -127,19 +156,44 @@ function bodyOf(options: { body: string }): Record<string, unknown> {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   mocks.isOnline = true
   mocks.params = {}
   mocks.codeDigits = ['', '', '', '', '', '']
   mocks.apiClient.mockResolvedValue({})
-  mocks.login.mockResolvedValue(undefined)
+  mocks.login.mockResolvedValue(() => true)
   mocks.getStoredReferralCode.mockResolvedValue(undefined)
   mocks.consumeStoredAuthReturnUrl.mockResolvedValue(undefined)
+  mocks.getStoredAuthReturnUrl.mockResolvedValue(undefined)
+  mocks.createAuthReturnUrlAttempt.mockReturnValue(1)
+  mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
   mocks.getSafeReturnUrl.mockImplementation((url?: string) => url ?? '/')
   mocks.startMobileGoogleAuth.mockResolvedValue({ type: 'cancel' })
 })
 
 describe('useLoginFlow (mobile)', () => {
+  it('does not replace a callback attempt when LoginContent mounts without a return URL', async () => {
+    await act(() => { TestRenderer.create(React.createElement(LoginContent,
+      { callback: { state: 'pending', onContinue: () => {} } })) })
+    expect(mocks.createAuthReturnUrlAttempt).not.toHaveBeenCalled()
+  })
+
+  it('clears an older return URL before code login without one starts', async () => {
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.apiClient.mockResolvedValue({ token: 'access', refreshToken: 'refresh',
+      userId: 'user', name: 'User', email: 'user@test.com' })
+    let releaseLogin!: () => void
+    mocks.login.mockImplementation(() => new Promise<() => boolean>((resolve) => {
+      releaseLogin = () => resolve(() => true)
+    }))
+    const harness = await renderLoginFlow()
+    const verification = act(() => harness.current.verifyCode())
+    await vi.waitFor(() => expect(mocks.login).toHaveBeenCalledTimes(1))
+    expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledWith(1)
+    releaseLogin()
+    await verification
+  })
+
   it('returns focus from the login submit action on every invalid attempt without stealing focus during editing', async () => {
     let tree: { root: { findAllByType: (type: string) => { props: Record<string, unknown> }[] }; unmount: () => void }
     await act(() => { tree = TestRenderer.create(React.createElement(LoginContent)) })
@@ -202,6 +256,7 @@ describe('useLoginFlow (mobile)', () => {
   it('verifies the code, logs in with the returned session, and redirects to the safe return url', async () => {
     mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
     mocks.consumeStoredAuthReturnUrl.mockResolvedValue('/home')
+    mocks.getStoredAuthReturnUrl.mockResolvedValue('/home')
     mocks.apiClient.mockResolvedValue({
       token: 'access-token',
       refreshToken: 'refresh-token',
@@ -224,6 +279,115 @@ describe('useLoginFlow (mobile)', () => {
       email: 'user@test.com',
     })
     expect(mocks.replace).toHaveBeenCalledWith('/home')
+  })
+
+  it('stops magic-code effects when a replacement login lands during referral storage', async () => {
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.apiClient.mockResolvedValue({ token: 'old-access', refreshToken: 'old-refresh',
+      userId: 'old-user', name: 'Old', email: 'old@example.com' })
+    mocks.getStoredReferralCode.mockResolvedValue('REF123')
+    let epoch = 0
+    mocks.login.mockImplementation(() => {
+      const ownedEpoch = ++epoch
+      return Promise.resolve(() => epoch === ownedEpoch)
+    })
+    let releaseReferral!: () => void
+    mocks.clearStoredReferralCode.mockImplementation(() => new Promise<void>((resolve) => { releaseReferral = resolve }))
+    const harness = await renderLoginFlow()
+
+    const verification = act(() => harness.current.verifyCode())
+    await vi.waitFor(() => expect(mocks.clearStoredReferralCode).toHaveBeenCalledTimes(1))
+    await mocks.login('new-access', 'new-refresh', { userId: 'new-user' })
+    releaseReferral()
+    await verification
+
+    expect(mocks.consumeStoredAuthReturnUrl).not.toHaveBeenCalled()
+    expect(mocks.getStoredAuthReturnUrl).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('keeps the return URL when a replacement login lands during its storage read', async () => {
+    mocks.params = { returnUrl: '/old' }
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.apiClient.mockResolvedValue({ token: 'old-access', refreshToken: 'old-refresh',
+      userId: 'old-user', name: 'Old', email: 'old@example.com' })
+    let epoch = 0
+    mocks.login.mockImplementation(() => {
+      const ownedEpoch = ++epoch
+      return Promise.resolve(() => epoch === ownedEpoch)
+    })
+    let releaseReturnUrl!: (url: string) => void
+    const pendingRead = new Promise<string>((resolve) => { releaseReturnUrl = resolve })
+    mocks.consumeStoredAuthReturnUrl.mockReturnValue(pendingRead)
+    mocks.getStoredAuthReturnUrl.mockReturnValue(pendingRead)
+    const harness = await renderLoginFlow()
+
+    const verification = act(() => harness.current.verifyCode())
+    await vi.waitFor(() => expect(
+      mocks.consumeStoredAuthReturnUrl.mock.calls.length + mocks.getStoredAuthReturnUrl.mock.calls.length,
+    ).toBe(1))
+    await mocks.login('new-access', 'new-refresh', { userId: 'new-user' })
+    releaseReturnUrl('/home')
+    await verification
+
+    expect(mocks.consumeStoredAuthReturnUrl).not.toHaveBeenCalled()
+    expect(mocks.clearStoredAuthReturnUrl).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('keeps a newer flow return URL while older code verification waits for login', async () => {
+    mocks.params = { returnUrl: '/older' }
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.apiClient.mockResolvedValue({ token: 'old-access', refreshToken: 'old-refresh',
+      userId: 'old-user', name: 'Old', email: 'old@example.com' })
+    let releaseLogin!: () => void
+    mocks.login.mockImplementation(() => new Promise<() => boolean>((resolve) => {
+      releaseLogin = () => resolve(() => true)
+    }))
+    let currentAttemptId = 1
+    mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: number) => id === currentAttemptId)
+    let storedUrl = '/older'
+    mocks.getStoredAuthReturnUrl.mockImplementation(() => Promise.resolve(storedUrl))
+    mocks.clearStoredAuthReturnUrl.mockImplementation(() => { storedUrl = ''; return Promise.resolve() })
+    const harness = await renderLoginFlow()
+
+    const verification = act(() => harness.current.verifyCode())
+    await vi.waitFor(() => expect(mocks.login).toHaveBeenCalledTimes(1))
+    currentAttemptId = 2
+    storedUrl = '/newer'
+    releaseLogin()
+    await verification
+
+    expect(mocks.getStoredAuthReturnUrl).not.toHaveBeenCalled()
+    expect(mocks.clearStoredAuthReturnUrl).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalledWith('/newer')
+    expect(storedUrl).toBe('/newer')
+  })
+
+  it('passes login ownership through pending return URL removal', async () => {
+    mocks.params = { returnUrl: '/old' }
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.apiClient.mockResolvedValue({ token: 'old-access', refreshToken: 'old-refresh',
+      userId: 'old-user', name: 'Old', email: 'old@example.com' })
+    mocks.getStoredAuthReturnUrl.mockResolvedValue('/old')
+    let epoch = 0
+    mocks.login.mockImplementation(() => {
+      const ownedEpoch = ++epoch
+      return Promise.resolve(() => epoch === ownedEpoch)
+    })
+    let releaseRemoval!: () => void
+    mocks.clearStoredAuthReturnUrl.mockImplementation(() => new Promise<void>((resolve) => { releaseRemoval = resolve }))
+    const harness = await renderLoginFlow()
+
+    const verification = act(() => harness.current.verifyCode())
+    await vi.waitFor(() => expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledTimes(1))
+    expect(typeof mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[1]).toBe('function')
+    await mocks.login('new-access', 'new-refresh', { userId: 'new-user' })
+    releaseRemoval()
+    await verification
+
+    expect(mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[1]()).toBe(false)
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 
   it('reports the error and resets the code entry when verification fails', async () => {

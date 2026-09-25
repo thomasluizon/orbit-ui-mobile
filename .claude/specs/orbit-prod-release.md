@@ -185,6 +185,22 @@ These stay until he changes them. Keep his words.
 - **2026-09-18** **The failed-delete toast pauses on hover and focus.** Offered a pause, a Dismiss
   button, or leaving it as it was, he took the pause. It is a granted design-system change and the
   one action stays Retry. Recorded on `#460`.
+- **2026-09-24** **A blocker is acted on in the same run.** After a run marked a PR blocked on the
+  review-fix cap: "a blocker is something you act now, stop being lazy / just fix the damn thing".
+  A spent cap, a missing secret or a missing log is the next piece of work, never a stopping point.
+- **2026-09-24** **CI congestion is fixed permanently, before anything else.** "put on the handoff
+  that the FIRST PRIORITY is to fix this CI congestion permanently, this cant happen again." Then, at
+  `/handoff`: "handoff fixes the ci congestion, merge the prs and continue the work in sleep mode."
+  The evidence and the candidate fixes are in `### The CI congestion, measured` under the
+  2026-09-24 night section at the end of this file.
+- **2026-09-25** **Route by subject, and never ask about it again.** "i already said a million times
+  anything related to the redesign stays on redesign/main anything NOT RELATED to the redesign goes to
+  main, as simple as that". Asked anyway about `api#531`: "this is related to the redesign, so keep on
+  the redesign/main branch on the backend, stop asking me about this". This restates the 2026-09-14
+  `orbit-api` line above and extends it to every repository. A bug fix to shipped behaviour, a harness
+  or CI change and a security fix target `main`; redesign-only work targets `redesign/main`. When a
+  non-redesign fix depends on redesign-only code, it lands on `redesign/main` AND gets a `main`
+  backport PR (the `ui#1057` / `ui#1052` pattern). Brain ADR D80 carries the amendment.
 
 ## The order: the batches to a production release
 
@@ -383,8 +399,14 @@ frontmatter, the tags and the backlinks that say which decision superseded which
   - `A review-harness gate that checks for a heading is gameable so run the real lanes.md`
   - `Read the tree before correcting a contradicting reviewer in public.md`
   - `A round that lands mergeable work beats a round that improves parked work.md`
+  - `The redesign gate ships a closed internal build for Thomas's approval before any merge to main.md`
+  - `Never end an unattended run for a machine-resource guard, drop workers and relaunch instead.md`
 
-  **The last six were added on 2026-09-19.** They already existed in the vault and were missing from
+  **Re-confirmed through the Obsidian MCP on 2026-09-24** (`obsidian_list_notes` on the
+  `Decisions/` directory, 86 notes): all twenty-seven names above exist. The last two were added
+  that day; the second one is the ADR the paragraph below said was missing.
+
+  **The six before them were added on 2026-09-19.** They already existed in the vault and were missing from
   this list, and each one is a lesson the night of 2026-09-18 into 09-19 paid for in review rounds:
   a guard beaten by `confirmationToken: default` and then by `??=`, a lint rule beaten by
   `as RequestInit` where the type held with zero call-site changes, five rounds on one test file
@@ -394,9 +416,8 @@ frontmatter, the tags and the backlinks that say which decision superseded which
 
   **All twenty-five were re-confirmed through the Obsidian MCP on 2026-09-19**, by listing
   `2 Areas/20-29 Orbit Engineering/Decisions/` with `obsidian_list_notes` and copying the names that
-  came back. The directory holds 81 notes. There is still **no ADR for the rule that a machine
-  resource is never a blocker**, which is now enforced in `.claude/hooks/_lib/rules-sleep.mjs`; that
-  one is worth writing.
+  came back. The directory held 81 notes then. The "no ADR for the rule that a machine resource is
+  never a blocker" gap noted here is closed: see the 2026-09-24 re-confirmation above.
 
   Superseded by the above, kept for the record: the earlier note said nineteen, confirmed on
   2026-09-18 at 00:30, by listing
@@ -1668,3 +1689,216 @@ already done by earlier PRs after a re-read against the tree: `#558` (PR 970), `
 | `ui#1046`, `api#537`, `landing#80` (pins) | `main` | | wait for Pullfrog 0.1.83 |
 | dependabot `ui#1034`, `#801`, `#799`, `#798`; `api#535`, `#538`, `#530` | `main` | | rebased; merge each Pullfrog approves with green CI |
 | `api#528`, `#531`, `#532`, `#533` | `orbit-api` `main` | | older rounds owed (batches 1, 2a, 6) |
+
+## What the 2026-09-24 night sleep run added (session `67f75f39`)
+
+**Durable because** it measures the CI congestion that Thomas made the first priority of the next
+run, records three changes that reached `main`, and records the rules this run paid for. Two of
+Thomas's instructions from this run are in `## Standing instructions from Thomas`.
+
+### The CI congestion, measured
+
+Read with `gh run list --status queued|in_progress` in both code repositories:
+
+- **At wrap-up: 259 queued runs (143 `ui`, 116 `api`) and 13 in progress.** At handoff: 206
+  queued (116 `ui`, 90 `api`), 18 in progress, and 0 in progress on `api`.
+- **GitHub Actions concurrency is account-wide.** The three repositories share one pool, so a busy
+  `ui` queue starves `api` completely.
+- **One push is expensive.** A `ui` pull request push starts 11 `pull_request` workflows and about
+  30 jobs (`guards.yml` 14, `test.yml` 8). An `api` push starts 9 workflows and about 16 jobs.
+- **`api` keeps stale runs.** 8 of its 9 `pull_request` workflows have no `concurrency` group (only
+  `gating-matrix.yml` has one), so a superseded push keeps its queued runs. One pass of the
+  cancel-superseded script cancelled 46 stale `api` runs. `ui` has groups on every workflow except
+  `dependabot-auto-merge.yml` (`ui#1058` added the missing ones).
+- **Strict `main` multiplies the cost.** Both code repositories require a branch to be up to date.
+  Each merge to `main` puts every other open `main` pull request BEHIND. Each merge-forward reruns
+  the full CI and needs a new Pullfrog review, and the incremental review often posts no
+  `pullfrog-approval` check (see the constraints below). 18 `api` feature pull requests on `main`
+  mean 18 serial full cycles.
+- **The run itself caused the demand.** At D49 the run stopped new fronts (11 pull requests waiting,
+  46 queued runs), then started them again: it opened about 35 pull requests after that point. The
+  sleep skill's "stop opening new fronts once the open set is large" is prose, and nothing enforces
+  it. That is the root cause the fix must remove, not only the symptom.
+
+**Candidate permanent fixes, for the next run to weigh on evidence** (this list is a lead, not a
+decision):
+
+1. An admission gate in code: `tools/launch-worker.mjs` refuses a NEW ticket worker (review rounds
+   and merge-forwards exempt) when open pull requests or queued runs exceed a threshold in
+   `.claude/orchestrator.json`. Test it in `node tools/test-tools.mjs`.
+2. A `concurrency` group with `cancel-in-progress` on every `api` `pull_request` workflow and on
+   `ui`'s `dependabot-auto-merge.yml`.
+3. Path filters, so a change to docs or tools only does not build the apps (required checks need a
+   skip path that still reports).
+4. A GitHub merge queue on `main` in place of strict up-to-date, so one merge stops invalidating
+   every other pull request.
+5. More supply: self-hosted runners on the M5 Pro (18 cores, 64 GB). Weigh the risk of running
+   pull request code on this machine.
+
+Record the chosen design as a brain ADR in `2 Areas/20-29 Orbit Engineering/Decisions/`.
+
+### Changes that reached `main`
+
+| what | PR | state |
+|---|---|---|
+| Dependabot pull requests can publish their required checks (CodeQL advanced setup, Sonar for Dependabot) | `ui#1062` as `d7b5448f` | merged |
+| The 46 Dependabot alerts on `main` are cleared, `npm audit` 0 | `ui#1063` as `e0d82c6e` | merged |
+| The reachable `decode-uri-component` advisory is closed | `ui#1070` as `af2acf56` | merged |
+| API key creation needs an email or agent step-up (`#529`) | `api#528` as `b1593ff8` | deployed, Render `dep-daqqqdjrjlhs73cqkbcg`; `RequireApiKeyCreationStepUp` on |
+| MCP tools read and set a habit's emoji (`#513`) | `api#546` as `90505807` | merged at wrap-up; Render deploy NOT verified |
+| NuGet group bump | `api#538` as `dd9475ed` | merged |
+
+No Android release this run: `ui#1057` did not merge.
+
+### Merged into `redesign/main` (built, not shipped)
+
+`ui#1044`, `#1054`, `#1055`, `#1056`, `#1058`, `#1059` (`core.md` rule 8 line), `#1060` (`#493`),
+`#1061` (`#501`), `#1064` (`#574`: one habit log renders 1 row, not 120), `#1065` (`#499`), `#1073`
+(`#527`). Landing `redesign/main`: `landing#82` (`#509`).
+
+### Tickets
+
+32 closed, including two board sweeps that closed tickets whose merged PR carried a cross-repo
+`Closes` that never applied (`#187`, `#233`, `#327`, `#361`, `#370`, `#372`, `#377`, `#421`,
+`#424`, `#431`, `#434`, `#441`, `#516`, plus `#454`, `#471`, `#495`). Filed: `#644` to `#657`
+(`#644`, `#645`, `#652` are closed). 216 open at handoff.
+
+### Items that need a person, each with what was tried (rule 8)
+
+- **Supabase redirect allowlist** (for `ui#1066`, before the redesign ships). Goal: Google sign-in
+  returns to `/auth-callback?authAttempt=<uuid>`. Tried: no `supabase` CLI, no `~/.supabase`, no
+  `SUPABASE_ACCESS_TOKEN`, no keychain item; the Supabase MCP has no auth URL config tool. Needed:
+  Thomas adds `https://app.useorbit.org/auth-callback\?authAttempt=*` in Supabase > Authentication >
+  URL Configuration, or a personal access token lets a run `PATCH /v1/projects/{ref}/config/auth`.
+- **Cloudflare Turnstile** (for `api#550`). Goal: bot protection on anonymous writes. NOT tried yet:
+  the next run tries every Cloudflare tool and token on this machine before this reaches Thomas.
+- **`#565`** (Today `t.map` crash). The worker rebuilt release `76e01034`, but the emitted chunk
+  differs from the recorded one and no source map was uploaded. This machine has no Vercel CLI.
+  Decided: upload source maps from the web build (own ticket) so the next event maps, then fix.
+- **SONAR_TOKEN** is DONE: copied into `orbit-ui-mobile` Dependabot secrets by a temporary workflow
+  that was deleted after the copy.
+
+### Constraints learned this run
+
+- **After a merge-forward on protected `main`, request a FULL re-review.** The incremental approval
+  can leave the PR without the required `pullfrog-approval` check (`ui#1057`, `api#539`). The full
+  re-review can also find new defects (`ui#1057` round 5 came from one).
+- **Review workers commit and do not push.** The orchestrator resolves the threads, then pushes, so
+  a round costs one Pullfrog review, not two.
+- **Launch a worker with `run_in_background`, never a trailing `&`.** Killing the launcher does not
+  kill `codex`; find and stop the orphaned processes too.
+- **A restart of the Claude process kills every background launcher.** At this handoff the `#657`
+  launcher died mid-round and left a dirty worktree with an unpushed commit.
+- **`gh run rerun` reuses the original event payload.** A label added after the run is invisible to
+  it; rerun the run that the label event created, or push a new head.
+- **A failed branch lookup is not a new tip.** The cancel-superseded script cancels only when the
+  tip is a 40-hex SHA; a dynamic CodeQL run that was cancelled cannot be rerun.
+- **Read the commit result before a thread reply.** A pre-commit hook refused a fix, and the reply
+  still said "fixed in" a commit that did not carry it.
+- **CodeQL default setup is `not-configured` on `orbit-ui-mobile`.** The advanced `codeql.yml` owns
+  scanning; a `main` PR without that file needs a merge-forward to get Analyze checks.
+- **A cross-repo `Closes orbit-tickets#N` does not always close the ticket.** Run
+  `node tools/complete-ticket.mjs` after every merge.
+- **Pullfrog 0.1.83 is still not published** (`npm view pullfrog version` returns 0.1.82 on
+  2026-09-24), so the three pin PRs still wait.
+
+### Open pull requests at the end of this run
+
+`gh pr list --state open` in each repository reproduces this. 29 `ui`, 21 `api`, 1 `landing`.
+
+| PR | base | state at handoff | disposition |
+|---|---|---|---|
+| `ui#1068`, `#1074`, `#1075`, `#1076` | `redesign/main` | APPROVED at head, 1 Unit Tests pending | merge (Thomas authorized) |
+| `api#539` (`#588`) | `main` | merged forward to `07d667fb` after `api#546`; CI and review owed | merge (Thomas authorized) |
+| `ui#1071`, `#1078`, `#1081` | `redesign/main` | APPROVED at head | `#1078`: push local fix `e1033d6a` (en price wrap) first; merge each when green |
+| `ui#1066`, `#1067`, `#1069`, `#1072` | `redesign/main` | APPROVED at an older commit | same-head re-review, then merge |
+| `ui#1052` (`#633` backport) | `redesign/main` | DIRTY (conflict), last review COMMENTED | merge-forward, resolve, re-review, merge; then `#556` |
+| `ui#1029` (`#612`) | `redesign/main` | CHANGES_REQUESTED, 1 open thread at `25211d1a` | fix round |
+| `ui#1030` (`#615`) | `redesign/main` | CHANGES_REQUESTED | waits for `ui#1029` (same files) |
+| `ui#1049` (`#559`) | `redesign/main` | CHANGES_REQUESTED, 2 open threads after the model rewrite | fix round |
+| `ui#1077`, `#1079` to `#1090` | `redesign/main` | no review yet (`#1079` has a `pullfrog-approval` failure) | clear reviews |
+| `ui#1057` (`#557` backport) | `main` | BEHIND, no approval | after `api#553` deploys: merge-forward, full re-review, merge, `/android-release` to the open track |
+| `api#540` to `#544` | `main` | `pullfrog-approval` SUCCESS, BEHIND | merge one at a time, merge-forward just before each turn |
+| `api#545`, `#547` | `main` | `pullfrog-approval` FAILURE | read findings, fix round |
+| `api#548` to `#552`, `#554` | `main` | no review yet | clear reviews; `#550` also needs Turnstile |
+| `api#553` (`#657`) | `main` | worker died mid-round | read worktree `ticket-657-logout-session-family` (1 unpushed commit `64b1a506`, 2 dirty files), finish, push |
+| `api#531`, `#532`, `#533` | `main` | older rounds owed | batches 1, 2a, 6 |
+| `api#535`, `#530` (Dependabot) | `main` | `#530` CHANGES_REQUESTED | merge each when approved and green |
+| `ui#1046`, `api#537`, `landing#80` (pins) | `main` | wait for Pullfrog 0.1.83 | re-review after the release |
+
+## What the 2026-09-25 sleep run added (session `707e6949`)
+
+**Durable because** it records the CI admission design, the branch rule Thomas restated, and the
+merge-order mistake this run paid for. The decision log (D1 to D126) was in the session scratchpad
+and is gone; everything durable from it is here.
+
+### The CI congestion fix
+
+- **`api#555` (`#659`) merged** as `dc68392f`: every `orbit-api` `pull_request` workflow now has a
+  `concurrency` group with `cancel-in-progress`.
+- **`ui#1091` (`#658`) is OPEN, not merged.** It adds `tools/lib/admission.mjs` and
+  `tools/wait-ci.mjs`. `launch-worker.mjs` refuses a NEW ticket worker (exit 8) above 10 open PRs or
+  30 queued runs in the last 24 hours; a branch that already has an open PR is exempt, and the gate
+  fails closed. `wait-ci.mjs` is a registered wake source that settles only when no check is pending,
+  no workflow run for the head is queued or running, and the same completed set holds on two quiet
+  polls. Harnesses at `bdcad824`: tools 2,151 OK, hooks OK. Last review COMMENTED at `15a0747d`.
+  **It targets `redesign/main`, and by the 2026-09-25 rule it belongs on `main`.**
+- Brain ADR D133: `An unattended run caps its own CI demand in code and waits on CI through a
+  registered wake source.md`.
+- CI queue at handoff: 8 queued on `ui`, 0 on `api` (was 259 at the previous wrap-up).
+- Multipliers still open, each a ticket: `#661` (rerun a required check cancelled by concurrency),
+  `#663` (every merge invalidates every PR's surface manifest), `#667` (serve web fonts from the repo;
+  the `next/font` Google fetch fails `Build` at random), `#668` (every `orbit-api` contract merge turns
+  Contract Drift red on every open `ui` PR).
+
+### Rules this run paid for
+
+- **Type-check the merge result before merging a PR whose base moved (D115).** `ui#1069` renamed
+  `readOnly` to `completionReadOnly`; `ui#1052` merged after it with a test still passing `readOnly`
+  and broke `redesign/main` type-check for every open PR. `#669` / `ui#1094` fixed it. Merging with
+  `git merge --no-commit origin/redesign/main` then `npx tsc --noEmit` in both apps catches it.
+- **Contract Drift on `redesign/main` is advisory when the PR touches no
+  `packages/shared/src/types/`** (core rule 4: it regenerates from `orbit-api` live `main`, not from
+  the PR). On `main` it is required; re-baseline the snapshot with `npx --yes orval@8.37.0` (main's
+  lock), never the local 8.20.
+- **Read the diff before replying on a thread.** Two replies this run claimed behaviour the code did
+  not have and needed corrections.
+- **Codex hung twice on one auth merge** (`KILLED_NO_PROGRESS`, zero tool calls). The second launch
+  ran on the Claude engine per `orchestrate/SKILL.md` §5.4.1, config reverted after.
+- **A bare `Fixes #N` in an `orbit-api` PR body points at an `orbit-api` issue.** Rewrite it to
+  `thomasluizon/orbit-tickets#N` before merge, and run `node tools/complete-ticket.mjs` after.
+
+### Shipped
+
+- **Live:** Android 1.3.33 (92) on the Play open track from `main` `1ea4baab` (`ui#1057`, `#557`:
+  an expired Android session recovers instead of signing out). `orbit-api` `main` merged and deployed
+  by Render: `api#539` (bulk week interval), `#540` (freeze source), `#541` (support tool on the
+  support entry), `#542` (repairable streak gap dates), `#543` (sub-habit title), `#546` (MCP emoji),
+  `#547` (a crisis turn in Astra returns the fixed 988 / CVV 188 reply before any AI call), `#553`
+  (logout revokes the whole refresh-token family, deployed 2026-09-25 03:41 UTC), `#533` (onboarding
+  repeat interval), `#555` (concurrency). `#660` becomes due 168 hours after `#553`'s deploy.
+- **Built on `redesign/main`, not shipped:** `ui#1029` (`#612` shared-browser account leak), `#1052`,
+  `#1064`, `#1067`, `#1068`, `#1069`, `#1071` to `#1083`, `#1085`, `#1087`, `#1092` to `#1094`.
+  Landing `redesign/main`: `landing#82`.
+
+### Decided this run, recorded on the tickets
+
+- `#392`: a bad-habit slip never sets `lastCompletionDate`; an empty Today shows returning guidance.
+  `#665` carries recording the slip at write time.
+- `api#547`: any detected crisis turn, even a figurative one, gets the fixed support reply. Safety
+  over false positives.
+- `ui#1080`: `DESIGN.md` ListRow chevron moved from `fg-4` to `fg-3` (`fg-4` on `bgElev` measures
+  2.59:1, under the 3:1 graphic floor).
+- `api#531` (`#367`, colour-scheme collapse) is redesign work: it moves to `orbit-api`
+  `redesign/main` (Thomas, 2026-09-25). Recorded on the PR.
+
+### Items that need a person, each with what was tried (rule 8)
+
+- **Cloudflare Turnstile** for `api#550`: a widget for `useorbit.org` and Render
+  `BotProtection__SecretKey`. Tried: `wrangler`, `cloudflared`, `flarectl` (none installed),
+  `CLOUDFLARE*` / `CF_*` / `TURNSTILE*` env (none), keychain `cloudflare` (none), Render `orbit-api`
+  env (52 vars, no Cloudflare key). `api#550` merges and deploys inert (`BotProtection__Enabled`
+  unset), so it does not wait on this.
+- **Supabase redirect allowlist** for `ui#1066`: unchanged from the previous section.
+- **Live check of the crisis reply**: send a crisis message to Astra in production and confirm
+  988 / 188 shows.

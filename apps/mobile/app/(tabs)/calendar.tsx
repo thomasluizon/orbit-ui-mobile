@@ -65,6 +65,7 @@ import {
   useSetCalendarAutoSync,
 } from "@/hooks/use-calendar-auto-sync";
 import { useAppToast } from "@/hooks/use-app-toast";
+import { getAccountGeneration } from "@/lib/session-epoch";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
@@ -396,9 +397,11 @@ function CalendarScreenContent({
   const setCalendarAutoSync = useSetCalendarAutoSync();
 
   const handleCalendarAutoSyncChange = useCallback(async (enabled: boolean) => {
+    const requestAccount = getAccountGeneration();
     try {
       await setCalendarAutoSync.mutateAsync({ enabled });
     } catch (error: unknown) {
+      if (getAccountGeneration() !== requestAccount) return;
       showError(getFriendlyErrorMessage(
         error,
         t,

@@ -40,7 +40,7 @@ export function SettingsRow({
 }: Readonly<SettingsRowProps>) {
   const interactive = typeof onClick === 'function'
   const RootTag = interactive ? 'button' : 'div'
-  const iconColor = danger ? 'var(--status-bad)' : 'var(--fg-1)'
+  const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
 
   return (
@@ -66,7 +66,7 @@ export function SettingsRow({
           className="inline-flex justify-center shrink-0"
           style={{ width: 28 }}
         >
-          <LeadingIcon size={24} strokeWidth={1.5} color={iconColor} />
+          <LeadingIcon size={24} strokeWidth={1.5} color={rowColors.iconColor} />
         </span>
       )}
       {leadingDot && (
@@ -127,7 +127,7 @@ export function SettingsRow({
         )}
         {children}
         {accessory === 'chevron' && (
-          <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-4)" />
+          <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-3)" />
         )}
       </span>
     </RootTag>

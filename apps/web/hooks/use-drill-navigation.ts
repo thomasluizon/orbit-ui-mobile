@@ -1,14 +1,19 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useCallback, useMemo, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import {
+  countCompletedDrillChildren,
+  canRevealCompletedDrillChildren,
+  getVisibleDrillChildren,
   loadDrillChildren,
   mergeDrillChildrenMap,
 } from '@orbit/shared/utils/drill-navigation'
+import type { HabitVisibilityOptions, HabitVisibilityView } from '@orbit/shared/utils/habit-visibility'
 import { API } from '@orbit/shared/api'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { hasOpenOverlay } from '@/lib/overlay-stack'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 
@@ -33,6 +38,9 @@ export interface DrillNavigationState {
   currentParentId: string | null
   currentParent: NormalizedHabit | null
   drillChildren: NormalizedHabit[]
+  hasUnfilteredChildren: boolean
+  canRevealCompletedChildren: boolean
+  completedCount: number
   drillLoading: boolean
   drillError: string
   drillInto: (habitId: string) => Promise<void>
@@ -53,17 +61,25 @@ export interface DrillNavigationState {
 export function useDrillNavigation(
   habitsById: Map<string, NormalizedHabit>,
   lastUpdated: number,
+  visibilityOptions?: HabitVisibilityOptions,
+  view: HabitVisibilityView = 'all',
 ): DrillNavigationState {
   const t = useTranslations()
-  const [drillStack, setDrillStack] = useState<string[]>([])
-  const [drillChildrenMap, setDrillChildrenMap] = useState(
-    new Map<string, NormalizedHabit[]>(),
+  const [drillStack, setDrillStack] = useAccountScopedState<string[]>(() => [])
+  const [drillChildrenMap, setDrillChildrenMap] = useAccountScopedState(
+    () => new Map<string, NormalizedHabit[]>(),
   )
-  const [drillParentInfo, setDrillParentInfo] = useState<NormalizedHabit | null>(null)
-  const [drillLoading, setDrillLoading] = useState(false)
-  const [drillError, setDrillError] = useState('')
+  const [drillParentInfo, setDrillParentInfo] = useAccountScopedState<NormalizedHabit | null>(null)
+  const [drillLoading, setDrillLoading] = useAccountScopedState(false)
+  const [drillError, setDrillError] = useAccountScopedState('')
 
   const currentParentId = drillStack.at(-1) ?? null
+  const activeParentIdRef = useRef<string | null>(null)
+  const requestIdRef = useRef(0)
+  const feedbackPendingRef = useRef(false)
+  useEffect(() => {
+    activeParentIdRef.current = currentParentId
+  }, [currentParentId])
 
   const currentParent = useMemo(() => {
     if (!currentParentId) return null
@@ -71,61 +87,99 @@ export function useDrillNavigation(
   }, [currentParentId, habitsById, drillParentInfo])
 
   const drillChildren = useMemo(
-    () => (currentParentId ? drillChildrenMap.get(currentParentId) ?? [] : []),
-    [currentParentId, drillChildrenMap],
+    () => currentParentId
+      ? visibilityOptions
+        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+        : drillChildrenMap.get(currentParentId) ?? []
+      : [],
+    [currentParentId, drillChildrenMap, visibilityOptions, view],
+  )
+  const hasUnfilteredChildren = currentParentId
+    ? (drillChildrenMap.get(currentParentId)?.length ?? 0) > 0
+    : false
+  const canRevealCompletedChildren = currentParentId !== null && drillChildren.length === 0 && visibilityOptions
+    ? canRevealCompletedDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+    : false
+  const completedCount = countCompletedDrillChildren(
+    drillChildren,
+    visibilityOptions?.selectedDate || formatAPIDate(new Date()),
+    visibilityOptions?.recentlyCompletedDates,
   )
 
   const fetchDrillChildren = useCallback(
     async (habitId: string, silent = false) => {
-      if (!silent) setDrillLoading(true)
+      if (activeParentIdRef.current !== habitId) return
+      const requestId = ++requestIdRef.current
+      const showFeedback = !silent || feedbackPendingRef.current
+      feedbackPendingRef.current = showFeedback
+      if (showFeedback) setDrillLoading(true)
       try {
         const normalized = await loadDrillChildren(habitId, fetchHabitDetail)
+        if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
         setDrillParentInfo(normalized.parent)
         setDrillChildrenMap((prev) =>
           mergeDrillChildrenMap(prev, normalized.childrenByParent),
         )
+        setDrillError('')
       } catch (err: unknown) {
-        if (!silent) {
+        if (showFeedback && requestIdRef.current === requestId && activeParentIdRef.current === habitId) {
           setDrillError(getFriendlyErrorMessage(err, t, 'errors.fetchSubHabits', 'subHabit'))
         }
       } finally {
-        if (!silent) setDrillLoading(false)
+        if (requestIdRef.current === requestId) {
+          feedbackPendingRef.current = false
+          if (showFeedback) setDrillLoading(false)
+        }
       }
     },
-    [t],
+    [setDrillChildrenMap, setDrillError, setDrillLoading, setDrillParentInfo, t],
   )
 
   const drillInto = useCallback(
     async (habitId: string) => {
+      requestIdRef.current += 1
+      feedbackPendingRef.current = false
       setDrillError('')
+      setDrillLoading(false)
+      activeParentIdRef.current = habitId
       setDrillStack((prev) => [...prev, habitId])
       if (!drillChildrenMap.has(habitId)) {
         await fetchDrillChildren(habitId)
       }
     },
-    [drillChildrenMap, fetchDrillChildren],
+    [drillChildrenMap, fetchDrillChildren, setDrillError, setDrillLoading, setDrillStack],
   )
 
   const drillBack = useCallback(() => {
+    requestIdRef.current += 1
+    feedbackPendingRef.current = false
+    activeParentIdRef.current = null
+    setDrillLoading(false)
     setDrillStack((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev))
-  }, [])
+  }, [setDrillLoading, setDrillStack])
 
   const drillReset = useCallback(() => {
+    requestIdRef.current += 1
+    feedbackPendingRef.current = false
+    activeParentIdRef.current = null
+    setDrillLoading(false)
     setDrillStack([])
     setDrillChildrenMap(new Map())
     setDrillParentInfo(null)
-  }, [])
+  }, [setDrillChildrenMap, setDrillLoading, setDrillParentInfo, setDrillStack])
 
   const refreshCurrent = useCallback(async () => {
     if (!currentParentId) return
-    await fetchDrillChildren(currentParentId, true)
-  }, [currentParentId, fetchDrillChildren])
+    await fetchDrillChildren(currentParentId, drillError === '')
+  }, [currentParentId, drillError, fetchDrillChildren])
 
   const getDrillChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
-      return drillChildrenMap.get(parentId) ?? []
+      return visibilityOptions
+        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+        : drillChildrenMap.get(parentId) ?? []
     },
-    [drillChildrenMap],
+    [drillChildrenMap, visibilityOptions, view],
   )
 
   const lastUpdatedRef = useRef(lastUpdated)
@@ -157,6 +211,9 @@ export function useDrillNavigation(
     currentParentId,
     currentParent,
     drillChildren,
+    hasUnfilteredChildren,
+    canRevealCompletedChildren,
+    completedCount,
     drillLoading,
     drillError,
     drillInto,

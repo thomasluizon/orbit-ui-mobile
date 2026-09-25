@@ -772,7 +772,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Pager | caller-controlled segments and back/forward controls, unavailable handlers disable controls, closing action replaces forward | `ui/pager.tsx` | `ui/pager.tsx` |
 | SegmentedControl | 2 to 4 views of one subject, selected neutral surface with current-position ring, caller words, whole-control and option disabled states | `ui/segmented-control.tsx` | `ui/segmented-control.tsx` |
 | SectionTitle | Geist Sans 20/500 -0.01em, optional mono uppercase eyebrow, fixed scale spacing, no action slot | `ui/section-label.tsx` | `ui/section-label.tsx` |
-| ListRow | icon 24/1.5 in a 28px slot, title Geist Sans 17/400, desc 14 fg-3, value + trailing chevron 24 fg-4, **draws no rule of its own**, danger icon = status-bad and danger title = status-bad-text | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
+| ListRow | icon 24/1.5 in a 28px slot, title Geist Sans 17/400, desc 14 fg-3, value fg-3 + trailing chevron 24 fg-3, **draws no rule of its own**, danger icon = status-bad and danger title = status-bad-text | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
 | SettingsGroup | the only owner of row separation: a hairline *between* adjacent rows, never after the last | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
 | Switch | 48x28 pill, 22px thumb, on = primary / off = `--track-empty` | `ui/switch.tsx` | `ui/switch.tsx` |
 | Radio/RadioRow | 24px, selected = primary fill + 9px dot, else inset 2px `--track-empty` ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
@@ -823,6 +823,12 @@ It also deleted `apps/web/lib/overlay-stack.ts` and two defects with it: the `z-
 **Mobile rationale.** The library is not the defect, the wrapper is. TrueSheet handles detents, scroll coordination, the dimmed backdrop, the keyboard and the Android back button natively. `@gorhom/bottom-sheet` stays banned by `local/no-gorhom-sheet`, because its `present()` and portal no-op on the New Architecture in release builds. **Never navigate in the same tick as closing a sheet.**
 
 **The 83 callers were migrated in R1 (`#42`).** Both platforms now expose one close path: take `{ sheetRef, closeSheet }` from `useSheetHost()`, pass `ref={sheetRef}`, and call `closeSheet()` or `closeSheet(action)`. `onClose` fires only from the completed dismissal, so a caller never flips the open state directly.
+
+**One exception, and only one.** An account replacement under a running tab hides the previous
+account's overlay immediately, without an exit transition. Most owners reset their open flag through
+`useAccountScopedState`. `CreateHabitModal` gates its rendered sheet by account generation before
+its owner closes the flag. The exit would keep the previous account's content visible. Nothing else
+may flip the flag.
 
 ### Sizing
 
@@ -1159,6 +1165,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 - **Every interactive element has an accessible name.** Precedence: `aria-labelledby`, then `aria-label`, then the native label, then `title`. Prefer visible text.
 - **The visible label must appear inside the accessible name** (WCAG 2.5.3), or voice-control users cannot activate what they can read.
 - **Mark a purely decorative icon `aria-hidden="true"` and `focusable="false"`**, and never put `aria-hidden` on or above a focusable element. A meaningful standalone SVG takes `role="img"` plus a label.
+- **Hide a habit emoji beside its own habit name from assistive technology on web and mobile.** If the emoji adds meaning the adjacent text does not repeat, give it an accessible name.
 - **Expandable controls carry `aria-expanded` and `aria-controls`.**
 - **Alt text by purpose:** decorative takes `alt=""` (present, never missing), informative describes the meaning, functional describes the action.
 - **Expose one visible `main` landmark**, label repeated landmarks, and keep headings forming a coherent outline.

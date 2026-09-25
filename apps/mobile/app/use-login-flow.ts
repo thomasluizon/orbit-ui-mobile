@@ -8,14 +8,36 @@ import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-import { clearStoredReferralCode, consumeStoredAuthReturnUrl, getSafeReturnUrl, getStoredReferralCode,
+import { clearStoredAuthReturnUrl, clearStoredReferralCode, createAuthReturnUrlAttempt,
+  getSafeReturnUrl, getStoredAuthReturnUrl, getStoredReferralCode, isAuthReturnUrlAttemptCurrent,
   isSafeReturnUrl, isValidReferralCode, isValidVerificationCode,
   storeAuthReturnUrl, storeReferralCode } from '@/lib/auth-flow'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useOffline } from '@/hooks/use-offline'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
-export function useLoginFlow() {
+interface ReturnUrlAttempt {
+  returnUrl?: string
+  id: number
+  ready: Promise<void>
+}
+
+function getOrCreateReturnUrlAttempt(
+  attemptRef: { current: ReturnUrlAttempt | null },
+  returnUrl?: string,
+): ReturnUrlAttempt {
+  if (!attemptRef.current || attemptRef.current.returnUrl !== returnUrl ||
+    !isAuthReturnUrlAttemptCurrent(attemptRef.current.id)) {
+    const id = createAuthReturnUrlAttempt()
+    const ready = returnUrl && isSafeReturnUrl(returnUrl)
+      ? storeAuthReturnUrl(returnUrl, id)
+      : clearStoredAuthReturnUrl(id)
+    attemptRef.current = { returnUrl, id, ready }
+  }
+  return attemptRef.current
+}
+
+export function useLoginFlow(isAuthCallback = false) {
   const { t, i18n } = useTranslation()
   const params = useLocalSearchParams<{ ref?: string; returnUrl?: string; email?: string; code?: string; from?: string }>()
   const router = useRouter()
@@ -39,6 +61,7 @@ export function useLoginFlow() {
   const [lockCountdown, setLockCountdown] = useState(0)
   const [accountBack, setAccountBack] = useState<BackendLoginResponse | null>(null)
   const busy = useRef(false)
+  const returnUrlAttemptRef = useRef<ReturnUrlAttempt | null>(null)
   const attempts = useRef(new Map<string, LoginAttempts>())
   const entry = useLoginCodeEntry((code) => { void verifyCode(code) })
   const { setCodeDigits } = entry
@@ -46,9 +69,13 @@ export function useLoginFlow() {
   useEffect(() => {
     let active = true
     async function hydrate() {
+      const returnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
+      const safeReturnUrl = returnUrl && isSafeReturnUrl(returnUrl) ? returnUrl : undefined
+      if (!isAuthCallback && (safeReturnUrl || returnUrlAttemptRef.current?.returnUrl)) {
+        await getOrCreateReturnUrlAttempt(returnUrlAttemptRef, safeReturnUrl).ready
+      }
       if (typeof params.ref === 'string' && isValidReferralCode(params.ref)) await storeReferralCode(params.ref)
       const referral = await getStoredReferralCode()
-      if (typeof params.returnUrl === 'string' && isSafeReturnUrl(params.returnUrl)) await storeAuthReturnUrl(params.returnUrl)
       if (!active) return
       setShowReferralBanner(Boolean(referral))
       if (typeof params.email === 'string') setEmail(params.email)
@@ -59,7 +86,7 @@ export function useLoginFlow() {
     }
     void hydrate().catch(() => { if (active) setErrorKey('auth.errors.unknownError') })
     return () => { active = false }
-  }, [params.code, params.email, params.ref, params.returnUrl, setCodeDigits])
+  }, [isAuthCallback, params.code, params.email, params.ref, params.returnUrl, setCodeDigits])
 
   useEffect(() => {
     if (codeFailure !== 'locked') return
@@ -107,13 +134,24 @@ export function useLoginFlow() {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  async function completeLogin(response: BackendLoginResponse, today = false) {
-    await login(response.token, response.refreshToken, { userId: response.userId, name: response.name, email: response.email })
-    if (await getStoredReferralCode()) {
+  async function completeLogin(response: BackendLoginResponse, attemptId: number, today = false) {
+    const isCurrentLoginSession = await login(response.token, response.refreshToken, {
+      userId: response.userId, name: response.name, email: response.email,
+    })
+    if (!isCurrentLoginSession?.() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
+    const referralCode = await getStoredReferralCode()
+    if (!isCurrentLoginSession()) return
+    if (referralCode) {
       await clearStoredReferralCode()
+      if (!isCurrentLoginSession()) return
       setShowReferralBanner(false)
     }
-    const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
+    if (!isCurrentLoginSession() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
+    const storedReturnUrl = await getStoredAuthReturnUrl(attemptId)
+    if (!isCurrentLoginSession() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
+    await clearStoredAuthReturnUrl(attemptId, isCurrentLoginSession)
+    if (!isCurrentLoginSession() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
+    const returnUrl = getSafeReturnUrl(storedReturnUrl)
     router.replace(today ? '/' : returnUrl)
   }
 
@@ -130,17 +168,21 @@ export function useLoginFlow() {
   async function verifyCode(codeOverride?: string) {
     const code = codeOverride ?? entry.codeDigits.join('')
     if (busy.current || !isOnline || code.length !== 6 || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
+    const returnUrlAttempt = getOrCreateReturnUrlAttempt(
+      returnUrlAttemptRef, returnUrlAttemptRef.current?.returnUrl,
+    )
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
     try {
+      await returnUrlAttempt.ready
       const referralCode = await getStoredReferralCode()
       const response = await apiClient<BackendLoginResponse>(API.auth.verifyCode, {
         method: 'POST', body: JSON.stringify({ email: email.trim(), code, language: i18n.language,
           ...(referralCode ? { referralCode } : {}) }),
       })
       if (response.wasReactivated) setAccountBack(response)
-      else await completeLogin(response)
+      else await completeLogin(response, returnUrlAttempt.id)
     } catch (error: unknown) { reportVerificationFailure(error) }
     finally { busy.current = false; setIsSubmitting(false) }
   }
@@ -185,10 +227,13 @@ export function useLoginFlow() {
 
   async function continueAccount() {
     if (!accountBack || busy.current) return
+    const returnUrlAttempt = getOrCreateReturnUrlAttempt(
+      returnUrlAttemptRef, returnUrlAttemptRef.current?.returnUrl,
+    )
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
-    try { await completeLogin(accountBack, true) }
+    try { await returnUrlAttempt.ready; await completeLogin(accountBack, returnUrlAttempt.id, true) }
     catch { setErrorKey('auth.errors.unknownError') }
     finally { busy.current = false; setIsSubmitting(false) }
   }

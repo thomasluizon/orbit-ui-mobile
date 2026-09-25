@@ -12,7 +12,35 @@ import {
 import { TimeField } from "@/components/ui/time-field";
 import type { Time24 } from "@orbit/shared/contracts/forms";
 import { Switch } from "@/components/ui/switch";
+import { RadioGroup, useRadioGroupItem } from "@/components/ui/radio-row";
 import { type AppTokens, createSectionStyles } from "./styles";
+
+function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
+  label: string;
+  selected: boolean;
+  onSelect: () => void;
+  styles: ReturnType<typeof createSectionStyles>;
+}>) {
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled: false, onSelect, selected });
+  return (
+    <Pressable
+      {...navigationProps}
+      ref={elementRef}
+      style={({ pressed }) => [
+        styles.whenButton,
+        selected && styles.whenButtonActive,
+        pressed && { transform: [{ scale: 0.96 }] },
+      ]}
+      hitSlop={{ top: 3, bottom: 3 }}
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: selected }}
+      onPress={onActivate}
+    >
+      <Text style={[styles.whenButtonText, selected && styles.whenButtonTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
 
 interface ScheduledReminderSectionProps {
   tokens: AppTokens;
@@ -155,49 +183,10 @@ export function ScheduledReminderSection({
 
           {showForm && (
             <View style={sectionStyles.formBody}>
-              <View style={sectionStyles.whenRow}>
-                <Pressable
-                  style={({ pressed }) => [
-                    sectionStyles.whenButton,
-                    when === "day_before" && sectionStyles.whenButtonActive,
-                    pressed && { transform: [{ scale: 0.96 }] },
-                  ]}
-                  hitSlop={{ top: 3, bottom: 3 }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: when === "day_before" }}
-                  onPress={() => setWhen("day_before")}
-                >
-                  <Text
-                    style={[
-                      sectionStyles.whenButtonText,
-                      when === "day_before" &&
-                        sectionStyles.whenButtonTextActive,
-                    ]}
-                  >
-                    {t("habits.form.scheduledReminderDayBefore")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    sectionStyles.whenButton,
-                    when === "same_day" && sectionStyles.whenButtonActive,
-                    pressed && { transform: [{ scale: 0.96 }] },
-                  ]}
-                  hitSlop={{ top: 3, bottom: 3 }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: when === "same_day" }}
-                  onPress={() => setWhen("same_day")}
-                >
-                  <Text
-                    style={[
-                      sectionStyles.whenButtonText,
-                      when === "same_day" && sectionStyles.whenButtonTextActive,
-                    ]}
-                  >
-                    {t("habits.form.scheduledReminderSameDay")}
-                  </Text>
-                </Pressable>
-              </View>
+              <RadioGroup accessibilityLabel={t("habits.form.scheduledReminder")} style={sectionStyles.whenRow}>
+                <ReminderWhenOption label={t("habits.form.scheduledReminderDayBefore")} selected={when === "day_before"} onSelect={() => setWhen("day_before")} styles={sectionStyles} />
+                <ReminderWhenOption label={t("habits.form.scheduledReminderSameDay")} selected={when === "same_day"} onSelect={() => setWhen("same_day")} styles={sectionStyles} />
+              </RadioGroup>
 
               <View style={sectionStyles.timeRow}>
                 <TimeField

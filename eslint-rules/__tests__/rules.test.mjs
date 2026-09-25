@@ -42,7 +42,13 @@ const maxButtonWordsOptionsFrom = (config, platform) => {
     .map((entry) => entry?.rules?.['local/max-button-words'])
     .find((configuredRule) => Array.isArray(configuredRule) && configuredRule[0] === 'error')
   if (!registration?.[1]) throw new Error(`${platform} must register local/max-button-words at error`)
-  return [registration[1]]
+  return [{
+    ...registration[1],
+    localePaths: {
+      en: join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'button-words-en.json'),
+      'pt-BR': join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'button-words-pt-BR.json'),
+    },
+  }]
 }
 
 const webMaxButtonWordsOptions = maxButtonWordsOptionsFrom(webEslintConfig, 'web')
@@ -1170,16 +1176,28 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
   ],
 })
 
-/*
- * These cases resolve production copy, so shortening the catalogs can silently disarm them.
- * thomasluizon/orbit-tickets#531 owns fixture decoupling from production catalogs.
- */
 ruleTester.run('max-button-words', rule('max-button-words'), {
   valid: [
     { code: '<PillButton>Log all</PillButton>', options: maxButtonWordsOptions },
     { code: '<PillButton>Set-up now</PillButton>', options: maxButtonWordsOptions },
     { code: '<button aria-label="Open menu" />', options: maxButtonWordsOptions },
     { code: '<Pressable accessibilityRole="button" accessibilityLabel="Open menu" />', options: maxButtonWordsOptions },
+    { code: '<PillButton label="Open navigation menu" iconOnly />', options: webMaxButtonWordsOptions },
+    { code: '<Button label="Open navigation menu" iconOnly={true} />', options: mobileMaxButtonWordsOptions },
+    { code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />', options: webMaxButtonWordsOptions },
+    { code: '<ListRow key="mobile" title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />', options: mobileMaxButtonWordsOptions },
+    { code: "function InvoiceRow({ t }) { return <ListRow action={{ icon: 'download', label: t('upgrade.billing.invoices.downloadDated'), onPress }} /> }", options: webMaxButtonWordsOptions },
+    { code: '<PillButton label="Open navigation menu" iconOnly={true} />', options: webMaxButtonWordsOptions },
+    { code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />', options: webMaxButtonWordsOptions },
+    { code: '<ListRow key="mobile" title="Settings" accessibilityLabel="Open account settings" />', options: mobileMaxButtonWordsOptions },
+    { code: '<PillButton accessibleName="Open payment settings">Change</PillButton>', options: webMaxButtonWordsOptions },
+    { code: '<PillButton key="mobile" accessibleName="Open payment settings">Change</PillButton>', options: mobileMaxButtonWordsOptions },
+    { code: '<Button accessibleName="Open payment settings">Change</Button>', options: webMaxButtonWordsOptions },
+    { code: '<Button key="mobile" accessibleName="Open payment settings">Change</Button>', options: mobileMaxButtonWordsOptions },
+    { code: '<Chip ariaLabel="Open filter options">Filters</Chip>', options: webMaxButtonWordsOptions },
+    { code: '<Chip accessibilityLabel="Open filter options">Filters</Chip>', options: mobileMaxButtonWordsOptions },
+    { code: '<button aria-label="Open navigation menu" />', options: webMaxButtonWordsOptions },
+    { code: '<Pressable accessibilityRole="button" accessibilityLabel="Open navigation menu" />', options: mobileMaxButtonWordsOptions },
     { code: '<EmptyState description="This sentence belongs in empty state body copy" />', options: maxButtonWordsOptions },
     { code: '<Dialog><p>This sentence belongs in the dialog body</p></Dialog>', options: maxButtonWordsOptions },
     { code: 'toast("This sentence belongs in toast body copy")', options: maxButtonWordsOptions },
@@ -1220,49 +1238,24 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       errors: [maxWordsError('PillButton', 'Open all insights', 'source', 3)],
     },
     {
-      code: '<PillButton label="Open navigation menu" iconOnly />',
-      options: maxButtonWordsOptions,
-      errors: [maxWordsError('PillButton', 'Open navigation menu', 'source', 3)],
-    },
-    {
-      code: '<PillButton accessibleName="Open payment settings">Change</PillButton>',
+      code: '<Button label="Open navigation menu" />',
       options: webMaxButtonWordsOptions,
-      errors: [maxWordsError('PillButton', 'Open payment settings', 'source', 3)],
+      errors: [maxWordsError('Button', 'Open navigation menu', 'source', 3)],
     },
     {
-      code: '<PillButton accessibleName="Open payment settings">Change</PillButton>',
+      code: '<Button label="Open navigation menu" iconOnly={false} />',
       options: mobileMaxButtonWordsOptions,
-      errors: [maxWordsError('PillButton', 'Open payment settings', 'source', 3)],
+      errors: [maxWordsError('Button', 'Open navigation menu', 'source', 3)],
     },
     {
-      code: '<Button accessibleName="Open payment settings">Change</Button>',
+      code: '<Button label="Open navigation menu" iconOnly={isIconOnly} />',
       options: webMaxButtonWordsOptions,
-      errors: [maxWordsError('Button', 'Open payment settings', 'source', 3)],
+      errors: [maxWordsError('Button', 'Open navigation menu', 'source', 3)],
     },
     {
-      code: '<Button accessibleName="Open payment settings">Change</Button>',
-      options: mobileMaxButtonWordsOptions,
-      errors: [maxWordsError('Button', 'Open payment settings', 'source', 3)],
-    },
-    {
-      code: '<Chip ariaLabel="Open filter options">Filters</Chip>',
+      code: '<Button>Open navigation menu</Button>',
       options: webMaxButtonWordsOptions,
-      errors: [maxWordsError('Chip', 'Open filter options', 'source', 3)],
-    },
-    {
-      code: '<Chip accessibilityLabel="Open filter options">Filters</Chip>',
-      options: mobileMaxButtonWordsOptions,
-      errors: [maxWordsError('Chip', 'Open filter options', 'source', 3)],
-    },
-    {
-      code: '<button aria-label="Open navigation menu" />',
-      options: maxButtonWordsOptions,
-      errors: [maxWordsError('button', 'Open navigation menu', 'source', 3)],
-    },
-    {
-      code: '<Pressable accessibilityRole="button" accessibilityLabel="Open navigation menu" />',
-      options: mobileMaxButtonWordsOptions,
-      errors: [maxWordsError('Pressable', 'Open navigation menu', 'source', 3)],
+      errors: [maxWordsError('Button', 'Open navigation menu', 'source', 3)],
     },
     {
       code: "const t = useTranslations(); const chip = <Chip>{t('chat.suggestion.exercise')}</Chip>",
@@ -1313,32 +1306,9 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       ],
     },
     {
-      code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />',
-      options: webMaxButtonWordsOptions,
-      errors: [maxWordsError('ListRow', 'Open account settings', 'source', 3)],
-    },
-    {
-      code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />',
-      options: mobileMaxButtonWordsOptions,
-      errors: [maxWordsError('ListRow', 'Open account settings', 'source', 3)],
-    },
-    {
-      code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />',
+      code: '<ListRow title="Settings" action={{ label: "Remove this account", onPress }} />',
       options: webMaxButtonWordsOptions,
       errors: [maxWordsError('ListRow', 'Remove this account', 'source', 3)],
-    },
-    {
-      code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />',
-      options: mobileMaxButtonWordsOptions,
-      errors: [maxWordsError('ListRow', 'Remove this account', 'source', 3)],
-    },
-    {
-      code: "function InvoiceRow({ t }) { return <ListRow action={{ icon: 'download', label: t('upgrade.billing.invoices.downloadDated'), onPress }} /> }",
-      options: webMaxButtonWordsOptions,
-      errors: [
-        maxWordsError('ListRow', 'Download the invoice from {date}', 'en', 5),
-        maxWordsError('ListRow', 'Baixar a fatura de {date}', 'pt-BR', 5),
-      ],
     },
     {
       code: "const t = useTranslations('auth'); const sharedView = { t }; function GoogleSignIn({ t }) { return <PillButton>{t('signInWithGoogle')}</PillButton> } const view = <GoogleSignIn {...sharedView} />",

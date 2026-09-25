@@ -51,6 +51,7 @@ export default function StepUpScreen() {
     : params.operation
   const operation = isStepUpOperation(operationValue) ? operationValue : null
   const { profile } = useProfile()
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
   const userEmail = useAuthStore((state) => state.user?.email)
   const logout = useLogout()
   const { displayDate } = useDateFormat()
@@ -75,7 +76,7 @@ export default function StepUpScreen() {
         router.replace('/profile')
         return
       }
-      const stored = await readStepUpTiming(operation)
+      const stored = await readStepUpTiming(operation, accountId)
       if (!active) return
       if (!stored) {
         router.replace('/profile')
@@ -89,7 +90,7 @@ export default function StepUpScreen() {
     return () => {
       active = false
     }
-  }, [operation, router])
+  }, [accountId, operation, router])
 
   useEffect(() => {
     const timer = globalThis.setInterval(() => setNow(Date.now()), 1000)
@@ -138,7 +139,7 @@ export default function StepUpScreen() {
     setRequestError(null)
     try {
       await requestChallenge()
-      const next = await beginStepUpChallenge(operation)
+      const next = await beginStepUpChallenge(operation, accountId)
       setRecord(next)
       setCode('')
       setAttemptsRemaining(null)
@@ -164,7 +165,7 @@ export default function StepUpScreen() {
           { method: 'POST', body: JSON.stringify({ code }) },
           stepUpMessageResponseSchema,
         )
-        await clearStepUpTiming(operation)
+        await clearStepUpTiming(operation, accountId)
         markStepUpVerified(operation)
         router.replace('/profile')
         return
@@ -174,7 +175,7 @@ export default function StepUpScreen() {
         { method: 'POST', body: JSON.stringify({ code }) },
         accountDeactivationResponseSchema,
       )
-      await clearStepUpTiming(operation)
+      await clearStepUpTiming(operation, accountId)
       setScheduledDeletionAt(response.scheduledDeletionAt)
       setPhase('deactivated')
     } catch (caught: unknown) {
@@ -200,7 +201,7 @@ export default function StepUpScreen() {
       return
     }
     const next = operation === 'delete' && remaining === null
-      ? await markStepUpAttemptFailed(record)
+      ? await markStepUpAttemptFailed(record, accountId)
       : record
     if (remaining === 0 || (operation === 'delete' && (next.failedAttempts ?? 0) >= 3)) {
       await setExhausted(next)
@@ -213,7 +214,7 @@ export default function StepUpScreen() {
   }
 
   async function setExhausted(currentRecord: StepUpTimingRecord) {
-    const next = await markStepUpExhausted(currentRecord)
+    const next = await markStepUpExhausted(currentRecord, accountId)
     setRecord(next)
     setPhase('exhausted')
     setNow(Date.now())

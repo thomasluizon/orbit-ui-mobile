@@ -51,7 +51,7 @@ export function SettingsRow({
 }: Readonly<SettingsRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const iconColor = danger ? tokens.statusBad : tokens.fg1
+  const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
 
   return (
@@ -72,7 +72,7 @@ export function SettingsRow({
     >
       {LeadingIcon ? (
         <View style={styles.iconSlot}>
-          <LeadingIcon size={24} color={iconColor} strokeWidth={1.5} />
+          <LeadingIcon size={24} color={rowColors.iconColor} strokeWidth={1.5} />
         </View>
       ) : null}
       {leadingDot ? (
@@ -103,7 +103,7 @@ export function SettingsRow({
         ) : null}
         {children}
         {accessory === 'chevron' ? (
-          <ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} />
+          <ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} />
         ) : null}
       </View>
     </Pressable>

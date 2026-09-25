@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -42,6 +41,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { isStepUpVerified } from '@/lib/step-up-storage'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
 import { PreferencePickerSheet, type PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
@@ -88,7 +88,6 @@ function buildYouRows(
     : t('profile.settingsRows.timezone')
 
   return [
-    /* eslint-disable-next-line local/max-button-words -- thomasluizon/orbit-tickets#531: this is an accessible name that replaces the row's visible content, not a visible control label. */
     <ListRow key="account" icon={icon(User)} title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
     <ListRow key="language" icon={icon(Languages)} title={t('profile.language.title')} onClick={() => router.push('/preferences')} />,
     <ListRow key="timezone" icon={icon(Clock)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
@@ -247,10 +246,10 @@ export function ProfileSettingsContent({
     exportData,
     clearExportDone,
   } = useDataExport()
-  const [showEditName, setShowEditName] = useState(false)
-  const [showFreshStart, setShowFreshStart] = useState(false)
-  const [showDeleteAccount, setShowDeleteAccount] = useState(false)
-  const [apiKeysUnlocked] = useState(() => isStepUpVerified('keys'))
+  const [showEditName, setShowEditName] = useAccountScopedState(false)
+  const [showFreshStart, setShowFreshStart] = useAccountScopedState(false)
+  const [showDeleteAccount, setShowDeleteAccount] = useAccountScopedState(false)
+  const [apiKeysUnlocked] = useAccountScopedState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
   useShellNoticeSlot(
     exportDone,

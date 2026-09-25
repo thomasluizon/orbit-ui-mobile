@@ -328,7 +328,7 @@ export function DateField({
         >
           {displayValue || placeholder || t('common.selectDate')}
         </Text>
-        <Calendar size={20} strokeWidth={1.8} color={tokens.fg4} />
+        <Calendar size={20} strokeWidth={1.8} color={tokens.fg3} />
       </Pressable>
 
       {isOpen ? (

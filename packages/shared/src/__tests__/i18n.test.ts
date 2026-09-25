@@ -78,6 +78,13 @@ describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
 
+  it.each([en, ptBR])('keeps both consent links in a valid complete template', (catalog) => {
+    const template = catalog.auth.legalConsent
+    const links = [...template.matchAll(/<([a-z]+)>([^<>]+)<\/\1>/g)]
+    expect(links.map((match) => match[1] ?? '').sort(compareStrings)).toEqual(['privacy', 'terms'])
+    expect(template.replace(/<([a-z]+)>([^<>]+)<\/\1>/g, '')).not.toMatch(/[<>]/)
+  })
+
   it('separates timed-out mobile copy from confirmed web sign-out copy', () => {
     expect(en.auth.sessionExpired).toBe('Your session timed out.')
     expect(ptBR.auth.sessionExpired).toBe('Sua sessão expirou.')

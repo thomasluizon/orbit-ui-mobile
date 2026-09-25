@@ -44,6 +44,7 @@ const mocks = vi.hoisted(() => ({
   setStorage: vi.fn(),
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
+  timeZone: 'UTC',
   focusEffect: null as null | (() => void | (() => void)),
   suggestion: null as null | {
     frequencyUnit: 'Day'
@@ -200,6 +201,7 @@ vi.mock('@/hooks/use-profile', () => ({
       hasProAccess: mocks.hasProAccess,
       language: 'en',
       weekStartDay: 1,
+      timeZone: mocks.timeZone,
     },
   }),
 }))
@@ -278,15 +280,16 @@ vi.mock('@/components/habits/habit-checklist', () => ({
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
 vi.mock('@/components/habits/habit-form-fields/styles', () => ({ createStyles: () => ({}) }))
 vi.mock('@/components/habits/habit-log-button', () => ({
-  HabitLogButton: ({ label, logged, onPress }: { label: string; logged: boolean; onPress: () => void }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress }),
+  HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled: boolean; disabledReason?: string }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled, disabledReason }),
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, selectedDate, readOnly, actions }: { habit: NormalizedHabit; selectedDate: Date; readOnly: boolean; actions: { onLog: () => void; onUnlog: () => void } }) => React.createElement('HabitRow', {
+  HabitRow: ({ habit, selectedDate, completionReadOnly, completionReason, actions }: { habit: NormalizedHabit; selectedDate: Date; completionReadOnly: boolean; completionReason?: string; actions: { onLog: () => void; onUnlog: () => void } }) => React.createElement('HabitRow', {
     testID: `child-${habit.id}`,
     state: habit.isCompleted ? 'done' : 'empty',
     action: habit.isCompleted ? 'unlog' : 'log',
     selectedDate: formatAPIDate(selectedDate),
-    readOnly,
+    completionReadOnly,
+    completionReason,
     actions,
   }),
 }))
@@ -330,12 +333,26 @@ describe('HabitDetailScreen', () => {
     mocks.setStorage.mockResolvedValue(undefined)
     mocks.history = []
     mocks.hasProAccess = true
+    mocks.timeZone = 'UTC'
     mocks.suggestion = null
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
   })
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('announces the habit name once on the rename control', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />)
+    })
+
+    const title = mocks.detail!.title
+    const renameControls = tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === title)
+    expect(renameControls).toHaveLength(1)
+    expect(renameControls[0]!.props.accessibilityHint).toBe('habits.detail.rename')
   })
 
   it('shows loading feedback and a retry action after a load failure', () => {
@@ -405,7 +422,7 @@ describe('HabitDetailScreen', () => {
     })
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onPress()
+      tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress()
     })
     const input = tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' })
     TestRenderer.act(() => {
@@ -416,7 +433,7 @@ describe('HabitDetailScreen', () => {
       await Promise.resolve()
     })
 
-    expect(tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.value).toBeUndefined()
+    expect(tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.value).toBeUndefined()
     expect(mocks.update).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
@@ -631,7 +648,7 @@ describe('HabitDetailScreen', () => {
       const child = tree!.root.findByProps({ testID: 'child-child-1' })
       expect(child.props.state).toBe('done')
       expect(child.props.action).toBe('unlog')
-      expect(child.props.readOnly).toBe(false)
+      expect(child.props.completionReadOnly).toBe(false)
 
       child.props.actions.onUnlog()
       expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
@@ -646,7 +663,7 @@ describe('HabitDetailScreen', () => {
     })
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onPress()
+      tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress()
     })
     const input = tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' })
     TestRenderer.act(() => {
@@ -778,6 +795,9 @@ describe('HabitDetailScreen', () => {
 
     TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
     TestRenderer.act(() => tree!.root.findByProps({ accessibilityLabel: 'habits.form.frequencyRequired' }).props.onChangeText('3'))
+    const unitRadios = tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio')
+    expect(unitRadios).toHaveLength(4)
+    expect(unitRadios.map((node: { props: { accessibilityState?: { checked?: boolean } } }) => node.props.accessibilityState?.checked)).toEqual([true, false, false, false])
     await TestRenderer.act(async () => {
       tree!.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'common.save')!.props.onClick()
       await Promise.resolve()
@@ -918,7 +938,7 @@ describe('HabitDetailScreen', () => {
     })
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onPress()
+      tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress()
     })
     TestRenderer.act(() => {
       tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onChangeText('Read daily')
@@ -993,6 +1013,87 @@ describe('HabitDetailScreen', () => {
       intent: 'log',
     })
     expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+  })
+
+  it('keeps checklist edits without offering old-day completion', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
+    })
+    expect(tree!.root.findAllByType('Text').filter((node: { props: { children?: string } }) => node.props.children === 'habits.todayBoundary.readOnly')).toHaveLength(1)
+
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+
+    expect(mocks.checklist).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      items: [{ text: 'First', isChecked: true }],
+    })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('uses the account day and disables completion after rollover while mounted', () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    })
+    expect(tree!.root.findByProps({ testID: 'header-log' }).props.disabled).toBe(false)
+    TestRenderer.act(() => {
+      vi.advanceTimersByTime(2_000)
+    })
+    expect(tree!.root.findByProps({ testID: 'header-log' }).props.disabled).toBe(true)
+    expect(tree!.root.findByProps({ testID: 'header-log' }).props.disabledReason).toBe('habits.todayBoundary.readOnly')
+    expect(tree!.root.findByProps({ testID: 'child-child-1' }).props.completionReadOnly).toBe(true)
+    expect(tree!.root.findByProps({ testID: 'child-child-1' }).props.completionReason).toBe('habits.todayBoundary.readOnly')
+  })
+
+  it.each(['log', 'unlog'] as const)('refuses stale detail %s and child log immediately after account midnight', (intent) => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    if (intent === 'unlog') mocks.logs.push({ id: 'selected', date: '2026-08-23', value: 1, createdAtUtc: '2026-08-23T12:00:00Z' })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    })
+    const headerLog = tree!.root.findByProps({ testID: 'header-log' }).props.onPress
+    const childLog = tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onLog
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+
+    TestRenderer.act(() => {
+      headerLog()
+      childLog()
+    })
+
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('refuses checklist completion confirmation after account midnight', async () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    const confirmLog = tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteTitle' }).props.onConfirm
+
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+    await TestRenderer.act(async () => {
+      confirmLog()
+      await Promise.resolve()
+    })
+    expect(mocks.log).not.toHaveBeenCalled()
   })
 
   it('clears a checklist only after confirmation', async () => {
@@ -1261,4 +1362,5 @@ describe('HabitDetailScreen', () => {
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.rescheduleWriteError')
     expect(accept).toBeDefined()
   })
+
 })
