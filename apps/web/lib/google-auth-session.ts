@@ -17,7 +17,7 @@ export function consumeRecentGoogleAuthStart(attemptId: string | null): boolean 
   const [startedAtRaw, expectedAttemptId] = raw.split(':')
   const startedAt = Number(startedAtRaw)
   const now = Date.now()
-  if (!Number.isFinite(startedAt) || startedAt > now || now - startedAt >= GOOGLE_AUTH_WINDOW_MS) {
+  if (!Number.isFinite(startedAt) || !expectedAttemptId || startedAt > now || now - startedAt >= GOOGLE_AUTH_WINDOW_MS) {
     clearGoogleAuthStarted()
     return false
   }
