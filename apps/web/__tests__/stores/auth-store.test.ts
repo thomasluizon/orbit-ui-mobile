@@ -82,6 +82,30 @@ describe('auth store', () => {
     })
   })
 
+  it('removes the Supabase storage entry when the Orbit account changes', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://wdscxamegetmhqldqsdg.supabase.co'
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'publishable-test-key'
+    const key = 'sb-wdscxamegetmhqldqsdg-auth-token'
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    localStorage.setItem(key, 'account-a-session')
+
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'user-2' }))
+
+    expect(localStorage.getItem(key)).toBeNull()
+  })
+
+  it('removes the Supabase storage entry on Orbit logout', async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://wdscxamegetmhqldqsdg.supabase.co'
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'publishable-test-key'
+    const key = 'sb-wdscxamegetmhqldqsdg-auth-token'
+    useAuthStore.getState().setAuth(makeLoginResponse())
+    localStorage.setItem(key, 'account-a-session')
+
+    await useAuthStore.getState().logout()
+
+    expect(localStorage.getItem(key)).toBeNull()
+  })
+
   it('keeps the session when browser cookie locking is unavailable', async () => {
     Reflect.deleteProperty(navigator, 'locks')
     useAuthStore.getState().setAuth(makeLoginResponse())
