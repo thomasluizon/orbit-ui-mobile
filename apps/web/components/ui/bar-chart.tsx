@@ -17,6 +17,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
   const [selected, setSelected] = useState(points.length - 1)
+  const selectedIndex = Math.max(0, Math.min(selected, points.length - 1))
   const bars = resolveBarChartGeometry(points.map((point) => point.rate), width)
 
   useEffect(() => {
@@ -42,11 +43,11 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
     }[event.key] as 'left' | 'right' | 'home' | 'end' | undefined
     if (!direction) return
     event.preventDefault()
-    setSelected((current) => stepSelection(current, points.length, direction))
+    setSelected((current) => stepSelection(Math.min(current, points.length - 1), points.length, direction))
   }
 
   if (points.length === 0) return null
-  const point = points[Math.max(0, Math.min(selected, points.length - 1))]!
+  const point = points[selectedIndex]!
   const readout = point.scheduled === 0
     ? `${point.dateLabel}: ${t('nothingScheduled')}`
     : `${point.dateLabel}: ${t('readout', { done: point.completed, scheduled: point.scheduled })}`
@@ -60,7 +61,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
         aria-label={label}
         aria-valuemin={1}
         aria-valuemax={points.length}
-        aria-valuenow={selected + 1}
+        aria-valuenow={selectedIndex + 1}
         aria-valuetext={readout}
         tabIndex={0}
         onKeyDown={handleKey}
@@ -68,11 +69,11 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
         onMouseMove={handleMove}
         className="h-24 w-full cursor-crosshair focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]"
       >
-        <svg aria-hidden="true" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`} preserveAspectRatio="none">
+        <svg aria-hidden="true" focusable="false" width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`} preserveAspectRatio="none">
           {bars.map((bar, index) => {
             const empty = points[index]!.rate == null || points[index]!.rate === 0
-            const state = empty ? 'empty' : index === selected ? 'selected' : 'resting'
-            return <path key={index} d={barChartPath(bar)} data-state={state} fill={empty ? 'var(--track-empty)' : index === selected ? 'var(--fg-1)' : 'var(--fg-2)'} style={{ transition: 'fill 240ms var(--ease-standard)' }} />
+            const state = empty ? 'empty' : index === selectedIndex ? 'selected' : 'resting'
+            return <path key={index} d={barChartPath(bar)} data-state={state} fill={empty ? 'var(--track-empty)' : index === selectedIndex ? 'var(--fg-1)' : 'var(--fg-2)'} style={{ transition: 'fill 240ms var(--ease-standard)' }} />
           })}
         </svg>
       </div>

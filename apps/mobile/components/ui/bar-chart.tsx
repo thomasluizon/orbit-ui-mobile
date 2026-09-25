@@ -20,9 +20,10 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [width, setWidth] = useState(0)
   const [selected, setSelected] = useState(points.length - 1)
+  const selectedIndex = Math.max(0, Math.min(selected, points.length - 1))
   const bars = resolveBarChartGeometry(points.map((point) => point.rate), width)
   if (points.length === 0) return null
-  const point = points[Math.max(0, Math.min(selected, points.length - 1))]!
+  const point = points[selectedIndex]!
   const readout = point.scheduled === 0
     ? `${point.dateLabel}: ${t('charts.bar.nothingScheduled')}`
     : `${point.dateLabel}: ${t('charts.bar.readout', { done: point.completed, scheduled: point.scheduled })}`
@@ -38,9 +39,9 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
         accessible
         accessibilityRole="adjustable"
         accessibilityLabel={label}
-        accessibilityValue={{ min: 1, max: points.length, now: selected + 1, text: readout }}
+        accessibilityValue={{ min: 1, max: points.length, now: selectedIndex + 1, text: readout }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-        onAccessibilityAction={(event) => setSelected((current) => stepSelection(current, points.length, event.nativeEvent.actionName === 'increment' ? 'right' : 'left'))}
+        onAccessibilityAction={(event) => setSelected((current) => stepSelection(Math.min(current, points.length - 1), points.length, event.nativeEvent.actionName === 'increment' ? 'right' : 'left'))}
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
@@ -52,7 +53,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
         <Svg accessible={false} width="100%" height={BAR_CHART_HEIGHT} viewBox={`0 0 ${width || 1} ${BAR_CHART_HEIGHT}`}>
           {bars.map((bar, index) => {
             const empty = points[index]!.rate == null || points[index]!.rate === 0
-            return <Path key={index} d={barChartPath(bar)} fill={empty ? tokens.trackEmpty : index === selected ? tokens.fg1 : tokens.fg2} />
+            return <Path key={index} d={barChartPath(bar)} fill={empty ? tokens.trackEmpty : index === selectedIndex ? tokens.fg1 : tokens.fg2} />
           })}
         </Svg>
       </View>

@@ -38,4 +38,13 @@ describe('BarChart on mobile', () => {
     })
     expect(root.findByProps({ testID: 'bar-chart-control' }).props.accessibilityValue).toMatchObject({ now: 7 })
   })
+
+  it('keeps the accessible value in range when the series shrinks', () => {
+    const points = Array.from({ length: 7 }, (_, index) => ({ dateLabel: `Sep ${index + 1}`, rate: 50, scheduled: 2, completed: 1 }))
+    let tree: ReturnType<typeof create> | undefined
+    void act(() => { tree = create(<BarChart points={points} label="Last 30 days" />) })
+    if (!tree) throw new Error('Chart did not mount')
+    void act(() => { tree!.update(<BarChart points={points.slice(0, 2)} label="Last 30 days" />) })
+    expect((tree.root as unknown as TestNode).findByProps({ testID: 'bar-chart-control' }).props.accessibilityValue).toMatchObject({ now: 2 })
+  })
 })

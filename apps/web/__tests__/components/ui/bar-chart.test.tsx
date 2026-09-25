@@ -37,4 +37,10 @@ describe('BarChart on web', () => {
     expect(container.querySelector('path[data-state="selected"]')).toHaveAttribute('fill', 'var(--fg-1)')
     expect(container.querySelector('path[data-state="resting"]')).toHaveAttribute('fill', 'var(--fg-2)')
   })
+
+  it('keeps the selected value in range when the series shrinks', () => {
+    const { rerender } = render(<BarChart points={points} label="Last 30 days" />)
+    rerender(<BarChart points={points.slice(0, 2)} label="Last 30 days" />)
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuenow', '2')
+  })
 })
