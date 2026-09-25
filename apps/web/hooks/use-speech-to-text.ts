@@ -94,6 +94,7 @@ export function useSpeechToText() {
           body: formData,
         })
         const data = (await response.json().catch(() => null)) as TranscriptionResponse | null
+        if (!intent.stillCurrent()) return
         const text = data?.text?.trim() ?? ''
         if (!response.ok || !text) {
           const key =
@@ -101,9 +102,9 @@ export function useSpeechToText() {
           setError(t(key))
           return
         }
-        if (intent.stillCurrent()) setTranscript(text)
+        setTranscript(text)
       } catch {
-        setError(t('errors.api.transcriptionFailed'))
+        if (intent.stillCurrent()) setError(t('errors.api.transcriptionFailed'))
       } finally {
         setIsTranscribing(false)
       }
@@ -173,6 +174,11 @@ export function useSpeechToText() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (!intent.stillCurrent()) {
+        stream.getTracks().forEach((track) => track.stop())
+        setError(t('errors.api.accountChanged'))
+        return
+      }
       streamRef.current = stream
       const recorder = new MediaRecorder(stream)
       mediaRecorderRef.current = recorder

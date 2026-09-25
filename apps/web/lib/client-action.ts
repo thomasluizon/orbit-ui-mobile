@@ -2,7 +2,7 @@
 
 import { createApiClientError } from '@orbit/shared'
 import { toast } from 'sonner'
-import type { ServerActionResult } from '@/app/actions/action-result'
+import { reportsAccountChanged, type ServerActionResult } from '@/app/actions/action-result'
 import { getAccountGeneration, getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { translateApiFetchMessage } from '@/lib/api-fetch'
 
@@ -32,12 +32,16 @@ export function captureAccountIntent() {
 export function reportAccountChanged(): void {
   const message = translateApiFetchMessage('errors.api.accountChanged')
   if (!message) return
-  const reloadLabel = translateApiFetchMessage('errorScreen.reload')
+  const reloadLabel = translateApiFetchMessage('errors.api.reload')
   toast.error(message, {
     id: 'account-changed',
     duration: Infinity,
     ...(reloadLabel ? { action: { label: reloadLabel, onClick: () => globalThis.location.reload() } } : {}),
   })
+}
+
+export function reportAccountChangedIfNeeded(error: unknown): void {
+  if (reportsAccountChanged(error)) reportAccountChanged()
 }
 
 export async function applyServerActionFailure<T>(result: ServerActionResult<T>): Promise<void> {

@@ -98,6 +98,24 @@ describe('useSpeechToText', () => {
       expect(result.current.error).toBeNull()
     })
 
+    it('releases a microphone granted after the account switches', async () => {
+      let grantMicrophone: (stream: MediaStream) => void = () => {}
+      getUserMedia.mockReturnValueOnce(new Promise<MediaStream>((resolve) => { grantMicrophone = resolve }))
+      const track = { stop: vi.fn() }
+      const stream = { getTracks: () => [track] } as unknown as MediaStream
+      const { result } = renderHook(() => useSpeechToText())
+
+      let recording: Promise<void> = Promise.resolve()
+      act(() => { recording = result.current.startRecording() })
+      heldAccountId = 'account-b'
+      accountGeneration++
+      await act(async () => { grantMicrophone(stream); await recording })
+
+      expect(track.stop).toHaveBeenCalledTimes(1)
+      expect(MockMediaRecorder.instances).toHaveLength(0)
+      expect(result.current.error).toBe('errors.api.accountChanged')
+    })
+
     it('tracks recording duration', async () => {
       vi.useFakeTimers()
       const { result } = renderHook(() => useSpeechToText())
@@ -155,6 +173,26 @@ describe('useSpeechToText', () => {
 
       expect(fetchMock).not.toHaveBeenCalled()
       expect(result.current.error).toBe('errors.api.accountChanged')
+    })
+
+    it('does not show an error from an old account request after the switch', async () => {
+      let failRequest: (error: Error) => void = () => {}
+      const fetchMock = vi.fn(() => new Promise<Response>((_resolve, reject) => { failRequest = reject }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      heldAccountId = 'account-b'
+      accountGeneration++
+      await act(async () => {
+        failRequest(new Error('old account network error'))
+        await Promise.resolve()
+      })
+
+      expect(result.current.transcript).toBe('')
+      expect(result.current.error).toBeNull()
     })
 
     it('surfaces the mapped error key when transcription returns an error code', async () => {
