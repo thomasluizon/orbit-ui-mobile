@@ -1,12 +1,12 @@
 # NEXT
 
 **Read `.claude/specs/orbit-prod-release.md` first**, including its standing instructions and its last section,
-"What the 2026-09-25 afternoon run added (session `205c74ca`, attended)".
+"What the 2026-09-25 evening sleep run added (session `e6f854b8`)".
 
 ## Entry point
 
 `/sleep`. It is the only entry point; it runs `/orchestrate` itself. Thomas is asleep: take every decision
-yourself, the best approach, and log it.
+yourself, the best approach, and log it. His latest instruction: "just fix everything and continue".
 
 ## The goal: finish the spec
 
@@ -16,39 +16,34 @@ work. Re-derive what is left:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
 
-190 tickets were open at this handoff. Every `needs:conversation` ticket is answered (0 open); the 26 tickets
-with an "Open questions" section carry their answers as comments and are `needs:no-conversation`.
+184 tickets were open at this handoff.
 
 ## In flight, each with a disposition
 
-| item | state | disposition |
+| item | state at handoff | disposition |
 |---|---|---|
-| worker `#615` main backport | RUNNING at handoff (launcher pid 35248, Codex pid 35751), worktree `orca/workspaces/orbit-ui-mobile/ticket-615-main-backport`, branch `fix/ticket-615-main-backport`, 3 local commits (`65411209` head), no upstream yet, log `/var/folders/x_/m8324t4j1wv_m7y0r8839js00000gn/T/orbit-workers/#615-1790357063800.log` | outcome unknown: read the worktree first; verify-delivery; review; merge to `main` |
-| `ui#1100` (`#631` main backport) | open on `main`, COMMENTED at `54c6f013` | clear the findings, merge to `main` |
-| `ui#1099` (`#667` main backport, fonts) | APPROVED at `118a750a` | check CI (strict is off; D115 local merge-result check if behind), merge, then close `#667` |
-| `ui#1098` (`#668` redesign port, Contract Drift pin) | COMMENTED at `4a21283e` | clear findings, merge; after merge run `gh workflow run redesign-drift.yml --ref redesign/main`; Contract Drift then goes green on redesign PRs |
-| `ui#1049` (`#559`, spacing rule) | round 7 pushed at `dc2f5006` (rule cut to a write-free contract), review pending | if a new edge case arrives, answer it as outside the declared contract; merge when approved |
-| `api#554` (`#564`, Hangfire) | APPROVED at `f8a412ee` (main merged in) | check CI, merge to `main`, confirm the Render deploy |
-| `api#535`, `api#558` (Dependabot nuget) | APPROVED; `#535` asked `@dependabot rebase` (csproj conflicts) | merge when green and conflict-free |
-| pins `ui#1046`, `api#537`, `landing#80` | wait for Pullfrog 0.1.83 (`npm view pullfrog version`) | re-review then |
-| stale worktrees for merged PRs | about 70 under `orca/workspaces/` (listed by `git worktree list` in both repos) | `node tools/teardown-worktree.mjs` for every one whose PR reads MERGED; never an unmerged one |
-| `menu-probe` worktree (detached `959381da`) | commit is on `origin/main` | leave |
+| worker `#691` round 2 (`ui#1107`, main sync) | RUNNING, worktree `orca/workspaces/orbit-ui-mobile/ticket-691-main-sync`, 1 unpushed commit `d046a8d7`, log `.../orbit-workers/#691-1790368541521.log` | read the worktree and report; it moves the React checklist hook out of `packages/shared` (Build was red). Merge the report into the body, push, re-review. Land by **fast-forwarding `redesign/main` to the approved head** (spec), never squash |
+| `api#563` (`#678` read cards) round 2 | worker DONE, commit `d923b83a` NOT pushed (overdue completions in the card series) | merge its report into the body (log `#678-1790368483994.log`), resolve `PRRT_kwDORKgXhc6mJTGQ`, push, wait, merge to api `redesign/main` |
+| worker `#688` (redesign Google attempt port) | RUNNING, worktree `ticket-688-google-attempt-keep`, commit `b2093efc`, no upstream yet, log `#688-1790368925349.log` | verify-delivery, review, merge to `redesign/main` |
+| worker `#666` (child completion hint) | RUNNING, worktree `ticket-666-child-completion-hint`, 2 dirty files, no commit, log `#666-1790368927923.log` | read the worktree first; verify-delivery, review, merge to `redesign/main` |
+| `ui#1106` (`#675` Turnstile, main) | round 3 pushed at `253eea34`, review pending | merge to `main` when approved and green; then open the `redesign/main` port |
+| `api#564` (`#679` stream steps) | round 1 pushed at `938a2336`, review pending | merge to api `redesign/main` when approved and green |
+| `ui#1049` (`#559` spacing rule) | `24a5de87` pushed (header scale fix), review pending | merge to `redesign/main` when approved |
+| `ui#1108` (`#694` shared no-React lint) | open against `main`, review pending | merge to `main` |
+| `ui#1046`, `landing#80` (Pullfrog pins) | body-only fixes, same-head re-review requested | merge to `main` when approved; return all pins to `@v0` once `pullfrog` 0.1.83 is published |
+| tickets next after `ui#1107` lands | `#692` (redesign admission, the next sync's resolution), `#693` (main Android checklist keys) | launch in that order |
 | stashes | 0 in all three repositories | none |
-| uncommitted work | none in the three main checkouts | none |
-| run record | `.git/orbit-orchestrate-run.json`, session `205c74ca`, `sleep: false` | a new session writes its own; carry the open rows |
+| uncommitted work in the main checkouts | none | none |
+| run record | `.git/orbit-orchestrate-run.json`, session `e6f854b8`, `sleep: true` | a new session writes its own; carry the open rows |
 
 ## What to do, in order
 
-1. **Deliver the in-flight PRs above** (the `#615` worker first). Admission refuses new ticket work above 10
-   open PRs; merge before opening.
-2. **`main` backport of `#658`** (the admission gate) and **`#672`** (`main` harness on macOS), then **`#673`**
-   (flaky tampered-token test) and **`#676`** (goal completion clock race).
-3. **`#675`** Turnstile on web and Android sign-in, targeting `main` (shipped sign-in), with a `redesign/main`
-   port. It carries `#108`'s details. After it ships, the switch-on needs Thomas's Cloudflare secret (manual).
-4. **The `#318` program, in dependency order**: `#678` (API-A) and `#679` (API-B) first, then `#680`, then
-   `#681`, and `#682` after `#24` Stage 3. All target `redesign/main`.
-5. **`#687`** (does MCP over OAuth enforce the Pro gate; prove it with a free-account test first), **`#684`**
-   (ceiling error code, unblocks `#30`), **`#674`**, **`#666`**, **`#620`**, **`#686`**, then the rest of the board
-   by leverage (`plan-queue.mjs --board`).
+1. Deliver everything in flight above. Merge before opening: admission refuses new tickets above 10 open PRs.
+2. Land `ui#1107` by fast-forward, then `#692` and `#693`.
+3. The `#318` program: `#680` (after `api#563` merges), `#681`, then `#682` after `api#564` and `#24` Stage 3.
+4. The `redesign/main` port of `#675` after `ui#1106` merges; then `#674`, `#620`, then the board by leverage
+   (`plan-queue.mjs --board`).
+5. In every UI worker order until `ui#1108` merges: "no file under `packages/shared` imports React, React Native
+   or Next; put logic in a `*-core` module and the hook in each app".
 
 Every identifier here came from a previous session. Treat each as a lead to verify.
