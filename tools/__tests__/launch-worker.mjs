@@ -1,7 +1,9 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { spawn } from "node:child_process"
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
+import { readWakeSources } from "../lib/run-state.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -30,6 +32,7 @@ const stubEngine = (script) => ({ engine: { args: [script], models: { default: {
 
 const SLEEPER = stage("launch-worker/sleeping-worker.js", "setTimeout(() => {}, 60000)\n")
 const IMMEDIATE = stage("launch-worker/immediate-worker.js", "process.exit(0)\n")
+const SHORT_HOLD = stage("launch-worker/short-hold-worker.js", "setTimeout(() => {}, 3000)\n")
 /** Floods stdout the way ORB-201 did, which is how a 61.73 MB log happened. It never exits on its
  * own, so the only thing that can end it is the launcher noticing the flood. */
 const FLOODER = stage("launch-worker/flooding-worker.js", "const line = 'x'.repeat(4096)\nsetInterval(() => { for (let i = 0; i < 64; i++) process.stdout.write(line + '\\n') }, 5)\n")
@@ -38,11 +41,16 @@ const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
   if (!repo) return null
   repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
-  const staged = stageWithConfig(`launch-worker-${label}`, TOOL, config)
+  const staged = stageWithConfig(`launch-worker-${label}`, TOOL, { ...config, repos: { ui: repo.path } })
   return { ...staged, worktree: repo.path, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
 }
 
-const githubAuthEnv = () => orcaEnv([{ match: "auth token --user test-owner", stdout: "test-github-token" }])
+const githubAuthEnv = (pulls = [], existing = [], readError = false) => orcaEnv([
+  { match: "auth token --user test-owner", stdout: "test-github-token" },
+  { match: "pulls?head=", stdout: JSON.stringify(existing.map((number) => ({ number }))) },
+  { match: "pulls?state=open", stdout: JSON.stringify(pulls.map((number) => ({ number }))), exit: readError ? 1 : 0, stderr: readError ? "GitHub unavailable" : "" },
+  { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
+])
 
 /** The launcher writes its worker log outside every repository, so the fixture root cannot hold it. */
 const discardLog = (stdout) => {
@@ -55,7 +63,7 @@ const discardLog = (stdout) => {
   }
 }
 
-export const cases = () => {
+export const cases = async () => {
   const fixture = launch("dry-run", launchConfig())
   if (!fixture) {
     T(`${TOOL}: a real git worktree fixture is available`, false, "could not stage a git repository")
@@ -137,6 +145,54 @@ export const cases = () => {
   )
 
   const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, options)
+  const admissionRefusal = check(TOOL, "new work above the pull request cap refuses before spawn", argv,
+    { status: 8, stdout: /"reason":"ADMISSION_REFUSED"/ }, { path: fixture.path, env: githubAuthEnv(Array.from({ length: 11 }, (_, index) => index + 1)) })
+  T("launch-worker: refusal reports both counts and limits", JSON.parse(admissionRefusal.stdout).counts.openPullRequests === 11 && JSON.parse(admissionRefusal.stdout).limits.maxOpenPullRequests === 10)
+  T("launch-worker: refusal leaves no wake source", readWakeSources(fixture.base).length === 0)
+  const readRefusal = check(TOOL, "GitHub read failure refuses before spawn", argv,
+    { status: 8, stdout: /"reason":"ADMISSION_REFUSED"/ }, { path: fixture.path, env: githubAuthEnv([], [], true) })
+  T("launch-worker: GitHub error is reported", JSON.parse(readRefusal.stdout).error.includes("GitHub unavailable"))
+  const exempt = launch("existing-pr", launchConfig(stubEngine(IMMEDIATE)))
+  check(TOOL, "existing pull request branch launches above the cap",
+    ["--issue", "ORB-201", "--worktree", exempt.worktree, "--prompt", exempt.prompt],
+    { status: 0, stdout: /"outcome": "EXITED"/ }, { path: exempt.path, env: githubAuthEnv(Array.from({ length: 11 }, (_, index) => index + 1), [99]) })
+  const concurrent = launch("concurrent-admission", launchConfig(stubEngine(SHORT_HOLD)))
+  const concurrentArgv = ["--issue", "ORB-201", "--worktree", concurrent.worktree, "--prompt", concurrent.prompt]
+  const startConcurrent = () => new Promise((resolve) => {
+    const child = spawn(process.execPath, [concurrent.path, ...concurrentArgv], {
+      cwd: concurrent.base, env: { ...process.env, ...githubAuthEnv(Array.from({ length: 10 }, (_, index) => index + 1)) },
+    })
+    let stdout = ""
+    child.stdout.on("data", (chunk) => { stdout += chunk })
+    child.stderr.resume()
+    child.on("exit", (status) => resolve({ status, stdout }))
+  })
+  const concurrentResults = await Promise.all([startConcurrent(), startConcurrent()])
+  T("launch-worker: two processes racing at the cap for one allowance launch exactly one worker",
+    concurrentResults.map((result) => result.status).sort().join(",") === "0,8", JSON.stringify(concurrentResults))
+  const releasedClaims = (directory) => existsSync(directory)
+    ? readdirSync(directory).filter((name) => name.endsWith(".json")).map((name) => JSON.parse(readFileSync(join(directory, name), "utf8")))
+    : []
+  T("launch-worker: completed launch marks its admission reservation released",
+    releasedClaims(join(concurrent.base, ".git", "orbit-admission-reservations")).every((claim) => Number.isFinite(claim.releasedAt)))
+  const signalled = launch("signal-admission", launchConfig(stubEngine(SLEEPER)))
+  const signalChild = spawn(process.execPath,
+    [signalled.path, "--issue", "ORB-201", "--worktree", signalled.worktree, "--prompt", signalled.prompt],
+    { cwd: signalled.base, env: { ...process.env, ...githubAuthEnv() } })
+  signalChild.stdout.resume()
+  signalChild.stderr.resume()
+  const signalDirectory = join(signalled.base, ".git", "orbit-admission-reservations")
+  let hadReservation = false
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (existsSync(signalDirectory) && readdirSync(signalDirectory).length > 0) { hadReservation = true; break }
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  const signalledExit = new Promise((resolve) => signalChild.on("exit", resolve))
+  signalChild.kill("SIGTERM")
+  const signalStatus = await signalledExit
+  const signalClaims = releasedClaims(signalDirectory)
+  T("launch-worker: SIGTERM marks its reservation released", hadReservation && signalStatus === 143 &&
+    signalClaims.length === 1 && Number.isFinite(signalClaims[0].releasedAt), `reserved=${hadReservation}, exit=${signalStatus}, claims=${JSON.stringify(signalClaims)}`)
   const real = realOrchestratorConfig()
   const engine = real.workers[real.worker]
   let plan = null

@@ -24,6 +24,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -50,6 +51,22 @@ export const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url))
 
 export const runStatePath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-orchestrate-run.json")
 export const wakeSourceDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-wake-sources")
+
+/** A PID alone can name a different process after reuse. Return null if the OS cannot prove its start. */
+export const processStartIdentity = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return null
+  const command = process.platform === "win32" ? "powershell" : "ps"
+  const args = process.platform === "win32"
+    ? ["-NoProfile", "-Command", `(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().ToString('o')`]
+    : ["-p", String(pid), "-o", "lstart="]
+  const result = spawnSync(command, args, { encoding: "utf8", timeout: 5000, windowsHide: true })
+  return result.status === 0 && result.stdout.trim() ? result.stdout.trim() : null
+}
+
+export const processIsAlive = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try { process.kill(pid, 0); return true } catch (error) { return error.code === "EPERM" }
+}
 
 /** The orchestrator's own run record, or null when no run has written one. */
 export const readRunState = (repoRoot = REPO_ROOT) => {
@@ -133,8 +150,10 @@ export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {
     mkdirSync(wakeSourceDirectory(repoRoot), { recursive: true })
     writeFileSync(join(wakeSourceDirectory(repoRoot), `${source.pid}.json`), `${JSON.stringify(source, null, 2)}\n`)
+    return true
   } catch {
     /* a status file is never worth failing a launch over */
+    return false
   }
 }
 
