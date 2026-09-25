@@ -36,9 +36,14 @@ updates the pin, so the review shows that the spec moved.
 
 Review that pull request's generated diff. If the consumed contract changed,
 update the matching hand-written Zod schemas in the shared package before
-merging. The `GITHUB_TOKEN` needs `contents: write` and
-`pull-requests: write`; the repository's Actions setting must allow GitHub
-Actions to create pull requests. A pull request opened with `GITHUB_TOKEN` may
+merging.
+
+The workflow runs two jobs. The `generate` job runs `npm ci` and Orval with a
+read-only token and uploads only the two generated files. The `publish` job
+gets `contents: write` and `pull-requests: write`, installs nothing, and
+commits and pushes with `core.hooksPath=/dev/null`, so no install script or
+repository hook runs while the write token exists. The repository's Actions
+setting must allow GitHub Actions to create pull requests. A pull request opened with `GITHUB_TOKEN` may
 require approval before its checks run.
 
 ## Regenerating locally
