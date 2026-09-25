@@ -10,6 +10,7 @@ import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types'
 import { COACH_MARK_SECTIONS } from '@orbit/shared/types'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 
 /**
@@ -50,8 +51,10 @@ export function TourOverlay() {
     try {
       await completeTour()
     } catch (error) {
-      reportAccountChangedIfNeeded(error)
-      return
+      if (reportsAccountChanged(error)) {
+        reportAccountChangedIfNeeded(error)
+        return
+      }
     }
     endTour()
     queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
