@@ -15,7 +15,7 @@ export function SettingsGroup({ items }: Readonly<SettingsGroupProps>) {
             <Text style={[styles.label, { color: tokens.fg1 }]}>{item.label}</Text>
             {item.value ? <Text style={[styles.value, { color: tokens.fg3 }]}>{item.value}</Text> : null}
             {item.trailing}
-            {item.onClick ? <ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} /> : null}
+            {item.onClick ? <ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /> : null}
           </>
         )
         const rowStyle = [styles.row, index === 0 ? null : { borderTopColor: tokens.hairline, borderTopWidth: StyleSheet.hairlineWidth }]

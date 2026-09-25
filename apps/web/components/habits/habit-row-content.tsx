@@ -37,7 +37,7 @@ const TITLE_TEXT_STYLE_BASE = {
   fontFamily: 'var(--font-sans)',
   fontWeight: 500,
   textDecorationStyle: 'solid',
-  textDecorationColor: 'var(--fg-4)',
+  textDecorationColor: 'var(--fg-3)',
   textDecorationThickness: 1,
   lineHeight: 1.25,
   letterSpacing: '-0.005em',

@@ -39,7 +39,7 @@ export function ReferralBanner({ t }: Readonly<{ t: Translate }>) {
 export function LoginOfflineNotice({ t }: Readonly<{ t: Translate }>) {
   return (
     <div role="status" className="flex items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-3" data-offline-notice>
-      <WifiOff size={20} aria-hidden className="shrink-0 text-[var(--fg-4)]" />
+      <WifiOff size={20} aria-hidden className="shrink-0 text-[var(--fg-3)]" />
       <p className="text-sm leading-normal text-[var(--fg-2)]">{t('auth.errors.offline')}</p>
     </div>
   )
