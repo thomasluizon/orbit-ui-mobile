@@ -57,9 +57,18 @@ async function renderedLineCounts(page: Page, label: string): Promise<number[]> 
     elements.map((element) => {
       const range = document.createRange()
       range.selectNodeContents(element)
-      return new Set(
-        Array.from(range.getClientRects()).map((rect) => Math.round(rect.top * 10) / 10),
-      ).size
+      const rectangles = Array.from(range.getClientRects()).sort((left, right) => left.top - right.top)
+      let lines = 0
+      let lineBottom = -Infinity
+      for (const rectangle of rectangles) {
+        if (rectangle.top >= lineBottom - 0.5) {
+          lines += 1
+          lineBottom = rectangle.bottom
+        } else {
+          lineBottom = Math.max(lineBottom, rectangle.bottom)
+        }
+      }
+      return lines
     }),
   )
 }
@@ -116,6 +125,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           ] as const) {
             const price = `${formatPrice(amount, plans.currency)}${period}`
             const lines = await renderedLineCounts(page, price)
+            process.stdout.write(`${locale} ${subscriptionState} at ${width}px ${interval} price: lines=${lines.join(',')}\n`)
             expect(lines.length, `${locale} ${interval} price ${price} is rendered at ${width}px`).toBeGreaterThan(0)
             expect(lines.every((count) => count === 1), `${locale} ${interval} price ${price} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
           }
