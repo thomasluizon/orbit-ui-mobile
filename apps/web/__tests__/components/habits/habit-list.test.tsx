@@ -1737,6 +1737,50 @@ describe('HabitList', () => {
     expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(true)
   })
 
+  it('rejects a delayed bulk result after the new date handle commits before passive effects', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [
+        { date: YESTERDAY, status: 'Pending', logId: null },
+        { date: TODAY, status: 'Pending', logId: null },
+      ],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    const ref = React.createRef<HabitListHandle>()
+    function ResolveInLayout({ date }: { date: string }) {
+      React.useLayoutEffect(() => {
+        if (date === TODAY) {
+          ref.current?.settleBulkHabitResolutions([{ habitId: child.id, mode: 'log' }], YESTERDAY)
+        }
+      }, [date])
+      return null
+    }
+    const renderList = (date: string) => (
+      <>
+        <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${date}T09:00:00Z`)} />
+        <ResolveInLayout date={date} />
+      </>
+    )
+    const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
+    rerenderWithProviders(renderList(TODAY))
+
+    expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    expect(skipHabitMutateAsync).not.toHaveBeenCalled()
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(parent.id)).toBe(false)
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(false)
+  })
+
   it('keeps the current parent guard when an earlier date settlement rejects', async () => {
     vi.useFakeTimers()
     const parent = createMockHabit({

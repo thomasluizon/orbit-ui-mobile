@@ -849,7 +849,7 @@ export function HabitList({
     automatic = false,
   ) {
     operation.confirmedResolutions.activeSettlements += 1
-    markRecentlyCompleted(parentId)
+    markRecentlyCompleted(parentId, operation.date)
     try {
       try {
         if (mode === 'skip') {
@@ -864,7 +864,7 @@ export function HabitList({
       } catch {
         if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
           promptedParentIdsRef.current.delete(parentId)
-          clearRecentlyCompleted(parentId)
+          clearRecentlyCompleted(parentId, operation.date)
         }
         return
       }
@@ -893,7 +893,7 @@ export function HabitList({
     for (const resolution of resolutions) {
       markRecentlyCompleted(resolution.habitId, date)
     }
-    if (settlementData.selectedDateStr !== date) return
+    if (selectedDateStr !== date || settlementData.selectedDateStr !== date) return
     const confirmedResolutions = confirmedResolutionsRef.current
     const resolvedIds = new Set(resolutions.map((resolution) => resolution.habitId))
     for (const resolution of resolutions) {
@@ -915,7 +915,7 @@ export function HabitList({
 
     const operation: ParentSettlementOperation = {
       data: settlementData,
-      date: settlementData.selectedDateStr,
+      date,
       confirmedResolutions,
       requiresLogConfirmation: false,
     }

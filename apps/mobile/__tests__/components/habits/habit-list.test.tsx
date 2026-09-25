@@ -3922,6 +3922,55 @@ describe('HabitList', () => {
     expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(true)
   })
 
+  it('rejects a delayed bulk result after the new date handle commits before passive effects', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [
+        { date: YESTERDAY, status: 'Pending', logId: null },
+        { date: TODAY, status: 'Pending', logId: null },
+      ],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    seedHabits([parent, child])
+
+    const ref = React.createRef<HabitListHandle>()
+    function ResolveInLayout({ date }: { date: string }) {
+      React.useLayoutEffect(() => {
+        if (date === TODAY) {
+          ref.current?.settleBulkHabitResolutions([{ habitId: child.id, mode: 'log' }], YESTERDAY)
+        }
+      }, [date])
+      return null
+    }
+    const renderList = (date: string) => (
+      <>
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${date}T09:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />
+        <ResolveInLayout date={date} />
+      </>
+    )
+    let tree: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList(YESTERDAY)) })
+    TestRenderer.act(() => { tree.update(renderList(TODAY)) })
+
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(parent.id)).toBe(false)
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(false)
+  })
+
   it('keeps the current parent guard when an earlier date settlement rejects', async () => {
     vi.useFakeTimers()
     const parent = createMockHabit({

@@ -963,7 +963,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
         promptedParentIdsRef.current.add(parentHabit.id)
         operation.confirmedResolutions.activeSettlements += 1
-        markRecentlyCompleted(parentHabit.id)
+        markRecentlyCompleted(parentHabit.id, operation.date)
         void (async () => {
           try {
             try {
@@ -983,7 +983,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             } catch {
               if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
                 promptedParentIdsRef.current.delete(parentHabit.id)
-                clearRecentlyCompleted(parentHabit.id)
+                clearRecentlyCompleted(parentHabit.id, operation.date)
               }
               return
             }
@@ -1026,7 +1026,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       for (const resolution of resolutions) {
         markRecentlyCompleted(resolution.habitId, date)
       }
-      if (settlementData.selectedDateStr !== date) return
+      if (selectedDateStr !== date || settlementData.selectedDateStr !== date) return
       const confirmedResolutions = confirmedResolutionsRef.current
       const resolvedIds = new Set(resolutions.map((resolution) => resolution.habitId))
       for (const resolution of resolutions) {
@@ -1044,14 +1044,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
       const operation: ParentSettlementOperation = {
         data: settlementData,
-        date: settlementData.selectedDateStr,
+        date,
         confirmedResolutions,
         requiresLogConfirmation: false,
       }
       for (const childId of childIdByAffectedParent.values()) {
         settleParentAutomatically(childId, operation)
       }
-    }, [habitsById, markRecentlyCompleted, recordHabitResolution, settleParentAutomatically])
+    }, [habitsById, markRecentlyCompleted, recordHabitResolution, selectedDateStr, settleParentAutomatically])
 
     const confirmParentSettlement = useCallback(async () => {
       const settlementData = promptDataRef.current
@@ -1074,7 +1074,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       const { parentId, mode, date } = settlement
       if (!settlementData) return
       confirmedResolutions.activeSettlements += 1
-      markRecentlyCompleted(parentId)
+      markRecentlyCompleted(parentId, date)
       try {
         try {
           if (mode === 'skip') {
@@ -1090,7 +1090,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         } catch {
           if (confirmedResolutionsRef.current === confirmedResolutions) {
             promptedParentIdsRef.current.delete(parentId)
-            clearRecentlyCompleted(parentId)
+            clearRecentlyCompleted(parentId, date)
           }
           return
         }
