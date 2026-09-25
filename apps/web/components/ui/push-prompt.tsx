@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl'
 import { subscribePush } from '@/lib/actions/notifications'
 import { PillButton } from '@/components/ui/pill-button'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
@@ -96,9 +98,16 @@ export function PushPrompt() {
         applicationServerKey: urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer,
       })
 
-      await subscribePush(subscription.toJSON())
+      try {
+        await subscribePush(subscription.toJSON())
+      } catch (error) {
+        await subscription.unsubscribe().catch(() => undefined)
+        throw error
+      }
       dismiss()
-    } catch {
+    } catch (error) {
+      reportAccountChangedIfNeeded(error)
+      if (reportsAccountChanged(error)) return
       setShowRetryHint(true)
     }
   }, [dismiss])

@@ -6,6 +6,8 @@ import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { buildSupportRequestBody, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { sendSupportMessage } from '@/lib/actions/support'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import { AppBar } from '@/components/ui/app-bar'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -56,6 +58,7 @@ export default function SupportPage() {
   const handleSend = useCallback(async () => {
     if (!isOnline) return
     if (!subject.trim() || !message.trim()) return
+    const intent = captureAccountIntent()
 
     setIsSending(true)
     setError(null)
@@ -68,12 +71,15 @@ export default function SupportPage() {
         subject,
         message,
       })
-      await sendSupportMessage(payload)
+      await intent.run(() => sendSupportMessage(payload))
+      if (!intent.stillCurrent()) { reportAccountChanged(); return }
       setSuccess(true)
       setSubject('')
       setMessage('')
       globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     } catch (err: unknown) {
+      if (reportsAccountChanged(err)) reportAccountChanged()
+      if (!intent.stillCurrent()) return
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
       setIsSending(false)

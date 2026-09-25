@@ -1,8 +1,9 @@
 'use client'
 
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
 import {
   useQuery,
-  useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
 import {
@@ -55,7 +56,7 @@ export function useNotifications() {
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (notificationId: string) => markNotificationRead(notificationId),
 
     onMutate: async (notificationId) => {
@@ -84,7 +85,7 @@ export function useMarkNotificationRead() {
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: () => markAllNotificationsRead(),
 
     onMutate: async () => {
@@ -113,7 +114,7 @@ export function useMarkAllNotificationsRead() {
 export function useDeleteNotification() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (notificationId: string) => deleteNotificationAction(notificationId),
 
     onMutate: async (notificationId) => {
@@ -142,7 +143,7 @@ export function useDeleteNotification() {
 export function useDeleteAllNotifications() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: () => deleteAllNotificationsAction(),
 
     onMutate: async () => {

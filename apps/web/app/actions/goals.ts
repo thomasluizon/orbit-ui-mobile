@@ -7,76 +7,76 @@ import type {
   UpdateGoalStatusRequest,
   GoalPositionItem,
 } from '@orbit/shared'
-import { serverAuthFetch } from '@/lib/server-fetch'
+import { serverAuthMutate } from '@/lib/server-fetch'
 import { API } from '@orbit/shared/api'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export async function createGoal(
-  data: CreateGoalRequest,
+  data: CreateGoalRequest, intendedAccountId: string | null
 ): Promise<ServerActionResult<{ id: string }>> {
-  return wrapServerAction(() => serverAuthFetch(API.goals.create, {
+  return wrapServerAction(() => serverAuthMutate(API.goals.create, {
     method: 'POST',
     body: JSON.stringify(data),
-  }))
+  }, intendedAccountId))
 }
 
 export async function updateGoal(
   goalId: string,
-  data: UpdateGoalRequest,
+  data: UpdateGoalRequest, intendedAccountId: string | null
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.goals.update(goalId), {
+  return wrapServerAction(() => serverAuthMutate(API.goals.update(goalId), {
     method: 'PUT',
     body: JSON.stringify(data),
-  }))
+  }, intendedAccountId))
 }
 
-export async function deleteGoal(goalId: string): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.goals.delete(goalId), {
+export async function deleteGoal(goalId: string, intendedAccountId: string | null): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.goals.delete(goalId), {
     method: 'DELETE',
-  }))
+  }, intendedAccountId))
 }
 
-export async function restoreGoal(goalId: string): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.goals.restore(goalId), {
+export async function restoreGoal(goalId: string, intendedAccountId: string | null): Promise<ServerActionResult<void>> {
+  return wrapServerAction(() => serverAuthMutate(API.goals.restore(goalId), {
     method: 'POST',
-  }))
+  }, intendedAccountId))
 }
 
 export async function updateGoalProgress(
   goalId: string,
-  data: UpdateGoalProgressRequest,
+  data: UpdateGoalProgressRequest, intendedAccountId: string | null
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.goals.progress(goalId), {
+  return wrapServerAction(() => serverAuthMutate(API.goals.progress(goalId), {
     method: 'PUT',
     body: JSON.stringify(data),
-  }))
+  }, intendedAccountId))
 }
 
 export async function updateGoalStatus(
   goalId: string,
-  data: UpdateGoalStatusRequest,
+  data: UpdateGoalStatusRequest, intendedAccountId: string | null
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.goals.status(goalId), {
+  return wrapServerAction(() => serverAuthMutate(API.goals.status(goalId), {
     method: 'PUT',
     body: JSON.stringify(data),
-  }))
+  }, intendedAccountId))
 }
 
 export async function reorderGoals(
-  positions: GoalPositionItem[],
+  positions: GoalPositionItem[], intendedAccountId: string | null
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.goals.reorder, {
+  return wrapServerAction(() => serverAuthMutate(API.goals.reorder, {
     method: 'PUT',
     body: JSON.stringify({ positions }),
-  }))
+  }, intendedAccountId))
 }
 
 export async function linkHabitsToGoal(
   goalId: string,
-  habitIds: string[],
+  habitIds: string[], intendedAccountId: string | null
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.goals.habits(goalId), {
+  return wrapServerAction(() => serverAuthMutate(API.goals.habits(goalId), {
     method: 'PUT',
     body: JSON.stringify({ habitIds }),
-  }))
+  }, intendedAccountId))
 }

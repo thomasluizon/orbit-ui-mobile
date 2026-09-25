@@ -12,6 +12,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { requestDeletion, confirmDeletion } from '@/lib/actions/auth'
+import { captureAccountIntent, reportAccountChanged, withAccountIntent } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 
 interface DeleteAccountModalProps {
   open: boolean
@@ -32,12 +34,14 @@ export function DeleteAccountModal({
   const [step, setStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
   const [code, setCode] = useState<string[]>(['', '', '', '', '', ''])
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const deletionAccountRef = useRef<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null)
 
   function handleOpenChange(value: boolean) {
     if (value) {
+      deletionAccountRef.current = null
       setStep('confirm')
       setCode(['', '', '', '', '', ''])
       setError('')
@@ -48,12 +52,17 @@ export function DeleteAccountModal({
   }
 
   async function handleRequestDeletion() {
+    const intent = captureAccountIntent()
     setLoading(true)
     setError('')
     try {
-      await requestDeletion()
+      await intent.run(() => requestDeletion())
+      if (!intent.stillCurrent()) { reportAccountChanged(); return }
+      deletionAccountRef.current = intent.intendedAccountId
       setStep('code')
     } catch (err: unknown) {
+      if (reportsAccountChanged(err)) reportAccountChanged()
+      if (!intent.stillCurrent()) return
       setError(getFriendlyErrorMessage(err, t, 'profile.deleteAccount.errorGeneric', 'generic'))
     } finally {
       setLoading(false)
@@ -63,13 +72,24 @@ export function DeleteAccountModal({
   async function handleConfirmDeletion() {
     const joined = code.join('')
     if (joined.length !== 6) return
+    const intent = captureAccountIntent()
+    if (deletionAccountRef.current !== intent.intendedAccountId) {
+      reportAccountChanged()
+      return
+    }
     setLoading(true)
     setError('')
     try {
-      const response = await confirmDeletion(joined)
+      const response = await withAccountIntent(deletionAccountRef.current, () => confirmDeletion(joined))
+      if (!intent.stillCurrent() || deletionAccountRef.current !== intent.intendedAccountId) {
+        reportAccountChanged()
+        return
+      }
       setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
       setStep('deactivated')
     } catch (err: unknown) {
+      if (reportsAccountChanged(err)) reportAccountChanged()
+      if (!intent.stillCurrent()) return
       setError(getFriendlyErrorMessage(err, t, 'profile.deleteAccount.errorGeneric', 'generic'))
     } finally {
       setLoading(false)

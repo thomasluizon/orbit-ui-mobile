@@ -1,6 +1,7 @@
 'use client'
 
-import { useMutation } from '@tanstack/react-query'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
 import { Mail } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -15,7 +16,7 @@ export function MarketingConsentSection() {
   const enabled = profile?.marketingEmailConsent === true
 
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- optimistic cache update via patchProfile (setQueryData) + onError rollback keeps the profile cache in sync; no dependent query to refetch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const mutation = useMutation({
+  const mutation = useAccountScopedMutation({
     mutationFn: (next: boolean) => updateMarketingConsent({ enabled: next }),
     onMutate: (next) => {
       const previous = profile?.marketingEmailConsent ?? null

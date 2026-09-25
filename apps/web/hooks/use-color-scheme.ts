@@ -10,6 +10,8 @@ import {
   updateColorScheme as updateColorSchemeAction,
   updateThemePreference as updateThemePreferenceAction,
 } from '@/lib/actions/profile'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import {
   applyThemeTokensToDOM,
   normalizeColorScheme,
@@ -39,23 +41,29 @@ export function useColorScheme() {
   }, [currentScheme, currentTheme])
 
   const applyScheme = useCallback((scheme: ColorScheme, persistToDb = true) => {
+    const intent = captureAccountIntent()
     setCookie('orbit_color_scheme', scheme)
     setCurrentScheme(scheme)
     applyThemeTokensToDOM(scheme, currentTheme, true)
 
     if (persistToDb) {
-      updateColorSchemeAction({ colorScheme: scheme }).catch(() => {})
+      intent.run(() => updateColorSchemeAction({ colorScheme: scheme })).catch((error: unknown) => {
+        if (reportsAccountChanged(error)) reportAccountChanged()
+      })
     }
   }, [currentTheme])
 
   const applyTheme = useCallback((theme: ThemeMode, persistToDb = true) => {
+    const intent = captureAccountIntent()
     const prev = currentTheme
     setCookie('orbit_theme_mode', theme)
     setCurrentTheme(theme)
     applyThemeTokensToDOM(currentScheme, theme, true)
 
     if (persistToDb) {
-      updateThemePreferenceAction({ themePreference: theme }).catch((_err: unknown) => {
+      intent.run(() => updateThemePreferenceAction({ themePreference: theme })).catch((error: unknown) => {
+        if (reportsAccountChanged(error)) { reportAccountChanged(); return }
+        if (!intent.stillCurrent()) return
         setCookie('orbit_theme_mode', prev)
         setCurrentTheme(prev)
         applyThemeTokensToDOM(currentScheme, prev, true)
@@ -92,7 +100,10 @@ export function useColorScheme() {
    */
   const detectAndSaveSchemeIfNeeded = useCallback((dbColorScheme: string | null) => {
     if (dbColorScheme !== null) return
-    updateColorSchemeAction({ colorScheme: currentScheme }).catch(() => {})
+    const intent = captureAccountIntent()
+    intent.run(() => updateColorSchemeAction({ colorScheme: currentScheme })).catch((error: unknown) => {
+      if (reportsAccountChanged(error)) reportAccountChanged()
+    })
   }, [currentScheme])
 
   /**
@@ -118,12 +129,15 @@ export function useColorScheme() {
    */
   const detectAndSaveThemeIfNeeded = useCallback((dbThemePreference: string | null | undefined) => {
     if (dbThemePreference === 'dark' || dbThemePreference === 'light') return
+    const intent = captureAccountIntent()
     const detected: ThemeMode =
       globalThis.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
     setCookie('orbit_theme_mode', detected)
     setCurrentTheme(detected)
     applyThemeTokensToDOM(currentScheme, detected)
-    updateThemePreferenceAction({ themePreference: detected }).catch(() => {})
+    intent.run(() => updateThemePreferenceAction({ themePreference: detected })).catch((error: unknown) => {
+      if (reportsAccountChanged(error)) reportAccountChanged()
+    })
   }, [currentScheme])
 
   return {

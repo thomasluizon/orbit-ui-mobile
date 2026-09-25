@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { serverAuthFetch, serverPublicFetch } from '@/lib/server-fetch'
+import { serverAuthFetch, serverAuthMutate, serverPublicFetch } from '@/lib/server-fetch'
 import { API } from '@orbit/shared/api'
 
 /**
@@ -153,7 +153,7 @@ describe('serverAuthFetch', () => {
       json: () => Promise.resolve({ error: 'Unauthorized' }),
     })
 
-    await expect(serverAuthFetch(API.auth.refresh, { method: 'POST' })).rejects.toMatchObject({
+    await expect(serverAuthMutate(API.auth.refresh, { method: 'POST' }, null)).rejects.toMatchObject({
       status: 401,
     })
 
@@ -185,7 +185,7 @@ describe('serverAuthFetch', () => {
       text: () => Promise.resolve(''),
     })
 
-    const result = await serverAuthFetch('/api/habits/h-1', { method: 'DELETE' })
+    const result = await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, null)
 
     expect(result).toBeNull()
   })
@@ -284,7 +284,7 @@ describe('serverAuthFetch', () => {
     })
 
     const schema = z.object({ id: z.string() })
-    const result = await serverAuthFetch('/api/habits/h-1', { method: 'DELETE' }, schema)
+    const result = await serverAuthMutate('/api/habits/h-1', { method: 'DELETE' }, null, schema)
 
     expect(result).toBeNull()
   })

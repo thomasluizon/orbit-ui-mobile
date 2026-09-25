@@ -15,18 +15,18 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 const habitServerActions = await import('@/app/actions/habits')
-const { bindServerAction, runServerAction } = await import('@/lib/client-action')
+const { bindAccountServerAction, runServerAction } = await import('@/lib/client-action')
 const { useAuthStore } = await import('@/stores/auth-store')
 
-const createHabit = bindServerAction(habitServerActions.createHabit)
-const updateHabit = bindServerAction(habitServerActions.updateHabit)
-const deleteHabit = bindServerAction(habitServerActions.deleteHabit)
-const logHabit = bindServerAction(habitServerActions.logHabit)
-const skipHabit = bindServerAction(habitServerActions.skipHabit)
-const reorderHabits = bindServerAction(habitServerActions.reorderHabits)
-const duplicateHabit = bindServerAction(habitServerActions.duplicateHabit)
-const bulkCreateHabits = bindServerAction(habitServerActions.bulkCreateHabits)
-const bulkDeleteHabits = bindServerAction(habitServerActions.bulkDeleteHabits)
+const createHabit = bindAccountServerAction(habitServerActions.createHabit)
+const updateHabit = bindAccountServerAction(habitServerActions.updateHabit)
+const deleteHabit = bindAccountServerAction(habitServerActions.deleteHabit)
+const logHabit = bindAccountServerAction(habitServerActions.logHabit)
+const skipHabit = bindAccountServerAction(habitServerActions.skipHabit)
+const reorderHabits = bindAccountServerAction(habitServerActions.reorderHabits)
+const duplicateHabit = bindAccountServerAction(habitServerActions.duplicateHabit)
+const bulkCreateHabits = bindAccountServerAction(habitServerActions.bulkCreateHabits)
+const bulkDeleteHabits = bindAccountServerAction(habitServerActions.bulkDeleteHabits)
 
 describe('habit server actions', () => {
   beforeEach(() => {
@@ -76,7 +76,7 @@ describe('habit server actions', () => {
         })
       mockApiResponse({ error: 'Unauthorized' }, 401)
 
-      const result = await habitServerActions.createHabit({ title: 'Exercise' })
+      const result = await habitServerActions.createHabit({ title: 'Exercise' }, null)
 
       const serializedResult = JSON.parse(JSON.stringify(result))
       expect(serializedResult).toEqual({
@@ -170,7 +170,7 @@ describe('habit server actions', () => {
         currentStreak: 5,
       })
 
-      const result = await logHabit('h-1')
+      const result = await logHabit('h-1', undefined)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/log')
@@ -198,7 +198,7 @@ describe('habit server actions', () => {
     it('sends POST to /api/habits/:id/skip', async () => {
       mock204()
 
-      await skipHabit('h-1')
+      await skipHabit('h-1', undefined)
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/skip')
@@ -290,7 +290,7 @@ describe('habit server actions', () => {
     it('throws with error message from response body', async () => {
       mockApiResponse({ error: 'Habit not found' }, 404)
 
-      await expect(logHabit('nonexistent')).rejects.toThrow('Habit not found')
+      await expect(logHabit('nonexistent', undefined)).rejects.toThrow('Habit not found')
     })
 
     it('throws with message field from response body', async () => {
@@ -306,7 +306,7 @@ describe('habit server actions', () => {
         json: () => Promise.reject(new Error('No JSON')),
       })
 
-      await expect(logHabit('h-1')).rejects.toThrow('500')
+      await expect(logHabit('h-1', undefined)).rejects.toThrow('500')
     })
   })
 })

@@ -1,8 +1,9 @@
 'use client'
 
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { useMutation } from '@tanstack/react-query'
 import { Mail } from 'lucide-react'
 import { domAnimation, LazyMotion, m, useReducedMotion } from 'motion/react'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
@@ -47,7 +48,7 @@ export function MarketingConsentPrompt() {
   const [visible, setVisible] = useState(false)
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  const mutation = useMutation({
+  const mutation = useAccountScopedMutation({
     mutationFn: (enabled: boolean) => updateMarketingConsent({ enabled }),
     onMutate: (enabled) => {
       const previous = profile?.marketingEmailConsent ?? null

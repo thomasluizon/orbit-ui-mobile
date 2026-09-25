@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
 const completeOnboardingMock = vi.fn()
 const patchProfileMock = vi.fn()
 const habitCount = { count: 0, isLoaded: true }
+const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
+
+vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => account.id,
+  getAccountGeneration: () => account.generation,
+}))
 
 vi.mock('@/lib/actions/profile', () => ({
   completeOnboarding: (...args: unknown[]) => completeOnboardingMock(...args),
@@ -27,6 +33,8 @@ function profile(hasCompletedOnboarding: boolean): Profile {
 
 describe('useRetainedOnboardingGuard', () => {
   beforeEach(() => {
+    account.id = 'account-a'
+    account.generation = 1
     completeOnboardingMock.mockReset().mockResolvedValue(undefined)
     patchProfileMock.mockReset()
     habitCount.count = 0
@@ -47,6 +55,20 @@ describe('useRetainedOnboardingGuard', () => {
     await waitFor(() =>
       expect(patchProfileMock).toHaveBeenCalledWith({ hasCompletedOnboarding: true }),
     )
+  })
+
+  it('does not mark the next account onboarded after a delayed completion', async () => {
+    let finishCompletion: () => void = () => {}
+    completeOnboardingMock.mockReturnValue(new Promise<void>((resolve) => { finishCompletion = resolve }))
+    habitCount.count = 3
+    renderHook(() => useRetainedOnboardingGuard(profile(false), false))
+    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(1))
+
+    account.id = 'account-b'
+    account.generation++
+    await act(async () => { finishCompletion(); await Promise.resolve() })
+
+    expect(patchProfileMock).not.toHaveBeenCalled()
   })
 
   it('waits (no overlay, no auto-complete) while the habit count is loading', () => {

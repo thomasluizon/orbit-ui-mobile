@@ -1,6 +1,8 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { habitKeys, tagKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
@@ -149,7 +151,7 @@ export function useTags() {
 export function useCreateTag() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({ name, color }: { name: string; color: string }) => createTag(name, color),
 
     onMutate: async ({ name, color }) => {
@@ -182,7 +184,7 @@ export function useCreateTag() {
 export function useUpdateTag() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({ tagId, name, color }: { tagId: string; name: string; color: string }) =>
       updateTag(tagId, name, color),
 
@@ -216,7 +218,7 @@ export function useRestoreTag() {
   const t = useTranslations()
   const { showSuccess, showError } = useAppToast()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (tagId: string) => restoreTag(tagId),
 
     onSuccess: () => {
@@ -236,7 +238,7 @@ export function useDeleteTag() {
   const restoreTagMutation = useRestoreTag()
   const showUndoToast = useUndoToast()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (tagId: string) => deleteTag(tagId),
 
     onSuccess: (_data, tagId) => {
@@ -270,7 +272,7 @@ export function useDeleteTag() {
 
 export function useSuggestTags() {
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- on-demand AI tag suggestions are a query-shaped mutation that mutates no server or cached state, so there is nothing to invalidate; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       title,
       description,
@@ -286,7 +288,7 @@ export function useSuggestTags() {
 export function useAssignTags() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({ habitId, tagIds }: { habitId: string; tagIds: string[] }) =>
       assignTags(habitId, tagIds),
 
