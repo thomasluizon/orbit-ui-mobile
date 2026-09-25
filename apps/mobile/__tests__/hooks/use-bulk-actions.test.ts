@@ -42,6 +42,7 @@ function renderBulkActions(
   selectedHabitIds: Set<string>,
   completionReadOnly = false,
   habitsById = new Map<string, NormalizedHabit>(),
+  onReadOnlyCommit?: () => void,
 ) {
   let currentCompletionReadOnly = completionReadOnly
   const onSuccess = vi.fn()
@@ -60,6 +61,9 @@ function renderBulkActions(
       habitListRef,
       onSuccess,
       onPartialFailure,
+    })
+    React.useLayoutEffect(() => {
+      if (currentCompletionReadOnly) onReadOnlyCommit?.()
     })
     return null
   }
@@ -332,6 +336,23 @@ describe('useBulkActions reversibility boundary', () => {
       retry?.()
       await Promise.resolve()
     })
+    expect(mutation).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['log', 'skip'] as const)('refuses a queued %s retry before passive effects after rollover', async (action) => {
+    const mutation = action === 'log' ? bulkLog.mutateAsync : bulkSkip.mutateAsync
+    mutation.mockResolvedValueOnce({ results: [{ habitId: 'h-1', status: 'Failed' }] })
+    const retry = { current: undefined as (() => void) | undefined }
+    const { captured, setCompletionReadOnly } = renderBulkActions(
+      new Set(['h-1']), false, new Map(), () => retry.current?.(),
+    )
+    await TestRenderer.act(async () => {
+      if (action === 'log') await captured.current!.confirmBulkLog()
+      else await captured.current!.confirmBulkSkip()
+    })
+    retry.current = showToast.mock.calls[0]?.[0]?.onAction as (() => void) | undefined
+    expect(retry.current).toBeTypeOf('function')
+    setCompletionReadOnly(true)
     expect(mutation).toHaveBeenCalledTimes(1)
   })
 

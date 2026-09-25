@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -44,7 +44,7 @@ export function useBulkActions({
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
   const currentPermission = useRef({ selectedDateStr, completionReadOnly })
-  useEffect(() => {
+  useLayoutEffect(() => {
     currentPermission.current = { selectedDateStr, completionReadOnly }
   }, [selectedDateStr, completionReadOnly])
 

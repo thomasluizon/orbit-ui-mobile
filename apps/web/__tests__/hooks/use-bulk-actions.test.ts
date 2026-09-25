@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+import { useLayoutEffect } from 'react'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitListHandle } from '@/components/habits/habit-list'
@@ -29,6 +30,7 @@ function renderBulkActions(
   selectedHabitIds: Set<string>,
   completionReadOnly = false,
   habitsById = new Map<string, NormalizedHabit>(),
+  onReadOnlyCommit?: () => void,
 ) {
   let currentCompletionReadOnly = completionReadOnly
   const onSuccess = vi.fn()
@@ -38,8 +40,8 @@ function renderBulkActions(
     current: { settleBulkHabitResolutions },
   } as unknown as React.RefObject<HabitListHandle | null>
 
-  const { result, rerender } = renderHook(() =>
-    useBulkActions({
+  const { result, rerender } = renderHook(() => {
+    const actions = useBulkActions({
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
       completionReadOnly: currentCompletionReadOnly,
@@ -47,8 +49,12 @@ function renderBulkActions(
       habitListRef,
       onSuccess,
       onPartialFailure,
-    }),
-  )
+    })
+    useLayoutEffect(() => {
+      if (currentCompletionReadOnly) onReadOnlyCommit?.()
+    })
+    return actions
+  })
 
   return {
     result, onSuccess, onPartialFailure, settleBulkHabitResolutions,
@@ -181,6 +187,23 @@ describe('useBulkActions reversibility boundary', () => {
       retry?.()
       await Promise.resolve()
     })
+    expect(mutation).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['log', 'skip'] as const)('refuses a queued %s retry before passive effects after rollover', async (action) => {
+    const mutation = action === 'log' ? bulkLog.mutateAsync : bulkSkip.mutateAsync
+    mutation.mockResolvedValueOnce({ results: [{ habitId: 'h-1', status: 'Failed' }] })
+    const retry = { current: undefined as (() => void) | undefined }
+    const { result, setCompletionReadOnly } = renderBulkActions(
+      new Set(['h-1']), false, new Map(), () => retry.current?.(),
+    )
+    await act(async () => {
+      if (action === 'log') await result.current.confirmBulkLog()
+      else await result.current.confirmBulkSkip()
+    })
+    retry.current = showQueued.mock.calls[0]?.[2] as (() => void) | undefined
+    expect(retry.current).toBeTypeOf('function')
+    setCompletionReadOnly(true)
     expect(mutation).toHaveBeenCalledTimes(1)
   })
 
