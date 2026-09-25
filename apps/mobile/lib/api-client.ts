@@ -13,6 +13,7 @@ type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   headers?: Record<string, string>
   idempotencyKey?: string
   skipAuthRecovery?: boolean
+  isCurrent?: () => boolean
 }
 
 interface ApiErrorPayload {
@@ -109,8 +110,10 @@ async function executeRequest(
   tokenOverride?: string | null,
 ): Promise<RequestExecution> {
   const token = tokenOverride ?? await getToken()
+  if (options.isCurrent?.() === false) throw new Error('Account changed')
   const requestOptions = { ...options }
   delete requestOptions.skipAuthRecovery
+  delete requestOptions.isCurrent
   const response = await fetch(`${API_BASE}${path}`, {
     ...requestOptions,
     headers: buildRequestHeaders(token, options),

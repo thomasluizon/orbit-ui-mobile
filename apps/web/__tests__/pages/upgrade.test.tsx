@@ -147,9 +147,11 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 import UpgradePage from '@/app/(app)/upgrade/page'
+import { holdAccount } from '@/__tests__/support/account-change'
 
 describe('UpgradePage', () => {
   beforeEach(() => {
+    holdAccount('u1')
     vi.stubGlobal('ResizeObserver', class {
       observe() {}
       disconnect() {}
@@ -442,6 +444,7 @@ describe('UpgradePage', () => {
     const requestInit = call?.[1] as RequestInit | undefined
     expect(requestUrl.startsWith('/api/subscriptions/checkout')).toBe(true)
     expect(requestInit?.method).toBe('POST')
+    expect(new Headers(requestInit?.headers).get('X-Orbit-Held-Account-Id')).toBe('u1')
     expect(JSON.parse(requestInit?.body as string)).toEqual({
       interval: 'yearly',
     })

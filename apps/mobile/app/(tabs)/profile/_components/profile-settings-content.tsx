@@ -94,7 +94,6 @@ function buildYouRows(
     : t('profile.settingsRows.timezone')
 
   return [
-    /* eslint-disable-next-line local/max-button-words -- thomasluizon/orbit-tickets#531: this is an accessible name that replaces the row's visible content, not a visible control label. */
     <ListRow key="account" icon={icon(User, tokens.fg1)} title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
     <ListRow key="language" icon={icon(Languages, tokens.fg1)} title={t('profile.language.title')} onClick={() => router.push('/preferences')} />,
     <ListRow key="timezone" icon={icon(Clock, tokens.fg1)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,

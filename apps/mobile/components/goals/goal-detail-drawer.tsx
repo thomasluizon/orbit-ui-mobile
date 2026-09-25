@@ -87,7 +87,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} headingRef={headingRef} />
         <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} target={goal.targetValue} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
-        <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} iconColor={tokens.fg3} dangerColor={tokens.statusBad} styles={styles} />
+        <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} defaultIconColor={tokens.fg3} iconColor={tokens.statusBad} styles={styles} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} styles={styles} /> : null}
     </View>

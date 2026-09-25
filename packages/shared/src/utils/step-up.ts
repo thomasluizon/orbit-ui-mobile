@@ -1,3 +1,5 @@
+import { buildAccountScopedStorageKey } from './account-scoped-storage'
+
 export const STEP_UP_CODE_LENGTH = 6
 export const STEP_UP_CHALLENGE_DURATION_MS = 10 * 60 * 1000
 export const STEP_UP_RESEND_COOLDOWN_MS = 60 * 1000
@@ -5,10 +7,17 @@ export const STEP_UP_ATTEMPT_WINDOW_MS = 15 * 60 * 1000
 
 export type StepUpOperation = 'delete' | 'keys'
 
-export const STEP_UP_STORAGE_PREFIX = 'orbit.step-up'
+const STEP_UP_STORAGE_PREFIX = 'orbit.step-up'
 
-export function getStepUpStorageKey(operation: StepUpOperation): string {
-  return `${STEP_UP_STORAGE_PREFIX}.${operation}`
+/**
+ * Names the timing record after the account that asked for the code.
+ *
+ * The store outlives the account on both platforms, so a key with no account in it hands the
+ * previous account's exhausted window to the next one, which locks a stranger out of deleting
+ * their own account for the rest of the attempt window.
+ */
+export function getStepUpStorageKey(operation: StepUpOperation, accountId: string): string {
+  return buildAccountScopedStorageKey(`${STEP_UP_STORAGE_PREFIX}.${operation}`, accountId)
 }
 
 export interface StepUpTimingRecord {
