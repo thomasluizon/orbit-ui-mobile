@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as SecureStore from 'expo-secure-store'
 import { ApiClientError } from '@orbit/shared/utils'
 import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 
@@ -135,8 +136,8 @@ describe('completeGoogleAuthFromUrl', () => {
 })
 
 describe('startMobileGoogleAuth', () => {
-  beforeEach(() => {
-    clearPendingGoogleAuthSession()
+  beforeEach(async () => {
+    await clearPendingGoogleAuthSession()
     signInWithOAuthMock.mockReset()
     openAuthSessionAsyncMock.mockReset()
   })
@@ -187,6 +188,7 @@ describe('startMobileGoogleAuth', () => {
     const result = await startMobileGoogleAuth({})
 
     expect(result).toEqual({ type: 'dismiss' })
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
   })
 
   it('reports a dismiss when the browser succeeds without a callback url', async () => {
@@ -215,6 +217,7 @@ describe('startMobileGoogleAuth', () => {
 
     await expect(startMobileGoogleAuth({})).rejects.toThrow('provider down')
     expect(openAuthSessionAsyncMock).not.toHaveBeenCalled()
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
   })
 
   it('rethrows and clears the pending session when the browser throws', async () => {

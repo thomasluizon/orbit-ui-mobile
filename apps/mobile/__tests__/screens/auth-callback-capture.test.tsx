@@ -4,6 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AuthCallbackScreen from '@/app/auth-callback'
 
 const TestRenderer = require('react-test-renderer')
+const renderedTrees: ReturnType<typeof TestRenderer.create>[] = []
+
+function renderScreen(element: React.ReactElement) {
+  const tree = TestRenderer.create(element)
+  renderedTrees.push(tree)
+  return tree
+}
 
 const mocks = vi.hoisted(() => ({
   retainEmptyCallback: true,
@@ -12,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   rawUrl: null as string | null,
   sessionCallbackUrl: null as string | null,
   isPending: false,
+  useActualSession: false,
+  storedReturnUrl: null as string | null,
   complete: vi.fn(),
 }))
 
@@ -42,16 +51,22 @@ vi.mock('@orbit/shared/utils', () => ({
 
 vi.mock('@/lib/auth-flow', () => ({
   clearStoredReferralCode: vi.fn(),
-  consumeStoredAuthReturnUrl: vi.fn(() => Promise.resolve(null)),
-  getSafeReturnUrl: () => '/',
+  consumeStoredAuthReturnUrl: vi.fn(() => Promise.resolve(mocks.storedReturnUrl)),
+  getSafeReturnUrl: (url: string | null) => url ?? '/',
   getStoredReferralCode: vi.fn(() => Promise.resolve(null)),
 }))
 
-vi.mock('@/lib/google-auth-callback', async (importActual) => ({
-  ...(await importActual<typeof import('@/lib/google-auth-callback')>()),
-  clearPendingGoogleAuthSession: vi.fn(),
-  usePendingGoogleAuthSession: () => ({ callbackUrl: mocks.sessionCallbackUrl, isPending: mocks.isPending }),
-}))
+vi.mock('@/lib/google-auth-callback', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/google-auth-callback')>()
+  return {
+    ...actual,
+    clearPendingGoogleAuthSession: vi.fn(actual.clearPendingGoogleAuthSession),
+    usePendingGoogleAuthSession: () => {
+      const session = actual.usePendingGoogleAuthSession()
+      return mocks.useActualSession ? session : { callbackUrl: mocks.sessionCallbackUrl, isPending: mocks.isPending }
+    },
+  }
+})
 
 vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: mocks.complete }))
 
@@ -91,16 +106,21 @@ describe('AuthCallbackScreen capture retention', () => {
     mocks.rawUrl = null
     mocks.sessionCallbackUrl = null
     mocks.isPending = false
+    mocks.useActualSession = false
+    mocks.storedReturnUrl = null
   })
 
   afterEach(() => {
+    TestRenderer.act(() => {
+      for (const tree of renderedTrees.splice(0)) tree.unmount()
+    })
     vi.useRealTimers()
   })
 
   it('keeps the payload-free callback active through the capture window', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<AuthCallbackScreen />)
+      tree = renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()
     })
 
@@ -115,7 +135,7 @@ describe('AuthCallbackScreen capture retention', () => {
   it('keeps the production payload-free redirect behavior', async () => {
     mocks.retainEmptyCallback = false
     await TestRenderer.act(async () => {
-      TestRenderer.create(<AuthCallbackScreen />)
+      renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()
     })
 
@@ -130,7 +150,7 @@ describe('AuthCallbackScreen capture retention', () => {
     mocks.retainEmptyCallback = false
     mocks.rawUrl = 'https://app.useorbit.org/auth-callback#access_token=account-a&refresh_token=old-refresh'
     await TestRenderer.act(async () => {
-      TestRenderer.create(<AuthCallbackScreen />)
+      renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()
     })
 
@@ -142,7 +162,7 @@ describe('AuthCallbackScreen capture retention', () => {
   it('accepts the callback returned by the pending Google auth session', async () => {
     mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback#access_token=fresh&refresh_token=fresh-refresh'
     await TestRenderer.act(async () => {
-      TestRenderer.create(<AuthCallbackScreen />)
+      renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()
     })
 
@@ -154,11 +174,33 @@ describe('AuthCallbackScreen capture retention', () => {
     mocks.isPending = true
     mocks.rawUrl = 'https://app.useorbit.org/auth-callback#access_token=fresh&refresh_token=fresh-refresh'
     await TestRenderer.act(async () => {
-      TestRenderer.create(<AuthCallbackScreen />)
+      renderScreen(<AuthCallbackScreen />)
       await Promise.resolve()
     })
 
     expect(mocks.complete).not.toHaveBeenCalled()
     expect(mocks.login).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Google sign in', null, '/'],
+    ['Google Calendar connection', '/calendar-sync', '/calendar-sync'],
+  ])('exchanges a matching %s link after process recreation once', async (_flow, returnUrl, destination) => {
+    const { markPendingGoogleAuthSession } = await import('@/lib/google-auth-callback')
+    const attemptId = await markPendingGoogleAuthSession()
+    mocks.rawUrl = `https://app.useorbit.org/auth-callback?authAttempt=${attemptId}#access_token=fresh&refresh_token=fresh-refresh`
+    mocks.useActualSession = true
+    mocks.storedReturnUrl = returnUrl
+
+    vi.resetModules()
+    const { default: RecreatedScreen } = await import('@/app/auth-callback')
+    await TestRenderer.act(async () => {
+      renderScreen(<RecreatedScreen />)
+      await Promise.resolve()
+    })
+
+    expect(mocks.complete).toHaveBeenCalledWith(mocks.rawUrl, 'en', undefined)
+    expect(mocks.login).toHaveBeenCalledOnce()
+    expect(mocks.replace).toHaveBeenCalledWith(destination)
   })
 })

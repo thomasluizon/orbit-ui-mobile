@@ -99,7 +99,7 @@ export async function startMobileGoogleAuth({
     await storeAuthReturnUrl(returnUrl)
   }
 
-  const attemptId = markPendingGoogleAuthSession()
+  const attemptId = await markPendingGoogleAuthSession()
 
   try {
     const redirectTo = `${getGoogleAuthRedirectUrl()}?authAttempt=${attemptId}`
@@ -119,22 +119,23 @@ export async function startMobileGoogleAuth({
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
 
     if (result.type !== 'success') {
-      clearPendingGoogleAuthSession()
+      await clearPendingGoogleAuthSession()
       return { type: result.type }
     }
 
     if (!result.url) {
-      clearPendingGoogleAuthSession()
+      await clearPendingGoogleAuthSession()
       return { type: WebBrowser.WebBrowserResultType.DISMISS }
     }
 
     const params = extractGoogleAuthParams(result.url)
     if (params.error === 'access_denied') {
-      clearPendingGoogleAuthSession()
+      await clearPendingGoogleAuthSession()
       return { type: WebBrowser.WebBrowserResultType.CANCEL }
     }
 
-    if (!setPendingGoogleAuthCallbackUrl(result.url)) {
+    if (!await setPendingGoogleAuthCallbackUrl(result.url)) {
+      await clearPendingGoogleAuthSession()
       return { type: WebBrowser.WebBrowserResultType.DISMISS }
     }
     return {
@@ -142,7 +143,7 @@ export async function startMobileGoogleAuth({
       url: result.url,
     }
   } catch (error: unknown) {
-    clearPendingGoogleAuthSession()
+    await clearPendingGoogleAuthSession()
     throw error
   }
 }

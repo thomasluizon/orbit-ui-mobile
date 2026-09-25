@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
+import * as SecureStore from 'expo-secure-store'
+import { markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
 
@@ -287,6 +289,17 @@ describe('mobile auth store security paths', () => {
     expect(setRefreshTokenMock).not.toHaveBeenCalled()
     expect(saveWidgetTokenMock).toHaveBeenCalledWith('access-token')
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('deletes the pending OAuth attempt when another account signs in', async () => {
+    await markPendingGoogleAuthSession()
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
+
+    await useAuthStore.getState().login('replacement-token', null, {
+      userId: 'replacement-user', email: 'replacement@example.com', name: 'Replacement',
+    })
+
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
   })
 
   it('persists the new tokens before clearing cached query data on login', async () => {
@@ -949,6 +962,16 @@ describe('mobile auth store security paths', () => {
       isLoading: false,
       expiresAt: null,
     })
+  })
+
+  it('deletes the pending OAuth attempt on logout', async () => {
+    await markPendingGoogleAuthSession()
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
+    getRefreshTokenMock.mockResolvedValue(null)
+
+    await useAuthStore.getState().logout()
+
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
   })
 
   it('keeps onboarding hidden after a returning person signs out', async () => {
