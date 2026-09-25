@@ -3,6 +3,20 @@ import { repositorySlug } from "./github-auth.mjs"
 
 export const ADMISSION_REFUSED_EXIT = 8
 
+/**
+ * Only a run created in the last 24 hours counts as queued. Measured 2026-09-25: 8 orbit-ui-mobile
+ * runs created 2026-09-13 sit at `status: queued` with zero jobs, and GitHub refuses to remove them
+ * (`gh run cancel`: "Cannot cancel a workflow run that is completed"; force-cancel HTTP 409; DELETE
+ * HTTP 403). A raw count would carry them forever. The real queue on 2026-09-24 and 25 held a run
+ * for about an hour, far inside this window.
+ */
+export const QUEUED_RUN_WINDOW_MS = 24 * 60 * 60 * 1000
+
+export const queuedRunsPath = (slug, now) => {
+  const since = new Date(now - QUEUED_RUN_WINDOW_MS).toISOString().replace(/\.\d{3}Z$/, "Z")
+  return `repos/${slug}/actions/runs?status=queued&created=${encodeURIComponent(`>=${since}`)}&per_page=1`
+}
+
 export const readGithub = async (path, environment) => {
   const result = await runBounded(environment.GH_BIN || "gh", ["api", path], {
     env: environment, timeoutMs: 30000, maxBuffer: 8 * 1024 * 1024,
@@ -27,7 +41,7 @@ const openPullRequests = async (slug, environment) => {
   }
 }
 
-export const checkAdmission = async ({ config, repositoryKey, branch, environment }) => {
+export const checkAdmission = async ({ config, repositoryKey, branch, environment, now = Date.now() }) => {
   const limits = { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }
   const counts = { openPullRequests: null, queuedRuns: null }
   try {
@@ -44,7 +58,7 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
     for (const path of Object.values(config.repos)) {
       const slug = repositorySlug(path)
       counts.openPullRequests += await openPullRequests(slug, environment)
-      const runs = await readGithub(`repos/${slug}/actions/runs?status=queued&per_page=1`, environment)
+      const runs = await readGithub(queuedRunsPath(slug, now), environment)
       if (!Number.isInteger(runs?.total_count) || runs.total_count < 0) {
         throw new Error(`GitHub queued runs for ${slug} had an unexpected shape`)
       }

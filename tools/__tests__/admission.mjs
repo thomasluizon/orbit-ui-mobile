@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, TOOLS_DIR, orcaEnv, stageRepo } from "./_harness.mjs"
-import { checkAdmission } from "../lib/admission.mjs"
+import { checkAdmission, queuedRunsPath } from "../lib/admission.mjs"
 
 const repository = (name) => {
   const entry = stageRepo(`admission-${name}`)
@@ -24,10 +24,12 @@ export const cases = async () => {
   }
   const plan = (pulls, runs, branchPulls = [], fail = false) => orcaEnv([
     { match: "pulls?head=", stdout: JSON.stringify(branchPulls) },
-    { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: runs, workflow_runs: [] }), exit: fail ? 1 : 0, stderr: fail ? "GitHub unavailable" : "" },
+    { match: `actions/runs?status=queued&created=${encodeURIComponent(">=2026-09-24T03:00:00Z")}&per_page=1`, stdout: JSON.stringify({ total_count: runs, workflow_runs: [] }), exit: fail ? 1 : 0, stderr: fail ? "GitHub unavailable" : "" },
     { match: "pulls?state=open", stdout: JSON.stringify(pulls.map((number) => ({ number }))) },
   ])
-  const check = (environment) => checkAdmission({ config, repositoryKey: "ui", branch: "feature/new", environment })
+  const check = (environment) => checkAdmission({ config, repositoryKey: "ui", branch: "feature/new", environment, now: Date.parse("2026-09-25T03:00:00Z") })
+  T("admission: the queued-run read counts only runs created in the last 24 hours",
+    queuedRunsPath("o/r", Date.parse("2026-09-25T03:00:00Z")) === "repos/o/r/actions/runs?status=queued&created=%3E%3D2026-09-24T03%3A00%3A00Z&per_page=1")
   const below = await check(plan([1, 2], 3))
   T("admission: below both caps is admitted", below.admitted, JSON.stringify(below))
   const tooManyPulls = await check(plan(Array.from({ length: 4 }, (_, index) => index + 1), 0))
