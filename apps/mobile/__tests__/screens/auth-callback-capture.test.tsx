@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AuthCallbackScreen from '@/app/auth-callback'
+import { startMobileGoogleAuth } from '@/lib/google-auth'
 
 const TestRenderer = require('react-test-renderer')
 const renderedTrees: ReturnType<typeof TestRenderer.create>[] = []
@@ -20,8 +21,11 @@ const mocks = vi.hoisted(() => ({
   sessionCallbackUrl: null as string | null,
   isPending: false,
   useActualSession: false,
+  coldStart: false,
   storedReturnUrl: null as string | null,
   complete: vi.fn(),
+  signInWithOAuth: vi.fn(),
+  openAuthSessionAsync: vi.fn(),
 }))
 
 vi.mock('@/components/auth/login-content', () => ({
@@ -42,7 +46,8 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
+vi.mock('@orbit/shared/utils', async (importActual) => ({
+  ...await importActual<typeof import('@orbit/shared/utils')>(),
   ApiClientError: class ApiClientError extends Error {},
   extractAuthBackendMessage: () => undefined,
   extractBackendRequestId: () => undefined,
@@ -54,6 +59,8 @@ vi.mock('@/lib/auth-flow', () => ({
   consumeStoredAuthReturnUrl: vi.fn(() => Promise.resolve(mocks.storedReturnUrl)),
   getSafeReturnUrl: (url: string | null) => url ?? '/',
   getStoredReferralCode: vi.fn(() => Promise.resolve(null)),
+  isSafeReturnUrl: () => true,
+  storeAuthReturnUrl: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/lib/google-auth-callback', async (importActual) => {
@@ -63,12 +70,26 @@ vi.mock('@/lib/google-auth-callback', async (importActual) => {
     clearPendingGoogleAuthSession: vi.fn(actual.clearPendingGoogleAuthSession),
     usePendingGoogleAuthSession: () => {
       const session = actual.usePendingGoogleAuthSession()
-      return mocks.useActualSession ? session : { callbackUrl: mocks.sessionCallbackUrl, isPending: mocks.isPending }
+      return mocks.useActualSession
+        ? (mocks.coldStart ? { callbackUrl: session.callbackUrl, isPending: false } : session)
+        : { callbackUrl: mocks.sessionCallbackUrl, isPending: mocks.isPending }
     },
   }
 })
 
-vi.mock('@/lib/google-auth', () => ({ completeGoogleAuthFromUrl: mocks.complete }))
+vi.mock('@/lib/google-auth', async (importActual) => ({
+  ...await importActual<typeof import('@/lib/google-auth')>(),
+  completeGoogleAuthFromUrl: mocks.complete,
+}))
+
+vi.mock('@/lib/supabase', () => ({
+  getSupabaseClient: () => ({ auth: { signInWithOAuth: mocks.signInWithOAuth } }),
+}))
+
+vi.mock('expo-web-browser', () => ({
+  openAuthSessionAsync: mocks.openAuthSessionAsync,
+  WebBrowserResultType: { DISMISS: 'dismiss', CANCEL: 'cancel' },
+}))
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) =>
@@ -103,10 +124,13 @@ describe('AuthCallbackScreen capture retention', () => {
     mocks.login.mockReset().mockResolvedValue(undefined)
     mocks.complete.mockReset().mockResolvedValue({ token: 'orbit-token', refreshToken: 'orbit-refresh',
       userId: 'account-a', name: 'A', email: 'a@example.com' })
+    mocks.signInWithOAuth.mockReset().mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    mocks.openAuthSessionAsync.mockReset()
     mocks.rawUrl = null
     mocks.sessionCallbackUrl = null
     mocks.isPending = false
     mocks.useActualSession = false
+    mocks.coldStart = false
     mocks.storedReturnUrl = null
   })
 
@@ -190,6 +214,7 @@ describe('AuthCallbackScreen capture retention', () => {
     const attemptId = await markPendingGoogleAuthSession()
     mocks.rawUrl = `https://app.useorbit.org/auth-callback?authAttempt=${attemptId}#access_token=fresh&refresh_token=fresh-refresh`
     mocks.useActualSession = true
+    mocks.coldStart = true
     mocks.storedReturnUrl = returnUrl
 
     vi.resetModules()
@@ -200,6 +225,37 @@ describe('AuthCallbackScreen capture retention', () => {
     })
 
     expect(mocks.complete).toHaveBeenCalledWith(mocks.rawUrl, 'en', undefined)
+    expect(mocks.login).toHaveBeenCalledOnce()
+    expect(mocks.replace).toHaveBeenCalledWith(destination)
+  })
+  it.each([
+    ['Google sign in', undefined, null, '/'],
+    ['Google Calendar connection', '/calendar-sync', '/calendar-sync', '/calendar-sync'],
+  ])('keeps a same-process %s callback when the screen sees the link first', async (
+    _flow, returnUrl, storedReturnUrl, destination,
+  ) => {
+    let finishBrowser!: (result: { type: string; url: string }) => void
+    mocks.openAuthSessionAsync.mockImplementation(() => new Promise((resolve) => { finishBrowser = resolve }))
+    mocks.useActualSession = true
+    mocks.storedReturnUrl = storedReturnUrl
+    const authResult = startMobileGoogleAuth({ returnUrl })
+    await vi.waitFor(() => expect(mocks.openAuthSessionAsync).toHaveBeenCalledOnce())
+    const redirectTo = mocks.openAuthSessionAsync.mock.calls[0]?.[1] as string
+    const callbackUrl = `${redirectTo}#access_token=fresh&refresh_token=fresh-refresh`
+    mocks.rawUrl = callbackUrl
+
+    await TestRenderer.act(async () => {
+      renderScreen(<AuthCallbackScreen />)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      finishBrowser({ type: 'success', url: callbackUrl })
+      await authResult
+    })
+
+    expect(await authResult).toEqual({ type: 'success', url: callbackUrl })
+    expect(mocks.complete).toHaveBeenCalledWith(callbackUrl, 'en', undefined)
+    expect(mocks.complete).toHaveBeenCalledOnce()
     expect(mocks.login).toHaveBeenCalledOnce()
     expect(mocks.replace).toHaveBeenCalledWith(destination)
   })

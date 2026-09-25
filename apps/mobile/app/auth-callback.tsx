@@ -25,7 +25,7 @@ export default function AuthCallbackScreen() {
   const [checkedLink, setCheckedLink] = useState(false)
 
   useEffect(() => {
-    if (callbackUrl) return
+    if (callbackUrl || isPending) return
     let mounted = true
     async function recoverCallback() {
       try {
@@ -38,7 +38,7 @@ export default function AuthCallbackScreen() {
     }
     void recoverCallback()
     return () => { mounted = false }
-  }, [callbackUrl, linkingUrl])
+  }, [callbackUrl, isPending, linkingUrl])
 
   useEffect(() => {
     if (processed.current || !callbackUrl) return
