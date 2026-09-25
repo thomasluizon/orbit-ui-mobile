@@ -1147,6 +1147,7 @@ export const postApiHabitsBulkBodyHabitsItemReminderEnabledDefault = false;
 export const postApiHabitsBulkBodyHabitsItemReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiHabitsBulkBodyHabitsItemIsGeneralDefault = false;
 export const postApiHabitsBulkBodyHabitsItemIsFlexibleDefault = false;
+export const postApiHabitsBulkBodyHabitsItemIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiHabitsBulkBodyFromSyncReviewDefault = false;
 
 export const PostApiHabitsBulkBody = zod.object({
@@ -1176,7 +1177,8 @@ export const PostApiHabitsBulkBody = zod.object({
 })).nullish(),
   "googleEventId": zod.string().nullish(),
   "emoji": zod.string().nullish(),
-  "tags": zod.array(zod.string()).nullish()
+  "tags": zod.array(zod.string()).nullish(),
+  "intervalWeeks": zod.union([zod.number(),zod.stringFormat('int32', postApiHabitsBulkBodyHabitsItemIntervalWeeksRegExpTwo)]).nullish()
 })),
   "fromSyncReview": zod.boolean().default(postApiHabitsBulkBodyFromSyncReviewDefault)
 })
