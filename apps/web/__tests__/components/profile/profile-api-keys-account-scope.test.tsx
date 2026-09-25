@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { readStepUpTiming } from '@/lib/step-up-storage'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
+import { retireHeldAccount } from '@/__tests__/support/account-change'
 import type { Profile } from '@orbit/shared/types/profile'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -153,7 +154,7 @@ it('does not route the next account after an old key challenge resolves', async 
 })
 
 it('waits for the first account check before requesting an API key challenge', async () => {
-  useAuthStore.getState().adoptAccountFromSignal(null)
+  await retireHeldAccount()
   useAuthStore.setState({ isAuthenticated: true, sessionInactive: false })
   let finishSession!: (response: Response) => void
   vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {

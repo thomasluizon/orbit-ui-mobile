@@ -8,6 +8,7 @@ import {
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import type { LoginResponse } from '@orbit/shared/types/auth'
+import { withCookieSettingLogin } from '@/stores/auth-store'
 
 class AuthFetchError extends Error {
   status: number
@@ -79,11 +80,14 @@ export async function fetchAuthEndpoint(
   url: string,
   body: Record<string, unknown>,
 ): Promise<unknown> {
-  const response = await fetchWithThrottle(url, {
+  const request = () => fetchWithThrottle(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  const response = url === '/api/auth/verify-code'
+    ? await withCookieSettingLogin(request)
+    : await request()
   if (!response.ok) {
     const data: unknown = await response.json().catch(() => null)
     throw new AuthFetchError(

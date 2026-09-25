@@ -8,14 +8,25 @@ import {
 } from '@/lib/cross-tab-account-signal'
 import { clearPendingNotificationDeletes } from '@/lib/pending-notification-deletes'
 import { getQueryClient } from '@/lib/query-client'
-import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
+import { advanceAccountGeneration, advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
 import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
 import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+let loginsWaitingForLogout = 0
+
+export async function withCookieSettingLogin<T>(task: () => Promise<T>): Promise<T> {
+  loginsWaitingForLogout += 1
+  try {
+    return await withSessionCookieLock(task)
+  } finally {
+    loginsWaitingForLogout -= 1
+  }
+}
 let sessionReadVersion = 0
 
 let lastObservedAccountId: string | null = null
@@ -228,37 +239,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   /**
-   * Takes the account another tab just moved the browser to, without waiting for the poll.
-   *
-   * A named account runs the same `adoptSessionAccount` every detected change runs, so the epoch
-   * rises, the pending deletes drop, the step-up binding moves and the cache empties before the
-   * next paint. The same account announced again is refused there, so a reload cannot start
-   * churning. The signal names the account and nothing else, so the session check that follows
-   * fills in the expiry and the new account's name. It is the reconciliation, never the detection.
-   *
-   * A sign out names no account and ends the session here too, because the cookie it removed was
-   * this tab's as well. A tab already signed out ignores it, so a second announcement costs
-   * nothing.
+   * Signals trigger cookie reconciliation before publishing authentication or account scope.
+   * Their account ids can arrive after later writes, so neither name nor sign-out is proof.
    */
-  adoptAccountFromSignal: (accountId: string | null) => {
-    if (accountId === null) {
-      if (get().sessionInactive) return
-
-      endSessionLocally()
-      set({
-        isAuthenticated: false,
-        sessionInactive: true,
-        user: null,
-        expiresAt: null,
-        sessionRefreshFailed: false,
-      })
-      return
-    }
-
-    if (!adoptSessionAccount(accountId)) return
-
-    sessionRecoveryUser = null
-    set({ isAuthenticated: true, sessionInactive: false, user: null, sessionRefreshFailed: false })
+  adoptAccountFromSignal: () => {
+    sessionReadVersion += 1
     void get().checkSession()
   },
 
@@ -352,6 +337,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      if (get().sessionInactive) return
       endSessionLocally()
       set({
         isAuthenticated: false,
@@ -391,22 +377,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    endSessionLocally()
-    announceAccountToOtherTabs(null)
+    const logoutEpoch = getSessionEpoch()
+    let teardownEpoch: number | null
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      teardownEpoch = await withSessionCookieLock(async () => {
+        if (logoutEpoch !== getSessionEpoch()) return null
+        endSessionLocally()
+        try {
+          await fetch('/api/auth/logout', { method: 'POST' })
+        } catch {
+        }
+        endSessionLocally()
+        const currentTeardownEpoch = getSessionEpoch()
+        set({
+          isAuthenticated: false,
+          sessionInactive: true,
+          user: null,
+          expiresAt: null,
+          sessionRefreshFailed: false,
+        })
+        announceAccountToOtherTabs(null)
+        return currentTeardownEpoch
+      })
     } catch {
+      return
     }
 
-    set({
-      isAuthenticated: false,
-      sessionInactive: true,
-      user: null,
-      expiresAt: null,
-      sessionRefreshFailed: false,
-    })
+    if (teardownEpoch === null || teardownEpoch !== getSessionEpoch()) return
 
-    if ('location' in globalThis) {
+    if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
     }
   },
