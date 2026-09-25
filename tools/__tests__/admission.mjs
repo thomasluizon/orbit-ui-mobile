@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join } from "node:path"
 
 import { T, TOOLS_DIR, orcaEnv, realOrchestratorConfig, stageRepo } from "./_harness.mjs"
-import { checkAdmission, configuredRepositorySlug, queuedRunsPath, releaseAdmission } from "../lib/admission.mjs"
+import { RELEASE_HOLD_MS, checkAdmission, configuredRepositorySlug, queuedRunsPath, releaseAdmission } from "../lib/admission.mjs"
 
 const repository = (name) => {
   const entry = stageRepo(`admission-${name}`)
@@ -35,7 +35,7 @@ export const cases = async () => {
   const check = async (environment, caps = config.caps) => {
     const result = await checkAdmission({ config: { ...config, caps }, repositoryKey: "ui", branch: "feature/new", environment,
       now: Date.parse("2026-09-25T03:00:00Z"), repoRoot: config.repos.ui })
-    releaseAdmission(result.reservationId, config.repos.ui)
+    rmSync(join(config.repos.ui, ".git", "orbit-admission-reservations"), { recursive: true, force: true })
     return result
   }
   T("admission: the queued-run read counts only runs created in the last 24 hours",
@@ -70,8 +70,30 @@ export const cases = async () => {
   mkdirSync(reservationDirectory, { recursive: true })
   const deadPath = join(reservationDirectory, "dead.json")
   writeFileSync(deadPath, JSON.stringify({ pid: 999999999, startIdentity: "dead", repository: "test-owner/admission-reservations", branch: "feature/dead", timestamp: new Date().toISOString() }))
-  await edge("feature/after-dead", plan([], 0))
-  T("admission: a dead launcher's reservation is removed", !existsSync(deadPath))
+  const afterDead = await edge("feature/after-dead", plan([], 0))
+  const deadClaim = existsSync(deadPath) ? JSON.parse(readFileSync(deadPath, "utf8")) : null
+  T("admission: a dead launcher's claim is released and holds only queued-run capacity",
+    afterDead.admitted && deadClaim?.releasedAt === Date.parse("2026-09-25T03:00:00Z") &&
+    afterDead.counts.reservations?.queuedRuns === 1 && afterDead.counts.reservations?.pullRequests === 0, JSON.stringify({ afterDead, deadClaim }))
+  rmSync(reservationDirectory, { recursive: true, force: true })
+
+  const released = await edge("feature/released", plan([], 0))
+  releaseAdmission(released.reservationId, checkout, Date.parse("2026-09-25T03:00:00Z") - 1000)
+  const heldEnvironment = orcaEnv([
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: "[]" },
+    { match: "actions/runs?status=queued", stdout: '{"total_count":30,"workflow_runs":[]}' },
+  ])
+  const whileHeld = await edge("feature/while-held", heldEnvironment)
+  T("admission: a claim released inside the hold window still counts toward queued runs",
+    !whileHeld.admitted && whileHeld.counts.reservations?.queuedRuns === 1, JSON.stringify(whileHeld))
+  rmSync(reservationDirectory, { recursive: true, force: true })
+
+  const expired = await edge("feature/expired", plan([], 0))
+  releaseAdmission(expired.reservationId, checkout, Date.parse("2026-09-25T03:00:00Z") - RELEASE_HOLD_MS - 1)
+  const afterExpiry = await edge("feature/after-expiry", heldEnvironment)
+  T("admission: a claim released before the hold window is removed",
+    afterExpiry.admitted && !existsSync(join(reservationDirectory, `${expired.reservationId}.json`)), JSON.stringify(afterExpiry))
   rmSync(reservationDirectory, { recursive: true, force: true })
 
   const prior = await edge("feature/pr-created", plan([], 0))

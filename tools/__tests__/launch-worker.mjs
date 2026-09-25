@@ -170,9 +170,11 @@ export const cases = async () => {
   const concurrentResults = await Promise.all([startConcurrent(), startConcurrent()])
   T("launch-worker: two processes racing at the cap for one allowance launch exactly one worker",
     concurrentResults.map((result) => result.status).sort().join(",") === "0,8", JSON.stringify(concurrentResults))
-  T("launch-worker: completed launch releases its admission reservation",
-    !existsSync(join(concurrent.base, ".git", "orbit-admission-reservations")) ||
-    readdirSync(join(concurrent.base, ".git", "orbit-admission-reservations")).length === 0)
+  const releasedClaims = (directory) => existsSync(directory)
+    ? readdirSync(directory).filter((name) => name.endsWith(".json")).map((name) => JSON.parse(readFileSync(join(directory, name), "utf8")))
+    : []
+  T("launch-worker: completed launch marks its admission reservation released",
+    releasedClaims(join(concurrent.base, ".git", "orbit-admission-reservations")).every((claim) => Number.isFinite(claim.releasedAt)))
   const signalled = launch("signal-admission", launchConfig(stubEngine(SLEEPER)))
   const signalChild = spawn(process.execPath,
     [signalled.path, "--issue", "ORB-201", "--worktree", signalled.worktree, "--prompt", signalled.prompt],
@@ -188,8 +190,9 @@ export const cases = async () => {
   const signalledExit = new Promise((resolve) => signalChild.on("exit", resolve))
   signalChild.kill("SIGTERM")
   const signalStatus = await signalledExit
-  T("launch-worker: SIGTERM clears its reservation", hadReservation && signalStatus === 143 &&
-    existsSync(signalDirectory) && readdirSync(signalDirectory).length === 0, `reserved=${hadReservation}, exit=${signalStatus}`)
+  const signalClaims = releasedClaims(signalDirectory)
+  T("launch-worker: SIGTERM marks its reservation released", hadReservation && signalStatus === 143 &&
+    signalClaims.length === 1 && Number.isFinite(signalClaims[0].releasedAt), `reserved=${hadReservation}, exit=${signalStatus}, claims=${JSON.stringify(signalClaims)}`)
   const real = realOrchestratorConfig()
   const engine = real.workers[real.worker]
   let plan = null

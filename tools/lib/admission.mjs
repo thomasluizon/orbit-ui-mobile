@@ -23,9 +23,25 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const reservationDirectory = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-admission-reservations")
 const lockPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-admission.lock")
 
-export const releaseAdmission = (reservationId, repoRoot = REPO_ROOT) => {
+/**
+ * GitHub can create a new pull request's Actions runs after the launcher that opened it has exited,
+ * so a released claim keeps holding one queued run for this window instead of vanishing (review of
+ * ui#1105). The window, not a guess about GitHub's timing, is where this guard's regress stops (D117).
+ */
+export const RELEASE_HOLD_MS = 5 * 60 * 1000
+
+const publishReservation = (directory, name, reservation) => {
+  const unpublished = join(directory, `${name}.${randomUUID()}.unpublished`)
+  writeFileSync(unpublished, JSON.stringify(reservation), { flag: "wx" })
+  renameSync(unpublished, join(directory, `${name}.json`))
+}
+
+export const releaseAdmission = (reservationId, repoRoot = REPO_ROOT, releasedAt = Date.now()) => {
   if (!reservationId) return
-  rmSync(join(reservationDirectory(repoRoot), `${reservationId}.json`), { force: true })
+  const directory = reservationDirectory(repoRoot)
+  const reservation = readReservation(join(directory, `${reservationId}.json`))
+  if (!reservation || Number.isFinite(reservation.releasedAt)) return
+  publishReservation(directory, reservationId, { ...reservation, releasedAt })
 }
 
 const acquireLock = async (repoRoot, startIdentity, waitMs) => {
@@ -122,7 +138,7 @@ const readReservation = (path) => {
  * counts it, but it keeps counting toward queued runs while its launcher lives, because GitHub can
  * show the pull request before its Actions runs exist (review of ui#1105).
  */
-const liveReservations = async (repoRoot, owner, environment) => {
+const liveReservations = async (repoRoot, owner, environment, now) => {
   const directory = reservationDirectory(repoRoot)
   const counts = { pullRequests: 0, queuedRuns: 0 }
   if (!existsSync(directory)) return counts
@@ -134,12 +150,17 @@ const liveReservations = async (repoRoot, owner, environment) => {
       rmSync(path, { force: true })
       continue
     }
-    const observedIdentity = processStartIdentity(reservation.pid)
-    if (observedIdentity === null && processIsAlive(reservation.pid)) {
-      throw new Error(`could not verify live admission reservation ${name}`)
+    if (!Number.isFinite(reservation.releasedAt)) {
+      const observedIdentity = processStartIdentity(reservation.pid)
+      if (observedIdentity === null && processIsAlive(reservation.pid)) {
+        throw new Error(`could not verify live admission reservation ${name}`)
+      }
+      if (observedIdentity !== reservation.startIdentity) releaseAdmission(name.slice(0, -".json".length), repoRoot, now)
     }
-    if (observedIdentity !== reservation.startIdentity) {
-      rmSync(path, { force: true })
+    const released = readReservation(path)?.releasedAt
+    if (Number.isFinite(released)) {
+      if (now - released < RELEASE_HOLD_MS) counts.queuedRuns++
+      else rmSync(path, { force: true })
       continue
     }
     counts.queuedRuns++
@@ -163,7 +184,7 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
     if (existing.length > 0) return { admitted: true, existingPullRequest: existing[0].number, counts, limits }
     // Reconcile first, then read the fleet counts. A PR appearing between these reads can
     // temporarily count twice, but cannot disappear from both the claim and GitHub total.
-    counts.reservations = await liveReservations(repoRoot, owner, environment)
+    counts.reservations = await liveReservations(repoRoot, owner, environment, now)
     counts.openPullRequests = 0
     counts.queuedRuns = 0
     for (const path of Object.values(config.repos)) {
@@ -181,10 +202,8 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
     }
     const reservationId = randomUUID()
     mkdirSync(reservationDirectory(repoRoot), { recursive: true })
-    const unpublished = join(reservationDirectory(repoRoot), `${reservationId}.unpublished`)
-    writeFileSync(unpublished,
-      JSON.stringify({ pid: process.pid, startIdentity, repository: target, branch, timestamp: new Date(now).toISOString() }), { flag: "wx" })
-    renameSync(unpublished, join(reservationDirectory(repoRoot), `${reservationId}.json`))
+    publishReservation(reservationDirectory(repoRoot), reservationId,
+      { pid: process.pid, startIdentity, repository: target, branch, timestamp: new Date(now).toISOString() })
     return { admitted: true, reservationId, counts, limits }
   } catch (error) {
     return { admitted: false, reason: "ADMISSION_REFUSED", counts, limits, error: error.message }
