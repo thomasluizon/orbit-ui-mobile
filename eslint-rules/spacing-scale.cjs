@@ -187,11 +187,8 @@ module.exports = {
 
     const scaleLabel = scale.join(' ')
     const scaleSet = new Set(scale)
-    const scannedStyleProperties = new WeakSet()
-    const scannedMutationValues = new WeakSet()
-    const activeStyleBindings = new WeakSet()
-    const mutatedStyleProperties = new WeakMap()
     const jsxStyleExpressions = []
+    const styleSheetExpressions = []
 
     function isOnScale(px, prop) {
       const magnitude = Math.abs(px)
@@ -297,205 +294,261 @@ module.exports = {
       return null
     }
 
-    function markMutatedBinding(node, mutation, visited = new WeakSet()) {
-      node = unwrapStyleExpression(node)
-      if (node?.type !== 'Identifier') return
-      const variable = findBinding(node)
-      if (!variable || visited.has(variable)) return
-      visited.add(variable)
-      const mutations = mutatedStyleProperties.get(variable) ?? []
-      mutations.push(mutation)
-      mutatedStyleProperties.set(variable, mutations)
-      const definition = variable.defs[0]
-      if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const') {
-        markMutatedBinding(definition.node.init, mutation, visited)
+    const ABSENT = Symbol('absent')
+    const UNKNOWN = Symbol('unknown')
+    const reportedValues = new WeakSet()
+
+    function emptyState() {
+      return { keys: new Map(), other: new Set([ABSENT]) }
+    }
+
+    function unknownState() {
+      return { keys: new Map(), other: new Set([ABSENT, UNKNOWN]) }
+    }
+
+    function valuesFor(state, key) {
+      return state.keys.get(key) ?? state.other
+    }
+
+    function copyState(state) {
+      return { keys: new Map([...state.keys].map(([key, values]) => [key, new Set(values)])), other: new Set(state.other) }
+    }
+
+    function joinStates(left, right) {
+      const joined = { keys: new Map(), other: new Set([...left.other, ...right.other]) }
+      for (const key of new Set([...left.keys.keys(), ...right.keys.keys()])) {
+        joined.keys.set(key, new Set([...valuesFor(left, key), ...valuesFor(right, key)]))
       }
+      return joined
+    }
+
+    function overlay(target, source) {
+      const result = emptyState()
+      const apply = (previous, incoming) => incoming.has(ABSENT)
+        ? new Set([...previous, ...[...incoming].filter((value) => value !== ABSENT)])
+        : new Set(incoming)
+      result.other = apply(target.other, source.other)
+      for (const key of new Set([...target.keys.keys(), ...source.keys.keys()])) {
+        result.keys.set(key, apply(valuesFor(target, key), valuesFor(source, key)))
+      }
+      return result
+    }
+
+    function changeUnknownKey(state, effect) {
+      const changed = copyState(state)
+      for (const values of changed.keys.values()) values.add(effect)
+      changed.other.add(effect)
+      return changed
+    }
+
+    function bindingRoot(variable, seen = new Set()) {
+      if (!variable || seen.has(variable)) return variable
+      seen.add(variable)
+      const definition = variable.defs[0]
+      if (variable.defs.length !== 1 || definition?.type !== 'Variable' || definition.parent.kind !== 'const') return variable
+      const initializer = unwrapStyleExpression(definition.node.init)
+      return initializer?.type === 'Identifier' ? bindingRoot(findBinding(initializer), seen) : variable
+    }
+
+    function executionContext(node) {
+      for (let parent = node; parent; parent = parent.parent) {
+        if (parent.type === 'Program' || parent.type === 'FunctionDeclaration' || parent.type === 'FunctionExpression' || parent.type === 'ArrowFunctionExpression') return parent
+      }
+      return null
+    }
+
+    function evaluateBinding(variable, cutoff, active) {
+      variable = bindingRoot(variable)
+      if (!variable || active.has(variable)) return unknownState()
+      const definition = variable.defs[0]
+      if (variable.defs.length !== 1 || definition?.type !== 'Variable' || definition.parent.kind !== 'const' || !definition.node.init) return unknownState()
+      const initializer = definition.node.init
+      if (initializer.range[0] >= cutoff) return unknownState()
+      active.add(variable)
+      let state = evaluateStyleExpression(initializer, initializer.range[0], active)
+      const container = executionContext(definition.node)
+      if (container) {
+        const body = container.type === 'Program' ? container : container.body
+        const outcomes = walk(body, state, initializer.range[1], cutoff, variable, active)
+        state = outcomes.filter((outcome) => outcome.flow === 'normal').map((outcome) => outcome.state)
+          .reduce((combined, next) => combined ? joinStates(combined, next) : next, null) ?? state
+      }
+      active.delete(variable)
+      return state
+    }
+
+    function evaluateStyleExpression(node, cutoff, active = new Set()) {
+      node = unwrapStyleExpression(node)
+      if (!node) return unknownState()
+      if (node.type === 'Literal' && (node.value === null || node.value === false)) return emptyState()
+      if (node.type === 'Identifier') return evaluateBinding(findBinding(node), cutoff, active)
+      if (node.type === 'ArrayExpression') {
+        return node.elements.reduce((state, element) => overlay(state, evaluateStyleExpression(element, element?.range[0] ?? cutoff, active)), emptyState())
+      }
+      if (node.type === 'ConditionalExpression') {
+        if (node.test.type === 'Literal' && typeof node.test.value === 'boolean') {
+          return evaluateStyleExpression(node.test.value ? node.consequent : node.alternate, cutoff, active)
+        }
+        return joinStates(evaluateStyleExpression(node.consequent, cutoff, active), evaluateStyleExpression(node.alternate, cutoff, active))
+      }
+      if (node.type === 'LogicalExpression') {
+        if (node.left.type === 'Literal') {
+          const runsRight = node.operator === '&&' ? Boolean(node.left.value)
+            : node.operator === '||' ? !node.left.value : node.left.value === null
+          return runsRight ? evaluateStyleExpression(node.right, cutoff, active) : emptyState()
+        }
+        return joinStates(emptyState(), evaluateStyleExpression(node.right, cutoff, active))
+      }
+      if (isObjectAssign(node)) {
+        return node.arguments.slice(1).reduce((state, source) => overlay(state, evaluateStyleExpression(source, node.range[0], active)),
+          evaluateStyleExpression(node.arguments[0], node.range[0], active))
+      }
+      if (node.type !== 'ObjectExpression') return unknownState()
+      let state = emptyState()
+      for (const property of node.properties) {
+        if (property.type === 'SpreadElement') {
+          state = overlay(state, evaluateStyleExpression(property.argument, property.range[0], active))
+          continue
+        }
+        const name = propertyName(property)
+        if (name === null) state = changeUnknownKey(state, UNKNOWN)
+        else state.keys.set(name, new Set([property.value]))
+      }
+      return state
     }
 
     function mutationPropertyName(node) {
       if (!node.computed && node.property.type === 'Identifier') return node.property.name
       if (node.computed && node.property.type === 'Literal') return String(node.property.value)
-      return '*'
-    }
-
-    function isDefiniteMutation(mutation, variable) {
-      const statement = mutation.node.parent
-      const declaration = variable.defs[0].node.parent
-      const block = declaration.parent
-      return (block.type === 'Program' || block.type === 'BlockStatement') && statement.type === 'ExpressionStatement' && statement.parent === block
-    }
-
-    function executionContext(node) {
-      for (let parent = node; parent; parent = parent.parent) {
-        if (parent.type === 'Program' || parent.type === 'ClassBody' || parent.type === 'FunctionDeclaration' || parent.type === 'FunctionExpression' || parent.type === 'ArrowFunctionExpression') return parent
-      }
       return null
     }
 
-    function scanBinding(variable, initializer, ignored, cutoff) {
-      activeStyleBindings.add(variable)
-      const shadowed = new Set(ignored)
-      const knownKeys = new Set()
-      const deletedKeys = new Set()
-      const possiblyDeletedKeys = new Set()
-      const conditionalShadows = new Map()
-      let hasUnknownKey = false
-      const mutations = (mutatedStyleProperties.get(variable) ?? [])
-        .filter((mutation) => mutation.position < cutoff && executionContext(mutation.node) === executionContext(variable.defs[0].node))
-        .sort((left, right) => right.position - left.position)
-      for (const mutation of mutations) {
-        const definite = isDefiniteMutation(mutation, variable)
-        const statement = mutation.node.parent
-        const block = statement.type === 'ExpressionStatement' && statement.parent.type === 'BlockStatement' ? statement.parent : null
-        let branchShadow = null
-        if (!definite && block) {
-          const statementIndex = block.body.indexOf(statement)
-          const previous = conditionalShadows.get(block)
-          const interrupted = previous && block.body.slice(statementIndex + 1, previous.index).some((entry) => entry.type !== 'ExpressionStatement' && entry.type !== 'VariableDeclaration')
-          branchShadow = previous && !interrupted ? previous.shadow : new Set()
-          conditionalShadows.set(block, { index: statementIndex, shadow: branchShadow })
-        }
-        if (mutation.kind === 'assign') {
-          const callShadow = new Set([...shadowed, ...(branchShadow ?? [])])
-          for (let index = mutation.sources.length - 1; index >= 0; index--) {
-            const keys = scanStyleObject(mutation.sources[index], callShadow, mutation.position)
-            if (keys === null) {
-              callShadow.add('*')
-              if (definite) shadowed.add('*')
-              else branchShadow?.add('*')
-              hasUnknownKey = true
-            } else {
-              for (const key of keys) {
-                callShadow.add(key)
-                if (definite && !deletedKeys.has(key)) knownKeys.add(key)
-                if (definite) shadowed.add(key)
-                else branchShadow?.add(key)
-              }
-            }
-          }
-          continue
-        }
-        if (mutation.name === '*') {
-          if (definite) shadowed.add('*')
-          else branchShadow?.add('*')
-          hasUnknownKey = true
-          continue
-        }
-        if (mutation.kind === 'delete') {
-          if (definite) {
-            if (!knownKeys.has(mutation.name)) deletedKeys.add(mutation.name)
-            shadowed.add(mutation.name)
-          } else {
-            if (!knownKeys.has(mutation.name)) possiblyDeletedKeys.add(mutation.name)
-            branchShadow?.add(mutation.name)
-          }
-        } else {
-          if (definite && !deletedKeys.has(mutation.name)) knownKeys.add(mutation.name)
-          if (!deletedKeys.has(mutation.name) && !shadowed.has('*') && !shadowed.has(mutation.name) && !branchShadow?.has('*') && !branchShadow?.has(mutation.name) && SPACING_PROPS.has(mutation.name) && mutation.value && !scannedMutationValues.has(mutation.node)) {
-            scannedMutationValues.add(mutation.node)
-            reportStyleValue(mutation.value, mutation.name)
-          }
-          if (definite) shadowed.add(mutation.name)
-          else branchShadow?.add(mutation.name)
-        }
-      }
-      const initialKeys = scanStyleObject(initializer, shadowed, cutoff)
-      activeStyleBindings.delete(variable)
-      if (initialKeys === null || hasUnknownKey) return null
-      for (const key of initialKeys) {
-        if (!deletedKeys.has(key) && !possiblyDeletedKeys.has(key)) knownKeys.add(key)
-      }
-      return knownKeys
+    function mutate(state, member, value, remove) {
+      const name = mutationPropertyName(member)
+      if (name === null) return changeUnknownKey(state, remove ? ABSENT : UNKNOWN)
+      const changed = copyState(state)
+      changed.keys.set(name, new Set([remove ? ABSENT : value ?? UNKNOWN]))
+      return changed
     }
 
-    function scanStyleObject(node, ignored = new Set(), cutoff = Infinity) {
+    function targetsBinding(node, variable) {
       node = unwrapStyleExpression(node)
-      if (!node) return null
-      if (node.type === 'Literal' && (node.value === null || node.value === false)) return new Set()
-      if (node.type === 'Identifier') {
-        const variable = findBinding(node)
-        if (!variable || activeStyleBindings.has(variable)) return null
-        const definition = variable.defs[0]
-        if (variable.defs.length === 1 && definition?.type === 'Variable' && definition.parent.kind === 'const') {
-          return scanBinding(variable, definition.node.init, ignored, cutoff)
-        }
-        return null
+      return node?.type === 'Identifier' && bindingRoot(findBinding(node)) === variable
+    }
+
+    function combineOutcomes(outcomes) {
+      const combined = new Map()
+      for (const outcome of outcomes) {
+        const previous = combined.get(outcome.flow)
+        combined.set(outcome.flow, previous ? joinStates(previous, outcome.state) : outcome.state)
       }
-      if (node.type === 'ArrayExpression') {
-        const knownKeys = new Set()
-        const shadowed = new Set(ignored)
-        let hasUnknownKey = false
-        for (let index = node.elements.length - 1; index >= 0; index--) {
-          const elementKeys = scanStyleObject(node.elements[index], shadowed, cutoff)
-          if (elementKeys === null) {
-            shadowed.add('*')
-            hasUnknownKey = true
-          } else {
-            for (const key of elementKeys) {
-              knownKeys.add(key)
-              shadowed.add(key)
-            }
+      return [...combined].map(([flow, state]) => ({ flow, state }))
+    }
+
+    function sequence(nodes, state, start, cutoff, variable, active) {
+      let outcomes = [{ state, flow: 'normal' }]
+      for (const node of nodes) {
+        outcomes = combineOutcomes(outcomes.flatMap((outcome) => outcome.flow === 'normal'
+          ? walk(node, outcome.state, start, cutoff, variable, active) : [outcome]))
+      }
+      return outcomes
+    }
+
+    function children(node) {
+      return Object.entries(node).filter(([key]) => key !== 'parent' && key !== 'tokens' && key !== 'comments')
+        .flatMap(([, value]) => Array.isArray(value) ? value : [value])
+        .filter((value) => value && typeof value === 'object' && typeof value.type === 'string' && Array.isArray(value.range))
+        .sort((left, right) => left.range[0] - right.range[0])
+    }
+
+    function walk(node, state, start, cutoff, variable, active) {
+      if (!node || node.range[1] <= start || node.range[0] >= cutoff) return [{ state, flow: 'normal' }]
+      if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression' || node.type === 'ClassDeclaration' || node.type === 'ClassExpression') return [{ state, flow: 'normal' }]
+      if (node.type === 'BreakStatement' || node.type === 'ContinueStatement') {
+        return [{ state, flow: node.type }]
+      }
+      if (node.type === 'ReturnStatement' || node.type === 'ThrowStatement') {
+        const outcomes = node.argument ? walk(node.argument, state, start, cutoff, variable, active) : [{ state, flow: 'normal' }]
+        return node.range[1] > cutoff ? outcomes : outcomes.map((outcome) => ({ ...outcome, flow: node.type }))
+      }
+      if (node.type === 'IfStatement') {
+        const tested = sequence([node.test], state, start, cutoff, variable, active)
+        let branches = node.test.type === 'Literal' && typeof node.test.value === 'boolean'
+          ? [node.test.value ? node.consequent : node.alternate]
+          : [node.consequent, node.alternate]
+        const containing = branches.find((branch) => branch && branch.range[0] <= cutoff && branch.range[1] >= cutoff)
+        if (containing) branches = [containing]
+        return combineOutcomes(tested.flatMap((outcome) => branches.flatMap((branch) => branch
+          ? walk(branch, copyState(outcome.state), start, cutoff, variable, active) : [outcome])))
+      }
+      if (node.type === 'ConditionalExpression' || node.type === 'LogicalExpression') {
+        const condition = node.type === 'ConditionalExpression' ? node.test : node.left
+        const tested = sequence([condition], state, start, cutoff, variable, active)
+        let branches = node.type === 'ConditionalExpression' ? [node.consequent, node.alternate] : [node.right, null]
+        if (condition.type === 'Literal') {
+          if (node.type === 'ConditionalExpression') branches = [condition.value ? node.consequent : node.alternate]
+          if (node.type === 'LogicalExpression') {
+            const runsRight = node.operator === '&&' ? Boolean(condition.value)
+              : node.operator === '||' ? !condition.value : condition.value === null
+            branches = [runsRight ? node.right : null]
           }
         }
-        return hasUnknownKey ? null : knownKeys
+        return combineOutcomes(tested.flatMap((outcome) => branches.flatMap((branch) => branch
+          ? walk(branch, copyState(outcome.state), start, cutoff, variable, active) : [outcome])))
       }
-      if (node.type === 'ConditionalExpression') {
-        const consequentKeys = scanStyleObject(node.consequent, ignored, cutoff)
-        const alternateKeys = scanStyleObject(node.alternate, ignored, cutoff)
-        if (consequentKeys === null || alternateKeys === null) return null
-        return new Set([...consequentKeys].filter((key) => alternateKeys.has(key)))
+      if (node.type === 'SwitchStatement') {
+        const tested = sequence([node.discriminant], state, start, cutoff, variable, active)
+        return combineOutcomes(tested.flatMap((outcome) => [outcome, ...node.cases.flatMap((_, index) =>
+          sequence(node.cases.slice(index).flatMap((branch) => branch.consequent), copyState(outcome.state), start, cutoff, variable, active))]
+          .map((result) => result.flow === 'BreakStatement' ? { ...result, flow: 'normal' } : result)))
       }
-      if (isObjectAssign(node)) {
-        const knownKeys = new Set()
-        const shadowed = new Set(ignored)
-        let hasUnknownKey = false
-        for (let index = node.arguments.length - 1; index >= 0; index--) {
-          const argumentKeys = scanStyleObject(node.arguments[index], shadowed, Math.min(cutoff, node.range[0]))
-          if (argumentKeys === null) {
-            shadowed.add('*')
-            hasUnknownKey = true
-          } else {
-            for (const key of argumentKeys) {
-              knownKeys.add(key)
-              shadowed.add(key)
-            }
-          }
-        }
-        return hasUnknownKey ? null : knownKeys
+      if (node.type === 'ForStatement' || node.type === 'ForInStatement' || node.type === 'ForOfStatement' || node.type === 'WhileStatement' || node.type === 'DoWhileStatement') {
+        const beforeBody = node.type === 'ForStatement' ? [node.init, node.test] : node.type === 'ForInStatement' || node.type === 'ForOfStatement'
+          ? [node.left, node.right] : node.type === 'WhileStatement' ? [node.test] : []
+        const entry = sequence(beforeBody.filter(Boolean), state, start, cutoff, variable, active)
+        return combineOutcomes(entry.flatMap((outcome) => {
+          const body = walk(node.body, copyState(outcome.state), start, cutoff, variable, active)
+          const exits = body.flatMap((result) => {
+            if (result.flow === 'BreakStatement') return [{ state: result.state, flow: 'normal' }]
+            if (result.flow !== 'normal' && result.flow !== 'ContinueStatement') return [result]
+            const afterBody = node.type === 'ForStatement' ? [node.update] : node.type === 'DoWhileStatement' ? [node.test] : []
+            return sequence(afterBody.filter(Boolean), result.state, start, cutoff, variable, active)
+          })
+          return [outcome, ...exits]
+        }))
       }
-      if (node.type !== 'ObjectExpression') return null
-      const knownKeys = new Set()
-      const shadowed = new Set(ignored)
-      let hasUnknownKey = false
-      for (let index = node.properties.length - 1; index >= 0; index--) {
-        const property = node.properties[index]
-        if (property.type === 'SpreadElement') {
-          const spreadKeys = scanStyleObject(property.argument, shadowed, Math.min(cutoff, property.range[0]))
-          if (spreadKeys === null) {
-            shadowed.add('*')
-            hasUnknownKey = true
-          } else {
-            for (const key of spreadKeys) {
-              knownKeys.add(key)
-              shadowed.add(key)
-            }
-          }
-          continue
-        }
-        const name = propertyName(property)
-        if (name === null) {
-          shadowed.add('*')
-          hasUnknownKey = true
-          continue
-        }
-        knownKeys.add(name)
-        if (!shadowed.has('*') && !shadowed.has(name) && SPACING_PROPS.has(name) && !scannedStyleProperties.has(property)) {
-          scannedStyleProperties.add(property)
-          reportStyleValue(property.value, name)
-        }
-        shadowed.add(name)
+      if (node.type === 'TryStatement') {
+        const outcomes = [...walk(node.block, copyState(state), start, cutoff, variable, active)]
+        if (node.handler) outcomes.push(...walk(node.handler, copyState(state), start, cutoff, variable, active))
+        return combineOutcomes(node.finalizer ? outcomes.flatMap((outcome) => walk(node.finalizer, outcome.state, start, cutoff, variable, active)) : outcomes)
       }
-      return hasUnknownKey ? null : knownKeys
+      const traversed = sequence(children(node), state, start, cutoff, variable, active)
+      return traversed.map((outcome) => {
+        if (outcome.flow !== 'normal') return outcome
+        let next = outcome.state
+        if (node.type === 'AssignmentExpression' && node.left.type === 'MemberExpression' && targetsBinding(node.left.object, variable)) {
+          next = mutate(next, node.left, node.operator === '=' ? node.right : null, false)
+        } else if (node.type === 'UpdateExpression' && node.argument.type === 'MemberExpression' && targetsBinding(node.argument.object, variable)) {
+          next = mutate(next, node.argument, null, false)
+        } else if (node.type === 'UnaryExpression' && node.operator === 'delete' && node.argument.type === 'MemberExpression' && targetsBinding(node.argument.object, variable)) {
+          next = mutate(next, node.argument, null, true)
+        } else if (isObjectAssign(node) && targetsBinding(node.arguments[0], variable)) {
+          for (const source of node.arguments.slice(1)) next = overlay(next, evaluateStyleExpression(source, node.range[0], active))
+        }
+        return { state: next, flow: 'normal' }
+      })
+    }
+
+    function scanStyleObject(node) {
+      const state = evaluateStyleExpression(node, node.range[0])
+      for (const [name, values] of state.keys) {
+        if (!SPACING_PROPS.has(name)) continue
+        for (const value of values) {
+          if (value === ABSENT || value === UNKNOWN || reportedValues.has(value)) continue
+          reportedValues.add(value)
+          reportStyleValue(value, name)
+        }
+      }
     }
 
     function scanClassString(node, text, offset) {
@@ -586,28 +639,16 @@ module.exports = {
         else if (node.value?.type === 'JSXExpressionContainer') scanClassExpression(node.value.expression)
       },
       CallExpression(node) {
-        if (isObjectAssign(node)) {
-          markMutatedBinding(node.arguments[0], { kind: 'assign', sources: node.arguments.slice(1), position: node.range[0], node })
-        }
         if (!isStyleSheetCreate(node)) return
         const argument = node.arguments[0]
         if (argument?.type !== 'ObjectExpression') return
         for (const property of argument.properties) {
           if (property.type !== 'Property') continue
-          scanStyleObject(property.value)
+          styleSheetExpressions.push(property.value)
         }
       },
-      AssignmentExpression(node) {
-        if (node.left.type === 'MemberExpression') markMutatedBinding(node.left.object, { kind: 'write', name: mutationPropertyName(node.left), value: node.operator === '=' ? node.right : null, position: node.range[0], node })
-      },
-      UpdateExpression(node) {
-        if (node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, { kind: 'write', name: mutationPropertyName(node.argument), position: node.range[0], node })
-      },
-      UnaryExpression(node) {
-        if (node.operator === 'delete' && node.argument.type === 'MemberExpression') markMutatedBinding(node.argument.object, { kind: 'delete', name: mutationPropertyName(node.argument), position: node.range[0], node })
-      },
       'Program:exit'() {
-        for (const expression of jsxStyleExpressions) scanStyleObject(expression)
+        for (const expression of [...jsxStyleExpressions, ...styleSheetExpressions]) scanStyleObject(expression)
       },
     }
   },
