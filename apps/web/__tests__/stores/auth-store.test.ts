@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import { getSessionEpoch } from '@/lib/session-epoch'
 import { subscribeToAccountSignal } from '@/lib/cross-tab-account-signal'
@@ -315,6 +315,28 @@ describe('auth store', () => {
       sessionInactive: false,
       user: { userId: 'user-2' },
     })
+  })
+
+  it.each([
+    { signal: null, session: { expiresAt: null }, authenticated: false, accountId: null },
+    { signal: 'user-3', session: { expiresAt: Date.now() + 3600000, userId: 'user-3' }, authenticated: true, accountId: 'user-3' },
+  ])('lets the latest $signal signal session result win over an older active response', async ({ signal, session, authenticated, accountId }) => {
+    const reads: Array<(response: Response) => void> = []
+    mockFetch.mockImplementation((url: string) => {
+      if (url !== '/api/auth/session') throw new Error(`Unexpected auth endpoint: ${url}`)
+      return new Promise<Response>((resolve) => { reads.push(resolve) })
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    useAuthStore.getState().adoptAccountFromSignal('user-2')
+    useAuthStore.getState().adoptAccountFromSignal(signal)
+    expect(reads).toHaveLength(2)
+    reads[0]!(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-2' }))
+    reads[1]!(Response.json(session))
+    await vi.waitFor(() => expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: authenticated, sessionInactive: !authenticated, user: null,
+    }))
+    expect(getHeldAccountId()).toBe(accountId)
   })
 
 

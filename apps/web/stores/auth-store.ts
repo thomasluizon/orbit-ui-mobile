@@ -239,6 +239,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    * Their account ids can arrive after later writes, so neither name nor sign-out is proof.
    */
   adoptAccountFromSignal: () => {
+    sessionReadVersion += 1
     void get().checkSession()
   },
 
