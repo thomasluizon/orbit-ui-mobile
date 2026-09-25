@@ -1165,6 +1165,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 - **Every interactive element has an accessible name.** Precedence: `aria-labelledby`, then `aria-label`, then the native label, then `title`. Prefer visible text.
 - **The visible label must appear inside the accessible name** (WCAG 2.5.3), or voice-control users cannot activate what they can read.
 - **Mark a purely decorative icon `aria-hidden="true"` and `focusable="false"`**, and never put `aria-hidden` on or above a focusable element. A meaningful standalone SVG takes `role="img"` plus a label.
+- **Hide a habit emoji beside its own habit name from assistive technology on web and mobile.** If the emoji adds meaning the adjacent text does not repeat, give it an accessible name.
 - **Expandable controls carry `aria-expanded` and `aria-controls`.**
 - **Alt text by purpose:** decorative takes `alt=""` (present, never missing), informative describes the meaning, functional describes the action.
 - **Expose one visible `main` landmark**, label repeated landmarks, and keep headings forming a coherent outline.
