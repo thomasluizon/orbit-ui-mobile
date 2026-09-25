@@ -5,6 +5,7 @@ import { API } from '@orbit/shared/api'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-account-modal'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   isOnline: { current: true },
   onClose: vi.fn(),
   push: vi.fn(),
+  accountId: { current: 'user-1' },
 }))
 
 vi.mock('expo-router', () => ({
@@ -36,8 +38,15 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: Object.assign(
+    (selector: (state: unknown) => unknown) => selector({ user: { userId: mocks.accountId.current } }),
+    { getState: () => ({ user: { userId: mocks.accountId.current } }) },
+  ),
+}))
 vi.mock('@/lib/step-up-storage', () => ({
-  beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
+  beginStepUpChallenge: (operation: string, accountId: string | null) =>
+    mocks.beginChallenge(operation, accountId),
 }))
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mocks.isOnline.current }),
@@ -87,6 +96,7 @@ describe('DeleteAccountModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.isOnline.current = true
+    mocks.accountId.current = 'user-1'
     mocks.apiClient.mockResolvedValue({ message: 'sent' })
   })
 
@@ -159,7 +169,7 @@ describe('DeleteAccountModal', () => {
       { method: 'POST' },
       expect.anything(),
     )
-    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
     expect(sheetTestControls.isDismissPending).toBe(true)
     expect(mocks.onClose).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
@@ -171,5 +181,50 @@ describe('DeleteAccountModal', () => {
     expect(mocks.onClose).toHaveBeenCalledTimes(1)
     expect(mocks.push).toHaveBeenCalledWith('/step-up?operation=delete')
     expect(mocks.push).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['success', 'failure'])('drops a late deletion challenge %s after replacement', async (outcome) => {
+    let settle!: (value: { message: string }) => void
+    let reject!: (reason: Error) => void
+    mocks.apiClient.mockReturnValue(new Promise((resolve, rejectPromise) => {
+      settle = resolve
+      reject = rejectPromise
+    }))
+    const tree = await renderModal()
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+    })
+
+    mocks.accountId.current = 'user-2'
+    TestRenderer.act(() => {
+      tree.unmount()
+      advanceAccountGeneration()
+    })
+    await TestRenderer.act(async () => {
+      if (outcome === 'success') settle({ message: 'sent' })
+      else reject(new Error('Account A failure'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('does not navigate from a pending sheet dismissal after replacement', async () => {
+    sheetTestControls.defer(true)
+    const tree = await renderModal()
+    await TestRenderer.act(async () => {
+      button(tree, 'profile.deleteAccount.sendCode').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => advanceAccountGeneration())
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 })

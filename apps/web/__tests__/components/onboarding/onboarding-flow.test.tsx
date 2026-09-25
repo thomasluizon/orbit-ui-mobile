@@ -4,7 +4,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => ({
   createHabit: vi.fn(),
@@ -16,6 +18,12 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   profile: { aiMessagesLimit: 5, aiMessagesUsed: 0 },
   push: { supported: true, permission: 'default', status: 'not-registered' },
+  liveActions: vi.fn(),
+}))
+
+vi.mock('@/components/onboarding/onboarding-actions-context', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/onboarding/onboarding-actions-context')>()),
+  useLiveOnboardingActions: () => mocks.liveActions(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -107,6 +115,20 @@ describe('OnboardingFlow state model', () => {
     mocks.subscribe.mockResolvedValue({ supported: true, subscribed: true, permission: 'granted', status: 'registered' })
     mocks.requestPermissionOnly.mockResolvedValue('granted')
     useOnboardingDraftStore.getState().reset()
+    mocks.liveActions.mockReturnValue(actions())
+  })
+
+  it('drops the typed habit when another account replaces the tab', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    render(<RetainedOnboardingOverlay />)
+    fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })
+    expect(screen.getByLabelText('sentence')).toHaveValue('Walk every Monday at 18:00')
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.getByLabelText('sentence')).toHaveValue('')
+    vi.unstubAllGlobals()
   })
 
   it('never shows or saves a repeat interval a signed-out draft cannot carry', async () => {

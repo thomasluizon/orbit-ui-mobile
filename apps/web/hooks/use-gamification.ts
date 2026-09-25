@@ -25,13 +25,15 @@ import {
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
 import { fetchJson } from '@/lib/api-fetch'
 import { repairStreakGap, reportAchievementEvent } from '@/lib/actions/gamification'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
   const previousLevelRef = useRef<number | null>(null)
   const previousStreakRef = useRef<number | null>(null)
   const previousAchievementIdsRef = useRef<Set<string>>(new Set())
-  const [acknowledgedLevel, setAcknowledgedLevel] = useState<number | null>(null)
+  const [acknowledgedLevel, setAcknowledgedLevel] = useAccountScopedState<number | null>(null)
 
   const query = useQuery({
     queryKey: gamificationKeys.profile(),
@@ -85,7 +87,7 @@ export function useGamificationProfile(enabled = true) {
 
   const clearLevelUp = useCallback(() => {
     setAcknowledgedLevel(profile?.level ?? null)
-  }, [profile?.level])
+  }, [profile?.level, setAcknowledgedLevel])
 
   const invalidate = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -141,19 +143,22 @@ export function useRepairStreak(timeZone: string | null) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (dates: string[]) => repairStreakGap(dates),
-    onSuccess: (streakInfo) => {
+    onMutate: () => ({ accountGeneration: getAccountGeneration() }),
+    onSuccess: (streakInfo, _dates, context) => {
+      if (context.accountGeneration !== getAccountGeneration()) return
       queryClient.setQueryData(gamificationKeys.streak(timeZone), streakInfo)
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
     },
-    onError: async (error) => {
-      if (extractBackendStatus(error) !== 409) return
+    onError: async (error, _dates, context) => {
+      if (context?.accountGeneration !== getAccountGeneration() || extractBackendStatus(error) !== 409) return
       const queryKey = gamificationKeys.streak(timeZone)
       await queryClient.cancelQueries({ queryKey })
+      if (context.accountGeneration !== getAccountGeneration()) return
       await queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
-      await queryClient.fetchQuery({
-        queryKey,
-        queryFn: () => fetchJson<StreakInfo>(API.gamification.streak, streakInfoSchema),
-      })
+      if (context.accountGeneration !== getAccountGeneration()) return
+      const refreshed = await fetchJson<StreakInfo>(API.gamification.streak, streakInfoSchema)
+      if (context.accountGeneration !== getAccountGeneration()) return
+      queryClient.setQueryData(queryKey, refreshed)
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
     },
   })

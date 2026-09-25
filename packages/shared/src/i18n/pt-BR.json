@@ -50,14 +50,6 @@
     "description": "O endereço pode ter mudado, ou o item foi apagado. O seu dia continua onde estava.",
     "action": "Abrir Hoje"
   },
-  "updatePrompt": {
-    "eyebrow": "Atualização disponível",
-    "title": "Atualização disponível",
-    "description": "Saiu uma nova versão do Orbit com melhorias e correções",
-    "update": "Atualizar",
-    "later": "Agora não",
-    "version": "v{previous} → v{next}"
-  },
   "notifications": {
     "title": "Avisos",
     "bell": "Avisos",

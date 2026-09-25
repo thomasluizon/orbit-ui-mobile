@@ -824,6 +824,12 @@ It also deleted `apps/web/lib/overlay-stack.ts` and two defects with it: the `z-
 
 **The 83 callers were migrated in R1 (`#42`).** Both platforms now expose one close path: take `{ sheetRef, closeSheet }` from `useSheetHost()`, pass `ref={sheetRef}`, and call `closeSheet()` or `closeSheet(action)`. `onClose` fires only from the completed dismissal, so a caller never flips the open state directly.
 
+**One exception, and only one.** An account replacement under a running tab hides the previous
+account's overlay immediately, without an exit transition. Most owners reset their open flag through
+`useAccountScopedState`. `CreateHabitModal` gates its rendered sheet by account generation before
+its owner closes the flag. The exit would keep the previous account's content visible. Nothing else
+may flip the flag.
+
 ### Sizing
 
 - **An overlay is content-height by default.** It grows to its content and stops.
@@ -1159,6 +1165,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 - **Every interactive element has an accessible name.** Precedence: `aria-labelledby`, then `aria-label`, then the native label, then `title`. Prefer visible text.
 - **The visible label must appear inside the accessible name** (WCAG 2.5.3), or voice-control users cannot activate what they can read.
 - **Mark a purely decorative icon `aria-hidden="true"` and `focusable="false"`**, and never put `aria-hidden` on or above a focusable element. A meaningful standalone SVG takes `role="img"` plus a label.
+- **Hide a habit emoji beside its own habit name from assistive technology on web and mobile.** If the emoji adds meaning the adjacent text does not repeat, give it an accessible name.
 - **Expandable controls carry `aria-expanded` and `aria-controls`.**
 - **Alt text by purpose:** decorative takes `alt=""` (present, never missing), informative describes the meaning, functional describes the action.
 - **Expose one visible `main` landmark**, label repeated landmarks, and keep headings forming a coherent outline.

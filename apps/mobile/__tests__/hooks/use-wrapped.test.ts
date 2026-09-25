@@ -3,12 +3,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { gamificationKeys } from '@orbit/shared/query'
 import { ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
-import { buildWrappedSlides } from '@orbit/shared/utils'
 import {
   createMockRecap,
   createMockRetrospectiveMetrics,
 } from '@orbit/shared/__tests__/factories'
+import { buildAccountScopedStorageKey, buildWrappedSlides } from '@orbit/shared/utils'
 import { useWrapped, useWrappedStory } from '@/hooks/use-wrapped'
+import { useAuthStore } from '@/stores/auth-store'
+
+const LEGACY_WRAPPED_KEY = 'orbit_wrapped_year_seen'
+const ACCOUNT_A_WRAPPED_KEY = buildAccountScopedStorageKey(LEGACY_WRAPPED_KEY, 'user-1')
+const ACCOUNT_B_WRAPPED_KEY = buildAccountScopedStorageKey(LEGACY_WRAPPED_KEY, 'user-2')
+
+/** Signs the device in, because the key the recap writes is named after the account. */
+function holdAccount(userId: string | null): void {
+  useAuthStore.setState({
+    isAuthenticated: userId !== null,
+    user: userId === null ? null : { userId, name: 'Ada', email: `${userId}@example.com` },
+  })
+}
+
+/** Answers a `multiGet` the way AsyncStorage does, one pair per requested key. */
+function storedFlags(stored: Record<string, string>) {
+  return vi
+    .spyOn(AsyncStorage, 'multiGet')
+    .mockImplementation((keys) =>
+      Promise.resolve(keys.map((key): [string, string | null] => [key, stored[key] ?? null])),
+    )
+}
 
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
@@ -16,7 +38,10 @@ const mocks = vi.hoisted(() => ({
   reportEvent: vi.fn(),
 }))
 
-vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.useQuery }))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQuery: mocks.useQuery,
+}))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('@/hooks/use-gamification', () => ({
   useReportEvent: () => ({ mutate: mocks.reportEvent }),
@@ -93,6 +118,7 @@ describe('mobile useWrapped', () => {
       refetch: vi.fn(),
     })
     mocks.reportEvent.mockReset()
+    holdAccount('user-1')
   })
 
   afterEach(() => {
@@ -184,7 +210,7 @@ describe('mobile useWrapped', () => {
   })
 
   it('reports the wrapped-viewed achievement once for a fresh active year recap', async () => {
-    const getItem = vi.spyOn(AsyncStorage, 'getItem').mockResolvedValue(null)
+    const multiGet = storedFlags({})
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
     mocks.useQuery.mockReturnValue({
       data: createMockRecap({ period: 'year' }),
@@ -195,14 +221,48 @@ describe('mobile useWrapped', () => {
 
     await renderWrapped('year', { active: true })
 
-    expect(getItem).toHaveBeenCalledWith('orbit_wrapped_year_seen')
-    expect(setItem).toHaveBeenCalledWith('orbit_wrapped_year_seen', '1')
+    expect(multiGet).toHaveBeenCalledWith([ACCOUNT_A_WRAPPED_KEY, LEGACY_WRAPPED_KEY])
+    expect(setItem).toHaveBeenCalledWith(ACCOUNT_A_WRAPPED_KEY, '1')
     expect(mocks.reportEvent).toHaveBeenCalledWith(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
   })
 
+  it('reports it for the next account on a device the previous account used', async () => {
+    storedFlags({ [ACCOUNT_A_WRAPPED_KEY]: '1' })
+    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    mocks.useQuery.mockReturnValue({
+      data: createMockRecap({ period: 'year' }),
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+    holdAccount('user-2')
+
+    await renderWrapped('year', { active: true })
+
+    expect(setItem).toHaveBeenCalledWith(ACCOUNT_B_WRAPPED_KEY, '1')
+    expect(mocks.reportEvent).toHaveBeenCalledWith(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
+  })
+
+  it('gives the pre-rename flag to the account signed in now and then consumes it', async () => {
+    storedFlags({ [LEGACY_WRAPPED_KEY]: '1' })
+    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    const removeItem = vi.spyOn(AsyncStorage, 'removeItem').mockResolvedValue(undefined)
+    mocks.useQuery.mockReturnValue({
+      data: createMockRecap({ period: 'year' }),
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    })
+
+    await renderWrapped('year', { active: true })
+
+    expect(setItem).toHaveBeenCalledWith(ACCOUNT_A_WRAPPED_KEY, '1')
+    expect(removeItem).toHaveBeenCalledWith(LEGACY_WRAPPED_KEY)
+    expect(mocks.reportEvent).not.toHaveBeenCalled()
+  })
   it('does not re-report when the year recap was already seen', async () => {
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
-    vi.spyOn(AsyncStorage, 'getItem').mockResolvedValue('1')
+    storedFlags({ [ACCOUNT_A_WRAPPED_KEY]: '1' })
     mocks.useQuery.mockReturnValue({
       data: createMockRecap({ period: 'year' }),
       isLoading: false,
@@ -217,7 +277,7 @@ describe('mobile useWrapped', () => {
   })
 
   it('skips the achievement side effect when the player is not actively viewing', async () => {
-    const getItem = vi.spyOn(AsyncStorage, 'getItem').mockResolvedValue(null)
+    const multiGet = storedFlags({})
     mocks.useQuery.mockReturnValue({
       data: createMockRecap({ period: 'year' }),
       isLoading: false,
@@ -227,7 +287,7 @@ describe('mobile useWrapped', () => {
 
     await renderWrapped('year', { active: false })
 
-    expect(getItem).not.toHaveBeenCalled()
+    expect(multiGet).not.toHaveBeenCalled()
     expect(mocks.reportEvent).not.toHaveBeenCalled()
   })
 })

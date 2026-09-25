@@ -37,7 +37,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
       id: item.id,
       label: (
         <Pressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: item.title })} onPress={() => router.push({ pathname: '/habits/[id]', params: { id: item.id } })} style={{ minHeight: 44, minWidth: 0, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 }}>
-          <View style={{ width: 32, height: 32, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{item.emoji ?? '•'}</Text></View>
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{item.emoji ?? '•'}</Text></View>
           <Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text>
         </Pressable>
       ),
