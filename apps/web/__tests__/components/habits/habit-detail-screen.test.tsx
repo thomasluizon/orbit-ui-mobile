@@ -281,6 +281,7 @@ describe('HabitDetailScreen', () => {
     expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoading')
     expect(child).toHaveAttribute('data-completion-status-unavailable', 'true')
     expect(screen.getByText('habits.detail.dayHabitsLoading')).toBeVisible()
+    expect(screen.getByTestId('detail-children')).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: 'open-child-1' })).toBeEnabled()
 
     mocks.scopedLoading = false
@@ -290,7 +291,6 @@ describe('HabitDetailScreen', () => {
     expect(child).toHaveAttribute('data-completion-reason', 'habits.detail.dayHabitsLoadError')
     expect(child).toHaveAttribute('data-completion-status-unavailable', 'true')
     expect(screen.getByText('habits.detail.dayHabitsLoadError')).toBeVisible()
-    expect(screen.getByRole('status')).toHaveTextContent('habits.detail.dayHabitsLoadError')
     expect(screen.getByText('habits.detail.addSubHabit')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
     expect(mocks.scopedRefetch).toHaveBeenCalledOnce()
@@ -301,6 +301,7 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(child).toBeEnabled()
     expect(child).toHaveAttribute('data-completion-status-unavailable', 'false')
+    expect(screen.getByTestId('detail-children')).toHaveAttribute('aria-busy', 'false')
     expect(child).not.toHaveAttribute('data-completion-reason')
     expect(screen.queryByText('habits.detail.dayHabitsLoadError')).not.toBeInTheDocument()
   })

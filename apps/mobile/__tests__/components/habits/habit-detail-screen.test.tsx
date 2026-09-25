@@ -406,6 +406,7 @@ describe('HabitDetailScreen', () => {
     expect(child().props.completionReason).toBe('habits.detail.dayHabitsLoading')
     expect(child().props.completionStatusUnavailable).toBe(true)
     expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.dayHabitsLoading')).toBe(true)
+    expect(tree!.root.findByProps({ testID: 'detail-children' }).props.accessibilityState).toEqual({ busy: true })
 
     mocks.scopedLoading = false
     mocks.scopedError = true
@@ -427,6 +428,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree!.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />))
     expect(child().props.completionReadOnly).toBe(false)
     expect(child().props.completionStatusUnavailable).toBe(false)
+    expect(tree!.root.findByProps({ testID: 'detail-children' }).props.accessibilityState).toEqual({ busy: false })
     expect(child().props.completionReason).toBeUndefined()
   })
 
