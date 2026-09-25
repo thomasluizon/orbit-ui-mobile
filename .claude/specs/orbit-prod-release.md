@@ -213,8 +213,8 @@ These stay until he changes them. Keep his words.
 - **2026-09-25** **Turn off "require branches to be up to date" on `main` in both code repositories.**
   Answered at `/wrap-up` ("Turn it off"). Merge queue is impossible here: GitHub's docs source
   (`data/reusables/gated-features/merge-queue.md`) says merge queues are "available in any public
-  repository owned by an organization", and both repositories are User-owned. Not yet done; it is the
-  first task of the next session. Record it as a brain ADR.
+  repository owned by an organization", and both repositories are User-owned. DONE 2026-09-25 (session
+  `205c74ca`), brain ADR D138.
 - **2026-09-25** **Turnstile goes live only after sign-in sends a token.** "Add it to sign-in, then turn
   on." Recorded on `#107`. The landing waitlist already renders the widget; web and Android sign-in do
   not, so the API check stays off until they do.
@@ -1976,3 +1976,70 @@ security fix, Thomas's four answers at `/wrap-up`, and the rules this run paid f
   `http://localhost:3000/auth-callback\?authAttempt=*`, delete the two dead `/pt-BR/auth-callback` rows.
 - Turnstile: needs the sign-in widget first (a ticket to file), then Thomas pastes the Cloudflare secret.
 - Crisis reply live check: unchanged.
+
+## What the 2026-09-25 afternoon run added (session `205c74ca`, attended)
+
+**Durable because** it records Thomas's answers to every `needs:conversation` ticket, the Astra rendering
+program, the strict-mode change, 13 merges, and the rules this run paid for. The run record
+(`.git/orbit-orchestrate-run.json`, session `205c74ca`) holds the ledger.
+
+### Thomas's answers, in his words or his chosen option
+
+- **"Turn it off"** (from `/wrap-up` 77ddefe6): DONE. `required_status_checks.strict` is `false` on `main` in
+  `orbit-ui-mobile` and `orbit-api`, contexts unchanged (21 and 16). Brain ADR D138, `Turn off require branches
+  up to date on main in both code repositories`. The harness still merges `main` into a behind branch; with
+  strict off, a behind PR may instead merge after its merge result is built and tested locally (D115), which
+  this run did for `api#530`, `#554` and `#559`. A required gate that diffs against `main` (the orbit-api
+  `OpenAPI Breaking-Change Gate`) still forces a merge-forward when the head is stale.
+- `#320` competitor study: **"Close stage 5"**. Closed as completed; the capture stays a known gap.
+- `#217` first experience: **"Ask on reminder toggle"** (filed as `#674`), **"Keep pointing at Today"**, **"No"**
+  chips on Today. Criteria verified against PR 1007; closed.
+- `#318` Astra rendering: **"Prose only without data"**, **"Add a real chart"** (a granted design-system
+  expansion), **"Bars per day"**, **"Neutral bars"** (no accent), **"Astra and Progresso"**, **"Real images
+  only"**, follow-ups **"Astra, in the same reply"**, and beautifului.dev patterns "Insight Cards, Thinking trace,
+  Follow-up chips, everything that makes sense". At the /ticket gate: **"Fewer, larger tickets"**, then "7
+  tickets". Program: `#677` (goals-gate bug on `main`, merged), `#678` API-A every read card, `#679` API-B
+  preview diffs + tool steps + follow-ups, `#680` UI-A bar chart in Progresso + metrics and insight blocks,
+  `#681` UI-B the other read blocks, `#682` UI-C diff rows + thinking trace + chips (now also blocked by `#24`,
+  whose Stage 3 adds the per-item edit and reject the preview lacks). `#318` closed. Deferred on purpose: the
+  stale-block rule for read blocks, one later ticket for every block.
+- `#666` (copy) and `#620` (container stretch, no new prop) were decided without him; both `needs:no-conversation`.
+- `/questions` over the 26 open tickets with an "Open questions" section: **zero survived**; every answer is a
+  comment on its ticket. Closed as superseded or duplicate: `#300`, `#263`, `#64`, `#108` (folded into `#675`).
+
+### Merged this session, 13
+
+- `orbit-api` `main`, deployed by Render: `api#552` (`#325`, duplicate habit-log recovery), `#530` (actions bump),
+  `#550` (`#107`, Turnstile verification, **inert**: `BotProtection__Enabled` unset), `#559` (`#683`, stored week
+  anchors plus the cache-miss week semantics), `#560` (`#677`, free users get goals in Astra, goal review not Pro).
+- `orbit-api` `redesign/main`: `api#556` (`#670`, main sync plus the week-anchor fix), `#532` (`#75`, redesigned
+  emails and error copy), `#531` (`#367`, colour schemes collapsed to one accent).
+- `orbit-ui-mobile` `redesign/main`: `ui#1090` (`#392`, returning guidance), `#1096` (`#667`, local fonts).
+- Earlier in the run: `api#556`, `#552` recorded above; `#667` stays OPEN until its `main` backport merges.
+
+### Rules this run paid for
+
+- **A review that loops on an evaluator is a scope problem, not a fix problem.** `ui#1049` took 37 P1 threads in
+  7 rounds on a hand-written JS evaluator inside an ESLint rule. Round 7 cut the rule to the ticket's own
+  contract (write-free local const object literals, checked with `scope.references`), 823 to 480 lines. When a
+  third round finds a new edge case of the same machinery, shrink the contract to what the ticket asks.
+- **Merge-forwards double generated or YAML blocks.** Two merges this run left a duplicate top-level
+  `concurrency:` key in `dependency-review.yml` and `sonarcloud.yml`, which silently stops CI. After any
+  merge-forward in orbit-api, `grep -c '^concurrency:' .github/workflows/*.yml` must print 1 per file.
+- **A squash of `main` into `redesign/main` makes later merges conflict in files both sides already agree on.**
+  Merge `origin/main` first, then `origin/redesign/main`; most conflicts collapse.
+- **`list-bot-threads` can read the old head right after a push.** Sleep ~20 s after pushing before waiting.
+- **Contract Drift stays red on every `redesign/main` PR until `ui#1098` merges** (it pins the redesign contract
+  to orbit-api `redesign/main`). Merges this run treated it as advisory with a PR comment naming the reason.
+- **Cloudflare publishes test secrets**, so a Siteverify contract can be proven live without a credential
+  (`1x…AA` pass, `2x…AA` fail, `3x…AA` spent; dummy token `XXXX.DUMMY.TOKEN.XXXX`).
+- **Never type a sha or reuse a `||` fallback on a write.** One ticket create used `||` after a usage error; no
+  duplicate resulted, but the rule stands.
+
+### Items that need a person
+
+- Tap the three-dot menu on a habit row on Android 1.3.32 or later, then close `#134`.
+- Turnstile switch-on (manual steps on `#675` and in `api#550`'s README): after `#675` ships on web and Play and
+  the landing sends tokens, Thomas pastes the Cloudflare secret; the run sets Render `BotProtection__SecretKey`
+  and `BotProtection__Enabled=true` and verifies all five routes.
+- At the redesign release: raise `AppConfig.MinSupportedVersion` to the redesign Android build (`#367` comment).
