@@ -110,4 +110,18 @@ describe('shared chat store', () => {
     store.getState().setContextualSuggestion(null)
     expect(store.getState().contextualSuggestion).toBeNull()
   })
+
+  it('updates a draft with its latest value and preserves local text during hydration', () => {
+    const store = createStoreHarness()
+    store.getState().setDraft('Read')
+    store.getState().setDraft((current) => `${current} today`)
+    store.getState().hydrateDraft('stale saved draft')
+    expect(store.getState()).toMatchObject({
+      draft: 'Read today', draftRevision: 2, draftHydrated: true,
+    })
+
+    const emptyStore = createStoreHarness()
+    emptyStore.getState().hydrateDraft('saved draft')
+    expect(emptyStore.getState().draft).toBe('saved draft')
+  })
 })

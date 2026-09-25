@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildRecapRequestUrl,
   buildShareCardStats,
+  buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
@@ -9,6 +10,12 @@ import {
   parseWrappedRouteSelection,
 } from '../utils/share-card'
 import { createMockRetrospectiveMetrics } from './factories'
+
+it('uses the strongest weekday and clamps its displayed percentage', () => {
+  expect(buildShareCardWeekday([0, 15, 105, 70, 0, 0, 0])).toEqual({
+    labelKey: 'dates.daysShort.wednesday', percentage: 100,
+  })
+})
 
 describe('formatCompletionRate', () => {
   it('rounds to a whole-percent string', () => {

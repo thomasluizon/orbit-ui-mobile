@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 186,
-  "cellCount": 800,
+  "surfaceCount": 187,
+  "cellCount": 804,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -1679,6 +1679,62 @@
       "ownedFiles": [
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-turnstile-bridge",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/turnstile-bridge/page.tsx",
+      "href": "/turnstile-bridge",
+      "ownedFiles": [
+        "apps/web/app/turnstile-bridge/page.tsx",
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-turnstile-bridge",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/turnstile-bridge/page.tsx",
+      "href": "/turnstile-bridge",
+      "ownedFiles": [
+        "apps/web/app/turnstile-bridge/page.tsx",
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-turnstile-bridge",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/turnstile-bridge/page.tsx",
+      "href": "/turnstile-bridge",
+      "ownedFiles": [
+        "apps/web/app/turnstile-bridge/page.tsx",
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-turnstile-bridge",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/turnstile-bridge/page.tsx",
+      "href": "/turnstile-bridge",
+      "ownedFiles": [
+        "apps/web/app/turnstile-bridge/page.tsx",
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx"
       ],
       "state": "default",
       "theme": "dark",
