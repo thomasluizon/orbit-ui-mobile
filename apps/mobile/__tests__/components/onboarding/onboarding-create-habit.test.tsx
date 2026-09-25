@@ -78,6 +78,37 @@ describe('OnboardingCreateHabit data', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'More times' && typeof node.props.onPress === 'function').length).toBeGreaterThan(0)
   })
 
+  it('names the proposal emoji without changing the correction button name', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingCreateHabit {...base} />)
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Astra').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule').length).toBeGreaterThan(0)
+  })
+
+  it('omits the proposal emoji well when no emoji was proposed', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<OnboardingCreateHabit {...base} emoji="" />)
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Astra')).toHaveLength(0)
+  })
+
+  it('names the proposal emoji in Portuguese', async () => {
+    await i18n.changeLanguage('pt-BR')
+    try {
+      let tree!: ReturnType<typeof TestRenderer.create>
+      await TestRenderer.act(() => {
+        tree = TestRenderer.create(<OnboardingCreateHabit {...base} />)
+      })
+      expect(tree.root.findAll((node) => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposto pelo Astra').length).toBeGreaterThan(0)
+      expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Corrigir agenda').length).toBeGreaterThan(0)
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+
   it.each([
     [{ ...schedule, frequencyUnit: null, frequencyQuantity: null, intervalWeeks: 1, isFlexible: false }, 'once'],
     [{ ...schedule, frequencyUnit: 'Week' as const, frequencyQuantity: 2, intervalWeeks: 1, isFlexible: false }, 'every 2 weeks'],

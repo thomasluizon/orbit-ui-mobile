@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 
 const translations = vi.hoisted(() => ({
@@ -39,6 +40,31 @@ describe('OnboardingCreateHabit', () => {
     expect(proposal).toHaveAccessibleDescription(/Walk outside.*3 times a week, any day.*Any time/)
     fireEvent.click(proposal)
     expect(onCorrect).toHaveBeenCalledOnce()
+  })
+
+  it('names the proposal emoji without changing the correction button name', () => {
+    render(<OnboardingCreateHabit {...base} proposed correcting={false} />)
+    expect(screen.getByRole('img', { name: 'Emoji proposed by Astra' })).toHaveTextContent('🚶')
+    expect(screen.getByRole('button', { name: 'Correct schedule' })).toBeInTheDocument()
+  })
+
+  it('omits the proposal emoji well when no emoji was proposed', () => {
+    render(<OnboardingCreateHabit {...base} emoji="" proposed correcting={false} />)
+    expect(screen.queryByRole('img', { name: 'Emoji proposed by Astra' })).not.toBeInTheDocument()
+  })
+
+  it('names the proposal emoji in Portuguese', async () => {
+    const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+    const translate = createTranslator({ locale: 'pt-BR', messages: ptBR }) as (key: string, values?: Record<string, unknown>) => string
+    const previous = translations.current
+    translations.current = translate
+    try {
+      render(<OnboardingCreateHabit {...base} proposed correcting={false} />)
+      expect(screen.getByRole('img', { name: 'Emoji proposto pelo Astra' })).toHaveTextContent('🚶')
+      expect(screen.getByRole('button', { name: 'Corrigir agenda' })).toBeInTheDocument()
+    } finally {
+      translations.current = previous
+    }
   })
 
   it('states the daily allowance at the ceiling', () => {
