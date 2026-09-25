@@ -5,6 +5,8 @@ import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { useTranslations } from 'next-intl'
 import { useRadioGroupItem } from '@/components/ui/radio-row'
 
+const ROW_INDENTS = [16, 24, 32, 48, 64, 96] as const
+
 /** Kit Radio glyph (visual only) — for rows that manage their own press target. */
 export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; size: number }>) {
   return (
@@ -93,8 +95,8 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
     gap: 12,
     minHeight: 52,
     paddingBlock: 8,
-    paddingInlineStart: 20 + Math.max(0, depth) * 20,
-    paddingInlineEnd: 20,
+    paddingInlineStart: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
+    paddingInlineEnd: 16,
     background: disabled && selected ? 'rgba(var(--primary-rgb), 0.10)' : undefined,
     boxShadow: selected ? 'inset 0 0 0 1.5px var(--primary)' : undefined,
     borderRadius: 'var(--r-well)',
