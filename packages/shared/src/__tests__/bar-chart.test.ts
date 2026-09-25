@@ -7,6 +7,7 @@ describe('bar chart geometry', () => {
     const bars = resolveBarChartGeometry(Array.from({ length: count }, () => 50), 320)
     expect(bars).toHaveLength(count)
     expect(bars.every((bar) => bar.width >= 2)).toBe(true)
+    expect(bars.every((bar) => bar.radius <= bar.width / 2)).toBe(true)
     expect(bars.every((bar, index) => index === 0 || bar.x > bars[index - 1]!.x)).toBe(true)
     expect(bars.at(-1)!.x + bars.at(-1)!.width).toBeLessThanOrEqual(320)
   })

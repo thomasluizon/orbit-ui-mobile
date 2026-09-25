@@ -37,7 +37,7 @@ export function resolveBarChartGeometry(
       y: BAR_CHART_HEIGHT - height,
       width: barWidth,
       height,
-      radius: Math.min(8, height / 2),
+      radius: Math.min(8, height / 2, barWidth / 2),
       slotStart,
       slotEnd: (index + 1) * slotWidth,
     }
