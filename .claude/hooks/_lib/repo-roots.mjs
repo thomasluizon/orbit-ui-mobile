@@ -81,6 +81,7 @@ const canonical = (path) => {
 const withinDeclaredRoot = (path, repoRoots) =>
   repoRoots.some((repoRoot) => withinRoot(path, repoRoot) || withinRoot(canonical(path), canonical(repoRoot)))
 
+/** Does `path` sit inside a declared root, directly or through a linked worktree of one? */
 export function belongsToDeclaredRepo(path, repoRoots) {
   if (withinDeclaredRoot(path, repoRoots)) return true
   const owner = owningRepository(path)
