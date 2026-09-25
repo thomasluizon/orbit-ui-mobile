@@ -47,7 +47,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
-  darkenHex: () => '#000000',
+  mixHex: () => '#000000',
   radius: { full: 999 },
 }))
 vi.mock('@/components/ui/sheet', async () =>
