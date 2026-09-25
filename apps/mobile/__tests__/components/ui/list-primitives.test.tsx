@@ -194,6 +194,7 @@ describe('list primitives on mobile', () => {
     const tree = render(<RadioRow label="Daily" onSelect={onSelect} />)
     const choice = tree.root.findByType(Pressable)
     expect(choice.props.accessibilityState).toEqual({ checked: false })
+    expect(StyleSheet.flatten(resolvePressedStyle(choice))).toMatchObject({ paddingLeft: 16, paddingRight: 16 })
     press(choice)
     resolvePressedStyle(choice)
     expect(onSelect).toHaveBeenCalledOnce()
@@ -213,6 +214,7 @@ describe('list primitives on mobile', () => {
       )
     })
     expect(tree.root.findByType(Pressable).props.accessibilityState).toEqual({ checked: true })
+    expect(StyleSheet.flatten(resolvePressedStyle(tree.root.findByType(Pressable)))).toMatchObject({ paddingLeft: 32 })
 
     void act(() => {
       tree.update(
@@ -224,6 +226,13 @@ describe('list primitives on mobile', () => {
       (node) => node.props.accessibilityRole === 'radio',
     )
     expect(disabled.props.accessibilityState).toEqual({ checked: true, disabled: true })
+    expect(StyleSheet.flatten(disabled.props.style)).toMatchObject({ paddingLeft: 16 })
+    for (const [depth, padding] of [[1, 24], [3, 48], [4, 64], [5, 96]] as const) {
+      void act(() => {
+        tree.update(<RadioRow label="Nested" depth={depth} />)
+      })
+      expect(StyleSheet.flatten(resolvePressedStyle(tree.root.findByType(Pressable)))).toMatchObject({ paddingLeft: padding })
+    }
   })
 
   it('filters non-row children and divides valid RowList entries', () => {

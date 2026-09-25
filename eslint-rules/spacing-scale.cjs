@@ -2,7 +2,7 @@
  * Local ESLint rule: every layout spacing value must sit on the DESIGN.md scale.
  *
  * DESIGN.md `### Spacing (base 4)` enumerates the only legal steps
- * (0 4 8 12 16 20 24 28 32 40 48 56 64 px). This gate reads spacing from the
+ * (0 4 8 12 16 24 32 48 64 96 px, `DEFAULT_SCALE` below). This gate reads spacing from the
  * three places it actually lives in Orbit - JSX inline `style={{ }}` objects,
  * React Native `StyleSheet.create({ })` objects, and Tailwind `className`
  * utilities (both scale steps and arbitrary `[13px]` values) - because a
@@ -23,6 +23,9 @@
  * deletes spacing rather than correcting it.
  *
  * https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+ * JSX style identifiers resolve only write-free local const object literals.
+ * Their static literal properties and qualifying const spreads are checked;
+ * runtime values and escaping bindings are outside this rule's contract.
  */
 
 // DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
@@ -136,7 +139,7 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Require every margin/padding/gap/inset value to sit on the enumerated DESIGN.md spacing scale, across inline styles, StyleSheet.create, and Tailwind classes.',
+        'Require DESIGN.md spacing in inline JSX, StyleSheet.create, Tailwind classes, and write-free local const object literals passed as JSX style identifiers; runtime values are not evaluated.',
     },
     fixable: 'code',
     schema: [
@@ -170,6 +173,9 @@ module.exports = {
 
     const scaleLabel = scale.join(' ')
     const scaleSet = new Set(scale)
+    const styleIdentifiers = []
+    const styleSpreadObjects = []
+    const reportedLiterals = new WeakSet()
 
     function isOnScale(px, prop) {
       const magnitude = Math.abs(px)
@@ -260,23 +266,149 @@ module.exports = {
       }
     }
 
-    function scanStyleObject(node) {
+    function isTypeWrapper(node) {
+      return node?.type === 'TSAsExpression' || node?.type === 'TSSatisfiesExpression' ||
+        node?.type === 'TSNonNullExpression'
+    }
+
+    function unwrapStyleExpression(node) {
+      while (isTypeWrapper(node)) node = node.expression
+      return node
+    }
+
+    function isStyleAttributeValue(node) {
+      return node?.type === 'JSXExpressionContainer' && node.parent?.type === 'JSXAttribute' &&
+        node.parent.name.type === 'JSXIdentifier' && node.parent.name.name === 'style'
+    }
+
+    function isInlineStyleObject(object) {
+      let node = object
+      let parent = node.parent
+      while (isTypeWrapper(parent) || (parent?.type === 'ConditionalExpression' && parent.test !== node) ||
+        parent?.type === 'ArrayExpression') {
+        node = parent
+        parent = node.parent
+      }
+      return isStyleAttributeValue(parent)
+    }
+
+    function findBinding(node) {
+      let scope = context.sourceCode.getScope(node)
+      while (scope) {
+        const variable = scope.set.get(node.name)
+        if (variable && variable.isValueVariable !== false) return variable
+        scope = scope.upper
+      }
+      return null
+    }
+
+    function referenceUse(node, seen) {
+      let parent = node.parent
+      while (isTypeWrapper(parent)) {
+        node = parent
+        parent = node.parent
+      }
+      if (isStyleAttributeValue(parent)) return true
+      if (parent?.type !== 'SpreadElement' || parent.parent?.type !== 'ObjectExpression') return false
+      const object = parent.parent
+      if (isInlineStyleObject(object)) return true
+      let owner = object.parent
+      while (isTypeWrapper(owner)) owner = owner.parent
+      return owner?.type === 'VariableDeclarator' && owner.id.type === 'Identifier' &&
+        qualifyingInitializer(findBinding(owner.id), seen) === object
+    }
+
+    function qualifyingInitializer(variable, seen = new Set()) {
+      if (!variable || seen.has(variable)) return null
+      const definition = variable?.defs[0]
+      if (variable?.defs.length !== 1 || definition?.type !== 'Variable' ||
+        definition.parent.kind !== 'const' || definition.parent.parent?.type === 'ExportNamedDeclaration' ||
+        definition.node.id.type !== 'Identifier') return null
+      const initializer = unwrapStyleExpression(definition.node.init)
+      if (initializer?.type !== 'ObjectExpression') return null
+      const next = new Set(seen).add(variable)
+      if (variable.references.some((reference) => reference.identifier !== definition.node.id &&
+        (!reference.isReadOnly() || !referenceUse(reference.identifier, next)))) return null
+      return initializer
+    }
+
+    function resolveObject(node, active) {
+      node = unwrapStyleExpression(node)
+      if (node?.type === 'Identifier') {
+        const variable = findBinding(node)
+        const initializer = qualifyingInitializer(variable)
+        if (!initializer || active.has(variable)) return null
+        active.add(variable)
+        const resolved = resolveObject(initializer, active)
+        active.delete(variable)
+        return resolved
+      }
+      if (node?.type !== 'ObjectExpression') return null
+      const values = new Map()
+      const keys = new Set()
+      for (const property of node.properties) {
+        if (property.type === 'SpreadElement') {
+          const spread = resolveObject(property.argument, active)
+          if (!spread) {
+            values.clear()
+            continue
+          }
+          for (const name of spread.keys) {
+            keys.add(name)
+            values.set(name, spread.values.get(name) ?? null)
+          }
+          continue
+        }
+        const name = propertyName(property)
+        if (name === null) {
+          values.clear()
+          continue
+        }
+        keys.add(name)
+        const literal = property.kind === 'init' && !property.method &&
+          (property.value.type === 'Literal' || property.value.type === 'UnaryExpression')
+        values.set(name, literal ? property.value : null)
+      }
+      return { values, keys }
+    }
+
+    function scanConstStyle(styleNode) {
+      const resolved = resolveObject(styleNode, new Set())
+      if (!resolved) return
+      for (const [name, value] of resolved.values) {
+        if (!value || !SPACING_PROPS.has(name) || reportedLiterals.has(value)) continue
+        reportedLiterals.add(value)
+        reportStyleValue(value, name)
+      }
+    }
+
+    function scanStyleObject(node, inlineJsx = false) {
+      node = unwrapStyleExpression(node)
       if (!node) return
       if (node.type === 'ArrayExpression') {
         for (const element of node.elements) scanStyleObject(element)
         return
       }
       if (node.type === 'ConditionalExpression') {
-        scanStyleObject(node.consequent)
-        scanStyleObject(node.alternate)
+        scanStyleObject(node.consequent, inlineJsx)
+        scanStyleObject(node.alternate, inlineJsx)
         return
       }
       if (node.type !== 'ObjectExpression') return
-      for (const property of node.properties) {
+      const spreads = inlineJsx && node.properties.some((property) => property.type === 'SpreadElement')
+      if (spreads) styleSpreadObjects.push(node)
+      node.properties.forEach((property, index) => {
         const name = propertyName(property)
-        if (name === null || !SPACING_PROPS.has(name)) continue
+        if (name === null || !SPACING_PROPS.has(name)) return
+        if (spreads && laterSpreadSetsKey(node.properties.slice(index + 1), name)) return
+        reportedLiterals.add(property.value)
         reportStyleValue(property.value, name)
-      }
+      })
+    }
+
+    function laterSpreadSetsKey(laterProperties, name) {
+      return laterProperties.some((property) =>
+        property.type === 'SpreadElement' && resolveObject(property.argument, new Set())?.keys.has(name))
     }
 
     function scanClassString(node, text, offset) {
@@ -359,7 +491,9 @@ module.exports = {
       JSXAttribute(node) {
         const name = node.name.type === 'JSXIdentifier' ? node.name.name : null
         if (name === 'style' && node.value?.type === 'JSXExpressionContainer') {
-          scanStyleObject(node.value.expression)
+          const expression = unwrapStyleExpression(node.value.expression)
+          if (expression?.type === 'Identifier') styleIdentifiers.push(expression)
+          else scanStyleObject(expression, true)
           return
         }
         if (name !== 'className' && name !== 'class') return
@@ -374,6 +508,10 @@ module.exports = {
           if (property.type !== 'Property') continue
           scanStyleObject(property.value)
         }
+      },
+      'Program:exit'() {
+        for (const identifier of styleIdentifiers) scanConstStyle(identifier)
+        for (const object of styleSpreadObjects) scanConstStyle(object)
       },
     }
   },
