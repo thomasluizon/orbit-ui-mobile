@@ -22,7 +22,8 @@ export function Button({
   iconOnly,
   label,
   hint,
-}: Readonly<ButtonProps>) {
+  accessibilityRole = 'button',
+}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link' }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const sizeSpec = BUTTON_SIZES[size]
@@ -70,7 +71,7 @@ export function Button({
       hitSlop={{ top: verticalHitSlop, bottom: verticalHitSlop, left: horizontalHitSlop, right: horizontalHitSlop }}
       onPress={loading ? undefined : onClick}
       disabled={disabled || loading}
-      accessibilityRole="button"
+      accessibilityRole={accessibilityRole}
       accessibilityLabel={iconOnly ? label : accessibleName}
       accessibilityHint={hint}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
@@ -102,6 +103,11 @@ export function Button({
       )}
     </Pressable>
   )
+}
+
+/** Native navigation with the same visual contract as PillButton. */
+export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; children: string }>) {
+  return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
 }
 
 const styles = StyleSheet.create({
