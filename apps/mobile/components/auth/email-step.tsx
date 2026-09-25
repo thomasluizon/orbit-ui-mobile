@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native'
+import { Trans } from 'react-i18next'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { Input } from '@/components/ui/input'
@@ -52,10 +53,10 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
       {googleError && <Text accessibilityRole="alert" style={styles.error}>{googleError}</Text>}
     </View>
     <Text style={styles.legal}>
-      {t('auth.legalPrefix')}{' '}
-      <Text accessibilityRole="link" style={styles.legalLink} onPress={onOpenTerms}>{t('auth.terms')}</Text>{' '}
-      {t('auth.legalConjunction')}{' '}
-      <Text accessibilityRole="link" style={styles.legalLink} onPress={onOpenPrivacy}>{t('auth.privacy')}</Text>.
+      <Trans i18nKey="auth.legalConsent" components={{
+        terms: <Text accessibilityRole="link" style={styles.legalLink} onPress={onOpenTerms} />,
+        privacy: <Text accessibilityRole="link" style={styles.legalLink} onPress={onOpenPrivacy} />,
+      }} />
     </Text>
   </View>
 }

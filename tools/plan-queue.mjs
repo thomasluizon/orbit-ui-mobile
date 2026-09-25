@@ -197,7 +197,7 @@ for (const [id, entry] of fetched) {
    * dropped before the fixed point below cascades correctly onto whatever depended on it, and a
    * ticket named at 23:00 is a decision Thomas can make before bed rather than a slot burned at 03:00.
    */
-  const { deferrals, warnings } = classifyExecutability(issue.body)
+  const { deferrals, warnings } = await classifyExecutability(issue.body)
   if (deferrals.length > 0) {
     const [first, ...also] = deferrals
     deferred.push({ identifier: id, reason: first.reason, detail: also.length > 0 ? `${first.detail}. It also reads as ${also.map((entry) => entry.reason).join(" and ")}` : first.detail })
@@ -214,7 +214,7 @@ for (const [id, entry] of fetched) {
    * for step 2b. Under `--sleep` nobody is awake to answer, so it defers with the questions attached
    * and Thomas wakes to a decision list rather than a confidently wrong pull request.
    */
-  const conversation = classifyConversationFirst(issue.body, { labels: issue.labels })
+  const conversation = await classifyConversationFirst(issue.body, { labels: issue.labels })
   if (conversation.conversationFirst && sleep) {
     deferred.push({
       identifier: id,

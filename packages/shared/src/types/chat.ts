@@ -6,6 +6,18 @@ import {
   agentPolicyDenialSchema,
 } from './ai'
 
+export const chatClientContextSchema = z.object({
+  platform: z.enum(['web', 'mobile']),
+  locale: z.string(),
+  timeFormat: z.string(),
+  currentAppArea: z.string(),
+  supportsHabitListCard: z.boolean(),
+  supportsGoalListCard: z.boolean(),
+  entryPointIntent: z.literal('support').optional(),
+})
+
+export type ChatClientContext = z.infer<typeof chatClientContextSchema>
+
 export const aiActionTypeSchema = z.enum([
   'CreateHabit',
   'LogHabit',

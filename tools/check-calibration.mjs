@@ -301,6 +301,17 @@ for (const tier of configuredTierNames) {
   }
 }
 
+if (orchestrator.classifier) {
+  if (!stamp.classifier || typeof stamp.classifier !== "object") {
+    problems.push("classifier has no calibration block")
+  } else {
+    if (stamp.classifier.model !== orchestrator.classifier.model) problems.push(`classifier model is ${orchestrator.classifier.model} but the stamp records ${stamp.classifier.model}`)
+    const digest = contentDigest("tools/lib/ticket-classifier-prompt.md")
+    if (stamp.classifier.promptDigest !== digest) problems.push(`classifier prompt changed since calibration (content ${digest}, stamp ${stamp.classifier.promptDigest})`)
+    if (typeof stamp.classifier.verdict !== "string" || !stamp.classifier.verdict.trim()) problems.push("classifier calibration has no verdict")
+  }
+}
+
 /**
  * Whole days, from dates rather than a clock, so the verdict cannot change inside one CI run and a
  * stamp taken today is never 0.99 days old.
@@ -308,7 +319,7 @@ for (const tier of configuredTierNames) {
  * Parsed and refused HERE for every date in the file, entry dates included, because a date this
  * function accepts is a date the backstop trusts.
  */
-const ageInDays = (date, label) => {
+const ageInDays = (date, label, softFuture = false) => {
   const [year, month, day] = date.split("-").map(Number)
   const at = Date.UTC(year, month - 1, day)
   if (!Number.isFinite(at) || new Date(at).toISOString().slice(0, 10) !== date) {
@@ -317,6 +328,7 @@ const ageInDays = (date, label) => {
   const now = new Date()
   const age = Math.floor((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - at) / 86400000)
   if (age < 0) {
+    if (softFuture) return age
     fail(2, `check-calibration: ${label} ${date} is ${-age} day(s) in the FUTURE, which would disable the max-age backstop rather than satisfy it`)
   }
   return age
@@ -332,6 +344,16 @@ const ageInDays = (date, label) => {
  * data error rather than a fresh stamp.
  */
 const ageDays = ageInDays(stamp.calibratedAt, "calibratedAt")
+if (orchestrator.classifier && stamp.classifier) {
+  if (typeof stamp.classifier.calibratedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(stamp.classifier.calibratedAt)) {
+    problems.push("classifier calibratedAt must be a YYYY-MM-DD date")
+  } else {
+    const classifierAge = ageInDays(stamp.classifier.calibratedAt, "classifier calibratedAt", true)
+    if (classifierAge < 0) problems.push(`classifier calibratedAt is ${-classifierAge} day(s) in the FUTURE`)
+    if (classifierAge < ageDays) problems.push("classifier calibration is newer than its stamp pass")
+    if (classifierAge > MAX_AGE_DAYS) problems.push(`classifier was calibrated ${classifierAge} days ago, past the ${MAX_AGE_DAYS} day backstop`)
+  }
+}
 
 /**
  * The backstop is PER VERDICT, never stamp-wide.
