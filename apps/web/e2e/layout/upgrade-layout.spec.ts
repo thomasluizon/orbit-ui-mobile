@@ -2,6 +2,8 @@ import { expect, type Locator, type Page } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { plural } from '@orbit/shared/utils/plural'
+import { formatPrice, monthlyEquivalent } from '@orbit/shared/utils/subscription-pricing'
+import { subscriptionPlansFixtures } from '../../test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { test } from './upgrade-fixtures'
 
 function singleLineLabels(messages: typeof en, trial: boolean): string[] {
@@ -106,6 +108,21 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             expect(lines.length, `${label} is present at ${width}px`).toBeGreaterThan(0)
             expect(lines.every((count) => count === 1), `${label} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
           }
+
+          const plans = subscriptionPlansFixtures[locale === 'pt-BR' ? 'brl' : 'usd']
+          for (const [interval, amount, period] of [
+            ['monthly', plans.monthly.unitAmount, messages.upgrade.plans.monthly.period],
+            ['yearly', plans.yearly.unitAmount, messages.upgrade.plans.yearly.period],
+          ] as const) {
+            const price = `${formatPrice(amount, plans.currency)}${period}`
+            const lines = await renderedLineCounts(page, price)
+            expect(lines.length, `${locale} ${interval} price ${price} is rendered at ${width}px`).toBeGreaterThan(0)
+            expect(lines.every((count) => count === 1), `${locale} ${interval} price ${price} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
+          }
+          const equivalent = messages.upgrade.plans.yearly.equivalent
+            .replace('{price}', formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency))
+            .replace('{percent}', String(plans.savingsPercent))
+          await expect(main.getByText(equivalent, { exact: true })).toBeVisible()
 
           const allowance = main.getByRole('region', { name: messages.upgrade.convert.allowanceLabel })
             .getByText(messages.upgrade.convert.freeAllowance, { exact: true })
