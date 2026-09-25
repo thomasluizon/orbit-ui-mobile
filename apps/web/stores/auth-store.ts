@@ -372,8 +372,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
 
     const intervalId = setInterval(() => {
-      const { isAuthenticated, sessionRefreshFailed } = get()
-      if (!isAuthenticated && !sessionRefreshFailed) {
+      const { isAuthenticated, sessionInactive, sessionRefreshFailed } = get()
+      if (!isAuthenticated && sessionInactive && !sessionRefreshFailed) {
         return
       }
 

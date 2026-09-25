@@ -31,6 +31,7 @@ describe('auth store', () => {
     clearStepUpState()
     useAuthStore.setState({
       isAuthenticated: false,
+      sessionInactive: false,
       user: null,
       expiresAt: null,
       sessionRefreshFailed: false,
@@ -362,6 +363,41 @@ describe('auth store', () => {
       cleanup()
     })
 
+    it.each(['network failure', 'retryable response'])(
+      'resolves cold account ownership after a %s',
+      async (firstResult) => {
+        const expiresAt = Date.now() + 3600000
+        if (firstResult === 'network failure') {
+          mockFetch.mockRejectedValueOnce(new Error('offline'))
+        } else {
+          mockFetch.mockResolvedValueOnce({
+            ok: false,
+            status: 503,
+          })
+        }
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ expiresAt, userId: 'user-1' }),
+        })
+
+        const cleanup = useAuthStore.getState().startExpiryMonitor()
+        await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+        expect(useAuthStore.getState().isAuthenticated).toBe(false)
+        expect(useAuthStore.getState().sessionInactive).toBe(false)
+
+        await vi.advanceTimersByTimeAsync(60000)
+
+        expect(mockFetch).toHaveBeenCalledTimes(2)
+        expect(useAuthStore.getState()).toMatchObject({
+          isAuthenticated: true,
+          sessionInactive: false,
+          expiresAt,
+        })
+        cleanup()
+      },
+    )
+
     it('keeps polling after a confirmed failure so a delayed winner can recover', async () => {
       const expiresAt = Date.now() + 3600000
       mockFetch.mockResolvedValue({
@@ -393,6 +429,7 @@ describe('auth store', () => {
     })
 
     it('skips interval polling when not authenticated', async () => {
+      useAuthStore.setState({ sessionInactive: true })
       const cleanup = useAuthStore.getState().startExpiryMonitor()
       mockFetch.mockClear()
 

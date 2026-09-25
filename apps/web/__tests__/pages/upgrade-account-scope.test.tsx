@@ -134,9 +134,34 @@ describe('UpgradePage across an account change', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     cleanup()
     vi.unstubAllGlobals()
     vi.clearAllMocks()
+  })
+
+  it('shows billing controls when a cold session check recovers after a network failure', async () => {
+    vi.useFakeTimers()
+    act(() => {
+      useAuthStore.getState().adoptAccountFromSignal(null)
+      useAuthStore.setState({ sessionInactive: false })
+    })
+    vi.mocked(globalThis.fetch)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(Response.json({
+        expiresAt: Date.now() + 3600000,
+        userId: 'user-1',
+      }))
+
+    render(<UpgradePage />)
+    const stopMonitor = useAuthStore.getState().startExpiryMonitor()
+    expect(screen.getByRole('main')).toHaveAttribute('data-state', 'loading')
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(60000) })
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' })).toBeInTheDocument()
+    stopMonitor()
   })
 
   it.each(['stripe', 'play'] as const)(
