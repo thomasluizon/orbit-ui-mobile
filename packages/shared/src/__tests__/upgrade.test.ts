@@ -40,7 +40,7 @@ describe('upgrade utils', () => {
     expect(monthly.price).toBe(messages.upgrade.plans.loading)
   })
 
-  it('keeps subscription and preference copy accurate in both locales', () => {
+  it('keeps removed feature and preference copy accurate in both locales', () => {
     const removedKeys = [
       'trial.expired.allColors',
       'upgrade.features.colors',
@@ -53,12 +53,6 @@ describe('upgrade utils', () => {
       }
     }
 
-    expect(en.onboarding.featureGuide.settingsSection.subscriptionDesc).toBe(
-      'The free tier includes goals, habits, and 5 AI messages a day. Orbit Pro raises the AI allowance to 50 a day and adds daily summaries, sub-habits, calendar sync, the periodic retrospective, and the AI goal review.',
-    )
-    expect(ptBR.onboarding.featureGuide.settingsSection.subscriptionDesc).toBe(
-      'O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário, a retrospectiva periódica e a análise de metas por IA.',
-    )
     expect(en.profile.freshStart.preservePreferences).toBe(
       'Theme, language, and timezone',
     )
@@ -67,6 +61,55 @@ describe('upgrade utils', () => {
     )
     expect(en.privacy.dataCollected.preferences).toContain('color scheme')
     expect(ptBR.privacy.dataCollected.preferences).toContain('cor do tema')
+  })
+
+  it('keeps the D70 plan breakdown on the rendered upgrade screen in both locales', () => {
+    expect(en.upgrade.convert).toMatchObject({
+      promise: 'The plan changes Astra, never your habits and logs.',
+      freeHeading: 'Ten times more Astra.',
+      trialHeading: 'The 50 a day stay, or go back to 5.',
+      freeAllowance: '5',
+      proAllowance: '50',
+      perDay: 'messages a day',
+    })
+    expect(ptBR.upgrade.convert).toMatchObject({
+      promise: 'O plano muda o Astra, nunca os seus hábitos e registros.',
+      freeHeading: 'Dez vezes mais Astra.',
+      trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.',
+      freeAllowance: '5',
+      proAllowance: '50',
+      perDay: 'mensagens por dia',
+    })
+    expect(en.upgrade.outcomes).toEqual({
+      label: 'What changes with Pro',
+      calendar: {
+        title: 'Your calendar beside your habits',
+        body: 'Syncing with Google Calendar puts your commitments next to the day.',
+      },
+      retrospective: {
+        title: 'The periodic retrospective',
+        body: 'Astra closes the week and the month with what happened and what to change.',
+      },
+      noticing: {
+        title: 'Astra notices without being asked',
+        body: 'It tells you when something slips instead of waiting for you to open the app.',
+      },
+    })
+    expect(ptBR.upgrade.outcomes).toEqual({
+      label: 'O que muda com o Pro',
+      calendar: {
+        title: 'A sua agenda ao lado dos hábitos',
+        body: 'Sincronizar com o Google Calendar mostra os seus compromissos junto do dia.',
+      },
+      retrospective: {
+        title: 'A retrospectiva do período',
+        body: 'O Astra fecha a semana e o mês com o que aconteceu e o que mudar.',
+      },
+      noticing: {
+        title: 'O Astra percebe sem você pedir',
+        body: 'Ele avisa quando algo escapa em vez de esperar você abrir o app.',
+      },
+    })
   })
 
   it('has matching locale entries for the allowance pitch and no matrix copy', () => {
