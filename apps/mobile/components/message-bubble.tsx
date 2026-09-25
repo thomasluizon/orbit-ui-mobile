@@ -17,6 +17,7 @@ import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { ClarificationCard } from "@/components/chat/clarification-card";
 import { GoalListCard } from "@/components/chat/goal-list-card";
 import { HabitListCard } from "@/components/chat/habit-list-card";
+import { MetricsCard } from "@/components/chat/metrics-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
@@ -153,6 +154,8 @@ export function MessageBubble({
         {!isUser ? (
           <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
         ) : null}
+
+        {!isUser && !isStreaming && message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
 
         {!isUser && relatedSurfaces.length > 0 ? (
           <View style={styles.relatedContainer}>

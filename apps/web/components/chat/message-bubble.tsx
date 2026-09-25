@@ -18,6 +18,7 @@ import { BreakdownSuggestion } from './breakdown-suggestion'
 import { ClarificationCard } from './clarification-card'
 import { GoalListCard } from './goal-list-card'
 import { HabitListCard } from './habit-list-card'
+import { MetricsCard } from './metrics-card'
 import { PendingOperationCard } from './pending-operation-card'
 import { OperationOutcomes } from './operation-outcomes'
 
@@ -139,6 +140,8 @@ export function MessageBubble({
         {!isUser && message.goalList && (
           <GoalListCard goalList={message.goalList} onOpenGoal={(id) => onActionChipClick?.(id, 'CreateGoal')} />
         )}
+
+        {!isUser && !isStreaming && message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
 
         {!isUser && relatedSurfaces.length > 0 && (
           <div className="mt-2 w-full">

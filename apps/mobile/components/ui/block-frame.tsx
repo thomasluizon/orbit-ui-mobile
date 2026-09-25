@@ -235,7 +235,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
     >
       <View style={styles.header}>
         <Text numberOfLines={1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>
-        {props.count != null || props.items.length > 0 ? (
+        {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
           <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text>
         ) : null}
         {props.risk}

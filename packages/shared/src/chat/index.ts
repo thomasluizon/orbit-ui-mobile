@@ -177,3 +177,5 @@ export function stripChatDirectives(content: string, isStreaming = false): strin
     ? stripTrailingChatDirectivePrefix(withoutCompleteDirectives)
     : withoutCompleteDirectives.trimEnd()
 }
+export { getMetricsRows } from './metrics-card-core'
+export type { MetricsRow } from './metrics-card-core'
