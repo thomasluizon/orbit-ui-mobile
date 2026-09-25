@@ -233,7 +233,7 @@ for (const command of [
   "git commit --intera",
   "git commit --patc",
   "git commit named-dir -m 'sweep subtree'",
-  `git -C "${linkedWorktree}" add .`,
+  `git -C "${stagingWorktree}" add .`,
 ]) {
   T(`staging: ${command} blocks in a worker worktree`, blocks(workerStaging(command)), true)
 }

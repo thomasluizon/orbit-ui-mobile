@@ -4,7 +4,7 @@
 // directory is nowhere in here). Every function fails CLOSED: an unreadable or unrecognised
 // `.git` returns null, and the caller then applies its normal, non-exempt behaviour.
 
-import { existsSync, readFileSync, statSync } from "node:fs"
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs"
 import { dirname, join, posix, resolve, win32 } from "node:path"
 
 const WINDOWS_PATH = /^(?:[a-z]:[\\/]|\\\\)/i
@@ -66,14 +66,23 @@ export function declaredRepoRoots(hookRepoRoot) {
 }
 
 /** Does `path` sit inside a declared root, directly or through a linked worktree of one? */
+const withinDeclaredRoot = (path, repoRoots) => repoRoots.some((repoRoot) => {
+  if (withinRoot(path, repoRoot)) return true
+  try {
+    return withinRoot(realpathSync.native(path), realpathSync.native(repoRoot))
+  } catch {
+    return false
+  }
+})
+
 export function belongsToDeclaredRepo(path, repoRoots) {
-  if (repoRoots.some((repoRoot) => withinRoot(path, repoRoot))) return true
+  if (withinDeclaredRoot(path, repoRoots)) return true
   const owner = owningRepository(path)
-  return owner === null ? false : repoRoots.some((repoRoot) => withinRoot(owner.root, repoRoot))
+  return owner === null ? false : withinDeclaredRoot(owner.root, repoRoots)
 }
 
 /** Is `path` inside a LINKED worktree of a declared root? The main checkout is not one. */
 export function insideLinkedWorktree(path, repoRoots) {
   const owner = owningRepository(path)
-  return owner !== null && owner.linked && repoRoots.some((repoRoot) => withinRoot(owner.root, repoRoot))
+  return owner !== null && owner.linked && withinDeclaredRoot(owner.root, repoRoots)
 }
