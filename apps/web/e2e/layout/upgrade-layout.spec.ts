@@ -128,6 +128,12 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             process.stdout.write(`${locale} ${subscriptionState} at ${width}px ${interval} price: lines=${lines.join(',')}\n`)
             expect(lines.length, `${locale} ${interval} price ${price} is rendered at ${width}px`).toBeGreaterThan(0)
             expect(lines.every((count) => count === 1), `${locale} ${interval} price ${price} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
+            if (locale === 'en' && subscriptionState === 'free' && width === 412 && interval === 'monthly') {
+              const priceLabel = main.getByText(price, { exact: true })
+              await priceLabel.evaluate((element) => { element.style.maxWidth = '80px' })
+              expect(await renderedLineCounts(page, price), 'a wrapped price is counted as two lines').toEqual([2])
+              await priceLabel.evaluate((element) => { element.style.removeProperty('max-width') })
+            }
           }
           const equivalent = messages.upgrade.plans.yearly.equivalent
             .replace('{price}', formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency))
