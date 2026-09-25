@@ -435,17 +435,24 @@ describe('isOnboardingHabitDueToday', () => {
   const wednesday = new Date(2026, 8, 16)
 
   it('reports a weekday schedule that skips today as not due', () => {
-    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, days: ['Monday', 'Thursday'] }, wednesday)).toBe(false)
+    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, days: ['Monday', 'Thursday'] }, wednesday, 'UTC')).toBe(false)
   })
 
   it('reports a weekday schedule that names today as due', () => {
-    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, days: ['Wednesday'] }, wednesday)).toBe(true)
+    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, days: ['Wednesday'] }, wednesday, 'UTC')).toBe(true)
+  })
+
+  it.each([
+    ['2026-09-14T02:00:00.000Z', 'America/Sao_Paulo', 'Sunday'],
+    ['2026-09-14T00:30:00.000Z', 'UTC', 'Monday'],
+  ])('uses the account weekday at %s in %s', (instant, timeZone, weekday) => {
+    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, days: [weekday] }, new Date(instant), timeZone)).toBe(true)
   })
 
   it('reports a general schedule as absent from today, whatever the weekday', () => {
     const general = { ...weekdaySchedule, days: [], isGeneral: true, frequencyUnit: null, frequencyQuantity: null }
-    expect(isOnboardingHabitDueToday(general, wednesday)).toBe(false)
-    expect(isOnboardingHabitDueToday(general, new Date(2026, 8, 14))).toBe(false)
+    expect(isOnboardingHabitDueToday(general, wednesday, 'UTC')).toBe(false)
+    expect(isOnboardingHabitDueToday(general, new Date(2026, 8, 14), 'UTC')).toBe(false)
   })
 
   it.each([
@@ -453,7 +460,7 @@ describe('isOnboardingHabitDueToday', () => {
     ['flexible', { days: [], isGeneral: false, isFlexible: true, frequencyUnit: 'Week' as const, frequencyQuantity: 3 }],
     ['interval', { days: [], isGeneral: false, frequencyUnit: 'Week' as const, frequencyQuantity: 2 }],
   ])('anchors a %s schedule on today', (_label, patch) => {
-    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, ...patch }, wednesday)).toBe(true)
+    expect(isOnboardingHabitDueToday({ ...weekdaySchedule, ...patch }, wednesday, 'UTC')).toBe(true)
   })
 })
 

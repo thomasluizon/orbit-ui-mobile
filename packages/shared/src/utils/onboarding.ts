@@ -1,5 +1,6 @@
 import type { CreateHabitRequest, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
 import type { SupportedLocale } from '../types/profile'
+import { formatAPIDateInTimeZone } from './dates'
 import { buildHabitFormPatchFromSuggestion } from './habit-form-helpers'
 import { readHabitPhrase } from './habit-phrase-parser'
 
@@ -167,10 +168,11 @@ const WEEKDAY_BY_INDEX = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'
  * same absence falls out of `HabitScheduleService.MatchesFrequency` rejecting a target whose weekday
  * is not in `habit.Days`. Every other shape anchors on today and matches it.
  */
-export function isOnboardingHabitDueToday(schedule: OnboardingSchedule, today: Date): boolean {
+export function isOnboardingHabitDueToday(schedule: OnboardingSchedule, today: Date, timeZone: string | null): boolean {
   if (schedule.isGeneral) return false
   if (schedule.days.length === 0) return true
-  return schedule.days.includes(WEEKDAY_BY_INDEX[today.getDay()]!)
+  const accountDate = formatAPIDateInTimeZone(today, timeZone)
+  return schedule.days.includes(WEEKDAY_BY_INDEX[new Date(`${accountDate}T00:00:00Z`).getUTCDay()]!)
 }
 
 /**
