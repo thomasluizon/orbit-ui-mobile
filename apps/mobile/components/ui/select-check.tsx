@@ -5,6 +5,8 @@ import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useRadioGroupItem } from '@/components/ui/radio-row'
 
+const ROW_INDENTS = [16, 24, 32, 48, 64, 96] as const
+
 /** Kit Radio glyph (visual only) — for rows that manage their own press target. */
 export function RadioGlyph({
   selected,
@@ -105,7 +107,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
   const rowStyle = [
     styles.row,
     {
-      paddingLeft: 20 + Math.max(0, depth) * 20,
+      paddingLeft: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
       backgroundColor: selected ? tokens.selectionBg : 'transparent',
       borderColor: selected ? tokens.primary : 'transparent',
       opacity: disabled ? 0.5 : 1,

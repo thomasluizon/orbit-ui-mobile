@@ -115,6 +115,7 @@ describe('list primitives on web', () => {
     const { rerender } = render(<RadioRow label="Daily" onSelect={onSelect} />)
     const choice = screen.getByRole('radio', { name: 'Daily' })
     expect(choice).toHaveAttribute('aria-checked', 'false')
+    expect(choice).toHaveStyle({ paddingInlineStart: '16px', paddingInlineEnd: '16px' })
     fireEvent.click(choice)
     expect(onSelect).toHaveBeenCalledOnce()
 
@@ -131,6 +132,7 @@ describe('list primitives on web', () => {
       />,
     )
     expect(screen.getByRole('radio', { name: /Weekly/ })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: /Weekly/ })).toHaveStyle({ paddingInlineStart: '32px' })
     expect(screen.getByText('Every Monday')).toBeInTheDocument()
     expect(screen.getByText('3/4')).toBeInTheDocument()
     expect(screen.getByText('Pro')).toBeInTheDocument()
@@ -140,7 +142,12 @@ describe('list primitives on web', () => {
     )
     const disabled = screen.getByRole('radio', { name: /Locked/ })
     expect(disabled).toHaveAttribute('aria-disabled', 'true')
+    expect(disabled).toHaveStyle({ paddingInlineStart: '16px' })
     expect(screen.getByText('Upgrade required')).toBeInTheDocument()
+    for (const [depth, padding] of [[1, '24px'], [3, '48px'], [4, '64px'], [5, '96px']] as const) {
+      rerender(<RadioRow label="Nested" depth={depth} />)
+      expect(screen.getByRole('radio', { name: 'Nested' })).toHaveStyle({ paddingInlineStart: padding })
+    }
   })
 
   it('filters non-row children and divides valid RowList entries', () => {
