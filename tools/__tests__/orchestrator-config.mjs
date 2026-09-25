@@ -85,6 +85,13 @@ export const cases = async () => {
 
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
+  T(`${NAME}: classifier model is declared`, typeof real.classifier?.model === "string" && real.classifier.model.length > 0)
+  const withoutClassifier = structuredClone(real)
+  delete withoutClassifier.classifier
+  T(`${NAME}: a missing classifier is refused`, /classifier object/.test(thrown(() => readOrchestratorConfig(configUrl("missing-classifier", JSON.stringify(withoutClassifier)))) ?? ""))
+  const emptyClassifier = structuredClone(real)
+  emptyClassifier.classifier.model = ""
+  T(`${NAME}: an empty classifier model is refused`, /classifier.model must be a non-empty string/.test(thrown(() => readOrchestratorConfig(configUrl("empty-classifier", JSON.stringify(emptyClassifier)))) ?? ""))
   const engineName = real.worker
   const engine = real.workers[engineName]
   const invocation = resolveWorkerInvocation(engineName, engine, "default")
