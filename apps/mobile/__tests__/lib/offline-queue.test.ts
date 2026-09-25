@@ -294,6 +294,34 @@ describe('mobile offline queue', () => {
     expect(getAll()).toHaveLength(2)
   })
 
+  it('moves a dropped timezone dependency to the retained auto-sync write on retry', () => {
+    enqueue(makeMutation({
+      id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+    enqueue(makeMutation({
+      id: 'habit-1', type: 'createHabit',
+      dependsOn: ['offline-account-timezone:timezone-1'],
+    }))
+    remove('timezone-1')
+    enqueue(makeMutation({
+      id: 'timezone-2', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+
+    const retainedId = enqueue(makeMutation({
+      id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',
+      dedupeKey: 'profile-timezone-auto', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+
+    expect(retainedId).toBe('timezone-2')
+    expect(getAll()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'timezone-2' }),
+      expect.objectContaining({ id: 'habit-1', dependsOn: ['offline-account-timezone:timezone-2'] }),
+    ]))
+    expect(getAll()).toHaveLength(2)
+  })
+
   it('replaces an unreferenced auto-timezone write when the detected zone changes', () => {
     enqueue(makeMutation({
       id: 'timezone-1', type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone', method: 'PUT',

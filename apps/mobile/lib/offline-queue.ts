@@ -348,7 +348,16 @@ export function enqueue(
     if (pendingTimezone) {
       const hasDependentHabit = existing.some((queued) =>
         queued.dependsOn?.includes(accountTimezoneDependency(pendingTimezone.id)))
-      if (hasDependentHabit || JSON.stringify(pendingTimezone.payload) === JSON.stringify(normalized.payload)) {
+      const samePayload = JSON.stringify(pendingTimezone.payload) === JSON.stringify(normalized.payload)
+      if (hasDependentHabit || samePayload) {
+        const droppedDependency = accountTimezoneDependency(normalized.id)
+        const retainedDependency = accountTimezoneDependency(pendingTimezone.id)
+        if (samePayload && droppedDependency !== retainedDependency && existing.some((queued) => queued.dependsOn?.includes(droppedDependency))) {
+          replaceAll(existing.map((queued) => ({
+            ...queued,
+            dependsOn: queued.dependsOn?.map((dependency) => dependency === droppedDependency ? retainedDependency : dependency),
+          })))
+        }
         return pendingTimezone.id
       }
     }
