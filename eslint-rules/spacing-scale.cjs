@@ -378,7 +378,7 @@ module.exports = {
       node = unwrapStyleExpression(node)
       if (!node) return
       if (node.type === 'ArrayExpression') {
-        for (const element of node.elements) scanStyleObject(element, inlineJsx)
+        for (const element of node.elements) scanStyleObject(element)
         return
       }
       if (node.type === 'ConditionalExpression') {
