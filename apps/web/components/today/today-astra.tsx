@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import {
+  getReturningInterval,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
 } from '@orbit/shared/utils'
@@ -37,11 +38,20 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   )
   const openConversation = () => setConversationOpen(true)
   const atMessageLimit = profile != null && profile.aiMessagesUsed >= profile.aiMessagesLimit
+  const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
 
   const line = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline, atLimit: atMessageLimit })
     ? proactive
       ? { text: proactive.body, action: t('todayAstra.openConversation'), notificationId: proactive.id }
-      : null
+      : returning
+        ? {
+            text: returning.kind === 'elapsed'
+              ? t('todayAstra.returningElapsed', { days: returning.days })
+              : t('todayAstra.returningBounded'),
+            action: t('todayAstra.openConversation'),
+            notificationId: null,
+          }
+        : null
     : null
 
   return (
@@ -55,7 +65,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
               type="button"
               className="orbit-link-action orbit-link-action-persistent border-0 bg-transparent p-0 text-inherit"
               onClick={() => {
-                markRead.mutate(line.notificationId)
+                if (line.notificationId) markRead.mutate(line.notificationId)
                 openConversation()
               }}
             >

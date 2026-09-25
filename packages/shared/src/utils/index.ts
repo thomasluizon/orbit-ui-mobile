@@ -405,6 +405,7 @@ export {
   snapshotNotificationList,
 } from './notification-cache'
 export { formatNotificationRelativeTime } from './notification-time'
+export { getReturningInterval, type ReturningInterval } from './returning-interval'
 export {
   getNotificationDetailActionVisibility,
   getNotificationDestination,

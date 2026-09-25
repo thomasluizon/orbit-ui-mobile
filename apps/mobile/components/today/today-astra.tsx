@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
+  getReturningInterval,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
 } from '@orbit/shared/utils'
@@ -30,11 +31,20 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const proactive = selectNewestUnreadProactiveCheckin(notifications)
   const atMessageLimit = profile != null && profile.aiMessagesUsed >= profile.aiMessagesLimit
+  const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
 
   const line = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline: offline.isOnline, atLimit: atMessageLimit })
     ? proactive
       ? { text: proactive.body, action: t('todayAstra.openConversation'), notificationId: proactive.id }
-      : null
+      : returning
+        ? {
+            text: returning.kind === 'elapsed'
+              ? t('todayAstra.returningElapsed', { days: returning.days })
+              : t('todayAstra.returningBounded'),
+            action: t('todayAstra.openConversation'),
+            notificationId: null,
+          }
+        : null
     : null
   if (!line) return null
 
@@ -52,7 +62,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
           onPressIn={() => setActionPressed(true)}
           onPressOut={() => setActionPressed(false)}
           onPress={() => {
-            markRead.mutate(line.notificationId)
+            if (line.notificationId) markRead.mutate(line.notificationId)
             setConversationOpen(true)
           }}
         >

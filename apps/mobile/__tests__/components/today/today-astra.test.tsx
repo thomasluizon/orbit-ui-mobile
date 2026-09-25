@@ -9,22 +9,25 @@ import { useUIStore } from '@/stores/ui-store'
 interface TodayAstraMocks {
   notifications: NotificationItem[]
   markRead: ReturnType<typeof vi.fn>
+  profile: { id: string; timeZone: string; lastCompletionDate?: string | null }
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
   notifications: [],
   markRead: vi.fn(),
+  profile: { id: 'profile', timeZone: 'UTC' },
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string, values?: { days: number }) =>
+    values ? `${key}:${values.days}` : key }),
 }))
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { id: 'profile' }, isPending: false, isError: false }),
+  useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: mocks.notifications }),
@@ -71,7 +74,32 @@ describe('mobile Today Astra', () => {
   beforeEach(() => {
     mocks.notifications = []
     mocks.markRead.mockReset()
+    mocks.profile = { id: 'profile', timeZone: 'UTC' }
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
     useUIStore.setState({ astraConversationOpen: false })
+  })
+
+  it.each([
+    ['recent subhabit', '2026-08-26', 'todayAstra.returningElapsed:3'],
+    ['older root and newer subhabit', '2026-08-26', 'todayAstra.returningElapsed:3'],
+    ['recent general habit', '2026-08-25', 'todayAstra.returningElapsed:4'],
+    ['gap beyond the window', '2026-07-29', 'todayAstra.returningBounded'],
+  ])('shows the profile interval for %s', async (_scenario, lastCompletionDate, expected) => {
+    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate }
+
+    const tree = await renderTodayAstra()
+
+    expect(hasText(tree, expected)).toBe(true)
+  })
+
+  it.each([null, undefined])('shows no interval for %s completion', async (lastCompletionDate) => {
+    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate }
+
+    const tree = await renderTodayAstra()
+
+    expect(hasText(tree, 'todayAstra.returningBounded')).toBe(false)
+    expect(hasText(tree, 'todayAstra.returningElapsed:3')).toBe(false)
   })
 
   it('renders a proactive check-in and opens its conversation', async () => {

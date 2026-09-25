@@ -247,6 +247,8 @@
   "todayAstra": {
     "createSentence": "Help me create a habit for today",
     "openConversation": "Open the conversation",
+    "returningElapsed": "You logged a habit {days} days ago. Let's start with one today.",
+    "returningBounded": "It's been over 30 days since you logged a habit. Let's start with one today.",
     "offline": "Astra needs a connection. Habit logging still works offline.",
     "offlineLog": "Saved on this device. Orbit will sync it when you reconnect."
   },
