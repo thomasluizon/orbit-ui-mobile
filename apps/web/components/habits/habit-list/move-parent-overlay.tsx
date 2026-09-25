@@ -72,7 +72,7 @@ function MoveTargetRow({
       tag={isCurrentParent ? currentLabel : undefined}
       leading={option.id === null
         ? <Home size={20} strokeWidth={1.8} color="var(--fg-2)" />
-        : <span style={{ fontSize: 16, lineHeight: 1 }}>{option.emoji ?? '·'}</span>}
+        : <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>{option.emoji ?? '·'}</span>}
       onSelect={() => onSelect(option.id)}
     />
   )
