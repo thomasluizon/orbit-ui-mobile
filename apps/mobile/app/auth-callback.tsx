@@ -12,9 +12,11 @@ import {
 } from '@orbit/shared/utils'
 import {
   clearStoredReferralCode,
+  clearStoredAuthReturnUrl,
   consumeStoredAuthReturnUrl,
   getSafeReturnUrl,
   getStoredReferralCode,
+  getStoredAuthReturnUrl,
   markReferralApplied,
 } from '@/lib/auth-flow'
 import {
@@ -131,19 +133,26 @@ export default function AuthCallbackScreen() {
           referralCode ?? undefined,
         )
 
-        const ownsSession = await login(response.token, response.refreshToken, {
+        const isCurrentLoginSession = await login(response.token, response.refreshToken, {
           userId: response.userId,
           name: response.name,
           email: response.email,
         })
-        if (!ownsSession) return
+        if (!isCurrentLoginSession?.()) return
 
         if (referralCode) {
           await markReferralApplied()
+          if (!isCurrentLoginSession()) return
           await clearStoredReferralCode()
+          if (!isCurrentLoginSession()) return
         }
 
-        const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
+        if (!isCurrentLoginSession()) return
+        const storedReturnUrl = await getStoredAuthReturnUrl()
+        if (!isCurrentLoginSession()) return
+        await clearStoredAuthReturnUrl()
+        if (!isCurrentLoginSession()) return
+        const returnUrl = getSafeReturnUrl(storedReturnUrl)
         router.replace(returnUrl)
       } catch (error: unknown) {
         const nextErrorState = resolveCallbackError(error)

@@ -20,9 +20,10 @@ import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
 import {
   clearStoredReferralCode,
-  consumeStoredAuthReturnUrl,
+  clearStoredAuthReturnUrl,
   getSafeReturnUrl,
   getStoredReferralCode,
+  getStoredAuthReturnUrl,
   isSafeReturnUrl,
   isValidReferralCode,
   isValidVerificationCode,
@@ -248,21 +249,28 @@ export function useLoginFlow() {
           ...(referralCode ? { referralCode } : {}),
         }),
       })
-      const ownsSession = await login(res.token, res.refreshToken, {
+      const isCurrentLoginSession = await login(res.token, res.refreshToken, {
         userId: res.userId,
         name: res.name,
         email: res.email,
       })
-      if (!ownsSession) return
+      if (!isCurrentLoginSession?.()) return
       if (res.wasReactivated) {
         setSuccessMessage(t('profile.deleteAccount.reactivated'))
       }
       if (referralCode) {
         await markReferralApplied()
+        if (!isCurrentLoginSession()) return
         await clearStoredReferralCode()
+        if (!isCurrentLoginSession()) return
         setShowReferralBanner(false)
       }
-      const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
+      if (!isCurrentLoginSession()) return
+      const storedReturnUrl = await getStoredAuthReturnUrl()
+      if (!isCurrentLoginSession()) return
+      await clearStoredAuthReturnUrl()
+      if (!isCurrentLoginSession()) return
+      const returnUrl = getSafeReturnUrl(storedReturnUrl)
       router.replace(returnUrl)
     } catch (err: unknown) {
       reportError(resolveLoginErrorState(err).message)
