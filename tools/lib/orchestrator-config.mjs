@@ -123,6 +123,8 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   if (!isRecord(config.workers[config.worker])) {
     throw new Error(`.claude/orchestrator.json worker "${config.worker}" is not one of its workers`)
   }
+  if (!isRecord(config.classifier)) throw new Error(".claude/orchestrator.json must declare a classifier object")
+  nonEmptyString(config.classifier.model, "classifier.model")
   positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
   positive(config.timeouts?.cloudCeilingMinutes, "timeouts.cloudCeilingMinutes")
   positive(config.timeouts?.cloudCommandMinutes, "timeouts.cloudCommandMinutes")
