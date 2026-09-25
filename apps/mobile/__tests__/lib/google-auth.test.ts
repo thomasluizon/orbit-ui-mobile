@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as SecureStore from 'expo-secure-store'
 import { ApiClientError } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 
 const {
   apiClientMock,
@@ -135,27 +137,49 @@ describe('completeGoogleAuthFromUrl', () => {
 })
 
 describe('startMobileGoogleAuth', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await clearPendingGoogleAuthSession()
     signInWithOAuthMock.mockReset()
     openAuthSessionAsyncMock.mockReset()
   })
 
-  it('opens the OAuth browser session and returns the callback url on success', async () => {
+  it('rejects an old callback promoted by Expo during a new browser attempt', async () => {
     signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
-    const callbackUrl = `${CALLBACK}#access_token=a&refresh_token=b`
-    openAuthSessionAsyncMock.mockResolvedValue({ type: 'success', url: callbackUrl })
+    openAuthSessionAsyncMock.mockResolvedValueOnce({ type: 'cancel' })
+    await startMobileGoogleAuth({})
+    const oldRedirectTo = openAuthSessionAsyncMock.mock.calls[0]?.[1] as string
+    openAuthSessionAsyncMock.mockResolvedValueOnce({ type: 'success',
+      url: `${oldRedirectTo}#access_token=account-a&refresh_token=old-refresh` })
 
     const result = await startMobileGoogleAuth({})
 
+    expect(result).toEqual({ type: 'dismiss' })
+    expect(openAuthSessionAsyncMock).toHaveBeenCalledTimes(2)
+    expect(openAuthSessionAsyncMock.mock.calls[1]?.[1]).not.toBe(oldRedirectTo)
+  })
+
+  it.each([false, true])('accepts a fresh OAuth callback with forceConsent=%s', async (forceConsent) => {
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    openAuthSessionAsyncMock.mockImplementation((_url: string, redirectTo: string) => ({
+      type: 'success', url: `${redirectTo}#access_token=a&refresh_token=b`,
+    }))
+
+    const result = await startMobileGoogleAuth({ forceConsent })
+
+    const callbackUrl = result.type === 'success' ? result.url : ''
     expect(result).toEqual({ type: 'success', url: callbackUrl })
+    expect(callbackUrl).toMatch(/^https:\/\/app\.useorbit\.org\/auth-callback\?authAttempt=[a-f0-9-]{36}#access_token=a&refresh_token=b$/)
     const oauthArgs = signInWithOAuthMock.mock.calls[0]?.[0] as {
       provider: string
       options: { redirectTo: string; skipBrowserRedirect: boolean }
     }
     expect(oauthArgs.provider).toBe('google')
-    expect(oauthArgs.options.redirectTo).toBe(CALLBACK)
+    expect(oauthArgs.options.redirectTo).toBe(callbackUrl.split('#')[0])
     expect(oauthArgs.options.skipBrowserRedirect).toBe(true)
-    expect(openAuthSessionAsyncMock).toHaveBeenCalledWith('https://accounts.google.com/o', CALLBACK)
+    if (forceConsent) {
+      expect(signInWithOAuthMock.mock.calls[0]?.[0].options.queryParams.prompt).toBe('consent')
+    }
+    expect(openAuthSessionAsyncMock).toHaveBeenCalledWith('https://accounts.google.com/o', oauthArgs.options.redirectTo)
   })
 
   it('clears an older return URL before a Google flow without one starts', async () => {
@@ -175,6 +199,7 @@ describe('startMobileGoogleAuth', () => {
     const result = await startMobileGoogleAuth({})
 
     expect(result).toEqual({ type: 'dismiss' })
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
   })
 
   it('reports a dismiss when the browser succeeds without a callback url', async () => {
@@ -203,6 +228,7 @@ describe('startMobileGoogleAuth', () => {
 
     await expect(startMobileGoogleAuth({})).rejects.toThrow('provider down')
     expect(openAuthSessionAsyncMock).not.toHaveBeenCalled()
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
   })
 
   it('rethrows and clears the pending session when the browser throws', async () => {

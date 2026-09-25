@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { uuid } from 'expo-modules-core'
 import {
   isValidReferralCode as isValidReferralCodeShared,
   isValidVerificationCode as isValidVerificationCodeShared,
@@ -7,7 +8,13 @@ import {
 const REFERRAL_CODE_KEY = 'referral_code'
 const AUTH_RETURN_URL_KEY = 'auth_return_url'
 let returnUrlMutationTail: Promise<void> = Promise.resolve()
-let returnUrlAttempt = 0
+/**
+ * One identifier owns a login attempt end to end: the return URL it stored, the pending Google
+ * session it opened, and the `authAttempt` its OAuth redirect carries back. It is a UUID and not a
+ * counter because the Google half of it outlives the process, and a counter restarts at the same
+ * value the next process hands out.
+ */
+let returnUrlAttempt = uuid.v4()
 
 function queueReturnUrlMutation<T>(mutation: () => Promise<T>): Promise<T> {
   const result = returnUrlMutationTail.then(mutation, mutation)
@@ -15,15 +22,16 @@ function queueReturnUrlMutation<T>(mutation: () => Promise<T>): Promise<T> {
   return result
 }
 
-export function createAuthReturnUrlAttempt(): number {
-  return ++returnUrlAttempt
-}
-
-export function getAuthReturnUrlAttempt(): number {
+export function createAuthReturnUrlAttempt(): string {
+  returnUrlAttempt = uuid.v4()
   return returnUrlAttempt
 }
 
-export function isAuthReturnUrlAttemptCurrent(attemptId: number): boolean {
+export function getAuthReturnUrlAttempt(): string {
+  return returnUrlAttempt
+}
+
+export function isAuthReturnUrlAttemptCurrent(attemptId: string): boolean {
   return returnUrlAttempt === attemptId
 }
 
@@ -57,7 +65,7 @@ export async function clearStoredReferralCode(): Promise<void> {
   await AsyncStorage.removeItem(REFERRAL_CODE_KEY)
 }
 
-export async function getStoredAuthReturnUrl(attemptId: number): Promise<string | null> {
+export async function getStoredAuthReturnUrl(attemptId: string): Promise<string | null> {
   return queueReturnUrlMutation(async () => {
     if (!isAuthReturnUrlAttemptCurrent(attemptId)) return null
     const value = await AsyncStorage.getItem(AUTH_RETURN_URL_KEY)
@@ -65,14 +73,14 @@ export async function getStoredAuthReturnUrl(attemptId: number): Promise<string 
   })
 }
 
-export async function storeAuthReturnUrl(returnUrl: string, attemptId: number): Promise<void> {
+export async function storeAuthReturnUrl(returnUrl: string, attemptId: string): Promise<void> {
   if (!isSafeReturnUrl(returnUrl)) return
   await queueReturnUrlMutation(async () => {
     if (isAuthReturnUrlAttemptCurrent(attemptId)) await AsyncStorage.setItem(AUTH_RETURN_URL_KEY, returnUrl)
   })
 }
 
-export async function consumeStoredAuthReturnUrl(attemptId: number): Promise<string | null> {
+export async function consumeStoredAuthReturnUrl(attemptId: string): Promise<string | null> {
   return queueReturnUrlMutation(async () => {
     if (!isAuthReturnUrlAttemptCurrent(attemptId)) return null
     const storedUrl = await AsyncStorage.getItem(AUTH_RETURN_URL_KEY)
@@ -83,7 +91,7 @@ export async function consumeStoredAuthReturnUrl(attemptId: number): Promise<str
 }
 
 export async function clearStoredAuthReturnUrl(
-  attemptId: number,
+  attemptId: string,
   isCurrentLoginSession?: () => boolean,
 ): Promise<void> {
   await queueReturnUrlMutation(async () => {
