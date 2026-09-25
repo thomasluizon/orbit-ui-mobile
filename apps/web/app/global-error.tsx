@@ -2,23 +2,13 @@
 
 import { useEffect, useSyncExternalStore } from 'react'
 import * as Sentry from '@sentry/nextjs'
-import { Geist, Geist_Mono, Space_Grotesk } from 'next/font/google'
+import { geist, geistMono, spaceGrotesk } from './fonts'
 import { NextIntlClientProvider } from 'next-intl'
 import enMessages from '@orbit/shared/i18n/en.json'
 import ptMessages from '@orbit/shared/i18n/pt-BR.json'
 import { FailureScreen } from '@/components/ui/failure-screen'
 import { normalizeColorScheme, resolveWebThemeVariables } from '@/lib/theme-dom'
 import './globals.css'
-
-const geist = Geist({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-geist',
-  display: 'swap',
-})
-
-const display = Space_Grotesk({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-space-grotesk', display: 'swap' })
-const mono = Geist_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-geist-mono', display: 'swap' })
 
 const SCHEME_NAMES = new Set(['purple', 'blue', 'green', 'rose', 'orange', 'cyan'])
 
@@ -66,7 +56,7 @@ export default function GlobalError({
   return (
     <html
       lang={locale}
-      className={`${theme} ${geist.variable} ${display.variable} ${mono.variable}`}
+      className={`${theme} ${geist.variable} ${spaceGrotesk.variable} ${geistMono.variable}`}
       style={resolveWebThemeVariables(scheme, theme)}
     >
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">

@@ -11,10 +11,10 @@ vi.mock('@sentry/nextjs', () => ({
   captureException: vi.fn(),
 }))
 
-vi.mock('next/font/google', () => ({
-  Space_Grotesk: () => ({ variable: 'font-display' }),
-  Geist_Mono: () => ({ variable: 'font-mono' }),
-  Geist: () => ({ variable: 'font-geist', className: 'font-geist' }),
+vi.mock('@/app/fonts', () => ({
+  spaceGrotesk: { variable: 'font-display' },
+  geistMono: { variable: 'font-mono' },
+  geist: { variable: 'font-geist', className: 'font-geist' },
 }))
 
 vi.mock('@/components/ui/icons', async (importOriginal) => {
