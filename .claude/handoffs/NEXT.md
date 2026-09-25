@@ -77,6 +77,7 @@ mode."
 | worktrees of merged PRs (`ui` `ticket-493-widget-account`, `ticket-499-fix`, `ticket-501-widget-tsx`, `ticket-527-calendar-tz-cache`, `ticket-574-list-renders`, `ticket-638-missing-config`, `ticket-644-blocker-rule`, `ticket-645-main-alerts`, `ticket-646-dependabot-merge`, `ticket-652-decode-uri`, `ticket-633-menu-drill`; `api` `ticket-513-mcp-habit-emoji`, `ticket-529-apikey-stepup`; `landing` `ticket-509-track-empty-mirror`) | PRs merged, trees clean | `node tools/teardown-worktree.mjs` each, after a clean-tree check; tear down the others as their PRs merge |
 | worktree `ticket-565-today-non-array-map` | no commits (at `c8f6e1b7`) | keep for the `#565` source-map work, or tear down |
 | scratch worktree `menu-probe` (detached, 4 debug edits, old session) | debug only | leave; the guardrail refuses `--force` |
+| Dependabot alert `#47` on `orbit-ui-mobile` `main` (1 moderate), reported by the handoff push | not read yet | read it; fix through a ticket and a PR to `main` after step 1 |
 | stashes | none in all three repos | none |
 | other unpushed commits and dirty trees | none except `ticket-426` and `ticket-657` above | none |
 | decision log `sleep-decisions.md` (D1 to D168) | session `67f75f39` scratchpad | durable content copied into the spec section |
