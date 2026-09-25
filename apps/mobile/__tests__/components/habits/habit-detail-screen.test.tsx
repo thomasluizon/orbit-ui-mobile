@@ -791,6 +791,9 @@ describe('HabitDetailScreen', () => {
 
     TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.schedule' }).props.onClick())
     TestRenderer.act(() => tree!.root.findByProps({ accessibilityLabel: 'habits.form.frequencyRequired' }).props.onChangeText('3'))
+    const unitRadios = tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio')
+    expect(unitRadios).toHaveLength(4)
+    expect(unitRadios.map((node: { props: { accessibilityState?: { checked?: boolean } } }) => node.props.accessibilityState?.checked)).toEqual([true, false, false, false])
     await TestRenderer.act(async () => {
       tree!.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'common.save')!.props.onClick()
       await Promise.resolve()

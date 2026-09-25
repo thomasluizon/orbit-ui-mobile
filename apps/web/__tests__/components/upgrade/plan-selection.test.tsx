@@ -4,6 +4,7 @@ import type { useTranslations } from 'next-intl'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
+import { subscriptionPlansFixture, subscriptionPlansFixtures } from '@/test-support/hermetic/mock-api/fixtures/subscription-plans'
 
 const motionMocks = vi.hoisted(() => ({
   reduced: false,
@@ -35,11 +36,10 @@ vi.mock('motion/react', async (importOriginal) => {
   }
 })
 
-vi.mock('@/hooks/use-subscription-plans', () => ({
-  useSubscriptionPlans: () => ({}),
-  formatPrice: (amount: number, currency: string) => `${currency} ${(amount / 100).toFixed(2)}`,
-  monthlyEquivalent: (amount: number) => Math.round(amount / 12),
-}))
+vi.mock('@/hooks/use-subscription-plans', async () => {
+  const { formatPrice, monthlyEquivalent } = await import('@orbit/shared/utils/subscription-pricing')
+  return { useSubscriptionPlans: () => ({}), formatPrice, monthlyEquivalent }
+})
 
 const t = ((key: string, params?: Record<string, unknown>) =>
   params ? `${key}:${JSON.stringify(params)}` : key) as unknown as ReturnType<typeof useTranslations>
@@ -230,6 +230,21 @@ describe('PlanSelection', () => {
         percent: plans.savingsPercent,
       })}`,
     )
+  })
+
+  it('renders the live USD prices from the hermetic catalog', () => {
+    renderSelection({ plans: subscriptionPlansFixture })
+
+    expect(tierNamed('upgrade.plans.monthly.name')).toHaveTextContent('$9.99')
+    expect(tierNamed('upgrade.plans.yearly.name')).toHaveTextContent('$69.99')
+  })
+
+  it('renders the Brazilian catalog amounts and savings', () => {
+    renderSelection({ plans: subscriptionPlansFixtures.brl })
+
+    expect(tierNamed('upgrade.plans.monthly.name')).toHaveTextContent('R$ 29,90')
+    expect(tierNamed('upgrade.plans.yearly.name')).toHaveTextContent('R$ 199,00')
+    expect(tierNamed('upgrade.plans.yearly.name')).toHaveTextContent('"percent":45')
   })
 
   it('shows the payload coupon on both tiers only when it exists', () => {

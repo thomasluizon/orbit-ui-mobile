@@ -171,26 +171,14 @@ describe("ScheduledReminderSection", () => {
       (picker.props as { onClear: () => void }).onClear();
       (picker.props as { onChange: (value: string) => void }).onChange("09:00");
     });
-    const dayBefore = buttons(tree).find(
-      (node) =>
-        (node.props.accessibilityState as { selected?: boolean } | undefined)
-          ?.selected === false,
-    )!;
-    const sameDay = buttons(tree).find(
-      (node) =>
-        (node.props.accessibilityState as { selected?: boolean } | undefined)
-          ?.selected === true,
-    )!;
-    (dayBefore.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: true,
-    });
-    (sameDay.props.style as (state: { pressed: boolean }) => unknown)({
-      pressed: false,
-    });
-    press(dayBefore);
-    expect(dayBefore.props.accessibilityState).toEqual({ selected: true });
-    expect(sameDay.props.accessibilityState).toEqual({ selected: false });
-    press(sameDay);
+    const radios = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio');
+    expect(tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'radiogroup')).toHaveLength(1);
+    expect(radios.map((node) => node.props.accessibilityState)).toEqual([{ checked: false }, { checked: true }]);
+    const [dayBefore, sameDay] = radios;
+    press(dayBefore!);
+    expect(dayBefore!.props.accessibilityState).toEqual({ checked: true });
+    expect(sameDay!.props.accessibilityState).toEqual({ checked: false });
+    press(sameDay!);
     const add = buttons(tree).find(
       (node) => !node.props.accessibilityLabel && node.props.disabled === false,
     );
