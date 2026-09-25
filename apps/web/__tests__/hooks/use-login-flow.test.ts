@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   confirmSessionRefreshFailure: vi.fn().mockResolvedValue(undefined),
   recoverSessionRefreshFailure: vi.fn().mockResolvedValue(undefined),
+  signInWithOAuth: vi.fn().mockResolvedValue({ error: null }),
 }))
 
 vi.mock('next-intl', () => ({
@@ -43,7 +44,7 @@ vi.mock('@/stores/auth-store', () => ({
 }))
 
 vi.mock('@/lib/supabase', () => ({
-  getSupabaseClient: () => ({ auth: { signInWithOAuth: vi.fn() } }),
+  getSupabaseClient: () => ({ auth: { signInWithOAuth: mocks.signInWithOAuth } }),
 }))
 
 vi.mock('@/lib/profile-presentation', () => ({
@@ -129,8 +130,25 @@ beforeEach(() => {
   mocks.isOnline = true
   setNavigatorOnline(true)
   localStorage.clear()
+  sessionStorage.clear()
   document.cookie = 'referral_code=;max-age=0;path=/'
   wireAuthNetwork()
+})
+
+describe('Google sign in', () => {
+  it('binds the OAuth redirect to the attempt marked in this tab', async () => {
+    const { result } = renderHook(() => useLoginFlow())
+
+    await act(async () => { await result.current.signInWithGoogle() })
+
+    const marker = sessionStorage.getItem('orbit_google_auth_started_at')
+    expect(marker).not.toBeNull()
+    const attemptId = marker?.split(':')[1]
+    const oauthArgs = mocks.signInWithOAuth.mock.calls[0]?.[0] as { options: { redirectTo: string } }
+    const redirect = new URL(oauthArgs.options.redirectTo)
+    expect(`${redirect.origin}${redirect.pathname}`).toBe(`${globalThis.location.origin}/auth-callback`)
+    expect(redirect.searchParams.get('authAttempt')).toBe(attemptId)
+  })
 })
 
 afterEach(() => {

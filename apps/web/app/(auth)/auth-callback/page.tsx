@@ -7,6 +7,7 @@ import { useLocale } from 'next-intl'
 import type { Session } from '@supabase/supabase-js'
 import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
+import { consumeRecentGoogleAuthStart } from '@/lib/google-auth-session'
 import { LoginContent } from '../login/login-content'
 import { getCookieValue, handleVerifySuccess } from '../login/login-form-helpers'
 import type { LoginResponse } from '@orbit/shared/types/auth'
@@ -26,10 +27,17 @@ function AuthCallbackContent() {
   const processing = useRef(false)
   const completed = useRef(false)
   const failed = useRef(false)
+  const recentGoogleAuthStart = useRef<boolean | null>(null)
 
   useEffect(() => {
     const query = new URLSearchParams(globalThis.location.search)
     const hash = new URLSearchParams(globalThis.location.hash.substring(1))
+    const redirectAccessToken = hash.get('access_token')
+    recentGoogleAuthStart.current ??= consumeRecentGoogleAuthStart(query.get('authAttempt'))
+    if (!recentGoogleAuthStart.current || !redirectAccessToken) {
+      router.replace('/login')
+      return
+    }
     const supabase = getSupabaseClient()
     async function exchange(session: Session) {
       try {
@@ -55,7 +63,9 @@ function AuthCallbackContent() {
       } catch { failed.current = true; setState('failed') }
     }
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') || !session || processing.current) return
+      if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION')
+        || !recentGoogleAuthStart.current || !redirectAccessToken
+        || session?.access_token !== redirectAccessToken || processing.current) return
       processing.current = true
       void exchange(session)
     })
