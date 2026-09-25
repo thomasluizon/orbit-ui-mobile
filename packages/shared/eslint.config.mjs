@@ -10,6 +10,9 @@ import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
 import noUnjustifiedDisable from "../../eslint-rules/no-unjustified-disable.cjs"
 import spacingScale from "../../eslint-rules/spacing-scale.cjs"
 
+const SHARED_IMPORT_BOUNDARY =
+  "packages/shared/CLAUDE.md: put pure logic in a *-core module like tag-selection-core.ts and hooks in each app."
+
 export default [
   ...tseslint.configs.recommendedTypeChecked,
   {
@@ -51,6 +54,32 @@ export default [
       },
     },
     rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ["react", "react-dom", "react-native", "next"].map((name) => ({
+            name,
+            message: SHARED_IMPORT_BOUNDARY,
+          })),
+          patterns: [
+            {
+              group: ["react/*", "react-dom/*", "next/*", "react-native/*"],
+              message: SHARED_IMPORT_BOUNDARY,
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ImportExpression[source.value=/^(react|react-dom|react-native|next)(\\u002F|$)/]",
+          message: SHARED_IMPORT_BOUNDARY,
+        },
+        {
+          selector: "ImportExpression[source.type!='Literal']",
+          message: `${SHARED_IMPORT_BOUNDARY} A dynamic import specifier must be a plain string literal so this boundary can read it.`,
+        },
+      ],
       "local/no-comments": "error",
       "local/no-double-assertion": "error",
       // `theme/button.ts` owns the pill-button geometry, which is a component
@@ -93,8 +122,10 @@ export default [
     },
   },
   {
-    files: ["src/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
+    files: ["src/__tests__/**/*.{ts,tsx}", "**/*.{test,spec}.{ts,tsx}"],
     rules: {
+      "no-restricted-imports": "off",
+      "no-restricted-syntax": "off",
       "local/no-double-assertion": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
