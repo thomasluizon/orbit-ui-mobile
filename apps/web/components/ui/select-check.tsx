@@ -1,6 +1,7 @@
 'use client'
 
 import type { MouseEvent } from 'react'
+import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { useTranslations } from 'next-intl'
 import { useRadioGroupItem } from '@/components/ui/radio-row'
 
@@ -8,6 +9,7 @@ import { useRadioGroupItem } from '@/components/ui/radio-row'
 export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; size: number }>) {
   return (
     <span
+      aria-hidden="true"
       className="inline-flex items-center justify-center rounded-full shrink-0"
       style={{
         width: size,
@@ -72,25 +74,36 @@ export function SelectCheck({
   )
 }
 
-/** Kit RadioRow: radio · Geist Sans 17 label · optional 12px color dot, hairline divider. */
-interface RadioRowProps {
-  label: string
-  selected: boolean
-  /** Optional trailing 12px color dot. */
-  dot?: string
-  onClick?: () => void
-  divider?: boolean
-}
+export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect, selected })
+  const content = (
+    <>
+      {leading ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
+      <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
+        <span style={{ color: 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.3 }}>{label}</span>
+        {description ? <span style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
+        {disabled && reason ? <span style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.4 }}>{reason}</span> : null}
+      </span>
+      {meta ? <span className="shrink-0" style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{meta}</span> : null}
+      {tag ? <span className="shrink-0 uppercase" style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em' }}>{tag}</span> : null}
+      <RadioGlyph selected={selected} size={24} />
+    </>
+  )
+  const style = {
+    gap: 12,
+    minHeight: 52,
+    paddingBlock: 8,
+    paddingInlineStart: 20 + Math.max(0, depth) * 20,
+    paddingInlineEnd: 20,
+    background: selected ? 'rgba(var(--primary-rgb), 0.10)' : 'transparent',
+    boxShadow: selected ? 'inset 0 0 0 1.5px var(--primary)' : undefined,
+    borderRadius: 'var(--r-well)',
+    opacity: disabled ? 0.5 : 1,
+  } as const
 
-export function RadioRow({
-  label,
-  selected,
-  dot,
-  onClick,
-  divider = true,
-}: Readonly<RadioRowProps>) {
-  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect: onClick, selected })
-  return (
+  return disabled ? (
+    <div role="radio" aria-checked={selected} aria-disabled="true" className="flex items-center" style={style}>{content}</div>
+  ) : (
     <button
       ref={elementRef}
       type="button"
@@ -99,35 +112,8 @@ export function RadioRow({
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className="w-full appearance-none bg-transparent cursor-pointer flex items-center text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
-      style={{
-        gap: 16,
-        padding: '16px 4px',
-        border: 0,
-        borderBottomWidth: divider ? 1 : 0,
-        borderBottomStyle: 'solid',
-        borderBottomColor: 'var(--hairline)',
-      }}
-    >
-      <RadioGlyph selected={selected} size={24} />
-      <span
-        className="min-w-0 flex-1 break-words text-left"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 17,
-          fontWeight: 400,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {label}
-      </span>
-      {dot && (
-        <span
-          aria-hidden="true"
-          className="rounded-full shrink-0"
-          style={{ width: 12, height: 12, background: dot }}
-        />
-      )}
-    </button>
+      className="flex w-full cursor-pointer items-center border-0 text-left hover:bg-[var(--bg-elev)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+      style={style}
+    >{content}</button>
   )
 }

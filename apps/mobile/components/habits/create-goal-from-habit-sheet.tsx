@@ -210,7 +210,6 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
           </View>
 
           <GoalTypeSelector
-            tokens={tokens}
             styles={styles}
             goalType={goalType}
             onTypeChange={handleTypeChange}

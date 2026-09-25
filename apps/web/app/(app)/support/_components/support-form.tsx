@@ -7,7 +7,8 @@ import {
 } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGroup, RadioRow } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioRow } from '@/components/ui/select-check'
 import { RowList } from '@/components/ui/row-list'
 import { WifiOff } from '@/components/ui/icons'
 

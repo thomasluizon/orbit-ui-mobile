@@ -38,7 +38,8 @@ import {
   writeStoredSupportDraft,
 } from '@/lib/support-draft-storage'
 import { AppBar } from '@/components/ui/app-bar'
-import { RadioGroup, RadioRow } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioRow } from '@/components/ui/select-check'
 import { RowList } from '@/components/ui/row-list'
 
 type Tokens = ReturnType<typeof createTokensV2>
