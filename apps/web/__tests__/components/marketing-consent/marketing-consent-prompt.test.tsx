@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -85,6 +86,10 @@ async function settle() {
     await vi.advanceTimersByTimeAsync(500)
   })
 }
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
 
 describe('MarketingConsentPrompt', () => {
   beforeEach(() => {

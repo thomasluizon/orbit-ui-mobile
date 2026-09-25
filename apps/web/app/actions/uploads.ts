@@ -2,14 +2,15 @@
 
 import type { SignUploadRequest, SignUploadResponse } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
-import { serverAuthFetch } from '@/lib/server-fetch'
+import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export async function signUpload(
   input: SignUploadRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<SignUploadResponse>> {
-  return wrapServerAction(() => serverAuthFetch(API.uploads.sign, {
+  return wrapServerAction(() => serverAuthMutate(API.uploads.sign, {
     method: 'POST',
     body: JSON.stringify(input),
-  }))
+  }, intendedAccountId))
 }

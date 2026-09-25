@@ -271,6 +271,112 @@ describe('useBulkActions reversibility boundary', () => {
   it.each([
     ['log', bulkLog, 'confirmBulkLog'],
     ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('preserves the new date selection when delayed bulk %s completes', async (
+    mode,
+    mutation,
+    action,
+  ) => {
+    let resolveRequest!: (value: ReturnType<typeof bulkSuccess>) => void
+    mutation.mutateAsync.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve
+    }))
+    let viewedDate = VIEWED_DATE
+    let selection = new Set(['h-1'])
+    const onSuccess = vi.fn(() => { selection = new Set() })
+    const onPartialFailure = vi.fn((ids: string[]) => { selection = new Set(ids) })
+    const settleBulkHabitResolutions = vi.fn()
+    const habitListRef = {
+      current: { settleBulkHabitResolutions },
+    } as unknown as React.RefObject<HabitListHandle | null>
+    const captured: { current: BulkActions | null } = { current: null }
+    function Probe() {
+      captured.current = useBulkActions({
+        selectedHabitIds: selection,
+        selectedDateStr: viewedDate,
+        completionReadOnly: false,
+        habitsById: new Map(),
+        habitListRef,
+        onSuccess,
+        onPartialFailure,
+      })
+      return null
+    }
+    let renderer!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(Probe)) })
+
+    let request!: Promise<void>
+    TestRenderer.act(() => { request = captured.current![action]() })
+    viewedDate = '2026-04-02'
+    selection = new Set(['h-2'])
+    TestRenderer.act(() => { renderer.update(React.createElement(Probe)) })
+    await TestRenderer.act(async () => {
+      resolveRequest(bulkSuccess(['h-1']))
+      await request
+    })
+
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith(
+      [{ habitId: 'h-1', mode }], VIEWED_DATE,
+    )
+    expect(selection).toEqual(new Set(['h-2']))
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+    expect(showToast).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('does not select old failed bulk %s rows on the new date', async (
+    _name,
+    mutation,
+    action,
+  ) => {
+    let resolveRequest!: (value: { results: { habitId: string; status: string }[] }) => void
+    mutation.mutateAsync.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve
+    }))
+    let viewedDate = VIEWED_DATE
+    let selection = new Set(['h-1'])
+    const onSuccess = vi.fn(() => { selection = new Set() })
+    const onPartialFailure = vi.fn((ids: string[]) => { selection = new Set(ids) })
+    const habitListRef = {
+      current: { settleBulkHabitResolutions: vi.fn() },
+    } as unknown as React.RefObject<HabitListHandle | null>
+    const captured: { current: BulkActions | null } = { current: null }
+    function Probe() {
+      captured.current = useBulkActions({
+        selectedHabitIds: selection,
+        selectedDateStr: viewedDate,
+        completionReadOnly: false,
+        habitsById: new Map(),
+        habitListRef,
+        onSuccess,
+        onPartialFailure,
+      })
+      return null
+    }
+    let renderer!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(Probe)) })
+
+    let request!: Promise<void>
+    TestRenderer.act(() => { request = captured.current![action]() })
+    viewedDate = '2026-04-02'
+    selection = new Set(['h-2'])
+    TestRenderer.act(() => { renderer.update(React.createElement(Probe)) })
+    await TestRenderer.act(async () => {
+      resolveRequest({ results: [{ habitId: 'h-1', status: 'Failed' }] })
+      await request
+    })
+
+    expect(selection).toEqual(new Set(['h-2']))
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+    expect(showToast).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
   ] as const)('keeps the selection and reports an offline bulk %s refusal', async (
     _mode,
     mutation,

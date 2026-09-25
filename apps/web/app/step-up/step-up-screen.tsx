@@ -12,11 +12,13 @@ import {
   isStepUpOperation,
   type StepUpPhase,
   type StepUpTimingRecord,
+  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getHeldAccountId, useAuthStore, useHeldAccountId } from '@/stores/auth-store'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+
 import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   confirmApiKeyCreationChallenge,
@@ -52,7 +54,9 @@ const getServerNotReady = () => false
  * reports null for the whole life of a cold load, the record read comes back empty, and the person
  * lands back on Profile mid-challenge. `serverAccountId` is the proxy's answer, resolved from the
  * cookie it already validated to let this render happen at all, so the first paint names the
- * account. The held id takes precedence once it exists, because it is the one that moves.
+ * account. The held id takes precedence once it exists, because it is the one that moves. Seed it
+ * from that verified server answer before starting the monitor, so its first check cannot erase a
+ * completed challenge for the same account.
  *
  * Starting the monitor here is what makes it move. It gives the route the cross-tab signal and the
  * poll every other route has, so a replacement reaches this screen as an account generation rise,
@@ -66,9 +70,10 @@ export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: st
   const accountId = sessionInactive ? null : heldAccountId ?? serverAccountId
 
   useEffect(() => {
+    if (serverAccountId) useAuthStore.getState().adoptServerAccount(serverAccountId)
     const stopMonitor = useAuthStore.getState().startExpiryMonitor()
     return stopMonitor
-  }, [])
+  }, [serverAccountId])
 
   return (
     <StepUpScreenContent
@@ -90,6 +95,7 @@ function StepUpScreenContent({
   sessionInactive: boolean
 }>) {
   const t = useTranslations('stepUp')
+  const translate = useTranslations()
   const router = useRouter()
   const searchParams = useSearchParams()
   const operationParam = searchParams.get('operation')
@@ -122,10 +128,10 @@ function StepUpScreenContent({
       router.replace('/login')
       return
     }
-    if (!operation || !record) {
+    if (!operation || (!record && phase !== 'deactivated')) {
       router.replace('/profile')
     }
-  }, [clientReady, operation, record, router, sessionInactive])
+  }, [clientReady, operation, phase, record, router, sessionInactive])
 
   useEffect(() => {
     const timer = globalThis.setInterval(() => setNow(Date.now()), 1000)
@@ -157,41 +163,52 @@ function StepUpScreenContent({
   }
 
   async function handleResend() {
-    if (!operation || exhausted || requesting) return
-    const generation = getAccountGeneration()
-    const initiatingAccountId = accountId
+    if (!operation || exhausted || requesting || accountId === null) return
+    const intendedAccountId = accountId
+    const accountGeneration = getAccountGeneration()
     setRequesting(true)
     setRequestError(null)
     try {
-      if (operation === 'delete') await requestDeletion()
-      else await requestApiKeyCreationChallenge()
-      if (!isCurrentRequest(generation, initiatingAccountId)) return
+      if (operation === 'delete') await requestDeletion(intendedAccountId)
+      else await requestApiKeyCreationChallenge(intendedAccountId)
+      if (!isCurrentRequest(accountGeneration, intendedAccountId)) {
+        setRequestError(translate('errors.api.accountChanged'))
+        return
+      }
       const next = beginStepUpChallenge(operation, accountId)
+
       setRecord(next)
       setCode('')
       setAttemptsRemaining(null)
       setFieldError(null)
       setPhase(getStepUpPhaseFromTiming(next, Date.now()))
       setNow(Date.now())
-    } catch {
-      if (!isCurrentRequest(generation, initiatingAccountId)) return
-      setRequestError(t('requestError'))
+    } catch (error) {
+      if (!isCurrentRequest(accountGeneration, accountId)) return
+      setRequestError(getFriendlyErrorMessage(error, translate, 'stepUp.requestError'))
+
     } finally {
-      if (isCurrentRequest(generation, initiatingAccountId)) setRequesting(false)
+      if (isCurrentRequest(accountGeneration, accountId)) setRequesting(false)
     }
   }
 
   async function handleConfirm() {
-    if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking) return
-    const generation = getAccountGeneration()
-    const initiatingAccountId = accountId
+    if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking || accountId === null) return
+    const intendedAccountId = accountId
+    const accountGeneration = getAccountGeneration()
+
     setPhase('checking')
     setFieldError(null)
     setRequestError(null)
     try {
       if (operation === 'keys') {
-        const result = await confirmApiKeyCreationChallenge(code)
-        if (!isCurrentRequest(generation, initiatingAccountId)) return
+        const result = await confirmApiKeyCreationChallenge(code, intendedAccountId)
+        if (!isCurrentRequest(accountGeneration, intendedAccountId)) {
+          setFieldError(translate('errors.api.accountChanged'))
+          setPhase('challenge')
+          return
+        }
+
         if (!result.success) {
           handleConfirmationFailure(result.errorCode, result.remaining)
           return
@@ -201,8 +218,13 @@ function StepUpScreenContent({
         router.replace('/profile')
         return
       }
-      const result = await confirmDeletion(code)
-      if (!isCurrentRequest(generation, initiatingAccountId)) return
+      const result = await confirmDeletion(code, intendedAccountId)
+      if (!isCurrentRequest(accountGeneration, intendedAccountId)) {
+        setFieldError(translate('errors.api.accountChanged'))
+        setPhase('challenge')
+        return
+      }
+
       if (!result.success) {
         handleConfirmationFailure(result.errorCode, result.remaining)
         return
@@ -210,9 +232,10 @@ function StepUpScreenContent({
       clearStepUpTiming(operation, accountId)
       setScheduledDeletionAt(result.response.scheduledDeletionAt)
       setPhase('deactivated')
-    } catch {
-      if (!isCurrentRequest(generation, initiatingAccountId)) return
-      setFieldError(t('genericError'))
+    } catch (error) {
+      if (!isCurrentRequest(accountGeneration, accountId)) return
+      setFieldError(getFriendlyErrorMessage(error, translate, 'stepUp.genericError'))
+
       setPhase('challenge')
     }
   }
@@ -261,7 +284,7 @@ function StepUpScreenContent({
 
   const otpError = getOtpError(t, fieldError, attemptsRemaining)
 
-  if (!clientReady || sessionInactive || !operation || !record) return null
+  if (!clientReady || sessionInactive || !operation || (!record && !success)) return null
 
   const sharedView = { operationLabel, t }
   if (success) {

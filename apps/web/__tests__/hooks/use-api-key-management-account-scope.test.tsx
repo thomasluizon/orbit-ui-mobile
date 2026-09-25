@@ -6,6 +6,9 @@ import { clearStepUpState, hasApiKeyCreationGrant, markStepUpVerified } from '@/
 
 const mocks = vi.hoisted(() => ({ createApiKey: vi.fn() }))
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: vi.fn() }) }))
+
 vi.mock('@/lib/actions/api-keys', () => ({
   createApiKey: (...args: unknown[]) => mocks.createApiKey(...args),
   revokeApiKey: vi.fn(),
@@ -19,6 +22,7 @@ import {
 vi.mock('@tanstack/react-query', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQuery: () => ({ data: [], isLoading: false, error: null, refetch: vi.fn() }),
+  useQueryClient: () => queryClient,
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 

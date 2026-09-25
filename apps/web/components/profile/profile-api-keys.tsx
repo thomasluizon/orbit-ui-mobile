@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import type { Profile } from '@orbit/shared/types/profile'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestApiKeyCreationChallenge } from '@/lib/actions/api-keys'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Input } from '@/components/ui/input'
@@ -20,7 +21,8 @@ import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
-import { useHeldAccountId } from '@/stores/auth-store'
+import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
+
 
 interface ProfileApiKeysProps {
   profile: Profile | undefined
@@ -96,7 +98,7 @@ function ScopeSheet({
 }: Readonly<ScopeSheetProps>) {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
-  const [scope, setScope] = useState('')
+  const [scope, setScope] = useAccountScopedState('')
   async function submit() {
     const trimmedScope = scope.trim()
     if (!trimmedScope) return
@@ -139,7 +141,7 @@ interface RevealSheetProps {
 function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useAccountScopedState(false)
   const key = createdKey.key
 
   async function copyKey() {
@@ -176,7 +178,8 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
 interface ApiKeyGateProps {
   busy: boolean
   accountReady: boolean
-  error: boolean
+  error: string | null
+
   onStartStepUp: () => Promise<void>
 }
 
@@ -207,7 +210,8 @@ function ApiKeyGate({ busy, accountReady, error, onStartStepUp }: Readonly<ApiKe
           onAction={() => void onStartStepUp()}
         />
       </fieldset>
-      {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('stepUp.requestError')}</p> : null}
+      {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
+
     </>
   )
 }
@@ -291,23 +295,30 @@ function ApiKeyCreateControls({
 
 function useApiKeyStepUp() {
   const router = useRouter()
+  const t = useTranslations()
   const accountId = useHeldAccountId()
   const [busy, setBusy] = useAccountScopedState(false)
-  const [error, setError] = useAccountScopedState(false)
+  const [error, setError] = useAccountScopedState<string | null>(null)
 
   async function start() {
     if (busy || accountId === null) return
-    const challengeAccount = getAccountGeneration()
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
+
     setBusy(true)
-    setError(false)
+    setError(null)
     try {
-      await requestApiKeyCreationChallenge()
-      if (getAccountGeneration() !== challengeAccount) return
+      await requestApiKeyCreationChallenge(intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setError(t('errors.api.accountChanged'))
+        setBusy(false)
+        return
+      }
       beginStepUpChallenge('keys', accountId)
       router.push('/step-up?operation=keys')
-    } catch {
-      if (getAccountGeneration() !== challengeAccount) return
-      setError(true)
+    } catch (error) {
+      setError(getFriendlyErrorMessage(error, t, 'stepUp.requestError'))
+
       setBusy(false)
     }
   }
@@ -416,7 +427,10 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           {management.createKeyError && !scopeOpen ? (
             <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.createKeyError}</p>
           ) : null}
-          {stepUp.error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('stepUp.requestError')}</p> : null}
+          {management.revokeKeyError ? (
+            <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.revokeKeyError}</p>
+          ) : null}
+          {stepUp.error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{stepUp.error}</p> : null}
           <div className="flex flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 4, padding: 16 }}>
             <p className="font-sans text-[14px] font-medium text-[var(--fg-1)]">{t('profile.apiKeys.mcpTitle')}</p>
             <p className="font-sans text-[14px] leading-[1.5] text-[var(--fg-3)]">{t('profile.apiKeys.mcpLine')}</p>
@@ -456,6 +470,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         onCancel={() => management.setRevokingKeyId(null)}
         onConfirm={() => {
           if (revokingKey) {
+            management.clearRevokeKeyError()
             management.revokeKeyMutation.mutate(revokingKey.id)
             management.setRevokingKeyId(null)
           }

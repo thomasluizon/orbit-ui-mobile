@@ -1,20 +1,23 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useLocale } from 'next-intl'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useLocale, useTranslations } from 'next-intl'
+import { useQueryClient } from '@tanstack/react-query'
 import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference, resolveSystemLocale } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
-import { useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   updateWeekStartDay,
   updateLanguage,
   updateTimezone,
 } from '@/lib/actions/profile'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
 import type { PreferencePicker } from './preference-picker-sheet'
 
 function writeLocaleCookie(value: string) {
@@ -24,6 +27,8 @@ function writeLocaleCookie(value: string) {
 }
 
 export function usePreferenceControls() {
+  const t = useTranslations()
+  const { showPersistentError } = useAppToast()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -44,12 +49,18 @@ export function usePreferenceControls() {
   const handleLanguageChange = useCallback(
     async (nextLocale: SupportedLocale) => {
       const previousLocale = selectedLanguage
+      const intendedAccountId = getHeldAccountId()
       setSelectedLanguage(nextLocale)
       writeLocaleCookie(nextLocale)
       if (isAuthenticated) {
         try {
-          await updateLanguage({ language: nextLocale })
-        } catch {
+          await updateLanguage({ language: nextLocale }, intendedAccountId)
+        } catch (error) {
+          if (reportsAccountChanged(error)) {
+            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+            return
+          }
+          if (getHeldAccountId() !== intendedAccountId) return
           setSelectedLanguage(previousLocale)
           writeLocaleCookie(previousLocale)
           return
@@ -57,11 +68,12 @@ export function usePreferenceControls() {
       }
       globalThis.location.reload()
     },
-    [isAuthenticated, selectedLanguage],
+    [isAuthenticated, selectedLanguage, showPersistentError, t],
   )
 
-  const weekStartMutation = useMutation({
-    mutationFn: (day: 0 | 1) => updateWeekStartDay({ weekStartDay: day }),
+  const weekStartMutation = useAccountScopedMutation({
+    mutationFn: (day: 0 | 1, intendedAccountId) =>
+      updateWeekStartDay({ weekStartDay: day }, intendedAccountId),
     onMutate: (day) => {
       const previous = profile?.weekStartDay
       patchProfile({ weekStartDay: day })
@@ -79,8 +91,9 @@ export function usePreferenceControls() {
     },
   })
 
-  const timeZoneMutation = useMutation({
-    mutationFn: (timeZone: string) => updateTimezone({ timeZone }),
+  const timeZoneMutation = useAccountScopedMutation({
+    mutationFn: (timeZone: string, intendedAccountId) =>
+      updateTimezone({ timeZone }, intendedAccountId),
     onMutate: (timeZone) => {
       const previous = profile?.timeZone ?? null
       patchProfile({ timeZone })

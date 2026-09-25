@@ -4,7 +4,8 @@ const { resolveServerSessionMock } = vi.hoisted(() => ({
   resolveServerSessionMock: vi.fn(),
 }))
 
-vi.mock('@/lib/auth-api', () => ({
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-api')>()),
   getAuthHeaders: vi.fn().mockResolvedValue({
     Authorization: 'Bearer test-token',
   }),
@@ -76,7 +77,7 @@ describe('habit server actions', () => {
         })
       mockApiResponse({ error: 'Unauthorized' }, 401)
 
-      const result = await habitServerActions.createHabit({ title: 'Exercise' })
+      const result = await habitServerActions.createHabit({ title: 'Exercise' }, 'account-a')
 
       const serializedResult = JSON.parse(JSON.stringify(result))
       expect(serializedResult).toEqual({
@@ -99,7 +100,7 @@ describe('habit server actions', () => {
     it('sends POST to /api/habits with request body', async () => {
       mockApiResponse({ id: 'new-habit' })
 
-      const result = await createHabit({ title: 'Exercise' })
+      const result = await createHabit({ title: 'Exercise' }, 'account-a')
 
       expect(result).toEqual({ id: 'new-habit' })
       expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -113,7 +114,7 @@ describe('habit server actions', () => {
     it('includes auth headers', async () => {
       mockApiResponse({ id: 'new-habit' })
 
-      await createHabit({ title: 'Test' })
+      await createHabit({ title: 'Test' }, 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
@@ -122,7 +123,7 @@ describe('habit server actions', () => {
     it('throws on non-OK response', async () => {
       mockApiResponse({ error: 'Title is required' }, 400)
 
-      await expect(createHabit({ title: '' })).rejects.toThrow()
+      await expect(createHabit({ title: '' }, 'account-a')).rejects.toThrow()
     })
   })
 
@@ -134,7 +135,7 @@ describe('habit server actions', () => {
       await updateHabit('h-1', {
         title: 'Updated',
         isBadHabit: false,
-      })
+      }, 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1')
@@ -147,7 +148,7 @@ describe('habit server actions', () => {
     it('sends DELETE to /api/habits/:id', async () => {
       mock204()
 
-      await deleteHabit('h-1')
+      await deleteHabit('h-1', 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1')
@@ -157,7 +158,7 @@ describe('habit server actions', () => {
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Not found' }, 404)
 
-      await expect(deleteHabit('nonexistent')).rejects.toThrow()
+      await expect(deleteHabit('nonexistent', 'account-a')).rejects.toThrow()
     })
   })
 
@@ -170,7 +171,7 @@ describe('habit server actions', () => {
         currentStreak: 5,
       })
 
-      const result = await logHabit('h-1')
+      const result = await logHabit('h-1', undefined, 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/log')
@@ -185,7 +186,7 @@ describe('habit server actions', () => {
         currentStreak: 1,
       })
 
-      await logHabit('h-1', { date: '2025-01-15' })
+      await logHabit('h-1', { date: '2025-01-15' }, 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
       const body = JSON.parse(init.body)
@@ -198,7 +199,7 @@ describe('habit server actions', () => {
     it('sends POST to /api/habits/:id/skip', async () => {
       mock204()
 
-      await skipHabit('h-1')
+      await skipHabit('h-1', undefined, 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/skip')
@@ -208,7 +209,7 @@ describe('habit server actions', () => {
     it('sends date when provided', async () => {
       mock204()
 
-      await skipHabit('h-1', '2025-01-15')
+      await skipHabit('h-1', '2025-01-15', 'account-a')
 
       const [, init] = mockFetch.mock.calls[0]!
       const body = JSON.parse(init.body)
@@ -226,7 +227,7 @@ describe('habit server actions', () => {
           { habitId: 'h-1', position: 1 },
           { habitId: 'h-2', position: 0 },
         ],
-      })
+      }, 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/reorder')
@@ -239,7 +240,7 @@ describe('habit server actions', () => {
     it('sends POST to /api/habits/:id/duplicate', async () => {
       mock204()
 
-      await duplicateHabit('h-1')
+      await duplicateHabit('h-1', 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/h-1/duplicate')
@@ -258,7 +259,7 @@ describe('habit server actions', () => {
 
       const result = await bulkCreateHabits({
         habits: [{ title: 'New' }],
-      })
+      }, 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/bulk')
@@ -276,7 +277,7 @@ describe('habit server actions', () => {
         ],
       })
 
-      const result = await bulkDeleteHabits(['h-1'])
+      const result = await bulkDeleteHabits(['h-1'], 'account-a')
 
       const [url, init] = mockFetch.mock.calls[0]!
       expect(url).toContain('/api/habits/bulk')
@@ -290,13 +291,13 @@ describe('habit server actions', () => {
     it('throws with error message from response body', async () => {
       mockApiResponse({ error: 'Habit not found' }, 404)
 
-      await expect(logHabit('nonexistent')).rejects.toThrow('Habit not found')
+      await expect(logHabit('nonexistent', undefined, 'account-a')).rejects.toThrow('Habit not found')
     })
 
     it('throws with message field from response body', async () => {
       mockApiResponse({ message: 'Validation failed' }, 400)
 
-      await expect(createHabit({ title: '' })).rejects.toThrow('Validation failed')
+      await expect(createHabit({ title: '' }, 'account-a')).rejects.toThrow('Validation failed')
     })
 
     it('throws with status code when no error body', async () => {
@@ -306,7 +307,7 @@ describe('habit server actions', () => {
         json: () => Promise.reject(new Error('No JSON')),
       })
 
-      await expect(logHabit('h-1')).rejects.toThrow('500')
+      await expect(logHabit('h-1', undefined, 'account-a')).rejects.toThrow('500')
     })
   })
 })

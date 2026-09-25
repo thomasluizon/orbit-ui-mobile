@@ -29,7 +29,8 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   stopMonitor: vi.fn(),
   router: { replace: vi.fn() },
-  serverAuthFetch: vi.fn(),
+  serverAuthMutate: vi.fn(),
+  heldAccountId: 'account-a',
 }))
 
 vi.mock('next/navigation', () => ({
@@ -59,12 +60,12 @@ vi.mock('@/stores/auth-store', () => {
       (selector: (current: unknown) => unknown) => selector(state),
       { getState: () => state },
     ),
-    getHeldAccountId: () => 'user-1',
-    useHeldAccountId: () => 'user-1',
+    getHeldAccountId: () => mocks.heldAccountId,
+    useHeldAccountId: () => mocks.heldAccountId,
   }
 })
 vi.mock('@/lib/server-fetch', () => ({
-  serverAuthFetch: (...args: unknown[]) => mocks.serverAuthFetch(...args),
+  serverAuthMutate: (...args: unknown[]) => mocks.serverAuthMutate(...args),
 }))
 vi.mock('@/lib/step-up-storage', () => ({
   beginStepUpChallenge: (operation: string, accountId: string | null) =>
@@ -116,11 +117,12 @@ describe('web step up screen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.operation = 'delete'
+    mocks.heldAccountId = 'account-a'
     mocks.router.replace = mocks.replace
     mocks.profile.email = 'person@example.com'
     mocks.profile.hasProAccess = false
     mocks.profile.planExpiresAt = null
-    mocks.serverAuthFetch.mockImplementation((endpoint: string) => {
+    mocks.serverAuthMutate.mockImplementation((endpoint: string) => {
       if (endpoint === API.auth.confirmDeletion) {
         return Promise.resolve({
           message: 'Account deactivated',
@@ -169,7 +171,7 @@ describe('web step up screen', () => {
       message: string
       scheduledDeletionAt: string
     }) => void) | undefined
-    mocks.serverAuthFetch.mockImplementation((endpoint: string) => {
+    mocks.serverAuthMutate.mockImplementation((endpoint: string) => {
       if (endpoint === API.auth.confirmDeletion) {
         return new Promise((resolve) => {
           resolveConfirmation = resolve
@@ -181,9 +183,10 @@ describe('web step up screen', () => {
     enterCode()
     clickConfirm()
 
-    await waitFor(() => expect(mocks.serverAuthFetch).toHaveBeenCalledWith(
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
       API.auth.confirmDeletion,
       { method: 'POST', body: JSON.stringify({ code: '123456' }) },
+      'account-a',
     ))
     await waitFor(() => expect(input).toBeDisabled())
     expect(screen.getByTestId('shell-action').querySelector('button')).toHaveAttribute('aria-busy', 'true')
@@ -196,7 +199,7 @@ describe('web step up screen', () => {
 
   it('keeps a wrong code editable, rings all cells, and uses the server count', async () => {
     mocks.operation = 'keys'
-    mocks.serverAuthFetch.mockRejectedValueOnce(
+    mocks.serverAuthMutate.mockRejectedValueOnce(
       backendError('INVALID_VERIFICATION_CODE', 'Invalid code. Remaining attempts: 2'),
     )
     const input = await renderLiveScreen({ operation: 'keys', sentAt: Date.now() })
@@ -210,7 +213,7 @@ describe('web step up screen', () => {
   })
 
   it('does not invent an attempts line when the server omits the count', async () => {
-    mocks.serverAuthFetch.mockRejectedValueOnce(
+    mocks.serverAuthMutate.mockRejectedValueOnce(
       backendError('INVALID_VERIFICATION_CODE', 'Invalid code'),
     )
     await renderLiveScreen()
@@ -221,8 +224,81 @@ describe('web step up screen', () => {
     expect(screen.getByRole('alert')).not.toHaveTextContent('attemptsMany')
   })
 
+  it('tells the person to reload when the account changes during confirmation', async () => {
+    mocks.serverAuthMutate.mockRejectedValueOnce({
+      status: 409,
+      code: 'ACCOUNT_CHANGED',
+      message: 'The signed in account changed before this request ran',
+    })
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(screen.getByRole('alert')).not.toHaveTextContent('genericError')
+  })
+
+  it('does not show deletion success after a different account arrives during confirmation', async () => {
+    let finish: ((value: { scheduledDeletionAt: string }) => void) | undefined
+    mocks.serverAuthMutate.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    await renderLiveScreen()
+    enterCode()
+    clickConfirm()
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledOnce())
+    mocks.heldAccountId = 'account-b'
+    finish?.({ scheduledDeletionAt: '2026-09-04T03:00:00Z' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(screen.queryByText(/successTitle/)).not.toBeInTheDocument()
+    expect(mocks.clearTiming).not.toHaveBeenCalled()
+  })
+
+  it('does not grant API key creation after a different account arrives during confirmation', async () => {
+    mocks.operation = 'keys'
+    let finish: ((value: { message: string }) => void) | undefined
+    mocks.serverAuthMutate.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    await renderLiveScreen({ operation: 'keys', sentAt: Date.now() })
+    enterCode()
+    clickConfirm()
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledOnce())
+    mocks.heldAccountId = 'account-b'
+    finish?.({ message: 'Challenge confirmed' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(mocks.markVerified).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('does not restart a challenge after a different account arrives during resend', async () => {
+    let finish: ((value: { message: string }) => void) | undefined
+    mocks.serverAuthMutate.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    await renderLiveScreen(liveRecord(60_000))
+    fireEvent.click(screen.getByText('resend'))
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledOnce())
+    mocks.heldAccountId = 'account-b'
+    finish?.({ message: 'Challenge sent' })
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+  })
+
+  it('requests a new API key challenge under the held account', async () => {
+    mocks.operation = 'keys'
+    await renderLiveScreen({ operation: 'keys', sentAt: Date.now() - 60_000 })
+    fireEvent.click(screen.getByText('resend'))
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
+      API.apiKeys.requestCreationChallenge, { method: 'POST' }, 'account-a',
+    ))
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('keys', 'account-a')
+  })
+
+  it('keeps the old challenge when resending fails with an account refusal', async () => {
+    mocks.serverAuthMutate.mockRejectedValueOnce({ status: 409, code: 'ACCOUNT_CHANGED' })
+    await renderLiveScreen(liveRecord(60_000))
+    fireEvent.click(screen.getByText('resend'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+  })
+
   it('moves the third wrong code to the persisted exhausted boundary', async () => {
-    mocks.serverAuthFetch.mockRejectedValue(
+    mocks.serverAuthMutate.mockRejectedValue(
       backendError('INVALID_VERIFICATION_CODE', 'Invalid code'),
     )
     await renderLiveScreen()
@@ -253,7 +329,7 @@ describe('web step up screen', () => {
 
     expect(await screen.findByText('exhaustedNotice')).toBeInTheDocument()
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
-    expect(mocks.serverAuthFetch).not.toHaveBeenCalled()
+    expect(mocks.serverAuthMutate).not.toHaveBeenCalled()
   })
 
   it('shows a cooldown on arrival and a ghost resend only after it is ready', async () => {
@@ -270,11 +346,12 @@ describe('web step up screen', () => {
     await renderLiveScreen(liveRecord(60_000))
     fireEvent.click(screen.getByText('resend'))
 
-    await waitFor(() => expect(mocks.serverAuthFetch).toHaveBeenCalledWith(
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
       API.auth.requestDeletion,
       { method: 'POST' },
+      'account-a',
     ))
-    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'account-a')
     expect(screen.getByText(/cooldown/)).toBeInTheDocument()
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
   })
@@ -325,11 +402,12 @@ describe('web step up screen', () => {
     enterCode()
     clickConfirm()
 
-    await waitFor(() => expect(mocks.serverAuthFetch).toHaveBeenCalledWith(
+    await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
       API.apiKeys.confirmCreationChallenge,
       { method: 'POST', body: JSON.stringify({ code: '123456' }) },
+      'account-a',
     ))
-    expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'user-1')
+    expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'account-a')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
     expect(mocks.replace).toHaveBeenCalledWith('/profile')
   })

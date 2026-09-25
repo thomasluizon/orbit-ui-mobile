@@ -1,4 +1,6 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -41,6 +43,10 @@ function makeSuggestion(overrides: Partial<HabitSetupSuggestion> = {}): HabitSet
     ...overrides,
   }
 }
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
 
 describe('useHabitSuggestion', () => {
   beforeEach(() => {
