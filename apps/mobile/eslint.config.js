@@ -34,13 +34,13 @@ const mobileSupabaseLazy = require("../../eslint-rules/mobile-supabase-lazy.cjs"
 
 const maxButtonWordControls = [
   { name: "button", labelProps: ["children"] },
-  { name: "PillButton", labelProps: ["children", "label", "accessibleName"] },
-  { name: "Button", labelProps: ["children", "label", "accessibleName"] },
-  { name: "Chip", labelProps: ["children", "accessibilityLabel"] },
-  { name: "Pressable", labelProps: ["children", "accessibilityLabel"], roles: ["button", "tab", "menuitem"] },
+  { name: "PillButton", labelProps: ["children", "label"], iconOnly: true },
+  { name: "Button", labelProps: ["children", "label"], iconOnly: true },
+  { name: "Chip", labelProps: ["children"] },
+  { name: "Pressable", labelProps: ["children"], roles: ["button", "tab", "menuitem"] },
   { name: "SegmentedControl", collectionProps: ["options"] },
   { name: "BottomTabBar", collectionProps: ["items"] },
-  { name: "ListRow", labelProps: ["title", "accessibilityLabel", "action.label"] },
+  { name: "ListRow", labelProps: ["title", "action.label"], iconAction: true },
 ]
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and

@@ -22,14 +22,14 @@ export function ListRow(props: Readonly<ListRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { accessibilityLabel, icon, title, wrapTitle, description, value, trailing, danger = false, action, chevron = true, disabled = false, onClick, readOnly = false } = props
-  const iconColor = danger ? tokens.statusBad : tokens.fg1
+  const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
   const body: ReactNode = (
     <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, bodyPressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
         <View style={styles.iconSlot}>
-          {typeof icon === 'string' ? <Icon name={icon} size={24} color={iconColor} /> : icon}
+          {typeof icon === 'string' ? <Icon name={icon} size={24} color={rowColors.iconColor} /> : icon}
         </View>
       ) : null}
       <View style={styles.textBlock}>

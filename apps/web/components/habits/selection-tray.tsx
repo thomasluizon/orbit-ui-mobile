@@ -42,13 +42,13 @@ export interface SelectionTrayProps {
 interface BulkBtnProps {
   icon: Icon
   label: string
-  color: string
+  iconColor: string
   onClick: () => void
   disabled?: boolean
   reason?: string
 }
 
-function BulkBtn({ icon: Icon, label, color, onClick, disabled = false, reason }: Readonly<BulkBtnProps>) {
+function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reason }: Readonly<BulkBtnProps>) {
   const reasonId = useId()
   return (
     <button
@@ -69,7 +69,7 @@ function BulkBtn({ icon: Icon, label, color, onClick, disabled = false, reason }
         height: 44,
         borderRadius: 999,
         background: 'transparent',
-        color,
+        color: iconColor,
       }}
     >
       <Icon size={20} strokeWidth={1.8} />
@@ -157,7 +157,7 @@ export function SelectionTray({
         <BulkBtn
           icon={CheckCircle2}
           label={t('habits.bulkBar.log')}
-          color="var(--primary)"
+          iconColor="var(--primary)"
           onClick={onBulkLog}
           disabled={nothingSelected || completionReadOnly}
           reason={completionReason}
@@ -165,7 +165,7 @@ export function SelectionTray({
         <BulkBtn
           icon={FastForward}
           label={t('habits.bulkBar.skip')}
-          color="var(--fg-3)"
+          iconColor="var(--fg-3)"
           onClick={onBulkSkip}
           disabled={nothingSelected || completionReadOnly}
           reason={completionReason}
@@ -173,7 +173,7 @@ export function SelectionTray({
         <BulkBtn
           icon={Trash2}
           label={t('habits.bulkBar.delete')}
-          color="var(--status-bad)"
+          iconColor="var(--status-bad)"
           onClick={onBulkDelete}
           disabled={nothingSelected}
         />
@@ -181,7 +181,7 @@ export function SelectionTray({
         <BulkBtn
           icon={X}
           label={t('common.cancel')}
-          color="var(--fg-2)"
+          iconColor="var(--fg-2)"
           onClick={onCancel}
         />
       </div>

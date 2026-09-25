@@ -182,6 +182,7 @@ const BAD_GRAPHIC_SOURCE_SITES = [
 const DIRECT_BAD_FILL_PATTERN = /\btokens\.statusBad\b|var\(--status-bad\)/g
 const GRAPHIC_ROLE_NAMES = new Set([
   '--color-status-bad',
+  '--icon-color',
   'background',
   'backgroundColor',
   'bg',
@@ -636,8 +637,7 @@ describe('bad status source roles', () => {
 
   it('derives direct fill-token references and rejects unreviewed text-role syntax', () => {
     const inventory = unreviewedBadFillInventory()
-    expect(inventory.referenceCount).toBeLessThanOrEqual(31)
-    expect(inventory.keys).toMatchSnapshot()
+    expect(inventory).toEqual({ keys: [], referenceCount: 0 })
   })
 
   it('keeps inventory keys stable when source lines are inserted above a reference', () => {
@@ -665,6 +665,16 @@ describe('bad status source roles', () => {
     expect(unreviewedBadFillReferences(
       directBadFillReferencesInSource(path, fillSource),
     )).toEqual([])
+  })
+
+  it('accepts an explicit icon custom property and rejects generic CSS color', () => {
+    const path = 'apps/web/app/globals.css'
+    const graphicSource = '.icon { --icon-color: var(--status-bad); color: var(--icon-color); }'
+    const textSource = '.label { color: var(--status-bad); }'
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, graphicSource)))
+      .toEqual([])
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, textSource)))
+      .toEqual([`${path}:1:17 ${textSource}`])
   })
 
   it('rejects a text-color prop even when the component also receives an imported icon', () => {

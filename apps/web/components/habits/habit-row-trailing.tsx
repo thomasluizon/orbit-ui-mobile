@@ -11,10 +11,6 @@ import type { HabitRowActions } from './habit-row'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 
-function resolveParentRingColor(isBadHabit: boolean): string | undefined {
-  return isBadHabit ? 'var(--status-bad)' : undefined
-}
-
 function completionIsDisabled(completionReadOnly: boolean, canLog: boolean, isDone: boolean): boolean {
   return completionReadOnly || (!canLog && !isDone)
 }
@@ -38,13 +34,17 @@ function triggerParentCompletion(event: React.MouseEvent, disabled: boolean, isD
   parentAction?.()
 }
 
-function resolveParentRingTrackColor(
-  isBadHabit: boolean,
-  state: HabitStatus,
-): string | undefined {
-  if (isBadHabit) return 'color-mix(in srgb, var(--status-bad) 40%, transparent)'
-  if (state === 'overdue') return 'color-mix(in srgb, var(--status-overdue) 40%, transparent)'
-  return undefined
+function resolveParentRingColors(isBadHabit: boolean, state: HabitStatus) {
+  if (isBadHabit) {
+    return {
+      stroke: 'var(--status-bad)',
+      trackColor: 'color-mix(in srgb, var(--status-bad) 40%, transparent)',
+    }
+  }
+  return {
+    stroke: undefined,
+    trackColor: state === 'overdue' ? 'color-mix(in srgb, var(--status-overdue) 40%, transparent)' : undefined,
+  }
 }
 
 function buildMenuItems(
@@ -152,8 +152,7 @@ export function HabitRowTrailing({
                 done={childProgress?.done ?? 0}
                 total={childProgress?.total ?? 0}
                 size={depth === 1 ? 24 : 30}
-                color={resolveParentRingColor(habit.isBadHabit)}
-                trackColor={resolveParentRingTrackColor(habit.isBadHabit, state)}
+                {...resolveParentRingColors(habit.isBadHabit, state)}
               />
               <CompletionReason id={reasonId} disabled={completionDisabled} reason={completionReason} />
             </button>
