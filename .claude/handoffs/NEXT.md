@@ -26,6 +26,12 @@ anything during the run: take the recommended option and log it.
 happen again." And: "handoff fixes the ci congestion, merge the prs and continue the work in sleep
 mode."
 
+Added after the handoff, about `#217`, `#318` and `#320`: "if these tickets needs conversation, at
+the time of executing them, claude needs to stop and talk to me when executing, its not that deep".
+A conversation ticket is ordinary work; only its execution stops to talk with him. An unattended run
+skips it and leaves it for an attended session. Replace the spec's "Thomas's own three, which only he
+can close" (batch 1) with that rule.
+
 ## What to do, in order
 
 1. **Fix the CI congestion permanently. Nothing else starts first.** The evidence and five
