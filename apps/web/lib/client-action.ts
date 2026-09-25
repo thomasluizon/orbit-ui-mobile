@@ -4,6 +4,18 @@ import { createApiClientError } from '@orbit/shared'
 import type { ServerActionResult } from '@/app/actions/action-result'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 
+let activeAccountIntent: string | null | undefined
+
+export function withAccountIntent<T>(intendedAccountId: string | null, task: () => T): T {
+  const previousIntent = activeAccountIntent
+  activeAccountIntent = intendedAccountId
+  try {
+    return task()
+  } finally {
+    activeAccountIntent = previousIntent
+  }
+}
+
 export async function applyServerActionFailure<T>(result: ServerActionResult<T>): Promise<void> {
   if (!result.ok && result.sessionRefreshFailed) {
     await useAuthStore.getState().confirmSessionRefreshFailure()
@@ -36,5 +48,8 @@ export function bindServerAction<Arguments extends unknown[], T>(
 export function bindAccountServerAction<Arguments extends unknown[], T>(
   action: (...arguments_: [...Arguments, string | null]) => Promise<ServerActionResult<T>>,
 ): (...arguments_: Arguments) => Promise<T> {
-  return (...arguments_) => runServerAction(action(...arguments_, getHeldAccountId()))
+  return (...arguments_) => runServerAction(action(
+    ...arguments_,
+    activeAccountIntent === undefined ? getHeldAccountId() : activeAccountIntent,
+  ))
 }

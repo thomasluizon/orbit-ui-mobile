@@ -5,6 +5,7 @@ import { resolveServerSession } from '@/lib/auth-api'
 
 vi.mock('@/lib/auth-api', () => ({
   resolveServerSession: vi.fn(),
+  getAccountIdFromToken: vi.fn(() => 'account-b'),
 }))
 
 const mockFetch = vi.fn()
@@ -14,6 +15,24 @@ describe('subscriptions checkout route', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     vi.mocked(resolveServerSession).mockReset()
+  })
+
+  it('refuses checkout when the cookie names another account', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'other-token', expiresAt: Date.now() + 3600000,
+      refreshed: false, refreshFailed: false,
+    })
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'x-orbit-held-account-id': 'account-a' },
+      body: JSON.stringify({ interval: 'monthly' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ errorCode: 'ACCOUNT_CHANGED' })
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('forwards geo country headers and a sanitized client ip', async () => {

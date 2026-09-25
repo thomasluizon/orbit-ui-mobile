@@ -45,8 +45,11 @@ import { useProfile } from '@/hooks/use-profile'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
 import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
+import { getHeldAccountId } from '@/stores/auth-store'
+import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 
 interface AttemptedSend {
+  intendedAccountId: string | null
   content: string
   image: File | null
   preview: string | null
@@ -250,6 +253,15 @@ export function useChatComposer() {
     draftMessageId: string | null,
   ) => {
     setIsTyping(false)
+    if (failureInput.code === ACCOUNT_CHANGED_ERROR_CODE) {
+      const message = t('errors.api.accountChanged')
+      setSendError(message)
+      setLastFailedSend(null)
+      if (draftMessageId) updateMessage(draftMessageId, { content: message })
+      else addMessage({ id: crypto.randomUUID(), role: 'ai', content: message, timestamp: new Date() })
+      scrollToBottom()
+      return
+    }
     const resolvedError = failureInput.error.trim() || t('chat.sendError')
     const failure = classifySendFailure({
       status: failureInput.status,
@@ -434,6 +446,7 @@ export function useChatComposer() {
       armIdleTimer()
       const response = await sessionAwareFetch(API.chat.stream, {
         method: 'POST',
+        ...(attempted.intendedAccountId ? { headers: { 'X-Orbit-Held-Account-Id': attempted.intendedAccountId } } : {}),
         body: buildChatFormData(attempted),
         signal: controller.signal,
       })
@@ -556,6 +569,7 @@ export function useChatComposer() {
         : typedContent
 
       const attempted: AttemptedSend = {
+        intendedAccountId: getHeldAccountId(),
         content: messageContent,
         image: selectedImage,
         preview: imagePreview,

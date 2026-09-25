@@ -1,17 +1,18 @@
 'use client'
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
+import { useQueryClient } from '@tanstack/react-query'
 import { resolveClarification } from '@/app/actions/chat'
 import { habitKeys } from '@orbit/shared/query'
 import { applyServerActionFailure } from '@/lib/client-action'
-import { getHeldAccountId } from '@/stores/auth-store'
 
 export function useResolveClarification() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: async ({ operationId, value }: { operationId: string; value: string }) => {
-      const result = await resolveClarification(operationId, value, getHeldAccountId())
+  return useAccountScopedMutation({
+    mutationFn: async ({ operationId, value }: { operationId: string; value: string }, intendedAccountId) => {
+      const result = await resolveClarification(operationId, value, intendedAccountId)
       await applyServerActionFailure(result)
       return result
     },

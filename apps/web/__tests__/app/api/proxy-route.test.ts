@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET, PUT } from '@/app/api/[...path]/route'
+import { GET, POST, PUT } from '@/app/api/[...path]/route'
 import { resolveServerSession } from '@/lib/auth-api'
 import { API } from '@orbit/shared/api'
 
 vi.mock('@/lib/auth-api', () => ({
   resolveServerSession: vi.fn(),
+  getAccountIdFromToken: vi.fn(() => 'account-b'),
 }))
 
 const mockFetch = vi.fn()
@@ -24,6 +25,24 @@ describe('catch-all API proxy route', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     vi.mocked(resolveServerSession).mockReset()
+  })
+
+  it('refuses a chat write formed under another account before forwarding', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'other-token', expiresAt: Date.now() + 3600000,
+      refreshed: false, refreshFailed: false,
+    })
+    const request = new NextRequest('http://localhost:3000/api/chat', {
+      method: 'POST',
+      headers: { 'x-orbit-held-account-id': 'account-a' },
+      body: new FormData(),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat'] }) })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ errorCode: 'ACCOUNT_CHANGED' })
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('rejects malformed paths before calling auth or backend', async () => {

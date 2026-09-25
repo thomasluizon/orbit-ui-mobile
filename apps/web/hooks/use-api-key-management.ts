@@ -1,5 +1,6 @@
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useState, useMemo } from 'react'
-import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import type {
   AgentCapability,
@@ -92,7 +93,7 @@ export function useApiKeyManagement({
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
-  const revokeKeyMutation = useMutation({
+  const revokeKeyMutation = useAccountScopedMutation({
     mutationFn: revokeApiKey,
     onSuccess: () => {
       setRevokingKeyId(null)

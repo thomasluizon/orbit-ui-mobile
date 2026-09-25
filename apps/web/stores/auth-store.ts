@@ -105,15 +105,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const session = await readCurrentSession()
     if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
-      if (get().heldAccountId !== session.accountId) {
+      const accountId = session.accountId ?? get().heldAccountId
+      if (get().heldAccountId !== accountId) {
         accountGeneration += 1
         getQueryClient().clear()
       }
-      const user = get().user?.userId === session.accountId ? get().user : null
+      const user = get().user?.userId === accountId
+        ? get().user
+        : sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
-        heldAccountId: session.accountId,
+        heldAccountId: accountId,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
@@ -149,15 +152,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const session = await readCurrentSession()
     if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
-      if (get().heldAccountId !== session.accountId) {
+      const accountId = session.accountId ?? get().heldAccountId
+      if (get().heldAccountId !== accountId) {
         accountGeneration += 1
         getQueryClient().clear()
       }
-      const user = get().user?.userId === session.accountId ? get().user : null
+      const user = get().user?.userId === accountId
+        ? get().user
+        : sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
-        heldAccountId: session.accountId,
+        heldAccountId: accountId,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
@@ -183,15 +189,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'active') {
-      if (get().heldAccountId !== session.accountId) {
+      const accountId = session.accountId ?? get().heldAccountId
+      if (get().heldAccountId !== accountId) {
         accountGeneration += 1
         getQueryClient().clear()
       }
-      const user = get().user?.userId === session.accountId ? get().user : null
+      const user = get().user?.userId === accountId
+        ? get().user
+        : sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
-        heldAccountId: session.accountId,
+        heldAccountId: accountId,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,

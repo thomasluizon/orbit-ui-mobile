@@ -1,7 +1,8 @@
 'use client'
 
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
 import { useEffect, useRef, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
@@ -33,7 +34,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
     })
   }, [open, profile?.name])
 
-  const mutation = useMutation<void, Error, string, { previous: string | undefined }>({
+  const mutation = useAccountScopedMutation<void, Error, string, { previous: string | undefined }>({
     mutationFn: (nextName) => updateName({ name: nextName }),
     onMutate: (nextName) => {
       const previous = profile?.name

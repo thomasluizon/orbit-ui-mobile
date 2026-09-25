@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
@@ -23,6 +23,7 @@ describe('auth store', () => {
     useAuthStore.setState({
       isAuthenticated: false,
       user: null,
+      heldAccountId: null,
       expiresAt: null,
       sessionRefreshFailed: false,
     })
@@ -65,6 +66,18 @@ describe('auth store', () => {
         email: 'thomas@example.com',
       },
     })
+  })
+
+  it('holds the account from a cold session read', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, accountId: 'account-a' }),
+    })
+
+    await useAuthStore.getState().checkSession()
+
+    expect(getHeldAccountId()).toBe('account-a')
   })
 
   it('logs out and calls the BFF logout endpoint', async () => {

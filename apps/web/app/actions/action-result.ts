@@ -10,6 +10,13 @@ export type ServerActionResult<T> =
 
 export const ACCOUNT_CHANGED_ERROR_CODE = 'ACCOUNT_CHANGED'
 
+export function reportsAccountChanged(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as { code?: unknown }).code === ACCOUNT_CHANGED_ERROR_CODE
+}
+
 function readNumber(error: unknown, key: string): number | undefined {
   if (typeof error !== 'object' || error === null || !(key in error)) return undefined
   const value = (error as Record<string, unknown>)[key]
