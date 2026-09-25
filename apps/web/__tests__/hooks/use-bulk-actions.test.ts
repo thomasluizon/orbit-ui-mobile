@@ -225,6 +225,97 @@ describe('useBulkActions reversibility boundary', () => {
     )
   })
 
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('preserves the new date selection when delayed bulk %s completes', async (
+    _name,
+    mutation,
+    action,
+  ) => {
+    let resolveRequest!: (value: ReturnType<typeof bulkSuccess>) => void
+    mutation.mutateAsync.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve
+    }))
+    let viewedDate = VIEWED_DATE
+    let selection = new Set(['h-1'])
+    const onSuccess = vi.fn(() => { selection = new Set() })
+    const onPartialFailure = vi.fn((ids: string[]) => { selection = new Set(ids) })
+    const settleBulkHabitResolutions = vi.fn()
+    const habitListRef = {
+      current: { settleBulkHabitResolutions },
+    } as unknown as React.RefObject<HabitListHandle | null>
+    const { result, rerender } = renderHook(() => useBulkActions({
+      selectedHabitIds: selection,
+      selectedDateStr: viewedDate,
+      completionReadOnly: false,
+      habitsById: new Map(),
+      habitListRef,
+      onSuccess,
+      onPartialFailure,
+    }))
+
+    let request!: Promise<void>
+    act(() => { request = result.current[action]() })
+    viewedDate = '2026-04-02'
+    selection = new Set(['h-2'])
+    rerender()
+    await act(async () => {
+      resolveRequest(bulkSuccess(['h-1']))
+      await request
+    })
+
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith(
+      [{ habitId: 'h-1', mode: _name }], VIEWED_DATE,
+    )
+    expect(selection).toEqual(new Set(['h-2']))
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+    expect(showQueued).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('does not select old failed bulk %s rows on the new date', async (
+    _name,
+    mutation,
+    action,
+  ) => {
+    let resolveRequest!: (value: { results: { habitId: string; status: string }[] }) => void
+    mutation.mutateAsync.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve
+    }))
+    let viewedDate = VIEWED_DATE
+    let selection = new Set(['h-1'])
+    const onSuccess = vi.fn(() => { selection = new Set() })
+    const onPartialFailure = vi.fn((ids: string[]) => { selection = new Set(ids) })
+    const { result, rerender } = renderHook(() => useBulkActions({
+      selectedHabitIds: selection,
+      selectedDateStr: viewedDate,
+      completionReadOnly: false,
+      habitsById: new Map(),
+      habitListRef: { current: { settleBulkHabitResolutions: vi.fn() } } as unknown as React.RefObject<HabitListHandle | null>,
+      onSuccess,
+      onPartialFailure,
+    }))
+
+    let request!: Promise<void>
+    act(() => { request = result.current[action]() })
+    viewedDate = '2026-04-02'
+    selection = new Set(['h-2'])
+    rerender()
+    await act(async () => {
+      resolveRequest({ results: [{ habitId: 'h-1', status: 'Failed' }] })
+      await request
+    })
+
+    expect(selection).toEqual(new Set(['h-2']))
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onPartialFailure).not.toHaveBeenCalled()
+    expect(showQueued).not.toHaveBeenCalled()
+  })
+
   it('keeps the confirmation for the irreversible bulk delete', async () => {
     const { result } = renderBulkActions(new Set(['h-1']))
 

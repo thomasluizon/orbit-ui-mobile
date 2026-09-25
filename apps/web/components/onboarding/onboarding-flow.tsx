@@ -42,6 +42,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { updateTimezone } from '@/lib/actions/profile'
 import { requestWebPushPermission, subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { getHeldAccountId } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
@@ -210,6 +211,7 @@ export function OnboardingFlow() {
 
   async function saveHabit() {
     if (creating) return
+    const intendedAccountId = getHeldAccountId()
     setCreating(true)
     setCreateFailed(false)
     const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: false, schedule })
@@ -218,7 +220,7 @@ export function OnboardingFlow() {
       if (isLive && !accountProfile) throw new Error('Profile unavailable')
       const accountTimeZone = accountProfile?.timeZone ?? getClientTimeZone()
       if (isLive && accountProfile?.timeZone == null && accountTimeZone && accountTimeZone !== 'UTC') {
-        await updateTimezone({ timeZone: accountTimeZone })
+        await updateTimezone({ timeZone: accountTimeZone }, intendedAccountId)
       }
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else {

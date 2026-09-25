@@ -117,6 +117,7 @@ export function useBulkActions({
       )
       if (getAccountGeneration() !== accountGeneration) return
       applyBulkMutationSuccesses(result.results, 'log', date)
+      if (currentPermission.current.selectedDateStr !== date) return
       finish(result, (failedIds) => {
         if (getAccountGeneration() === accountGeneration) void executeLog(failedIds)
       })
@@ -137,6 +138,7 @@ export function useBulkActions({
       )
       if (getAccountGeneration() !== accountGeneration) return
       applyBulkMutationSuccesses(result.results, 'skip', date)
+      if (currentPermission.current.selectedDateStr !== date) return
       finish(result, (failedIds) => {
         if (getAccountGeneration() === accountGeneration) void executeSkip(failedIds)
       })
