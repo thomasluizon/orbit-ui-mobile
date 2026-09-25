@@ -120,7 +120,7 @@ async function confirmReset(tree: TestTree) {
 await Promise.resolve()
     ;(input(tree).props as { onChangeText: (value: string) => void }).onChangeText('orbit')
   })
-  await press(buttonWithLabel(tree, 'profile.freshStart.confirmButton')!)
+  await press(buttonWithLabel(tree, 'profile.freshStart.button')!)
 }
 
 describe('FreshStartModal', () => {
@@ -148,6 +148,7 @@ describe('FreshStartModal', () => {
 
   it('advances from info to the confirm step', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    expect(buttonWithLabel(tree, 'common.continue')!.props.testID).toBe('button-caution-md')
     await press(buttonWithLabel(tree, 'common.continue')!)
     const modal = tree.root.findAll((node) => node.type === 'Sheet')[0]!
     expect(modal.props.title).toBe('profile.freshStart.confirmHeading')
@@ -156,12 +157,13 @@ describe('FreshStartModal', () => {
   it('keeps the confirm button disabled until ORBIT is typed', async () => {
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     await press(buttonWithLabel(tree, 'common.continue')!)
-    expect(buttonWithLabel(tree, 'profile.freshStart.confirmButton')!.props.disabled).toBe(true)
+    expect(buttonWithLabel(tree, 'profile.freshStart.button')!.props.testID).toBe('button-caution-md')
+    expect(buttonWithLabel(tree, 'profile.freshStart.button')!.props.disabled).toBe(true)
     await TestRenderer.act(async () => {
 await Promise.resolve()
       ;(input(tree).props as { onChangeText: (value: string) => void }).onChangeText('orbit')
     })
-    expect(buttonWithLabel(tree, 'profile.freshStart.confirmButton')!.props.disabled).toBe(false)
+    expect(buttonWithLabel(tree, 'profile.freshStart.button')!.props.disabled).toBe(false)
   })
 
   it('resets the account online, clears caches and navigates after sheet dismissal', async () => {

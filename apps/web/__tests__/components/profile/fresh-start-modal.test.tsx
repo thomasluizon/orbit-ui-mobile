@@ -94,7 +94,7 @@ describe('FreshStartModal', () => {
 
   it('has a continue button in info step', () => {
     render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByText('common.continue')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'common.continue' })).toHaveAttribute('data-variant', 'caution')
   })
 
   it('transitions to confirm step on continue click', () => {
@@ -112,7 +112,8 @@ describe('FreshStartModal', () => {
 
     fireEvent.click(screen.getByText('common.continue'))
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.button' })
+    expect(confirmBtn).toHaveAttribute('data-variant', 'caution')
     expect(confirmBtn).toBeDisabled()
   })
 
@@ -124,7 +125,7 @@ describe('FreshStartModal', () => {
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORB' } })
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.button' })
     expect(confirmBtn).toBeDisabled()
   })
 
@@ -136,7 +137,7 @@ describe('FreshStartModal', () => {
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.button' })
     expect(confirmBtn).not.toBeDisabled()
   })
 
@@ -148,7 +149,7 @@ describe('FreshStartModal', () => {
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'orbit' } })
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.button' })
     expect(confirmBtn).not.toBeDisabled()
   })
 
@@ -161,7 +162,7 @@ describe('FreshStartModal', () => {
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
 
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    fireEvent.click(screen.getByText('profile.freshStart.button'))
 
     await waitFor(() => {
       expect(mockResetAccount).toHaveBeenCalledTimes(1)
@@ -177,7 +178,7 @@ describe('FreshStartModal', () => {
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
 
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    fireEvent.click(screen.getByText('profile.freshStart.button'))
 
     await waitFor(() => {
       expect(onOpenChange).toHaveBeenCalledWith(false)
@@ -197,7 +198,7 @@ describe('FreshStartModal', () => {
     render(<FreshStartModal open={true} onOpenChange={onOpenChange} />)
     fireEvent.click(screen.getByText('common.continue'))
     fireEvent.change(screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder'), { target: { value: 'ORBIT' } })
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    fireEvent.click(screen.getByText('profile.freshStart.button'))
     await waitFor(() => expect(mockResetAccount).toHaveBeenCalledOnce())
 
     await act(async () => {
@@ -221,7 +222,7 @@ describe('FreshStartModal', () => {
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
 
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    fireEvent.click(screen.getByText('profile.freshStart.button'))
 
     await waitFor(() => {
       expect(screen.getByText('profile.freshStart.errorGeneric')).toBeInTheDocument()
@@ -335,7 +336,7 @@ describe('FreshStartModal across an account change', () => {
     const nextNoticeKey = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-2')
     localStorage.setItem(nextNoticeKey, '1')
     armTheErasure()
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    fireEvent.click(screen.getByText('profile.freshStart.button'))
 
     await replaceAccountWith('user-2')
     await act(async () => { releaseReset(); await Promise.resolve() })
@@ -372,7 +373,7 @@ describe('FreshStartModal and the trial notice', () => {
     fireEvent.change(screen.getByLabelText('profile.freshStart.confirmLabel'), {
       target: { value: 'ORBIT' },
     })
-    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+    fireEvent.click(screen.getByText('profile.freshStart.button'))
 
     await waitFor(() => {
       expect(mockResetAccount).toHaveBeenCalledTimes(1)
