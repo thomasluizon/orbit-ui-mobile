@@ -6,7 +6,8 @@ import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioGroup, RadioRow } from '@/components/ui/radio-row'
+import { RadioGroup } from '@/components/ui/radio-row'
+import { RadioRow } from '@/components/ui/select-check'
 
 export interface MoveParentOption {
   id: string | null

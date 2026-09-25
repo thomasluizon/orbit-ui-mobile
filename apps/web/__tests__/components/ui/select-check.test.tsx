@@ -14,10 +14,10 @@ function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>
 
   return (
     <RadioGroup aria-label="Cadence">
-      <RadioRow label="First" selected={value === 'first'} onClick={() => select('first')} />
-      <RadioRow label="Second" selected={value === 'second'} onClick={() => select('second')} />
-      <RadioRow label="Third" selected={value === 'third'} onClick={() => select('third')} />
-      <RadioRow label="Last" selected={value === 'last'} onClick={() => select('last')} />
+      <RadioRow label="First" selected={value === 'first'} onSelect={() => select('first')} />
+      <RadioRow label="Second" selected={value === 'second'} onSelect={() => select('second')} />
+      <RadioRow label="Third" selected={value === 'third'} onSelect={() => select('third')} />
+      <RadioRow label="Last" selected={value === 'last'} onSelect={() => select('last')} />
     </RadioGroup>
   )
 }
@@ -34,13 +34,24 @@ function CommitRows({
 
   return (
     <RadioGroup aria-label="Cadence" onCommit={onCommit}>
-      <RadioRow label="First" selected={value === 'first'} onClick={() => select('first')} />
-      <RadioRow label="Second" selected={value === 'second'} onClick={() => select('second')} />
+      <RadioRow label="First" selected={value === 'first'} onSelect={() => select('first')} />
+      <RadioRow label="Second" selected={value === 'second'} onSelect={() => select('second')} />
     </RadioGroup>
   )
 }
 
 describe('select-check RadioRow group', () => {
+  it('uses the selected row tint and the empty track ring', () => {
+    render(<RadioRows onChange={vi.fn()} />)
+    const selected = screen.getByRole('radio', { name: 'First' })
+    const unselected = screen.getByRole('radio', { name: 'Second' })
+
+    expect(selected).toHaveClass('bg-[rgba(var(--primary-rgb),0.10)]')
+    expect(selected).toHaveClass('hover:bg-[var(--bg-hover)]')
+    expect(selected).toHaveStyle({ boxShadow: 'inset 0 0 0 1.5px var(--primary)' })
+    expect(unselected.querySelector('[aria-hidden="true"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--track-empty)' })
+  })
+
   it('keeps one tab stop, wraps, and follows selection with focus', () => {
     const onChange = vi.fn()
     render(<RadioRows onChange={onChange} />)

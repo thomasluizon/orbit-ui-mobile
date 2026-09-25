@@ -1,93 +1,30 @@
-import { Pressable, Text, View } from 'react-native'
-import { Target, Flame } from '@/components/ui/icons'
+import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { GoalType } from '@orbit/shared/types/goal'
-import type { CreateGoalStyles, CreateGoalTokens } from './styles'
-import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
+import type { CreateGoalStyles } from './styles'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 
 const goalTypeOptions = [
   {
     key: 'Standard',
     titleKey: 'goals.form.typeStandard',
     descKey: 'goals.form.typeStandardDescription',
-    icon: Target,
   },
   {
     key: 'Streak',
     titleKey: 'goals.form.typeStreak',
     descKey: 'goals.form.typeStreakHintGood',
     hintKey: 'goals.form.typeStreakHintBad',
-    icon: Flame,
   },
 ] as const
 
 interface GoalTypeSelectorProps {
-  tokens: CreateGoalTokens
   styles: CreateGoalStyles
   goalType: GoalType
   onTypeChange: (type: GoalType) => void
 }
 
-function GoalTypeOption({
-  active,
-  label,
-  onSelect,
-  option,
-  styles,
-  tokens,
-}: Readonly<{
-  active: boolean
-  label: string
-  onSelect: () => void
-  option: (typeof goalTypeOptions)[number]
-  styles: CreateGoalStyles
-  tokens: CreateGoalTokens
-}>) {
-  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({
-    disabled: false,
-    onSelect,
-    selected: active,
-  })
-  const OptionIcon = option.icon
-
-  return (
-    <Pressable
-      {...navigationProps}
-      ref={elementRef}
-      style={({ pressed }) => [
-        styles.typeOption,
-        active ? styles.typeOptionActive : styles.typeOptionInactive,
-        pressed
-          ? [
-              styles.typeOptionPressed,
-              active ? styles.typeOptionActivePressed : styles.typeOptionInactivePressed,
-            ]
-          : null,
-      ]}
-      onPress={onActivate}
-      accessibilityRole="radio"
-      accessibilityLabel={label}
-      accessibilityState={{ checked: active }}
-    >
-      <OptionIcon
-        size={20}
-        strokeWidth={1.8}
-        color={active ? tokens.fgOnPrimary : tokens.fg2}
-      />
-      <Text
-        style={[
-          styles.typeOptionText,
-          { color: active ? tokens.fgOnPrimary : tokens.fg2 },
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  )
-}
-
 export function GoalTypeSelector({
-  tokens,
   styles,
   goalType,
   onTypeChange,
@@ -98,25 +35,15 @@ export function GoalTypeSelector({
   return (
     <View>
       <Text style={styles.fieldLabel}>{t('goals.form.type')}</Text>
-      <RadioGroup
-        style={styles.typeRow}
-        accessibilityLabel={t('goals.form.type')}
-      >
-        {goalTypeOptions.map((option) => {
-          const isActive = goalType === option.key
-          return (
-            <GoalTypeOption
-              key={option.key}
-              active={isActive}
-              label={t(option.titleKey)}
-              onSelect={() => onTypeChange(option.key)}
-              option={option}
-              styles={styles}
-              tokens={tokens}
-            />
-          )
-        })}
-      </RadioGroup>
+      <SegmentedControl<GoalType>
+        label={t('goals.form.type')}
+        value={goalType}
+        options={[
+          { value: goalTypeOptions[0].key, label: t(goalTypeOptions[0].titleKey) },
+          { value: goalTypeOptions[1].key, label: t(goalTypeOptions[1].titleKey) },
+        ]}
+        onChange={onTypeChange}
+      />
       <View style={styles.typeCaption}>
         <Text style={styles.typeDesc}>{t(activeTypeOption.descKey)}</Text>
         {'hintKey' in activeTypeOption ? (
