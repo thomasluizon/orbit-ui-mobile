@@ -18,6 +18,7 @@ import {
   completeOnboarding,
   updateWeekStartDay as updateWeekStartDayAction,
 } from '@/lib/actions/profile'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 /** Canonical mode-blind action surface consumed by every onboarding step. */
 export interface OnboardingActions {
@@ -147,17 +148,22 @@ export function useLiveOnboardingActions(): OnboardingActions {
       logHabit: async (habitId) => { await logHabit.mutateAsync({ habitId, intent: 'log' }) },
       createGoal: async (input) => { await createGoal.mutateAsync(input) },
       setWeekStartDay: async (day) => {
+        const accountGeneration = getAccountGeneration()
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) => old ? { ...old, weekStartDay: day } : old)
         await updateWeekStartDayAction({ weekStartDay: day })
-        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+        if (getAccountGeneration() === accountGeneration) {
+          void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+        }
       },
       deferPushRegistration: () => undefined,
       finishOnboarding: async () => {
+        const accountGeneration = getAccountGeneration()
         try {
           await completeOnboarding()
         } catch {
           void 0
         }
+        if (getAccountGeneration() !== accountGeneration) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )

@@ -10,6 +10,7 @@ import { completeOnboarding } from '@/lib/actions/profile'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useProfile } from '@/hooks/use-profile'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 interface EntrySnapshot {
   accountGeneration: number
@@ -62,7 +63,11 @@ export function useRetainedOnboardingGuard(
     autoCompletedGeneration.current = accountGeneration
     void completeOnboarding()
       .catch(() => {})
-      .finally(() => patchProfile({ hasCompletedOnboarding: true }))
+      .finally(() => {
+        if (getAccountGeneration() === accountGeneration) {
+          patchProfile({ hasCompletedOnboarding: true })
+        }
+      })
   }, [accountGeneration, action, forceShow, patchProfile])
 
   return forceShow || action === 'show'

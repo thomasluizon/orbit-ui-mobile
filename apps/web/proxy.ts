@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import {
+  ACCOUNT_ID_HEADER,
   AUTH_COOKIE,
   REFRESH_COOKIE,
+  getAccountIdFromToken,
   resolveSessionTokens,
   setSessionCookies,
   type SessionTokens,
@@ -102,6 +104,7 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set(CONTENT_SECURITY_POLICY, contentSecurityPolicy)
+  requestHeaders.delete(ACCOUNT_ID_HEADER)
 
   if (
     pathname.startsWith('/api/') ||
@@ -120,6 +123,9 @@ export async function proxy(request: NextRequest) {
   const session = shouldResolveSession
     ? await resolveProxySession(request)
     : { token: null, refreshedTokens: null }
+
+  const accountId = session.token ? getAccountIdFromToken(session.token) : null
+  if (accountId) requestHeaders.set(ACCOUNT_ID_HEADER, accountId)
 
   if (!session.token && !isPublic) {
     const url = request.nextUrl.clone()

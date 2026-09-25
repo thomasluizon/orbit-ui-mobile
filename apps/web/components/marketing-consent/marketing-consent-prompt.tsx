@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useMutation } from '@tanstack/react-query'
 import { MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
@@ -8,6 +8,8 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/lib/actions/profile'
 
@@ -32,27 +34,40 @@ export function MarketingConsentPrompt() {
   )
 
   const isArmed = armedPrompt?.kind === 'consent'
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const retiredPromptRef = useRef<typeof armedPrompt>(null)
+  /**
+   * The settle timer is the one thing the state reset above cannot reach: with no prompt on
+   * screen its effect never re-runs, so a timer armed for the previous account would open this
+   * prompt under the next one.
+   */
+  useResetOnAccountChange(() => {
+    clearTimeout(settleTimerRef.current)
+    retiredPromptRef.current = armedPrompt
+  })
 
   const mutation = useMutation({
     mutationFn: (enabled: boolean) => updateMarketingConsent({ enabled }),
     onMutate: (enabled) => {
+      const accountGeneration = getAccountGeneration()
       const previous = profile?.marketingEmailConsent ?? null
       patchProfile({ marketingEmailConsent: enabled })
-      return { previous }
+      return { previous, accountGeneration }
     },
     onError: (_error, _enabled, context) => {
-      patchProfile({ marketingEmailConsent: context?.previous ?? null })
+      if (context?.accountGeneration !== getAccountGeneration()) return
+      patchProfile({ marketingEmailConsent: context.previous })
     },
-    onSettled: () => {
+    onSettled: (_data, _error, _enabled, context) => {
+      if (context?.accountGeneration !== getAccountGeneration()) return
       invalidate()
     },
   })
 
   useEffect(() => {
-    if (visible || !isArmed || celebrationInFlight) return
+    if (visible || !isArmed || celebrationInFlight || armedPrompt === retiredPromptRef.current) return
 
     settleTimerRef.current = setTimeout(() => {
       markEngagementPrompted(
@@ -65,10 +80,12 @@ export function MarketingConsentPrompt() {
     return () => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
-  }, [isArmed, celebrationInFlight, visible, markEngagementPrompted])
+  }, [armedPrompt, celebrationInFlight, isArmed, markEngagementPrompted, setVisible, visible])
 
   function answer(enabled: boolean) {
+    const accountGeneration = getAccountGeneration()
     closeSheet(() => {
+      if (getAccountGeneration() !== accountGeneration) return
       setVisible(false)
       mutation.mutate(enabled)
     })

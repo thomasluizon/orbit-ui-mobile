@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
@@ -8,11 +7,12 @@ import { CommandMenu } from '@/components/command/command-menu'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 export default function SearchPage() {
   const t = useTranslations()
   const router = useRouter()
-  const [createTitle, setCreateTitle] = useState<string | null>(null)
+  const [createTitle, setCreateTitle] = useAccountScopedState<string | null>(null)
   useOverlayEscape({ open: true, onDismiss: () => router.back(), restoreFocus: false })
   const navItems = [
     { id: 'hoje', label: t('nav.today'), icon: Home, onSelect: () => router.push('/') },

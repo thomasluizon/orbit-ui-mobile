@@ -30,6 +30,8 @@ AsyncStorage.clear = () => {
   return Promise.resolve()
 }
 
+const ACCOUNT = 'user-1'
+
 describe('mobile step up timing storage', () => {
   beforeEach(async () => {
     await AsyncStorage.clear()
@@ -37,24 +39,25 @@ describe('mobile step up timing storage', () => {
   })
 
   it('does not let a new code reset an active exhausted window', async () => {
-    const first = await beginStepUpChallenge('keys', 1_000)
-    await markStepUpExhausted(first, 2_000)
+    const first = await beginStepUpChallenge('keys', ACCOUNT, 1_000)
+    await markStepUpExhausted(first, ACCOUNT, 2_000)
     const resent = await beginStepUpChallenge(
       'keys',
+      ACCOUNT,
       2_000 + STEP_UP_ATTEMPT_WINDOW_MS - 1,
     )
 
     expect(resent.exhaustedAt).toBe(2_000)
-    expect(await readStepUpTiming('keys')).toEqual(resent)
+    expect(await readStepUpTiming('keys', ACCOUNT)).toEqual(resent)
   })
 
   it('persists failed deletion attempts and resets them for a new challenge', async () => {
-    const first = await beginStepUpChallenge('delete', 1_000)
-    const failedOnce = await markStepUpAttemptFailed(first)
-    const failedTwice = await markStepUpAttemptFailed(failedOnce)
+    const first = await beginStepUpChallenge('delete', ACCOUNT, 1_000)
+    const failedOnce = await markStepUpAttemptFailed(first, ACCOUNT)
+    const failedTwice = await markStepUpAttemptFailed(failedOnce, ACCOUNT)
 
-    expect(await readStepUpTiming('delete')).toEqual({ ...first, failedAttempts: 2 })
-    expect(await beginStepUpChallenge('delete', 2_000)).toEqual({
+    expect(await readStepUpTiming('delete', ACCOUNT)).toEqual({ ...first, failedAttempts: 2 })
+    expect(await beginStepUpChallenge('delete', ACCOUNT, 2_000)).toEqual({
       operation: 'delete',
       sentAt: 2_000,
     })

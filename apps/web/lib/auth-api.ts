@@ -4,6 +4,10 @@ import { API } from '@orbit/shared/api'
 export const AUTH_COOKIE = 'auth_token'
 export const REFRESH_COOKIE = 'refresh_token'
 
+/** Names the account the proxy resolved, for a server render that has to know it before the client
+ * has asked. The proxy removes any inbound copy first, so a request cannot name its own account. */
+export const ACCOUNT_ID_HEADER = 'x-account-id'
+
 const ACCESS_TOKEN_REFRESH_THRESHOLD_MS = 60_000
 const DEFAULT_ACCESS_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 365

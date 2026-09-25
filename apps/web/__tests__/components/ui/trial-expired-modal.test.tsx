@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
@@ -43,7 +43,12 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
+import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
+import { holdAccount } from '@/__tests__/support/account-change'
+
+/** The notice is owed to one account, so the key it is written under names that account. */
+const SEEN_KEY = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-1')
 
 describe('TrialExpiredModal', () => {
   beforeEach(() => {
@@ -52,6 +57,13 @@ describe('TrialExpiredModal', () => {
     mockPush.mockClear()
     mockUseSubscriptionPlans.mockClear()
     localStorage.clear()
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    vi.unstubAllGlobals()
   })
 
   it('renders nothing when trial is not expired', () => {
@@ -66,7 +78,7 @@ describe('TrialExpiredModal', () => {
 
   it('renders nothing when already dismissed via localStorage', () => {
     mockTrialExpired = true
-    localStorage.setItem('orbit_trial_expired_seen', '1')
+    localStorage.setItem(SEEN_KEY, '1')
     const { container } = render(<TrialExpiredModal />)
     expect(container.innerHTML).toBe('')
   })
@@ -131,14 +143,14 @@ describe('TrialExpiredModal', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
     fireEvent.click(screen.getByText('trial.expired.continueFree'))
-    expect(localStorage.getItem('orbit_trial_expired_seen')).toBe('1')
+    expect(localStorage.getItem(SEEN_KEY)).toBe('1')
   })
 
   it('dismisses when subscribe link is clicked', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
     fireEvent.click(screen.getByText('trial.expired.subscribe'))
-    expect(localStorage.getItem('orbit_trial_expired_seen')).toBe('1')
+    expect(localStorage.getItem(SEEN_KEY)).toBe('1')
   })
 
   it('dismisses through the sheet when the close control is used', () => {
@@ -148,6 +160,6 @@ describe('TrialExpiredModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
 
-    expect(localStorage.getItem('orbit_trial_expired_seen')).toBe('1')
+    expect(localStorage.getItem(SEEN_KEY)).toBe('1')
   })
 })
