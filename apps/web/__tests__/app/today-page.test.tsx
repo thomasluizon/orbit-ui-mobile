@@ -201,22 +201,22 @@ describe('Hoje date control', () => {
   })
 
   it('keeps the same selection key under en and pt-BR', () => {
-    expect(buildSelectionRefreshKey).toHaveLength(2)
+    expect(buildSelectionRefreshKey).toHaveLength(3)
 
     const selectedHabitIds = new Set(['habit-2', 'habit-1'])
     const keysByLocale = [
-      ['en', buildSelectionRefreshKey(selectedHabitIds, false)],
-      ['pt-BR', buildSelectionRefreshKey(selectedHabitIds, false)],
+      ['en', buildSelectionRefreshKey(selectedHabitIds, false, false)],
+      ['pt-BR', buildSelectionRefreshKey(selectedHabitIds, false, false)],
     ]
 
     expect(new Set(keysByLocale.map(([, key]) => key))).toEqual(
-      new Set(['habit-1,habit-2:some']),
+      new Set(['habit-1,habit-2:some:loggable']),
     )
   })
 
   it('uses a different selection key for a different selection', () => {
-    const firstKey = buildSelectionRefreshKey(new Set(['habit-1']), false)
-    const secondKey = buildSelectionRefreshKey(new Set(['habit-2']), false)
+    const firstKey = buildSelectionRefreshKey(new Set(['habit-1']), false, false)
+    const secondKey = buildSelectionRefreshKey(new Set(['habit-2']), false, false)
 
     expect(firstKey).not.toBe(secondKey)
   })
@@ -272,6 +272,7 @@ describe('Hoje date control', () => {
     )
 
     expect(screen.getByText(en.habits.todayBoundary.readOnly)).toBeInTheDocument()
+    expect(en.habits.todayBoundary.readOnly).toBe('Logging stops 7 days back. You can still edit, move and delete here.')
   })
 
   it('ignores an upgraded showCompleted true payload when rendering Today', async () => {

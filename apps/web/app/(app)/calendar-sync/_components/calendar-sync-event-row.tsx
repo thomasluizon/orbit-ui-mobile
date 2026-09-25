@@ -187,7 +187,7 @@ export function CalendarSyncEventRow({
           disabled={dismissPending}
           aria-label={t('calendar.autoSync.dismissSuggestion')}
           className="icon-btn touch-target group/dismiss shrink-0 disabled:opacity-50"
-          style={{ width: 36, height: 36, marginTop: 8, color: 'var(--fg-4)' }}
+          style={{ width: 36, height: 36, marginTop: 8, color: 'var(--fg-3)' }}
         >
           <X size={20} strokeWidth={1.8} aria-hidden className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/dismiss:text-[var(--status-bad)]" />
         </button>

@@ -41,7 +41,7 @@ export function AppSelect({
       <ChevronDown
         size={20}
         strokeWidth={1.8}
-        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[var(--fg-4)]"
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[var(--fg-3)]"
       />
     </div>
   )

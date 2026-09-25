@@ -183,7 +183,7 @@ export function SupportForm({
           role="status"
           className="flex min-w-0 items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-3"
         >
-          <WifiOff size={20} aria-hidden className="shrink-0 text-[var(--fg-4)]" />
+          <WifiOff size={20} aria-hidden className="shrink-0 text-[var(--fg-3)]" />
           <p className="min-w-0 flex-1 text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">
             {t('profile.support.offlineReason')}
           </p>

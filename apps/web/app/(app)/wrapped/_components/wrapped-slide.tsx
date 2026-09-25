@@ -391,9 +391,9 @@ function WrappedShareSlide({ recap, captureRef, hasError, savedFileName, reduced
           data-testid="wrapped-motion-part"
           {...motionProps(2, reducedMotion)}
           role="alert"
-          style={{ textAlign: 'center', fontSize: 13, color: 'var(--status-bad-text)' }}
+          style={{ textAlign: 'center', fontSize: 13 }}
         >
-          {t('shareCard.shareError')}
+          <span style={{ color: 'var(--status-bad-text)' }}>{t('shareCard.shareError')}</span>
         </motion.p>
       )}
 

@@ -16,6 +16,7 @@ interface CheckCircleProps {
   onToggle: () => void
   disabled: boolean
   accessibilityLabel: string
+  accessibilityHint?: string
   tokens: ReturnType<typeof createTokensV2>
   size?: number
 }
@@ -25,6 +26,7 @@ export function CheckCircle({
   onToggle,
   disabled,
   accessibilityLabel,
+  accessibilityHint,
   tokens,
   size = 30,
 }: Readonly<CheckCircleProps>) {
@@ -53,6 +55,7 @@ export function CheckCircle({
       hitSlop={0}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityHint={disabled ? accessibilityHint : undefined}
       accessibilityState={{ disabled }}
       style={({ pressed }) => {
         const pressedOpacity = pressed ? 0.85 : 1

@@ -60,7 +60,7 @@ export function HabitUnderstanding({
               >
                 {segment.text}
               </span>
-            ) : segment.text) : <span className="text-[var(--fg-4)]">{labels.placeholder}</span>}
+            ) : segment.text) : <span className="text-[var(--fg-3)]">{labels.placeholder}</span>}
           </p>
           <textarea
             id="habit-phrase"
