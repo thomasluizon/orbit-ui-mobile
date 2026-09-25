@@ -2,6 +2,8 @@ import { expect, type Locator, type Page } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { plural } from '@orbit/shared/utils/plural'
+import { formatPrice, monthlyEquivalent } from '@orbit/shared/utils/subscription-pricing'
+import { subscriptionPlansFixtures } from '../../test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { test } from './upgrade-fixtures'
 
 function singleLineLabels(messages: typeof en, trial: boolean): string[] {
@@ -55,9 +57,18 @@ async function renderedLineCounts(page: Page, label: string): Promise<number[]> 
     elements.map((element) => {
       const range = document.createRange()
       range.selectNodeContents(element)
-      return new Set(
-        Array.from(range.getClientRects()).map((rect) => Math.round(rect.top * 10) / 10),
-      ).size
+      const rectangles = Array.from(range.getClientRects()).sort((left, right) => left.top - right.top)
+      let lines = 0
+      let lineBottom = -Infinity
+      for (const rectangle of rectangles) {
+        if (rectangle.top >= lineBottom - 0.5) {
+          lines += 1
+          lineBottom = rectangle.bottom
+        } else {
+          lineBottom = Math.max(lineBottom, rectangle.bottom)
+        }
+      }
+      return lines
     }),
   )
 }
@@ -106,6 +117,28 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             expect(lines.length, `${label} is present at ${width}px`).toBeGreaterThan(0)
             expect(lines.every((count) => count === 1), `${label} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
           }
+
+          const plans = subscriptionPlansFixtures[locale === 'pt-BR' ? 'brl' : 'usd']
+          for (const [interval, amount, period] of [
+            ['monthly', plans.monthly.unitAmount, messages.upgrade.plans.monthly.period],
+            ['yearly', plans.yearly.unitAmount, messages.upgrade.plans.yearly.period],
+          ] as const) {
+            const price = `${formatPrice(amount, plans.currency)}${period}`
+            const lines = await renderedLineCounts(page, price)
+            process.stdout.write(`${locale} ${subscriptionState} at ${width}px ${interval} price: lines=${lines.join(',')}\n`)
+            expect(lines.length, `${locale} ${interval} price ${price} is rendered at ${width}px`).toBeGreaterThan(0)
+            expect(lines.every((count) => count === 1), `${locale} ${interval} price ${price} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
+            if (locale === 'en' && subscriptionState === 'free' && width === 412 && interval === 'monthly') {
+              const priceLabel = main.getByText(price, { exact: true })
+              await priceLabel.evaluate((element) => { element.style.maxWidth = '80px' })
+              expect(await renderedLineCounts(page, price), 'a wrapped price is counted as two lines').toEqual([2])
+              await priceLabel.evaluate((element) => { element.style.removeProperty('max-width') })
+            }
+          }
+          const equivalent = messages.upgrade.plans.yearly.equivalent
+            .replace('{price}', formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency))
+            .replace('{percent}', String(plans.savingsPercent))
+          await expect(main.getByText(equivalent, { exact: true })).toBeVisible()
 
           const allowance = main.getByRole('region', { name: messages.upgrade.convert.allowanceLabel })
             .getByText(messages.upgrade.convert.freeAllowance, { exact: true })

@@ -1,7 +1,25 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import { setI18n } from 'react-i18next'
 import { authLocales, authScreenStates, createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LoginContent } from '@/components/auth/login-content'
+
+vi.mock('react-i18next', async (importActual) => ({
+  ...(await importActual<typeof import('react-i18next')>()),
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+}))
+
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({
+  resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } },
+  lng: 'en', fallbackLng: 'en', initAsync: false,
+})
+setI18n(testI18n)
 
 const { act, create } = require('react-test-renderer')
 const mocks = vi.hoisted((): { flow: Record<string, unknown>; action: () => void; theme: string } => ({ flow: {}, action: vi.fn(), theme: 'dark' }))
@@ -16,7 +34,11 @@ vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
 interface Node {
   type: unknown
   props: Record<string, unknown>
+  children: (Node | string)[]
   findAll: (predicate: (node: Node) => boolean) => Node[]
+}
+function renderedText(node: Node): string {
+  return node.children.map((child) => typeof child === 'string' ? child : renderedText(child)).join('')
 }
 function textOf(node: Node): string {
   return node.findAll((child) => child.type === 'Text')
@@ -39,7 +61,49 @@ function render() {
 }
 
 describe.each(authLocales)('mobile auth composition in %s', (locale) => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    void testI18n.changeLanguage(locale)
+    setI18n(testI18n)
+  })
+  it('renders the complete localized legal sentence with both actions', () => {
+    setFixture('email', locale)
+    const tree = render()
+    const sentence = locale === 'en'
+      ? 'By continuing, you agree to the Terms and the Privacy policy.'
+      : 'Ao continuar, você concorda com os Termos e a Política de privacidade.'
+    expect(renderedText(tree.root)).toContain(sentence)
+    expect(host(tree.root, 'Text').filter((node) => node.props.accessibilityRole === 'link')).toHaveLength(2)
+    act(() => tree.unmount())
+  })
+  it('keeps both legal actions when the locale reverses their order', () => {
+    setFixture('email', locale)
+    const privacyLabel = locale === 'en' ? 'Privacy policy' : 'Política de privacidade'
+    const termsLabel = locale === 'en' ? 'Terms' : 'Termos'
+    const termsAction = vi.fn()
+    const privacyAction = vi.fn()
+    mocks.flow.openTerms = termsAction
+    mocks.flow.openPrivacyPolicy = privacyAction
+    const reorderedI18n = createInstance()
+    void reorderedI18n.use(ICU).init({
+      resources: { [locale]: { translation: {
+        ...(locale === 'en' ? en : ptBR),
+        auth: { ...(locale === 'en' ? en.auth : ptBR.auth),
+          legalConsent: `First <privacy>${privacyLabel}</privacy>, then <terms>${termsLabel}</terms>.` },
+      } } },
+      lng: locale, fallbackLng: locale, initAsync: false,
+    })
+    setI18n(reorderedI18n)
+    const tree = render()
+    const links = host(tree.root, 'Text').filter((node) => node.props.accessibilityRole === 'link')
+    expect(links.map(textOf)).toEqual([privacyLabel, termsLabel])
+    expect(renderedText(tree.root)).toContain(`First ${privacyLabel}, then ${termsLabel}.`)
+    act(() => (links[0]!.props.onPress as () => void)())
+    act(() => (links[1]!.props.onPress as () => void)())
+    expect(privacyAction).toHaveBeenCalledTimes(1)
+    expect(termsAction).toHaveBeenCalledTimes(1)
+    act(() => tree.unmount())
+  })
   it.each(['resend ready', 'code expired'] as const)('puts the busy state on resend for %s', (state) => {
     const { t } = setFixture(state, locale)
     mocks.flow.isSubmitting = true
