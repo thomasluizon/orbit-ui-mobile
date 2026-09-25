@@ -46,7 +46,8 @@ describe('select-check RadioRow group', () => {
     const selected = screen.getByRole('radio', { name: 'First' })
     const unselected = screen.getByRole('radio', { name: 'Second' })
 
-    expect(selected).toHaveStyle({ background: 'rgba(var(--primary-rgb), 0.10)' })
+    expect(selected).toHaveClass('bg-[rgba(var(--primary-rgb),0.10)]')
+    expect(selected).toHaveClass('hover:bg-[var(--bg-hover)]')
     expect(selected).toHaveStyle({ boxShadow: 'inset 0 0 0 1.5px var(--primary)' })
     expect(unselected.querySelector('[aria-hidden="true"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--track-empty)' })
   })

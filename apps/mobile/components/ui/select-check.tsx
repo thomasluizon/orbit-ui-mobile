@@ -111,14 +111,17 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
       opacity: disabled ? 0.5 : 1,
     },
   ]
+  const accessibilityLabel = [label, description, meta, tag, disabled ? reason : null]
+    .filter(Boolean).join(', ')
 
   return disabled ? (
-    <View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: true }} style={rowStyle}>{content}</View>
+    <View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={rowStyle}>{content}</View>
   ) : (
     <Pressable
       {...navigationProps}
       ref={elementRef}
       accessibilityRole="radio"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: selected }}
       onPress={onActivate}
       style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.99 }] } : null]}

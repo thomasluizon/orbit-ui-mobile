@@ -3,8 +3,9 @@ import { Pressable, View } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
-import { RadioRow } from '@/components/ui/select-check'
+import { RadioGlyph, RadioRow } from '@/components/ui/select-check'
 import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
+import { createTokensV2 } from '@/lib/theme'
 import { focusHost } from '../../support/focus-provenance'
 import {
   __resetTestHostConfig,
@@ -115,8 +116,13 @@ describe('select-check RadioRow group', () => {
       (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
     )[0]
 
+    const tokens = createTokensV2('purple', 'dark')
     expect(selected.props.style({ pressed: false })).toEqual(expect.arrayContaining([
-      expect.objectContaining({ backgroundColor: expect.any(String), borderColor: expect.any(String) }),
+      expect.objectContaining({ backgroundColor: tokens.selectionBg, borderColor: tokens.primary }),
+    ]))
+    const unselectedGlyph = tree.root.findAllByType(RadioGlyph)[1].findByType(View)
+    expect(unselectedGlyph.props.style).toEqual(expect.arrayContaining([
+      { borderWidth: 2, borderColor: tokens.trackEmpty },
     ]))
   })
 

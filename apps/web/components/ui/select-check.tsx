@@ -95,7 +95,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
     paddingBlock: 8,
     paddingInlineStart: 20 + Math.max(0, depth) * 20,
     paddingInlineEnd: 20,
-    background: selected ? 'rgba(var(--primary-rgb), 0.10)' : 'transparent',
+    background: disabled && selected ? 'rgba(var(--primary-rgb), 0.10)' : undefined,
     boxShadow: selected ? 'inset 0 0 0 1.5px var(--primary)' : undefined,
     borderRadius: 'var(--r-well)',
     opacity: disabled ? 0.5 : 1,
@@ -112,7 +112,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className="flex w-full cursor-pointer items-center border-0 text-left hover:bg-[var(--bg-elev)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+      className={`flex w-full cursor-pointer items-center border-0 text-left hover:bg-[var(--bg-hover)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${selected ? 'bg-[rgba(var(--primary-rgb),0.10)]' : 'bg-transparent'}`}
       style={style}
     >{content}</button>
   )
