@@ -4,19 +4,12 @@ import { useEffect, useSyncExternalStore } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
-import { Rubik } from 'next/font/google'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import enMessages from '@orbit/shared/i18n/en.json'
 import ptMessages from '@orbit/shared/i18n/pt-BR.json'
 import { PillButton } from '@/components/ui/pill-button'
+import { rubik } from './fonts'
 import './globals.css'
-
-const rubik = Rubik({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-rubik',
-  display: 'swap',
-})
 
 const SCHEME_NAMES = new Set(['purple', 'blue', 'green', 'rose', 'orange', 'cyan'])
 
@@ -81,6 +74,7 @@ function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {
           >
             <PillButton onClick={reset}>{t('common.retry')}</PillButton>
           </div>
+          {/* eslint-disable local/spacing-scale -- Preserve the existing 9px error-link gap for #667. */}
           <Link
             href="/"
             className="inline-flex items-center justify-center gap-[9px] rounded-full px-[26px] py-[14px] text-[16px] font-medium text-[var(--fg-1)] no-underline shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.98]"
@@ -93,6 +87,7 @@ function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {
           >
             {t('common.goHome')}
           </Link>
+          {/* eslint-enable local/spacing-scale */}
         </div>
       </div>
     </div>

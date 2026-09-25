@@ -10,8 +10,8 @@ vi.mock('@sentry/nextjs', () => ({
   captureException: vi.fn(),
 }))
 
-vi.mock('next/font/google', () => ({
-  Rubik: () => ({ variable: 'font-rubik', className: 'font-rubik' }),
+vi.mock('next/font/local', () => ({
+  default: () => ({ variable: 'font-rubik', className: 'font-rubik' }),
 }))
 
 vi.mock('lucide-react', async (importOriginal) => {

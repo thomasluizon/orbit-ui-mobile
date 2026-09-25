@@ -236,7 +236,7 @@
   },
   "app/global-error.tsx": {
     "local/spacing-scale": {
-      "count": 5
+      "count": 2
     }
   },
   "app/not-found.tsx": {
