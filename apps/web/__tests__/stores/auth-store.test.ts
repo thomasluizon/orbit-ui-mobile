@@ -215,6 +215,11 @@ describe('auth store', () => {
     const oldLogout = useAuthStore.getState().logout()
     await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
     useAuthStore.getState().adoptAccountFromSignal('user-2')
+    await vi.waitFor(() => expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      expiresAt: Date.now() + 3600000,
+      sessionRefreshFailed: false,
+    }))
     releaseLogout()
     await oldLogout
 
