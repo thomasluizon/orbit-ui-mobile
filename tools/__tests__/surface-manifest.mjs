@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { T, run, stageRepo } from "./_harness.mjs"
 
@@ -108,7 +108,8 @@ export async function cases() {
     "web-only routes carry an explicit counterpart reason",
     ["route-explore", "route-insights"].every((surfaceId) => surfaces.find((surface) => surface.surfaceId === surfaceId)?.counterpart?.status === "web-only"),
   )
-  T("the fixture commit remains the generated manifest source", manifest.generatedFrom === spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim())
+  T("the manifest omits commit provenance", !("generatedFrom" in manifest))
+  T("surface cells omit import closure sizes", manifest.cells.every((cell) => !("closureSize" in cell)))
 
   const manifestPath = join(repository.path, ".claude", "manifests", "surfaces.json")
   const checkOptions = { cwd: repository.path, env: { ORBIT_SURFACE_ROOT: repository.path } }
@@ -138,16 +139,50 @@ export async function cases() {
   const fresh = run("surface-manifest.mjs", checkArgs, checkOptions)
   T("--check accepts a manifest generated from the same tree", fresh.status === 0, fresh.stderr)
 
-  // The exclusion this mode is built on: a manifest can never name the commit that carries it,
-  // so a moved HEAD alone is not drift. Without this, every correct manifest would fail.
+  repository.git(["add", ".claude/manifests/surfaces.json"])
+  repository.git(["commit", "-q", "-m", "commit the shared inventory"])
+  repository.git(["checkout", "-q", "-b", "surface-a"])
+  write(join(repository.path, "apps/web/app/(app)/page.tsx"), "import { RootDetail } from './root-detail'\nexport default function TodayPage() { return <RootDetail /> }\n")
+  write(join(repository.path, "apps/web/app/(app)/root-detail.tsx"), "export function RootDetail() { return null }\n")
+  repository.git(["add", "apps/web/app/(app)/page.tsx", "apps/web/app/(app)/root-detail.tsx"])
+  repository.git(["commit", "-q", "-m", "change the web root surface"])
+  const firstBranch = run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  T("the first surface branch regenerates its inventory", firstBranch.status === 0, firstBranch.stderr)
+  const firstCells = JSON.parse(readFileSync(manifestPath, "utf8")).cells
+  T("the first branch records its own new file", firstCells.some((cell) => cell.surfaceId === "route-root" && cell.ownedFiles.includes("apps/web/app/(app)/root-detail.tsx")))
+  repository.git(["add", ".claude/manifests/surfaces.json"])
+  repository.git(["commit", "-q", "-m", "refresh the web root inventory"])
+
+  repository.git(["checkout", "-q", "main"])
+  repository.git(["checkout", "-q", "-b", "surface-b"])
+  write(join(repository.path, "apps/mobile/app/preferences.tsx"), "import { BranchDetail } from '@/components/preferences/branch-detail'\nexport default function Preferences() { return <BranchDetail /> }\n")
+  write(join(repository.path, "apps/mobile/components/preferences/branch-detail.tsx"), "export function BranchDetail() { return null }\n")
+  repository.git(["add", "apps/mobile/app/preferences.tsx", "apps/mobile/components/preferences/branch-detail.tsx"])
+  repository.git(["commit", "-q", "-m", "change mobile preferences"])
+  const secondBranch = run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  T("the second surface branch regenerates its inventory", secondBranch.status === 0, secondBranch.stderr)
+  const secondCells = JSON.parse(readFileSync(manifestPath, "utf8")).cells
+  T("the second branch records its own new file", secondCells.some((cell) => cell.surfaceId === "m-route-preferences" && cell.ownedFiles.includes("apps/mobile/components/preferences/branch-detail.tsx")))
+  repository.git(["add", ".claude/manifests/surfaces.json"])
+  repository.git(["commit", "-q", "-m", "refresh mobile preferences inventory"])
+
+  const merge = repository.git(["merge", "--no-commit", "--no-ff", "surface-a"])
+  T("different surface branches merge without a manifest conflict", merge.status === 0, merge.stdout + merge.stderr)
+  if (merge.status === 0) {
+    const mergedCheck = run("surface-manifest.mjs", checkArgs, checkOptions)
+    T("the combined surface branches pass --check", mergedCheck.status === 0, mergedCheck.stderr)
+  }
+  repository.git(["merge", "--abort"])
+  repository.git(["checkout", "-q", "main"])
+
+  // A moved HEAD alone is not inventory drift. The committed file carries no HEAD stamp.
   write(join(repository.path, "notes.md"), "no surface changes here\n")
   repository.git(["add", "notes.md"])
   repository.git(["commit", "-q", "-m", "a commit that moves no surface"])
   const movedHead = run("surface-manifest.mjs", checkArgs, checkOptions)
-  const staleGeneratedFrom = JSON.parse(readFileSync(manifestPath, "utf8")).generatedFrom
   T(
-    "--check ignores a generatedFrom that the carrying commit could not have known",
-    movedHead.status === 0 && staleGeneratedFrom !== spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim(),
+    "--check accepts an unchanged inventory after HEAD moves",
+    movedHead.status === 0,
     movedHead.stderr,
   )
 
@@ -171,6 +206,26 @@ export async function cases() {
     ownershipDrift.status === 1 && ownershipDrift.stderr.includes("route-root"),
     ownershipDrift.stderr,
   )
+
+  const refreshed = run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  T("the fixture inventory refreshes before removal checks", refreshed.status === 0, refreshed.stderr)
+  rmSync(join(repository.path, "apps/web/app/(app)/progress/page.tsx"))
+  const removed = run("surface-manifest.mjs", checkArgs, checkOptions)
+  T("--check exits 1 when a surface is removed", removed.status === 1 && removed.stderr.includes("route-progress"), removed.stderr)
+
+  const current = run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  T("the fixture inventory refreshes before record checks", current.status === 0, current.stderr)
+  const sourceDrift = JSON.parse(readFileSync(manifestPath, "utf8"))
+  sourceDrift.cells.find((cell) => cell.surfaceId === "route-root").sourceFile = "apps/web/app/invented/page.tsx"
+  writeFileSync(manifestPath, `${JSON.stringify(sourceDrift, null, 2)}\n`)
+  const wrongSource = run("surface-manifest.mjs", checkArgs, checkOptions)
+  T("--check exits 1 when a sourceFile differs", wrongSource.status === 1 && wrongSource.stderr.includes("route-root"), wrongSource.stderr)
+
+  run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
+  write(join(repository.path, "apps/web/app/(app)/page.tsx"), "import { EmptyState } from './empty-state'\nexport default function TodayPage() { return <EmptyState /> }\n")
+  write(join(repository.path, "apps/web/app/(app)/empty-state.tsx"), "export function EmptyState() { return null }\n")
+  const changedStates = run("surface-manifest.mjs", checkArgs, checkOptions)
+  T("--check exits 1 when a surface gains an empty state", changedStates.status === 1 && changedStates.stderr.includes("cellCount"), changedStates.stderr)
 
   const rejected = run("surface-manifest.mjs", ["--check", "--json"], checkOptions)
   T("--check and --json are refused rather than silently ordered", rejected.status === 2, rejected.stderr)
