@@ -23,16 +23,11 @@
  * deletes spacing rather than correcting it.
  *
  * https://github.com/thomasluizon/orbit-ui-mobile/issues/539
- * Local constants: analyse object literals, `as const`, `satisfies`, non-null
- * wrappers, identifier aliases, arrays with later-entry precedence, spreads
- * copied at evaluation time, Object.assign with static sources, direct property
- * writes, and conditional branches. A shape outside this list is not analysed,
- * so it neither reports nor suppresses spacing on that value. An unresolved
- * entry within an analysed array, spread, or Object.assign may overwrite
- * earlier keys.
- * A mutation is definite only when its statement shares the declaration block.
- * Nested writes in that function keep earlier values possible; writes in other
- * function or class bodies are outside the analysis.
+ * Local constants carry possible literal, absent, and unknown values per key.
+ * Evaluation follows source order through writes, deletes, branches, arrays,
+ * spreads, and Object.assign. Branches join their possible values. Unknown
+ * keys add uncertainty without removing a known value that may remain applied.
+ * Nested functions and class bodies are outside the analysis.
  */
 
 // DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
@@ -341,6 +336,12 @@ module.exports = {
       return changed
     }
 
+    function abstractValue(node) {
+      return node?.type === 'Literal' ||
+        (node?.type === 'UnaryExpression' && node.operator === '-' && node.argument.type === 'Literal')
+        ? node : UNKNOWN
+    }
+
     function bindingRoot(variable, seen = new Set()) {
       if (!variable || seen.has(variable)) return variable
       seen.add(variable)
@@ -412,7 +413,7 @@ module.exports = {
         }
         const name = propertyName(property)
         if (name === null) state = changeUnknownKey(state, UNKNOWN)
-        else state.keys.set(name, new Set([property.value]))
+        else state.keys.set(name, new Set([abstractValue(property.value)]))
       }
       return state
     }
@@ -427,7 +428,7 @@ module.exports = {
       const name = mutationPropertyName(member)
       if (name === null) return changeUnknownKey(state, remove ? ABSENT : UNKNOWN)
       const changed = copyState(state)
-      changed.keys.set(name, new Set([remove ? ABSENT : value ?? UNKNOWN]))
+      changed.keys.set(name, new Set([remove ? ABSENT : abstractValue(value)]))
       return changed
     }
 
