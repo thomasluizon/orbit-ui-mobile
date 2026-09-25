@@ -14,7 +14,7 @@ it('clears failed and expired tokens and offers retry', async () => {
   const remove = vi.fn()
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove }
   const onToken = vi.fn()
-  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} />)
+  const { rerender } = render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={onToken} />)
   await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(1))
 
   const callbacks = renderWidget.mock.calls[0]![1] as {
@@ -24,6 +24,10 @@ it('clears failed and expired tokens and offers retry', async () => {
   }
   act(() => callbacks.callback('fresh-token'))
   expect(onToken).toHaveBeenLastCalledWith('fresh-token')
+
+  rerender(<TurnstileWidget siteKey="site-key" resetKey={1} onToken={onToken} />)
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('auth.turnstileLoading'))
+  expect(reset).toHaveBeenCalledWith('widget-1')
 
   act(() => callbacks['expired-callback']())
   expect(onToken).toHaveBeenLastCalledWith(null)

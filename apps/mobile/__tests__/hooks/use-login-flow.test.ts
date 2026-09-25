@@ -204,6 +204,21 @@ it('uses a fresh bridge token for each mobile auth request', async () => {
   expect(harness.current.turnstileResetKey).toBe(3)
 })
 
+it('auto-submits a completed mobile code after its widget token arrives', async () => {
+  vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+  const harness = await renderLoginFlow()
+  await act(() => harness.current.setEmail('user@test.com'))
+  await act(() => harness.current.onTurnstileToken('send-token'))
+  await act(() => harness.current.sendCode())
+
+  await act(() => harness.current.onCodeChange('123456'))
+  expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+  await act(() => harness.current.onTurnstileToken('delayed-verify-token'))
+  expect(bodyOf(mocks.apiClient.mock.calls[1]![1])).toMatchObject({
+    code: '123456', turnstileToken: 'delayed-verify-token',
+  })
+})
+
 describe('useLoginFlow (mobile)', () => {
   it('does not replace a callback attempt when LoginContent mounts without a return URL', async () => {
     await act(() => { TestRenderer.create(React.createElement(LoginContent,

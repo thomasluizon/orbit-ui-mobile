@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { PillButton } from '@/components/ui/pill-button'
 
-type WidgetState = 'loading' | 'solved' | 'failed' | 'expired'
+type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
 interface TurnstileApi {
   render: (container: HTMLElement, options: {
@@ -63,8 +64,14 @@ export function TurnstileWidget({
   const t = useTranslations()
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string | null>(null)
-  const [state, setState] = useState<WidgetState>('loading')
+  const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => { if (active) setState('loading') })
+    return () => { active = false }
+  }, [resetKey])
 
   useEffect(() => {
     let active = true
@@ -123,15 +130,17 @@ export function TurnstileWidget({
   }
 
   return (
-    <div className="flex flex-col items-center" style={{ gap: 8 }}>
+    <div className="flex flex-col items-center text-sm text-[var(--fg-2)]" style={{ gap: 8 }}>
       <div ref={containerRef} />
-      {state === 'loading' && <p role="status">{t('auth.turnstileLoading')}</p>}
-      {(state === 'failed' || state === 'expired') && (
-        <div className="flex items-center" style={{ gap: 8 }}>
-          <p role="alert">{t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired')}</p>
-          <button type="button" onClick={retry}>{t('auth.turnstileRetry')}</button>
-        </div>
-      )}
+      <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
+        {state === 'loading' ? t('auth.turnstileLoading') : ''}
+      </p>
+      <p role="alert" className={state === 'failed' || state === 'expired' ? '' : 'sr-only'}>
+        {state === 'failed' || state === 'expired'
+          ? t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired') : ''}
+      </p>
+      {(state === 'failed' || state === 'expired') &&
+        <PillButton variant="ghost" size="sm" onClick={retry}>{t('auth.turnstileRetry')}</PillButton>}
     </div>
   )
 }

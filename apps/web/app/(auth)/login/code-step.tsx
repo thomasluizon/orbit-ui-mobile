@@ -54,7 +54,7 @@ export function CodeStep({ email, codeDigits, isSubmitting, isResending, canRese
           <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')}
             onChange={onCodeChange} error={fieldError}
             hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
-            disabled={isSubmitting || expired || waiting || !canSubmitTurnstile} />
+            disabled={isSubmitting || expired || waiting} />
         </motion.div>
         {turnstileWidget}
         {!isOnline && <LoginOfflineNotice t={t} />}

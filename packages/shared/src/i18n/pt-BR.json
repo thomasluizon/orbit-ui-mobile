@@ -336,7 +336,7 @@
     "email": "E-mail",
     "emailPlaceholder": "voce@exemplo.com",
     "sendCode": "Continuar",
-    "turnstileLoading": "Verificando sua conexão...",
+    "turnstileLoading": "Verificando sua conexão…",
     "turnstileFailed": "A verificação de segurança não carregou.",
     "turnstileExpired": "A verificação de segurança expirou.",
     "turnstileRetry": "Tentar novamente",

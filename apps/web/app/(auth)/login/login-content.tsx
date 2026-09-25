@@ -28,7 +28,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const googleFailed = callback?.state === 'failed' && !callbackDismissed
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
-    ? <TurnstileWidget siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
     : null
   return (
     <div className="flex w-full flex-col gap-8 px-2 pb-4 pt-8 min-[336px]:px-4 md:w-[420px] md:rounded-[var(--r-card)] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">

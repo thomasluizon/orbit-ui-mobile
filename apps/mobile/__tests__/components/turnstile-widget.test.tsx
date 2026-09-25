@@ -33,12 +33,21 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
   expect(onToken).toHaveBeenCalledWith('fresh-token')
 
   await TestRenderer.act(async () => {
+    first.props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'solved' }) } })
+    await Promise.resolve()
+  })
+  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(0)
+
+  await TestRenderer.act(async () => {
     renderer!.update(React.createElement(TurnstileWidget, {
       siteKey: 'site-key', resetKey: 1, onToken,
     }))
     await Promise.resolve()
   })
   expect(renderer!.root.findByType('WebView')).not.toBe(first)
+  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(160)
+  expect(renderer!.root.findAllByType('Text').some((node: { props: { children: unknown } }) =>
+    node.props.children === 'auth.turnstileLoading')).toBe(true)
 
   const second = renderer!.root.findByType('WebView')
   await TestRenderer.act(async () => {
@@ -46,6 +55,7 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     await Promise.resolve()
   })
   expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(renderer!.root.findByType('WebView').props.containerStyle.height).toBe(160)
   expect(renderer!.root.findAllByProps({ accessibilityRole: 'alert' }).length).toBeGreaterThan(0)
   await TestRenderer.act(async () => {
     renderer!.root.findAllByProps({ accessibilityRole: 'button' })[0]!.props.onPress()

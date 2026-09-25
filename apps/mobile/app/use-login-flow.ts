@@ -69,9 +69,13 @@ export function useLoginFlow(isAuthCallback = false) {
   const [lockCountdown, setLockCountdown] = useState(0)
   const [accountBack, setAccountBack] = useState<BackendLoginResponse | null>(null)
   const busy = useRef(false)
+  const pendingAutoCode = useRef<string | null>(null)
   const returnUrlAttemptRef = useRef<ReturnUrlAttempt | null>(null)
   const attempts = useRef(new Map<string, LoginAttempts>())
-  const entry = useLoginCodeEntry((code) => { void verifyCode(code) })
+  const entry = useLoginCodeEntry((code) => {
+    if (turnstileSiteKey && !turnstileToken) pendingAutoCode.current = code
+    else void verifyCode(code)
+  })
   const { setCodeDigits } = entry
 
   useEffect(() => {
@@ -199,10 +203,24 @@ export function useLoginFlow(isAuthCallback = false) {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
+  function handleTurnstileToken(token: string | null) {
+    onTurnstileToken(token)
+    if (!token || !pendingAutoCode.current) return
+    const code = pendingAutoCode.current
+    pendingAutoCode.current = null
+    void verifyCode(code)
+  }
+
+  function onCodeChange(value: string) {
+    if (pendingAutoCode.current !== value) pendingAutoCode.current = null
+    entry.onCodeChange(value)
+  }
+
   async function resendCode() {
     if (busy.current || !isOnline || (codeFailure === 'locked' && lockCountdown > 0) || (!entry.canResend && codeFailure !== 'expired')) return
     const protection = takeTurnstileToken()
     if (!protection) return
+    pendingAutoCode.current = null
     busy.current = true
     setIsSubmitting(true)
     setIsResending(true)
@@ -224,6 +242,7 @@ export function useLoginFlow(isAuthCallback = false) {
     setSuccessMessage(null)
     setErrorKey(null)
     setCodeFailure(null)
+    pendingAutoCode.current = null
     entry.resetCodeDigits()
   }
 
@@ -257,9 +276,9 @@ export function useLoginFlow(isAuthCallback = false) {
 
   return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
     errorMessage: errorKey ? t(errorKey) : null, successMessage, showReferralBanner, fromOnboarding,
-    plannedHabitCount, isOnline, ...entry, codeFailure, lockCountdown, accountBack,
+    plannedHabitCount, isOnline, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
     canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
     canSubmitCode: entry.codeDigits.join('').length === 6 && !isSubmitting && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
-    turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken,
+    turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
     sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount, openPrivacyPolicy, openTerms }
 }

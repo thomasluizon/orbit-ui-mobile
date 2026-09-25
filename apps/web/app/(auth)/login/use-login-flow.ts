@@ -42,8 +42,12 @@ export function useLoginFlow() {
   const [lockCountdown, setLockCountdown] = useState(0)
   const [accountBack, setAccountBack] = useState<LoginResponse | null>(null)
   const busy = useRef(false)
+  const pendingAutoCode = useRef<string | null>(null)
   const attempts = useRef(new Map<string, LoginAttempts>())
-  const entry = useLoginCodeEntry((code) => { void verifyCode(code) })
+  const entry = useLoginCodeEntry((code) => {
+    if (turnstileSiteKey && !turnstileToken) pendingAutoCode.current = code
+    else void verifyCode(code)
+  })
   const authStepMotion = resolveMotionPreset('route-replace', Boolean(prefersReducedMotion))
   const referralParam = searchParams.get('ref')
   const referralCode = isValidReferralCode(referralParam) ? referralParam : getCookieValue('referral_code')
@@ -155,10 +159,24 @@ export function useLoginFlow() {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
+  function handleTurnstileToken(token: string | null) {
+    onTurnstileToken(token)
+    if (!token || !pendingAutoCode.current) return
+    const code = pendingAutoCode.current
+    pendingAutoCode.current = null
+    void verifyCode(code)
+  }
+
+  function onCodeChange(value: string) {
+    if (pendingAutoCode.current !== value) pendingAutoCode.current = null
+    entry.onCodeChange(value)
+  }
+
   async function resendCode() {
     if (!available() || (codeFailure === 'locked' && lockCountdown > 0) || (!entry.canResend && codeFailure !== 'expired')) return
     const protection = takeTurnstileToken()
     if (!protection) return
+    pendingAutoCode.current = null
     busy.current = true
     setIsSubmitting(true)
     setIsResending(true)
@@ -180,6 +198,7 @@ export function useLoginFlow() {
     setSuccessMessage(null)
     setErrorKey(null)
     setCodeFailure(null)
+    pendingAutoCode.current = null
     entry.resetCodeDigits()
   }
 
@@ -214,7 +233,7 @@ export function useLoginFlow() {
 
   return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
     errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
-    turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken,
-    pendingHabitCount, isOnline, authStepMotion, ...entry, codeFailure, lockCountdown, accountBack,
+    turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
+    pendingHabitCount, isOnline, authStepMotion, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
     sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount }
 }

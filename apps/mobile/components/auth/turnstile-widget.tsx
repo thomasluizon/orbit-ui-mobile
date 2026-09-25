@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { useEffect, useMemo, useState } from 'react'
+import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { PillButton } from '@/components/ui/pill-button'
 
-type WidgetState = 'loading' | 'solved' | 'failed' | 'expired'
+type WidgetState = 'idle' | 'loading' | 'solved' | 'failed' | 'expired'
 
 export function TurnstileWidget({
   siteKey,
@@ -19,9 +20,16 @@ export function TurnstileWidget({
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  const [state, setState] = useState<WidgetState>('loading')
+  const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
+  const challengeHeight = state === 'solved' ? 0 : 160
   const bridgeUrl = `https://app.useorbit.org/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}`
+
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => { if (active) setState('loading') })
+    return () => { active = false }
+  }, [resetKey])
 
   function onMessage(event: WebViewMessageEvent) {
     let message: unknown
@@ -55,8 +63,8 @@ export function TurnstileWidget({
       <WebView
         key={`${resetKey}-${attempt}`}
         source={{ uri: bridgeUrl }}
-        containerStyle={{ width: 256, height: 160, flex: 0 }}
-        style={{ width: 256, height: 160, flex: 0, backgroundColor: 'transparent' }}
+        containerStyle={{ width: 256, height: challengeHeight, flex: 0 }}
+        style={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: 'transparent' }}
         javaScriptEnabled
         domStorageEnabled
         thirdPartyCookiesEnabled
@@ -64,17 +72,15 @@ export function TurnstileWidget({
         onError={() => { setState('failed'); onToken(null) }}
         onHttpError={() => { setState('failed'); onToken(null) }}
       />
-      {state === 'loading' && <Text style={{ color: tokens.fg2 }}>{t('auth.turnstileLoading')}</Text>}
-      {(state === 'failed' || state === 'expired') && (
-        <View style={{ alignItems: 'center', gap: 8 }}>
+      <View accessibilityLiveRegion="polite" style={{ alignItems: 'center' }}>
+        {state === 'loading' && <Text style={{ color: tokens.fg2 }}>{t('auth.turnstileLoading')}</Text>}
+        {(state === 'failed' || state === 'expired') &&
           <Text style={{ color: tokens.fg2 }} accessibilityRole="alert">
             {t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired')}
-          </Text>
-          <Pressable onPress={retry} accessibilityRole="button">
-            <Text style={{ color: tokens.primarySoft }}>{t('auth.turnstileRetry')}</Text>
-          </Pressable>
-        </View>
-      )}
+          </Text>}
+      </View>
+      {(state === 'failed' || state === 'expired') &&
+        <PillButton variant="ghost" size="sm" onClick={retry}>{t('auth.turnstileRetry')}</PillButton>}
     </View>
   )
 }

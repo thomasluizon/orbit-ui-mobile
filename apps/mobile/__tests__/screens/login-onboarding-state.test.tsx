@@ -54,6 +54,7 @@ vi.mock('@/hooks/use-login-code-entry', () => ({
 }))
 
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
+vi.mock('@/components/auth/turnstile-widget', () => ({ TurnstileWidget: () => null }))
 
 vi.mock('@/lib/auth-flow', () => ({
   clearStoredReferralCode: vi.fn(),

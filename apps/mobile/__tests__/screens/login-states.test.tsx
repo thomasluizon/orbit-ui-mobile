@@ -69,7 +69,7 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
     void testI18n.changeLanguage(locale)
     setI18n(testI18n)
   })
-  it('blocks code requests and code entry until a mobile token exists', () => {
+  it('blocks code requests while keeping code entry available until a mobile token exists', () => {
     const { t } = setFixture('resend ready', locale)
     mocks.flow.turnstileSiteKey = 'test-site-key'
     mocks.flow.turnstileToken = null
@@ -77,7 +77,7 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
     const tree = render()
     expect(button(tree.root, t('auth.verify'))?.props.disabled).toBe(true)
     expect(button(tree.root, t('auth.resendCode'))?.props.disabled).toBe(true)
-    expect(host(tree.root, 'TextInput')[0]?.props.editable).toBe(false)
+    expect(host(tree.root, 'TextInput')[0]?.props.editable).toBe(true)
     mocks.flow.turnstileToken = 'fresh-token'
     act(() => tree.update(<LoginContent />))
     expect(button(tree.root, t('auth.verify'))?.props.disabled).toBe(false)

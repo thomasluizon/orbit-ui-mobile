@@ -186,6 +186,22 @@ it('uses a fresh token for web send, resend, and verify requests', async () => {
   expect(result.current.turnstileResetKey).toBe(3)
 })
 
+it('submits a completed code when a delayed widget token arrives', async () => {
+  vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+  const { result } = renderHook(() => useLoginFlow())
+  act(() => result.current.setEmail('user@test.com'))
+  act(() => result.current.onTurnstileToken('send-token'))
+  await act(async () => { await result.current.sendCode() })
+
+  act(() => result.current.onCodeChange('123456'))
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+  act(() => result.current.onTurnstileToken('delayed-verify-token'))
+  await waitFor(() => expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({
+    code: '123456', turnstileToken: 'delayed-verify-token',
+  }))
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+})
+
 describe('useLoginFlow send-code step', () => {
   it('rejects an invalid email through the real validator without hitting the network', async () => {
     const { result } = renderHook(() => useLoginFlow())

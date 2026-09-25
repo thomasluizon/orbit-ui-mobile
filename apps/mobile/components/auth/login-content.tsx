@@ -41,7 +41,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const sendCodeLabel = flow.fromOnboarding ? t('auth.onboarding.continue') : undefined
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
-    ? <TurnstileWidget siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
     : null
   return <View style={styles.root}>
     <KeyboardAwareScrollView containerStyle={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}

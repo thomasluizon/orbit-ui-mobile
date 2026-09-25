@@ -68,7 +68,7 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isRese
     <Animated.View style={{ transform: [{ translateX: shake }] }}>
       <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')} onChange={onCodeChange}
         error={fieldError} hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
-        disabled={isSubmitting || expired || waiting || !canSubmitTurnstile} />
+        disabled={isSubmitting || expired || waiting} />
     </Animated.View>
     {turnstileWidget}
     {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
