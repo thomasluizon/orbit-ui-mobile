@@ -67,6 +67,14 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   }
 }
 
+const periodInsight: NonNullable<ChatMessage['periodInsight']> = {
+  period: 'week', dateFrom: '2026-09-01', dateTo: '2026-09-07',
+  completionRate: 50, activeDays: 4, periodDays: 7,
+  totalCompletions: 7, totalScheduled: 14, currentStreak: 2, bestStreak: 5,
+  topHabits: [], needsAttention: [],
+  narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
+}
+
 describe('MessageBubble', () => {
   beforeEach(() => {
     push.mockClear()
@@ -74,6 +82,14 @@ describe('MessageBubble', () => {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     })
+  })
+
+  it('reveals the period insight only after the final response', () => {
+    const message = makeMessage({ role: 'ai', periodInsight })
+    const { rerender } = render(<MessageBubble message={message} isStreaming />)
+    expect(screen.queryByText('chat.insight.title')).not.toBeInTheDocument()
+    rerender(<MessageBubble message={message} />)
+    expect(screen.getByText('chat.insight.title')).toBeInTheDocument()
   })
 
   it('renders user message with user label announced exactly once', () => {

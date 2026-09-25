@@ -19,8 +19,19 @@ import { ClarificationCard } from './clarification-card'
 import { GoalListCard } from './goal-list-card'
 import { HabitListCard } from './habit-list-card'
 import { MetricsCard } from './metrics-card'
+import { PeriodInsightCard } from './period-insight-card'
 import { PendingOperationCard } from './pending-operation-card'
 import { OperationOutcomes } from './operation-outcomes'
+
+function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBubbleProps, 'message'> & { isStreaming: boolean }>) {
+  if (isStreaming || message.role === 'user') return null
+  return (
+    <>
+      {message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
+      {message.periodInsight ? <PeriodInsightCard periodInsight={message.periodInsight} /> : null}
+    </>
+  )
+}
 
 export function MessageBubble({
   message,
@@ -141,7 +152,7 @@ export function MessageBubble({
           <GoalListCard goalList={message.goalList} onOpenGoal={(id) => onActionChipClick?.(id, 'CreateGoal')} />
         )}
 
-        {!isUser && !isStreaming && message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
+        <MessageMetricsBlocks message={message} isStreaming={isStreaming} />
 
         {!isUser && relatedSurfaces.length > 0 && (
           <div className="mt-2 w-full">

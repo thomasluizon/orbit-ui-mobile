@@ -18,6 +18,7 @@ import { ClarificationCard } from "@/components/chat/clarification-card";
 import { GoalListCard } from "@/components/chat/goal-list-card";
 import { HabitListCard } from "@/components/chat/habit-list-card";
 import { MetricsCard } from "@/components/chat/metrics-card";
+import { PeriodInsightCard } from "@/components/chat/period-insight-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
@@ -70,6 +71,16 @@ function MessageDataLists({
       ) : null}
     </>
   );
+}
+
+function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBubbleProps, 'message'> & { isStreaming: boolean }>) {
+  if (isStreaming || message.role === 'user') return null
+  return (
+    <>
+      {message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
+      {message.periodInsight ? <PeriodInsightCard periodInsight={message.periodInsight} /> : null}
+    </>
+  )
 }
 
 export function MessageBubble({
@@ -155,7 +166,7 @@ export function MessageBubble({
           <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
         ) : null}
 
-        {!isUser && !isStreaming && message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
+        <MessageMetricsBlocks message={message} isStreaming={isStreaming} />
 
         {!isUser && relatedSurfaces.length > 0 ? (
           <View style={styles.relatedContainer}>

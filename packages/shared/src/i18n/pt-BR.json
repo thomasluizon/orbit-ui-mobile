@@ -1228,6 +1228,8 @@
       "daysLogged": "Dias com registro",
       "currentStreak": "Sequência atual",
       "bestStreak": "Maior sequência",
+      "topHabit": "Mais constante",
+      "needsAttention": "Precisa de atenção",
       "chartLabel": "Conclusão neste período",
       "pageAnnounce": "Página {n} de {total}: {title}",
       "previous": "Anterior",

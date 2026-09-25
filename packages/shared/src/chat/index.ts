@@ -179,3 +179,5 @@ export function stripChatDirectives(content: string, isStreaming = false): strin
 }
 export { getMetricsRows } from './metrics-card-core'
 export type { MetricsRow } from './metrics-card-core'
+export { getInsightPages } from './period-insight-core'
+export type { InsightPage } from './period-insight-core'

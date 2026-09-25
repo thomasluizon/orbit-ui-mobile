@@ -1228,6 +1228,8 @@
       "daysLogged": "Days logged",
       "currentStreak": "Current streak",
       "bestStreak": "Longest streak",
+      "topHabit": "Most consistent",
+      "needsAttention": "Needs attention",
       "chartLabel": "Completion in this period",
       "pageAnnounce": "Page {n} of {total}: {title}",
       "previous": "Previous",
