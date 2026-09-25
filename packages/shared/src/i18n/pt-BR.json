@@ -368,10 +368,7 @@
     },
     "login": "Entrar",
     "codeDigit": "Dígito {n} de 6",
-    "legalPrefix": "Ao continuar, você concorda com os",
-    "legalConjunction": "e a",
-    "terms": "Termos",
-    "privacy": "Política de privacidade",
+    "legalConsent": "Ao continuar, você concorda com os <terms>Termos</terms> e a <privacy>Política de privacidade</privacy>.",
     "errors": {
       "invalidEmail": "Use um email completo, como nome@exemplo.com",
       "invalidCode": "O código não confere. Confira os 6 dígitos e digite de novo.",

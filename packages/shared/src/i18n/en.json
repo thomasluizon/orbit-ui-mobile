@@ -368,10 +368,7 @@
     },
     "login": "Log in",
     "codeDigit": "Digit {n} of 6",
-    "legalPrefix": "By continuing, you agree to the",
-    "legalConjunction": "and the",
-    "terms": "Terms",
-    "privacy": "Privacy policy",
+    "legalConsent": "By continuing, you agree to the <terms>Terms</terms> and the <privacy>Privacy policy</privacy>.",
     "errors": {
       "invalidEmail": "Use a complete email, like name@example.com",
       "invalidCode": "That code does not match. Check the 6 digits and enter it again.",
