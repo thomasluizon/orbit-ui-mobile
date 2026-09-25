@@ -7,6 +7,23 @@ import { MAX_SCHEDULED_REMINDERS, validateScheduledReminders } from '@orbit/shar
 import { TimeField } from '@/components/ui/time-field'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { Switch } from '@/components/ui/switch'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
+
+function ReminderWhenOption({ label, selected, onSelect }: Readonly<{ label: string; selected: boolean; onSelect: () => void }>) {
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect, selected })
+  return (
+    <button
+      ref={elementRef}
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      tabIndex={tabIndex}
+      className={`chip flex-1 justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${selected ? 'chip-active' : ''}`}
+      onClick={onActivate}
+      onKeyDown={onKeyDown}
+    >{label}</button>
+  )
+}
 
 interface ScheduledReminderSectionProps {
   reminderEnabled: boolean
@@ -121,24 +138,10 @@ export function ScheduledReminderSection({
 
             {showForm && (
               <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    aria-pressed={when === 'day_before'}
-                    className={`chip flex-1 justify-center ${when === 'day_before' ? 'chip-active' : ''}`}
-                    onClick={() => setWhen('day_before')}
-                  >
-                    {t('habits.form.scheduledReminderDayBefore')}
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={when === 'same_day'}
-                    className={`chip flex-1 justify-center ${when === 'same_day' ? 'chip-active' : ''}`}
-                    onClick={() => setWhen('same_day')}
-                  >
-                    {t('habits.form.scheduledReminderSameDay')}
-                  </button>
-                </div>
+                <RadioGroup className="flex gap-2" aria-label={t('habits.form.scheduledReminder')}>
+                  <ReminderWhenOption label={t('habits.form.scheduledReminderDayBefore')} selected={when === 'day_before'} onSelect={() => setWhen('day_before')} />
+                  <ReminderWhenOption label={t('habits.form.scheduledReminderSameDay')} selected={when === 'same_day'} onSelect={() => setWhen('same_day')} />
+                </RadioGroup>
 
                 <div className="flex flex-col gap-2">
                   <TimeField

@@ -1,0 +1,310 @@
+{
+  "ordinary": {
+    "deferrals": [],
+    "signals": []
+  },
+  "not_reproduced": {
+    "deferrals": [
+      {
+        "reason": "NOT_REPRODUCED",
+        "heading": "Problem",
+        "quote": "NOT REPRODUCED"
+      }
+    ],
+    "signals": []
+  },
+  "device_repro": {
+    "deferrals": [
+      {
+        "reason": "NOT_REPRODUCED",
+        "heading": "Technical details",
+        "quote": "Reproduce on a device or emulator first."
+      }
+    ],
+    "signals": []
+  },
+  "first_scope_repro": {
+    "deferrals": [
+      {
+        "reason": "NOT_REPRODUCED",
+        "heading": "Scope",
+        "quote": "Reproduce the crash on a Pixel 7"
+      }
+    ],
+    "signals": []
+  },
+  "later_repro_test": {
+    "deferrals": [],
+    "signals": []
+  },
+  "human_only": {
+    "deferrals": [
+      {
+        "reason": "NOT_CODE_WORK",
+        "heading": "Scope",
+        "quote": "HUMAN-ONLY"
+      }
+    ],
+    "signals": []
+  },
+  "no_code": {
+    "deferrals": [
+      {
+        "reason": "NOT_CODE_WORK",
+        "heading": "Scope",
+        "quote": "no code in any repo"
+      }
+    ],
+    "signals": []
+  },
+  "one_pr_per_group": {
+    "deferrals": [
+      {
+        "reason": "MULTI_PR",
+        "heading": "Scope",
+        "quote": "one PR per group"
+      }
+    ],
+    "signals": []
+  },
+  "codemod": {
+    "deferrals": [],
+    "signals": []
+  },
+  "lockfile": {
+    "deferrals": [],
+    "signals": []
+  },
+  "migration": {
+    "deferrals": [],
+    "signals": []
+  },
+  "orb223": {
+    "deferrals": [],
+    "signals": []
+  },
+  "bold_out_scope": {
+    "deferrals": [],
+    "signals": []
+  },
+  "many_files": {
+    "deferrals": [],
+    "signals": []
+  },
+  "many_files_scope": {
+    "deferrals": [],
+    "signals": []
+  },
+  "nested_out_scope": {
+    "deferrals": [],
+    "signals": []
+  },
+  "resumed_scope": {
+    "deferrals": [
+      {
+        "reason": "NOT_CODE_WORK",
+        "heading": "Technical details",
+        "quote": "No code in any repo."
+      }
+    ],
+    "signals": []
+  },
+  "deferral_quote": {
+    "deferrals": [
+      {
+        "reason": "NOT_REPRODUCED",
+        "heading": "Problem",
+        "quote": "NOT REPRODUCED"
+      }
+    ],
+    "signals": []
+  },
+  "ordinary_chat": {
+    "deferrals": [],
+    "signals": []
+  },
+  "human_grant": {
+    "deferrals": [],
+    "signals": [
+      {
+        "kind": "HUMAN_GRANT",
+        "heading": "Acceptance criteria",
+        "quote": "Thomas has opened the page and approved the direction.",
+        "tool": null,
+        "counterQuote": null
+      }
+    ]
+  },
+  "delegated_choice": {
+    "deferrals": [],
+    "signals": [
+      {
+        "kind": "DELEGATED_CHOICE",
+        "heading": "Scope",
+        "quote": "Decide the stacked-CTA width-matching convention (open question from 2026-07-19).",
+        "tool": null,
+        "counterQuote": null
+      }
+    ]
+  },
+  "product_call": {
+    "deferrals": [],
+    "signals": [
+      {
+        "kind": "PRODUCT_CALL",
+        "heading": "Technical details",
+        "quote": "brand decision before any copy is written.",
+        "tool": null,
+        "counterQuote": null
+      }
+    ]
+  },
+  "pencil": {
+    "deferrals": [],
+    "signals": [
+      {
+        "kind": "TOOL_CONTRADICTION",
+        "heading": "Technical details",
+        "quote": "Pencil is retired",
+        "tool": "Pencil",
+        "counterQuote": "build the prototype in Pencil"
+      }
+    ]
+  },
+  "d28": {
+    "deferrals": [],
+    "signals": []
+  },
+  "label_on": {
+    "deferrals": [],
+    "signals": []
+  },
+  "label_off": {
+    "deferrals": [],
+    "signals": [
+      {
+        "kind": "TOOL_CONTRADICTION",
+        "heading": "Technical details",
+        "quote": "Pencil is retired",
+        "tool": "Pencil",
+        "counterQuote": "build the prototype in Pencil"
+      }
+    ]
+  },
+  "label_object": {
+    "deferrals": [],
+    "signals": []
+  },
+  "out_scope_grant": {
+    "deferrals": [],
+    "signals": []
+  },
+  "it_dead_debt": {
+    "deferrals": [],
+    "signals": []
+  },
+  "grandchild_test": {
+    "deferrals": [],
+    "signals": []
+  },
+  "callsite_test": {
+    "deferrals": [],
+    "signals": []
+  },
+  "sibling_after_out_scope": {
+    "deferrals": [],
+    "signals": []
+  },
+  "non_goal": {
+    "deferrals": [],
+    "signals": []
+  },
+  "unreproduced_evidence": {
+    "deferrals": [
+      {
+        "reason": "NOT_REPRODUCED",
+        "heading": "Problem",
+        "quote": "Unreproduced, evidence below."
+      }
+    ],
+    "signals": []
+  },
+  "several_prs": {
+    "deferrals": [
+      {
+        "reason": "MULTI_PR",
+        "heading": "Scope",
+        "quote": "This needs several pull requests."
+      }
+    ],
+    "signals": []
+  },
+  "multiple_prs": {
+    "deferrals": [
+      {
+        "reason": "MULTI_PR",
+        "heading": "Scope",
+        "quote": "Split into 3 PRs."
+      }
+    ],
+    "signals": []
+  },
+  "ops_only": {
+    "deferrals": [
+      {
+        "reason": "NOT_CODE_WORK",
+        "heading": "Scope",
+        "quote": "ops-only work"
+      }
+    ],
+    "signals": []
+  },
+  "human_grant_short": {
+    "deferrals": [],
+    "signals": [
+      {
+        "kind": "HUMAN_GRANT",
+        "heading": "Acceptance criteria",
+        "quote": "Only a human can grant final approval.",
+        "tool": null,
+        "counterQuote": null
+      }
+    ]
+  },
+  "implementer_choice": {
+    "deferrals": [],
+    "signals": [
+      {
+        "kind": "DELEGATED_CHOICE",
+        "heading": "Scope",
+        "quote": "Either approach works; the implementer chooses.",
+        "tool": null,
+        "counterQuote": null
+      }
+    ]
+  },
+  "price_decision": {
+    "deferrals": [],
+    "signals": [
+      {
+        "kind": "PRODUCT_CALL",
+        "heading": "Scope",
+        "quote": "Thomas must decide the price before implementation.",
+        "tool": null,
+        "counterQuote": null
+      }
+    ]
+  },
+  "explicit_choice_new_phrasing": {
+    "deferrals": [],
+    "signals": [
+      {
+        "kind": "DELEGATED_CHOICE",
+        "heading": "Scope",
+        "quote": "the implementer can choose either option.",
+        "tool": null,
+        "counterQuote": null
+      }
+    ]
+  }
+}

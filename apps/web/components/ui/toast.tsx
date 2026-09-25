@@ -122,8 +122,8 @@ export function Toast(props: Readonly<ToastProps>) {
       {(props.kind === 'neutral' || props.kind === 'lost') && props.actionLabel ? (
         <button
           type="button"
-          className={`cursor-pointer border-0 bg-transparent p-2 text-sm font-medium ${colors.action} underline underline-offset-4 hover:text-[var(--fg-2)]`}
-          style={{ fontFamily: 'var(--font-sans)' }}
+          className={`cursor-pointer border-0 bg-transparent p-3 text-sm font-medium ${colors.action} underline underline-offset-4 hover:text-[var(--fg-2)] ${props.kind === 'lost' ? 'active:text-[var(--fg-1)]' : 'active:text-[var(--fg-2)]'} active:underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}
+          style={{ fontFamily: 'var(--font-sans)', minWidth: 44, minHeight: 44, margin: -4 }}
           onFocus={() => setFocused(true)}
           onClick={props.onAction}
         >

@@ -1,7 +1,7 @@
 import { ScrollView, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { PillButton } from '@/components/ui/pill-button'
+import { PillLink } from '@/components/ui/pill-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { errorSurfaceStyles as styles } from '@/components/ui/error-surface-styles'
 import { createTokensV2 } from '@/lib/theme'
@@ -17,7 +17,7 @@ export default function NotFoundScreen() {
       <OrbitMark size={40} />
       <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('notFoundPage.description')}</Text>
-      <PillButton onClick={() => router.replace('/')}>{t('notFoundPage.action')}</PillButton>
+      <PillLink onPress={() => router.replace('/')}>{t('notFoundPage.action')}</PillLink>
     </ScrollView>
   )
 }

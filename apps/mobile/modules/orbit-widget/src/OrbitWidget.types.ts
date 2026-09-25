@@ -28,6 +28,8 @@ export interface OrbitWidgetModuleType {
   clearToken(): Promise<void>
   syncTheme(colors: WidgetThemePreferences): Promise<void>
   syncWidgetData(json: string, token: string): Promise<void>
+  postPersistentReminder(generation: number, title: string, body: string, color: string): Promise<void>
+  cancelPersistentReminder(generation: number): Promise<void>
 }
 
 export type OnLoadEventPayload = {
