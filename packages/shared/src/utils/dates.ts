@@ -64,6 +64,22 @@ export function formatAPIDateInTimeZone(date: Date, timeZone?: string | null): s
   return getAccountDateTime(date, timeZone).date
 }
 
+export function millisecondsUntilNextDay(now: Date, timeZone?: string | null): number {
+  const currentDay = timeZone === undefined ? formatAPIDate(now) : formatAPIDateInTimeZone(now, timeZone)
+  const dayAt = (offset: number) => {
+    const instant = new Date(now.getTime() + offset)
+    return timeZone === undefined ? formatAPIDate(instant) : formatAPIDateInTimeZone(instant, timeZone)
+  }
+  let before = 0
+  let after = 48 * 60 * 60 * 1000
+  while (after - before > 1) {
+    const middle = Math.floor((before + after) / 2)
+    if (dayAt(middle) === currentDay) before = middle
+    else after = middle
+  }
+  return after
+}
+
 export function resolveHabitDetailRouteDate(
   value: string | readonly string[] | null | undefined,
   today = new Date(),

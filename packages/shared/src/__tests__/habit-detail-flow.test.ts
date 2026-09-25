@@ -878,7 +878,7 @@ describe('habit detail flow model', () => {
       '2026-08-28',
     )
     expect(oneTime.canLog).toBe(true)
-    expect(oneTime.readOnly).toBe(false)
+    expect(oneTime.completionReadOnly).toBe(false)
 
     const recurringChild = createMockHabit({
       id: 'recurring-child',
@@ -892,7 +892,7 @@ describe('habit detail flow model', () => {
       '2026-08-28',
     )
     expect(recurringFuture.canLog).toBe(false)
-    expect(recurringFuture.readOnly).toBe(true)
+    expect(recurringFuture.completionReadOnly).toBe(true)
 
     const recurringHistory = buildHabitDetailChildDateModel(
       recurringChild,
@@ -901,7 +901,7 @@ describe('habit detail flow model', () => {
       '2026-08-28',
     )
     expect(recurringHistory.canLog).toBe(false)
-    expect(recurringHistory.readOnly).toBe(true)
+    expect(recurringHistory.completionReadOnly).toBe(true)
   })
 
   it.each(['2026-08-28', '2026-08-26'])(
@@ -929,7 +929,7 @@ describe('habit detail flow model', () => {
       expect(model.completed).toBe(true)
       expect(model.habit.isCompleted).toBe(true)
       expect(model.canLog).toBe(true)
-      expect(model.readOnly).toBe(false)
+      expect(model.completionReadOnly).toBe(false)
     },
   )
 
@@ -953,6 +953,6 @@ describe('habit detail flow model', () => {
     expect(model.completed).toBe(false)
     expect(model.habit.isCompleted).toBe(false)
     expect(model.canLog).toBe(true)
-    expect(model.readOnly).toBe(false)
+    expect(model.completionReadOnly).toBe(false)
   })
 })

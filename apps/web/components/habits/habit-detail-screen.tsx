@@ -12,15 +12,19 @@ import {
   buildRescheduleUpdateRequest,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
+  canLogHabitOnDate,
   computeHabitFrequencyLabel,
-  formatAPIDate,
   formatLocaleDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
   isHabitHistoryMonthLoaded,
   isHabitCompletedOnDate,
   isHabitSlipping,
   mergeHabitDetailWithScopedHabit,
   normalizeHabitDetailForDrill,
+  parseAPIDate,
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
@@ -51,6 +55,7 @@ import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
+import { useToday } from '@/app/(app)/today-provider'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
 
@@ -69,7 +74,18 @@ function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
   return <section className="rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">{children}</section>
 }
 
-function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onLog }: Readonly<{
+function CompletionBoundaryReason({ disabled, reason }: Readonly<{ disabled: boolean; reason?: string }>) {
+  if (!disabled || !reason) return null
+  return <p className="px-4 pb-4 text-sm text-[var(--fg-2)] sm:px-0">{reason}</p>
+}
+
+function completionReasonForBoundary(boundary: ReturnType<typeof getTodayBoundary>, t: ReturnType<typeof useTranslations>): string | undefined {
+  if (boundary === 'read-only') return t('habits.todayBoundary.readOnly')
+  if (boundary === 'future') return t('habits.todayBoundary.future')
+  return undefined
+}
+
+function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onLog, completionDisabled, completionReason }: Readonly<{
   habit: NormalizedHabit
   completed: boolean
   logged: boolean
@@ -77,6 +93,8 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
   onRename: (title: string) => Promise<boolean>
   onEmoji: (emoji: string) => void
   onLog: () => void
+  completionDisabled: boolean
+  completionReason?: string
 }>) {
   const t = useTranslations('habits.detail')
   const [editing, setEditing] = useAccountScopedState(false)
@@ -104,7 +122,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
         <p className="mt-1 truncate text-sm text-[var(--fg-3)]">{summary}</p>
         {habit.tags.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{habit.tags.map((tag) => <Badge key={tag.id} variant="outline">{tag.name}</Badge>)}</div> : null}
       </div>
-      <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} />
+      <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
     </header>
   )
 }
@@ -221,9 +239,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
-  const today = useMemo(() => new Date(), [])
-  const todayStr = formatAPIDate(today)
-  const dateStr = date ?? formatAPIDate(today)
+  const { profile } = useProfile()
+  const todayStr = useToday(profile?.timeZone)
+  const today = useMemo(() => parseAPIDate(todayStr), [todayStr])
+  const dateStr = date ?? todayStr
   const detailQuery = useHabitDetail(habitId)
   const logsQuery = useHabitLogs(habitId)
   const metricsQuery = useHabitMetrics(habitId)
@@ -234,7 +253,6 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     includeGeneral: true,
   })
   const allHabitsQuery = useHabits({})
-  const { profile } = useProfile()
   const logHabit = useLogHabit()
   const updateHabit = useUpdateHabit()
   const updateChecklist = useUpdateChecklist()
@@ -257,6 +275,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
   const hasProAccess = profile?.hasProAccess ?? false
   const headerSummary = habit?.dueTime && !summary.includes(habit.dueTime) ? `${summary} · ${habit.dueTime}` : summary
+  const boundary = getTodayBoundary(dateStr, todayStr)
+  const completionDisabled = boundary === 'read-only'
+    || (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, dateStr, todayStr)))
+  const completionReason = completionReasonForBoundary(boundary, t)
 
   useEffect(() => {
     if (!habit) return
@@ -293,6 +315,11 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
       )
     : Promise.resolve(false)
   const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog') => {
+    const currentDate = new Date()
+    const accountToday = profile?.timeZone === undefined
+      ? formatAPIDate(currentDate)
+      : formatAPIDateInTimeZone(currentDate, profile.timeZone)
+    if (getTodayBoundary(dateStr, accountToday) === 'read-only') return false
     const toggleKey = `${targetHabitId}:${dateStr}`
     const pendingToggleKeys = pendingToggleKeysRef.current
     if (pendingToggleKeys.has(toggleKey)) return false
@@ -314,9 +341,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const toggleChecklist = async (index: number) => {
     if (!habit) return
     const items = habit.checklistItems.map((item, itemIndex) => itemIndex === index ? { ...item, isChecked: !item.isChecked } : item)
-    if (await updateItems(items) && items.length > 0 && items.every((item) => item.isChecked) && !logged) setConfirm('log')
+    if (await updateItems(items) && items.length > 0 && items.every((item) => item.isChecked) && !logged && !completionDisabled) setConfirm('log')
   }
   const confirmLog = async () => {
+    if (completionDisabled) { setConfirm(null); return }
     if (await writeLog(habitId, 'log')) setConfirm(null)
   }
   const confirmDelete = async () => {
@@ -350,11 +378,12 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
 
   return (
     <FlowShell nav={false} mode="detail" header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
-      <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} />
+      <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
+      <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
       <RescheduleBlock habit={habit} slipping={slipping} hasProAccess={hasProAccess} locale={profile?.language ?? locale} />
       {strip ? <Surface><div className="mb-4 flex items-center justify-between"><SectionTitle>{t('habits.detail.lastThirtyDays')}</SectionTitle><span className="text-sm text-[var(--fg-3)]">{strip.days.filter((value) => value === 'done').length}/30</span></div><div className="overflow-x-auto pb-1"><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></div><div className="mt-4"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></Surface> : null}
       <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={profile?.language ?? locale} weekStartsOn={profile?.weekStartDay ?? 0} />
-      <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.checklist')}</SectionTitle></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><div className="mt-3 flex flex-col gap-2">{children.map(({ habit: child, completed: childCompleted, canLog, readOnly }) => <HabitRow key={child.id} habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} readOnly={readOnly} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} value={hasProAccess ? undefined : t('habits.detail.proGate')} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>
+      <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.checklist')}</SectionTitle></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><div className="mt-3 flex flex-col gap-2">{children.map(({ habit: child, completed: childCompleted, canLog, completionReadOnly }) => <HabitRow key={child.id} habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={completionReason} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} value={hasProAccess ? undefined : t('habits.detail.proGate')} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>
       <Surface><button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between border-0 bg-transparent text-left"><span className="truncate text-lg font-medium text-[var(--fg-1)]">{t('habits.detail.moreDetails')}</span><ChevronDown size={24} className="shrink-0 transition-transform duration-[220ms] ease-[var(--ease-standard)]" style={{ transform: detailsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} /></button>{detailsOpen ? <div className="mt-4" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasProAccess} locale={profile?.language ?? locale} relationshipControlsAvailable={relationshipControlsAvailable} summary={summary} onPatch={patchHabit} onUpgrade={() => router.push('/upgrade')} /></div> : null}</Surface>
       <ListRow icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />

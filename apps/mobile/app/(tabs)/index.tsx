@@ -137,6 +137,8 @@ export default function TodayScreen() {
             skipLabel={t('habits.bulkBar.skip')}
             deleteLabel={t('habits.bulkBar.delete')}
             closeLabel={t('common.cancel')}
+            completionReadOnly={selection.completionReadOnly}
+            completionReason={selection.completionReadOnly ? t('habits.todayBoundary.readOnly') : undefined}
           />
         </View>
       </Animated.View>

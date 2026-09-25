@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -13,7 +13,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
   selectedDateStr: string
-  readOnly: boolean
+  completionReadOnly: boolean
   habitsById: Map<string, NormalizedHabit>
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
@@ -34,7 +34,7 @@ function failedHabitIds(results: readonly BulkResultItem[]): string[] {
 export function useBulkActions({
   selectedHabitIds,
   selectedDateStr,
-  readOnly,
+  completionReadOnly,
   habitsById,
   habitListRef,
   onSuccess,
@@ -45,6 +45,10 @@ export function useBulkActions({
   const bulkDelete = useBulkDeleteHabits()
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
+  const currentPermission = useRef({ selectedDateStr, completionReadOnly })
+  useLayoutEffect(() => {
+    currentPermission.current = { selectedDateStr, completionReadOnly }
+  }, [selectedDateStr, completionReadOnly])
 
   /**
    * The confirmation asks the person to delete the habits they selected. Its owner clears it on a
@@ -79,7 +83,6 @@ export function useBulkActions({
   }, [onPartialFailure, onSuccess, showQueued, showToast, t])
 
   async function executeDelete(ids: string[]) {
-    if (readOnly) return
     if (ids.length === 0) return
     const accountGeneration = getAccountGeneration()
     try {
@@ -94,7 +97,7 @@ export function useBulkActions({
   }
 
   async function executeLog(ids: string[]) {
-    if (readOnly) return
+    if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
     if (ids.length === 0) return
     const accountGeneration = getAccountGeneration()
     const result = await bulkLog.mutateAsync(
@@ -108,7 +111,7 @@ export function useBulkActions({
   }
 
   async function executeSkip(ids: string[]) {
-    if (readOnly) return
+    if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
     if (ids.length === 0) return
     const accountGeneration = getAccountGeneration()
     const result = await bulkSkip.mutateAsync(

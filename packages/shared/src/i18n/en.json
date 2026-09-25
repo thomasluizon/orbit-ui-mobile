@@ -355,7 +355,7 @@
     "refresh": "Refresh",
     "todayBoundary": {
       "lastLoggable": "This is the oldest day you can log.",
-      "readOnly": "Read only. You can log up to 7 days back.",
+      "readOnly": "Logging stops 7 days back. You can still edit, move and delete here.",
       "future": "This day has not arrived yet. You can log what has no set time."
     },
     "login": "Log in",
@@ -395,7 +395,7 @@
   "habits": {
     "todayBoundary": {
       "lastLoggable": "This is the oldest day you can log.",
-      "readOnly": "Read only. You can log up to 7 days back.",
+      "readOnly": "Logging stops 7 days back. You can still edit, move and delete here.",
       "future": "This day has not arrived yet. You can log what has no set time."
     },
     "emptyState": "No habits yet",
