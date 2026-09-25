@@ -19,6 +19,10 @@ export function createAuthReturnUrlAttempt(): number {
   return ++returnUrlAttempt
 }
 
+export function getAuthReturnUrlAttempt(): number {
+  return returnUrlAttempt
+}
+
 export function isAuthReturnUrlAttemptCurrent(attemptId: number): boolean {
   return returnUrlAttempt === attemptId
 }
@@ -79,15 +83,11 @@ export async function consumeStoredAuthReturnUrl(attemptId: number): Promise<str
 }
 
 export async function clearStoredAuthReturnUrl(
-  attemptId?: number,
+  attemptId: number,
   isCurrentLoginSession?: () => boolean,
 ): Promise<void> {
-  if (attemptId === undefined) {
-    if (isCurrentLoginSession && !isCurrentLoginSession()) return
-    returnUrlAttempt += 1
-  }
   await queueReturnUrlMutation(async () => {
-    if (attemptId !== undefined && !isAuthReturnUrlAttemptCurrent(attemptId)) return
+    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return
     if (isCurrentLoginSession && !isCurrentLoginSession()) return
     await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
   })

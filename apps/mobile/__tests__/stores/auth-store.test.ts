@@ -51,6 +51,7 @@ const {
   queryClientClearMock,
   setQueryDataMock,
   clearStoredAuthReturnUrlMock,
+  getAuthReturnUrlAttemptMock,
   resetAccountScopedChatMock,
   forgetStoredSupportDraftMock,
   offlineQueueClearMock,
@@ -81,6 +82,7 @@ const {
   queryClientClearMock: vi.fn(),
   setQueryDataMock: vi.fn(),
   clearStoredAuthReturnUrlMock: vi.fn(),
+  getAuthReturnUrlAttemptMock: vi.fn(() => 0),
   resetAccountScopedChatMock: vi.fn(async () => {}),
   forgetStoredSupportDraftMock: vi.fn(async () => {}),
   offlineQueueClearMock: vi.fn(),
@@ -183,6 +185,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
 
 vi.mock('@/lib/auth-flow', () => ({
   clearStoredAuthReturnUrl: clearStoredAuthReturnUrlMock,
+  getAuthReturnUrlAttempt: getAuthReturnUrlAttemptMock,
 }))
 
 vi.mock('@/lib/support-draft-storage', () => ({
@@ -1288,6 +1291,32 @@ describe('mobile auth store security paths', () => {
 
     expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
     expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('limits delayed logout return URL cleanup to the attempt visible before sign-out', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    let currentAttempt = 41
+    let storedReturnUrl: string | null = '/old'
+    let releaseRevoke!: () => void
+    getAuthReturnUrlAttemptMock.mockImplementation(() => currentAttempt)
+    getRefreshTokenMock.mockResolvedValue('old-refresh')
+    clearStoredAuthReturnUrlMock.mockImplementation((attemptId: number) => {
+      if (attemptId === currentAttempt) storedReturnUrl = null
+      return Promise.resolve()
+    })
+    await useAuthStore.getState().login('old-access', 'old-refresh', oldUser)
+    apiClientMock.mockImplementationOnce(() => new Promise<void>((resolve) => { releaseRevoke = resolve }))
+
+    const logout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(releaseRevoke).toBeTypeOf('function'))
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    currentAttempt = 42
+    storedReturnUrl = '/replacement'
+    releaseRevoke()
+    await logout
+
+    expect(clearStoredAuthReturnUrlMock).toHaveBeenCalledWith(41, expect.any(Function))
+    expect(storedReturnUrl).toBe('/replacement')
   })
 
   it('does not let a second logout waiting on push unsubscribe adopt a replacement session', async () => {

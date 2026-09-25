@@ -3,7 +3,7 @@ import type { RefreshResponse, User } from '@orbit/shared/types/auth'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
-import { clearStoredAuthReturnUrl } from '@/lib/auth-flow'
+import { clearStoredAuthReturnUrl, getAuthReturnUrlAttempt } from '@/lib/auth-flow'
 import {
   getToken,
   setToken,
@@ -548,6 +548,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async (observedCredential) => {
     const ownership = observedCredential ?? getSessionGeneration()
     if (observedCredential && !isCurrentCredentialObservation(observedCredential)) return false
+    const returnUrlAttempt = getAuthReturnUrlAttempt()
     await import('@/hooks/use-push-notifications')
       .then((module) => module.unsubscribePushToken())
       .catch(() => {})
@@ -568,7 +569,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (!teardown) return false
     if (!isCurrentSessionTeardown(teardown.epoch)) return false
-    await clearStoredAuthReturnUrl(undefined, () => isCurrentSessionTeardown(teardown.epoch))
+    await clearStoredAuthReturnUrl(returnUrlAttempt, () => isCurrentSessionTeardown(teardown.epoch))
     if (!isCurrentSessionTeardown(teardown.epoch)) return false
     offlineQueue.clear()
     return true

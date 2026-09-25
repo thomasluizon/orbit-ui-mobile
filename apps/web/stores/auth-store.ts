@@ -235,37 +235,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   /**
-   * Takes the account another tab just moved the browser to, without waiting for the poll.
-   *
-   * A named account runs the same `adoptSessionAccount` every detected change runs, so the epoch
-   * rises, the pending deletes drop, the step-up binding moves and the cache empties before the
-   * next paint. The same account announced again is refused there, so a reload cannot start
-   * churning. The signal names the account and nothing else, so the session check that follows
-   * fills in the expiry and the new account's name. It is the reconciliation, never the detection.
-   *
-   * A sign out names no account and ends the session here too, because the cookie it removed was
-   * this tab's as well. A tab already signed out ignores it, so a second announcement costs
-   * nothing.
+   * Signals trigger cookie reconciliation before publishing authentication or account scope.
+   * Their account ids can arrive after later writes, so neither name nor sign-out is proof.
    */
-  adoptAccountFromSignal: (accountId: string | null) => {
-    if (accountId === null) {
-      if (get().sessionInactive) return
-
-      endSessionLocally()
-      set({
-        isAuthenticated: false,
-        sessionInactive: true,
-        user: null,
-        expiresAt: null,
-        sessionRefreshFailed: false,
-      })
-      return
-    }
-
-    if (!adoptSessionAccount(accountId)) return
-
-    sessionRecoveryUser = null
-    set({ isAuthenticated: true, sessionInactive: false, user: null, sessionRefreshFailed: false })
+  adoptAccountFromSignal: () => {
     void get().checkSession()
   },
 
@@ -359,6 +332,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      if (get().sessionInactive) return
       endSessionLocally()
       set({
         isAuthenticated: false,
@@ -404,12 +378,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       teardownEpoch = await withSessionCookieLock(async () => {
         if (logoutEpoch !== getSessionEpoch()) return null
         endSessionLocally()
-        const currentTeardownEpoch = getSessionEpoch()
-        announceAccountToOtherTabs(null)
         try {
           await fetch('/api/auth/logout', { method: 'POST' })
         } catch {
         }
+        endSessionLocally()
+        const currentTeardownEpoch = getSessionEpoch()
         set({
           isAuthenticated: false,
           sessionInactive: true,
@@ -417,6 +391,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           expiresAt: null,
           sessionRefreshFailed: false,
         })
+        announceAccountToOtherTabs(null)
         return currentTeardownEpoch
       })
     } catch {
