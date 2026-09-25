@@ -482,6 +482,8 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     'const base = { gap: 14 }; <div style={{ ...base, ...props.style }} />',
     'const base = { gap: 14 }; <View style={[{ ...base }, { gap: 12 }]} />',
     'const base = { gap: 12 }; <div style={{ gap: 14, ...base }} />',
+    'const base = { gap: 12, ...runtimeStyle }; <div style={{ gap: 14, ...base }} />',
+    'const base = { ...runtimeStyle, gap: spacing }; <div style={{ gap: 14, ...base }} />',
     'export const row = { gap: 14 }; <div style={row} />',
     'const base = { gap: 14 }; const row = { ...base, get gap() { return 12 } }; <div style={row} />',
     'const base = { gap: 14 }; const row = { ...base, gap: 12 }; <div style={row} />',

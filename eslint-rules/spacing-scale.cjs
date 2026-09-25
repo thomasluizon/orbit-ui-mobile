@@ -339,36 +339,43 @@ module.exports = {
         const initializer = qualifyingInitializer(variable)
         if (!initializer || active.has(variable)) return null
         active.add(variable)
-        const values = resolveObject(initializer, active)
+        const resolved = resolveObject(initializer, active)
         active.delete(variable)
-        return values
+        return resolved
       }
       if (node?.type !== 'ObjectExpression') return null
       const values = new Map()
+      const keys = new Set()
       for (const property of node.properties) {
         if (property.type === 'SpreadElement') {
           const spread = resolveObject(property.argument, active)
-          if (spread) for (const [name, value] of spread) values.set(name, value)
-          else values.clear()
+          if (!spread) {
+            values.clear()
+            continue
+          }
+          for (const name of spread.keys) {
+            keys.add(name)
+            values.set(name, spread.values.get(name) ?? null)
+          }
           continue
         }
         const name = propertyName(property)
         if (name === null) {
           values.clear()
-        } else if (property.kind === 'init' && !property.method &&
-          (property.value.type === 'Literal' || property.value.type === 'UnaryExpression')) {
-          values.set(name, property.value)
-        } else {
-          values.set(name, null)
+          continue
         }
+        keys.add(name)
+        const literal = property.kind === 'init' && !property.method &&
+          (property.value.type === 'Literal' || property.value.type === 'UnaryExpression')
+        values.set(name, literal ? property.value : null)
       }
-      return values
+      return { values, keys }
     }
 
     function scanConstStyle(styleNode) {
-      const values = resolveObject(styleNode, new Set())
-      if (!values) return
-      for (const [name, value] of values) {
+      const resolved = resolveObject(styleNode, new Set())
+      if (!resolved) return
+      for (const [name, value] of resolved.values) {
         if (!value || !SPACING_PROPS.has(name) || reportedLiterals.has(value)) continue
         reportedLiterals.add(value)
         reportStyleValue(value, name)
@@ -401,7 +408,7 @@ module.exports = {
 
     function laterSpreadSetsKey(laterProperties, name) {
       return laterProperties.some((property) =>
-        property.type === 'SpreadElement' && resolveObject(property.argument, new Set())?.has(name))
+        property.type === 'SpreadElement' && resolveObject(property.argument, new Set())?.keys.has(name))
     }
 
     function scanClassString(node, text, offset) {
