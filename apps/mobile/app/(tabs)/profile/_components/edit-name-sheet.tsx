@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -26,14 +26,16 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
 
   const [name, setName] = useState(() => profile?.name ?? '')
   const [error, setError] = useState('')
-  const [prevOpen, setPrevOpen] = useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) {
+  const previousOpen = useRef(open)
+  useEffect(() => {
+    const wasOpen = previousOpen.current
+    previousOpen.current = open
+    if (!open || wasOpen) return
+    void Promise.resolve().then(() => {
       setName(profile?.name ?? '')
       setError('')
-    }
-  }
+    })
+  }, [open, profile?.name])
 
   const { sheetRef, closeSheet } = useSheetHost()
 

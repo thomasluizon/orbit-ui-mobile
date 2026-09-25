@@ -58,6 +58,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `questions.md` | Run-level redesign questions, the decision bar, composition decisions under D90, resolved generic-boundary copy for #338, and notification text contrast for #459. |
 | `design/canvas/` | The granted canvas export: 21 screens plus 166 tokens. Outranks DESIGN.md prose on how a surface looks; never over `## Information architecture` or `## Bans`. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
+| `packages/shared/CONTRACT_DRIFT.md` | Pinned API snapshot check and automated rebaseline. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `gating-matrix.json` | Generated inventory of PayGate methods, config keys, and feature flags at the `thomasluizon/orbit-api` repository root; run `node tools/gating-matrix.mjs` there to create it. |
 | `FEATURES.md` | Retained Astra and MCP tool-count inventory that no generated artifact carries; verify every count against its named `orbit-api` source. |
