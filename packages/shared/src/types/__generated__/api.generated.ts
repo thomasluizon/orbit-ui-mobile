@@ -699,7 +699,8 @@ export const PostApiGamificationStreakRepairResponse = zod.object({
   "repairsRemainingThisMonth": zod.union([zod.int(),zod.stringFormat('int32', postApiGamificationStreakRepairResponseRepairsRemainingThisMonthRegExpTwo)]),
   "lastFreezeCoveredDate": zod.iso.date().nullish(),
   "freezeBankRemaining": zod.union([zod.int(),zod.stringFormat('int32', postApiGamificationStreakRepairResponseFreezeBankRemainingRegExpTwo)]).nullish(),
-  "lastFreezeCoveredOrigin": zod.string().nullish()
+  "lastFreezeCoveredOrigin": zod.string().nullish(),
+  "repairableGapDates": zod.array(zod.iso.date()).nullish()
 })
 
 
@@ -710,7 +711,8 @@ export const getApiGamificationRecapQueryMonthRegExpTwo = new RegExp('^-?(?:0|[1
 export const GetApiGamificationRecapQueryParams = zod.object({
   "period": zod.string().optional(),
   "year": zod.union([zod.int(),zod.stringFormat('int32', getApiGamificationRecapQueryYearRegExpTwo)]).optional(),
-  "month": zod.union([zod.int(),zod.stringFormat('int32', getApiGamificationRecapQueryMonthRegExpTwo)]).optional()
+  "month": zod.union([zod.int(),zod.stringFormat('int32', getApiGamificationRecapQueryMonthRegExpTwo)]).optional(),
+  "weekStart": zod.iso.date().optional()
 })
 
 export const GetApiGamificationRecapResponse = zod.unknown()
@@ -1498,6 +1500,7 @@ export const postApiProfileOnboardingApplyBodyHabitsItemIsGeneralDefault = false
 export const postApiProfileOnboardingApplyBodyHabitsItemIsFlexibleDefault = false;
 export const postApiProfileOnboardingApplyBodyHabitsItemReminderEnabledDefault = false;
 export const postApiProfileOnboardingApplyBodyHabitsItemReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiProfileOnboardingApplyBodyHabitsItemIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiProfileOnboardingApplyBodyFirstLogTwoHabitIndexRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiProfileOnboardingApplyBodyGoalTwoTargetValueRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
 export const postApiProfileOnboardingApplyBodyGoalTwoTypeDefault = 0;
@@ -1522,7 +1525,8 @@ export const PostApiProfileOnboardingApplyBody = zod.object({
   "checklistItems": zod.array(zod.object({
   "text": zod.string(),
   "isChecked": zod.boolean()
-})).nullish()
+})).nullish(),
+  "intervalWeeks": zod.union([zod.int(),zod.stringFormat('int32', postApiProfileOnboardingApplyBodyHabitsItemIntervalWeeksRegExpTwo)]).nullish()
 })).nullable(),
   "firstLog": zod.union([zod.null(),zod.object({
   "habitIndex": zod.union([zod.int(),zod.stringFormat('int32', postApiProfileOnboardingApplyBodyFirstLogTwoHabitIndexRegExpTwo)]),
@@ -1643,7 +1647,8 @@ export const PostApiGamificationStreakRepairGapResponse = zod.object({
   "repairsRemainingThisMonth": zod.union([zod.int(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseRepairsRemainingThisMonthRegExpTwo)]),
   "lastFreezeCoveredDate": zod.iso.date().nullish(),
   "freezeBankRemaining": zod.union([zod.int(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseFreezeBankRemainingRegExpTwo)]).nullish(),
-  "lastFreezeCoveredOrigin": zod.string().nullish()
+  "lastFreezeCoveredOrigin": zod.string().nullish(),
+  "repairableGapDates": zod.array(zod.iso.date()).nullish()
 })
 
 

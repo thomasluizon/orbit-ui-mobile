@@ -169,14 +169,23 @@ jobs:
 
       - run: npm ci
 
-      - name: Regenerate Zod contract snapshot from orbit-api main
-        run: npm run generate:zod -w @orbit/shared
+      - name: Regenerate Zod contract snapshot from the pinned orbit-api commit
+        working-directory: packages/shared
+        run: |
+          set -euo pipefail
+          pin=$(cat src/types/__generated__/api.spec.commit)
+          if ! [[ "$pin" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::The orbit-api commit pin must be a full 40-character SHA."
+            exit 1
+          fi
+          curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o "$RUNNER_TEMP/orbit-openapi.json"
+          ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npx --yes orval@8.37.0 --config ./orval.config.ts
 
-      - name: Fail if the API contract drifted from the committed snapshot
+      - name: Fail if the snapshot does not match the pinned API commit
         run: |
           if ! git diff --quiet -- packages/shared/src/types/__generated__/api.generated.ts; then
-            echo "::error::API contract drift: orbit-api's OpenAPI spec changed since the committed Zod snapshot was last regenerated. Review the orbit-api change, hand-update packages/shared/src/types/* if the contract you consume changed, then run 'npm run generate:zod -w @orbit/shared' and commit the updated api.generated.ts to re-baseline. See packages/shared/CONTRACT_DRIFT.md."
+            echo "::error::The committed Zod snapshot does not match the pinned orbit-api commit. Regenerate the snapshot from the pin or update both files together. See packages/shared/CONTRACT_DRIFT.md."
             git diff -- packages/shared/src/types/__generated__/api.generated.ts
             exit 1
           fi
-          echo "No contract drift: committed snapshot matches orbit-api main."
+          echo "The committed snapshot matches the pinned orbit-api commit."
