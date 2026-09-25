@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 
 const translations = vi.hoisted(() => ({
@@ -35,10 +36,36 @@ describe('OnboardingCreateHabit', () => {
     render(<OnboardingCreateHabit {...base} proposed correcting={false} onCorrect={onCorrect} />)
     expect(screen.getByText('Walk outside')).toBeInTheDocument()
     expect(screen.getByText('Leave empty for any time of day')).toBeInTheDocument()
-    const proposal = screen.getByRole('button', { name: 'Correct schedule' })
+    const proposal = screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Astra' })
     expect(proposal).toHaveAccessibleDescription(/Walk outside.*3 times a week, any day.*Any time/)
     fireEvent.click(proposal)
     expect(onCorrect).toHaveBeenCalledOnce()
+  })
+
+  it('announces the proposal emoji through the correction button', () => {
+    render(<OnboardingCreateHabit {...base} proposed correcting={false} />)
+    expect(screen.getByRole('img', { name: 'Emoji proposed by Astra' })).toHaveTextContent('🚶')
+    expect(screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Astra' })).toHaveAccessibleDescription(/Walk outside.*3 times a week, any day.*Any time/)
+  })
+
+  it('omits the proposal emoji well when no emoji was proposed', () => {
+    render(<OnboardingCreateHabit {...base} emoji="" proposed correcting={false} />)
+    expect(screen.queryByRole('img', { name: 'Emoji proposed by Astra' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Correct schedule' })).toBeInTheDocument()
+  })
+
+  it('names the proposal emoji in Portuguese', async () => {
+    const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+    const translate = createTranslator({ locale: 'pt-BR', messages: ptBR }) as (key: string, values?: Record<string, unknown>) => string
+    const previous = translations.current
+    translations.current = translate
+    try {
+      render(<OnboardingCreateHabit {...base} proposed correcting={false} />)
+      expect(screen.getByRole('img', { name: 'Emoji proposto pelo Astra' })).toHaveTextContent('🚶')
+      expect(screen.getByRole('button', { name: 'Corrigir agenda. Emoji proposto pelo Astra' })).toBeInTheDocument()
+    } finally {
+      translations.current = previous
+    }
   })
 
   it('states the daily allowance at the ceiling', () => {
@@ -51,7 +78,7 @@ describe('OnboardingCreateHabit', () => {
     const { rerender } = render(<OnboardingCreateHabit {...base} proposed correcting={false} onModeChange={onModeChange} />)
 
     expect(screen.getByText((_content, element) => element?.tagName === 'P' && element.textContent === '3 times a week, any day')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Correct schedule' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Correct schedule. Emoji proposed by Astra' }))
     rerender(<OnboardingCreateHabit {...base} proposed correcting onModeChange={onModeChange} />)
     fireEvent.click(screen.getByRole('radio', { name: 'Set days' }))
 

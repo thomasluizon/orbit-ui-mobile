@@ -9,6 +9,11 @@ const captureExceptionMock = vi.fn()
 const subscribePushMock = vi.fn()
 const profileState = { hasCompletedOnboarding: false }
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showPersistentError: vi.fn() }),
+}))
+
 vi.mock('@/lib/actions/onboarding', () => ({
   applyOnboarding: (...args: unknown[]) => applyOnboardingMock(...args),
 }))

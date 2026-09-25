@@ -58,6 +58,7 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/lib/supabase', () => ({
+  clearSupabaseSession: vi.fn(),
   getSupabaseClient: () => ({
     auth: {
       signInWithOAuth: mockSignInWithOAuth,
@@ -347,10 +348,12 @@ describe('CalendarSyncPage', () => {
     const connectButton = await screen.findByText('auth.signInWithGoogle')
     fireEvent.click(connectButton)
 
+    expect(sessionStorage.getItem('orbit_google_auth_started_at')).not.toBeNull()
+
     expect(mockSignInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: {
-        redirectTo: 'http://localhost:3000/auth-callback',
+        redirectTo: expect.stringMatching(/^http:\/\/localhost:3000\/auth-callback\?authAttempt=[a-f0-9-]{36}$/),
         scopes: 'https://www.googleapis.com/auth/calendar.readonly',
         queryParams: {
           access_type: 'offline',

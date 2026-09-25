@@ -1378,3 +1378,70 @@ ruleTester.run('no-unjustified-disable', rule('no-unjustified-disable'), {
     },
   ],
 })
+
+ruleTester.run('no-mutating-server-auth-fetch', rule('no-mutating-server-auth-fetch'), {
+  valid: [
+    "serverAuthFetch(API.tags.list, { method: 'GET' })",
+    "serverAuthFetch(API.checklistTemplates.list)",
+    "serverAuthMutate(API.goals.delete(goalId), { method: 'DELETE' }, intendedAccountId)",
+    "serverAuthFetch(API.profile.export, init)",
+    "serverAuthFetch(API.profile.export, { method })",
+    "serverAuthFetch(API.profile.export, { method: `${verb}` })",
+    "serverPublicFetch('/api/u/ada', { method: 'POST' })",
+    // KNOWN LIMIT, not intended behaviour: the rule resolves a namespace import, so
+    // `serverFetch.serverAuthFetch(...)` is reported below, but it cannot tell an arbitrary
+    // object's same-named method from the real one without type information. The narrowed
+    // `serverAuthFetch` init type refuses a mutating method here, so the compiler catches it.
+    "client.serverAuthFetch(API.goals.create, { method: 'POST' })",
+  ],
+  invalid: [
+    {
+      code: "serverAuthFetch(API.goals.delete(goalId), { method: 'DELETE' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.create, { method: 'POST', body: JSON.stringify(data) })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'POST' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.reorder, { 'method': 'PUT' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'PUT' } }],
+    },
+    {
+      code: "serverAuthFetch(API.profile.name, { method: 'patch' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'PATCH' } }],
+    },
+    {
+      code: "serverAuthFetch<ApiKeyCreateResponse>(API.apiKeys.create, { method: 'POST' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'POST' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.delete(goalId), { method: 'DELETE' } as RequestInit)",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code: "serverAuthFetch(API.goals.delete(goalId), { method: 'DELETE' } satisfies RequestInit)",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code: 'serverAuthFetch(API.goals.delete(goalId), { method: `DELETE` })',
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code: "serverAuthFetch(API.profile.name, { method: 'PATCH' as string })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'PATCH' } }],
+    },
+    {
+      code:
+        "import { serverAuthFetch as sf } from '@/lib/server-fetch'\n" +
+        "sf(API.goals.delete(goalId), { method: 'DELETE' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'DELETE' } }],
+    },
+    {
+      code:
+        "import * as serverFetch from '@/lib/server-fetch'\n" +
+        "serverFetch.serverAuthFetch(API.goals.create, { method: 'POST' })",
+      errors: [{ messageId: 'useServerAuthMutate', data: { method: 'POST' } }],
+    },
+  ],
+})

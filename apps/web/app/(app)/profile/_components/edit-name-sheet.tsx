@@ -1,12 +1,12 @@
 'use client'
 
-import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useProfile } from '@/hooks/use-profile'
 import { updateName } from '@/lib/actions/profile'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -32,8 +32,8 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
     }
   }
 
-  const mutation = useMutation<void, Error, string, { previous: string | undefined }>({
-    mutationFn: (nextName) => updateName({ name: nextName }),
+  const mutation = useAccountScopedMutation<void, Error, string, { previous: string | undefined }>({
+    mutationFn: (nextName, intendedAccountId) => updateName({ name: nextName }, intendedAccountId),
     onMutate: (nextName) => {
       const previous = profile?.name
       patchProfile({ name: nextName })

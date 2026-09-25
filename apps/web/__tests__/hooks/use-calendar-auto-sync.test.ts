@@ -1,4 +1,6 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -130,6 +132,10 @@ const sampleSuggestions: CalendarSyncSuggestion[] = [
   },
 ]
 
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
 
 describe('useCalendarAutoSyncState', () => {
   beforeEach(() => {

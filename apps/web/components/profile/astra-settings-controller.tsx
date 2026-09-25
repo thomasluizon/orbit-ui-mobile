@@ -1,9 +1,10 @@
 'use client'
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { habitKeys } from '@orbit/shared/query'
 import { updateAiSummary, updateProactiveAstra } from '@/lib/actions/profile'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { Switch } from '@/components/ui/switch'
 
 export interface AstraSettingsController {
@@ -24,8 +25,9 @@ export function useAstraSettingsController(
   const proactiveAstraEnabled = Boolean(
     profile?.hasProAccess && profile.proactiveAstraEnabled,
   )
-  const aiSummaryMutation = useMutation({
-    mutationFn: (enabled: boolean) => updateAiSummary({ enabled }),
+  const aiSummaryMutation = useAccountScopedMutation({
+    mutationFn: (enabled: boolean, intendedAccountId) =>
+      updateAiSummary({ enabled }, intendedAccountId),
     onMutate: (enabled) => {
       const previous = profile?.aiSummaryEnabled
       patchProfile({ aiSummaryEnabled: enabled })
@@ -41,8 +43,9 @@ export function useAstraSettingsController(
     },
   })
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- The optimistic profile cache update mirrors the stored boolean and rolls back on error. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const proactiveMutation = useMutation({
-    mutationFn: (enabled: boolean) => updateProactiveAstra({ enabled }),
+  const proactiveMutation = useAccountScopedMutation({
+    mutationFn: (enabled: boolean, intendedAccountId) =>
+      updateProactiveAstra({ enabled }, intendedAccountId),
     onMutate: (enabled) => {
       const previous = profile?.proactiveAstraEnabled
       patchProfile({ proactiveAstraEnabled: enabled })

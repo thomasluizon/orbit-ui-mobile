@@ -8,7 +8,7 @@ import { requestDeletion } from '@/lib/actions/auth'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { useHeldAccountId } from '@/stores/auth-store'
+import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { TriangleAlert } from '@/components/ui/icons'
@@ -53,20 +53,26 @@ export function DeleteAccountModal({
 
   async function handleRequestDeletion() {
     if (accountId === null) return
-    const requestAccount = getAccountGeneration()
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     setLoading(true)
     setError('')
     try {
-      await requestDeletion()
-      if (getAccountGeneration() !== requestAccount) return
+      await requestDeletion(intendedAccountId)
+      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        setError(t('errors.api.accountChanged'))
+        setLoading(false)
+        return
+      }
       beginStepUpChallenge('delete', accountId)
       closeSheet(() => {
-        if (getAccountGeneration() !== requestAccount) return
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
+
         handleOpenChange(false)
         router.push('/step-up?operation=delete')
       })
     } catch (caught: unknown) {
-      if (getAccountGeneration() !== requestAccount) return
+      if (getAccountGeneration() !== accountGeneration) return
       setError(
         getFriendlyErrorMessage(
           caught,

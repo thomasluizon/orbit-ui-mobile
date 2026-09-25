@@ -514,7 +514,6 @@ function attachOwnershipAndStates(surfaces) {
     // A surface that owns nothing under that bound (a thin re-export) still
     // owns its own entry file for the purposes of "was this worked on".
     surface.ownedFiles = owned.length > 0 ? owned : [surface.sourceFile]
-    surface.closureSize = closure.size
     surface.states = hasEmptyState(closure) ? ["default", "empty"] : ["default"]
   }
   return surfaces
@@ -569,7 +568,6 @@ function buildManifest(baselineRef) {
   if (!resolvedBaseline) throw new Error(`baseline ref "${baselineRef}" does not resolve - pass --baseline <ref>`)
 
   return {
-    generatedFrom: gitSha("HEAD") ?? "unknown",
     baselineRef,
     baselineSha: resolvedBaseline,
     themes: THEMES,
@@ -580,20 +578,6 @@ function buildManifest(baselineRef) {
     cells,
   }
 }
-
-// What --check compares, and what it deliberately drops.
-//
-// `generatedFrom` is the one field a correct manifest can never agree with. The generator
-// records the sha of HEAD at generation time, and the commit that CARRIES the manifest does
-// not exist yet when it runs, so a committed manifest always names its own parent. On a pull
-// request the head under test is an ephemeral merge commit that no committed file can name.
-// Comparing that field would therefore fail on every correct manifest, and #595 also proved
-// the inverse: a manifest whose `generatedFrom` was current went stale on the next merge, so
-// the field says nothing about whether the inventory still describes the tree.
-//
-// Drift lives in the inventory, so the inventory is what is compared: every surface, its
-// sourceFile, its frozen ownedFiles, its closure size and the derived counts.
-const inventoryOf = ({ generatedFrom, ...inventory }) => inventory
 
 function cellsBySurfaceId(manifest) {
   const bySurfaceId = new Map()
@@ -639,7 +623,7 @@ function checkCommittedManifest(manifest) {
     process.stderr.write(`surface-manifest: the committed manifest could not be read: ${error.message}\n`)
     return 1
   }
-  const differences = inventoryDifferences(inventoryOf(committed), inventoryOf(manifest))
+  const differences = inventoryDifferences(committed, manifest)
   if (differences.length > 0) {
     process.stderr.write(`surface-manifest: the committed inventory does not describe this tree\n`)
     for (const difference of differences) process.stderr.write(`  - ${difference}\n`)
@@ -694,7 +678,7 @@ function main() {
 
   const tally = (predicate) => manifest.cells.filter(predicate).length
   process.stdout.write(`wrote ${toPosix(MANIFEST_PATH)}\n`)
-  process.stdout.write(`  HEAD         ${manifest.generatedFrom}\n`)
+  process.stdout.write(`  HEAD         ${gitSha("HEAD") ?? "unknown"}\n`)
   process.stdout.write(`  baseline     ${manifest.baselineRef} (${manifest.baselineSha.slice(0, 8)})\n`)
   process.stdout.write(`  surfaces     ${manifest.surfaceCount}\n`)
   process.stdout.write(`  cells        ${manifest.cellCount} (state x ${THEMES.length} themes x ${LOCALES.length} locales)\n`)

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 const mocks = vi.hoisted(() => ({
   confirmPendingOperation: vi.fn(),
@@ -65,10 +66,26 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.confirmAndExecutePendingOperation('pending-1')
     })
 
-    expect(mocks.confirmPendingOperation).toHaveBeenCalledWith('pending-1')
-    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1')
+    expect(mocks.confirmPendingOperation).toHaveBeenCalledWith('pending-1', null)
+    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1', null)
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Created'))
     expect(outcome).toMatchObject({ ok: true })
+  })
+
+  it('does not forward an execution that returns after the account changes', async () => {
+    let resolveExecution!: (value: { ok: true; data: AgentExecuteOperationResponse }) => void
+    mocks.confirmPendingOperation.mockResolvedValue({ ok: true, data: { confirmationToken: 'token-1' } })
+    mocks.executePendingOperation.mockReturnValue(new Promise((resolve) => { resolveExecution = resolve }))
+    const onExecuted = vi.fn(async () => {})
+    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
+
+    const pending = result.current.confirmAndExecutePendingOperation('pending-1')
+    await vi.waitFor(() => expect(mocks.executePendingOperation).toHaveBeenCalledOnce())
+    advanceAccountGeneration()
+    resolveExecution({ ok: true, data: makeExecution('Created') })
+
+    await expect(pending).resolves.toEqual({ ok: false, error: 'errors.api.accountChanged' })
+    expect(onExecuted).not.toHaveBeenCalled()
   })
 
   it('stops at confirm failure without executing', async () => {
@@ -90,6 +107,25 @@ describe('useChatPendingOperations', () => {
     expect(outcome).toMatchObject({ ok: false, error: 'chat.sendError' })
   })
 
+  it('shows reload guidance when confirmation was refused after an account switch', async () => {
+    mocks.confirmPendingOperation.mockResolvedValue({
+      ok: false,
+      error: 'The signed in account changed before this request ran',
+      status: 409,
+      code: 'ACCOUNT_CHANGED',
+      sessionRefreshFailed: false,
+    })
+    const { result } = renderHook(() => useChatPendingOperations(vi.fn(async () => {})))
+
+    let outcome: Awaited<ReturnType<typeof result.current.confirmAndExecutePendingOperation>> | null = null
+    await act(async () => {
+      outcome = await result.current.confirmAndExecutePendingOperation('pending-1')
+    })
+
+    expect(outcome).toEqual({ ok: false, error: 'errors.api.accountChanged' })
+    expect(mocks.executePendingOperation).not.toHaveBeenCalled()
+  })
+
   it('prepares a step-up by confirming then issuing a challenge with the active locale', async () => {
     mocks.confirmPendingOperation.mockResolvedValue({
       ok: true,
@@ -106,7 +142,7 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.prepareStepUpForBubble('pending-2')
     })
 
-    expect(mocks.issuePendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'pt-BR')
+    expect(mocks.issuePendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'pt-BR', null)
     expect(outcome).toEqual({
       ok: true,
       challengeId: 'challenge-2',
@@ -148,8 +184,13 @@ describe('useChatPendingOperations', () => {
       outcome = await result.current.verifyStepUpForBubble('pending-2', 'challenge-2', '123456', 'token-2')
     })
 
-    expect(mocks.verifyPendingOperationStepUp).toHaveBeenCalledWith('pending-2', 'challenge-2', '123456')
-    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2')
+    expect(mocks.verifyPendingOperationStepUp).toHaveBeenCalledWith(
+      'pending-2',
+      'challenge-2',
+      '123456',
+      null,
+    )
+    expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-2', 'token-2', null)
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Done'))
     expect(outcome).toMatchObject({ ok: true })
   })

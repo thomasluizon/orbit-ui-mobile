@@ -328,6 +328,7 @@ function getContextualMessageKey(
  * the response boundary, so a form error resolves here rather than from a matched sentence.
  */
 export const ERROR_CODE_TO_KEY: Record<string, string> = {
+  ACCOUNT_CHANGED: 'errors.api.accountChanged',
   NO_PERMISSION: 'errors.api.noPermission',
   HABIT_NOT_OWNED: 'errors.api.noPermission',
   INVALID_SESSION: 'errors.api.sessionExpired',

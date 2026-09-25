@@ -1795,6 +1795,7 @@
         "astraRead": "This is how I read it. Tap to correct it.",
         "direct": "Pick the days and the time.",
         "proposedBy": "Proposed by Astra",
+        "emojiLabel": "Emoji proposed by Astra",
         "correctSchedule": "Correct schedule",
         "scheduleDetails": "{title}. {cadence}. Time: {time}",
         "anyTime": "Any time",
@@ -2253,6 +2254,7 @@
     "fetchSubHabits": "Failed to fetch sub-habits",
     "offline": "Reconnect to the internet and try again.",
     "api": {
+      "accountChanged": "Your account changed. Reload this page before trying again.",
       "noPermission": "You don't have permission to do that.",
       "sessionExpired": "Your session expired. Please sign in again.",
       "duplicateTag": "You already have a tag with that name.",
@@ -2976,6 +2978,7 @@
     "title": "The request did not finish",
     "body": "Try again, and if it keeps happening, sign out and sign back in.",
     "retry": "Try again",
+    "reload": "Reload page",
     "reference": "ref {requestId}",
     "throttleTitle": "Too many requests in a short time",
     "throttleBody": "The server asked us to wait before the next request."

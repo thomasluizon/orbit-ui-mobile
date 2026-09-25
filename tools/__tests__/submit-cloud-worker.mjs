@@ -9,6 +9,7 @@ import {
   T,
   REPO_ROOT,
   check,
+  orcaEnv,
   realOrchestratorConfig,
   run,
   stage,
@@ -27,12 +28,27 @@ import {
 
 const TOOL = "submit-cloud-worker.mjs"
 
+/**
+ * Admission resolves every configured repository's slug from its origin, so a fixture that kept the
+ * real sibling paths would read the author's own checkouts (Pullfrog on PR 1091). One staged
+ * checkout per sibling key is shared by every fixture, because admission only reads its remote.
+ */
+let siblingRepos = null
+const stagedSiblings = (config) => {
+  siblingRepos ??= Object.fromEntries(Object.keys(config.repos).filter((key) => key !== config.cloud.repositoryKey).map((key) => {
+    const sibling = stageRepo(`submit-cloud-sibling-${key}`)
+    sibling.git(["remote", "set-url", "origin", `https://github.com/test-owner/sibling-${key}.git`])
+    return [key, sibling.path]
+  }))
+  return siblingRepos
+}
+
 const fixture = (label) => {
   const codex = fakeCodex(`submit-${label}`)
   const config = cloudConfig(codex.command, { real: realOrchestratorConfig(), cloudCeilingMinutes: 45 })
   config.timeouts.pollSeconds = 0.01
   const repo = stageRepo(`submit-cloud-${label}`)
-  config.repos = { ...config.repos, [config.cloud.repositoryKey]: repo.path }
+  config.repos = { ...config.repos, ...stagedSiblings(config), [config.cloud.repositoryKey]: repo.path }
   const staged = stageWithConfig(`submit-cloud-${label}`, TOOL, config)
   cpSync(toolPath("check-dashes.mjs"), join(staged.base, "tools", "check-dashes.mjs"))
   const order = stage(`submit-cloud/${label}/order.md`, "Implement the measured cloud path.\n")
@@ -139,6 +155,14 @@ const replacementOwnerSurvives = (interleave, duringRelease = false) => {
 }
 
 export const cases = async () => {
+  const originalEnvironment = Object.fromEntries(["GIT_BIN", "GH_BIN", "NODE_OPTIONS", "ORBIT_ORCA_STUB"].map((key) => [key, process.env[key]]))
+  Object.assign(process.env, orcaEnv([
+    { match: "remote get-url origin", stdout: "https://github.com/test-owner/cloud.git" },
+    { match: "auth token --user test-owner", stdout: "test-github-token" },
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: "[]" },
+    { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
+  ]), { GIT_BIN: process.execPath })
   const disabled = fixture("disabled")
   disabled.config.cloud.enabled = false
   writeFileSync(disabled.configPath, `${JSON.stringify(disabled.config, null, 2)}\n`)
@@ -172,6 +196,17 @@ export const cases = async () => {
       enabledCodexArgs[0] === "cloud" && enabledCodexArgs[1] === "exec",
     enabled.stdout || enabled.stderr,
   )
+  const admissionFixture = fixture("admission-refusal")
+  const admissionEnvironment = orcaEnv([
+    { match: "remote get-url origin", stdout: "https://github.com/test-owner/cloud.git" },
+    { match: "auth token --user test-owner", stdout: "test-github-token" },
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: JSON.stringify([1, 2, 3, 4].map((number) => ({ number }))) },
+    { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
+  ])
+  const admissionRefusal = run(TOOL, argvOf(admissionFixture), { path: admissionFixture.path, env: { ...admissionEnvironment, ORBIT_FAKE_CODEX_LOG: admissionFixture.log } })
+  const admissionResult = JSON.parse(admissionRefusal.stdout)
+  T(`${TOOL}: admission refuses before Cloud reservation or submission`, admissionRefusal.status === 8 && admissionResult.reason === "ADMISSION_REFUSED" && admissionResult.counts.openPullRequests === 12 && !existsSync(join(cloudStateRoot(admissionFixture.repo.path), "reservations")) && readFileSync(admissionFixture.log, "utf8") === "", JSON.stringify(admissionResult))
 
   const legacyRoot = join(stage("submit-cloud/legacy-replacement/fixture", ""), "..")
   const legacyDirectory = join(legacyRoot, "submit.lock")
@@ -1458,4 +1493,8 @@ if (args[1] === "list") {
     staleOwnerResult.status === 0 && !existsSync(staleLock),
     `exit ${staleOwnerResult.status}: ${staleOwnerResult.stdout || staleOwnerResult.stderr}`,
   )
+  for (const [key, value] of Object.entries(originalEnvironment)) {
+    if (value === undefined) delete process.env[key]
+    else process.env[key] = value
+  }
 }
