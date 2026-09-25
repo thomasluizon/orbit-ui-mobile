@@ -1,70 +1,76 @@
-# Contract-drift gate
+# Contract drift
 
-The `Contract Drift` CI job (`.github/workflows/test.yml`) catches when the
-`orbit-api` OpenAPI contract has moved away from the version this consumer last
-captured. It regenerates a Zod snapshot with [orval](https://orval.dev) from
-orbit-api `main`'s committed `openapi.json` and fails if the fresh output differs
-from the committed snapshot at `src/types/__generated__/api.generated.ts`.
+The `Contract Drift` pull request job in `.github/workflows/test.yml` regenerates
+`src/types/__generated__/api.generated.ts` from the orbit-api commit recorded in
+`src/types/__generated__/api.spec.commit`. The two files must agree. A later
+orbit-api merge cannot change the result of an existing UI pull request.
+UI `main` pins orbit-api `main`. UI `redesign/main` pins orbit-api
+`redesign/main`.
 
-The hand-written Zod in `src/types/*` stays the sole runtime source of truth. The
-generated file is **never imported** — it is a diff target only (excluded from the
-barrel, from `tsc`, from ESLint, and from coverage). The gate detects _"the spec
-moved"_, not _"the hand-written schema matches the spec"_; that reconciliation is
-the human step this failure prompts.
+The generated file is a diff target only. It is excluded from the barrel, `tsc`,
+ESLint, and coverage. The hand-written Zod schemas in `src/types/*` remain the
+runtime contract. Review the generated diff before updating those schemas. Follow
+the append-only and deploy-API-first rules in the root `CLAUDE.md`.
 
-## When the gate fails on your PR
+## Rebaseline pull requests
 
-The API spec changed since the snapshot was last re-baselined. Do this:
+The default branch copy of `.github/workflows/contract-rebaseline.yml` runs every
+six hours and on `orbit-api-contract-drift` `repository_dispatch`. It compares
+UI `main` with orbit-api `main` and uses the single `chore/contract-snapshot`
+pull request.
 
-1. Review the `orbit-api` change that moved the spec.
-2. If the part of the contract you actually consume changed (a field you read was
-   added / renamed / retyped), hand-update the matching Zod schema in
-   `src/types/*` — following the append-only, deploy-API-first contract rules in
-   the root `CLAUDE.md`.
-3. Re-baseline the snapshot and commit it:
-   ```bash
-   npm run generate:zod -w @orbit/shared
-   git add packages/shared/src/types/__generated__/api.generated.ts
-   ```
+GitHub only runs scheduled workflows on the default branch. To rebaseline
+`redesign/main`, dispatch the existing `Redesign drift control` workflow against
+that ref:
+
+```bash
+gh workflow run redesign-drift.yml --ref redesign/main
+```
+
+The redesign workflow calls `.github/workflows/contract-rebaseline.yml` at the
+same commit. It compares the pinned spec with orbit-api `redesign/main` and
+opens or updates one `chore/contract-snapshot-redesign` pull request against UI
+`redesign/main`. It never pushes to either base branch. Both jobs regenerate
+with `orval@8.37.0`. A spec change that produces identical Zod output still
+updates the pin, so the review shows that the spec moved.
+
+Review that pull request's generated diff. If the consumed contract changed,
+update the matching hand-written Zod schemas in the shared package before
+merging.
+
+The workflow runs two jobs. The `generate` job runs `npm ci` and Orval with a
+read-only token and uploads only the two generated files. The `publish` job
+gets `contents: write` and `pull-requests: write`, installs nothing, and
+commits and pushes with `core.hooksPath=/dev/null`, so no install script or
+repository hook runs while the write token exists. The repository's Actions
+setting must allow GitHub Actions to create pull requests. A pull request opened with `GITHUB_TOKEN` may
+require approval before its checks run.
 
 ## Regenerating locally
 
-`npm run generate:zod -w @orbit/shared` fetches the spec from orbit-api `main`:
-`https://raw.githubusercontent.com/thomasluizon/orbit-api/main/src/Orbit.Api/openapi.json`
-(this is what CI uses).
-
-To regenerate against a local `orbit-api` checkout instead of `main`, point
-`ORBIT_OPENAPI_SPEC` at its `openapi.json`:
+Read the full SHA from `src/types/__generated__/api.spec.commit`, download that
+commit's `src/Orbit.Api/openapi.json`, and run orval from `packages/shared`:
 
 ```bash
-ORBIT_OPENAPI_SPEC=/path/to/orbit-api/src/Orbit.Api/openapi.json \
-  npm run generate:zod -w @orbit/shared
+pin=$(cat src/types/__generated__/api.spec.commit)
+curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o /tmp/orbit-openapi.json
+ORBIT_OPENAPI_SPEC=/tmp/orbit-openapi.json npx --yes orval@8.37.0 --config ./orval.config.ts
 ```
 
-Output is byte-deterministic: orval is pinned via the lockfile, the Zod target is
-pinned (`override.zod.version: 4`), and `.gitattributes` forces LF so Windows and
-Linux CI produce identical bytes.
+To adopt a newer API spec, change the pin to its full commit SHA, download that
+commit's spec, regenerate, and commit the pin and snapshot together. The same
+`ORBIT_OPENAPI_SPEC` variable can point at a local spec for investigation, but
+the committed snapshot must regenerate from the pinned commit.
+
+Output is byte-deterministic: orval is pinned at `8.37.0`, the Zod target uses
+`override.zod.version: 4`, and `.gitattributes` forces LF line endings.
 
 ## Dependency pins that keep orval runnable
 
-Two pins in the **root** `package.json` `devDependencies` exist solely so orval's
-transitive tools resolve the majors they need (both are hoisted next to older
-majors used elsewhere in the monorepo). Do not remove them:
+Two root `package.json` development dependencies keep orval's transitive tools
+on their required majors:
 
-- `ajv@^8.20.0` — orval's `@scalar/openapi-parser` → `ajv-draft-04` hard-requires
-  `ajv/dist/core` (ajv 8). Without this, eslint's `ajv@6` wins the root slot and
-  orval crashes. eslint keeps its own nested `ajv@6`.
-- `commander@~15.0.0` — orval's typed CLI (`@commander-js/extra-typings@15`) needs
-  a `commander@15` peer. Without this, `expo-modules-autolinking`'s `commander@7`
-  wins the root slot (no `.conflicts()`) and the orval CLI crashes.
-  `expo-modules-autolinking` keeps its own nested `commander@7`.
-
-## Cross-repo coupling
-
-The fetch URL is the single coupling point with `orbit-api` (paired: api #296,
-which emits and commits `src/Orbit.Api/openapi.json`). Until #296 is merged the raw
-`main` URL 404s, so the `generate:zod` step **errors and the job fails** on any run
-— which self-enforces the required ordering: **#296 must merge before #419**. The
-committed snapshot was generated from #296's spec, so the gate turns (and stays)
-green the moment #296 lands. Only after that should `Contract Drift` be added to
-`main`'s required status checks.
+- `ajv@^8.20.0` supplies `ajv/dist/core` to orval's
+  `@scalar/openapi-parser` and `ajv-draft-04`. ESLint keeps its nested `ajv@6`.
+- `commander@~15.0.0` supplies orval's typed CLI. Expo autolinking keeps its
+  nested `commander@7`.
