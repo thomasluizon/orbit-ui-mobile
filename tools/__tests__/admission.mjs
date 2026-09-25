@@ -29,7 +29,7 @@ export const cases = async () => {
     { match: `actions/runs?status=queued&created=${encodeURIComponent(">=2026-09-24T03:00:00Z")}&per_page=1`, stdout: JSON.stringify({ total_count: runs, workflow_runs: [] }), exit: fail ? 1 : 0, stderr: fail ? "GitHub unavailable" : "" },
     { match: "pulls?state=open", stdout: JSON.stringify(pulls.map((number) => ({ number }))) },
   ])
-  const check = (environment) => checkAdmission({ config, repositoryKey: "ui", branch: "feature/new", environment, now: Date.parse("2026-09-25T03:00:00Z") })
+  const check = (environment, caps = config.caps) => checkAdmission({ config: { ...config, caps }, repositoryKey: "ui", branch: "feature/new", environment, now: Date.parse("2026-09-25T03:00:00Z") })
   T("admission: the queued-run read counts only runs created in the last 24 hours",
     queuedRunsPath("o/r", Date.parse("2026-09-25T03:00:00Z")) === "repos/o/r/actions/runs?status=queued&created=%3E%3D2026-09-24T03%3A00%3A00Z&per_page=1")
   const below = await check(plan([1, 2], 3))
@@ -38,6 +38,11 @@ export const cases = async () => {
   T("admission: open pull requests above cap refuse", !tooManyPulls.admitted && tooManyPulls.reason === "ADMISSION_REFUSED" && tooManyPulls.counts.openPullRequests === 12, JSON.stringify(tooManyPulls))
   const tooManyRuns = await check(plan([], 11))
   T("admission: queued runs above cap refuse", !tooManyRuns.admitted && tooManyRuns.counts.queuedRuns === 33, JSON.stringify(tooManyRuns))
+  // Each stubbed repository answers the same counts, so the fleet totals are multiples of three.
+  const atPullCap = await check(plan(Array.from({ length: 4 }, (_, index) => index + 1), 0), { maxOpenPullRequests: 12, maxQueuedRuns: 30 })
+  T("admission: open pull requests exactly at the cap are admitted", atPullCap.admitted && atPullCap.counts.openPullRequests === 12, JSON.stringify(atPullCap))
+  const atRunCap = await check(plan([], 11), { maxOpenPullRequests: 10, maxQueuedRuns: 33 })
+  T("admission: queued runs exactly at the cap are admitted", atRunCap.admitted && atRunCap.counts.queuedRuns === 33, JSON.stringify(atRunCap))
   const existing = await check(plan(Array.from({ length: 4 }, (_, index) => index + 1), 11, [{ number: 99 }]))
   T("admission: existing pull request is exempt", existing.admitted && existing.existingPullRequest === 99, JSON.stringify(existing))
   const failure = await check(plan([], 0, [], true))
