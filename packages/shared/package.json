@@ -9,7 +9,6 @@
     ".": "./src/index.ts",
     "./chat": "./src/chat/index.ts",
     "./hooks": "./src/hooks/index.ts",
-    "./hooks/*": "./src/hooks/*.ts",
     "./types": "./src/types/index.ts",
     "./types/*": "./src/types/*.ts",
     "./utils": "./src/utils/index.ts",
@@ -33,9 +32,6 @@
     "@tanstack/query-core": "^5.101.2",
     "date-fns": "^4.4.0",
     "zod": "^4.4.3"
-  },
-  "peerDependencies": {
-    "react": "^19.2.0"
   },
   "devDependencies": {
     "@fast-check/vitest": "^0.4.1",

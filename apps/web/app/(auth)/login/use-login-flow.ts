@@ -9,7 +9,7 @@ import {
   isValidVerificationCode,
 } from '@orbit/shared/utils'
 import { resolveMotionPreset } from '@orbit/shared/theme'
-import { useTurnstileToken } from '@orbit/shared/hooks/use-turnstile-token'
+import { useTurnstileToken } from '@/hooks/use-turnstile-token'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'

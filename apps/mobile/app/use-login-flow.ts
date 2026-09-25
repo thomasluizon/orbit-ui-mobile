@@ -11,7 +11,7 @@ import {
   isVerificationCodeComplete,
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
-import { useTurnstileToken } from '@orbit/shared/hooks/use-turnstile-token'
+import { useTurnstileToken } from '@/hooks/use-turnstile-token'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
