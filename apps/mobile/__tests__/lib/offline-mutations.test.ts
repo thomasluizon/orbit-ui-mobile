@@ -954,8 +954,12 @@ describe('offline mutations', () => {
     })
   })
 
-  it('refreshes the persisted profile before invalidating gamification after replay', async () => {
+  it('refreshes calendar events after the queued timezone write reaches the server', async () => {
     mocks.setOnline(true)
+    let settleTimezoneWrite!: () => void
+    mocks.apiClient.mockReturnValueOnce(new Promise((resolve) => {
+      settleTimezoneWrite = () => resolve(null)
+    }))
     mocks.queued.push(buildQueuedMutation({
       type: 'setTimeZone',
       scope: 'profile',
@@ -964,7 +968,11 @@ describe('offline mutations', () => {
       payload: { timeZone: 'Pacific/Kiritimati' },
     }))
 
-    await flushQueuedMutations()
+    const flush = flushQueuedMutations()
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    settleTimezoneWrite()
+    await flush
 
     expect(mocks.cancelQueries).toHaveBeenCalledWith({ queryKey: calendarKeys.all })
     expect(mocks.invalidateQueries.mock.calls).toEqual([

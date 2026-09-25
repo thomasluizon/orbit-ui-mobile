@@ -1,15 +1,21 @@
-import { readFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { chmodSync, readFileSync, writeFileSync } from "node:fs"
 
-import { T } from "./_harness.mjs"
-
-const { classifyConversationFirst, classifyExecutability, CONVERSATION_LABEL_OFF, CONVERSATION_LABEL_ON } = await import("../lib/ticket-executability.mjs")
+import { stage, T } from "./_harness.mjs"
 
 const TOOL = "lib/ticket-executability.mjs"
-const reasons = (description) => classifyExecutability(description).deferrals.map((entry) => entry.reason)
-const warnings = (description) => classifyExecutability(description).warnings
-const affected = (count) => `## Affected modules / files\n\n${Array.from({ length: count }, (unused, index) => `- apps/web/file-${index}.ts`).join("\n")}`
+const fixtures = JSON.parse(readFileSync(new URL("../__fixtures__/ticket-classifier-cases.json", import.meta.url), "utf8"))
+const responses = JSON.parse(readFileSync(new URL("../__fixtures__/ticket-classifier-responses.json", import.meta.url), "utf8"))
+const load = async (name) => import(`../lib/ticket-executability.mjs?test=${name}`)
+const replay = (response, count) => async (input, args) => {
+  count.calls++
+  writeFileSync(args[args.indexOf("-o") + 1], JSON.stringify(response))
+  return { code: 0, stdout: "", stderr: "" }
+}
 
-export const cases = () => {
+export const cases = async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = () => { throw new Error("classifier tests must not use fetch") }
   const ticketContract = readFileSync(new URL("../../.claude/skills/ticket/SKILL.md", import.meta.url), "utf8")
   const rootContract = readFileSync(new URL("../../CLAUDE.md", import.meta.url), "utf8")
   const plannerContract = readFileSync(new URL("../../.claude/agents/product-manager.md", import.meta.url), "utf8")
@@ -49,104 +55,149 @@ export const cases = () => {
       /- better-interface \(full mode\): <what it found, or "no findings">/.test(orchestrateContract),
     "the Cloud handoff can still reach pull request delivery without the locally produced review evidence",
   )
-  T(`${TOOL}: an ordinary ticket defers on nothing and warns about nothing`, reasons("## Scope\n\n- Fix the store\n\n## Acceptance\n\n- It works").length === 0 && warnings("## Scope\n\n- Fix the store").length === 0)
 
-  T(`${TOOL}: a body that says NOT REPRODUCED defers`, reasons("## Problem\n\nNOT REPRODUCED on any device yet.")[0] === "NOT_REPRODUCED")
-  T(`${TOOL}: a body that asks for a device repro first defers`, reasons("## Technical details\n\nReproduce on a device or emulator first.")[0] === "NOT_REPRODUCED")
-  T(
-    `${TOOL}: obtaining the repro as the FIRST scope item defers, even with no keyword in prose`,
-    reasons("## Scope\n\n- Reproduce the crash on a Pixel 7\n- Then fix it")[0] === "NOT_REPRODUCED",
-    JSON.stringify(classifyExecutability("## Scope\n\n- Reproduce the crash on a Pixel 7\n- Then fix it")),
-  )
-  T(`${TOOL}: a later scope item mentioning a repro does not defer`, reasons("## Scope\n\n- Change the query\n- Add a repro test").length === 0)
+  for (const entry of fixtures) {
+    const module = await load(entry.id)
+    const count = { calls: 0 }
+    const run = replay(responses[entry.id], count)
+    const executable = await module.classifyExecutability(entry.body, { run, retryDelayMs: 0 })
+    const conversation = await module.classifyConversationFirst(entry.body, { labels: entry.labels, run, retryDelayMs: 0 })
+    const deferrals = executable.deferrals.map((item) => item.reason)
+    const signals = conversation.signals.map((item) => item.kind)
+    T(`${TOOL}: ${entry.id} replay verdict`, JSON.stringify({ deferrals, signals }) === JSON.stringify(entry.expected), JSON.stringify({ deferrals, signals, expected: entry.expected }))
+    T(`${TOOL}: ${entry.id} shares one model call`, count.calls === 1, `calls: ${count.calls}`)
+    T(`${TOOL}: ${entry.id} emits no warnings`, executable.warnings.length === 0)
+    T(`${TOOL}: ${entry.id} pairs questions with signals`, conversation.questions.length === conversation.signals.length)
+    if (entry.id === "first_scope_repro") T(`${TOOL}: first Scope repro keeps its detail template`, executable.deferrals[0]?.detail.startsWith("the first Scope item is"))
+  }
 
-  T(`${TOOL}: HUMAN-ONLY defers as NOT_CODE_WORK`, reasons("## Scope\n\nHUMAN-ONLY: Thomas clicks the branch protection toggle.")[0] === "NOT_CODE_WORK")
-  T(`${TOOL}: no code in any repo defers as NOT_CODE_WORK`, reasons("## Scope\n\nThere is no code in any repo for this; it is a Stripe dashboard change.")[0] === "NOT_CODE_WORK")
-  T(`${TOOL}: one PR per group defers as MULTI_PR`, reasons("## Scope\n\nShip one PR per group of surfaces.")[0] === "MULTI_PR")
-  T(`${TOOL}: a codemod is admitted without an override`, reasons("## Technical details\n\nA codemod rewrites every icon import.").length === 0)
-  T(`${TOOL}: a regenerated lockfile is admitted without an override`, reasons("## Scope\n\nThe package-lock.json is regenerated from scratch.").length === 0)
-  T(`${TOOL}: an EF migration and generated Designer output stay executable together`, reasons("## Scope\n\n- Add the EF migration\n- Commit its generated Designer.cs output with the model change").length === 0)
+  const { sectionsOf, inScopeSections } = await load("parser")
+  T(`${TOOL}: parser exports remain available`, typeof sectionsOf === "function" && typeof inScopeSections === "function")
+  T(`${TOOL}: nested Out of scope is excluded`, inScopeSections(sectionsOf("## Out of scope\n\n### Work\n\nNot code\n\n## Scope\n\nCode")).map((item) => item.heading).join(",") === ",Scope")
 
-  /**
-   * A keyword match is EVIDENCE, not a verdict. "no agent can execute this" under Out of scope says
-   * the opposite of the same words under Scope, and a naive regex tripped on ORB-223, which is fine.
-   */
-  T(
-    `${TOOL}: the same phrase under Out of scope is not a deferral`,
-    reasons("## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n- The dashboard toggle, which is HUMAN-ONLY and no agent can execute this").length === 0,
-    JSON.stringify(classifyExecutability("## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n- HUMAN-ONLY, no agent can execute this")),
-  )
-  T(`${TOOL}: a bold heading delimits a section just as an ATX heading does`, reasons("**Scope**\n\n- Add the endpoint\n\n**Out of scope**\n\n- Ops-only dashboard work").length === 0)
+  const serialModule = await load("serial-calls")
+  let activeCalls = 0
+  let maximumCalls = 0
+  const serialRun = async (input, args) => {
+    activeCalls++
+    maximumCalls = Math.max(maximumCalls, activeCalls)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    writeFileSync(args[args.indexOf("-o") + 1], JSON.stringify(responses.ordinary))
+    activeCalls--
+    return { code: 0, stdout: "" }
+  }
+  await Promise.all([
+    serialModule.classifyExecutability("## Scope\n\n- First ordinary task", { run: serialRun }),
+    serialModule.classifyExecutability("## Scope\n\n- Second ordinary task", { run: serialRun }),
+  ])
+  T(`${TOOL}: distinct ticket calls stay sequential`, maximumCalls === 1)
 
-  T(`${TOOL}: a 30-file affected-modules list is advisory and never defers`, reasons(affected(30)).length === 0 && warnings(affected(30)).length === 0)
-  T(`${TOOL}: absence of any override marker never causes rejection`, reasons(`${affected(30)}\n\n## Scope\n\n- Implement one atomic behavior`).length === 0)
+  const pencil = fixtures.find((item) => item.id === "pencil")
+  const pencilModule = await load("pencil-question")
+  const pencilConversation = await pencilModule.classifyConversationFirst(pencil.body, { run: replay(responses.pencil, { calls: 0 }) })
+  T(`${TOOL}: tool question carries both quotes and the name`, pencilConversation.questions[0]?.includes("Pencil") && pencilConversation.questions[0]?.includes(responses.pencil.signals[0].counterQuote))
+  T(`${TOOL}: tool internals stay inside the classifier`, Object.keys(pencilConversation.signals[0]).sort().join(",") === "heading,kind,quote")
 
-  /**
-   * Out of scope owns its DESCENDANTS. `## Out of scope` then `### Operations` is one excluded
-   * region; filtering only the parent read the child as in-scope and deferred an executable ticket.
-   */
-  const nested = "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Thomas flips the toggle.\n"
-  T(`${TOOL}: a heading nested under Out of scope is excluded with its parent`, reasons(nested).length === 0, JSON.stringify(classifyExecutability(nested)))
-  const resumed = `${nested}\n## Technical details\n\nNo code in any repo.\n`
-  T(`${TOOL}: a sibling heading after the excluded region is scanned again`, reasons(resumed)[0] === "NOT_CODE_WORK", JSON.stringify(classifyExecutability(resumed)))
+  const orderedModule = await load("ordered-signals")
+  const orderedBody = `${pencil.body}\n${fixtures.find((item) => item.id === "product_call").body}`
+  const ordered = { deferrals: [], signals: [responses.pencil.signals[0], responses.product_call.signals[0], responses.pencil.signals[0]] }
+  const orderedResult = await orderedModule.classifyConversationFirst(orderedBody, { run: replay(ordered, { calls: 0 }) })
+  T(`${TOOL}: duplicate signals collapse into fixed order`, orderedResult.signals.map((item) => item.kind).join(",") === "PRODUCT_CALL,TOOL_CONTRADICTION")
+  const orderedDeferralsModule = await load("ordered-deferrals")
+  const orderedDeferralsBody = `${fixtures.find((item) => item.id === "not_reproduced").body}\n${fixtures.find((item) => item.id === "no_code").body}`
+  const orderedDeferrals = { deferrals: [responses.no_code.deferrals[0], responses.not_reproduced.deferrals[0], responses.no_code.deferrals[0]], signals: [] }
+  const orderedExecutable = await orderedDeferralsModule.classifyExecutability(orderedDeferralsBody, { run: replay(orderedDeferrals, { calls: 0 }) })
+  T(`${TOOL}: duplicate deferrals collapse into fixed order`, orderedExecutable.deferrals.map((item) => item.reason).join(",") === "NOT_REPRODUCED,NOT_CODE_WORK")
 
-  T(
-    `${TOOL}: a deferral quotes the line it fired on, so the evidence travels with the verdict`,
-    /says "NOT REPRODUCED on a Pixel 7"/.test(classifyExecutability("## Problem\n\nNOT REPRODUCED on a Pixel 7").deferrals[0]?.detail ?? ""),
-    JSON.stringify(classifyExecutability("## Problem\n\nNOT REPRODUCED on a Pixel 7")),
-  )
+  const invalidModule = await load("missing-field")
+  const invalid = { ...responses.not_reproduced }
+  delete invalid.deferrals
+  const invalidResult = await invalidModule.classifyConversationFirst(fixtures.find((item) => item.id === "not_reproduced").body, { run: replay(invalid, { calls: 0 }), retryDelayMs: 0 })
+  T(`${TOOL}: missing schema field fails closed`, invalidResult.signals[0]?.kind === "CLASSIFIER_ERROR")
 
-  /**
-   * Conversation-first. A DIFFERENT question from everything above: those ask whether a headless
-   * worker can execute the ticket at all, this asks whether it can execute it CORRECTLY by guessing.
-   * ORB-30 (#36) is the worked case and every fixture below is its real shape.
-   */
-  const conversation = (description, labels = []) => classifyConversationFirst(description, { labels })
-  const kinds = (description, labels = []) => conversation(description, labels).signals.map((signal) => signal.kind)
+  const outsideModule = await load("outside-quote")
+  const outsideBody = fixtures.find((item) => item.id === "orb223").body
+  const outside = { deferrals: [{ reason: "NOT_CODE_WORK", heading: "Out of scope", quote: "HUMAN-ONLY" }], signals: [] }
+  const outsideResult = await outsideModule.classifyConversationFirst(outsideBody, { run: replay(outside, { calls: 0 }), retryDelayMs: 0 })
+  T(`${TOOL}: Out of scope evidence fails closed`, outsideResult.signals[0]?.kind === "CLASSIFIER_ERROR")
 
-  T(`${TOOL}: an ordinary code ticket is not conversation-first`, conversation("## Scope\n\n- Inject the recorder\n- Add one migration\n\n## Acceptance criteria\n\n- A chat round writes a row").conversationFirst === false)
-  T(
-    `${TOOL}: an acceptance criterion carrying a human grant is conversation-first`,
-    kinds("## Acceptance criteria\n\n* Thomas has opened the page and approved the direction. This is a human grant (D13); no gate and no agent may substitute for it.").includes("HUMAN_GRANT"),
-  )
-  T(
-    `${TOOL}: a choice left to the implementer is conversation-first`,
-    kinds("## Scope\n\n* Decide the stacked-CTA width-matching convention (open question from 2026-07-19).").includes("DELEGATED_CHOICE"),
-  )
-  T(
-    `${TOOL}: a call the repository cannot supply is conversation-first`,
-    kinds("## Technical details\n\nThis needs a brand decision before any copy is written.").includes("PRODUCT_CALL"),
-  )
+  const changedQuoteModule = await load("changed-quote")
+  const quoteBody = fixtures.find((item) => item.id === "not_reproduced").body
+  const changedQuote = structuredClone(responses.not_reproduced)
+  changedQuote.deferrals[0].quote += "x"
+  const changedQuoteResult = await changedQuoteModule.classifyConversationFirst(quoteBody, { run: replay(changedQuote, { calls: 0 }), retryDelayMs: 0 })
+  T(`${TOOL}: altered evidence fails closed`, changedQuoteResult.signals[0]?.kind === "CLASSIFIER_ERROR")
 
-  /**
-   * The contradiction takes TWO lines to establish, and that is the point. "D28 is dead" matches the
-   * retirement shape too, and nothing instructs a worker to build in D28, so it stays silent.
-   */
-  const pencil = "## Scope\n\n* Then build the prototype in Pencil (`pencil.dev`, via the `pencil` MCP server).\n\n## Technical details\n\n* Claude Design is the prototyping path with `design/reference.html` (Pencil is retired).\n"
-  T(`${TOOL}: a tool named retired while still being instructed is a contradiction`, kinds(pencil).includes("TOOL_CONTRADICTION"), JSON.stringify(conversation(pencil)))
-  T(
-    `${TOOL}: a retired thing nobody is told to use is not a contradiction`,
-    !kinds("## Rescope\n\n**The design direction changed. D28 is dead.**\n\n## Scope\n\n- Rewrite the token table\n").includes("TOOL_CONTRADICTION"),
-  )
+  const failureModule = await load("process-failure")
+  const failed = await failureModule.classifyConversationFirst("## Scope\n\n- Fix code", { run: async () => ({ code: 1, stdout: "", stderr: "secret" }), retryDelayMs: 0 })
+  T(`${TOOL}: CLI failure needs conversation`, failed.source === "classifier" && failed.signals[0]?.kind === "CLASSIFIER_ERROR" && !failed.questions[0]?.includes("secret"))
+  const failureExecutable = await failureModule.classifyExecutability("## Scope\n\n- Fix code")
+  T(`${TOOL}: CLI failure does not invent a deferral`, failureExecutable.deferrals.length === 0)
+  const retriedModule = await load("process-retry")
+  let retryCount = 0
+  const retried = await retriedModule.classifyExecutability(quoteBody, { run: async (input, args) => {
+    retryCount++
+    if (retryCount === 1) return { code: 1, stdout: "", stderr: "" }
+    return replay(responses.not_reproduced, { calls: 0 })(input, args)
+  }, retryDelayMs: 0 })
+  T(`${TOOL}: one CLI failure retries once`, retryCount === 2 && retried.deferrals[0]?.reason === "NOT_REPRODUCED")
+  const rejectedModule = await load("process-reject")
+  let rejectedCount = 0
+  const rejected = await rejectedModule.classifyConversationFirst("## Scope\n\n- Another ordinary fix", { run: async () => { rejectedCount++; throw new Error("private detail") }, retryDelayMs: 0 })
+  T(`${TOOL}: launch rejection fails closed after two attempts`, rejectedCount === 2 && rejected.signals[0]?.kind === "CLASSIFIER_ERROR" && !rejected.questions[0].includes("private detail"))
+  const nonJsonModule = await load("invalid-json")
+  const nonJson = await nonJsonModule.classifyConversationFirst("## Scope\n\n- A small fix", { run: async (input, args) => {
+    writeFileSync(args[args.indexOf("-o") + 1], "not json")
+    return { code: 0, stdout: "", stderr: "" }
+  } })
+  T(`${TOOL}: non-JSON output fails closed`, nonJson.signals[0]?.kind === "CLASSIFIER_ERROR")
+  const timeoutModule = await load("process-timeout")
+  const timeoutResult = await timeoutModule.classifyConversationFirst("## Scope\n\n- Another fix", { run: () => new Promise(() => {}), timeoutMs: 10, retryDelayMs: 0 })
+  T(`${TOOL}: a stalled CLI call fails closed after one retry`, timeoutResult.signals[0]?.kind === "CLASSIFIER_ERROR")
 
-  T(
-    `${TOOL}: every signal produces exactly one question, so nothing fires silently`,
-    conversation(pencil).questions.length === conversation(pencil).signals.length && conversation(pencil).questions.every((question) => question.length > 0),
-  )
-  T(`${TOOL}: a question carries the evidence line it fired on`, /Pencil is retired/.test(conversation(pencil).questions.join(" ")), JSON.stringify(conversation(pencil).questions))
+  const emptyModule = await load("empty")
+  let called = false
+  const emptyRun = async () => { called = true; throw new Error("unexpected call") }
+  const emptyExec = await emptyModule.classifyExecutability(null, { run: emptyRun })
+  const emptyChat = await emptyModule.classifyConversationFirst("", { run: emptyRun })
+  T(`${TOOL}: empty bodies skip the CLI`, !called && emptyExec.deferrals.length === 0 && emptyChat.conversationFirst === false)
 
-  /** Thomas overrides the heuristic in both directions, and the label always wins over the body. */
-  T(`${TOOL}: the label forces conversation-first onto an ordinary ticket`, conversation("## Scope\n\n- Fix the selector", [CONVERSATION_LABEL_ON]).conversationFirst === true)
-  T(`${TOOL}: the label reports itself as the source, not the body`, conversation("## Scope\n\n- Fix the selector", [CONVERSATION_LABEL_ON]).source === "label")
-  T(`${TOOL}: the off label forces it off even when the body trips every signal`, conversation(pencil, [CONVERSATION_LABEL_OFF]).conversationFirst === false)
-  T(`${TOOL}: labels are accepted as GitHub objects as well as bare names`, conversation("## Scope\n\n- Fix it", [{ name: CONVERSATION_LABEL_ON }]).conversationFirst === true)
-
-  /** Out of scope is excluded here for the same reason it is excluded above. */
-  T(
-    `${TOOL}: a human grant under Out of scope is not conversation-first`,
-    conversation("## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n- The visual approval, which is a human grant no agent may substitute for").conversationFirst === false,
-  )
-
+  const labelsModule = await load("labels")
+  const labelsRun = async () => { throw new Error("labels must skip the CLI") }
+  const on = await labelsModule.classifyConversationFirst("## Scope\n\n- Work", { labels: ["needs:conversation"], run: labelsRun })
+  const off = await labelsModule.classifyConversationFirst("## Scope\n\n- Work", { labels: [{ name: "needs:no-conversation" }], run: labelsRun })
+  T(`${TOOL}: labels skip the CLI in both directions`, on.source === "label" && off.source === "label" && on.conversationFirst && !off.conversationFirst)
+  const labeledFailureModule = await load("labeled-failure")
+  const labeledFailureBody = "## Scope\n\n- Fix labeled code"
+  const labeledFailureRun = async () => ({ code: 1, stdout: "", stderr: "" })
+  await labeledFailureModule.classifyExecutability(labeledFailureBody, { run: labeledFailureRun, retryDelayMs: 0 })
+  const labeledFailure = await labeledFailureModule.classifyConversationFirst(labeledFailureBody, { labels: ["needs:no-conversation"] })
+  T(`${TOOL}: off label preserves a cached classifier failure`, labeledFailure.source === "classifier" && labeledFailure.signals[0]?.kind === "CLASSIFIER_ERROR")
+  const labeledOnFailure = await labeledFailureModule.classifyConversationFirst(labeledFailureBody, { labels: ["needs:conversation"] })
+  T(`${TOOL}: on label preserves a cached classifier failure`, labeledOnFailure.source === "classifier" && labeledOnFailure.signals[0]?.kind === "CLASSIFIER_ERROR")
+const nativeProbe = stage("ticket-executability/native-probe.mjs", `
+const { classifyConversationFirst } = await import(process.env.ORBIT_NATIVE_PROBE_MODULE || ${JSON.stringify(new URL("../lib/ticket-executability.mjs", import.meta.url).href)})
+const started = performance.now()
+const body = "## Scope\\n\\n- Fix code\\n" + "x".repeat(process.env.ORBIT_NATIVE_PROBE_LARGE ? 4_000_000 : 0)
+const result = await classifyConversationFirst(body, { timeoutMs: Number(process.env.ORBIT_NATIVE_PROBE_TIMEOUT) || 1000, retryDelayMs: 0 })
+process.stdout.write(JSON.stringify({ kind: result.signals[0]?.kind, elapsedMs: performance.now() - started }))
+`)
+  for (const [name, source, timeoutMs, large] of [
+    ["early-exit", "#!/usr/bin/env node\nprocess.exit(1)\n", 500, true],
+    ["stdio-descendant", "#!/usr/bin/env node\nimport { spawn } from 'node:child_process'\nspawn(process.execPath, ['-e', 'setTimeout(() => {}, 1200)'], { stdio: 'inherit' })\n", 100, false],
+    ["output-overflow", "#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs'\nwriteFileSync(process.argv[process.argv.indexOf('-o') + 1], JSON.stringify({ deferrals: [], signals: [] }))\nprocess.stdout.write('x'.repeat(2_000_000))\n", 1000, false],
+  ]) {
+    const binary = stage(`ticket-executability/${name}.mjs`, source)
+    chmodSync(binary, 0o755)
+    const observed = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CODEX_BIN: binary, ORBIT_NATIVE_PROBE_TIMEOUT: String(timeoutMs), ORBIT_NATIVE_PROBE_LARGE: large ? "1" : "" } })
+    let verdict
+    try { verdict = JSON.parse(observed.stdout) } catch { verdict = null }
+    T(`${TOOL}: native ${name} fails closed within the deadline`, observed.status === 0 && verdict?.kind === "CLASSIFIER_ERROR" && verdict.elapsedMs < 900, observed.stderr || observed.stdout || String(observed.error))
+  }
+  const missingBinary = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CODEX_BIN: "/orbit-test/missing-codex" } })
+  let missingVerdict
+  try { missingVerdict = JSON.parse(missingBinary.stdout) } catch { missingVerdict = null }
+  T(`${TOOL}: native launch failure fails closed`, missingBinary.status === 0 && missingVerdict?.kind === "CLASSIFIER_ERROR", missingBinary.stderr || missingBinary.stdout || String(missingBinary.error))
   /** The queue contract has to name the reason, or the deferral arrives at 03:00 with no meaning. */
   T(
     `${TOOL}: the orchestrate contract documents NEEDS_CONVERSATION as a sleep-only deferral`,
@@ -158,4 +209,5 @@ export const cases = () => {
     /comment-ticket\.mjs/.test(orchestrateContract) && /one topic at a time/i.test(orchestrateContract),
     "the conversation-first protocol lost its durable output or its one-topic rule",
   )
+  globalThis.fetch = originalFetch
 }
