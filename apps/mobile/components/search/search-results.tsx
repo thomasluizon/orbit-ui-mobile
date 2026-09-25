@@ -54,7 +54,7 @@ export function SearchResult({ habit, query, onOpen, actionLabel, disabled = fal
     <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Circle size={20} color={tokens.fg3} />}</View>
     <View style={styles.content}><Text numberOfLines={1} style={[styles.name, { color: tokens.fg1 }]}>{habit.title}</Text>
       {matches.map((match) => <Text key={match.id} numberOfLines={1} style={[styles.match, { color: tokens.fg3 }]}>{match.label}{match.fragment !== null && <> <Text style={{ color: tokens.fg2 }}>{match.fragment}</Text></>}</Text>)}
-    </View><ChevronRight size={20} color={tokens.fg4} />
+    </View><ChevronRight size={20} color={tokens.fg3} />
   </Pressable>
 }
 
