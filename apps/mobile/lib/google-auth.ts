@@ -4,7 +4,13 @@ import { API } from '@orbit/shared/api'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
 import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
 import { apiClient } from './api-client'
-import { isSafeReturnUrl, storeAuthReturnUrl } from './auth-flow'
+import {
+  createAuthReturnUrlAttempt,
+  clearStoredAuthReturnUrl,
+  isAuthReturnUrlAttemptCurrent,
+  isSafeReturnUrl,
+  storeAuthReturnUrl,
+} from './auth-flow'
 import {
   AUTH_CALLBACK_URL,
   extractGoogleAuthParams,
@@ -95,14 +101,20 @@ export async function startMobileGoogleAuth({
   returnUrl?: string
   forceConsent?: boolean
 }>): Promise<MobileGoogleAuthResult> {
+  const returnUrlAttemptId = createAuthReturnUrlAttempt()
   if (returnUrl && isSafeReturnUrl(returnUrl)) {
-    await storeAuthReturnUrl(returnUrl)
+    await storeAuthReturnUrl(returnUrl, returnUrlAttemptId)
+  } else {
+    await clearStoredAuthReturnUrl(returnUrlAttemptId)
+  }
+  if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
+    return { type: WebBrowser.WebBrowserResultType.CANCEL }
   }
 
-  markPendingGoogleAuthSession()
+  const attemptId = await markPendingGoogleAuthSession(returnUrlAttemptId)
 
   try {
-    const redirectTo = getGoogleAuthRedirectUrl()
+    const redirectTo = `${getGoogleAuthRedirectUrl()}?authAttempt=${attemptId}`
     const { data, error } = await getSupabaseClient().auth.signInWithOAuth({
       provider: 'google',
       options: buildGoogleCalendarOAuthOptions({
@@ -118,29 +130,36 @@ export async function startMobileGoogleAuth({
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
 
+    if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
+      return { type: WebBrowser.WebBrowserResultType.CANCEL }
+    }
+
     if (result.type !== 'success') {
-      clearPendingGoogleAuthSession()
+      await clearPendingGoogleAuthSession(returnUrlAttemptId)
       return { type: result.type }
     }
 
     if (!result.url) {
-      clearPendingGoogleAuthSession()
+      await clearPendingGoogleAuthSession(returnUrlAttemptId)
       return { type: WebBrowser.WebBrowserResultType.DISMISS }
     }
 
     const params = extractGoogleAuthParams(result.url)
     if (params.error === 'access_denied') {
-      clearPendingGoogleAuthSession()
+      await clearPendingGoogleAuthSession(returnUrlAttemptId)
       return { type: WebBrowser.WebBrowserResultType.CANCEL }
     }
 
-    setPendingGoogleAuthCallbackUrl(result.url)
+    if (!await setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)) {
+      await clearPendingGoogleAuthSession(returnUrlAttemptId)
+      return { type: WebBrowser.WebBrowserResultType.DISMISS }
+    }
     return {
       type: 'success',
       url: result.url,
     }
   } catch (error: unknown) {
-    clearPendingGoogleAuthSession()
+    await clearPendingGoogleAuthSession(returnUrlAttemptId)
     throw error
   }
 }

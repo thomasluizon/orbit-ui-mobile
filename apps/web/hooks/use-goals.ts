@@ -1,7 +1,8 @@
 'use client'
 
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
 import {
-  useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
@@ -37,7 +38,7 @@ export {
 export function useCreateGoal() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (data: CreateGoalRequest) => createGoalAction(data),
 
     onSettled: () => {
@@ -49,7 +50,7 @@ export function useCreateGoal() {
 export function useUpdateGoal() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({ goalId, data }: { goalId: string; data: UpdateGoalRequest }) =>
       updateGoalAction(goalId, data),
 
@@ -65,7 +66,7 @@ export function useRestoreGoal() {
   const t = useTranslations()
   const { showSuccess, showError } = useAppToast()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (goalId: string) => restoreGoalAction(goalId),
 
     onSuccess: () => {
@@ -85,7 +86,7 @@ export function useDeleteGoal() {
   const restoreGoal = useRestoreGoal()
   const showUndoToast = useUndoToast()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (goalId: string) => deleteGoalAction(goalId),
 
     onSuccess: (_data, goalId) => {
@@ -127,7 +128,7 @@ export function useDeleteGoal() {
 export function useUpdateGoalProgress() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       goalId,
       data,
@@ -148,7 +149,7 @@ export function useUpdateGoalStatus() {
   const queryClient = useQueryClient()
   const { setGoalCompletedCelebration } = useUIStore.getState()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       goalId,
       data,
@@ -175,7 +176,7 @@ export function useUpdateGoalStatus() {
 export function useReorderGoals() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (positions: GoalPositionItem[]) => reorderGoalsAction(positions),
 
     onMutate: async (positions) => {
@@ -217,7 +218,7 @@ export function useReorderGoals() {
 export function useLinkHabitsToGoal() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       goalId,
       habitIds,

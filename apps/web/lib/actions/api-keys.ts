@@ -1,7 +1,7 @@
 'use client'
 
 import * as serverActions from '@/app/actions/api-keys'
-import { bindServerAction } from '@/lib/client-action'
+import { bindAccountServerAction } from '@/lib/client-action'
 
-export const createApiKey = bindServerAction(serverActions.createApiKey)
-export const revokeApiKey = bindServerAction(serverActions.revokeApiKey)
+export const createApiKey = bindAccountServerAction(serverActions.createApiKey)
+export const revokeApiKey = bindAccountServerAction(serverActions.revokeApiKey)

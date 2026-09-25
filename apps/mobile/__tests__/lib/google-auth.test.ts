@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiClientError } from '@orbit/shared/utils'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { createAuthReturnUrlAttempt, getStoredAuthReturnUrl, storeAuthReturnUrl } from '@/lib/auth-flow'
 
 const {
   apiClientMock,
@@ -141,20 +143,61 @@ describe('startMobileGoogleAuth', () => {
 
   it('opens the OAuth browser session and returns the callback url on success', async () => {
     signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
-    const callbackUrl = `${CALLBACK}#access_token=a&refresh_token=b`
-    openAuthSessionAsyncMock.mockResolvedValue({ type: 'success', url: callbackUrl })
+    openAuthSessionAsyncMock.mockImplementation((_url: string, redirectTo: string) => Promise.resolve({
+      type: 'success', url: `${redirectTo}#access_token=a&refresh_token=b`,
+    }))
 
     const result = await startMobileGoogleAuth({})
 
-    expect(result).toEqual({ type: 'success', url: callbackUrl })
+    expect(result).toEqual({ type: 'success', url: expect.stringMatching(/^https:\/\/app\.useorbit\.org\/auth-callback\?authAttempt=[^#]+#access_token=a&refresh_token=b$/) })
     const oauthArgs = signInWithOAuthMock.mock.calls[0]?.[0] as {
       provider: string
       options: { redirectTo: string; skipBrowserRedirect: boolean }
     }
     expect(oauthArgs.provider).toBe('google')
-    expect(oauthArgs.options.redirectTo).toBe(CALLBACK)
+    expect(oauthArgs.options.redirectTo).toMatch(/^https:\/\/app\.useorbit\.org\/auth-callback\?authAttempt=[^#]+$/)
     expect(oauthArgs.options.skipBrowserRedirect).toBe(true)
-    expect(openAuthSessionAsyncMock).toHaveBeenCalledWith('https://accounts.google.com/o', CALLBACK)
+    expect(openAuthSessionAsyncMock).toHaveBeenCalledWith('https://accounts.google.com/o', oauthArgs.options.redirectTo)
+  })
+
+  it('keeps Calendar consent when binding its callback to an attempt', async () => {
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    openAuthSessionAsyncMock.mockImplementation((_url: string, redirectTo: string) => Promise.resolve({
+      type: 'success', url: `${redirectTo}#access_token=calendar&refresh_token=calendar-refresh`,
+    }))
+
+    const result = await startMobileGoogleAuth({ returnUrl: '/calendar-sync', forceConsent: true })
+
+    expect(result.type).toBe('success')
+    expect(signInWithOAuthMock).toHaveBeenCalledWith(expect.objectContaining({
+      options: expect.objectContaining({
+        redirectTo: expect.stringMatching(/\?authAttempt=/),
+        queryParams: expect.objectContaining({ prompt: 'consent' }),
+      }),
+    }))
+  })
+
+  it('clears an older destination before a URL-less Google flow starts', async () => {
+    let storedUrl: string | null = null
+    vi.spyOn(AsyncStorage, 'getItem').mockImplementation(() => Promise.resolve(storedUrl))
+    vi.spyOn(AsyncStorage, 'setItem').mockImplementation((_key, url) => {
+      storedUrl = url
+      return Promise.resolve()
+    })
+    vi.spyOn(AsyncStorage, 'removeItem').mockImplementation(() => {
+      storedUrl = null
+      return Promise.resolve()
+    })
+    const olderAttempt = createAuthReturnUrlAttempt()
+    await storeAuthReturnUrl('/older', olderAttempt)
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    openAuthSessionAsyncMock.mockResolvedValue({ type: 'dismiss' })
+
+    await startMobileGoogleAuth({})
+
+    await expect(getStoredAuthReturnUrl(olderAttempt + 1)).resolves.toBeNull()
+    expect(storedUrl).toBeNull()
+    vi.restoreAllMocks()
   })
 
   it('returns the browser result type when the session is dismissed', async () => {

@@ -315,6 +315,7 @@ function getContextualMessageKey(
  * instead of the raw English message.
  */
 export const ERROR_CODE_TO_KEY: Record<string, string> = {
+  ACCOUNT_CHANGED: 'errors.api.accountChanged',
   NO_PERMISSION: 'errors.api.noPermission',
   HABIT_NOT_OWNED: 'errors.api.noPermission',
   INVALID_SESSION: 'errors.api.sessionExpired',

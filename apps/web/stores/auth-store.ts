@@ -1,10 +1,44 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { withSessionCookieLock } from '@/lib/session-cookie-lock'
+import { getQueryClient } from '@/lib/query-client'
+import { clearSupabaseSession } from '@/lib/supabase'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+let sessionOwnershipEpoch = 0
+let loginsWaitingForLogout = 0
+let accountGeneration = 0
+let accountSwitchPending = false
+
+export function getAccountGeneration(): number {
+  return accountGeneration
+}
+
+function reloadWhenCookieReplacesAccount(
+  heldAccountId: string | null,
+  cookieAccountId: string | null,
+): boolean {
+  if (!heldAccountId || !cookieAccountId || heldAccountId === cookieAccountId) return false
+  if (!accountSwitchPending) {
+    accountSwitchPending = true
+    accountGeneration += 1
+    getQueryClient().clear()
+    if ('location' in globalThis) globalThis.location.reload()
+  }
+  return true
+}
+
+export async function withCookieSettingLogin<T>(task: () => Promise<T>): Promise<T> {
+  loginsWaitingForLogout += 1
+  try {
+    return await withSessionCookieLock(task)
+  } finally {
+    loginsWaitingForLogout -= 1
+  }
+}
 
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
   const next = sessionRevalidationQueue.then(task, task)
@@ -15,6 +49,7 @@ function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
 interface AuthState {
   isAuthenticated: boolean
   user: User | null
+  heldAccountId: string | null
   expiresAt: number | null
   sessionRefreshFailed: boolean
 
@@ -27,7 +62,7 @@ interface AuthState {
 }
 
 type SessionSnapshot =
-  | { kind: 'active'; expiresAt: number }
+  | { kind: 'active'; expiresAt: number; accountId: string | null }
   | { kind: 'inactive' }
   | { kind: 'rejected' }
   | { kind: 'retryable' }
@@ -51,22 +86,29 @@ async function readCurrentSession(): Promise<SessionSnapshot> {
 
   if (!response.ok) return { kind: 'retryable' }
 
-  const session = (await response.json()) as { expiresAt: number | null }
+  const session = (await response.json()) as { expiresAt: number | null; accountId?: string | null }
   return typeof session.expiresAt === 'number'
-    ? { kind: 'active', expiresAt: session.expiresAt }
+    ? { kind: 'active', expiresAt: session.expiresAt, accountId: session.accountId ?? null }
     : { kind: 'inactive' }
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   user: null,
+  heldAccountId: null,
   expiresAt: null,
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
+    clearSupabaseSession()
+    sessionOwnershipEpoch += 1
+    accountSwitchPending = false
+    accountGeneration += 1
+    getQueryClient().clear()
     sessionRecoveryUser = null
     set({
       isAuthenticated: true,
+      heldAccountId: loginResponse.userId,
       user: {
         userId: loginResponse.userId,
         name: loginResponse.name,
@@ -77,12 +119,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
+    if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
-      const user = get().user ?? sessionRecoveryUser
+      if (reloadWhenCookieReplacesAccount(get().heldAccountId, session.accountId)) return
+      const accountId = session.accountId ?? get().heldAccountId
+      if (get().heldAccountId !== accountId) {
+        accountGeneration += 1
+        getQueryClient().clear()
+      }
+      const user = get().user?.userId === accountId
+        ? get().user
+        : sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        heldAccountId: accountId,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
@@ -90,6 +143,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'inactive') {
+      accountGeneration += 1
+      getQueryClient().clear()
+      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -100,6 +156,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'rejected') {
+      clearSupabaseSession()
       sessionRecoveryUser ??= get().user
       set({
         isAuthenticated: false,
@@ -113,17 +170,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   recoverSessionRefreshFailure: () => queueSessionRevalidation(async () => {
     if (!get().sessionRefreshFailed) return
 
+    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
+    if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
-      const user = get().user ?? sessionRecoveryUser
+      if (reloadWhenCookieReplacesAccount(get().heldAccountId, session.accountId)) return
+      const accountId = session.accountId ?? get().heldAccountId
+      if (get().heldAccountId !== accountId) {
+        accountGeneration += 1
+        getQueryClient().clear()
+      }
+      const user = get().user?.userId === accountId
+        ? get().user
+        : sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        heldAccountId: accountId,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      accountGeneration += 1
+      getQueryClient().clear()
+      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -135,21 +206,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }),
 
   checkSession: async () => {
+    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
+    if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'rejected') {
       await get().confirmSessionRefreshFailure()
       return
     }
     if (session.kind === 'active') {
-      const user = get().user ?? sessionRecoveryUser
+      if (reloadWhenCookieReplacesAccount(get().heldAccountId, session.accountId)) return
+      const accountId = session.accountId ?? get().heldAccountId
+      if (get().heldAccountId !== accountId) {
+        accountGeneration += 1
+        getQueryClient().clear()
+      }
+      const user = get().user?.userId === accountId
+        ? get().user
+        : sessionRecoveryUser?.userId === accountId ? sessionRecoveryUser : null
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        heldAccountId: accountId,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      accountGeneration += 1
+      getQueryClient().clear()
+      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -176,22 +261,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    const logoutEpoch = sessionOwnershipEpoch
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await withSessionCookieLock(async () => {
+        if (logoutEpoch !== sessionOwnershipEpoch) return
+        try {
+          await fetch('/api/auth/logout', { method: 'POST' })
+        } catch {
+        }
+      })
     } catch {
+      return
     }
 
+    if (logoutEpoch !== sessionOwnershipEpoch) return
+
+    clearSupabaseSession()
+    sessionOwnershipEpoch += 1
+    accountSwitchPending = false
+    accountGeneration += 1
+    getQueryClient().clear()
     sessionRecoveryUser = null
     set({
       isAuthenticated: false,
+      heldAccountId: null,
       user: null,
       expiresAt: null,
       sessionRefreshFailed: false,
     })
     useOnboardingDraftStore.getState().reset()
 
-    if ('location' in globalThis) {
+    if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
     }
   },
 }))
+
+export function getHeldAccountId(): string | null {
+  return useAuthStore.getState().heldAccountId
+}

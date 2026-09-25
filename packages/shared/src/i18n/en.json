@@ -310,6 +310,7 @@
     "sessionExpiring": "Your session expires in {minutes} minutes. Save your work.",
     "sessionExpired": "Your session timed out.",
     "sessionSignedOut": "You were signed out. Sign in to pick up where you left off.",
+    "sessionRefreshFailed": "Orbit couldn't refresh your session. Try again.",
     "refresh": "Refresh",
     "login": "Log in",
     "codeDigit": "Digit {n} of 6",
@@ -2044,6 +2045,8 @@
     "fetchSubHabits": "Failed to fetch sub-habits",
     "offline": "Reconnect to the internet and try again.",
     "api": {
+      "accountChanged": "Your account changed. Reload this page before trying again.",
+      "reload": "Reload",
       "noPermission": "You don't have permission to do that.",
       "sessionExpired": "Your session expired. Please sign in again.",
       "duplicateTag": "You already have a tag with that name.",

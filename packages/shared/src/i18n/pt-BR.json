@@ -310,6 +310,7 @@
     "sessionExpiring": "Sua sessão expira em {minutes} minutos. Salve o que estiver fazendo.",
     "sessionExpired": "Sua sessão expirou.",
     "sessionSignedOut": "Você saiu da conta. Entre para continuar de onde parou.",
+    "sessionRefreshFailed": "O Orbit não conseguiu atualizar sua sessão. Tente novamente.",
     "refresh": "Atualizar",
     "login": "Entrar",
     "codeDigit": "Dígito {n} de 6",
@@ -2044,6 +2045,8 @@
     "fetchSubHabits": "Não foi possível carregar os sub-hábitos",
     "offline": "Reconecte-se à internet e tente de novo.",
     "api": {
+      "accountChanged": "Sua conta mudou. Recarregue esta página antes de tentar de novo.",
+      "reload": "Recarregar",
       "noPermission": "Você não tem permissão para isso.",
       "sessionExpired": "Sua sessão expirou. Entre de novo.",
       "duplicateTag": "Você já tem uma tag com esse nome.",

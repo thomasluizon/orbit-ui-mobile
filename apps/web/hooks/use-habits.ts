@@ -1,7 +1,8 @@
 'use client'
 
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
 import {
-  useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
@@ -83,7 +84,7 @@ export function useLogHabit() {
   const queryClient = useQueryClient()
   const { setStreakCelebration, checkAllDoneCelebration, activeFilters } = useUIStore.getState()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       habitId,
       date,
@@ -206,7 +207,7 @@ export function useLogHabit() {
 export function useSkipHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({ habitId, date }: { habitId: string; date?: string }) =>
       skipHabitAction(habitId, date),
 
@@ -254,7 +255,7 @@ export function useSkipHabit() {
 export function useCreateHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (data: CreateHabitRequest) => createHabitAction(data),
 
     onSuccess: (result) => {
@@ -273,7 +274,7 @@ export function useCreateHabit() {
 export function useUpdateHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({ habitId, data }: { habitId: string; data: UpdateHabitRequest }) =>
       updateHabitAction(habitId, data),
 
@@ -318,7 +319,7 @@ export function useRestoreHabit() {
   const t = useTranslations()
   const { showSuccess, showError } = useAppToast()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (habitId: string) => restoreHabitAction(habitId),
 
     onSuccess: () => {
@@ -338,7 +339,7 @@ export function useDeleteHabit() {
   const restoreHabit = useRestoreHabit()
   const showUndoToast = useUndoToast()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (habitId: string) => deleteHabitAction(habitId),
 
     onSuccess: (_data, habitId) => {
@@ -356,7 +357,7 @@ export function useReorderHabits() {
   const t = useTranslations()
   const { showError } = useAppToast()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (data: ReorderHabitsRequest) => reorderHabitsAction(data),
 
     onMutate: async (data) => {
@@ -387,7 +388,7 @@ export function useReorderHabits() {
 export function useDuplicateHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (habitId: string) => duplicateHabitAction(habitId),
 
     onSettled: () => {
@@ -401,7 +402,7 @@ export function useDuplicateHabit() {
 export function useUpdateChecklist() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       habitId,
       items,
@@ -465,7 +466,7 @@ export function useUpdateChecklist() {
 export function useCreateSubHabit() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       parentId,
       data,
@@ -485,7 +486,7 @@ export function useCreateSubHabit() {
 export function useMoveHabitParent() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: ({
       habitId,
       data,
@@ -505,7 +506,7 @@ export function useMoveHabitParent() {
 export function useBulkCreateHabits() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (data: BulkCreateRequest) => bulkCreateHabitsAction(data),
 
     onSettled: () => {
@@ -520,7 +521,7 @@ export function useBulkCreateHabits() {
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (habitIds: string[]) => bulkDeleteHabitsAction(habitIds),
 
     onSettled: () => {
@@ -536,7 +537,7 @@ export function useBulkDeleteHabits() {
 export function useBulkLogHabits() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (items: BulkLogItemRequest[]) => bulkLogHabitsAction(items),
 
     onSettled: () => {
@@ -552,7 +553,7 @@ export function useBulkLogHabits() {
 export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (items: BulkSkipItemRequest[]) => bulkSkipHabitsAction(items),
 
     onSettled: () => {

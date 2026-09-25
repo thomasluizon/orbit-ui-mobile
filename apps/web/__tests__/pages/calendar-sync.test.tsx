@@ -348,7 +348,7 @@ describe('CalendarSyncPage', () => {
     expect(mockSignInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
       options: {
-        redirectTo: 'http://localhost:3000/auth-callback',
+        redirectTo: expect.stringMatching(/^http:\/\/localhost:3000\/auth-callback\?authAttempt=[^#]+$/),
         scopes: 'https://www.googleapis.com/auth/calendar.readonly',
         queryParams: {
           access_type: 'offline',
@@ -357,6 +357,11 @@ describe('CalendarSyncPage', () => {
         },
       },
     })
+    const redirectTo = (mockSignInWithOAuth.mock.calls[0]?.[0] as {
+      options: { redirectTo: string }
+    }).options.redirectTo
+    expect(sessionStorage.getItem('orbit_google_auth_started_at'))
+      .toContain(new URL(redirectTo).searchParams.get('authAttempt'))
   })
 
 

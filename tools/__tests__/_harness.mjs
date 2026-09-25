@@ -8,7 +8,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 
@@ -60,7 +60,8 @@ export const T = (name, ok, detail = "") => {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `\n     ${detail}`}`)
 }
 
-export const root = mkdtempSync(join(tmpdir(), "orbit-tools-gate-"))
+// Git reports the real path on macOS, where tmpdir() may return its /var symlink.
+export const root = mkdtempSync(join(realpathSync(tmpdir()), "orbit-tools-gate-"))
 
 process.on("exit", () => {
   try {

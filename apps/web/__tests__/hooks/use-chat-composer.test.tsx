@@ -3,6 +3,10 @@ import type { ChangeEvent } from 'react'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import type { ChatResponse } from '@orbit/shared/types/chat'
+import { toast } from 'sonner'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
@@ -103,6 +107,8 @@ function controlledSseResponse() {
 
 describe('web useChatComposer streaming send', () => {
   beforeEach(() => {
+    vi.mocked(toast.error).mockClear()
+    setApiFetchTranslate((key) => key)
     mocks.fetch.mockReset()
     mocks.routerPush.mockReset()
     mocks.queryClient.invalidateQueries.mockReset()
@@ -141,6 +147,21 @@ describe('web useChatComposer streaming send', () => {
     })
     expect(useChatStore.getState().isTyping).toBe(false)
     expect(result.current.canRetryLastSend).toBe(false)
+  })
+
+  it('offers reload and disables retry when the chat route refuses the account', async () => {
+    mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
+      error: 'Account changed', errorCode: 'ACCOUNT_CHANGED',
+    }), { status: 409, headers: { 'content-type': 'application/json' } }))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => { await result.current.sendMessage('hello') })
+
+    expect(result.current.sendError).toBe('errors.api.accountChanged')
+    expect(result.current.canRetryLastSend).toBe(false)
+    expect(toast.error).toHaveBeenCalledWith('errors.api.accountChanged', expect.objectContaining({
+      id: 'account-changed',
+    }))
   })
 
   it('rejects an overlapping send before a second request starts', async () => {

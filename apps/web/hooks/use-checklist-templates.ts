@@ -1,6 +1,8 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { checklistTemplateKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { createClientId } from '@orbit/shared/utils'
 import type {
@@ -29,7 +31,7 @@ function createOptimisticTemplateId(): string {
 export function useCreateChecklistTemplate() {
   const queryClient = useQueryClient()
 
-  return useMutation<
+  return useAccountScopedMutation<
     CreateChecklistTemplateResponse,
     Error,
     CreateChecklistTemplateRequest,
@@ -71,7 +73,7 @@ export function useCreateChecklistTemplate() {
 export function useDeleteChecklistTemplate() {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, string, { previous: ChecklistTemplate[] | undefined }>({
+  return useAccountScopedMutation<void, Error, string, { previous: ChecklistTemplate[] | undefined }>({
     mutationFn: (id) => deleteChecklistTemplateAction(id),
 
     onMutate: async (id) => {

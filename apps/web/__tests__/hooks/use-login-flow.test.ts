@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
+  signInWithOAuth: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -30,10 +31,13 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks
 
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 
-vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => ({ setAuth: mocks.setAuth }) }))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: () => ({ setAuth: mocks.setAuth }),
+  withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
+}))
 
 vi.mock('@/lib/supabase', () => ({
-  getSupabaseClient: () => ({ auth: { signInWithOAuth: vi.fn() } }),
+  getSupabaseClient: () => ({ auth: { signInWithOAuth: mocks.signInWithOAuth } }),
 }))
 
 vi.mock('@/lib/profile-presentation', () => ({
@@ -119,8 +123,21 @@ beforeEach(() => {
   mocks.isOnline = true
   setNavigatorOnline(true)
   localStorage.clear()
+  sessionStorage.clear()
   document.cookie = 'referral_code=;max-age=0;path=/'
   wireAuthNetwork()
+})
+
+it('binds Google sign in to an attempt in this tab', async () => {
+  mocks.signInWithOAuth.mockResolvedValue({ error: null })
+  const { result } = renderHook(() => useLoginFlow())
+
+  await act(async () => { await result.current.signInWithGoogle() })
+
+  const redirectTo = mocks.signInWithOAuth.mock.calls[0]?.[0]?.options?.redirectTo as string
+  const attemptId = new URL(redirectTo).searchParams.get('authAttempt')
+  expect(attemptId).toBeTruthy()
+  expect(sessionStorage.getItem('orbit_google_auth_started_at')).toContain(attemptId)
 })
 
 afterEach(() => {

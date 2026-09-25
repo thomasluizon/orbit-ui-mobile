@@ -10,8 +10,9 @@ import {
   extractBackendRequestId,
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
-import { useAuthStore } from '@/stores/auth-store'
+import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
+import { consumeRecentGoogleAuthStart } from '@/lib/google-auth-session'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
@@ -127,6 +128,14 @@ function AuthCallbackContent() {
     if (processedRef.current) return
     processedRef.current = true
 
+    const query = new URLSearchParams(globalThis.location.search)
+    const hashParams = new URLSearchParams(globalThis.location.hash.substring(1))
+    const redirectAccessToken = hashParams.get('access_token')
+    if (!consumeRecentGoogleAuthStart(query.get('authAttempt')) || !redirectAccessToken) {
+      router.replace('/login')
+      return
+    }
+
     let extractedProviderToken: string | undefined
     let extractedProviderRefreshToken: string | undefined
 
@@ -135,7 +144,6 @@ function AuthCallbackContent() {
       extractedProviderToken = hashParams.get('provider_token') ?? undefined
       extractedProviderRefreshToken = hashParams.get('provider_refresh_token') ?? undefined
     }
-    const query = new URLSearchParams(globalThis.location.search)
     extractedProviderToken ??= query.get('provider_token') ?? undefined
     extractedProviderRefreshToken ??= query.get('provider_refresh_token') ?? undefined
 
@@ -143,14 +151,14 @@ function AuthCallbackContent() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return
-      if (!session) return
+      if (!session || session.access_token !== redirectAccessToken) return
 
       subscription.unsubscribe()
 
       try {
         const referralCode = getCookieValue('referral_code')
 
-        const response = await fetch('/api/auth/google', {
+        const response = await withCookieSettingLogin(() => fetch('/api/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -160,7 +168,7 @@ function AuthCallbackContent() {
             googleRefreshToken: extractedProviderRefreshToken ?? session.provider_refresh_token ?? undefined,
             ...(referralCode ? { referralCode } : {}),
           }),
-        })
+        }))
 
         if (!response.ok) {
           const errorBody = mergeRequestIdIntoBody(

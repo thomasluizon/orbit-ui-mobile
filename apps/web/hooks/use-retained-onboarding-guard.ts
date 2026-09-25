@@ -7,6 +7,8 @@ import {
 } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { completeOnboarding } from '@/lib/actions/profile'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -45,9 +47,14 @@ export function useRetainedOnboardingGuard(
   useEffect(() => {
     if (action !== 'autocomplete' || autoCompletedRef.current) return
     autoCompletedRef.current = true
-    void completeOnboarding()
-      .catch(() => {})
-      .finally(() => patchProfile({ hasCompletedOnboarding: true }))
+    const intent = captureAccountIntent()
+    void intent.run(() => completeOnboarding())
+      .then(() => {
+        if (intent.stillCurrent()) patchProfile({ hasCompletedOnboarding: true })
+      })
+      .catch((error: unknown) => {
+        if (reportsAccountChanged(error)) reportAccountChanged()
+      })
   }, [action, patchProfile])
 
   return action === 'show'

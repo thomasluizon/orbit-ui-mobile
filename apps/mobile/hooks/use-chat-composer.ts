@@ -43,6 +43,13 @@ import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { usePendingOperationExecution } from "@/hooks/use-pending-operation-execution";
 import { useChatStore } from "@/stores/chat-store";
 
+let nextChatMessageSequence = 0;
+
+function createChatMessageId(): string {
+  nextChatMessageSequence += 1;
+  return `msg-${Date.now()}-${nextChatMessageSequence}-ai`;
+}
+
 interface AttemptedSend {
   content: string;
   image: ImagePicker.ImagePickerAsset | null;
@@ -385,7 +392,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         updateMessage(draftMessageId, finalFields);
       } else {
         const aiMessage: ChatMessage = {
-          id: `msg-${Date.now()}-ai`,
+          id: createChatMessageId(),
           role: "ai",
           timestamp: new Date(),
           ...finalFields,
@@ -488,7 +495,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       let draftMessageId: string | null = null;
       const ensureDraftMessage = () => {
         if (draftMessageId) return draftMessageId;
-        draftMessageId = `msg-${Date.now()}-ai`;
+        draftMessageId = createChatMessageId();
         setStreamingMessageId(draftMessageId);
         setIsTyping(false);
         addMessage({

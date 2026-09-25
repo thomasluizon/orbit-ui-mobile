@@ -1,0 +1,157 @@
+name: API contract rebaseline
+
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  repository_dispatch:
+    types: [orbit-api-contract-drift]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-contract-rebaseline
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      moved: ${{ steps.regenerate.outputs.moved }}
+    steps:
+      # This job never holds a write token. npm ci runs install scripts, including Lefthook's hook
+      # installer, and Orval runs generated code, so anything they leave behind dies with this runner.
+      # Only the two generated files cross to the write job, as an artifact (review of ui#1098).
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Read the pin from the single rebaseline branch
+        run: |
+          set -euo pipefail
+          branch=chore/contract-snapshot
+          if git ls-remote --exit-code --heads origin "$branch"; then
+            git fetch origin "$branch:refs/remotes/origin/$branch"
+            git checkout "origin/$branch" -- packages/shared/src/types/__generated__/api.spec.commit
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then
+              echo "::error::Could not determine whether the rebaseline branch exists."
+              exit "$status"
+            fi
+          fi
+
+      - name: Regenerate from orbit-api main
+        id: regenerate
+        working-directory: packages/shared
+        run: |
+          set -euo pipefail
+          pin=$(cat src/types/__generated__/api.spec.commit)
+          if ! [[ "$pin" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::The orbit-api commit pin must be a full 40-character SHA."
+            exit 1
+          fi
+          api_commit=$(git ls-remote https://github.com/thomasluizon/orbit-api.git refs/heads/main | cut -f1)
+          if ! [[ "$api_commit" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not resolve the orbit-api main commit."
+            exit 1
+          fi
+          curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$api_commit/src/Orbit.Api/openapi.json" -o "$RUNNER_TEMP/orbit-openapi.json"
+          curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o "$RUNNER_TEMP/pinned-openapi.json"
+          if cmp -s "$RUNNER_TEMP/orbit-openapi.json" "$RUNNER_TEMP/pinned-openapi.json"; then
+            echo 'The OpenAPI spec has not moved.'
+            echo 'moved=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npx --yes orval@8.37.0 --config ./orval.config.ts
+          printf '%s\n' "$api_commit" > src/types/__generated__/api.spec.commit
+          echo 'moved=true' >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        if: steps.regenerate.outputs.moved == 'true'
+        with:
+          name: contract-snapshot
+          path: |
+            packages/shared/src/types/__generated__/api.generated.ts
+            packages/shared/src/types/__generated__/api.spec.commit
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: generate
+    if: needs.generate.outputs.moved == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # The write token lives only on this fresh runner, which installs nothing, runs no generator and
+      # runs no repository hook: core.hooksPath points at /dev/null for the commit and the push.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out the single rebaseline branch
+        run: |
+          set -euo pipefail
+          branch=chore/contract-snapshot
+          if git ls-remote --exit-code --heads origin "$branch"; then
+            git fetch origin "$branch:refs/remotes/origin/$branch"
+            git switch --create "$branch" --track "origin/$branch"
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then
+              echo "::error::Could not determine whether the rebaseline branch exists."
+              exit "$status"
+            fi
+            git switch --create "$branch"
+          fi
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: contract-snapshot
+          path: packages/shared/src/types/__generated__
+
+      - name: Commit and open or update one pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git --hostname github.com
+          snapshot=packages/shared/src/types/__generated__/api.generated.ts
+          pin=packages/shared/src/types/__generated__/api.spec.commit
+          git add -- "$snapshot" "$pin"
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git -c core.hooksPath=/dev/null commit -m 'Update pinned API contract snapshot'
+          fi
+          if git diff --quiet origin/main -- "$snapshot" "$pin"; then
+            echo 'The pinned snapshot already matches main.'
+            exit 0
+          fi
+          git -c core.hooksPath=/dev/null push origin HEAD:refs/heads/chore/contract-snapshot
+          cat > "$RUNNER_TEMP/contract-pr-body.md" <<'BODY'
+          The orbit-api OpenAPI spec moved. Review the generated snapshot diff and update hand-written Zod types only when the consumed contract changed.
+
+          The snapshot is a diff target. It is not imported at runtime.
+          BODY
+          number=$(gh pr list --head chore/contract-snapshot --base main --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --body-file "$RUNNER_TEMP/contract-pr-body.md"
+          else
+            gh pr create --base main --head chore/contract-snapshot --title 'Update pinned API contract snapshot' --body-file "$RUNNER_TEMP/contract-pr-body.md"
+          fi

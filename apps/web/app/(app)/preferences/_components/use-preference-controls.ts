@@ -1,9 +1,11 @@
 'use client'
 
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { ColorScheme } from '@orbit/shared/theme'
@@ -60,7 +62,7 @@ export function usePreferenceControls() {
     [isAuthenticated, selectedLanguage],
   )
 
-  const weekStartMutation = useMutation({
+  const weekStartMutation = useAccountScopedMutation({
     mutationFn: (day: 0 | 1) => updateWeekStartDay({ weekStartDay: day }),
     onMutate: (day) => {
       const previous = profile?.weekStartDay
@@ -80,7 +82,7 @@ export function usePreferenceControls() {
   })
 
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- optimistic cache update via patchProfile (setQueryData) + onError rollback keeps the profile cache in sync; no dependent query to refetch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const colorSchemeMutation = useMutation({
+  const colorSchemeMutation = useAccountScopedMutation({
     mutationFn: (scheme: string) => updateColorSchemeAction({ colorScheme: scheme }),
     onMutate: (scheme) => {
       const previous = profile?.colorScheme

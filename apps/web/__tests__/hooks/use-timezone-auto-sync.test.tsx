@@ -5,6 +5,7 @@ import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 
 const TestRenderer = require('react-test-renderer')
+const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -39,6 +40,11 @@ vi.mock('@/lib/actions/profile', () => ({
   updateTimezone: mocks.updateTimezone,
 }))
 
+vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => account.id,
+  getAccountGeneration: () => account.generation,
+}))
+
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 
 let detectedTimeZone = 'UTC'
@@ -61,6 +67,8 @@ async function renderHookHarness(profile: Profile | undefined) {
 
 describe('web useTimezoneAutoSync', () => {
   beforeEach(() => {
+    account.id = 'account-a'
+    account.generation = 1
     detectedTimeZone = 'UTC'
     mocks.state.profile = createMockProfile()
     mocks.queryClient.getQueryData.mockClear()
@@ -132,5 +140,25 @@ describe('web useTimezoneAutoSync', () => {
     await TestRenderer.act(async () => {
       renderer?.unmount()
     })
+  })
+
+  it('does not overwrite the next account profile after a delayed timezone write', async () => {
+    let finishUpdate: () => void = () => {}
+    mocks.updateTimezone.mockImplementationOnce(() => new Promise<undefined>((resolve) => {
+      finishUpdate = () => resolve(undefined)
+    }))
+    mocks.state.profile = createMockProfile({ timeZone: 'UTC' })
+    detectedTimeZone = 'America/Sao_Paulo'
+    const renderer = await renderHookHarness(mocks.state.profile)
+    expect(mocks.updateTimezone).toHaveBeenCalledTimes(1)
+
+    account.id = 'account-b'
+    account.generation++
+    mocks.state.profile = createMockProfile({ timeZone: 'Europe/London' })
+    await TestRenderer.act(async () => { finishUpdate(); await Promise.resolve() })
+
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.state.profile.timeZone).toBe('Europe/London')
+    await TestRenderer.act(async () => { renderer?.unmount() })
   })
 })
