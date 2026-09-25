@@ -4,6 +4,7 @@ import { profileSchema, subscriptionStatusSchema, type SupportedLocale } from '@
 import { billingDetailsSchema } from '@orbit/shared/types/subscription'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { billingDetailsFixture } from '../../test-support/hermetic/mock-api/fixtures/subscriptions'
+import { subscriptionPlansFixtures } from '../../test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { LAYOUT_ORIGIN } from '../support/env'
 
 const subscriptions = {
@@ -101,6 +102,10 @@ export const test = base.extend<{
     await context.addCookies([{ name: 'i18n_locale', value: appLocale, url: LAYOUT_ORIGIN }])
     await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
     await context.route(`${LAYOUT_ORIGIN}${API.subscription.status}`, (route) => route.fulfill({ json: subscription }))
+    await context.route(
+      (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.subscription.plans,
+      (route) => route.fulfill({ json: subscriptionPlansFixtures[appLocale === 'pt-BR' ? 'brl' : 'usd'] }),
+    )
     const billing = subscriptionState in billingByState
       ? billingByState[subscriptionState as keyof typeof billingByState] : billingDetailsFixture
     let releaseRequest = () => {}

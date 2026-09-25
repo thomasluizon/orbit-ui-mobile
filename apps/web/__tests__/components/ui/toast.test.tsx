@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Toast } from '@/components/ui/toast'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 function revealMessage() {
   void act(() => vi.advanceTimersByTime(0))
@@ -151,6 +152,54 @@ describe('Toast', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(onAction).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the lost action readable at rest, hover, focus, and press in %s', (mode) => {
+    render(
+      <Toast kind="lost" message="Lost" detail="Try again" actionLabel="Retry" onAction={() => {}} />,
+    )
+    const action = screen.getByRole('button', { name: 'Retry' })
+    const variables = resolveWebThemeVariables('purple', mode)
+    const colorRole = (state: '' | 'hover:' | 'active:') => {
+      const match = action.className.match(new RegExp(`(?:^|\\s)${state}text-\\[var\\((--[\\w-]+)\\)\\]`))
+      return match?.[1] as `--${string}` | undefined
+    }
+
+    for (const state of ['', 'hover:', 'active:'] as const) {
+      const role = colorRole(state)
+      expect(role).toBeDefined()
+      expect(contrastOnSurface(variables[role!]!, [variables['--bg']!]))
+        .toBeGreaterThanOrEqual(4.5)
+    }
+    expect(action).toHaveClass('focus-visible:outline-[var(--fg-1)]')
+    expect(contrastOnSurface(variables['--fg-1']!, [variables['--bg']!]))
+      .toBeGreaterThanOrEqual(3)
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the neutral action readable at rest, hover, and press in %s', (mode) => {
+    render(<Toast kind="neutral" message="Queued" actionLabel="Undo" onAction={() => {}} />)
+    const action = screen.getByRole('button', { name: 'Undo' })
+    const variables = resolveWebThemeVariables('purple', mode)
+    const roles = action.className.match(/(?:^|\s)(?:hover:|active:)?text-\[var\((--[\w-]+)\)\]/g) ?? []
+
+    expect(roles).toHaveLength(3)
+    for (const role of roles) {
+      const variable = role.match(/--[\w-]+/)![0] as `--${string}`
+      expect(contrastOnSurface(variables[variable]!, [variables['--bg']!, variables['--bg-elev']!]))
+        .toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('gives a one-character action a 44px target without changing its text position', () => {
+    render(
+      <Toast kind="lost" message="Lost" detail="Try again" actionLabel="i" onAction={() => {}} />,
+    )
+    const action = screen.getByRole('button', { name: 'i' })
+
+    expect(Number.parseFloat(action.style.minHeight)).toBeGreaterThanOrEqual(44)
+    expect(Number.parseFloat(action.style.minWidth)).toBeGreaterThanOrEqual(44)
+    expect(action.style.margin).toBe('-4px')
+    expect(action).toHaveClass('p-3')
   })
 
   it('calls a neutral action but does nothing when its host removes it', () => {

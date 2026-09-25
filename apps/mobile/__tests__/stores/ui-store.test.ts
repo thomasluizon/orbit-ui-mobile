@@ -53,6 +53,8 @@ describe("mobile ui store", () => {
       manuallySelectedIds: new Set<string>(),
       lastCreatedHabitId: null,
       showCreateModal: false,
+      astraConversationOpen: false,
+      astraEntryPointIntent: undefined,
       searchQuery: "",
     });
   });
@@ -79,6 +81,15 @@ describe("mobile ui store", () => {
       searchQuery: "focus",
       activeView: "all",
     });
+  });
+
+  it("keeps Support intent only while its conversation is open", () => {
+    const { setAstraConversationOpen } = useUIStore.getState();
+    setAstraConversationOpen(true, "support");
+    expect(useUIStore.getState().astraEntryPointIntent).toBe("support");
+    setAstraConversationOpen(false);
+    setAstraConversationOpen(true);
+    expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined();
   });
 
   it("toggles selection mode and cascades descendant selection", () => {
