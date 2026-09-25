@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { resolveServerSession } from '@/lib/auth-api'
+import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import {
   buildForwardedClientHeaders,
   sanitizeClientTimeZone,
@@ -92,6 +92,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  const heldAccountId = request.headers.get('x-orbit-held-account-id')
+  if (!heldAccountId || getAccountIdFromToken(session.token) !== heldAccountId) {
+    return buildNoStoreJsonResponse(JSON.stringify({ error: 'Account changed' }), 409)
+  }
+
   const forwardedClientHeaders = resolveForwardedClientHeaders(request)
   const body = await request.text()
 
@@ -100,6 +105,9 @@ export async function POST(request: NextRequest) {
   if (response.status === 401) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (refreshedSession.token) {
+      if (getAccountIdFromToken(refreshedSession.token) !== heldAccountId) {
+        return buildNoStoreJsonResponse(JSON.stringify({ error: 'Account changed' }), 409)
+      }
       const retryResponse = await proxyCheckout(body, refreshedSession.token, forwardedClientHeaders)
       return toNoStoreResponse(retryResponse)
     }

@@ -7,6 +7,7 @@
  *
  * Controls and their label-bearing props are options data. The rule resolves static
  * `t('key')` calls against both English and Brazilian Portuguese once per process.
+ * `localePaths` can point tests at their own catalogs; omitted paths use production catalogs.
  * A placeholder such as `{count}` is one word, punctuation is not a word, and a
  * hyphenated compound is one word. An ICU plural block is skipped rather than guessed.
  *
@@ -42,9 +43,11 @@ const WORD = /[\p{L}\p{N}]+(?:[-'’\u2010-\u2015][\p{L}\p{N}]+)*/gu
 
 const localeCache = new Map()
 const openingElementsCache = new WeakMap()
+const localePathsBySourceCode = new WeakMap()
 
-function locales() {
-  return LOCALE_PATHS.map(([locale, path]) => {
+function locales(sourceCode) {
+  const paths = localePathsBySourceCode.get(sourceCode) ?? Object.fromEntries(LOCALE_PATHS)
+  return Object.entries(paths).map(([locale, path]) => {
     if (!localeCache.has(path)) localeCache.set(path, JSON.parse(readFileSync(path, 'utf8')))
     return [locale, localeCache.get(path)]
   })
@@ -215,7 +218,7 @@ function translatedCandidates(call, sourceCode) {
   if (prefixes.length === 0 || key === null) return []
   return prefixes.flatMap((prefix) => {
     const fullKey = prefix ? `${prefix}.${key}` : key
-    return locales().flatMap(([locale, messages]) => {
+    return locales(sourceCode).flatMap(([locale, messages]) => {
       const label = localeValue(messages, fullKey)
       return label === null ? [] : [{ label, locale }]
     })
@@ -328,7 +331,7 @@ function collectionCandidates(node, sourceCode, seen = new Set()) {
   return []
 }
 
-function nestedPropertyCandidates(node, path, sourceCode, seen = new Set()) {
+function nestedPropertyCandidates(node, path, sourceCode, seen = new Set(), skipIconAction = false) {
   if (path.length === 0) return sourceCandidates(node, sourceCode)
 
   const value = unwrap(node)
@@ -336,42 +339,52 @@ function nestedPropertyCandidates(node, path, sourceCode, seen = new Set()) {
   seen.add(value)
 
   if (value.type === 'Identifier') {
-    return nestedPropertyCandidates(bindingValue(value, sourceCode), path, sourceCode, seen)
+    return nestedPropertyCandidates(bindingValue(value, sourceCode), path, sourceCode, seen, skipIconAction)
   }
   if (value.type === 'CallExpression' && callName(value) === 'useMemo') {
-    return nestedPropertyCandidates(functionResult(value.arguments[0]), path, sourceCode, seen)
+    return nestedPropertyCandidates(functionResult(value.arguments[0]), path, sourceCode, seen, skipIconAction)
   }
   if (value.type === 'ObjectExpression') {
+    if (skipIconAction && path.length === 1 && value.properties.some(
+      (candidate) => candidate.type === 'Property' && getPropertyKeyName(candidate) === 'icon',
+    )) return []
     const property = value.properties.find(
       (candidate) => candidate.type === 'Property' && getPropertyKeyName(candidate) === path[0],
     )
     return property?.type === 'Property'
-      ? nestedPropertyCandidates(property.value, path.slice(1), sourceCode, seen)
+      ? nestedPropertyCandidates(property.value, path.slice(1), sourceCode, seen, skipIconAction)
       : []
   }
   if (value.type === 'ConditionalExpression') {
     return [
-      ...nestedPropertyCandidates(value.consequent, path, sourceCode, seen),
-      ...nestedPropertyCandidates(value.alternate, path, sourceCode, seen),
+      ...nestedPropertyCandidates(value.consequent, path, sourceCode, seen, skipIconAction),
+      ...nestedPropertyCandidates(value.alternate, path, sourceCode, seen, skipIconAction),
     ]
   }
   if (value.type === 'LogicalExpression') {
     return [
-      ...nestedPropertyCandidates(value.left, path, sourceCode, seen),
-      ...nestedPropertyCandidates(value.right, path, sourceCode, seen),
+      ...nestedPropertyCandidates(value.left, path, sourceCode, seen, skipIconAction),
+      ...nestedPropertyCandidates(value.right, path, sourceCode, seen, skipIconAction),
     ]
   }
   return []
 }
 
-function attributeCandidates(openingElement, prop, sourceCode) {
+function attributeCandidates(openingElement, prop, sourceCode, skipIconAction = false) {
   const [attributeName, ...path] = prop.split('.')
   const attribute = getAttribute(openingElement, attributeName)
   if (!attribute) return []
   const value = getAttributeValueNode(attribute)
   return path.length === 0
     ? sourceCandidates(value, sourceCode)
-    : nestedPropertyCandidates(value, path, sourceCode)
+    : nestedPropertyCandidates(value, path, sourceCode, new Set(), skipIconAction)
+}
+
+function isStaticallyIconOnly(openingElement) {
+  const attribute = getAttribute(openingElement, 'iconOnly')
+  if (!attribute) return false
+  const value = getAttributeValueNode(attribute)
+  return value === null || (value.type === 'Literal' && value.value === true)
 }
 
 function roleMatches(openingElement, roles) {
@@ -401,10 +414,18 @@ module.exports = {
                 labelProps: { type: 'array', items: { type: 'string' } },
                 collectionProps: { type: 'array', items: { type: 'string' } },
                 roles: { type: 'array', items: { type: 'string' } },
+                iconOnly: { type: 'boolean' },
+                iconAction: { type: 'boolean' },
               },
               required: ['name'],
               additionalProperties: false,
             },
+          },
+          localePaths: {
+            type: 'object',
+            properties: { en: { type: 'string' }, 'pt-BR': { type: 'string' } },
+            required: ['en', 'pt-BR'],
+            additionalProperties: false,
           },
         },
         required: ['controls'],
@@ -419,6 +440,7 @@ module.exports = {
   create(context) {
     const controls = context.options[0]?.controls ?? []
     const sourceCode = context.sourceCode
+    if (context.options[0]?.localePaths) localePathsBySourceCode.set(sourceCode, context.options[0].localePaths)
 
     return {
       JSXOpeningElement(openingElement) {
@@ -430,9 +452,10 @@ module.exports = {
         const element = openingElement.parent
         const candidates = []
         for (const prop of control.labelProps ?? []) {
+          if (control.iconOnly && prop === 'label' && isStaticallyIconOnly(openingElement)) continue
           candidates.push(...(prop === 'children'
             ? childCandidates(element, sourceCode)
-            : attributeCandidates(openingElement, prop, sourceCode)))
+            : attributeCandidates(openingElement, prop, sourceCode, control.iconAction && prop === 'action.label')))
         }
         for (const prop of control.collectionProps ?? []) {
           const attribute = getAttribute(openingElement, prop)
