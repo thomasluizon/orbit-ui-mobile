@@ -93,4 +93,25 @@ describe('mobile habit row on an old day', () => {
     })
     expect(checkmark.props.disabled).toBe(true)
   })
+
+  it('announces the account-day reason on a disabled child ring during timezone rollover', () => {
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+    const completionReason = i18n.t('habits.todayBoundary.readOnly')
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <I18nextProvider i18n={i18n}>
+          <HabitRow habit={createMockHabit({ title: 'Read' })}
+            selectedDate={new Date('2026-08-23T12:00:00Z')}
+            depth={1} completionReadOnly completionReason={completionReason} actions={{ onLog: vi.fn() }} />
+        </I18nextProvider>,
+      )
+    })
+
+    const ring = tree!.root.findAllByProps({
+      accessibilityLabel: `${i18n.t('habits.statusDot.empty')}, ${i18n.t('habits.logHabit')}: Read`,
+    }).find((node: TestNode) => node.props.accessibilityRole === 'button')!
+    expect(ring.props.disabled).toBe(true)
+    expect(ring.props.accessibilityHint).toBe(completionReason)
+  })
 })

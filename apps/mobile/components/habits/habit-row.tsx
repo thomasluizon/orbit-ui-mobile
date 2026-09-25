@@ -99,6 +99,7 @@ export interface HabitRowProps {
   hasChildren?: boolean
   isExpanded?: boolean
   completionReadOnly?: boolean
+  completionReason?: string
   childrenDone?: number
   childrenTotal?: number
   actions?: HabitRowActions
@@ -235,6 +236,7 @@ export const HabitRow = memo(function HabitRow({
   hasChildren = false,
   isExpanded = false,
   completionReadOnly: completionReadOnlyOverride,
+  completionReason: completionReasonOverride,
   childrenDone = 0,
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
@@ -271,9 +273,9 @@ export const HabitRow = memo(function HabitRow({
   const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
   const boundary = getTodayBoundary(selectedDateStr, todayStr)
   const completionReadOnly = completionReadOnlyOverride ?? (boundary === 'read-only' || (boundary === 'future' && !canLog))
-  const completionReason = boundary === 'read-only'
+  const completionReason = completionReasonOverride ?? (boundary === 'read-only'
     ? t('habits.todayBoundary.readOnly')
-    : boundary === 'future' ? t('habits.todayBoundary.future') : undefined
+    : boundary === 'future' ? t('habits.todayBoundary.future') : undefined)
 
   const metaParts = buildHabitRowMetaParts({
     habit,
