@@ -157,6 +157,23 @@ export const cases = () => {
     status: 0,
     stdout: /check-calibration:/,
   })
+  const malformedClassifierDate = stage("malformed-classifier-date", {
+    ...first,
+    classifier: { ...first.classifier, calibratedAt: `${daysAgo(0).slice(0, 7)}-00` },
+  })
+  check("check-calibration.mjs", "malformed classifier date fails the calibration gate", ["--root", malformedClassifierDate], {
+    nonZero: true,
+    stderr: /classifier.*real calendar date/,
+  })
+  check(TOOL, "fresh recorder evidence renews a malformed classifier date", ["--root", malformedClassifierDate], {
+    status: 0,
+    stdout: /stamped/,
+  })
+  T(`${TOOL}: malformed classifier date is renewed from the recorder`, stampOf(malformedClassifierDate).classifier.calibratedAt === daysAgo(0))
+  check("check-calibration.mjs", "recorder renewal clears the malformed date", ["--root", malformedClassifierDate], {
+    status: 0,
+    stdout: /check-calibration:/,
+  })
   const expiredWithoutFreshRecord = stage("expired-classifier-old-record", {
     ...first,
     classifier: { ...first.classifier, calibratedAt: daysAgo(100) },

@@ -227,11 +227,12 @@ for (const file of files) {
 const digest = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
 const classifierDigest = digest(readFileSync(join(root, "tools/lib/ticket-classifier-prompt.md"), "utf8"))
 const oldestValidClassifierDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 90)).toISOString().slice(0, 10)
+const validClassifierDate = (date) => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+  !Number.isNaN(Date.parse(`${date}T00:00:00Z`)) && new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date &&
+  date >= oldestValidClassifierDate && date <= calibratedAt
 const classifierUnchanged = previous.classifier?.model === config.classifier.model &&
   previous.classifier.promptDigest === classifierDigest &&
-  typeof previous.classifier.calibratedAt === "string" &&
-  previous.classifier.calibratedAt >= oldestValidClassifierDate &&
-  previous.classifier.calibratedAt <= calibratedAt &&
+  validClassifierDate(previous.classifier.calibratedAt) &&
   typeof previous.classifier.verdict === "string" && previous.classifier.verdict.trim()
 let classifierCalibration = previous.classifier
 if (!classifierUnchanged) {
@@ -242,12 +243,9 @@ if (!classifierUnchanged) {
   const responsesText = readFileSync(join(root, "tools/__fixtures__/ticket-classifier-responses.json"), "utf8")
   const count = JSON.parse(casesText).length
   const date = record.calibratedAt
-  const validDate = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
-    !Number.isNaN(Date.parse(`${date}T00:00:00Z`)) && new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date &&
-    date >= oldestValidClassifierDate && date <= calibratedAt
   if (record.model !== config.classifier.model || record.promptDigest !== classifierDigest ||
     record.casesDigest !== digest(casesText) || record.responsesDigest !== digest(responsesText) ||
-    record.agreement !== `${count}/${count}` || record.verdict !== `classifier matched all ${count} recorded ticket cases` || !validDate) {
+    record.agreement !== `${count}/${count}` || record.verdict !== `classifier matched all ${count} recorded ticket cases` || !validClassifierDate(date)) {
     throw new Error("classifier recorder record does not match the configured model, prompt, cases, responses and complete agreement")
   }
   classifierCalibration = { model: record.model, promptDigest: record.promptDigest, calibratedAt: date, verdict: record.verdict }
