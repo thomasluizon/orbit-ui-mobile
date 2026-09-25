@@ -19,6 +19,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { GoalLinkingField } from './goal-linking-field'
 import { ReminderSection } from './habit-form-fields/reminder-section'
@@ -55,6 +56,11 @@ function TimeEditor({ habit, onCancel, onSave }: Readonly<{ habit: NormalizedHab
   return <FieldWell><TimeField label={t('habits.detail.time')} value={dueTime} onChange={setDueTime} onClear={() => setDueTime('')} /><FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailTimePatch(dueTime, habit); if (patch) onSave(patch) }} /></FieldWell>
 }
 
+function FrequencyUnitOption({ label, selected, onSelect }: Readonly<{ label: string; selected: boolean; onSelect: () => void }>) {
+  const { elementRef, onActivate, onKeyDown, tabIndex } = useRadioGroupItem({ disabled: false, onSelect, selected })
+  return <button ref={elementRef} type="button" role="radio" aria-checked={selected} tabIndex={tabIndex} className={`chip focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${selected ? 'chip-active' : ''}`} onClick={onActivate} onKeyDown={onKeyDown}>{label}</button>
+}
+
 function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
   const t = useTranslations()
   const { showError } = useAppToast()
@@ -65,9 +71,9 @@ function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: Normalize
     <FieldWell>
       <div className="flex gap-2">
         <input min={1} type="number" value={quantity} aria-label={t('habits.form.frequencyRequired')} className="w-20 rounded-[var(--r-well)] border-0 bg-[var(--bg)] px-3 py-3 text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)]" onChange={(event) => setQuantity(Math.max(1, Number(event.target.value)))} />
-        <select value={unit} aria-label={t('habits.detail.schedule')} className="min-h-11 flex-1 rounded-[var(--r-well)] border-0 bg-[var(--bg)] px-3 text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)]" onChange={(event) => setUnit(event.target.value as (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number])}>
-          {HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <option key={value} value={value}>{t(`habits.form.unit${value}`)}</option>)}
-        </select>
+        <RadioGroup aria-label={t('habits.detail.schedule')} className="flex min-w-0 flex-1 flex-wrap gap-2">
+          {HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <FrequencyUnitOption key={value} label={t(`habits.form.unit${value}`)} selected={unit === value} onSelect={() => setUnit(value)} />)}
+        </RadioGroup>
       </div>
       {unit === 'Day' && quantity === 1 ? <div className="flex flex-wrap gap-2">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.includes(day); return <button key={day} type="button" aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => selected ? current.filter((value) => value !== day) : [...current, day])}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div> : null}
       <FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailSchedulePatch(unit, quantity, days); if (patch) onSave(patch); else showError(t('habits.form.frequencyRequired')) }} />
