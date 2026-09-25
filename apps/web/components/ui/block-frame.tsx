@@ -177,15 +177,18 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
     >
       <header className="flex shrink-0 items-center gap-3">
         <h3 className="min-w-0 flex-1 truncate text-base font-medium">{props.title}</h3>
-        <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
-          {props.count ?? props.items.length}
-        </span>
+        {props.count != null || props.items.length > 0 ? (
+          <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
+            {props.count ?? props.items.length}
+          </span>
+        ) : null}
         {props.risk}
       </header>
       {props.state === 'loading' ? (
         <LoadingBody rows={props.items.length} hasActions={canRenderActions && props.actions != null} />
       ) : (
         <>
+          {props.body}
           <div aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
             <FrameRows frameProps={props} />
           </div>

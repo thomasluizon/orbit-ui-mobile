@@ -37,6 +37,7 @@ type BlockFrameCommon = {
   readonly title: string
   readonly count?: ReactNode
   readonly items: readonly BlockFrameItem[]
+  readonly body?: ReactNode
   readonly risk?: ReactNode
   readonly actions?: ReactNode
   readonly irreversibleLabel?: string
