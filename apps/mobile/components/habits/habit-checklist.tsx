@@ -9,6 +9,7 @@ import { ChevronUp, ChevronDown, X, Copy, Plus, RotateCcw } from '@/components/u
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
+import { useChecklistItemKeys } from '@orbit/shared/hooks'
 import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -27,16 +28,6 @@ interface HabitChecklistProps {
   onToggle?: (index: number) => void
   onReset?: () => void
   onClear?: () => void
-}
-
-interface EditableItemKeyState {
-  itemCount: number
-  keys: string[]
-  nextKey: number
-}
-
-function editableItemKey(sequence: number) {
-  return `checklist-item-${sequence}`
 }
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -277,27 +268,7 @@ export function HabitChecklist({
   )
   const [newItemText, setNewItemText] = useState('')
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [editableItemKeyState, setEditableItemKeyState] = useState<EditableItemKeyState>(() => ({
-    itemCount: items.length,
-    keys: items.map((_, index) => editableItemKey(index)),
-    nextKey: items.length,
-  }))
-
-  let editableItemKeys = editableItemKeyState.keys
-  if (editableItemKeyState.itemCount !== items.length) {
-    const addedItemCount = items.length - editableItemKeys.length
-    editableItemKeys = addedItemCount < 0
-      ? editableItemKeys.slice(0, items.length)
-      : [...editableItemKeys, ...Array.from(
-        { length: addedItemCount },
-        (_, index) => editableItemKey(editableItemKeyState.nextKey + index),
-      )]
-    setEditableItemKeyState({
-      itemCount: items.length,
-      keys: editableItemKeys,
-      nextKey: editableItemKeyState.nextKey + Math.max(0, addedItemCount),
-    })
-  }
+  const editableItemKeys = useChecklistItemKeys(items)
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
@@ -306,11 +277,6 @@ export function HabitChecklist({
     const text = newItemText.trim()
     if (!text || atItemLimit) return
     const next = [...items, { text, isChecked: false }]
-    setEditableItemKeyState((current) => ({
-      itemCount: next.length,
-      keys: [...current.keys, editableItemKey(current.nextKey)],
-      nextKey: current.nextKey + 1,
-    }))
     onItemsChange?.(next)
     setNewItemText('')
   }, [atItemLimit, items, newItemText, onItemsChange])
@@ -318,11 +284,6 @@ export function HabitChecklist({
   const removeItem = useCallback(
     (index: number) => {
       const next = items.filter((_, i) => i !== index)
-      setEditableItemKeyState((current) => ({
-        itemCount: next.length,
-        keys: current.keys.filter((_, keyIndex) => keyIndex !== index),
-        nextKey: current.nextKey,
-      }))
       onItemsChange?.(next)
     },
     [items, onItemsChange],
@@ -343,11 +304,6 @@ export function HabitChecklist({
       const clone: ChecklistItem = { text: item.text, isChecked: false }
       const next = [...items]
       next.splice(index + 1, 0, clone)
-      setEditableItemKeyState((current) => {
-        const nextKeys = [...current.keys]
-        nextKeys.splice(index + 1, 0, editableItemKey(current.nextKey))
-        return { itemCount: next.length, keys: nextKeys, nextKey: current.nextKey + 1 }
-      })
       onItemsChange?.(next)
     },
     [atItemLimit, items, onItemsChange],
@@ -361,21 +317,12 @@ export function HabitChecklist({
       const moved = spliced[0]
       if (!moved) return
       next.splice(toIndex, 0, moved)
-      setEditableItemKeyState((current) => {
-        const nextKeys = [...current.keys]
-        const movedKeys = nextKeys.splice(fromIndex, 1)
-        const movedKey = movedKeys[0]
-        if (!movedKey) return current
-        nextKeys.splice(toIndex, 0, movedKey)
-        return { itemCount: next.length, keys: nextKeys, nextKey: current.nextKey }
-      })
       onItemsChange?.(next)
     },
     [items, onItemsChange],
   )
 
   const clearAll = useCallback(() => {
-    setEditableItemKeyState((current) => ({ itemCount: 0, keys: [], nextKey: current.nextKey }))
     onItemsChange?.([])
   }, [onItemsChange])
 

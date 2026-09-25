@@ -147,6 +147,50 @@ describe('HabitChecklist', () => {
   })
 
   describe('editable mode', () => {
+    it('keeps each row mounted through an optimistic reorder and its rollback', () => {
+      const original = makeItems().slice(0, 2)
+      function ChecklistHarness() {
+        const [items, setItems] = React.useState(original)
+        return <>
+          <button onClick={() => setItems([original[1]!, original[0]!])}>Move</button>
+          <button onClick={() => setItems(original)}>Reject</button>
+          <HabitChecklist items={items} editable onItemsChange={setItems} />
+        </>
+      }
+
+      render(<ChecklistHarness />)
+      const firstInput = screen.getByDisplayValue('Step 1')
+      const secondInput = screen.getByDisplayValue('Step 2')
+      secondInput.focus()
+      fireEvent.click(screen.getByText('Move'))
+      expect(screen.getByDisplayValue('Step 2')).toBe(secondInput)
+      expect(document.activeElement).toBe(secondInput)
+      fireEvent.click(screen.getByText('Reject'))
+      expect(screen.getByDisplayValue('Step 1')).toBe(firstInput)
+      expect(screen.getByDisplayValue('Step 2')).toBe(secondInput)
+      expect(document.activeElement).toBe(secondInput)
+    })
+
+    it('restores row identity after a rejected positional removal', () => {
+      const original = makeItems().slice(0, 2)
+      function ChecklistHarness() {
+        const [items, setItems] = React.useState(original)
+        return <>
+          <button onClick={() => setItems(original)}>Reject</button>
+          <HabitChecklist items={items} editable onItemsChange={setItems} />
+        </>
+      }
+
+      render(<ChecklistHarness />)
+      const secondInput = screen.getByDisplayValue('Step 2')
+      secondInput.focus()
+      fireEvent.click(screen.getAllByLabelText('habits.form.removeChecklistItem')[0]!)
+      expect(screen.getByDisplayValue('Step 2')).toBe(secondInput)
+      fireEvent.click(screen.getByText('Reject'))
+      expect(screen.getByDisplayValue('Step 2')).toBe(secondInput)
+      expect(document.activeElement).toBe(secondInput)
+    })
+
     it('keeps focus on the same row when an earlier item is removed', () => {
       function ChecklistHarness() {
         const [items, setItems] = React.useState<ChecklistItem[]>([

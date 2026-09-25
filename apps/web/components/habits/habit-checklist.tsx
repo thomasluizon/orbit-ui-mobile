@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useId, useState } from 'react'
+import { useCallback, useId } from 'react'
 import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
@@ -23,6 +23,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
+import { useChecklistItemKeys } from '@orbit/shared/hooks'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { CheckRow } from '@/components/ui/check-row'
 import { Proposed } from '@/components/ui/proposed'
@@ -41,14 +42,6 @@ interface HabitChecklistProps {
   onClear?: () => void
 }
 
-interface EditableItemKeyState {
-  itemCount: number
-  keys: string[]
-  nextKey: number
-}
-
-const editableItemKey = (sequence: number) => `checklist-item-${sequence}`
-
 export function HabitChecklist({
   items,
   interactive = false,
@@ -63,27 +56,7 @@ export function HabitChecklist({
   const newItemInputId = useId()
   const dndContextId = useId()
   const [newItemText, setNewItemText] = useAccountScopedState('')
-  const [editableItemKeyState, setEditableItemKeyState] = useState<EditableItemKeyState>(() => ({
-    itemCount: items.length,
-    keys: items.map((_, index) => editableItemKey(index)),
-    nextKey: items.length,
-  }))
-
-  let sortableIds = editableItemKeyState.keys
-  if (editableItemKeyState.itemCount !== items.length) {
-    const addedItemCount = items.length - sortableIds.length
-    sortableIds = addedItemCount < 0
-      ? sortableIds.slice(0, items.length)
-      : [...sortableIds, ...Array.from(
-        { length: addedItemCount },
-        (_, index) => editableItemKey(editableItemKeyState.nextKey + index),
-      )]
-    setEditableItemKeyState({
-      itemCount: items.length,
-      keys: sortableIds,
-      nextKey: editableItemKeyState.nextKey + Math.max(0, addedItemCount),
-    })
-  }
+  const sortableIds = useChecklistItemKeys(items)
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
@@ -101,10 +74,6 @@ export function HabitChecklist({
       const oldIndex = sortableIds.indexOf(active.id as string)
       const newIndex = sortableIds.indexOf(over.id as string)
       if (oldIndex === -1 || newIndex === -1) return
-      setEditableItemKeyState((current) => ({
-        ...current,
-        keys: arrayMove(current.keys, oldIndex, newIndex),
-      }))
       onItemsChange?.(arrayMove(items, oldIndex, newIndex))
     },
     [items, sortableIds, onItemsChange],
@@ -114,11 +83,6 @@ export function HabitChecklist({
     const text = newItemText.trim()
     if (!text || atItemLimit) return
     const next = [...items, { text, isChecked: false }]
-    setEditableItemKeyState((current) => ({
-      itemCount: next.length,
-      keys: [...current.keys, editableItemKey(current.nextKey)],
-      nextKey: current.nextKey + 1,
-    }))
     onItemsChange?.(next)
     setNewItemText('')
   }, [atItemLimit, items, newItemText, onItemsChange, setNewItemText])
@@ -126,11 +90,6 @@ export function HabitChecklist({
   const removeItem = useCallback(
     (index: number) => {
       const next = items.filter((_, i) => i !== index)
-      setEditableItemKeyState((current) => ({
-        itemCount: next.length,
-        keys: current.keys.filter((_, keyIndex) => keyIndex !== index),
-        nextKey: current.nextKey,
-      }))
       onItemsChange?.(next)
     },
     [items, onItemsChange],
@@ -151,18 +110,12 @@ export function HabitChecklist({
       const clone: ChecklistItem = { text: item.text, isChecked: false }
       const next = [...items]
       next.splice(index + 1, 0, clone)
-      setEditableItemKeyState((current) => {
-        const nextKeys = [...current.keys]
-        nextKeys.splice(index + 1, 0, editableItemKey(current.nextKey))
-        return { itemCount: next.length, keys: nextKeys, nextKey: current.nextKey + 1 }
-      })
       onItemsChange?.(next)
     },
     [atItemLimit, items, onItemsChange],
   )
 
   const clearAll = useCallback(() => {
-    setEditableItemKeyState((current) => ({ itemCount: 0, keys: [], nextKey: current.nextKey }))
     onItemsChange?.([])
   }, [onItemsChange])
 
