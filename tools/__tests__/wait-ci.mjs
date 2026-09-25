@@ -49,6 +49,10 @@ export const cases = async () => {
   const ceilingResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.0001"), { path: ceiling.path, env: ceiling.env })
   T("wait-ci: ceiling exits unsettled", ceilingResult.status === 3 && !JSON.parse(ceilingResult.stdout).pullRequests[0].settled, ceilingResult.stderr)
 
+  const empty = fixture("empty", [{ kind: "checks", stdout: checks([]) }])
+  const emptyResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.0001"), { path: empty.path, env: empty.env })
+  T("wait-ci: a head with no registered check never settles", emptyResult.status === 3 && JSON.parse(emptyResult.stdout).reason === "CEILING" && !JSON.parse(emptyResult.stdout).pullRequests[0].settled, emptyResult.stderr)
+
   const failing = fixture("failing", [{ kind: "checks", stdout: checks([completed("Lint", "failure")]) }])
   const failingResult = run(TOOL, argumentsFor(), { path: failing.path, env: failing.env })
   T("wait-ci: settled result names failing checks", failingResult.status === 0 && JSON.parse(failingResult.stdout).pullRequests[0].failingChecks.includes("Lint"), failingResult.stderr)

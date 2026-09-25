@@ -45,11 +45,26 @@ const IMMEDIATE = stage("launch-worker/immediate-worker.js", "process.exit(0)\n"
 const FLOODER = stage("launch-worker/flooding-worker.js", "const line = 'x'.repeat(4096)\nsetInterval(() => { for (let i = 0; i < 64; i++) process.stdout.write(line + '\\n') }, 5)\n")
 const UNBOUNDED_LOG_DRIP = stage("launch-worker/unbounded-log-drip.js", "setInterval(() => process.stdout.write('heartbeat\\n'), 250)\n")
 
+/**
+ * Admission resolves every configured repository's slug from its origin, so a fixture that kept the
+ * real sibling paths would read the author's own checkouts (Pullfrog on PR 1091). One staged
+ * checkout per sibling key is shared by every fixture, because admission only reads its remote.
+ */
+let siblingRepos = null
+const stagedSiblings = (config) => {
+  siblingRepos ??= Object.fromEntries(Object.keys(config.repos).filter((key) => key !== config.cloud.repositoryKey).map((key) => {
+    const sibling = stageRepo(`launch-worker-sibling-${key}`)
+    sibling.git(["remote", "set-url", "origin", `https://github.com/test-owner/sibling-${key}.git`])
+    return [key, sibling.path]
+  }))
+  return siblingRepos
+}
+
 const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
   if (!repo) return null
   repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
-  const configured = { ...config, repos: { ...config.repos, [config.cloud.repositoryKey]: repo.path } }
+  const configured = { ...config, repos: { ...config.repos, ...stagedSiblings(config), [config.cloud.repositoryKey]: repo.path } }
   const staged = stageWithConfig(`launch-worker-${label}`, TOOL, configured)
   return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
 }

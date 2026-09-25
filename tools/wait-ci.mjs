@@ -124,7 +124,9 @@ try {
         ...checks.filter((check) => check.status === "completed" && !["success", "neutral", "skipped"].includes(check.conclusion)).map((check) => check.name),
         ...status.statuses.filter((item) => ["failure", "error"].includes(item.state)).map((item) => item.context),
       ]
-      entry.settled = !pending && requiredChecks.every((name) => completedNames.has(name))
+      // A head that has registered no check yet is not settled: the workflows it will start are still
+      // being dispatched, and an empty set would pass `every` vacuously (Pullfrog on PR 1091).
+      entry.settled = completedNames.size > 0 && !pending && requiredChecks.every((name) => completedNames.has(name))
     }
     if (result.pullRequests.every((entry) => entry.settled)) finish("SETTLED", 0)
     if (Date.now() >= deadline) finish("CEILING", 3)

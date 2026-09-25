@@ -28,12 +28,27 @@ import {
 
 const TOOL = "submit-cloud-worker.mjs"
 
+/**
+ * Admission resolves every configured repository's slug from its origin, so a fixture that kept the
+ * real sibling paths would read the author's own checkouts (Pullfrog on PR 1091). One staged
+ * checkout per sibling key is shared by every fixture, because admission only reads its remote.
+ */
+let siblingRepos = null
+const stagedSiblings = (config) => {
+  siblingRepos ??= Object.fromEntries(Object.keys(config.repos).filter((key) => key !== config.cloud.repositoryKey).map((key) => {
+    const sibling = stageRepo(`submit-cloud-sibling-${key}`)
+    sibling.git(["remote", "set-url", "origin", `https://github.com/test-owner/sibling-${key}.git`])
+    return [key, sibling.path]
+  }))
+  return siblingRepos
+}
+
 const fixture = (label) => {
   const codex = fakeCodex(`submit-${label}`)
   const config = cloudConfig(codex.command, { real: realOrchestratorConfig(), cloudCeilingMinutes: 45 })
   config.timeouts.pollSeconds = 0.01
   const repo = stageRepo(`submit-cloud-${label}`)
-  config.repos = { ...config.repos, [config.cloud.repositoryKey]: repo.path }
+  config.repos = { ...config.repos, ...stagedSiblings(config), [config.cloud.repositoryKey]: repo.path }
   const staged = stageWithConfig(`submit-cloud-${label}`, TOOL, config)
   cpSync(toolPath("check-dashes.mjs"), join(staged.base, "tools", "check-dashes.mjs"))
   const order = stage(`submit-cloud/${label}/order.md`, "Implement the measured cloud path.\n")
