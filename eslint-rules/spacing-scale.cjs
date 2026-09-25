@@ -439,6 +439,98 @@ module.exports = {
       return node?.type === 'Identifier' && bindingRoot(findBinding(node)) === variable
     }
 
+    function staticKey(node, computed) {
+      if (!computed && node.type === 'Identifier') return node.name
+      if (node.type === 'Literal') return String(node.value)
+      return null
+    }
+
+    function patternSourceValues(source, key, state, variable, active) {
+      source = unwrapStyleExpression(source)
+      if (!source || source === UNKNOWN || source === ABSENT) return new Set([source === ABSENT ? ABSENT : UNKNOWN])
+      if (source.type === 'ObjectExpression') {
+        let values = new Set([ABSENT])
+        for (const property of source.properties) {
+          if (property.type === 'SpreadElement') {
+            const spread = evaluateStyleExpression(property.argument, property.range[0], active)
+            const incoming = valuesFor(spread, key)
+            values = incoming.has(ABSENT)
+              ? new Set([...values, ...[...incoming].filter((value) => value !== ABSENT)]) : new Set(incoming)
+          } else {
+            const name = staticKey(property.key, property.computed)
+            if (name === key) values = new Set([property.kind === 'init' ? property.value : UNKNOWN])
+            else if (name === null) values.add(UNKNOWN)
+          }
+        }
+        return values
+      }
+      if (source.type === 'Identifier') {
+        const resolved = targetsBinding(source, variable) ? state : evaluateStyleExpression(source, source.range[0], active)
+        return valuesFor(resolved, key)
+      }
+      return new Set([UNKNOWN])
+    }
+
+    function arraySourceValues(source, index) {
+      source = unwrapStyleExpression(source)
+      if (source?.type !== 'ArrayExpression') return new Set([UNKNOWN])
+      if (source.elements.slice(0, index + 1).some((element) => element?.type === 'SpreadElement')) return new Set([UNKNOWN])
+      return new Set([source.elements[index] ?? ABSENT])
+    }
+
+    function assignedMember(state, member, values, variable) {
+      const receiver = unwrapStyleExpression(member.object)
+      if (targetsBinding(receiver, variable)) {
+        const name = mutationPropertyName(member)
+        if (name === null) return changeUnknownKey(state, UNKNOWN)
+        const changed = copyState(state)
+        changed.keys.set(name, new Set([...values].map((value) => value === ABSENT ? UNKNOWN : abstractValue(unwrapStyleExpression(value)))))
+        return changed
+      }
+      if (receiver?.type === 'MemberExpression') {
+        const root = memberRoot(receiver, variable)
+        if (root) return mutate(state, root, null, false)
+      }
+      return state
+    }
+
+    function memberRoot(member, variable) {
+      while (member.type === 'MemberExpression' && !targetsBinding(member.object, variable)) member = unwrapStyleExpression(member.object)
+      return member.type === 'MemberExpression' && targetsBinding(member.object, variable) ? member : false
+    }
+
+    function writePattern(state, target, values, variable, active) {
+      target = unwrapStyleExpression(target)
+      if (target.type === 'MemberExpression') return assignedMember(state, target, values, variable)
+      if (target.type === 'AssignmentPattern') {
+        const selected = new Set([...values].map((value) => value === ABSENT ? target.right : value))
+        return writePattern(state, target.left, selected, variable, active)
+      }
+      if (target.type === 'RestElement') return writePattern(state, target.argument, new Set([UNKNOWN]), variable, active)
+      if (target.type === 'ObjectPattern') {
+        for (const property of target.properties) {
+          if (property.type === 'RestElement') {
+            state = writePattern(state, property, new Set([UNKNOWN]), variable, active)
+            continue
+          }
+          const key = staticKey(property.key, property.computed)
+          const selected = new Set()
+          for (const value of values) {
+            for (const result of key === null ? [UNKNOWN] : patternSourceValues(value, key, state, variable, active)) selected.add(result)
+          }
+          state = writePattern(state, property.value, selected, variable, active)
+        }
+      } else if (target.type === 'ArrayPattern') {
+        for (const [index, element] of target.elements.entries()) {
+          if (!element) continue
+          const selected = new Set()
+          for (const value of values) for (const result of arraySourceValues(value, index)) selected.add(result)
+          state = writePattern(state, element, selected, variable, active)
+        }
+      }
+      return state
+    }
+
     function combineOutcomes(outcomes) {
       const combined = new Map()
       for (const outcome of outcomes) {
@@ -529,12 +621,17 @@ module.exports = {
       return traversed.map((outcome) => {
         if (outcome.flow !== 'normal') return outcome
         let next = outcome.state
-        if (node.type === 'AssignmentExpression' && node.left.type === 'MemberExpression' && targetsBinding(node.left.object, variable)) {
-          next = mutate(next, node.left, node.operator === '=' ? node.right : null, false)
-        } else if (node.type === 'UpdateExpression' && node.argument.type === 'MemberExpression' && targetsBinding(node.argument.object, variable)) {
-          next = mutate(next, node.argument, null, false)
-        } else if (node.type === 'UnaryExpression' && node.operator === 'delete' && node.argument.type === 'MemberExpression' && targetsBinding(node.argument.object, variable)) {
-          next = mutate(next, node.argument, null, true)
+        if (node.type === 'AssignmentExpression') {
+          if (node.left.type === 'MemberExpression') {
+            next = assignedMember(next, node.left, new Set([node.operator === '=' ? node.right : UNKNOWN]), variable)
+          } else if (node.left.type === 'ObjectPattern' || node.left.type === 'ArrayPattern') {
+            next = writePattern(next, node.left, new Set([node.operator === '=' ? node.right : UNKNOWN]), variable, active)
+          }
+        } else if (node.type === 'UpdateExpression' && node.argument.type === 'MemberExpression') {
+          next = assignedMember(next, node.argument, new Set([UNKNOWN]), variable)
+        } else if (node.type === 'UnaryExpression' && node.operator === 'delete' && node.argument.type === 'MemberExpression') {
+          next = targetsBinding(node.argument.object, variable) ? mutate(next, node.argument, null, true)
+            : assignedMember(next, node.argument, new Set([UNKNOWN]), variable)
         } else if (isObjectAssign(node) && targetsBinding(node.arguments[0], variable)) {
           for (const source of node.arguments.slice(1)) next = overlay(next, evaluateStyleExpression(source, node.range[0], active))
         }
