@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 
@@ -7,6 +7,12 @@ const applyOnboardingMock = vi.fn()
 const patchProfileMock = vi.fn()
 const captureExceptionMock = vi.fn()
 const profileState = { hasCompletedOnboarding: false }
+const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
+
+vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => account.id,
+  getAccountGeneration: () => account.generation,
+}))
 
 vi.mock('@/lib/actions/onboarding', () => ({
   applyOnboarding: (...args: unknown[]) => applyOnboardingMock(...args),
@@ -36,6 +42,8 @@ async function seedPendingDraft() {
 
 describe('useOnboardingFlush', () => {
   beforeEach(() => {
+    account.id = 'account-a'
+    account.generation = 1
     applyOnboardingMock.mockReset()
     patchProfileMock.mockReset()
     captureExceptionMock.mockReset()
@@ -86,6 +94,21 @@ describe('useOnboardingFlush', () => {
 
     await Promise.resolve()
     expect(applyOnboardingMock).not.toHaveBeenCalled()
+    expect(useOnboardingDraftStore.getState().hasPendingAnswers()).toBe(true)
+  })
+
+  it('does not apply a completed flush to the next account state', async () => {
+    let finishFlush: () => void = () => {}
+    applyOnboardingMock.mockReturnValue(new Promise<void>((resolve) => { finishFlush = resolve }))
+    await seedPendingDraft()
+    renderHook(() => useOnboardingFlush(), { wrapper })
+    await waitFor(() => expect(applyOnboardingMock).toHaveBeenCalledTimes(1))
+
+    account.id = 'account-b'
+    account.generation++
+    await act(async () => { finishFlush(); await Promise.resolve() })
+
+    expect(patchProfileMock).not.toHaveBeenCalled()
     expect(useOnboardingDraftStore.getState().hasPendingAnswers()).toBe(true)
   })
 })

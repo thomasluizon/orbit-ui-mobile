@@ -6,18 +6,18 @@ import type {
   ReportEventResponse,
 } from '@orbit/shared/types/gamification'
 import { reportEventResponseSchema } from '@orbit/shared/types/gamification'
-import { serverAuthFetch } from '@/lib/server-fetch'
+import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export async function reportAchievementEvent(
-  eventKey: AchievementEventKey,
+  eventKey: AchievementEventKey, intendedAccountId: string | null
 ): Promise<ServerActionResult<ReportEventResponse>> {
-  return wrapServerAction(() => serverAuthFetch(
+  return wrapServerAction(() => serverAuthMutate(
     API.gamification.reportEvent,
     {
       method: 'POST',
       body: JSON.stringify({ eventKey }),
-    },
+    }, intendedAccountId,
     reportEventResponseSchema,
   ))
 }

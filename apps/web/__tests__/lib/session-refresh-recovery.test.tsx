@@ -21,6 +21,7 @@ describe('session refresh recovery', () => {
     mockFetch.mockReset()
     useAuthStore.setState({
       isAuthenticated: true,
+      heldAccountId: 'user-1',
       user: {
         userId: 'user-1',
         name: 'Thomas',

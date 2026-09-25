@@ -1,6 +1,8 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { userCalendarsSchema } from '@orbit/shared/types/calendar'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
@@ -53,7 +55,7 @@ interface SetSelectedCalendarsContext {
 export function useSetSelectedCalendars() {
   const queryClient = useQueryClient()
 
-  return useMutation<void, Error, { id: string; isSynced: boolean }, SetSelectedCalendarsContext>({
+  return useAccountScopedMutation<void, Error, { id: string; isSynced: boolean }, SetSelectedCalendarsContext>({
     mutationFn: async ({ id, isSynced }) => {
       const current =
         queryClient.getQueryData<UserCalendar[]>(calendarKeys.calendars()) ?? []

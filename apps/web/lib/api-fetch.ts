@@ -31,6 +31,10 @@ export function setApiFetchTranslate(t: TranslateFn) {
   _translate = t
 }
 
+export function translateApiFetchMessage(key: string): string | null {
+  return _translate?.(key) ?? null
+}
+
 const FALLBACK_TOAST_TITLES: Record<number, string> = {
   400: 'Validation error',
   404: 'Not found',

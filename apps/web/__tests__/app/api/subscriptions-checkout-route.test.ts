@@ -5,6 +5,7 @@ import { resolveServerSession } from '@/lib/auth-api'
 
 vi.mock('@/lib/auth-api', () => ({
   resolveServerSession: vi.fn(),
+  getAccountIdFromToken: vi.fn(() => 'account-b'),
 }))
 
 const mockFetch = vi.fn()
@@ -14,6 +15,43 @@ describe('subscriptions checkout route', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     vi.mocked(resolveServerSession).mockReset()
+  })
+
+  it('refuses checkout when the cookie names another account', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'other-token', expiresAt: Date.now() + 3600000,
+      refreshed: false, refreshFailed: false,
+    })
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'x-orbit-held-account-id': 'account-a' },
+      body: JSON.stringify({ interval: 'monthly' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ errorCode: 'ACCOUNT_CHANGED' })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('forwards checkout when the cookie account cannot be read', async () => {
+    const { getAccountIdFromToken } = await import('@/lib/auth-api')
+    vi.mocked(getAccountIdFromToken).mockReturnValueOnce(null)
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'unreadable-token', expiresAt: Date.now() + 3600000,
+      refreshed: false, refreshFailed: false,
+    })
+    mockFetch.mockResolvedValue(new Response('{"url":"https://example.com"}', { status: 200 }))
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' },
+      body: JSON.stringify({ interval: 'monthly' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
   it('forwards geo country headers and a sanitized client ip', async () => {

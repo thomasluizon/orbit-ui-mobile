@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { toast } from 'sonner'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+const { openCustomerPortal } = vi.hoisted(() => ({ openCustomerPortal: vi.fn() }))
+vi.mock('@/lib/actions/subscription', () => ({ openCustomerPortal }))
 
 
 vi.mock('next-intl', () => ({
@@ -93,6 +99,8 @@ import { useAuthStore } from '@/stores/auth-store'
 
 describe('UpgradePage', () => {
   beforeEach(() => {
+    vi.mocked(toast.error).mockClear()
+    setApiFetchTranslate((key) => key)
     mockProfile = {
       id: 'u1',
       hasProAccess: false,
@@ -438,5 +446,44 @@ describe('UpgradePage', () => {
       expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
     })
     expect(globalThis.location.href).toBe('')
+  })
+
+  it('offers the reload action after checkout refuses an account replacement', async () => {
+    mockPlans = {
+      monthly: { unitAmount: 999 }, yearly: { unitAmount: 4999 },
+      currency: 'usd', savingsPercent: 58, couponPercentOff: null,
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 409, headers: new Headers(),
+      json: async () => ({ error: 'Account changed', errorCode: 'ACCOUNT_CHANGED' }),
+    }))
+    vi.stubGlobal('location', { href: '', pathname: '/upgrade' })
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByTestId('paywall-checkout'))
+
+    await waitFor(() => expect(screen.getByText('errors.api.accountChanged')).toBeInTheDocument())
+    expect(toast.error).toHaveBeenCalledWith('errors.api.accountChanged', expect.objectContaining({
+      id: 'account-changed',
+      action: expect.objectContaining({ label: 'errors.api.reload' }),
+    }))
+    expect(globalThis.location.href).toBe('')
+  })
+
+  it('offers the reload action after the portal refuses an account replacement', async () => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, hasProAccess: true }
+    mockBilling = {
+      interval: 'monthly', cancelAtPeriodEnd: false, status: 'active',
+      currentPeriodEnd: '2025-07-15T00:00:00Z', amountPerPeriod: 999,
+      currency: 'usd', paymentMethod: null, recentInvoices: [],
+    }
+    openCustomerPortal.mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
+
+    await waitFor(() => expect(screen.getByText('errors.api.accountChanged')).toBeInTheDocument())
+    expect(toast.error).toHaveBeenCalledWith('errors.api.accountChanged', expect.objectContaining({
+      id: 'account-changed',
+    }))
   })
 })

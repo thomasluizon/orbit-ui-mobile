@@ -239,6 +239,15 @@ describe('use-push-notification-preferences helpers', () => {
       status: 'not-registered',
     })
   })
+
+  it('keeps the browser subscription when account refusal blocks unsubscribe', async () => {
+    const subscription = createMockSubscription()
+    setupPushEnvironment({ permission: 'granted', existingSubscription: subscription })
+    mockUnsubscribePush.mockRejectedValue(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
+
+    await expect(unsubscribeFromPushNotifications('granted')).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
+  })
 })
 
 describe('usePushNotificationPreferences hook', () => {
@@ -312,5 +321,18 @@ describe('usePushNotificationPreferences hook', () => {
 
     expect(result.current.status).toBe('sync-failed')
     expect(result.current.loading).toBe(false)
+  })
+
+  it('keeps registered state when account refusal blocks unsubscribe', async () => {
+    const subscription = createMockSubscription()
+    setupPushEnvironment({ permission: 'granted', existingSubscription: subscription })
+    mockUnsubscribePush.mockRejectedValue(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
+    const { result } = renderHook(() => usePushNotificationPreferences())
+    await waitFor(() => expect(result.current.subscribed).toBe(true))
+
+    await act(async () => { await result.current.togglePush() })
+    expect(result.current.status).toBe('registered')
+    expect(result.current.subscribed).toBe(true)
+    expect(subscription.unsubscribe).not.toHaveBeenCalled()
   })
 })

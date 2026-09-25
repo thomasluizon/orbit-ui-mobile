@@ -1,5 +1,6 @@
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useState, useMemo } from 'react'
-import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import type {
   AgentCapability,
@@ -10,6 +11,8 @@ import type {
 import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
 import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
 import { sessionAwareFetch } from '@/lib/api-fetch'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 
 const MAX_API_KEYS = 5
 
@@ -92,7 +95,7 @@ export function useApiKeyManagement({
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
-  const revokeKeyMutation = useMutation({
+  const revokeKeyMutation = useAccountScopedMutation({
     mutationFn: revokeApiKey,
     onSuccess: () => {
       setRevokingKeyId(null)
@@ -108,7 +111,9 @@ export function useApiKeyManagement({
       const result = await createApiKey(request)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
-    } catch {
+    } catch (error) {
+      reportAccountChangedIfNeeded(error)
+      if (reportsAccountChanged(error)) return null
       setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
     }

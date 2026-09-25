@@ -1,7 +1,7 @@
 'use client'
 
 import * as serverActions from '@/app/actions/onboarding'
-import { bindServerAction } from '@/lib/client-action'
+import { bindAccountServerAction } from '@/lib/client-action'
 
-export const applyOnboarding = bindServerAction(serverActions.applyOnboarding)
-export const dismissImportPrompt = bindServerAction(serverActions.dismissImportPrompt)
+export const applyOnboarding = bindAccountServerAction(serverActions.applyOnboarding)
+export const dismissImportPrompt = bindAccountServerAction(serverActions.dismissImportPrompt)

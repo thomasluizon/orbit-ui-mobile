@@ -1,8 +1,9 @@
 'use client'
 
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import {
-  useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
@@ -142,7 +143,7 @@ export function useReportEvent() {
   const queryClient = useQueryClient()
   const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
 
-  return useMutation({
+  return useAccountScopedMutation({
     mutationFn: (eventKey: AchievementEventKey) => reportAchievementEvent(eventKey),
     onSuccess: (response) => {
       for (const achievement of response.granted) {

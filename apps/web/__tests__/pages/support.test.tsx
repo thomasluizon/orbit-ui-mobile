@@ -27,6 +27,11 @@ vi.mock('@/hooks/use-offline', () => ({
 }))
 
 const mockSendSupportMessage = vi.fn()
+const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
+vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => account.id,
+  getAccountGeneration: () => account.generation,
+}))
 vi.mock('@/lib/actions/support', () => ({
   sendSupportMessage: (...args: unknown[]) => mockSendSupportMessage(...args),
 }))
@@ -70,6 +75,8 @@ function sendButton() {
 
 describe('SupportPage', () => {
   beforeEach(() => {
+    account.id = 'account-a'
+    account.generation = 1
     mockProfile = { name: 'Orbit User', email: 'orbit@example.com' }
     mockIsOnline = true
     mockSendSupportMessage.mockReset()
@@ -117,6 +124,24 @@ describe('SupportPage', () => {
       message: 'Google button spins forever',
     })
     expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
+  })
+
+  it('keeps the draft when the account changes while sending', async () => {
+    let finishSend: () => void = () => {}
+    mockSendSupportMessage.mockReturnValue(new Promise<void>((resolve) => { finishSend = resolve }))
+    render(<SupportPage />)
+    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.change(messageField(), { target: { value: 'Message body' } })
+    fireEvent.click(sendButton())
+    expect(mockSendSupportMessage).toHaveBeenCalledTimes(1)
+
+    account.id = 'account-b'
+    account.generation++
+    await act(async () => { finishSend(); await Promise.resolve() })
+
+    expect(screen.queryByText('profile.support.success')).not.toBeInTheDocument()
+    expect(subjectField()).toHaveValue('Subject')
+    expect(localStorage.getItem(DRAFT_KEY)).not.toBeNull()
   })
 
   it('surfaces a friendly error when the send fails and stays on the form', async () => {

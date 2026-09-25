@@ -10,6 +10,7 @@ import {
 } from '@orbit/shared/chat'
 import { ERROR_CODE_TO_KEY } from '@orbit/shared/utils'
 import { sessionAwareFetch } from '@/lib/api-fetch'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
@@ -79,18 +80,24 @@ export function useSpeechToText() {
   }, [])
 
   const transcribe = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob, intent: ReturnType<typeof captureAccountIntent>) => {
+      if (!intent.stillCurrent()) { reportAccountChanged(); setError(t('errors.api.accountChanged')); return }
       setIsTranscribing(true)
       try {
         const formData = new FormData()
         formData.append('audio', blob, 'recording.webm')
         const response = await sessionAwareFetch(API.chat.transcribe, {
           method: 'POST',
+          ...(intent.intendedAccountId
+            ? { headers: { 'X-Orbit-Held-Account-Id': intent.intendedAccountId } }
+            : {}),
           body: formData,
         })
         const data = (await response.json().catch(() => null)) as TranscriptionResponse | null
+        if (!intent.stillCurrent()) return
         const text = data?.text?.trim() ?? ''
         if (!response.ok || !text) {
+          if (data?.errorCode === 'ACCOUNT_CHANGED') reportAccountChanged()
           const key =
             (data?.errorCode && ERROR_CODE_TO_KEY[data.errorCode]) ?? 'errors.api.transcriptionFailed'
           setError(t(key))
@@ -98,7 +105,7 @@ export function useSpeechToText() {
         }
         setTranscript(text)
       } catch {
-        setError(t('errors.api.transcriptionFailed'))
+        if (intent.stillCurrent()) setError(t('errors.api.transcriptionFailed'))
       } finally {
         setIsTranscribing(false)
       }
@@ -160,6 +167,7 @@ export function useSpeechToText() {
 
   const startRecording = useCallback(async () => {
     if (!isSupported || isRecording) return
+    const intent = captureAccountIntent()
     setError(null)
     setTranscript('')
     setRecordingDuration(0)
@@ -167,6 +175,12 @@ export function useSpeechToText() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (!intent.stillCurrent()) {
+        stream.getTracks().forEach((track) => track.stop())
+        reportAccountChanged()
+        setError(t('errors.api.accountChanged'))
+        return
+      }
       streamRef.current = stream
       const recorder = new MediaRecorder(stream)
       mediaRecorderRef.current = recorder
@@ -180,7 +194,7 @@ export function useSpeechToText() {
         stopStream()
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
         chunksRef.current = []
-        if (blob.size > 0) void transcribe(blob)
+        if (blob.size > 0) void transcribe(blob, intent)
       }
 
       recorder.start()

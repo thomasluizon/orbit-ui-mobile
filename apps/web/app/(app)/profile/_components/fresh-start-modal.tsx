@@ -14,6 +14,8 @@ import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/lib/actions/profile'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 
 function AmberPillButton({
   disabled = false,
@@ -103,16 +105,20 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
   async function handleReset() {
     if (!isConfirmed) return
+    const intent = captureAccountIntent()
     setLoading(true)
     setError('')
     try {
-      await resetAccount()
+      await intent.run(() => resetAccount())
+      if (!intent.stillCurrent()) { reportAccountChanged(); return }
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
       localStorage.removeItem('orbit_trial_expired_seen')
       onOpenChange(false)
       setShowAnimation(true)
     } catch (err: unknown) {
+      if (reportsAccountChanged(err)) reportAccountChanged()
+      if (!intent.stillCurrent()) return
       setError(getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic'))
     } finally {
       setLoading(false)

@@ -28,6 +28,8 @@ vi.mock('@/hooks/use-color-scheme', () => ({
   }),
 }))
 vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => null,
+  getAccountGeneration: () => 0,
   useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) =>
     selector({ isAuthenticated: authRef.isAuthenticated }),
 }))
