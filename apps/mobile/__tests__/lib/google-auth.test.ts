@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiClientError } from '@orbit/shared/utils'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { createAuthReturnUrlAttempt, getStoredAuthReturnUrl, storeAuthReturnUrl } from '@/lib/auth-flow'
 
 const {
   apiClientMock,
@@ -155,6 +157,29 @@ describe('startMobileGoogleAuth', () => {
     expect(oauthArgs.options.redirectTo).toBe(CALLBACK)
     expect(oauthArgs.options.skipBrowserRedirect).toBe(true)
     expect(openAuthSessionAsyncMock).toHaveBeenCalledWith('https://accounts.google.com/o', CALLBACK)
+  })
+
+  it('clears an older destination before a URL-less Google flow starts', async () => {
+    let storedUrl: string | null = null
+    vi.spyOn(AsyncStorage, 'getItem').mockImplementation(() => Promise.resolve(storedUrl))
+    vi.spyOn(AsyncStorage, 'setItem').mockImplementation((_key, url) => {
+      storedUrl = url
+      return Promise.resolve()
+    })
+    vi.spyOn(AsyncStorage, 'removeItem').mockImplementation(() => {
+      storedUrl = null
+      return Promise.resolve()
+    })
+    const olderAttempt = createAuthReturnUrlAttempt()
+    await storeAuthReturnUrl('/older', olderAttempt)
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    openAuthSessionAsyncMock.mockResolvedValue({ type: 'dismiss' })
+
+    await startMobileGoogleAuth({})
+
+    await expect(getStoredAuthReturnUrl(olderAttempt + 1)).resolves.toBeNull()
+    expect(storedUrl).toBeNull()
+    vi.restoreAllMocks()
   })
 
   it('returns the browser result type when the session is dismissed', async () => {

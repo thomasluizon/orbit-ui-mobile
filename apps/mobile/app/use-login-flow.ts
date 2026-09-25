@@ -150,15 +150,17 @@ export function useLoginFlow() {
       const deepLinkEmail = typeof params.email === 'string' ? params.email : undefined
       const deepLinkCode = typeof params.code === 'string' ? params.code : undefined
 
+      if (returnUrl && isSafeReturnUrl(returnUrl)) {
+        await storeAuthReturnUrl(returnUrl, returnUrlAttemptId)
+      } else {
+        await clearStoredAuthReturnUrl(returnUrlAttemptId)
+      }
+
       if (refCode && isValidReferralCode(refCode)) {
         await storeReferralCode(refCode)
         setShowReferralBanner(true)
       } else {
         setShowReferralBanner(Boolean(await getStoredReferralCode()))
-      }
-
-      if (returnUrl && isSafeReturnUrl(returnUrl)) {
-        await storeAuthReturnUrl(returnUrl, returnUrlAttemptId)
       }
 
       if (deepLinkEmail) {

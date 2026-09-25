@@ -6,6 +6,7 @@ import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
 import { apiClient } from './api-client'
 import {
   createAuthReturnUrlAttempt,
+  clearStoredAuthReturnUrl,
   isAuthReturnUrlAttemptCurrent,
   isSafeReturnUrl,
   storeAuthReturnUrl,
@@ -103,6 +104,8 @@ export async function startMobileGoogleAuth({
   const returnUrlAttemptId = createAuthReturnUrlAttempt()
   if (returnUrl && isSafeReturnUrl(returnUrl)) {
     await storeAuthReturnUrl(returnUrl, returnUrlAttemptId)
+  } else {
+    await clearStoredAuthReturnUrl(returnUrlAttemptId)
   }
   if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
     return { type: WebBrowser.WebBrowserResultType.CANCEL }

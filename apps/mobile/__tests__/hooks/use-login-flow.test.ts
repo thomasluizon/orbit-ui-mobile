@@ -159,6 +159,26 @@ beforeEach(() => {
 })
 
 describe('useLoginFlow (mobile)', () => {
+  it('uses the fallback after a newer login starts without a return URL', async () => {
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.apiClient.mockResolvedValue({
+      token: 'access', refreshToken: 'refresh', userId: 'user',
+      name: 'User', email: 'user@test.com', wasReactivated: false,
+    })
+    let storedReturnUrl: string | null = '/older'
+    mocks.getStoredAuthReturnUrl.mockImplementation(() => Promise.resolve(storedReturnUrl))
+    mocks.clearStoredAuthReturnUrl.mockImplementation(() => {
+      storedReturnUrl = null
+      return Promise.resolve()
+    })
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.verifyCode())
+
+    expect(mocks.replace).toHaveBeenCalledWith('/')
+    expect(mocks.replace).not.toHaveBeenCalledWith('/older')
+  })
+
   it('uses normal sign in for a returning device without a draft', async () => {
     mocks.onboardingState.onboardingLocallyDone = true
     const harness = await renderLoginFlow()
@@ -311,6 +331,7 @@ describe('useLoginFlow (mobile)', () => {
     mocks.consumeStoredAuthReturnUrl.mockReturnValue(pendingRead)
     mocks.getStoredAuthReturnUrl.mockReturnValue(pendingRead)
     const harness = await renderLoginFlow()
+    mocks.clearStoredAuthReturnUrl.mockClear()
 
     const verification = act(() => harness.current.verifyCode())
     await vi.waitFor(() => expect(
@@ -345,6 +366,7 @@ describe('useLoginFlow (mobile)', () => {
       return Promise.resolve()
     })
     const harness = await renderLoginFlow()
+    mocks.clearStoredAuthReturnUrl.mockClear()
     const verification = act(() => harness.current.verifyCode())
     await vi.waitFor(() => expect(mocks.login).toHaveBeenCalledTimes(1))
     await mocks.storeAuthReturnUrl('/newer', mocks.createAuthReturnUrlAttempt())

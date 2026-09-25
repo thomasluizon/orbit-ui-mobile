@@ -133,12 +133,13 @@ export default function AuthCallbackScreen() {
   useEffect(() => {
     if (processedRef.current) return
     if (!callbackUrl) return
-    processedRef.current = true
-    const resolvedCallbackUrl = callbackUrl
     const returnUrlAttemptId = resolveReturnUrlAttemptId(
       callbackUrl, sessionCallbackUrl, sessionReturnUrlAttemptId,
       isPendingGoogleAuthSession,
     )
+    if (returnUrlAttemptId < 0) return
+    processedRef.current = true
+    const resolvedCallbackUrl = callbackUrl
     clearPendingGoogleAuthSession(returnUrlAttemptId)
 
     async function handleCallback() {

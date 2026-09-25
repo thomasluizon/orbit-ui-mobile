@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
     isPending: false,
     returnUrlAttemptId: null as number | null,
   },
+  rawUrl: null as string | null,
 }))
 
 vi.mock('expo-router', () => ({
@@ -35,13 +36,14 @@ vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }))
 
-vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
+vi.mock('expo-linking', () => ({ useLinkingURL: () => mocks.rawUrl }))
 vi.mock('lucide-react-native', () => ({ TriangleAlert: () => null }))
 vi.mock('@/lib/google-auth-callback', () => ({
   AUTH_CALLBACK_URL: 'orbit://auth-callback',
   clearPendingGoogleAuthSession: mocks.clearPendingGoogleAuthSession,
   extractGoogleAuthParams: () => ({}),
-  resolveGoogleAuthCallbackUrl: () => 'orbit://auth-callback?code=old',
+  resolveGoogleAuthCallbackUrl: ({ sessionCallbackUrl }: { sessionCallbackUrl: string | null }) =>
+    sessionCallbackUrl ?? mocks.rawUrl ?? 'orbit://auth-callback?code=old',
   usePendingGoogleAuthSession: () => mocks.pendingGoogleSession,
 }))
 vi.mock('@/lib/google-auth', () => ({
@@ -80,6 +82,7 @@ beforeEach(() => {
   mocks.getSafeReturnUrl.mockReturnValue('/home')
   mocks.markReferralApplied.mockResolvedValue(undefined)
   mocks.pendingGoogleSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
+  mocks.rawUrl = null
   mocks.createAuthReturnUrlAttempt.mockReturnValue(0)
   mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
 })
@@ -192,7 +195,7 @@ it('does not consume a newer flow return URL before that flow logs in', async ()
   await expect(mocks.getStoredAuthReturnUrl(attemptId)).resolves.toBe('/newer')
 })
 
-it('does not claim a newer pending Google flow when the older callback starts late', async () => {
+it('waits for correlation when a Google callback arrives during a pending browser session', async () => {
   mocks.getStoredReferralCode.mockResolvedValue(null)
   mocks.pendingGoogleSession = {
     callbackUrl: null, isPending: true, returnUrlAttemptId: 2,
@@ -204,10 +207,33 @@ it('does not claim a newer pending Google flow when the older callback starts la
     TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
     await Promise.resolve()
   })
-  await vi.waitFor(() => expect(mocks.login).toHaveBeenCalledTimes(1))
-
+  expect(mocks.login).not.toHaveBeenCalled()
   expect(mocks.createAuthReturnUrlAttempt).not.toHaveBeenCalled()
   expect(mocks.getStoredAuthReturnUrl).not.toHaveBeenCalled()
   expect(mocks.clearStoredAuthReturnUrl).not.toHaveBeenCalled()
   expect(mocks.replace).not.toHaveBeenCalled()
+})
+
+it('processes a Linking callback after its pending browser session correlates the attempt', async () => {
+  const callbackUrl = 'orbit://auth-callback?code=linked'
+  mocks.rawUrl = callbackUrl
+  mocks.pendingGoogleSession = { callbackUrl: null, isPending: true, returnUrlAttemptId: 7 }
+  mocks.getStoredReferralCode.mockResolvedValue(null)
+  mocks.login.mockResolvedValue(() => true)
+  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: number) => id === 7)
+  let renderer!: ReturnType<typeof TestRenderer.create>
+
+  TestRenderer.act(() => {
+    renderer = TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
+  })
+  mocks.pendingGoogleSession = { callbackUrl, isPending: false, returnUrlAttemptId: 7 }
+  await TestRenderer.act(async () => {
+    renderer.update(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
+    await Promise.resolve()
+  })
+
+  expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
+  expect(mocks.login).toHaveBeenCalledTimes(1)
+  expect(mocks.getStoredAuthReturnUrl).toHaveBeenCalledWith(7)
+  expect(mocks.replace).toHaveBeenCalledWith('/home')
 })
