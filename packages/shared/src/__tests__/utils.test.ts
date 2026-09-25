@@ -4,6 +4,7 @@ import {
   formatAPIDate,
   formatAPIDateInTimeZone,
   getAccountDateTime,
+  millisecondsUntilNextDay,
   nowDate,
   resolveHabitDetailRouteDate,
 } from '../utils/dates'
@@ -100,6 +101,17 @@ describe('formatAPIDateInTimeZone', () => {
 
     expect(formatAPIDateInTimeZone(instant, null)).toBe('2026-09-12')
     expect(formatAPIDateInTimeZone(instant, 'Invalid/Zone')).toBe('2026-09-12')
+  })
+})
+
+describe('millisecondsUntilNextDay', () => {
+  it('finds the exact account midnight across a device timezone mismatch', () => {
+    expect(millisecondsUntilNextDay(new Date('2026-08-30T09:59:59.000Z'), 'Pacific/Kiritimati')).toBe(1_000)
+    expect(millisecondsUntilNextDay(new Date('2026-09-11T23:59:59.000Z'), null)).toBe(1_000)
+  })
+
+  it('accounts for a daylight saving transition', () => {
+    expect(millisecondsUntilNextDay(new Date('2026-11-01T04:00:00.000Z'), 'America/New_York')).toBe(25 * 60 * 60 * 1_000)
   })
 })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -15,7 +15,7 @@ import type { HabitListHandle } from '@/components/habits/habit-list'
 interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
   selectedDateStr: string
-  readOnly: boolean
+  completionReadOnly: boolean
   habitsById: Map<string, NormalizedHabit>
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
@@ -40,7 +40,7 @@ function reportAccountSwitch(error: unknown): boolean {
 export function useBulkActions({
   selectedHabitIds,
   selectedDateStr,
-  readOnly,
+  completionReadOnly,
   habitsById,
   habitListRef,
   onSuccess,
@@ -51,6 +51,10 @@ export function useBulkActions({
   const bulkDelete = useBulkDeleteHabits()
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
+  const currentPermission = useRef({ selectedDateStr, completionReadOnly })
+  useLayoutEffect(() => {
+    currentPermission.current = { selectedDateStr, completionReadOnly }
+  }, [selectedDateStr, completionReadOnly])
 
   /**
    * The confirmation asks the person to delete the habits they selected. Its owner clears it on a
@@ -62,12 +66,13 @@ export function useBulkActions({
   const applyBulkMutationSuccesses = useCallback((
     results: readonly { status: string; habitId: string }[],
     mode: HabitResolutionMode,
+    date: string,
   ) => {
     const resolutions = results.flatMap((item) =>
       item.status === 'Success' ? [{ habitId: item.habitId, mode }] : [],
     )
     if (resolutions.length === 0) return
-    habitListRef.current?.settleBulkHabitResolutions(resolutions)
+    habitListRef.current?.settleBulkHabitResolutions(resolutions, date)
   }, [habitListRef])
 
   const finish = useCallback((outcome: BulkActionOutcome, retry: (ids: string[]) => void) => {
@@ -85,7 +90,6 @@ export function useBulkActions({
   }, [onPartialFailure, onSuccess, showQueued, showToast, t])
 
   async function executeDelete(ids: string[]) {
-    if (readOnly) return
     if (ids.length === 0) return
     const accountGeneration = getAccountGeneration()
     try {
@@ -103,15 +107,16 @@ export function useBulkActions({
   }
 
   async function executeLog(ids: string[]) {
-    if (readOnly) return
+    if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
     if (ids.length === 0) return
+    const date = selectedDateStr
     const accountGeneration = getAccountGeneration()
     try {
       const result = await bulkLog.mutateAsync(
-        ids.map((id) => ({ habitId: id, date: selectedDateStr })),
+        ids.map((id) => ({ habitId: id, date })),
       )
       if (getAccountGeneration() !== accountGeneration) return
-      applyBulkMutationSuccesses(result.results, 'log')
+      applyBulkMutationSuccesses(result.results, 'log', date)
       finish(result, (failedIds) => {
         if (getAccountGeneration() === accountGeneration) void executeLog(failedIds)
       })
@@ -122,15 +127,16 @@ export function useBulkActions({
   }
 
   async function executeSkip(ids: string[]) {
-    if (readOnly) return
+    if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
     if (ids.length === 0) return
+    const date = selectedDateStr
     const accountGeneration = getAccountGeneration()
     try {
       const result = await bulkSkip.mutateAsync(
-        ids.map((id) => ({ habitId: id, date: selectedDateStr })),
+        ids.map((id) => ({ habitId: id, date })),
       )
       if (getAccountGeneration() !== accountGeneration) return
-      applyBulkMutationSuccesses(result.results, 'skip')
+      applyBulkMutationSuccesses(result.results, 'skip', date)
       finish(result, (failedIds) => {
         if (getAccountGeneration() === accountGeneration) void executeSkip(failedIds)
       })

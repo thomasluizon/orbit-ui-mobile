@@ -35,7 +35,7 @@ export function LoginSuccessMessage({ message, styles }: Readonly<{ message: str
 
 export function LoginOfflineNotice({ t, styles, tokens }: Readonly<{ t: Translate; styles: LoginStyles; tokens: AppTokensV2 }>) {
   return <View style={styles.offlineNotice} accessibilityLiveRegion="polite" testID="offline-notice">
-    <WifiOff size={20} color={tokens.fg4} accessible={false} />
+    <WifiOff size={20} color={tokens.fg3} accessible={false} />
     <Text style={styles.offlineText}>{t('auth.errors.offline')}</Text>
   </View>
 }

@@ -58,30 +58,30 @@ describe('web useTodaySelection date scope', () => {
     mocks.useBulkActions.mockReset()
   })
 
-  it('clears a pinned selection when today advances past its loggable window', () => {
+  it('keeps a pinned selection when today advances past its loggable window', () => {
     const { rerender } = renderSelection('2026-04-01', '2026-04-08')
 
     expect(mocks.store.clearSelection).not.toHaveBeenCalled()
     expect(mocks.useBulkActions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ readOnly: false }),
+      expect.objectContaining({ completionReadOnly: false }),
     )
 
     rerender({ selectedDateStr: '2026-04-01', today: '2026-04-09' })
 
-    expect(mocks.store.clearSelection).toHaveBeenCalledTimes(1)
-    expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
+    expect(mocks.store.clearSelection).not.toHaveBeenCalled()
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).not.toHaveBeenCalled()
     expect(mocks.useBulkActions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ readOnly: true }),
+      expect.objectContaining({ completionReadOnly: true }),
     )
   })
 
-  it('closes an open bulk delete confirmation when today makes the pinned date read only', () => {
+  it('keeps an open bulk delete confirmation when today makes the pinned date old', () => {
     mocks.bulkActions.showBulkDeleteConfirm = true
     const { rerender } = renderSelection('2026-04-01', '2026-04-08')
 
     rerender({ selectedDateStr: '2026-04-01', today: '2026-04-09' })
 
-    expect(mocks.bulkActions.setShowBulkDeleteConfirm).toHaveBeenCalledWith(false)
+    expect(mocks.bulkActions.setShowBulkDeleteConfirm).not.toHaveBeenCalled()
   })
 
   it('clears selection and closes bulk delete when navigating between loggable days', () => {
@@ -113,7 +113,7 @@ describe('web useTodaySelection date scope', () => {
     expect(mocks.bulkActions.setShowBulkDeleteConfirm).not.toHaveBeenCalled()
     expect(mocks.bulkActions.confirmBulkLog).toHaveBeenCalledTimes(1)
     expect(mocks.useBulkActions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ readOnly: false }),
+      expect.objectContaining({ completionReadOnly: false }),
     )
   })
 })

@@ -236,7 +236,7 @@ function SupportForm({
       ) : null}
       {!isOnline ? (
         <View accessibilityLiveRegion="polite" style={[styles.offlineNotice, { backgroundColor: tokens.bgWell }]}>
-          <WifiOff size={20} color={tokens.fg4} accessible={false} />
+          <WifiOff size={20} color={tokens.fg3} accessible={false} />
           <Text style={[styles.offlineText, { color: tokens.fg2 }]}>
             {t('profile.support.offlineReason')}
           </Text>

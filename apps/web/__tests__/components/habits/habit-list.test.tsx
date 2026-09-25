@@ -41,6 +41,9 @@ const mockDrillState = {
   currentParentId: null as string | null,
   currentParent: null as NormalizedHabit | null,
   drillChildren: [] as NormalizedHabit[],
+  completedCount: 0,
+  hasUnfilteredChildren: false,
+  canRevealCompletedChildren: false,
   drillInto,
   drillBack: vi.fn(),
   drillReset: vi.fn(),
@@ -49,6 +52,7 @@ const mockDrillState = {
   refreshCurrent: drillRefreshCurrent,
   getDrillChildren: getDrillChildrenMock,
 }
+let capturedDrillOptions: HabitVisibilityOptions | undefined
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -111,7 +115,10 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
 })
 
 vi.mock('@/hooks/use-drill-navigation', () => ({
-  useDrillNavigation: () => mockDrillState,
+  useDrillNavigation: (_byId: unknown, _updated: unknown, options: HabitVisibilityOptions) => {
+    capturedDrillOptions = options
+    return mockDrillState
+  },
 }))
 
 vi.mock('@/hooks/use-config', () => ({
@@ -333,6 +340,7 @@ const defaultFilters = {
 
 describe('HabitList', () => {
   beforeEach(() => {
+    capturedDrillOptions = undefined
     vi.clearAllMocks()
     sheetTestControls.defer(false)
     mockHabitsDataUpdatedAt = 1
@@ -345,6 +353,9 @@ describe('HabitList', () => {
     mockDrillState.currentParentId = null
     mockDrillState.currentParent = null
     mockDrillState.drillChildren = []
+    mockDrillState.completedCount = 0
+    mockDrillState.hasUnfilteredChildren = false
+    mockDrillState.canRevealCompletedChildren = false
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
     skipHabitMutateAsync.mockReset()
@@ -375,6 +386,26 @@ describe('HabitList', () => {
     )
     expect(screen.getByText('habits.emptyState')).toBeDefined()
     expect(screen.getByText('habits.noHabitsBody')).toBeDefined()
+  })
+
+  it('does not carry recent completion feedback into another selected date', () => {
+    const habit = createMockHabit({ id: 'dated-child', scheduledDates: [YESTERDAY, TODAY] })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = (date: string) => (
+      <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${date}T09:00:00Z`)} />
+    )
+    const rendered = renderWithProviders(renderList(YESTERDAY))
+
+    act(() => { ref.current?.markRecentlyCompleted(habit.id) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
+    rendered.rerenderWithProviders(renderList(TODAY))
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(false)
+    act(() => { ref.current?.markRecentlyCompleted(habit.id) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
+    rendered.rerenderWithProviders(renderList(YESTERDAY))
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
   })
 
   it('keeps sortable descriptions stable through hydration', async () => {
@@ -1290,11 +1321,11 @@ describe('HabitList', () => {
       ref.current?.settleBulkHabitResolutions([
         { habitId: 'log-a', mode: 'log' },
         { habitId: 'log-b', mode: 'log' },
-      ])
+      ], YESTERDAY)
       ref.current?.settleBulkHabitResolutions([
         { habitId: 'skip-a', mode: 'skip' },
         { habitId: 'skip-b', mode: 'skip' },
-      ])
+      ], YESTERDAY)
       await Promise.resolve()
     })
 
@@ -1357,7 +1388,7 @@ describe('HabitList', () => {
       ref.current?.settleBulkHabitResolutions([
         { habitId: leafA.id, mode: 'log' },
         { habitId: leafB.id, mode: 'log' },
-      ])
+      ], YESTERDAY)
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -1433,7 +1464,7 @@ describe('HabitList', () => {
       ref.current?.settleBulkHabitResolutions([
         { habitId: leafA.id, mode: 'log' },
         { habitId: leafB.id, mode: 'log' },
-      ])
+      ], YESTERDAY)
       await Promise.resolve()
       rejectParentBMutation?.(new Error('rejected'))
       await Promise.allSettled([pendingParentBMutation])
@@ -1512,8 +1543,8 @@ describe('HabitList', () => {
     )
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }])
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }], YESTERDAY)
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
       resolveParentA?.()
       await pendingParentA
@@ -1595,8 +1626,8 @@ describe('HabitList', () => {
     )
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }])
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }], YESTERDAY)
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
       resolveParentA?.()
       await pendingParentA
@@ -1658,7 +1689,7 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
     })
     rerenderWithProviders(renderList(TODAY))
@@ -1671,6 +1702,91 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync.mock.calls.map(([input]) => input)).toEqual([
       { habitId: parent.id, date: YESTERDAY, intent: 'log' },
     ])
+  })
+
+  it.each(['log', 'skip'] as const)(
+    'does not apply a delayed bulk %s result to the newly viewed date',
+    async (mode) => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [
+        { date: YESTERDAY, status: 'Pending', logId: null },
+        { date: TODAY, status: 'Pending', logId: null },
+      ],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = (date: string) => (
+      <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${date}T09:00:00Z`)} />
+    )
+    const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
+    rerenderWithProviders(renderList(TODAY))
+
+    act(() => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: child.id, mode }], YESTERDAY)
+    })
+
+    expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-state', 'empty')
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(false)
+    expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    expect(skipHabitMutateAsync).not.toHaveBeenCalled()
+    rerenderWithProviders(renderList(YESTERDAY))
+    expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-state', 'done')
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(true)
+  })
+
+  it('rejects a delayed bulk result after the new date handle commits before passive effects', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [
+        { date: YESTERDAY, status: 'Pending', logId: null },
+        { date: TODAY, status: 'Pending', logId: null },
+      ],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    const ref = React.createRef<HabitListHandle>()
+    function ResolveInLayout({ date }: { date: string }) {
+      React.useLayoutEffect(() => {
+        if (date === TODAY) {
+          ref.current?.settleBulkHabitResolutions([{ habitId: child.id, mode: 'log' }], YESTERDAY)
+        }
+      }, [date])
+      return null
+    }
+    const renderList = (date: string) => (
+      <>
+        <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${date}T09:00:00Z`)} />
+        <ResolveInLayout date={date} />
+      </>
+    )
+    const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
+    rerenderWithProviders(renderList(TODAY))
+
+    expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    expect(skipHabitMutateAsync).not.toHaveBeenCalled()
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(parent.id)).toBe(false)
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(false)
   })
 
   it('keeps the current parent guard when an earlier date settlement rejects', async () => {
@@ -1718,12 +1834,12 @@ describe('HabitList', () => {
     const renderResult = renderWithProviders(renderList(YESTERDAY))
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
     })
     renderResult.rerenderWithProviders(renderList(TODAY))
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
     const currentOperationTimerCount = vi.getTimerCount()
@@ -1736,7 +1852,7 @@ describe('HabitList', () => {
     expect(vi.getTimerCount()).toBe(currentOperationTimerCount)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1793,7 +1909,7 @@ describe('HabitList', () => {
     )
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
     const activeOperationTimerCount = vi.getTimerCount()
@@ -1806,7 +1922,7 @@ describe('HabitList', () => {
     expect(vi.getTimerCount()).toBe(activeOperationTimerCount - 1)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1858,12 +1974,12 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
     })
     rerenderWithProviders(renderList(TODAY))
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1899,7 +2015,7 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1909,7 +2025,7 @@ describe('HabitList', () => {
       .toHaveLength(0)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1943,7 +2059,7 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1953,7 +2069,7 @@ describe('HabitList', () => {
       .toHaveLength(0)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }], TODAY)
       await Promise.resolve()
     })
 
@@ -2484,6 +2600,54 @@ describe('HabitList', () => {
     ])
     expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: YESTERDAY, intent: 'log' })
     expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+  })
+
+  it('offers Show completed when filtering hides every drilled child', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const onShowCompleted = vi.fn()
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.hasUnfilteredChildren = true
+    mockDrillState.canRevealCompletedChildren = true
+
+    renderWithProviders(<HabitList filters={defaultFilters} onShowCompleted={onShowCompleted} />)
+
+    expect(screen.queryByText('habits.noSubHabits')).not.toBeInTheDocument()
+    expect(screen.getByText('habits.filterEmptySubHabits')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.showCompleted' }))
+    expect(onShowCompleted).toHaveBeenCalledTimes(1)
+  })
+
+  it('explains when the selected date hides every drilled child', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.hasUnfilteredChildren = true
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    expect(screen.getByText('habits.filterEmptySubHabits')).toBeInTheDocument()
+    expect(screen.queryByText('habits.showCompleted')).not.toBeInTheDocument()
+  })
+
+  it('keeps the true empty drill message when the habit has no children', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent' })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    expect(screen.getByText('habits.noSubHabits')).toBeInTheDocument()
+    expect(screen.queryByText('habits.filterEmptySubHabits')).not.toBeInTheDocument()
   })
 
   it('stores drill edit onSaved callback without invoking refresh eagerly', async () => {

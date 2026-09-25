@@ -174,7 +174,7 @@ export function CalendarSyncEventRow({
               (pressed || dismissPending) && styles.quietActionDim,
             ]}
           >
-            <X size={20} color={tokens.fg4} strokeWidth={1.8} />
+            <X size={20} color={tokens.fg3} strokeWidth={1.8} />
           </Pressable>
         ) : null}
       </Pressable>

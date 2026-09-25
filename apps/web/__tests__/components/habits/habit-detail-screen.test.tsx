@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => ({
   routerReplace: vi.fn(),
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
+  timeZone: 'UTC',
   suggestion: null as null | {
     frequencyUnit: 'Day'
     frequencyQuantity: number
@@ -60,6 +61,11 @@ vi.mock('next-intl', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: mocks.routerReplace }),
 }))
+
+vi.mock('@/app/(app)/today-provider', async () => {
+  const { formatAPIDateInTimeZone } = await import('@orbit/shared/utils')
+  return { useToday: (timeZone: string | null | undefined) => formatAPIDateInTimeZone(new Date(), timeZone) }
+})
 
 vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
@@ -87,6 +93,7 @@ vi.mock('@/hooks/use-profile', () => ({
       hasProAccess: mocks.hasProAccess,
       language: 'en',
       weekStartDay: 1,
+      timeZone: mocks.timeZone,
     },
   }),
 }))
@@ -168,17 +175,18 @@ vi.mock('@/components/habits/habit-checklist', () => ({
 }))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
 vi.mock('@/components/habits/habit-log-button', () => ({
-  HabitLogButton: ({ label, logged, onPress }: { label: string; logged: boolean; onPress: () => void }) => <button type="button" aria-label={label} data-logged={logged} onClick={onPress}>{label}</button>,
+  HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled?: boolean; disabledReason?: string }) => <button type="button" aria-label={label} data-logged={logged} data-disabled-reason={disabledReason} disabled={disabled} onClick={onPress}>{label}</button>,
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, state, canLog, readOnly, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; readOnly: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
+  HabitRow: ({ habit, state, canLog, completionReadOnly, completionReason, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; completionReason?: string; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
     <div>
       <button
         type="button"
         data-testid={`child-${habit.id}`}
         data-state={state}
         data-can-log={canLog}
-        data-read-only={readOnly}
+        data-completion-read-only={completionReadOnly}
+        data-completion-reason={completionReason}
         aria-label={state === 'done' ? 'unlog-child' : 'log-child'}
         onClick={state === 'done' ? actions.onUnlog : actions.onLog}
       >
@@ -224,6 +232,7 @@ describe('HabitDetailScreen', () => {
     mocks.routerReplace.mockReset()
     mocks.history = []
     mocks.hasProAccess = true
+    mocks.timeZone = 'UTC'
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     mocks.suggestion = null
     localStorage.clear()
@@ -470,6 +479,58 @@ describe('HabitDetailScreen', () => {
     })
   })
 
+  it('explains disabled completion in old-day detail and child rows', () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
+
+    expect(screen.getByRole('button', { name: 'log' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'log' }))
+      .toHaveAttribute('data-disabled-reason', 'habits.todayBoundary.readOnly')
+    expect(screen.getByTestId('child-child-1'))
+      .toHaveAttribute('data-completion-reason', 'habits.todayBoundary.readOnly')
+    expect(screen.getByText('habits.todayBoundary.readOnly')).toBeVisible()
+  })
+
+  it('uses the account day and disables completion after rollover while mounted', () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    expect(screen.getByRole('button', { name: 'log' })).toBeEnabled()
+    vi.setSystemTime(new Date('2026-08-30T12:00:00Z'))
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    expect(screen.getByRole('button', { name: 'log' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'log' })).toHaveAttribute('data-disabled-reason', 'habits.todayBoundary.readOnly')
+    expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-completion-read-only', 'true')
+  })
+
+  it.each(['log', 'unlog'] as const)('refuses stale detail %s and child log immediately after account midnight', (intent) => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    if (intent === 'unlog') mocks.logs.push({ id: 'selected', date: '2026-08-23', value: 1, createdAtUtc: '2026-08-23T12:00:00Z' })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    expect(screen.getByRole('button', { name: intent })).toBeEnabled()
+
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+    fireEvent.click(screen.getByRole('button', { name: intent }))
+    fireEvent.click(screen.getByTestId('child-child-1'))
+
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('refuses checklist completion confirmation after account midnight', async () => {
+    mocks.timeZone = 'Pacific/Kiritimati'
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValueOnce(undefined)
+    vi.setSystemTime(new Date('2026-08-30T09:59:59Z'))
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-23" />)
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+    expect(screen.getByTestId('confirm-habits.checklistCompleteTitle')).toBeInTheDocument()
+
+    vi.setSystemTime(new Date('2026-08-30T10:00:01Z'))
+    fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
@@ -493,7 +554,7 @@ describe('HabitDetailScreen', () => {
       const child = screen.getByRole('button', { name: 'unlog-child' })
       expect(child).toHaveAttribute('data-state', 'done')
       expect(child).toHaveAttribute('data-can-log', 'true')
-      expect(child).toHaveAttribute('data-read-only', 'false')
+      expect(child).toHaveAttribute('data-completion-read-only', 'false')
 
       fireEvent.click(child)
       expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
@@ -799,6 +860,21 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
   })
 
+  it('keeps checklist edits without offering old-day completion', async () => {
+    mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-19" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-checklist' }))
+    await act(async () => Promise.resolve())
+
+    expect(mocks.checklist).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      items: [{ text: 'First', isChecked: true }],
+    })
+    expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
   it('clears a checklist only after confirmation', async () => {
     mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
     mocks.checklist.mockResolvedValueOnce(undefined)
@@ -900,4 +976,5 @@ describe('HabitDetailScreen', () => {
     expect(mocks.showError).toHaveBeenCalledWith('rescheduleWriteError')
     expect(screen.getByRole('button', { name: 'rescheduleAccept' })).toBeInTheDocument()
   })
+
 })

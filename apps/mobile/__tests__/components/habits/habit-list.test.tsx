@@ -209,6 +209,8 @@ const mockDrillState = {
   currentParentId: null as string | null,
   currentParent: null as NormalizedHabit | null,
   drillChildren: [] as NormalizedHabit[],
+  hasUnfilteredChildren: false,
+  canRevealCompletedChildren: false,
   drillStack: [] as string[],
   drillLoading: false,
   drillError: null as string | null,
@@ -218,6 +220,7 @@ const mockDrillState = {
   refreshCurrent: vi.fn(async () => {}),
   getDrillChildren: vi.fn(() => [] as NormalizedHabit[]),
 }
+let capturedDrillOptions: HabitVisibilityOptions | undefined
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -268,7 +271,10 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/hooks/use-drill-navigation', () => ({
-  useDrillNavigation: () => mockDrillState,
+  useDrillNavigation: (_byId: unknown, _updated: unknown, options: HabitVisibilityOptions) => {
+    capturedDrillOptions = options
+    return mockDrillState
+  },
 }))
 
 vi.mock('@/hooks/use-config', () => ({
@@ -439,7 +445,7 @@ function renderBulkActionsWithHabitList(selectedHabitIds: Set<string>) {
     captured.current = useBulkActions({
       selectedHabitIds,
       selectedDateStr: TODAY,
-      readOnly: false,
+      completionReadOnly: false,
       habitsById: new Map(),
       habitListRef,
       onSuccess: vi.fn(),
@@ -480,6 +486,7 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 
 describe('HabitList', () => {
   beforeEach(() => {
+    capturedDrillOptions = undefined
     vi.clearAllMocks()
     sheetTestControls.defer(false)
     clearOfflineQueue()
@@ -508,11 +515,39 @@ describe('HabitList', () => {
     mockDrillState.currentParentId = null
     mockDrillState.currentParent = null
     mockDrillState.drillChildren = []
+    mockDrillState.hasUnfilteredChildren = false
+    mockDrillState.canRevealCompletedChildren = false
     mockDrillState.drillStack = []
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
     mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('does not carry recent completion feedback into another selected date', () => {
+    const habit = createMockHabit({ id: 'dated-child', scheduledDates: [YESTERDAY, TODAY] })
+    seedHabits([habit])
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = (date: string) => (
+      <HabitList
+        ref={ref}
+        view="today"
+        filters={{}}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList(YESTERDAY)) })
+    TestRenderer.act(() => { ref.current?.markRecentlyCompleted(habit.id) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
+    TestRenderer.act(() => { tree.update(renderList(TODAY)) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(false)
+    TestRenderer.act(() => { ref.current?.markRecentlyCompleted(habit.id) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
+    TestRenderer.act(() => { tree.update(renderList(YESTERDAY)) })
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(habit.id)).toBe(true)
   })
 
   it('reuses row tokens when only habit content changes', () => {
@@ -1754,6 +1789,79 @@ describe('HabitList', () => {
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(1)
     expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
+  })
+
+  it('explains filtered empty drills and offers Show completed when it can reveal children', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const onShowCompleted = vi.fn()
+    seedHabits([parent])
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.hasUnfilteredChildren = true
+    mockDrillState.canRevealCompletedChildren = true
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted={false} onShowCompleted={onShowCompleted} onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const flatList = tree.root.findByType('FlatList')
+    let emptyStateTree: any
+    TestRenderer.act(() => {
+      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+    })
+    expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('habits.filterEmptySubHabits')
+    expect(flattenRenderedText(emptyStateTree.toJSON())).not.toContain('habits.noSubHabits')
+
+    const showCompletedButton = emptyStateTree.root.findAll(
+      (node: any) => flattenText(node.props?.children) === 'habits.showCompleted' && typeof node.props?.onPress === 'function',
+    )[0]
+    TestRenderer.act(() => showCompletedButton.props.onPress())
+    expect(onShowCompleted).toHaveBeenCalledTimes(1)
+  })
+
+  it('explains date-filtered drills without offering Show completed', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    seedHabits([parent])
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.hasUnfilteredChildren = true
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+    })
+    const flatList = tree.root.findByType('FlatList')
+    let emptyStateTree: any
+    TestRenderer.act(() => {
+      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+    })
+    expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('habits.filterEmptySubHabits')
+    expect(flattenRenderedText(emptyStateTree.toJSON())).not.toContain('habits.showCompleted')
+  })
+
+  it('keeps the true empty drill message when the habit has no children', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent' })
+    seedHabits([parent])
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = ['parent']
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+    })
+    const flatList = tree.root.findByType('FlatList')
+    let emptyStateTree: any
+    TestRenderer.act(() => {
+      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+    })
+    expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('habits.noSubHabits')
+    expect(flattenRenderedText(emptyStateTree.toJSON())).not.toContain('habits.filterEmptySubHabits')
   })
 
   it('retries loading drill children from the drill error state', () => {
@@ -3384,11 +3492,11 @@ describe('HabitList', () => {
       ref.current?.settleBulkHabitResolutions([
         { habitId: 'log-a', mode: 'log' },
         { habitId: 'log-b', mode: 'log' },
-      ])
+      ], YESTERDAY)
       ref.current?.settleBulkHabitResolutions([
         { habitId: 'skip-a', mode: 'skip' },
         { habitId: 'skip-b', mode: 'skip' },
-      ])
+      ], YESTERDAY)
       await Promise.resolve()
     })
 
@@ -3450,7 +3558,7 @@ describe('HabitList', () => {
       ref.current?.settleBulkHabitResolutions([
         { habitId: leafA.id, mode: 'log' },
         { habitId: leafB.id, mode: 'log' },
-      ])
+      ], YESTERDAY)
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -3525,7 +3633,7 @@ describe('HabitList', () => {
       ref.current?.settleBulkHabitResolutions([
         { habitId: leafA.id, mode: 'log' },
         { habitId: leafB.id, mode: 'log' },
-      ])
+      ], YESTERDAY)
       await Promise.resolve()
       rejectParentBMutation?.(new Error('rejected'))
       await Promise.allSettled([pendingParentBMutation])
@@ -3603,8 +3711,8 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }])
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }], YESTERDAY)
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
       resolveParentA?.()
       await pendingParentA
@@ -3685,8 +3793,8 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }])
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }], YESTERDAY)
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
       resolveParentA?.()
       await pendingParentA
@@ -3749,7 +3857,7 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
     })
     TestRenderer.act(() => {
@@ -3764,6 +3872,103 @@ describe('HabitList', () => {
     expect(logMutateAsync.mock.calls.map(([input]) => input)).toEqual([
       { habitId: parent.id, date: YESTERDAY, intent: 'log' },
     ])
+  })
+
+  it.each(['log', 'skip'] as const)(
+    'does not apply a delayed bulk %s result to the newly viewed date',
+    (mode) => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [
+        { date: YESTERDAY, status: 'Pending', logId: null },
+        { date: TODAY, status: 'Pending', logId: null },
+      ],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    seedHabits([parent, child])
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = (date: string) => (
+      <HabitList
+        ref={ref}
+        view="today"
+        filters={{}}
+        selectedDate={new Date(`${date}T09:00:00Z`)}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList(YESTERDAY)) })
+    TestRenderer.act(() => { tree.update(renderList(TODAY)) })
+
+    TestRenderer.act(() => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: child.id, mode }], YESTERDAY)
+    })
+
+    expect(tree!.root.findAll((node) => String(node.type) === 'DraggableFlatList')[0]?.props.extraData)
+      .toBe('0||')
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(false)
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+    TestRenderer.act(() => { tree.update(renderList(YESTERDAY)) })
+    expect(tree!.root.findAll((node) => String(node.type) === 'DraggableFlatList')[0]?.props.extraData)
+      .toBe('0||child')
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(true)
+  })
+
+  it('rejects a delayed bulk result after the new date handle commits before passive effects', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [
+        { date: YESTERDAY, status: 'Pending', logId: null },
+        { date: TODAY, status: 'Pending', logId: null },
+      ],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    seedHabits([parent, child])
+
+    const ref = React.createRef<HabitListHandle>()
+    function ResolveInLayout({ date }: { date: string }) {
+      React.useLayoutEffect(() => {
+        if (date === TODAY) {
+          ref.current?.settleBulkHabitResolutions([{ habitId: child.id, mode: 'log' }], YESTERDAY)
+        }
+      }, [date])
+      return null
+    }
+    const renderList = (date: string) => (
+      <>
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${date}T09:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />
+        <ResolveInLayout date={date} />
+      </>
+    )
+    let tree: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList(YESTERDAY)) })
+    TestRenderer.act(() => { tree.update(renderList(TODAY)) })
+
+    expect(logMutateAsync).not.toHaveBeenCalled()
+    expect(skipMutateAsync).not.toHaveBeenCalled()
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(parent.id)).toBe(false)
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(false)
   })
 
   it('keeps the current parent guard when an earlier date settlement rejects', async () => {
@@ -3813,14 +4018,14 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
     })
     TestRenderer.act(() => {
       tree.update(renderList(TODAY))
     })
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
     const currentOperationTimerCount = vi.getTimerCount()
@@ -3834,7 +4039,7 @@ describe('HabitList', () => {
     expect(vi.getTimerCount()).toBe(currentOperationTimerCount)
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -3892,7 +4097,7 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
     const activeOperationTimerCount = vi.getTimerCount()
@@ -3906,7 +4111,7 @@ describe('HabitList', () => {
     expect(vi.getTimerCount()).toBe(activeOperationTimerCount - 1)
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -3960,14 +4165,14 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
     })
     TestRenderer.act(() => {
       tree.update(renderList(TODAY))
     })
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -4009,7 +4214,7 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -4019,7 +4224,7 @@ describe('HabitList', () => {
       .toHaveLength(0)
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }], TODAY)
       await Promise.resolve()
     })
 
@@ -4059,7 +4264,7 @@ describe('HabitList', () => {
     })
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }], TODAY)
       await Promise.resolve()
     })
 
@@ -4069,7 +4274,7 @@ describe('HabitList', () => {
       .toHaveLength(0)
 
     await TestRenderer.act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }], TODAY)
       await Promise.resolve()
     })
 

@@ -28,6 +28,7 @@ const ConfirmSheet = dynamic(
 export function buildSelectionRefreshKey(
   selectedHabitIds: ReadonlySet<string>,
   allSelected: boolean,
+  completionReadOnly: boolean,
 ): string {
   const selectedKey = Array.from(selectedHabitIds)
     .sort((left, right) => {
@@ -36,7 +37,7 @@ export function buildSelectionRefreshKey(
       return 0
     })
     .join(',')
-  return `${selectedKey}:${allSelected ? 'all' : 'some'}`
+  return `${selectedKey}:${allSelected ? 'all' : 'some'}:${completionReadOnly ? 'read-only' : 'loggable'}`
 }
 
 function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | null {
@@ -130,6 +131,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
     selection,
     setHabitListAllCollapsed,
     setShowCreateModal,
+    setShowCompleted,
     showCompleted,
     toggleSelectMode,
   } = view
@@ -145,6 +147,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
         view="today"
         selectedDate={nav.selectedDate}
         showCompleted={showCompleted}
+        onShowCompleted={() => setShowCompleted(true)}
         isSelectMode={isSelectMode}
         selectedHabitIds={selectedHabitIds}
         filters={data.filters}
@@ -179,9 +182,10 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         onBulkSkip={() => void view.selection.confirmBulkSkip()}
         onBulkDelete={() => view.selection.setShowBulkDeleteConfirm(true)}
         onCancel={view.toggleSelectMode}
+        completionReadOnly={view.selection.completionReadOnly}
       />
     ),
-    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected),
+    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected, view.selection.completionReadOnly),
   )
 
   return (

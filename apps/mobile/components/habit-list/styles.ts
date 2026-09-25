@@ -152,8 +152,11 @@ export function createStyles(tokens: AppTokens) {
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
+    },
+    drillEmptyWrap: {
+      alignItems: 'flex-start',
+      gap: 8,
       paddingVertical: 8,
-      paddingHorizontal: 24,
     },
   })
 }
