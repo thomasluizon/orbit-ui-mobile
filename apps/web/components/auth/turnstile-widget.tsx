@@ -63,8 +63,13 @@ export function TurnstileWidget({
   const t = useTranslations()
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string | null>(null)
+  const callbacksRef = useRef({ onToken, onStateChange })
   const [state, setState] = useState<WidgetState>('loading')
   const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    callbacksRef.current = { onToken, onStateChange }
+  }, [onToken, onStateChange])
 
   useEffect(() => {
     let active = true
@@ -74,8 +79,8 @@ export function TurnstileWidget({
     function update(next: WidgetState, token: string | null = null) {
       if (!active) return
       setState(next)
-      onStateChange?.(next)
-      onToken(token)
+      callbacksRef.current.onStateChange?.(next)
+      callbacksRef.current.onToken(token)
     }
 
     function renderWidget() {
@@ -102,7 +107,7 @@ export function TurnstileWidget({
       if (widgetId) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [siteKey, attempt, onToken, onStateChange])
+  }, [siteKey, attempt])
 
   useEffect(() => {
     if (resetKey === 0) return

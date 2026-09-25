@@ -67,3 +67,38 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
   })
   expect(onToken).toHaveBeenLastCalledWith(null)
 })
+
+it('keeps the WebView mounted when the token callback changes', async () => {
+  const firstToken = vi.fn()
+  const nextToken = vi.fn()
+  let renderer: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    renderer = TestRenderer.create(
+      React.createElement(TurnstileWidget, { siteKey: 'site-key', resetKey: 0, onToken: firstToken }),
+    )
+    await Promise.resolve()
+  })
+  const first = renderer!.root.findByType('WebView')
+  await TestRenderer.act(async () => {
+    renderer!.update(React.createElement(TurnstileWidget, {
+      siteKey: 'site-key', resetKey: 0, onToken: nextToken,
+    }))
+    await Promise.resolve()
+  })
+  const current = renderer!.root.findByType('WebView')
+  expect(current).toBe(first)
+  await TestRenderer.act(async () => {
+    current.props.onMessage({ nativeEvent: { data: JSON.stringify({ token: 'fresh-token' }) } })
+    await Promise.resolve()
+  })
+  expect(nextToken).toHaveBeenCalledWith('fresh-token')
+  expect(firstToken).not.toHaveBeenCalled()
+
+  await TestRenderer.act(async () => {
+    renderer!.update(React.createElement(TurnstileWidget, {
+      siteKey: 'new-site-key', resetKey: 0, onToken: nextToken,
+    }))
+    await Promise.resolve()
+  })
+  expect(renderer!.root.findByType('WebView').props.source.uri).toContain('siteKey=new-site-key')
+})
