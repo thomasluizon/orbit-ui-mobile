@@ -30,21 +30,18 @@ interface HabitRowTrailingProps {
   completionReadOnly: boolean
 }
 
-function resolveParentRingTrackColor(
+function resolveParentRingColors(
   habit: NormalizedHabit,
   dotState: HabitStatus,
   tokens: ReturnType<typeof createTokensV2>,
 ) {
-  if (habit.isBadHabit) return `${tokens.statusBad}66`
-  if (dotState === 'overdue') return `${tokens.statusOverdue}66`
-  return undefined
-}
-
-function resolveParentRingColor(
-  isBadHabit: boolean,
-  tokens: ReturnType<typeof createTokensV2>,
-) {
-  return isBadHabit ? tokens.statusBad : undefined
+  if (habit.isBadHabit) {
+    return { stroke: tokens.statusBad, trackColor: `${tokens.statusBad}66` }
+  }
+  return {
+    stroke: undefined,
+    trackColor: dotState === 'overdue' ? `${tokens.statusOverdue}66` : undefined,
+  }
 }
 
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal cluster; the flags are independent render inputs from the parent row, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -101,8 +98,7 @@ export function HabitRowTrailing({
                 done={childrenDone}
                 total={childrenTotal}
                 size={depth === 1 ? 24 : 30}
-                color={resolveParentRingColor(habit.isBadHabit, tokens)}
-                trackColor={resolveParentRingTrackColor(habit, dotState, tokens)}
+                {...resolveParentRingColors(habit, dotState, tokens)}
               />
             </Pressable>
           </>
