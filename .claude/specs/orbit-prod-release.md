@@ -2043,3 +2043,71 @@ program, the strict-mode change, 13 merges, and the rules this run paid for. The
   the landing sends tokens, Thomas pastes the Cloudflare secret; the run sets Render `BotProtection__SecretKey`
   and `BotProtection__Enabled=true` and verifies all five routes.
 - At the redesign release: raise `AppConfig.MinSupportedVersion` to the redesign Android build (`#367` comment).
+
+## What the 2026-09-25 evening sleep run added (session `e6f854b8`)
+
+**Durable because** it records 14 merges, the drift and sync discovery, the Pullfrog pin workaround,
+Thomas's "fix everything" instruction, and three rules this run paid for. The decision log (D1 to D64)
+lived in the session scratchpad and is gone; everything durable from it is here.
+
+### Thomas's instruction, 2026-09-25 evening
+
+- **"just fix everything and continue"**, said when the run reported `api#535` stuck on Dependabot and
+  the pin PRs waiting on Pullfrog 0.1.83. Read as: a parked item is not parked, resolve it by hand now.
+
+### Merged this session, 14
+
+- `orbit-ui-mobile` `main`: `ui#1099` (`#667` local web fonts), `#1100` (`#631` Supabase session replay,
+  plus a fix so a stale Google callback no longer erases the newer attempt), `#1101` (`#689` drift job
+  broken pipe), `#1102` (`#615` intended-account checks on every web write, with the reload recovery on
+  every refusal path), `#1103` (`#672` main harness runs in macOS worktrees), `#1104` (`#690` rebaseline
+  write token isolated from install-time code), `#1105` (`#658` admission gate with atomic claims).
+- `orbit-ui-mobile` `redesign/main`: `ui#1098` (`#668` redesign contract pin, two-job rebaseline).
+- `orbit-api` `main`, deployed by Render (`api#554` read back live at `81b927c4`, `/health` 200): `api#554`
+  (`#564` Hangfire idle disconnects), `#558` (Scalar 2.17.10), `#561` (`#673` tamper test), `#562` (`#676`
+  goal clock), `#537` (`#636` Pullfrog pin).
+- Closed without merging: `api#535` (every one of its 24 updates was already on `main`).
+
+### What the run found
+
+- **`redesign/main` had not contained `main` since 2026-09-15** (merge-base `d12d1772`, 20 commits). The
+  drift job hid it behind a broken pipe (`#689`); after that fix it stops on real conflicts. `#691` /
+  `ui#1107` is the sync. **It must land by fast-forwarding `redesign/main` to the approved head with a
+  normal push, never a squash**: `allow_merge_commit` is false in both repos, and a squash drops the
+  ancestry so the drift job stays red. Same review bar (Pullfrog at the exact head, green CI, zero
+  threads). `#692` (redesign admission) and `#693` (main Android checklist keys) follow it.
+- **The contract rebaseline job gave its write token to install-time code** (`npm ci` installs Lefthook
+  hooks, then commit and push ran them with `GH_TOKEN`). Split into a read-only generate job and a write
+  job that installs nothing, on both branches (`ui#1098`, `ui#1104`).
+- **Pullfrog pin**: the published `pullfrog` 0.1.82 has no `gpt-6-sol` entry, so `effort: medium` was
+  dropped. The pin PRs now run `pullfrog/pullfrog@405f60c2` with `PULLFROG_FORCE_LOCAL_CLI=1`, which makes
+  `runCli.ts:272` run the checkout's own code (`models.ts:189-192` has `gpt-6-sol` with a medium rung).
+  Live on `orbit-api` (`api#537`). **When `npm view pullfrog version` prints 0.1.83 or later, return all
+  three to `@v0` and drop the variable.**
+
+### Rules this run paid for
+
+- **`packages/shared` never imports React, React Native or Next** (`packages/shared/CLAUDE.md:7`). Two
+  workers put React hooks there tonight; each reached the web server Sentry config through the root
+  barrel and broke `next build`. Shape: a React-free `*-core` in shared, a thin hook in each app.
+  `#694` / `ui#1108` makes lint fail on it. Say this in every UI worker order until that merges.
+- **Start a waiter about 20 seconds after a push**, or `wait-ci` reads the old head and ends
+  `HEAD_MOVED`. Never start one with `& disown`: only a `run_in_background` task wakes the session.
+- **A generated-files-only push gets no Pullfrog review and dismisses the old approval**: request one
+  (`api#562`).
+- **Read a claim before writing it on a PR.** A thread reply said a PR was approved when it was not;
+  corrected at once in a comment. Check with `list-bot-threads.mjs` first.
+- **A worker order that names a test boundary can change semantics**: "race at `limit - 1`" led a worker
+  to flip D133's "refuse above the cap" to "at the cap"; restored. Name the rule, not a test shape.
+- **Admission regress stops at a fixed window (D117)**: released claims hold both PR and queued-run
+  capacity for 5 minutes, then expire.
+- **`ui#1049` took 12 review rounds** on the spacing rule; rounds 8 to 12 were precedence edges of the
+  round-7 contract, each under 30 lines. The PR body now states the full contract.
+
+### Items that need a person
+
+- Turnstile switch-on after `ui#1106` ships on web and Play: Cloudflare hostnames, the two site-key
+  variables, then Thomas pastes the secret (steps in the `ui#1106` body).
+- After the redesign `orbit-api` deploy of `api#564`: confirm `astra_change_preview_disabled`,
+  `astra_tool_steps_disabled` and `astra_follow_ups_disabled` are absent or false in `AppFeatureFlags`.
+- Unchanged: tap the three-dot menu on Android 1.3.32+ then close `#134`; live-check the crisis reply.
