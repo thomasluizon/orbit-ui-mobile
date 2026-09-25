@@ -5,6 +5,8 @@ import {
   clearStoredReferralCode,
   consumeStoredAuthReturnUrl,
   getSafeReturnUrl,
+  createAuthReturnUrlAttempt,
+  isAuthReturnUrlAttemptCurrent,
   getStoredAuthReturnUrl,
   getStoredReferralCode,
   isSafeReturnUrl,
@@ -69,13 +71,37 @@ describe('mobile auth flow helpers', () => {
     getItemMock.mockResolvedValueOnce('/dashboard')
     getItemMock.mockResolvedValueOnce('/dashboard')
 
-    await storeAuthReturnUrl('/dashboard')
-    await expect(getStoredAuthReturnUrl()).resolves.toBe('/dashboard')
-    await expect(consumeStoredAuthReturnUrl()).resolves.toBe('/dashboard')
+    const attemptId = createAuthReturnUrlAttempt()
+    await storeAuthReturnUrl('/dashboard', attemptId)
+    await expect(getStoredAuthReturnUrl(attemptId)).resolves.toBe('/dashboard')
+    await expect(consumeStoredAuthReturnUrl(attemptId)).resolves.toBe('/dashboard')
     await clearStoredAuthReturnUrl()
 
     expect(setItemMock).toHaveBeenCalledWith('auth_return_url', '/dashboard')
     expect(removeItemMock).toHaveBeenCalledWith('auth_return_url')
+  })
+
+  it('keeps a newer flow return URL when an older flow resumes', async () => {
+    let storedUrl: string | null = null
+    getItemMock.mockImplementation(() => Promise.resolve(storedUrl))
+    setItemMock.mockImplementation((_key: string, url: string) => {
+      storedUrl = url
+      return Promise.resolve()
+    })
+    removeItemMock.mockImplementation(() => {
+      storedUrl = null
+      return Promise.resolve()
+    })
+    const olderAttempt = createAuthReturnUrlAttempt()
+    await storeAuthReturnUrl('/older', olderAttempt)
+    const newerAttempt = createAuthReturnUrlAttempt()
+    await storeAuthReturnUrl('/newer', newerAttempt)
+
+    expect(isAuthReturnUrlAttemptCurrent(olderAttempt)).toBe(false)
+    await expect(getStoredAuthReturnUrl(olderAttempt)).resolves.toBeNull()
+    await clearStoredAuthReturnUrl(olderAttempt)
+    await expect(getStoredAuthReturnUrl(newerAttempt)).resolves.toBe('/newer')
+    expect(storedUrl).toBe('/newer')
   })
 
   it('clears the stored referral code and marks referral applied', async () => {

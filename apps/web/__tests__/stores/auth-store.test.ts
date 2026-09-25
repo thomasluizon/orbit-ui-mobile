@@ -1,12 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth-store'
+import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+let lockQueue: Promise<unknown>
 
 describe('auth store', () => {
   beforeEach(() => {
+    lockQueue = Promise.resolve()
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: {
+        request: (_name: string, task: () => Promise<unknown>) => {
+          const result = lockQueue.then(task)
+          lockQueue = result.catch(() => {})
+          return result
+        },
+      },
+    })
     useAuthStore.setState({
       isAuthenticated: false,
       user: null,
@@ -19,6 +32,10 @@ describe('auth store', () => {
       status: 200,
       json: () => Promise.resolve({ expiresAt: null }),
     })
+  })
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'locks')
   })
 
   function makeLoginResponse(overrides: Partial<LoginResponse> = {}): LoginResponse {
@@ -63,6 +80,146 @@ describe('auth store', () => {
       expiresAt: null,
       sessionRefreshFailed: false,
     })
+  })
+
+  it('keeps the session when browser cookie locking is unavailable', async () => {
+    Reflect.deleteProperty(navigator, 'locks')
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    await useAuthStore.getState().logout()
+    await expect(fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'thomas@example.com',
+      code: '123456',
+    })).rejects.toThrow('Web Locks API is required for session cookie changes')
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('keeps a replacement login when an older logout response arrives', async () => {
+    let releaseLogout!: () => void
+    const logoutResponse = new Promise<{ ok: boolean }>((resolve) => {
+      releaseLogout = () => resolve({ ok: true })
+    })
+    mockFetch.mockReturnValue(logoutResponse)
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'user-2', email: 'new@example.com' }))
+    releaseLogout()
+    await oldLogout
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: { userId: 'user-2', email: 'new@example.com' },
+    })
+  })
+
+  it('does not adopt a session response that completes after logout', async () => {
+    let releaseSession!: () => void
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/session') {
+        return new Promise((resolve) => {
+          releaseSession = () => resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ expiresAt: Date.now() + 60000 }),
+          })
+        })
+      }
+      if (url === '/api/auth/logout') return Promise.resolve({ ok: true })
+      throw new Error(`Unexpected auth endpoint: ${url}`)
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const staleSession = useAuthStore.getState().checkSession()
+    await vi.waitFor(() => expect(releaseSession).toBeTypeOf('function'))
+    await useAuthStore.getState().logout()
+    releaseSession()
+    await staleSession
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  })
+
+  it('preserves replacement login cookies when an older logout response arrives', async () => {
+    const browserCookies = new Map<string, string>([
+      ['auth_token', 'old-access'],
+      ['refresh_token', 'old-refresh'],
+    ])
+    let releaseLogout!: () => void
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/logout') {
+        return new Promise((resolve) => {
+          releaseLogout = () => {
+            browserCookies.clear()
+            resolve({ ok: true })
+          }
+        })
+      }
+      if (url === '/api/auth/verify-code') {
+        browserCookies.set('auth_token', 'new-access')
+        browserCookies.set('refresh_token', 'new-refresh')
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(makeLoginResponse()) })
+      }
+      throw new Error(`Unexpected auth endpoint: ${url}`)
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    const replacementLogin = fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'thomas@example.com',
+      code: '123456',
+    })
+    await Promise.resolve()
+    releaseLogout()
+    await Promise.all([oldLogout, replacementLogin])
+
+    expect(browserCookies.get('auth_token')).toBe('new-access')
+    expect(browserCookies.get('refresh_token')).toBe('new-refresh')
+  })
+
+  it('preserves replacement cookies when logout and login run in separate tabs', async () => {
+    const browserCookies = new Map<string, string>([
+      ['auth_token', 'old-access'],
+      ['refresh_token', 'old-refresh'],
+    ])
+    let releaseLogout!: () => void
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/logout') {
+        return new Promise((resolve) => {
+          releaseLogout = () => {
+            browserCookies.clear()
+            resolve({ ok: true })
+          }
+        })
+      }
+      if (url === '/api/auth/verify-code') {
+        browserCookies.set('auth_token', 'new-access')
+        browserCookies.set('refresh_token', 'new-refresh')
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(makeLoginResponse()) })
+      }
+      throw new Error(`Unexpected auth endpoint: ${url}`)
+    })
+
+    vi.resetModules()
+    const firstTab = await import('@/stores/auth-store')
+    firstTab.useAuthStore.getState().setAuth(makeLoginResponse())
+    const oldLogout = firstTab.useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+
+    vi.resetModules()
+    const secondTab = await import('@/app/(auth)/login/login-form-helpers')
+    const replacementLogin = secondTab.fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'thomas@example.com',
+      code: '123456',
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    releaseLogout()
+    await Promise.all([oldLogout, replacementLogin])
+
+    expect(browserCookies.get('auth_token')).toBe('new-access')
+    expect(browserCookies.get('refresh_token')).toBe('new-refresh')
   })
 
   it('marks the session as signed out after confirming a refresh rejection', async () => {

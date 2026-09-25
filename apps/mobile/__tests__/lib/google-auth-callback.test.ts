@@ -216,28 +216,42 @@ describe('pending google auth session store', () => {
 
   it('starts idle with no callback url', () => {
     const session = renderPendingSession()
-    expect(session.current).toEqual({ callbackUrl: null, isPending: false })
+    expect(session.current).toEqual({ callbackUrl: null, isPending: false, returnUrlAttemptId: null })
   })
 
   it('marks the session pending then resolves it with the callback url', () => {
     const session = renderPendingSession()
 
-    TestRenderer.act(() => markPendingGoogleAuthSession())
-    expect(session.current).toEqual({ callbackUrl: null, isPending: true })
+    TestRenderer.act(() => markPendingGoogleAuthSession(1))
+    expect(session.current).toEqual({ callbackUrl: null, isPending: true, returnUrlAttemptId: 1 })
 
-    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl('orbit://cb#token=1'))
-    expect(session.current).toEqual({ callbackUrl: 'orbit://cb#token=1', isPending: false })
+    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl('orbit://cb#token=1', 1))
+    expect(session.current).toEqual({ callbackUrl: 'orbit://cb#token=1', isPending: false, returnUrlAttemptId: 1 })
   })
 
   it('clears an active session and no-ops when already idle', () => {
     const session = renderPendingSession()
 
-    TestRenderer.act(() => markPendingGoogleAuthSession())
+    TestRenderer.act(() => markPendingGoogleAuthSession(1))
     TestRenderer.act(() => clearPendingGoogleAuthSession())
-    expect(session.current).toEqual({ callbackUrl: null, isPending: false })
+    expect(session.current).toEqual({ callbackUrl: null, isPending: false, returnUrlAttemptId: null })
 
     const snapshotBefore = session.current
     TestRenderer.act(() => clearPendingGoogleAuthSession())
     expect(session.current).toBe(snapshotBefore)
+  })
+
+  it('keeps the newer Google attempt when an older browser result settles', () => {
+    const session = renderPendingSession()
+    TestRenderer.act(() => markPendingGoogleAuthSession(1))
+    TestRenderer.act(() => markPendingGoogleAuthSession(2))
+    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl('orbit://cb#old', 1))
+    TestRenderer.act(() => clearPendingGoogleAuthSession(1))
+
+    expect(session.current).toEqual({ callbackUrl: null, isPending: true, returnUrlAttemptId: 2 })
+    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl('orbit://cb#new', 2))
+    expect(session.current).toEqual({
+      callbackUrl: 'orbit://cb#new', isPending: false, returnUrlAttemptId: 2,
+    })
   })
 })

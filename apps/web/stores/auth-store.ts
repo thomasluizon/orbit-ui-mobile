@@ -1,10 +1,22 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+let sessionOwnershipEpoch = 0
+let loginsWaitingForLogout = 0
+
+export async function withCookieSettingLogin<T>(task: () => Promise<T>): Promise<T> {
+  loginsWaitingForLogout += 1
+  try {
+    return await withSessionCookieLock(task)
+  } finally {
+    loginsWaitingForLogout -= 1
+  }
+}
 
 function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
   const next = sessionRevalidationQueue.then(task, task)
@@ -64,6 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
+    sessionOwnershipEpoch += 1
     sessionRecoveryUser = null
     set({
       isAuthenticated: true,
@@ -77,7 +90,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
+    if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
       const user = get().user ?? sessionRecoveryUser
       sessionRecoveryUser = null
@@ -113,7 +128,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   recoverSessionRefreshFailure: () => queueSessionRevalidation(async () => {
     if (!get().sessionRefreshFailed) return
 
+    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
+    if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
       const user = get().user ?? sessionRecoveryUser
       sessionRecoveryUser = null
@@ -135,7 +152,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }),
 
   checkSession: async () => {
+    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
+    if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'rejected') {
       await get().confirmSessionRefreshFailure()
       return
@@ -176,11 +195,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    const logoutEpoch = sessionOwnershipEpoch
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await withSessionCookieLock(async () => {
+        if (logoutEpoch !== sessionOwnershipEpoch) return
+        try {
+          await fetch('/api/auth/logout', { method: 'POST' })
+        } catch {
+        }
+      })
     } catch {
+      return
     }
 
+    if (logoutEpoch !== sessionOwnershipEpoch) return
+
+    sessionOwnershipEpoch += 1
     sessionRecoveryUser = null
     set({
       isAuthenticated: false,
@@ -190,7 +220,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
     useOnboardingDraftStore.getState().reset()
 
-    if ('location' in globalThis) {
+    if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'
     }
   },
