@@ -51,11 +51,11 @@ export function TurnstileWidget({
   }
 
   return (
-    <View style={{ alignItems: 'center', gap: 8 }}>
+    <View style={{ alignItems: 'center', alignSelf: 'stretch', gap: 8 }}>
       <WebView
         key={`${resetKey}-${attempt}`}
         source={{ uri: bridgeUrl }}
-        style={{ width: 320, height: 160, backgroundColor: 'transparent' }}
+        style={{ width: '100%', maxWidth: 320, height: 160, backgroundColor: 'transparent' }}
         javaScriptEnabled
         domStorageEnabled
         thirdPartyCookiesEnabled

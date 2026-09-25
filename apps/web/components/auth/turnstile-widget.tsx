@@ -9,6 +9,7 @@ interface TurnstileApi {
   render: (container: HTMLElement, options: {
     sitekey: string
     appearance: 'interaction-only'
+    size: 'flexible'
     callback: (token: string) => void
     'error-callback': () => boolean
     'expired-callback': () => void
@@ -83,6 +84,7 @@ export function TurnstileWidget({
       widgetIdRef.current = turnstile.render(container, {
         sitekey: siteKey,
         appearance: 'interaction-only',
+        size: 'flexible',
         callback: (token) => update('solved', token),
         'error-callback': () => {
           update('failed')
