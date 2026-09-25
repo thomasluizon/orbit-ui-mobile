@@ -402,10 +402,10 @@ describe('Hoje production bulk action path', () => {
 
     expect(mocks.settleBulkHabitResolutions).toHaveBeenNthCalledWith(1, [
       { habitId: 'habit-1', mode: 'log' },
-    ])
+    ], '2026-04-08')
     expect(mocks.settleBulkHabitResolutions).toHaveBeenNthCalledWith(2, [
       { habitId: 'habit-1', mode: 'skip' },
-    ])
+    ], '2026-04-08')
     expect(mocks.clearSelection).toHaveBeenCalledTimes(3)
     expect(mocks.modalProps?.showBulkDeleteConfirm).toBe(false)
     expect(mocks.showToast).not.toHaveBeenCalled()

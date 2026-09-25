@@ -46,7 +46,7 @@ export function createStyles(tokens: Tokens) {
       textAlign: "center",
       maxWidth: 300,
       marginTop: 4,
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     messageList: {
       paddingVertical: 16,

@@ -112,7 +112,7 @@ export function SettingsGroupRow({
       <span className="flex items-center shrink-0" style={{ gap: 8 }}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
-          <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-4)" />
+          <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-3)" />
         ) : null}
       </span>
     </>
