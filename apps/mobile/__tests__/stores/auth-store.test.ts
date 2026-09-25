@@ -1,5 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as SecureStore from 'expo-secure-store'
+import { markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
 import { i18n } from '@/lib/i18n'
@@ -18,6 +20,9 @@ import {
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 const TestRenderer = require('react-test-renderer')
+const clearSupabaseSessionMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
+
+vi.mock('@/lib/supabase', () => ({ clearSupabaseSession: clearSupabaseSessionMock }))
 
 const {
   replaceMock,
@@ -170,6 +175,28 @@ function renderHookValue<T>(hook: () => T): T {
 }
 
 describe('mobile auth store security paths', () => {
+  it('deletes a pending OAuth attempt when another account signs in', async () => {
+    await markPendingGoogleAuthSession(10)
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
+
+    await useAuthStore.getState().login('replacement-token', null, {
+      userId: 'replacement-user', email: 'replacement@example.com', name: 'Replacement',
+    })
+
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
+    expect(clearSupabaseSessionMock).toHaveBeenCalled()
+  })
+
+  it('deletes a pending OAuth attempt on logout', async () => {
+    await markPendingGoogleAuthSession(10)
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
+
+    await useAuthStore.getState().logout()
+
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
+    expect(clearSupabaseSessionMock).toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     replaceMock.mockReset()
     getTokenMock.mockReset()

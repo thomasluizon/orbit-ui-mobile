@@ -14,6 +14,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getSupabaseClient } from '@/lib/supabase'
+import { clearGoogleAuthStarted, markGoogleAuthStarted } from '@/lib/google-auth-session'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import {
   fetchAuthEndpoint,
@@ -197,7 +198,8 @@ export function useLoginFlow() {
 
     try {
       const supabase = getSupabaseClient()
-      const redirectTo = `${globalThis.location.origin}/auth-callback`
+      const attemptId = markGoogleAuthStarted()
+      const redirectTo = `${globalThis.location.origin}/auth-callback?authAttempt=${attemptId}`
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -205,10 +207,12 @@ export function useLoginFlow() {
       })
 
       if (error) {
+        clearGoogleAuthStarted()
         reportError(t('auth.errors.googleError'))
         setIsGoogleLoading(false)
       }
     } catch (err: unknown) {
+      clearGoogleAuthStarted()
       reportError(resolveLoginErrorState(err, t, 'google').message)
       setIsGoogleLoading(false)
     }

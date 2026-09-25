@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
+import { clearSupabaseSession } from '@/lib/supabase'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
@@ -76,6 +77,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
+    clearSupabaseSession()
     sessionOwnershipEpoch += 1
     sessionRecoveryUser = null
     set({
@@ -105,6 +107,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'inactive') {
+      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -115,6 +118,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'rejected') {
+      clearSupabaseSession()
       sessionRecoveryUser ??= get().user
       set({
         isAuthenticated: false,
@@ -141,6 +145,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -169,6 +174,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
@@ -210,6 +216,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (logoutEpoch !== sessionOwnershipEpoch) return
 
+    clearSupabaseSession()
     sessionOwnershipEpoch += 1
     sessionRecoveryUser = null
     set({

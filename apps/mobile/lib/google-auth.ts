@@ -111,10 +111,10 @@ export async function startMobileGoogleAuth({
     return { type: WebBrowser.WebBrowserResultType.CANCEL }
   }
 
-  markPendingGoogleAuthSession(returnUrlAttemptId)
+  const attemptId = await markPendingGoogleAuthSession(returnUrlAttemptId)
 
   try {
-    const redirectTo = getGoogleAuthRedirectUrl()
+    const redirectTo = `${getGoogleAuthRedirectUrl()}?authAttempt=${attemptId}`
     const { data, error } = await getSupabaseClient().auth.signInWithOAuth({
       provider: 'google',
       options: buildGoogleCalendarOAuthOptions({
@@ -130,29 +130,36 @@ export async function startMobileGoogleAuth({
 
     const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
 
+    if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
+      return { type: WebBrowser.WebBrowserResultType.CANCEL }
+    }
+
     if (result.type !== 'success') {
-      clearPendingGoogleAuthSession(returnUrlAttemptId)
+      await clearPendingGoogleAuthSession(returnUrlAttemptId)
       return { type: result.type }
     }
 
     if (!result.url) {
-      clearPendingGoogleAuthSession(returnUrlAttemptId)
+      await clearPendingGoogleAuthSession(returnUrlAttemptId)
       return { type: WebBrowser.WebBrowserResultType.DISMISS }
     }
 
     const params = extractGoogleAuthParams(result.url)
     if (params.error === 'access_denied') {
-      clearPendingGoogleAuthSession(returnUrlAttemptId)
+      await clearPendingGoogleAuthSession(returnUrlAttemptId)
       return { type: WebBrowser.WebBrowserResultType.CANCEL }
     }
 
-    setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)
+    if (!await setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)) {
+      await clearPendingGoogleAuthSession(returnUrlAttemptId)
+      return { type: WebBrowser.WebBrowserResultType.DISMISS }
+    }
     return {
       type: 'success',
       url: result.url,
     }
   } catch (error: unknown) {
-    clearPendingGoogleAuthSession(returnUrlAttemptId)
+    await clearPendingGoogleAuthSession(returnUrlAttemptId)
     throw error
   }
 }
