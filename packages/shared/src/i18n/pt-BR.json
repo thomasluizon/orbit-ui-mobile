@@ -741,6 +741,7 @@
       "removeReminder": "Remover lembrete",
       "reminderLastRequired": "O último lembrete fica. Para nenhum, desligue os lembretes.",
       "reminderPermissionNeeded": "Os lembretes não chegarão neste dispositivo até que as notificações sejam ativadas.",
+      "reminderSettingsAction": "Ver como ativar as notificações em uma nova aba",
       "removeScheduledReminder": "Remover lembrete",
       "removeSubHabit": "Remover sub-hábito",
       "editTag": "Editar tag",

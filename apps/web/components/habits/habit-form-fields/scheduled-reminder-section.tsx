@@ -104,14 +104,14 @@ export function ScheduledReminderSection({
           />
         )}
       </div>
-      {!nested && permission.showNotice && (
-        <p className="text-xs leading-[1.5] text-[var(--fg-3)]">
+      {!nested && <p role="status" className="text-xs leading-[1.5] text-[var(--fg-3)] empty:hidden">
+        {permission.showNotice ? <>
           {t('habits.form.reminderPermissionNeeded')}{' '}
-          <Link href="/preferences" className="underline hover:text-[var(--fg-2)]">
-            {t('common.openSettings')}
+          <Link href="/preferences" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--fg-2)]">
+            {t('habits.form.reminderSettingsAction')}
           </Link>
-        </p>
-      )}
+        </> : null}
+      </p>}
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
           {(scheduledReminders?.length ?? 0) > 0 && (

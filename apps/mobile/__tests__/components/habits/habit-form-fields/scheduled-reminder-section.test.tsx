@@ -1,18 +1,21 @@
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_SCHEDULED_REMINDERS } from "@orbit/shared/validation";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import { createTokensV2 } from "@/lib/theme";
 import { ScheduledReminderSection } from "@/components/habits/habit-form-fields/scheduled-reminder-section";
 
+const pushPermission = vi.hoisted(() => ({ status: "granted" }));
 vi.mock("@/hooks/use-push-notifications", () => ({
   usePushNotifications: () => ({
     isSupported: true,
-    permissionStatus: "granted",
+    permissionStatus: pushPermission.status,
     permissionCanAskAgain: true,
     requestPermissionOutcome: vi.fn(),
   }),
 }));
+
+afterEach(() => { pushPermission.status = "granted"; });
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -96,6 +99,13 @@ function texts(tree: TestTree): unknown[] {
 }
 
 describe("ScheduledReminderSection", () => {
+  it("shows the settings action for a blocked scheduled reminder", () => {
+    pushPermission.status = "denied";
+    const { tree } = render({ reminderEnabled: true });
+    expect(texts(tree)).toContain("habits.form.reminderPermissionNeeded");
+    expect(texts(tree)).toContain("common.openSettings");
+  });
+
   it("hides the body while reminders are disabled", () => {
     const { tree } = render({ reminderEnabled: false });
     expect(texts(tree)).not.toContain("habits.form.scheduledReminderAdd");

@@ -135,16 +135,16 @@ export function ScheduledReminderSection({
           />
         )}
       </View>
-      {!nested && permission.showNotice && (
-        <View style={{ gap: 4 }}>
-          <Text style={sectionStyles.hintText}>{t("habits.form.reminderPermissionNeeded")}</Text>
-          <Pressable accessibilityRole="button" hitSlop={12} onPress={permission.openSettings}>
+      {!nested && <View style={permission.showNotice ? { gap: 4 } : { position: "absolute" }}>
+          <Text accessibilityLiveRegion="polite" style={sectionStyles.hintText}>
+            {permission.showNotice ? t("habits.form.reminderPermissionNeeded") : ""}
+          </Text>
+          {permission.showNotice && <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }} onPress={permission.openSettings}>
             <Text style={[sectionStyles.hintText, { color: tokens.fg2, textDecorationLine: "underline" }]}>
               {t("common.openSettings")}
             </Text>
-          </Pressable>
-        </View>
-      )}
+          </Pressable>}
+      </View>}
       {reminderEnabled && (
         <View style={sectionStyles.body}>
           {(scheduledReminders?.length ?? 0) > 0 && (

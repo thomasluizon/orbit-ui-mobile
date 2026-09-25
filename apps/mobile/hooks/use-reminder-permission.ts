@@ -18,6 +18,6 @@ export function useReminderPermission(reminderEnabled: boolean, onToggleReminder
   return {
     toggleReminder,
     showNotice: reminderEnabled && isSupported && permissionStatus !== null && permissionStatus !== 'granted',
-    openSettings: () => { void Linking.openSettings() },
+    openSettings: () => { void Linking.openSettings().catch(() => undefined) },
   }
 }
