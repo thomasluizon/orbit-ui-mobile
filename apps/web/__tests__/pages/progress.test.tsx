@@ -488,6 +488,7 @@ describe('ProgressContent', () => {
       maxStreakFreezesAccumulated: 3,
       daysUntilNextFreeze: 3,
     })
+    delete (mocks.freeze.streakInfo as typeof mocks.freeze.streakInfo & { lastFreezeCoveredOrigin?: string | null }).lastFreezeCoveredOrigin
     mocks.freeze.streakQuery.isError = false
     mocks.freeze.freezesAvailable = 2
     mocks.freeze.streakFreezesAccumulated = 2
@@ -884,10 +885,52 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')).toBeInTheDocument()
   })
 
+  it('names automatic coverage, then keeps a confirmed manual repair source-neutral', () => {
+    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
+    mocks.freeze.streakInfo.freezeBankRemaining = 2
+    Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'automatic' })
+    const view = render(<ProgressPage />)
+    expect(screen.getByText('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}')).toBeInTheDocument()
+
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-09-09'
+    mocks.repair.mutate.mockImplementationOnce(() => {
+      Object.assign(mocks.freeze.streakInfo, {
+        lastFreezeCoveredDate: '2026-09-09',
+        freezeBankRemaining: 1,
+        lastFreezeCoveredOrigin: 'manual',
+        isRepairAvailable: false,
+      })
+    })
+    view.rerender(<ProgressPage />)
+    fireEvent.click(screen.getByText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}'))
+    fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
+    expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
+
+    view.rerender(<ProgressPage />)
+    expect(screen.getByText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')).toBeInTheDocument()
+    expect(screen.queryByText(/progressScreen\.streak\.automaticCovered/)).not.toBeInTheDocument()
+  })
+
   it('makes no automatic claim when a manual repair returns the same lastFreezeCoveredDate', () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-09'
     mocks.freeze.streakInfo.freezeBankRemaining = 1
     mocks.freeze.streakInfo.isRepairAvailable = false
+    Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'manual' })
+
+    render(<ProgressPage />)
+
+    expect(screen.getByText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')).toBeInTheDocument()
+    expect(screen.queryByText(/automaticCovered/)).not.toBeInTheDocument()
+  })
+
+  it.each([null, 'unknown'])('keeps %s freeze origin source-neutral', (origin) => {
+    Object.assign(mocks.freeze.streakInfo, {
+      lastFreezeCoveredDate: '2026-09-09',
+      freezeBankRemaining: 1,
+      lastFreezeCoveredOrigin: origin,
+    })
 
     render(<ProgressPage />)
 
@@ -907,6 +950,13 @@ describe('ProgressContent', () => {
     expect(ptBR.progressScreen.streak.covered).toBe(
       'Um congelamento cobriu {date}. {count, plural, =0 {Nenhum resta.} one {Um resta.} other {# restam.}}',
     )
+  })
+
+  it('names automatic coverage for the covered date in both locales', () => {
+    expect(createTranslator({ locale: 'en', messages: en })('progressScreen.streak.automaticCovered', { date: 'Tuesday, Sep 15', count: 2 }))
+      .toBe('Orbit automatically covered Tuesday, Sep 15 with a freeze. 2 remain.')
+    expect(createTranslator({ locale: 'pt-BR', messages: ptBR })('progressScreen.streak.automaticCovered', { date: 'terça-feira, 15 de set.', count: 2 }))
+      .toBe('Orbit cobriu terça-feira, 15 de set. automaticamente com um congelamento. 2 restam.')
   })
 
   it('shows the no-freeze gap without an action or blame', () => {
