@@ -136,13 +136,6 @@ function isStyleSheetCreate(node) {
   )
 }
 
-function isObjectAssign(node) {
-  return node.type === 'CallExpression' &&
-    node.callee.type === 'MemberExpression' && !node.callee.computed &&
-    node.callee.object.type === 'Identifier' && node.callee.object.name === 'Object' &&
-    node.callee.property.type === 'Identifier' && node.callee.property.name === 'assign'
-}
-
 module.exports = {
   meta: {
     type: 'problem',
@@ -287,6 +280,14 @@ module.exports = {
         scope = scope.upper
       }
       return null
+    }
+
+    function isObjectAssign(node) {
+      if (node.type !== 'CallExpression' || node.callee.type !== 'MemberExpression' || node.callee.computed ||
+        node.callee.object.type !== 'Identifier' || node.callee.object.name !== 'Object' ||
+        node.callee.property.type !== 'Identifier' || node.callee.property.name !== 'assign') return false
+      const variable = findBinding(node.callee.object)
+      return variable?.scope.type === 'global' && variable.defs.length === 0
     }
 
     const ABSENT = Symbol('absent')
