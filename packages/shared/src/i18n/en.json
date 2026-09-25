@@ -740,6 +740,7 @@
       "removeEndDate": "Remove end date",
       "removeReminder": "Remove reminder",
       "reminderLastRequired": "The last reminder stays. For none, turn reminders off.",
+      "reminderPermissionNeeded": "Reminders will not arrive on this device until notifications are on.",
       "removeScheduledReminder": "Remove reminder",
       "removeSubHabit": "Remove sub-habit",
       "editTag": "Edit tag",

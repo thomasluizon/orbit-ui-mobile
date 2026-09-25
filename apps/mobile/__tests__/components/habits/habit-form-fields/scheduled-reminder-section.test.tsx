@@ -5,6 +5,15 @@ import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import { createTokensV2 } from "@/lib/theme";
 import { ScheduledReminderSection } from "@/components/habits/habit-form-fields/scheduled-reminder-section";
 
+vi.mock("@/hooks/use-push-notifications", () => ({
+  usePushNotifications: () => ({
+    isSupported: true,
+    permissionStatus: "granted",
+    permissionCanAskAgain: true,
+    requestPermissionOutcome: vi.fn(),
+  }),
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => key,

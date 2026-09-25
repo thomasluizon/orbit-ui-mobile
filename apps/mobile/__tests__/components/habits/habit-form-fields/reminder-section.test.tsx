@@ -5,6 +5,15 @@ import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
 import { ReminderSection } from "@/components/habits/habit-form-fields/reminder-section";
 
+vi.mock("@/hooks/use-push-notifications", () => ({
+  usePushNotifications: () => ({
+    isSupported: true,
+    permissionStatus: "granted",
+    permissionCanAskAgain: true,
+    requestPermissionOutcome: vi.fn(),
+  }),
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => key,

@@ -12,6 +12,7 @@ import {
 import { TimeField } from "@/components/ui/time-field";
 import type { Time24 } from "@orbit/shared/contracts/forms";
 import { Switch } from "@/components/ui/switch";
+import { useReminderPermission } from "@/hooks/use-reminder-permission";
 import { RadioGroup, useRadioGroupItem } from "@/components/ui/radio-row";
 import { type AppTokens, createSectionStyles } from "./styles";
 
@@ -76,6 +77,7 @@ export function ScheduledReminderSection({
   const [showForm, setShowForm] = useState(false);
   const [when, setWhen] = useState<ScheduledReminderWhen>("same_day");
   const [time, setTime] = useState<Time24 | "">("");
+  const permission = useReminderPermission(reminderEnabled, onToggleReminder);
 
   const atLimit = (scheduledReminders?.length ?? 0) >= MAX_SCHEDULED_REMINDERS;
 
@@ -128,11 +130,21 @@ export function ScheduledReminderSection({
         {!nested && (
           <Switch
             checked={reminderEnabled}
-            onChange={onToggleReminder}
+            onChange={permission.toggleReminder}
             label={t("habits.form.scheduledReminder")}
           />
         )}
       </View>
+      {!nested && permission.showNotice && (
+        <View style={{ gap: 4 }}>
+          <Text style={sectionStyles.hintText}>{t("habits.form.reminderPermissionNeeded")}</Text>
+          <Pressable accessibilityRole="button" hitSlop={12} onPress={permission.openSettings}>
+            <Text style={[sectionStyles.hintText, { color: tokens.fg2, textDecorationLine: "underline" }]}>
+              {t("common.openSettings")}
+            </Text>
+          </Pressable>
+        </View>
+      )}
       {reminderEnabled && (
         <View style={sectionStyles.body}>
           {(scheduledReminders?.length ?? 0) > 0 && (
