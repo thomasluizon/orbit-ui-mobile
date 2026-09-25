@@ -3,8 +3,9 @@ import { Pressable, View } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
-import { RadioRow } from '@/components/ui/select-check'
+import { RadioGlyph, RadioRow } from '@/components/ui/select-check'
 import { FocusProvenanceView } from '@/components/ui/focus-provenance-view'
+import { createTokensV2 } from '@/lib/theme'
 import { focusHost } from '../../support/focus-provenance'
 import {
   __resetTestHostConfig,
@@ -21,10 +22,10 @@ function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>
   return (
     <FocusProvenanceView>
       <RadioGroup accessibilityLabel="Cadence">
-        <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
-        <RadioRow label="Second" selected={value === 'second'} onPress={() => select('second')} />
-        <RadioRow label="Third" selected={value === 'third'} onPress={() => select('third')} />
-        <RadioRow label="Last" selected={value === 'last'} onPress={() => select('last')} />
+        <RadioRow label="First" selected={value === 'first'} onSelect={() => select('first')} />
+        <RadioRow label="Second" selected={value === 'second'} onSelect={() => select('second')} />
+        <RadioRow label="Third" selected={value === 'third'} onSelect={() => select('third')} />
+        <RadioRow label="Last" selected={value === 'last'} onSelect={() => select('last')} />
       </RadioGroup>
     </FocusProvenanceView>
   )
@@ -43,8 +44,8 @@ function CommitRows({
   return (
     <FocusProvenanceView>
       <RadioGroup accessibilityLabel="Cadence" onCommit={onCommit}>
-        <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
-        <RadioRow label="Second" selected={value === 'second'} onPress={() => select('second')} />
+        <RadioRow label="First" selected={value === 'first'} onSelect={() => select('first')} />
+        <RadioRow label="Second" selected={value === 'second'} onSelect={() => select('second')} />
       </RadioGroup>
     </FocusProvenanceView>
   )
@@ -66,9 +67,9 @@ function FocusEntryRows({
   return (
     <FocusProvenanceView>
       <RadioGroup accessibilityLabel="Entry">
-        <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
-        <RadioRow label="Second" selected={value === 'second'} onPress={() => select('second')} />
-        <RadioRow label="Third" selected={value === 'third'} onPress={() => select('third')} />
+        <RadioRow label="First" selected={value === 'first'} onSelect={() => select('first')} />
+        <RadioRow label="Second" selected={value === 'second'} onSelect={() => select('second')} />
+        <RadioRow label="Third" selected={value === 'third'} onSelect={() => select('third')} />
       </RadioGroup>
       <View focusable accessibilityLabel="Outside" />
     </FocusProvenanceView>
@@ -85,8 +86,8 @@ function UnprovenancedRows({ onChange }: Readonly<{ onChange: (value: string) =>
 
   return (
     <RadioGroup accessibilityLabel="Cadence">
-      <RadioRow label="First" selected={value === 'first'} onPress={() => select('first')} />
-      <RadioRow label="Second" selected={value === 'second'} onPress={() => select('second')} />
+      <RadioRow label="First" selected={value === 'first'} onSelect={() => select('first')} />
+      <RadioRow label="Second" selected={value === 'second'} onSelect={() => select('second')} />
     </RadioGroup>
   )
 }
@@ -106,6 +107,25 @@ function renderEntryRows(onChange: (value: string) => void, initialValue?: strin
 }
 
 describe('select-check RadioRow group', () => {
+  it('uses the selected row tint and ring', () => {
+    let tree: any
+    void act(() => {
+      tree = create(<RadioRows onChange={vi.fn()} />)
+    })
+    const selected = tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio',
+    )[0]
+
+    const tokens = createTokensV2('purple', 'dark')
+    expect(selected.props.style({ pressed: false })).toEqual(expect.arrayContaining([
+      expect.objectContaining({ backgroundColor: tokens.selectionBg, borderColor: tokens.primary }),
+    ]))
+    const unselectedGlyph = tree.root.findAllByType(RadioGlyph)[1].findByType(View)
+    expect(unselectedGlyph.props.style).toEqual(expect.arrayContaining([
+      { borderWidth: 2, borderColor: tokens.trackEmpty },
+    ]))
+  })
+
   beforeEach(() => {
     __resetTestHostConfig()
   })

@@ -54,13 +54,12 @@ function PickerOptions<Value extends string | number>({
 
   return (
     <RadioGroup accessibilityLabel={label} onCommit={commitDraft}>
-      {options.map((option, index) => (
+      {options.map((option) => (
         <RadioRow
           key={String(option.value)}
           label={option.label}
           selected={checked === option.value}
-          divider={index < options.length - 1}
-          onPress={() => selectDraft(option.value)}
+          onSelect={() => selectDraft(option.value)}
         />
       ))}
     </RadioGroup>
