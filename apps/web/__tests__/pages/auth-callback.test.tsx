@@ -78,6 +78,22 @@ describe('Google auth callback', () => {
     expect(mocks.replace).toHaveBeenCalledWith('/login')
   })
 
+  it('keeps the newer attempt valid after an old OAuth link is rejected', async () => {
+    const oldAttemptId = markGoogleAuthStarted()
+    const newAttemptId = markGoogleAuthStarted()
+    window.history.replaceState(null, '', `/auth-callback?authAttempt=${oldAttemptId}#access_token=account-a-access`)
+    const oldCallback = render(<AuthCallbackPage />)
+    expect(mocks.replace).toHaveBeenCalledWith('/login')
+    oldCallback.unmount()
+
+    window.history.replaceState(null, '', `/auth-callback?authAttempt=${newAttemptId}#access_token=account-a-access&refresh_token=fresh`)
+    render(<AuthCallbackPage />)
+    await act(async () => { mocks.callback?.('INITIAL_SESSION', restoredSession) })
+
+    await waitFor(() => expect(mocks.setAuth).toHaveBeenCalledOnce())
+    expect(sessionStorage.getItem('orbit_google_auth_started_at')).toBeNull()
+  })
+
   it('rejects a restored session with a different redirect token', async () => {
     const attemptId = markGoogleAuthStarted()
     window.history.replaceState(null, '', `/auth-callback?authAttempt=${attemptId}#access_token=another-account`)
