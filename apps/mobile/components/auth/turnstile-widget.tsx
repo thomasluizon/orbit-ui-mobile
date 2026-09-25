@@ -23,7 +23,7 @@ export function TurnstileWidget({
   const [state, setState] = useState<WidgetState>('idle')
   const [attempt, setAttempt] = useState(0)
   const challengeHeight = state === 'solved' ? 0 : 160
-  const bridgeUrl = `https://app.useorbit.org/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}`
+  const bridgeUrl = `https://app.useorbit.org/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}&theme=${currentTheme}`
 
   useEffect(() => {
     let active = true
@@ -63,8 +63,8 @@ export function TurnstileWidget({
       <WebView
         key={`${resetKey}-${attempt}`}
         source={{ uri: bridgeUrl }}
-        containerStyle={{ width: 256, height: challengeHeight, flex: 0 }}
-        style={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: 'transparent' }}
+        containerStyle={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
+        style={{ width: 256, height: challengeHeight, flex: 0, backgroundColor: tokens.bg }}
         javaScriptEnabled
         domStorageEnabled
         thirdPartyCookiesEnabled
@@ -75,7 +75,7 @@ export function TurnstileWidget({
       <View accessibilityLiveRegion="polite" style={{ alignItems: 'center' }}>
         {state === 'loading' && <Text style={{ color: tokens.fg2 }}>{t('auth.turnstileLoading')}</Text>}
         {(state === 'failed' || state === 'expired') &&
-          <Text style={{ color: tokens.fg2 }} accessibilityRole="alert">
+          <Text style={{ color: tokens.statusBadText }} accessibilityRole="alert">
             {t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired')}
           </Text>}
       </View>

@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback } from 'react'
+import { neutralColors } from '@orbit/shared/theme'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
 declare global {
@@ -9,7 +11,7 @@ declare global {
   }
 }
 
-export function TurnstileBridge({ siteKey }: Readonly<{ siteKey: string }>) {
+export function TurnstileBridge({ siteKey, theme = 'dark' }: Readonly<{ siteKey: string; theme?: 'light' | 'dark' }>) {
   const postState = useCallback((state: string) => {
     window.ReactNativeWebView?.postMessage(JSON.stringify({ state }))
   }, [])
@@ -17,5 +19,8 @@ export function TurnstileBridge({ siteKey }: Readonly<{ siteKey: string }>) {
     window.ReactNativeWebView?.postMessage(JSON.stringify({ token }))
   }, [])
 
-  return <TurnstileWidget siteKey={siteKey} resetKey={0} onToken={postToken} onStateChange={postState} />
+  return <div style={{ ...resolveWebThemeVariables('purple', theme), minHeight: '100vh',
+    backgroundColor: neutralColors[theme].bg, colorScheme: theme }}>
+    <TurnstileWidget siteKey={siteKey} theme={theme} resetKey={0} onToken={postToken} onStateChange={postState} />
+  </div>
 }

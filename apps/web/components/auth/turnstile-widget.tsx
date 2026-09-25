@@ -11,6 +11,7 @@ interface TurnstileApi {
     sitekey: string
     appearance: 'interaction-only'
     size: 'compact'
+    theme?: 'light' | 'dark'
     callback: (token: string) => void
     'error-callback': () => boolean
     'expired-callback': () => void
@@ -55,11 +56,13 @@ export function TurnstileWidget({
   resetKey,
   onToken,
   onStateChange,
+  theme,
 }: Readonly<{
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
   onStateChange?: (state: WidgetState) => void
+  theme?: 'light' | 'dark'
 }>) {
   const t = useTranslations()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -92,6 +95,7 @@ export function TurnstileWidget({
         sitekey: siteKey,
         appearance: 'interaction-only',
         size: 'compact',
+        ...(theme ? { theme } : {}),
         callback: (token) => update('solved', token),
         'error-callback': () => {
           update('failed')
@@ -109,7 +113,7 @@ export function TurnstileWidget({
       if (widgetId) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [siteKey, attempt, onToken, onStateChange])
+  }, [siteKey, theme, attempt, onToken, onStateChange])
 
   useEffect(() => {
     if (resetKey === 0) return
@@ -135,7 +139,7 @@ export function TurnstileWidget({
       <p role="status" className={state === 'loading' ? '' : 'sr-only'}>
         {state === 'loading' ? t('auth.turnstileLoading') : ''}
       </p>
-      <p role="alert" className={state === 'failed' || state === 'expired' ? '' : 'sr-only'}>
+      <p role="alert" className={`text-[var(--status-bad-text)] ${state === 'failed' || state === 'expired' ? '' : 'sr-only'}`}>
         {state === 'failed' || state === 'expired'
           ? t(state === 'failed' ? 'auth.turnstileFailed' : 'auth.turnstileExpired') : ''}
       </p>
