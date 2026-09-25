@@ -118,12 +118,33 @@ describe('streakInfoSchema repair offer', () => {
       recentFreezeDates: ['2026-09-16'],
       lastFreezeCoveredDate: '2026-09-16',
       freezeBankRemaining: 2,
+      lastFreezeCoveredOrigin: 'automatic',
     })
 
     expect(parsed).toMatchObject({
       lastFreezeCoveredDate: '2026-09-16',
       freezeBankRemaining: 2,
+      lastFreezeCoveredOrigin: 'automatic',
     })
+  })
+
+  it('keeps manual and historical freeze origins distinct', () => {
+    const response = {
+      currentStreak: 8,
+      longestStreak: 12,
+      lastActiveDate: '2026-09-16',
+      freezesUsedThisMonth: 1,
+      freezesAvailable: 2,
+      maxFreezesPerMonth: 3,
+      isFrozenToday: false,
+      recentFreezeDates: ['2026-09-16'],
+      lastFreezeCoveredDate: '2026-09-16',
+      freezeBankRemaining: 2,
+    }
+
+    expect(streakInfoSchema.parse({ ...response, lastFreezeCoveredOrigin: 'manual' }).lastFreezeCoveredOrigin).toBe('manual')
+    expect(streakInfoSchema.parse({ ...response, lastFreezeCoveredOrigin: null }).lastFreezeCoveredOrigin).toBeNull()
+    expect(streakInfoSchema.parse(response)).not.toHaveProperty('lastFreezeCoveredOrigin')
   })
 
   it('parses the API-owned repair date', () => {
