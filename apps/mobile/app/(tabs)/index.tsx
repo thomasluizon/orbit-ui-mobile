@@ -197,6 +197,7 @@ export default function TodayScreen() {
             filters={filters}
             selectedDate={date.selectedDate}
             showCompleted={showCompleted}
+            onShowCompleted={() => setShowCompleted(true)}
             isSelectMode={isSelectMode}
             selectedHabitIds={selectedHabitIds}
             listHeader={listHeader}

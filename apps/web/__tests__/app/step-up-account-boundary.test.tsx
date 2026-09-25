@@ -8,6 +8,8 @@ import {
   recoverSameAccount,
   replaceAccountWith,
   respondWithAccount,
+  respondWithInactiveSession,
+  retireHeldAccount,
 } from '@/__tests__/support/account-change'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { hasApiKeyCreationGrant } from '@/lib/step-up-storage'
@@ -165,8 +167,10 @@ it('retires the server account after a poll finds an inactive session', async ()
 it('retires the server account after a cross-tab sign-out', async () => {
   await renderChallenge()
 
+  respondWithInactiveSession()
   act(() => { useAuthStore.getState().adoptAccountFromSignal(null) })
 
+  await waitFor(() => expect(getHeldAccountId()).toBeNull())
   expect(getHeldAccountId()).toBeNull()
   expect(screen.queryByLabelText('codeLabel')).not.toBeInTheDocument()
   expect(mocks.router.replace).toHaveBeenCalledWith('/login')
@@ -174,15 +178,17 @@ it('retires the server account after a cross-tab sign-out', async () => {
 
 it('keeps a cold step-up signed out when an older session check finishes after the signal', async () => {
   holdAccount('user-1')
-  useAuthStore.getState().adoptAccountFromSignal(null)
+  await retireHeldAccount()
   useAuthStore.setState({ sessionInactive: false })
   storeChallenge('user-1')
   const pending = deferred<Response>()
-  vi.mocked(globalThis.fetch).mockImplementation(() => pending.promise)
+  vi.mocked(globalThis.fetch).mockImplementationOnce(() => pending.promise)
+  respondWithInactiveSession()
 
   await act(async () => { render(<StepUpScreen serverAccountId="user-1" />) })
   expect(screen.getByLabelText('codeLabel')).toBeInTheDocument()
   act(() => { useAuthStore.getState().adoptAccountFromSignal(null) })
+  await waitFor(() => expect(getHeldAccountId()).toBeNull())
   expect(screen.queryByLabelText('codeLabel')).not.toBeInTheDocument()
   expect(mocks.router.replace).toHaveBeenCalledWith('/login')
 
@@ -207,7 +213,7 @@ it('keeps the challenge and typed code through same-account recovery', async () 
 
 it('drops server-account code when the first client session names another account', async () => {
   holdAccount('user-1')
-  useAuthStore.getState().adoptAccountFromSignal(null)
+  await retireHeldAccount()
   useAuthStore.setState({ sessionInactive: false })
   expect(getHeldAccountId()).toBeNull()
   storeChallenge('user-1')

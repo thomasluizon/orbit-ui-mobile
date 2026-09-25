@@ -81,6 +81,7 @@ import {
   recoverSameAccount,
   replaceAccountWith,
   respondWithAccount,
+  retireHeldAccount,
 } from '@/__tests__/support/account-change'
 
 const LAPSED_STATUS = {
@@ -141,9 +142,9 @@ describe('UpgradePage across an account change', () => {
   })
 
   it('shows billing controls when a cold session check recovers after a network failure', async () => {
+    await retireHeldAccount()
     vi.useFakeTimers()
     act(() => {
-      useAuthStore.getState().adoptAccountFromSignal(null)
       useAuthStore.setState({ sessionInactive: false })
     })
     vi.mocked(globalThis.fetch)
@@ -168,7 +169,7 @@ describe('UpgradePage across an account change', () => {
     'waits for the first session owner before opening the %s portal',
     async (source) => {
       status = { ...STRIPE_PRO_STATUS, source }
-      act(() => { useAuthStore.getState().adoptAccountFromSignal(null) })
+      await retireHeldAccount()
       let finishSession!: (response: Response) => void
       vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {
         finishSession = resolve
@@ -197,7 +198,7 @@ describe('UpgradePage across an account change', () => {
   )
 
   it('waits for the first session owner before starting checkout', async () => {
-    act(() => { useAuthStore.getState().adoptAccountFromSignal(null) })
+    await retireHeldAccount()
     let finishSession!: (response: Response) => void
     vi.mocked(globalThis.fetch).mockImplementationOnce(() => new Promise((resolve) => {
       finishSession = resolve
@@ -236,7 +237,7 @@ describe('UpgradePage across an account change', () => {
         hostedInvoiceUrl: null,
       }],
     }
-    act(() => { useAuthStore.getState().adoptAccountFromSignal(null) })
+    await retireHeldAccount()
     render(<UpgradePage />)
 
     expect(screen.queryByText('upgrade.billing.invoices.title')).not.toBeInTheDocument()

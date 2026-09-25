@@ -61,6 +61,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
+import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import {
   DndContext,
@@ -132,6 +133,7 @@ interface HabitListProps {
   view?: 'today' | 'all' | 'general'
   selectedDate?: Date
   showCompleted?: boolean
+  onShowCompleted?: () => void
   isSelectMode?: boolean
   selectedHabitIds?: Set<string>
   searchQuery?: string
@@ -155,7 +157,7 @@ export interface HabitListHandle {
   allLoadedIds: Set<string>
   markRecentlyCompleted: (habitId: string) => void
   checkAndPromptParentLog: (childHabitId: string) => void
-  settleBulkHabitResolutions: (resolutions: readonly HabitResolution[]) => void
+  settleBulkHabitResolutions: (resolutions: readonly HabitResolution[], date: string) => void
 }
 
 interface ParentSettlementData {
@@ -303,6 +305,7 @@ export function HabitList({
   view = 'today',
   selectedDate,
   showCompleted = false,
+  onShowCompleted,
   isSelectMode = false,
   selectedHabitIds,
   searchQuery = '',
@@ -343,8 +346,12 @@ export function HabitList({
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : formatAPIDate(new Date())
   const todayStr = formatAPIDate(new Date())
 
-  const [recentlyCompletedIds, setRecentlyCompletedIds] = useAccountScopedState(
-    () => new Set<string>(),
+  const [recentlyCompletedDates, setRecentlyCompletedDates] = useAccountScopedState(
+    () => new Map<string, Set<string>>(),
+  )
+  const recentlyCompletedIds = useMemo(
+    () => getRecentlyCompletedIdsForDate(recentlyCompletedDates, selectedDateStr),
+    [recentlyCompletedDates, selectedDateStr],
   )
   const pendingToggleHabitIdsRef = useReactRef(new Set<string>())
   const promptedParentIdsRef = useReactRef(new Set<string>())
@@ -373,38 +380,31 @@ export function HabitList({
     }
   }, [recentlyCompletedTimersRef])
 
-  const markRecentlyCompleted = useCallback((habitId: string) => {
-    setRecentlyCompletedIds((prev) => new Set(prev).add(habitId))
+  const markRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
+    setRecentlyCompletedDates((prev) => addRecentCompletion(prev, habitId, date))
     const timers = recentlyCompletedTimersRef.current
-    const existing = timers.get(habitId)
+    const timerKey = `${habitId}:${date}`
+    const existing = timers.get(timerKey)
     if (existing) clearTimeout(existing)
     timers.set(
-      habitId,
+      timerKey,
       setTimeout(() => {
-        timers.delete(habitId)
-        setRecentlyCompletedIds((prev) => {
-          const next = new Set(prev)
-          next.delete(habitId)
-          return next
-        })
+        timers.delete(timerKey)
+        setRecentlyCompletedDates((prev) => removeRecentCompletion(prev, habitId, date))
       }, 1400),
     )
-  }, [recentlyCompletedTimersRef, setRecentlyCompletedIds])
+  }, [recentlyCompletedTimersRef, selectedDateStr, setRecentlyCompletedDates])
 
-  const clearRecentlyCompleted = useCallback((habitId: string) => {
+  const clearRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
     const timers = recentlyCompletedTimersRef.current
-    const existing = timers.get(habitId)
+    const timerKey = `${habitId}:${date}`
+    const existing = timers.get(timerKey)
     if (existing) {
       clearTimeout(existing)
-      timers.delete(habitId)
+      timers.delete(timerKey)
     }
-    setRecentlyCompletedIds((prev) => {
-      if (!prev.has(habitId)) return prev
-      const next = new Set(prev)
-      next.delete(habitId)
-      return next
-    })
-  }, [recentlyCompletedTimersRef, setRecentlyCompletedIds])
+    setRecentlyCompletedDates((prev) => removeRecentCompletion(prev, habitId, date))
+  }, [recentlyCompletedTimersRef, selectedDateStr, setRecentlyCompletedDates])
 
   useEffect(() => {
     promptedParentIdsRef.current.clear()
@@ -426,7 +426,15 @@ export function HabitList({
     [visibility, view],
   )
 
-  const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt)
+  const drill = useDrillNavigation(habitsById, habitsQuery.dataUpdatedAt, {
+    habitsById,
+    childrenByParent,
+    selectedDate: selectedDateStr,
+    searchQuery,
+    showCompleted,
+    recentlyCompletedIds,
+    recentlyCompletedDates,
+  }, view)
 
   const [collapsedIds, setCollapsedIds] = useAccountScopedState(() => new Set<string>())
 
@@ -857,7 +865,7 @@ export function HabitList({
     automatic = false,
   ) {
     operation.confirmedResolutions.activeSettlements += 1
-    markRecentlyCompleted(parentId)
+    markRecentlyCompleted(parentId, operation.date)
     try {
       try {
         if (mode === 'skip') {
@@ -872,7 +880,7 @@ export function HabitList({
       } catch {
         if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
           promptedParentIdsRef.current.delete(parentId)
-          clearRecentlyCompleted(parentId)
+          clearRecentlyCompleted(parentId, operation.date)
         }
         return
       }
@@ -895,9 +903,13 @@ export function HabitList({
     checkAndSettleParent(childHabitId, confirmedResolutions)
   }
 
-  function settleBulkHabitResolutions(resolutions: readonly HabitResolution[]) {
+  function settleBulkHabitResolutions(resolutions: readonly HabitResolution[], date: string) {
     const settlementData = promptDataRef.current
     if (!settlementData) return
+    for (const resolution of resolutions) {
+      markRecentlyCompleted(resolution.habitId, date)
+    }
+    if (selectedDateStr !== date || settlementData.selectedDateStr !== date) return
     const confirmedResolutions = confirmedResolutionsRef.current
     const resolvedIds = new Set(resolutions.map((resolution) => resolution.habitId))
     for (const resolution of resolutions) {
@@ -906,7 +918,6 @@ export function HabitList({
         resolution.habitId,
         resolution.mode,
       )
-      markRecentlyCompleted(resolution.habitId)
     }
 
     const childIdByAffectedParent = new Map<string, string>()
@@ -920,7 +931,7 @@ export function HabitList({
 
     const operation: ParentSettlementOperation = {
       data: settlementData,
-      date: settlementData.selectedDateStr,
+      date,
       confirmedResolutions,
       requiresLogConfirmation: false,
     }
@@ -1317,6 +1328,7 @@ export function HabitList({
           hasProAccess={profile?.hasProAccess !== false}
           renderHabitCard={renderHabitCard}
           onAddSubHabit={startAddSubHabit}
+          onShowCompleted={onShowCompleted}
         />
       )
     }

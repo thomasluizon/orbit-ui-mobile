@@ -35,11 +35,15 @@ const mocks = vi.hoisted(() => {
     isAuthenticated: boolean
     accessToken: string | null
     refreshToken: string | null
+    epoch: number
+    credentialVersion: number
   } = {
     expiresAt: 0,
     isAuthenticated: true,
     accessToken: 'expired-access-token',
     refreshToken: 'refresh-token',
+    epoch: 1,
+    credentialVersion: 1,
   }
   const authListeners = new Set<() => void>()
   return {
@@ -69,6 +73,7 @@ vi.mock('@/stores/auth-store', async () => {
         () => selector(mocks.authState),
       ),
     refreshSession: mocks.refreshSession,
+    getSessionGeneration: () => ({ epoch: mocks.authState.epoch, credentialVersion: mocks.authState.credentialVersion }),
     clearSessionAndResetAuth: mocks.clearSessionAndResetAuth,
   }
 })
@@ -127,9 +132,13 @@ beforeEach(() => {
     expiresAt: null,
     accessToken: 'expired-access-token',
     refreshToken: 'refresh-token',
+    epoch: 1,
+    credentialVersion: 1,
   })
   mocks.logout.mockReset()
-  mocks.logout.mockImplementation(() => {
+  mocks.logout.mockImplementation((ownership?: { epoch: number; credentialVersion: number }) => {
+    if (ownership && (ownership.epoch !== mocks.authState.epoch
+      || ownership.credentialVersion !== mocks.authState.credentialVersion)) return Promise.resolve()
     mocks.currentRoute = '/login'
     mocks.setAuthState({
       isAuthenticated: false,
@@ -211,6 +220,47 @@ describe('ExpiryWarning', () => {
     expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
     expect(mocks.clearSessionAndResetAuth).not.toHaveBeenCalled()
     expect(mocks.authState.isAuthenticated).toBe(true)
+  })
+
+  it('keeps recovery available when refresh rejects', async () => {
+    mocks.refreshSession.mockRejectedValue(new Error('SecureStore unavailable'))
+    const instance = await renderExpiredWarning()
+
+    await TestRenderer.act(async () => {
+      await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+    })
+
+    expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
+    expect(action(instance, i18n.t('auth.refresh')).props.disabled).toBe(false)
+    expect(mocks.authState.isAuthenticated).toBe(true)
+  })
+
+  it('does not log out a replacement after an old refresh returns unauthorized', async () => {
+    let resolveRefresh!: (outcome: { status: 'unauthorized' }) => void
+    mocks.refreshSession.mockImplementation(() => new Promise((resolve) => { resolveRefresh = resolve }))
+    const instance = await renderExpiredWarning()
+    let recovery!: Promise<void>
+
+    await TestRenderer.act(async () => {
+      recovery = (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      resolveRefresh({ status: 'unauthorized' })
+      mocks.setAuthState({
+        epoch: 2,
+        credentialVersion: 2,
+        isAuthenticated: true,
+        expiresAt: Date.now() + 60 * 60_000,
+        accessToken: 'replacement-access-token',
+        refreshToken: 'replacement-refresh-token',
+      })
+      await recovery
+    })
+
+    expect(mocks.logout).toHaveBeenCalledWith({ epoch: 1, credentialVersion: 1 })
+    expect(mocks.currentRoute).toBeNull()
+    expect(mocks.authState.accessToken).toBe('replacement-access-token')
   })
 
   it('does not log out a replacement session after refresh is superseded', async () => {

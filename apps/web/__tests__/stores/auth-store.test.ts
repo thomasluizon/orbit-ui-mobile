@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import { getSessionEpoch } from '@/lib/session-epoch'
 import { subscribeToAccountSignal } from '@/lib/cross-tab-account-signal'
 import { useChatStore } from '@/stores/chat-store'
@@ -23,10 +24,22 @@ afterEach(() => vi.useRealTimers())
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+let lockQueue: Promise<unknown>
 
 
 describe('auth store', () => {
   beforeEach(() => {
+    lockQueue = Promise.resolve()
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: {
+        request: (_name: string, task: () => Promise<unknown>) => {
+          const result = lockQueue.then(task)
+          lockQueue = result.catch(() => {})
+          return result
+        },
+      },
+    })
     resetPendingNotificationDeletesForTests()
     clearStepUpState()
     useAuthStore.setState({
@@ -45,6 +58,7 @@ describe('auth store', () => {
   })
 
   afterEach(() => {
+    Reflect.deleteProperty(navigator, 'locks')
     globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)
     globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     useChatStore.setState({
@@ -120,6 +134,211 @@ describe('auth store', () => {
       sessionRefreshFailed: false,
     })
   })
+
+  it('keeps the session when browser cookie locking is unavailable', async () => {
+    Reflect.deleteProperty(navigator, 'locks')
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    await useAuthStore.getState().logout()
+    await expect(fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'thomas@example.com', code: '123456',
+    })).rejects.toThrow('Web Locks API is required for session cookie changes')
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('keeps a replacement login when an older logout response arrives', async () => {
+    let releaseLogout!: () => void
+    mockFetch.mockImplementation((url: string) => url === '/api/auth/logout'
+      ? new Promise<Response>((resolve) => {
+        releaseLogout = () => resolve(Response.json({ success: true }))
+      })
+      : Promise.resolve(Response.json(makeLoginResponse({ userId: 'user-2', email: 'new@example.com' }))))
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    const replacementLogin = fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'new@example.com', code: '123456',
+    }).then((response) => useAuthStore.getState().setAuth(response as LoginResponse))
+    await Promise.resolve()
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/auth/verify-code', expect.anything())
+    releaseLogout()
+    await Promise.all([oldLogout, replacementLogin])
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: { userId: 'user-2', email: 'new@example.com' },
+    })
+  })
+
+  it('preserves replacement login cookies when an older logout response arrives in the same tab', async () => {
+    const browserCookies = new Map<string, string>([
+      ['auth_token', 'old-access'], ['refresh_token', 'old-refresh'],
+    ])
+    let releaseLogout!: () => void
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/logout') {
+        return new Promise<Response>((resolve) => {
+          releaseLogout = () => {
+            browserCookies.clear()
+            resolve(Response.json({ success: true }))
+          }
+        })
+      }
+      if (url === '/api/auth/verify-code') {
+        browserCookies.set('auth_token', 'new-access')
+        browserCookies.set('refresh_token', 'new-refresh')
+        return Promise.resolve(Response.json(makeLoginResponse()))
+      }
+      throw new Error(`Unexpected auth endpoint: ${url}`)
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    const replacementLogin = fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'thomas@example.com', code: '123456',
+    })
+    await Promise.resolve()
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/auth/verify-code', expect.anything())
+    releaseLogout()
+    await Promise.all([oldLogout, replacementLogin])
+
+    expect(browserCookies.get('auth_token')).toBe('new-access')
+    expect(browserCookies.get('refresh_token')).toBe('new-refresh')
+  })
+
+  it('reconciles a delayed cross-tab signal with cookies cleared by logout', async () => {
+    const browserCookies = new Map([['auth_token', 'old-access']])
+    let releaseLogout!: () => void
+    mockFetch.mockImplementation((url: string) => url === '/api/auth/logout'
+      ? new Promise<Response>((resolve) => {
+        releaseLogout = () => {
+          browserCookies.clear()
+          resolve(Response.json({ success: true }))
+        }
+      })
+      : Promise.resolve(Response.json(browserCookies.has('auth_token')
+        ? { expiresAt: Date.now() + 3600000, userId: 'user-2' }
+        : { expiresAt: null })))
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const oldLogout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    useAuthStore.getState().adoptAccountFromSignal('user-2')
+    await vi.waitFor(() => expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      expiresAt: Date.now() + 3600000,
+      sessionRefreshFailed: false,
+    }))
+    releaseLogout()
+    await oldLogout
+
+    expect(browserCookies.size).toBe(0)
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      sessionInactive: true,
+    })
+  })
+
+  it('rejects a session read started during logout after cookies are cleared', async () => {
+    const browserCookies = new Map([['auth_token', 'old-access']])
+    let releaseLogout!: () => void
+    let releaseSession!: () => void
+    const sessionJson = vi.fn(() => Promise.resolve({
+      expiresAt: Date.now() + 3600000,
+      userId: 'user-1',
+    }))
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/logout') return new Promise<Response>((resolve) => {
+        releaseLogout = () => {
+          browserCookies.clear()
+          resolve(Response.json({ success: true }))
+        }
+      })
+      if (url === '/api/auth/session') return new Promise<Response>((resolve) => {
+        releaseSession = () => resolve({ ok: true, status: 200, json: sessionJson } as unknown as Response)
+      })
+      throw new Error(`Unexpected auth endpoint: ${url}`)
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const logout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(releaseLogout).toBeTypeOf('function'))
+    useAuthStore.getState().adoptAccountFromSignal('user-1')
+    await vi.waitFor(() => expect(releaseSession).toBeTypeOf('function'))
+    releaseLogout()
+    await logout
+    releaseSession()
+    await vi.waitFor(() => expect(sessionJson).toHaveBeenCalledOnce())
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(browserCookies.size).toBe(0)
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, sessionInactive: true })
+  })
+
+  it.each(['user-1', 'user-2'])('does not revive logged-out memory from a late %s signal', async (signaledAccount) => {
+    const browserCookies = new Map([['auth_token', 'old-access']])
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/logout') {
+        browserCookies.clear()
+        return Promise.resolve(Response.json({ success: true }))
+      }
+      if (url === '/api/auth/session') return Promise.reject(new TypeError('Network request failed'))
+      throw new Error(`Unexpected auth endpoint: ${url}`)
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    await useAuthStore.getState().logout()
+    useAuthStore.getState().adoptAccountFromSignal(signaledAccount)
+    await Promise.resolve()
+
+    expect(browserCookies.size).toBe(0)
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, sessionInactive: true })
+  })
+
+  it('keeps a confirmed replacement session when an older sign-out signal arrives late', async () => {
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'user-2' }))
+    mockFetch.mockImplementation(() => Promise.resolve(Response.json({
+      expiresAt: Date.now() + 3600000,
+      userId: 'user-2',
+    })))
+
+    useAuthStore.getState().adoptAccountFromSignal(null)
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/session'))
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      sessionInactive: false,
+      user: { userId: 'user-2' },
+    })
+  })
+
+  it.each([
+    { signal: null, session: { expiresAt: null }, authenticated: false, accountId: null },
+    { signal: 'user-3', session: { expiresAt: Date.now() + 3600000, userId: 'user-3' }, authenticated: true, accountId: 'user-3' },
+  ])('lets the latest $signal signal session result win over an older active response', async ({ signal, session, authenticated, accountId }) => {
+    const reads: Array<(response: Response) => void> = []
+    mockFetch.mockImplementation((url: string) => {
+      if (url !== '/api/auth/session') throw new Error(`Unexpected auth endpoint: ${url}`)
+      return new Promise<Response>((resolve) => { reads.push(resolve) })
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    useAuthStore.getState().adoptAccountFromSignal('user-2')
+    useAuthStore.getState().adoptAccountFromSignal(signal)
+    expect(reads).toHaveLength(2)
+    reads[0]!(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-2' }))
+    reads[1]!(Response.json(session))
+    await vi.waitFor(() => expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: authenticated, sessionInactive: !authenticated, user: null,
+    }))
+    expect(getHeldAccountId()).toBe(accountId)
+  })
+
 
   it('removes the stored Astra draft when the account signs out', async () => {
     mockFetch.mockResolvedValue({ ok: true })
@@ -797,7 +1016,11 @@ describe('auth store', () => {
       queryClient.setQueryData(notificationKeys.lists(), accountANotificationList)
       const epochBeforeSignal = getSessionEpoch()
 
+      mockFetch.mockResolvedValue(Response.json({ expiresAt: null }))
+
       await announceFromAnotherTab(null)
+
+      await vi.waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false))
 
       expect(useAuthStore.getState().isAuthenticated).toBe(false)
       expect(useAuthStore.getState().user).toBeNull()
@@ -815,7 +1038,9 @@ describe('auth store', () => {
       const confirming = useAuthStore.getState().confirmSessionRefreshFailure()
       await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
 
+      mockFetch.mockImplementation(() => Promise.resolve(Response.json({ expiresAt: null })))
       await announceFromAnotherTab(null)
+      await vi.waitFor(() => expect(useAuthStore.getState().sessionInactive).toBe(true))
       finishSession({
         ok: true,
         status: 200,
@@ -844,7 +1069,9 @@ describe('auth store', () => {
       const recovering = useAuthStore.getState().recoverSessionRefreshFailure()
       await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
 
+      mockFetch.mockImplementation(() => Promise.resolve(Response.json({ expiresAt: null })))
       await announceFromAnotherTab(null)
+      await vi.waitFor(() => expect(useAuthStore.getState().sessionInactive).toBe(true))
       finishSession({
         ok: true,
         status: 200,
@@ -859,7 +1086,9 @@ describe('auth store', () => {
 
     it('ignores a sign out reaching a tab that is already signed out', async () => {
       const stopMonitor = await startTabHoldingAccountOne()
+      mockFetch.mockImplementation(() => Promise.resolve(Response.json({ expiresAt: null })))
       await announceFromAnotherTab(null)
+      await vi.waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false))
       const epochAfterFirstSignOut = getSessionEpoch()
 
       await announceFromAnotherTab(null)
@@ -867,6 +1096,36 @@ describe('auth store', () => {
       expect(getSessionEpoch()).toBe(epochAfterFirstSignOut)
       expect(useAuthStore.getState().isAuthenticated).toBe(false)
       stopMonitor()
+    })
+
+    it('announces sign-out after the logout response clears cookies', async () => {
+      const browserCookies = new Map([['auth_token', 'old-access']])
+      let releaseLogout!: () => void
+      const received: Array<string | null> = []
+      otherTab = new BroadcastChannel(ACCOUNT_SIGNAL_CHANNEL)
+      otherTab.addEventListener('message', (event: MessageEvent) => {
+        received.push((event.data as { accountId: string | null }).accountId)
+      })
+      mockFetch.mockImplementation((url: string) => url === '/api/auth/logout'
+        ? new Promise<Response>((resolve) => {
+          releaseLogout = () => {
+            browserCookies.clear()
+            resolve(Response.json({ success: true }))
+          }
+        })
+        : Promise.resolve(Response.json({ expiresAt: null })))
+      useAuthStore.getState().setAuth(makeLoginResponse())
+      await vi.waitFor(() => expect(received).toContain('user-1'))
+
+      const logout = useAuthStore.getState().logout()
+      await vi.waitFor(() => expect(releaseLogout).toBeTypeOf('function'))
+      await settle()
+      expect(received).not.toContain(null)
+      releaseLogout()
+      await logout
+      await vi.waitFor(() => expect(received).toContain(null))
+
+      expect(browserCookies.size).toBe(0)
     })
 
     it('still detects the change on the poll where BroadcastChannel is missing', async () => {
