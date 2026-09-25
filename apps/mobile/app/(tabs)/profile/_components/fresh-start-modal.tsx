@@ -7,12 +7,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Check, RotateCcw, X } from '@/components/ui/icons'
 import { API } from '@orbit/shared/api'
 import {
+  buildAccountScopedStorageKey,
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { clearChecklistTemplates } from '@/lib/checklist-template-storage'
+import { useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   buildQueuedMutation,
   createQueuedAck,
@@ -27,6 +30,20 @@ import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
+
+const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
+
+/**
+ * Lets the trial notice appear again for this account. The pre-rename key goes with it, because
+ * left behind it answers for every account and keeps suppressing the notice this reset restores.
+ */
+async function removeScopedTrialExpiredFlag(accountId: string | null): Promise<void> {
+  const keys = [TRIAL_EXPIRED_SEEN_STORAGE_KEY]
+  if (accountId !== null) {
+    keys.push(buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, accountId))
+  }
+  await AsyncStorage.multiRemove(keys)
+}
 
 function AmberPillButton({
   label,
@@ -116,7 +133,14 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   const isResetConfirmed = resetConfirmText.trim().toUpperCase() === 'ORBIT'
 
   async function handleResetAccount() {
-    if (!isResetConfirmed) return
+    const resetAccount = getAccountGeneration()
+    const accountId = useAuthStore.getState().user?.userId ?? null
+    const isCurrentAccount = () => {
+      const auth = useAuthStore.getState()
+      return getAccountGeneration() === resetAccount &&
+        auth.sessionPhase === 'signed-in' && (auth.user?.userId ?? null) === accountId
+    }
+    if (!isResetConfirmed || accountId === null || !isCurrentAccount()) return
     setResetLoading(true)
     setResetError('')
     try {
@@ -135,8 +159,12 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
       const result = await queueOrExecute<ResetMutationResult, ResetMutationResult>({
         mutation: queuedResetMutation,
+        isCurrent: isCurrentAccount,
         execute: async (mutation) => {
-          await apiClient(mutation.endpoint, { method: mutation.method })
+          await apiClient(mutation.endpoint, {
+            method: mutation.method,
+            isCurrent: isCurrentAccount,
+          })
           return {
             queued: false,
             queuedMutationId: queuedResetMutation.id,
@@ -144,30 +172,37 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
         },
         queuedResult: createQueuedAck(queuedResetMutation.id),
       })
+      if (!isCurrentAccount()) return
 
       offlineQueue.clear()
       await useOfflineSyncStore.getState().clearDrops()
+      if (!isCurrentAccount()) return
       if (isQueuedResult(result)) {
         offlineQueue.enqueue(queuedResetMutation)
       }
       await useOfflineSyncStore.getState().clearDrops()
+      if (!isCurrentAccount()) return
 
       await Promise.all([
         clearChecklistTemplates(),
-        AsyncStorage.removeItem('orbit_trial_expired_seen'),
+        removeScopedTrialExpiredFlag(accountId),
       ])
+      if (!isCurrentAccount()) return
       queryClient.clear()
       await clearPersistedQueryCache()
+      if (!isCurrentAccount()) return
       closeSheet(() => {
+        if (!isCurrentAccount()) return
         onClose()
         queryClient.clear()
         router.replace('/')
       })
     } catch (err: unknown) {
+      if (!isCurrentAccount()) return
       const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
       setResetError(msg)
     } finally {
-      setResetLoading(false)
+      if (isCurrentAccount()) setResetLoading(false)
     }
   }
 

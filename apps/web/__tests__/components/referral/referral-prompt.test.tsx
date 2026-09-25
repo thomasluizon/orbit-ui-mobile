@@ -6,8 +6,15 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ getQueryData: () => undefined }),
+/**
+ * One client for every render, the way the real `useQueryClient` reads one off a context. A fresh
+ * object per render changes the identity of an effect dependency, which re-arms a settle timer
+ * this test exists to prove stays cleared.
+ */
+const queryClientDouble = { getQueryData: () => undefined }
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueryClient: () => queryClientDouble,
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -20,6 +27,7 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 function resetStores() {
   useReferralPromptStore.setState({
@@ -47,13 +55,17 @@ async function settle() {
 describe('ReferralPrompt', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn())
     resetStores()
+    holdAccount('user-1')
   })
 
   afterEach(() => {
     cleanup()
     vi.clearAllTimers()
     vi.useRealTimers()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
   })
 
   it('renders nothing when no milestone is armed', () => {
@@ -131,5 +143,29 @@ describe('ReferralPrompt', () => {
 
     expect(screen.queryByTestId('sheet')).toBeNull()
     expect(screen.queryByTestId('referral-drawer')).toBeNull()
+  })
+
+  it('takes the prompt off the screen when another account replaces the tab', async () => {
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await settle()
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
+  })
+
+  it('does not open under the next account from a timer the previous one armed', async () => {
+    render(<ReferralPrompt />)
+    await arm('streak-7')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200)
+    })
+
+    await replaceAccountWith('user-2')
+    await settle()
+
+    expect(screen.queryByTestId('sheet')).toBeNull()
   })
 })

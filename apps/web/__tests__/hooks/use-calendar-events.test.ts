@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, renderHook, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { filterCalendarSyncEventsByDate } from '@orbit/shared/utils'
@@ -9,6 +9,7 @@ import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-bounda
 import { API } from '@orbit/shared/api'
 import { calendarKeys } from '@orbit/shared/query'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -200,5 +201,36 @@ describe('useCalendarEvents', () => {
     await waitFor(() => {
       expect(filterCalendarSyncEventsByDate(result.current.data?.status === 'connected' ? result.current.data.events : [], '2026-09-12')).toHaveLength(1)
     })
+  })
+})
+
+describe('CalendarSyncBoundary account replacement', () => {
+  it('lets the next account toggle while the previous toggle is pending', async () => {
+    let finishA!: () => void
+    const accountARequest = new Promise<void>((resolve) => { finishA = resolve })
+    const accountBRequest = new Promise<void>(() => {})
+    const onAutoSyncChange = vi.fn()
+      .mockReturnValueOnce(accountARequest)
+      .mockReturnValueOnce(accountBRequest)
+    const autoSyncState: CalendarAutoSyncState = {
+      enabled: false,
+      status: 'Idle',
+      lastSyncedAt: null,
+      hasGoogleConnection: true,
+    }
+    render(React.createElement(CalendarSyncBoundary, {
+      autoSyncState,
+      displayTime: (value: string) => value,
+      onAutoSyncChange,
+    }))
+
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+    act(() => advanceAccountGeneration())
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+    expect(onAutoSyncChange).toHaveBeenCalledTimes(2)
+    await act(async () => { finishA(); await accountARequest })
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+
+    expect(onAutoSyncChange).toHaveBeenCalledTimes(2)
   })
 })

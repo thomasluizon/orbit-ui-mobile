@@ -75,6 +75,7 @@ import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hook
 import { useGoals, useReorderGoals } from '@/hooks/use-goals'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
 
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
@@ -205,7 +206,7 @@ function StreakRepairPanel({
 }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useAccountScopedState(false)
   const repairStatus = extractBackendStatus(repair.error)
   if (state.gapUnavailable) {
     return (
@@ -373,7 +374,6 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
     onMove(goal.id, index + (event.key === 'ArrowUp' ? -1 : 1))
   }
   return (
-    // eslint-disable-next-line local/max-button-words -- ORB-480 requires the control name to expose goal state, progress, and position.
     <button type="button" aria-label={accessibilityLabel} data-goal-id={goal.id} data-dragging={isDragging}
       ref={setNodeRef} {...listeners}
       style={{
@@ -587,7 +587,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
 }
 
 export function ProgressContent() {
-  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
+  const [detailGoalId, setDetailGoalId] = useAccountScopedState<string | null>(null)
   const t = useTranslations()
   const router = useRouter()
   const isDesktop = useIsDesktop()

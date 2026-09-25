@@ -9,6 +9,7 @@ import type { Goal } from '@orbit/shared/types/goal'
 import { fetchJson } from '@/lib/api-fetch'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CreateGoalFromHabitSheet } from './create-goal-from-habit-sheet'
 
 const VIRTUAL_ROW_HEIGHT = 48
@@ -74,8 +75,8 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
 
 export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }: Readonly<GoalLinkingFieldProps>) {
   const t = useTranslations()
-  const [open, setOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
+  const [open, setOpen] = useAccountScopedState(false)
+  const [creating, setCreating] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const { data: goals } = useQuery({
     queryKey: goalKeys.lists(),

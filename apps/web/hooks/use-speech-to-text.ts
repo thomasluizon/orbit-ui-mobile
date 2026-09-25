@@ -1,7 +1,7 @@
 'use client'
 
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
-import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from 'react'
+import { useRef, useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import { API } from '@orbit/shared/api'
 import {
@@ -11,6 +11,8 @@ import {
 } from '@orbit/shared/chat'
 import { ERROR_CODE_TO_KEY, getErrorSurface } from '@orbit/shared/utils'
 import { useThrottleStore } from '@/stores/throttle-store'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
@@ -38,16 +40,16 @@ function getServerRecordingSupportSnapshot(): boolean {
 export function useSpeechToText() {
   const t = useTranslations()
 
-  const [isRecording, setIsRecording] = useState(false)
-  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [isRecording, setIsRecording] = useAccountScopedState(false)
+  const [isTranscribing, setIsTranscribing] = useAccountScopedState(false)
   const isSupported = useSyncExternalStore(
     subscribeToRecordingSupport,
     getRecordingSupportSnapshot,
     getServerRecordingSupportSnapshot,
   )
-  const [transcript, setTranscript] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [recordingDuration, setRecordingDuration] = useState(0)
+  const [transcript, setTranscript] = useAccountScopedState('')
+  const [error, setError] = useAccountScopedState<string | null>(null)
+  const [recordingDuration, setRecordingDuration] = useAccountScopedState(0)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -80,7 +82,8 @@ export function useSpeechToText() {
   }, [])
 
   const transcribe = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob, transcribingAccount: number) => {
+      if (getAccountGeneration() !== transcribingAccount) return
       setIsTranscribing(true)
       try {
         const formData = new FormData()
@@ -88,6 +91,12 @@ export function useSpeechToText() {
         const response = await fetchWithThrottle(API.chat.transcribe, { method: 'POST', body: formData })
         const data = (await response.json().catch(() => null)) as TranscriptionResponse | null
         const text = data?.text?.trim() ?? ''
+        /**
+         * The tab may hold another account by now, and these are the previous account's spoken
+         * words. The composer appends a landed transcript to the draft it saves, so this one has
+         * to go nowhere rather than become the next account's message.
+         */
+        if (getAccountGeneration() !== transcribingAccount) return
         if (!response.ok || !text) {
           const key =
             (data?.errorCode && ERROR_CODE_TO_KEY[data.errorCode]) ?? 'errors.api.transcriptionFailed'
@@ -96,12 +105,13 @@ export function useSpeechToText() {
         }
         setTranscript(text)
       } catch {
+        if (getAccountGeneration() !== transcribingAccount) return
         setError(t('errors.api.transcriptionFailed'))
       } finally {
-        setIsTranscribing(false)
+        if (getAccountGeneration() === transcribingAccount) setIsTranscribing(false)
       }
     },
-    [t],
+    [setError, setIsTranscribing, setTranscript, t],
   )
 
   const stopRecording = useCallback(() => {
@@ -114,7 +124,7 @@ export function useSpeechToText() {
     } else {
       stopStream()
     }
-  }, [clearTimer, stopSilenceMonitor, stopStream])
+  }, [clearTimer, setIsRecording, stopSilenceMonitor, stopStream])
 
   const startSilenceMonitor = useCallback(
     (stream: MediaStream) => {
@@ -159,6 +169,7 @@ export function useSpeechToText() {
   const startRecording = useCallback(async () => {
     if (!isSupported || isRecording) return
     if ((getErrorSurface(useThrottleStore.getState().error).retryAt ?? 0) > Date.now()) return
+    const recordingAccount = getAccountGeneration()
     setError(null)
     setTranscript('')
     setRecordingDuration(0)
@@ -166,20 +177,29 @@ export function useSpeechToText() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (getAccountGeneration() !== recordingAccount) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
       streamRef.current = stream
       const recorder = new MediaRecorder(stream)
       mediaRecorderRef.current = recorder
 
       recorder.ondataavailable = (event) => {
+        if (getAccountGeneration() !== recordingAccount) return
         if (event.data.size > 0) chunksRef.current.push(event.data)
       }
       recorder.onstop = () => {
+        if (getAccountGeneration() !== recordingAccount) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
         clearTimer()
         stopSilenceMonitor()
         stopStream()
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
         chunksRef.current = []
-        if (blob.size > 0) void transcribe(blob)
+        if (blob.size > 0) void transcribe(blob, recordingAccount)
       }
 
       recorder.start()
@@ -187,12 +207,50 @@ export function useSpeechToText() {
       timerRef.current = setInterval(() => setRecordingDuration((prev) => prev + 1), 1000)
       startSilenceMonitor(stream)
     } catch (err: unknown) {
+      if (getAccountGeneration() !== recordingAccount) return
       stopStream()
       const denied =
         err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'SecurityError')
       setError(denied ? t('speech.micDenied') : t('speech.failedToStart'))
     }
-  }, [clearTimer, isRecording, isSupported, startSilenceMonitor, stopSilenceMonitor, stopStream, t, transcribe])
+  }, [
+    clearTimer,
+    isRecording,
+    isSupported,
+    setError,
+    setIsRecording,
+    setRecordingDuration,
+    setTranscript,
+    startSilenceMonitor,
+    stopSilenceMonitor,
+    stopStream,
+    t,
+    transcribe,
+  ])
+
+  /**
+   * The app shell keeps this hook mounted through an account change, so a recording the previous
+   * account started would keep running and post their audio under the next account's cookie, where
+   * the composer appends the text to a draft it saves. Detaching the handlers before the stop is
+   * what makes that airtight: `stop()` can still deliver one last chunk, and a listener left
+   * attached would build a blob out of it and send it. The microphone is released with it, rather
+   * than left open for a person who never turned it on.
+   */
+  const discardRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current
+    if (recorder) {
+      recorder.ondataavailable = null
+      recorder.onstop = null
+      if (recorder.state !== 'inactive') recorder.stop()
+      mediaRecorderRef.current = null
+    }
+    chunksRef.current = []
+    clearTimer()
+    stopSilenceMonitor()
+    stopStream()
+  }, [clearTimer, stopSilenceMonitor, stopStream])
+
+  useResetOnAccountChange(discardRecording)
 
   const toggleRecording = useCallback(() => {
     if (isRecording) stopRecording()

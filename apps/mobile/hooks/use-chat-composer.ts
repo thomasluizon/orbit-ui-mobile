@@ -48,6 +48,7 @@ import { usePendingOperationExecution } from "@/hooks/use-pending-operation-exec
 import { useChatStore } from "@/stores/chat-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useResetOnAccountChange } from "@/hooks/use-session-reset";
+import { getAccountGeneration } from "@/lib/session-epoch";
 
 interface AttemptedSend {
   content: string;
@@ -173,6 +174,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
    */
   useResetOnAccountChange(() => {
     setLastFailedSend(null);
+    setSendError(null);
     setSelectedImage(null);
     setImagePreview(null);
     setSelectedTextFile(null);
@@ -304,7 +306,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   );
 
   const openFilePicker = useCallback(async () => {
+    const startingAccountGeneration = getAccountGeneration();
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (getAccountGeneration() !== startingAccountGeneration) return;
     if (!permission.granted) {
       setSendError(t("chat.imagePermissionError"));
       return;
@@ -315,6 +319,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       allowsMultipleSelection: false,
       quality: 0.7,
     });
+    if (getAccountGeneration() !== startingAccountGeneration) return;
 
     if (result.canceled) return;
 
@@ -338,11 +343,13 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   }, []);
 
   const openTextFilePicker = useCallback(async () => {
+    const startingAccountGeneration = getAccountGeneration();
     const result = await DocumentPicker.getDocumentAsync({
       type: [...CHAT_TEXT_FILE_PICKER_MIME_TYPES],
       copyToCacheDirectory: true,
       multiple: false,
     });
+    if (getAccountGeneration() !== startingAccountGeneration) return;
     if (result.canceled) return;
 
     const asset = result.assets[0];
@@ -365,9 +372,11 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
     try {
       const content = await file.text();
+      if (getAccountGeneration() !== startingAccountGeneration) return;
       setSendError(null);
       setSelectedTextFile({ name: asset.name, content });
     } catch {
+      if (getAccountGeneration() !== startingAccountGeneration) return;
       setSendError(t("chat.fileReadError"));
     }
   }, [t]);
@@ -538,6 +547,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const runStreamingSend = useCallback(
     async (attempted: AttemptedSend) => {
+      const startingAccountGeneration = getAccountGeneration();
+      const ownsAccount = () => getAccountGeneration() === startingAccountGeneration;
       const controller = new AbortController();
       let idleTimer: ReturnType<typeof setTimeout> | undefined;
       const armIdleTimer = () => {
@@ -565,10 +576,13 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         armIdleTimer();
         const response = await openChatStream(buildChatFormData(attempted), controller.signal);
 
+        if (!ownsAccount()) return false;
+
         if (!response.ok || !response.body) {
           const errorBody = (await response.json().catch(() => null)) as
             | { error?: string; errorCode?: string }
             | null;
+          if (!ownsAccount()) return false;
           handleFailedSend(
             {
               status: response.status,
@@ -585,15 +599,19 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           streamTextChunks(response.body, armIdleTimer),
           {
             onDelta: (text) => {
+              if (!ownsAccount()) return;
               appendToMessageContent(ensureDraftMessage(), text);
               scrollToBottom();
             },
             onReset: () => {
+              if (!ownsAccount()) return;
               if (draftMessageId) updateMessage(draftMessageId, { content: "" });
               setIsTyping(true);
             },
           },
         );
+
+        if (!ownsAccount()) return false;
 
         if (outcome.kind === "final") {
           await applyFinalResponse(outcome.response, draftMessageId);
@@ -614,6 +632,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         );
         return false;
       } catch (err: unknown) {
+        if (!ownsAccount()) return false;
         handleFailedSend(
           {
             status: isAbortError(err) ? 408 : null,
@@ -626,7 +645,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         return false;
       } finally {
         clearTimeout(idleTimer);
-        if (useChatStore.getState().streamingMessageId === draftMessageId) {
+        if (ownsAccount() && useChatStore.getState().streamingMessageId === draftMessageId) {
           setStreamingMessageId(null);
         }
       }
@@ -744,8 +763,10 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       return;
     }
     const attempted = lastFailedSend;
+    const startingAccountGeneration = getAccountGeneration();
     const succeeded = await performSend(attempted, true);
     if (
+      getAccountGeneration() === startingAccountGeneration &&
       succeeded &&
       attempted.clearDraftOnSuccess &&
       attempted.restoredDraftRevision !== null &&
