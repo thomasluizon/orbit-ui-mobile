@@ -25,7 +25,7 @@ export default function DeleteAccountPage() {
   ]
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-[var(--app-max-w)] flex-col">
+    <div className="mx-auto flex min-h-[100dvh] max-w-[var(--app-max-w)] flex-col bg-[var(--bg)]">
       <AppBar
         backLabel={t(isAuthenticated ? 'common.backToToday' : 'auth.backToLogin')}
         onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
@@ -45,15 +45,14 @@ export default function DeleteAccountPage() {
         <div className="t-secondary px-4 pb-4" style={{ textWrap: 'pretty' }}>
           {t('deleteAccount.webFallback.body')}
         </div>
-        <div className="px-4 pb-8">
+        <div className="px-4 pb-8" style={{ color: 'var(--primary-soft)' }}>
           <a
             href="mailto:contact@useorbit.org?subject=Account%20deletion%20request"
-            className="inline-flex items-center underline underline-offset-[3px]"
+            className="orbit-link-action inline-flex items-center"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 500,
-              color: 'var(--primary-text)',
             }}
           >
             {t('deleteAccount.webFallback.button')}
