@@ -69,7 +69,7 @@ jobs:
             echo 'The OpenAPI spec has not moved.'
             exit 0
           fi
-          ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npx --yes orval@8.37.0 --config ./orval.config.ts
+          ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npm run generate:zod
           printf '%s\n' "$api_commit" > src/types/__generated__/api.spec.commit
 
       - name: Commit and open or update one pull request

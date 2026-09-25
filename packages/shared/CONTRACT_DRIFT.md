@@ -17,7 +17,7 @@ branch, `main`. It also accepts the `orbit-api-contract-drift`
 `repository_dispatch` event. GitHub runs both triggers from the default branch;
 the `redesign/main` port is separate. The job compares the committed OpenAPI spec
 at the pin with orbit-api `main`. When the spec bytes differ, it regenerates with
-`orval@8.37.0`, updates the pin, and opens or updates the single
+the lockfile's orval version, updates the pin, and opens or updates the single
 `chore/contract-snapshot` pull request against `main`. It never pushes to `main`.
 The branch name and workflow concurrency group keep repeat runs on one pull
 request. A spec change that produces identical Zod output still updates the pin,
@@ -38,7 +38,7 @@ commit's `src/Orbit.Api/openapi.json`, and run orval from `packages/shared`:
 ```bash
 pin=$(cat src/types/__generated__/api.spec.commit)
 curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o /tmp/orbit-openapi.json
-ORBIT_OPENAPI_SPEC=/tmp/orbit-openapi.json npx --yes orval@8.37.0 --config ./orval.config.ts
+ORBIT_OPENAPI_SPEC=/tmp/orbit-openapi.json npm run generate:zod
 ```
 
 To adopt a newer API spec, change the pin to its full commit SHA, download that
@@ -46,7 +46,7 @@ commit's spec, regenerate, and commit the pin and snapshot together. The same
 `ORBIT_OPENAPI_SPEC` variable can point at a local spec for investigation, but
 the committed snapshot must regenerate from the pinned commit.
 
-Output is byte-deterministic: orval is pinned at `8.37.0`, the Zod target uses
+Output is byte-deterministic: orval is pinned by the lockfile, the Zod target uses
 `override.zod.version: 4`, and `.gitattributes` forces LF line endings.
 
 ## Dependency pins that keep orval runnable

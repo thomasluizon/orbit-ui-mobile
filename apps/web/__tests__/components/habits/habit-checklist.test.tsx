@@ -147,6 +147,24 @@ describe('HabitChecklist', () => {
   })
 
   describe('editable mode', () => {
+    it('keeps focus on the same row when an earlier item is removed', () => {
+      function ChecklistHarness() {
+        const [items, setItems] = React.useState<ChecklistItem[]>([
+          { text: 'First item', isChecked: false },
+          { text: 'Second item', isChecked: false },
+        ])
+        return <HabitChecklist items={items} editable onItemsChange={setItems} />
+      }
+
+      render(<ChecklistHarness />)
+      const secondInput = screen.getByDisplayValue('Second item')
+      secondInput.focus()
+      fireEvent.click(screen.getAllByLabelText('habits.form.removeChecklistItem')[0]!)
+
+      expect(screen.getByDisplayValue('Second item')).toBe(secondInput)
+      expect(document.activeElement).toBe(secondInput)
+    })
+
     it('renders input fields for each item in editable mode', () => {
       const items = makeItems()
       render(<HabitChecklist items={items} editable />)
