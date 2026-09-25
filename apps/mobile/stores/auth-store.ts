@@ -92,7 +92,7 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   expiresAt: number | null
-  login: (token: string, refreshToken: string | null, user: User) => Promise<void>
+  login: (token: string, refreshToken: string | null, user: User) => Promise<(() => boolean) | null>
   logout: (observedCredential?: SessionSnapshot) => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
@@ -487,24 +487,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return getSessionGeneration()
       })
       ownership = loginSession
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       queryClient.clear()
       await clearPersistedQueryCache()
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       await setQueryCacheScope(user.userId)
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       cancelScheduledFlush()
       offlineQueue.retainAccount(user.userId)
       await clearOfflineState()
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       await forgetPreviousAccountContent()
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
 
       try {
         const profile = await apiClient<Profile>(API.profile.get)
-        if (!isCurrentSessionEpoch(ownership.epoch)) return
+        if (!isCurrentSessionEpoch(ownership.epoch)) return null
         queryClient.setQueryData(profileKeys.detail(), profile)
 
         if (profile.language && i18n.language !== profile.language) {
@@ -526,7 +526,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       } catch {}
 
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       bindStepUpStateToAccount(user.userId)
       set({
         ...deriveSessionPhase('signed-in'),
@@ -535,6 +535,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt:
           credentialVersion === ownership.credentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
+      return () => isCurrentSessionEpoch(ownership.epoch)
     } catch (error: unknown) {
       await runSessionTeardown({
         authority: 'session-owner',

@@ -3,8 +3,8 @@ import * as Linking from 'expo-linking'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-import { clearStoredReferralCode, consumeStoredAuthReturnUrl, getSafeReturnUrl,
-  getStoredReferralCode } from '@/lib/auth-flow'
+import { clearStoredAuthReturnUrl, clearStoredReferralCode, consumeStoredAuthReturnUrl,
+  getSafeReturnUrl, getStoredAuthReturnUrl, getStoredReferralCode } from '@/lib/auth-flow'
 import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, extractGoogleAuthParams,
   resolveGoogleAuthCallbackUrl, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
@@ -42,9 +42,19 @@ export default function AuthCallbackScreen() {
         const referral = await getStoredReferralCode()
         const response = await completeGoogleAuthFromUrl(url, i18n.language, referral ?? undefined)
         if (response.wasReactivated) { setAccountBack(response); setState('account'); return }
-        await login(response.token, response.refreshToken, { userId: response.userId, name: response.name, email: response.email })
-        if (referral) await clearStoredReferralCode()
-        router.replace(getSafeReturnUrl(await consumeStoredAuthReturnUrl()))
+        const isCurrentLoginSession = await login(response.token, response.refreshToken, {
+          userId: response.userId, name: response.name, email: response.email,
+        })
+        if (!isCurrentLoginSession?.()) return
+        if (referral) {
+          await clearStoredReferralCode()
+          if (!isCurrentLoginSession()) return
+        }
+        const storedReturnUrl = await getStoredAuthReturnUrl()
+        if (!isCurrentLoginSession()) return
+        await clearStoredAuthReturnUrl()
+        if (!isCurrentLoginSession()) return
+        router.replace(getSafeReturnUrl(storedReturnUrl))
       } catch { setState('failed') }
     }
     void handleCallback(callbackUrl)
@@ -60,9 +70,20 @@ export default function AuthCallbackScreen() {
     if (!accountBack || loading) return
     setLoading(true)
     try {
-      await login(accountBack.token, accountBack.refreshToken, { userId: accountBack.userId, name: accountBack.name, email: accountBack.email })
-      if (await getStoredReferralCode()) await clearStoredReferralCode()
-      await consumeStoredAuthReturnUrl()
+      const isCurrentLoginSession = await login(accountBack.token, accountBack.refreshToken, {
+        userId: accountBack.userId, name: accountBack.name, email: accountBack.email,
+      })
+      if (!isCurrentLoginSession?.()) return
+      const referralCode = await getStoredReferralCode()
+      if (!isCurrentLoginSession()) return
+      if (referralCode) {
+        await clearStoredReferralCode()
+        if (!isCurrentLoginSession()) return
+      }
+      await getStoredAuthReturnUrl()
+      if (!isCurrentLoginSession()) return
+      await clearStoredAuthReturnUrl()
+      if (!isCurrentLoginSession()) return
       router.replace('/')
     } catch { setState('failed') }
     finally { setLoading(false) }

@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-import { clearStoredReferralCode, consumeStoredAuthReturnUrl, getSafeReturnUrl, getStoredReferralCode,
+import { clearStoredAuthReturnUrl, clearStoredReferralCode, getSafeReturnUrl, getStoredAuthReturnUrl, getStoredReferralCode,
   isSafeReturnUrl, isValidReferralCode, isValidVerificationCode,
   storeAuthReturnUrl, storeReferralCode } from '@/lib/auth-flow'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
@@ -108,12 +108,23 @@ export function useLoginFlow() {
   }
 
   async function completeLogin(response: BackendLoginResponse, today = false) {
-    await login(response.token, response.refreshToken, { userId: response.userId, name: response.name, email: response.email })
-    if (await getStoredReferralCode()) {
+    const isCurrentLoginSession = await login(response.token, response.refreshToken, {
+      userId: response.userId, name: response.name, email: response.email,
+    })
+    if (!isCurrentLoginSession?.()) return
+    const referralCode = await getStoredReferralCode()
+    if (!isCurrentLoginSession()) return
+    if (referralCode) {
       await clearStoredReferralCode()
+      if (!isCurrentLoginSession()) return
       setShowReferralBanner(false)
     }
-    const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
+    if (!isCurrentLoginSession()) return
+    const storedReturnUrl = await getStoredAuthReturnUrl()
+    if (!isCurrentLoginSession()) return
+    await clearStoredAuthReturnUrl()
+    if (!isCurrentLoginSession()) return
+    const returnUrl = getSafeReturnUrl(storedReturnUrl)
     router.replace(today ? '/' : returnUrl)
   }
 

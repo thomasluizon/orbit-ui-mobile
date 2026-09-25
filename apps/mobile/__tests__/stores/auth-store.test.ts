@@ -307,6 +307,21 @@ describe('mobile auth store security paths', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
 
+  it('revokes a completed login owner when a replacement login publishes', async () => {
+    const firstOwner = await useAuthStore.getState().login('first-token', 'first-refresh', {
+      userId: 'first-user', email: 'first@example.com', name: 'First',
+    })
+    expect(firstOwner?.()).toBe(true)
+
+    const replacementOwner = await useAuthStore.getState().login('new-token', 'new-refresh', {
+      userId: 'new-user', email: 'new@example.com', name: 'New',
+    })
+
+    expect(firstOwner?.()).toBe(false)
+    expect(replacementOwner?.()).toBe(true)
+    expect(useAuthStore.getState().user?.userId).toBe('new-user')
+  })
+
   it('persists the new tokens before clearing cached query data on login', async () => {
     const callOrder: string[] = []
     setTokenMock.mockImplementation(() => {
