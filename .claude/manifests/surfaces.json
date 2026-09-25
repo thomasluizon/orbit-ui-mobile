@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "8f3ceffee4559811d932c0707628bc7d33162bed",
+  "generatedFrom": "43e05d60c112b929a06e4dcf230e878f2c4b6529",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -478,7 +478,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 340,
+      "closureSize": 342,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -492,7 +492,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 340,
+      "closureSize": 342,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -506,7 +506,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 340,
+      "closureSize": 342,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -520,7 +520,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 340,
+      "closureSize": 342,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -4438,7 +4438,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 339,
+      "closureSize": 341,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4452,7 +4452,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 339,
+      "closureSize": 341,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4466,7 +4466,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 339,
+      "closureSize": 341,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4480,7 +4480,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 339,
+      "closureSize": 341,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6942,7 +6942,7 @@
       "ownedFiles": [
         "apps/mobile/app/habits/[id].tsx"
       ],
-      "closureSize": 349,
+      "closureSize": 350,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -6956,7 +6956,7 @@
       "ownedFiles": [
         "apps/mobile/app/habits/[id].tsx"
       ],
-      "closureSize": 349,
+      "closureSize": 350,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -6970,7 +6970,7 @@
       "ownedFiles": [
         "apps/mobile/app/habits/[id].tsx"
       ],
-      "closureSize": 349,
+      "closureSize": 350,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -6984,7 +6984,7 @@
       "ownedFiles": [
         "apps/mobile/app/habits/[id].tsx"
       ],
-      "closureSize": 349,
+      "closureSize": 350,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -9894,7 +9894,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 348,
+      "closureSize": 349,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -9908,7 +9908,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 348,
+      "closureSize": 349,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -9922,7 +9922,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 348,
+      "closureSize": 349,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -9936,7 +9936,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 348,
+      "closureSize": 349,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
