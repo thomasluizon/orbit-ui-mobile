@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { createTranslator } from 'next-intl'
 import { authLocales, authScreenStates, createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LoginContent } from '@/app/(auth)/login/login-content'
 
 const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown>, action: vi.fn() }))
@@ -14,7 +17,8 @@ vi.mock('motion/react', async () => {
 
 function setFixture(state: Parameters<typeof createLoginScreenFixture>[0], locale: typeof authLocales[number]) {
   const fixture = createLoginScreenFixture(state, locale)
-  mocks.flow = { ...fixture, setEmail: mocks.action, sendCode: mocks.action, verifyCode: mocks.action,
+  mocks.flow = { ...fixture, t: createTranslator({ locale, messages: locale === 'en' ? en : ptBR }),
+    setEmail: mocks.action, sendCode: mocks.action, verifyCode: mocks.action,
     resendCode: mocks.action, backToEmail: mocks.action, signInWithGoogle: mocks.action,
     onCodeChange: mocks.action, continueAccount: mocks.action }
   return fixture
@@ -22,6 +26,32 @@ function setFixture(state: Parameters<typeof createLoginScreenFixture>[0], local
 
 describe.each(authLocales)('auth screen composition in %s', (locale) => {
   beforeEach(() => vi.clearAllMocks())
+  it('renders the complete localized legal sentence with both destinations', () => {
+    setFixture('email', locale)
+    render(<LoginContent />)
+    const links = screen.getAllByRole('link')
+    const sentence = locale === 'en'
+      ? 'By continuing, you agree to the Terms and the Privacy policy.'
+      : 'Ao continuar, você concorda com os Termos e a Política de privacidade.'
+    expect(links).toHaveLength(2)
+    expect(links[0]?.closest('p')).toHaveTextContent(sentence)
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/about', '/about'])
+  })
+  it('keeps both legal links when the locale reverses their order', () => {
+    setFixture('email', locale)
+    const catalog = locale === 'en' ? en : ptBR
+    const privacyLabel = locale === 'en' ? 'Privacy policy' : 'Política de privacidade'
+    const termsLabel = locale === 'en' ? 'Terms' : 'Termos'
+    mocks.flow.t = createTranslator({ locale, messages: {
+      ...catalog,
+      auth: { ...catalog.auth, legalConsent: `First <privacy>${privacyLabel}</privacy>, then <terms>${termsLabel}</terms>.` },
+    } })
+    render(<LoginContent />)
+    const links = screen.getAllByRole('link')
+    expect(links.map((link) => link.textContent)).toEqual([privacyLabel, termsLabel])
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/about', '/about'])
+    expect(links[0]?.closest('p')).toHaveTextContent(`First ${privacyLabel}, then ${termsLabel}.`)
+  })
   it.each(['resend ready', 'code expired'] as const)('puts the busy state on resend for %s', (state) => {
     const { t } = setFixture(state, locale)
     mocks.flow.isSubmitting = true
