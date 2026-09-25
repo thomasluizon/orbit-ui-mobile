@@ -81,7 +81,18 @@ describe('ScheduledReminderSection', () => {
   it('adds a valid scheduled reminder from the form', () => {
     const props = renderSection({ scheduledReminders: [] })
     fireEvent.click(screen.getByText('habits.form.scheduledReminderAdd'))
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.scheduledReminderDayBefore' }))
+    const group = screen.getByRole('radiogroup', { name: 'habits.form.scheduledReminder' })
+    const dayBefore = screen.getByRole('radio', { name: 'habits.form.scheduledReminderDayBefore' })
+    const sameDayOption = screen.getByRole('radio', { name: 'habits.form.scheduledReminderSameDay' })
+    expect(group).toContainElement(dayBefore)
+    expect([dayBefore.tabIndex, sameDayOption.tabIndex]).toEqual([-1, 0])
+    fireEvent.keyDown(sameDayOption, { key: 'ArrowRight' })
+    expect(dayBefore).toHaveFocus()
+    expect(dayBefore).toHaveAttribute('aria-checked', 'true')
+    expect([dayBefore.tabIndex, sameDayOption.tabIndex]).toEqual([0, -1])
+    fireEvent.keyDown(dayBefore, { key: 'ArrowRight' })
+    expect(sameDayOption).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(dayBefore)
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTimePlaceholder'), {
       target: { value: '09:30' },
     })
