@@ -1313,11 +1313,11 @@ describe('HabitList', () => {
       ref.current?.settleBulkHabitResolutions([
         { habitId: 'log-a', mode: 'log' },
         { habitId: 'log-b', mode: 'log' },
-      ])
+      ], YESTERDAY)
       ref.current?.settleBulkHabitResolutions([
         { habitId: 'skip-a', mode: 'skip' },
         { habitId: 'skip-b', mode: 'skip' },
-      ])
+      ], YESTERDAY)
       await Promise.resolve()
     })
 
@@ -1380,7 +1380,7 @@ describe('HabitList', () => {
       ref.current?.settleBulkHabitResolutions([
         { habitId: leafA.id, mode: 'log' },
         { habitId: leafB.id, mode: 'log' },
-      ])
+      ], YESTERDAY)
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -1456,7 +1456,7 @@ describe('HabitList', () => {
       ref.current?.settleBulkHabitResolutions([
         { habitId: leafA.id, mode: 'log' },
         { habitId: leafB.id, mode: 'log' },
-      ])
+      ], YESTERDAY)
       await Promise.resolve()
       rejectParentBMutation?.(new Error('rejected'))
       await Promise.allSettled([pendingParentBMutation])
@@ -1535,8 +1535,8 @@ describe('HabitList', () => {
     )
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }])
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }], YESTERDAY)
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
       resolveParentA?.()
       await pendingParentA
@@ -1618,8 +1618,8 @@ describe('HabitList', () => {
     )
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }])
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }], YESTERDAY)
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
       resolveParentA?.()
       await pendingParentA
@@ -1681,7 +1681,7 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
     })
     rerenderWithProviders(renderList(TODAY))
@@ -1694,6 +1694,42 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync.mock.calls.map(([input]) => input)).toEqual([
       { habitId: parent.id, date: YESTERDAY, intent: 'log' },
     ])
+  })
+
+  it('does not apply a delayed bulk result to the newly viewed date', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [
+        { date: YESTERDAY, status: 'Pending', logId: null },
+        { date: TODAY, status: 'Pending', logId: null },
+      ],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = (date: string) => (
+      <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${date}T09:00:00Z`)} />
+    )
+    const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
+    rerenderWithProviders(renderList(TODAY))
+
+    act(() => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: child.id, mode: 'log' }], YESTERDAY)
+    })
+
+    expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-state', 'empty')
+    expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    rerenderWithProviders(renderList(YESTERDAY))
+    expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-state', 'done')
   })
 
   it('keeps the current parent guard when an earlier date settlement rejects', async () => {
@@ -1741,12 +1777,12 @@ describe('HabitList', () => {
     const renderResult = renderWithProviders(renderList(YESTERDAY))
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
     })
     renderResult.rerenderWithProviders(renderList(TODAY))
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
     const currentOperationTimerCount = vi.getTimerCount()
@@ -1759,7 +1795,7 @@ describe('HabitList', () => {
     expect(vi.getTimerCount()).toBe(currentOperationTimerCount)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1816,7 +1852,7 @@ describe('HabitList', () => {
     )
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
     const activeOperationTimerCount = vi.getTimerCount()
@@ -1829,7 +1865,7 @@ describe('HabitList', () => {
     expect(vi.getTimerCount()).toBe(activeOperationTimerCount - 1)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leaf.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1881,12 +1917,12 @@ describe('HabitList', () => {
     const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafA.id, mode: 'log' }], YESTERDAY)
       await Promise.resolve()
     })
     rerenderWithProviders(renderList(TODAY))
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: leafB.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1922,7 +1958,7 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'log' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'log' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1932,7 +1968,7 @@ describe('HabitList', () => {
       .toHaveLength(0)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1966,7 +2002,7 @@ describe('HabitList', () => {
     renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }], TODAY)
       await Promise.resolve()
     })
 
@@ -1976,7 +2012,7 @@ describe('HabitList', () => {
       .toHaveLength(0)
 
     await act(async () => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }])
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }], TODAY)
       await Promise.resolve()
     })
 

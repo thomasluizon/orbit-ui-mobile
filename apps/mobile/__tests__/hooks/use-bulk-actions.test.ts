@@ -180,7 +180,7 @@ describe('useBulkActions reversibility boundary', () => {
     expect(settleBulkHabitResolutions).toHaveBeenCalledWith([
       { habitId: 'h-1', mode: 'skip' },
       { habitId: 'h-2', mode: 'skip' },
-    ])
+    ], VIEWED_DATE)
     expect(onSuccess).toHaveBeenCalledTimes(1)
   })
 
@@ -202,8 +202,58 @@ describe('useBulkActions reversibility boundary', () => {
     expect(settleBulkHabitResolutions).toHaveBeenCalledWith([
       { habitId: 'h-1', mode: 'log' },
       { habitId: 'h-2', mode: 'log' },
-    ])
+    ], VIEWED_DATE)
     expect(onSuccess).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog', 'log'],
+    ['skip', bulkSkip, 'confirmBulkSkip', 'skip'],
+  ] as const)('keeps a delayed bulk %s result on its mutation date', async (
+    _name,
+    mutation,
+    action,
+    mode,
+  ) => {
+    let resolveRequest!: (value: ReturnType<typeof bulkSuccess>) => void
+    mutation.mutateAsync.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve
+    }))
+    const settleBulkHabitResolutions = vi.fn()
+    const habitListRef = {
+      current: { settleBulkHabitResolutions },
+    } as unknown as React.RefObject<HabitListHandle | null>
+    const captured: { current: BulkActions | null } = { current: null }
+    let viewedDate = VIEWED_DATE
+    function Probe() {
+      captured.current = useBulkActions({
+        selectedHabitIds: new Set(['h-1']),
+        selectedDateStr: viewedDate,
+        readOnly: false,
+        habitsById: new Map(),
+        habitListRef,
+        onSuccess: vi.fn(),
+        onPartialFailure: vi.fn(),
+      })
+      return null
+    }
+    let renderer!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { renderer = TestRenderer.create(React.createElement(Probe)) })
+
+    let request!: Promise<void>
+    TestRenderer.act(() => { request = captured.current![action]() })
+    viewedDate = '2026-04-02'
+    TestRenderer.act(() => { renderer.update(React.createElement(Probe)) })
+    await TestRenderer.act(async () => {
+      resolveRequest(bulkSuccess(['h-1']))
+      await request
+    })
+
+    expect(mutation.mutateAsync).toHaveBeenCalledWith([{ habitId: 'h-1', date: VIEWED_DATE }])
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith(
+      [{ habitId: 'h-1', mode }],
+      VIEWED_DATE,
+    )
   })
 
   it.each([

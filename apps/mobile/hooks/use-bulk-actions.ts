@@ -78,12 +78,12 @@ export function useBulkActions({
   }, [onPartialFailure, onSuccess, showToast, t])
 
   const applyBulkMutationSuccesses = useCallback(
-    (results: readonly { status: string; habitId: string }[], mode: HabitResolutionMode) => {
+    (results: readonly { status: string; habitId: string }[], mode: HabitResolutionMode, date: string) => {
       const resolutions = results.flatMap((item) =>
         item.status === 'Success' ? [{ habitId: item.habitId, mode }] : [],
       )
       if (resolutions.length === 0) return
-      habitListRef.current?.settleBulkHabitResolutions(resolutions)
+      habitListRef.current?.settleBulkHabitResolutions(resolutions, date)
     },
     [habitListRef],
   )
@@ -101,20 +101,22 @@ export function useBulkActions({
   async function executeLog(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
+    const date = selectedDateStr
     const result = await bulkLog.mutateAsync(
-      ids.map((habitId) => ({ habitId, date: selectedDateStr })),
+      ids.map((habitId) => ({ habitId, date })),
     )
-    applyBulkMutationSuccesses(result.results, 'log')
+    applyBulkMutationSuccesses(result.results, 'log', date)
     finish(result, (failedIds) => void executeLog(failedIds))
   }
 
   async function executeSkip(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
+    const date = selectedDateStr
     const result = await bulkSkip.mutateAsync(
-      ids.map((habitId) => ({ habitId, date: selectedDateStr })),
+      ids.map((habitId) => ({ habitId, date })),
     )
-    applyBulkMutationSuccesses(result.results, 'skip')
+    applyBulkMutationSuccesses(result.results, 'skip', date)
     finish(result, (failedIds) => void executeSkip(failedIds))
   }
 

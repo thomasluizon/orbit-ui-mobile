@@ -125,7 +125,7 @@ export interface HabitListHandle {
   expandAll: () => void
   markRecentlyCompleted: (habitId: string) => void
   checkAndPromptParentLog: (childHabitId: string) => void
-  settleBulkHabitResolutions: (resolutions: readonly HabitResolution[]) => void
+  settleBulkHabitResolutions: (resolutions: readonly HabitResolution[], date: string) => void
   refetch: () => void
   scrollToOffset: (offset: number) => void
 }
@@ -952,14 +952,18 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const settleBulkHabitResolutions = useCallback((
       resolutions: readonly HabitResolution[],
+      date: string,
     ) => {
       const settlementData = promptDataRef.current
       if (!settlementData) return
+      for (const resolution of resolutions) {
+        markRecentlyCompleted(resolution.habitId, date)
+      }
+      if (settlementData.selectedDateStr !== date) return
       const confirmedResolutions = confirmedResolutionsRef.current
       const resolvedIds = new Set(resolutions.map((resolution) => resolution.habitId))
       for (const resolution of resolutions) {
         recordHabitResolution(confirmedResolutions, resolution.habitId, resolution.mode)
-        markRecentlyCompleted(resolution.habitId)
       }
 
       const childIdByAffectedParent = new Map<string, string>()

@@ -156,7 +156,7 @@ export interface HabitListHandle {
   allLoadedIds: Set<string>
   markRecentlyCompleted: (habitId: string) => void
   checkAndPromptParentLog: (childHabitId: string) => void
-  settleBulkHabitResolutions: (resolutions: readonly HabitResolution[]) => void
+  settleBulkHabitResolutions: (resolutions: readonly HabitResolution[], date: string) => void
 }
 
 interface ParentSettlementData {
@@ -887,9 +887,13 @@ export function HabitList({
     checkAndSettleParent(childHabitId, confirmedResolutions)
   }
 
-  function settleBulkHabitResolutions(resolutions: readonly HabitResolution[]) {
+  function settleBulkHabitResolutions(resolutions: readonly HabitResolution[], date: string) {
     const settlementData = promptDataRef.current
     if (!settlementData) return
+    for (const resolution of resolutions) {
+      markRecentlyCompleted(resolution.habitId, date)
+    }
+    if (settlementData.selectedDateStr !== date) return
     const confirmedResolutions = confirmedResolutionsRef.current
     const resolvedIds = new Set(resolutions.map((resolution) => resolution.habitId))
     for (const resolution of resolutions) {
@@ -898,7 +902,6 @@ export function HabitList({
         resolution.habitId,
         resolution.mode,
       )
-      markRecentlyCompleted(resolution.habitId)
     }
 
     const childIdByAffectedParent = new Map<string, string>()
