@@ -8,6 +8,7 @@ import {
   resolveNotificationUrl,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
+  shouldShowTodayAstraSurface,
 } from '../utils/notification-actions'
 import { createMockNotification } from './factories'
 
@@ -146,5 +147,8 @@ describe('notification-actions', () => {
     expect(shouldShowTodayAstraLine({ ...visible, inDrillOrSurface: true })).toBe(false)
     expect(shouldShowTodayAstraLine({ ...visible, isOnline: false })).toBe(false)
     expect(shouldShowTodayAstraLine({ ...visible, atLimit: true })).toBe(false)
+    expect(shouldShowTodayAstraSurface(visible)).toBe(true)
+    expect(shouldShowTodayAstraSurface({ ...visible, isTodaySelected: false })).toBe(false)
+    expect(shouldShowTodayAstraSurface({ ...visible, inDrillOrSurface: true })).toBe(false)
   })
 })

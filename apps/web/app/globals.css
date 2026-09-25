@@ -1073,6 +1073,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   content: none;
 }
 
+.today-astra-action::before {
+  position: absolute;
+  inset: -12px;
+  background: transparent;
+  content: '';
+}
+
 @media (hover: hover) and (pointer: fine) {
   .icon-btn:hover,
   .icon-btn-well:hover {

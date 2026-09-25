@@ -13,7 +13,7 @@ afterEach(() => vi.useRealTimers())
 
 const mocks = vi.hoisted(() => ({ cookie: '', fetch: vi.fn(), router: { prefetch: vi.fn() } }))
 vi.mock('next/headers', () => ({ headers: async () => new Headers(), cookies: async () => new RequestCookies(new Headers({ cookie: mocks.cookie })) }))
-vi.mock('next/font/google', () => ({ Geist: () => ({}), Geist_Mono: () => ({}), Space_Grotesk: () => ({}) }))
+vi.mock('@/app/fonts', () => ({ geist: {}, geistMono: {}, spaceGrotesk: {} }))
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'en', getMessages: async () => ({}) }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, NextIntlClientProvider: ({ children }: { children: ReactNode }) => children }))
 vi.mock('next/navigation', () => ({ usePathname: () => '/about', useRouter: () => mocks.router, useSearchParams: () => new URLSearchParams() }))
