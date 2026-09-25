@@ -159,6 +159,20 @@ describe('SupportScreen', () => {
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.value).toBe('It broke')
   })
 
+  it('keeps subject rows free of list separators', async () => {
+    const tree = await renderScreen()
+    const group = tree.root.findAll(
+      (node) => node.type === View && node.props.accessibilityRole === 'radiogroup'
+        && node.props.accessibilityLabel === 'profile.support.subject',
+    )[0]!
+    const separators = group.findAll(
+      (node) => node.type === View && node.props.style != null
+        && !Array.isArray(node.props.style)
+        && Object.hasOwn(node.props.style, 'borderTopWidth'),
+    )
+    expect(separators).toHaveLength(0)
+  })
+
   it('uses the system inputs, including a six-row message and the disabled account email', async () => {
     const tree = await renderScreen()
 

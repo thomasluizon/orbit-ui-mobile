@@ -1,30 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import * as Linking from 'expo-linking'
+import { useLinkingURL } from 'expo-linking'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
 import { clearStoredAuthReturnUrl, clearStoredReferralCode, consumeStoredAuthReturnUrl,
-  createAuthReturnUrlAttempt, getSafeReturnUrl, getStoredAuthReturnUrl, getStoredReferralCode,
+  getSafeReturnUrl, getStoredAuthReturnUrl, getStoredReferralCode,
   isAuthReturnUrlAttemptCurrent } from '@/lib/auth-flow'
 import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, extractGoogleAuthParams,
-  resolveGoogleAuthCallbackUrl, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
+  resolveGoogleAuthCallbackUrl, setPendingGoogleAuthCallbackUrl,
+  usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
 import { useAuthStore } from '@/stores/auth-store'
 import { captureBuildEnabled, shouldRetainEmptyAuthCallback } from '@/lib/capture-mode'
 import { LoginContent } from '@/components/auth/login-content'
 
-function resolveReturnUrlAttemptId(
-  callbackUrl: string,
-  sessionCallbackUrl: string | null,
-  sessionReturnUrlAttemptId: number | null,
-  isPending: boolean,
-): number {
-  if (sessionCallbackUrl === callbackUrl && sessionReturnUrlAttemptId !== null) return sessionReturnUrlAttemptId
-  if (sessionCallbackUrl || isPending) return -1
-  return createAuthReturnUrlAttempt()
-}
-
-function ownsReturnUrl(isCurrentLoginSession: () => boolean, attemptId: number): boolean {
+function ownsReturnUrl(isCurrentLoginSession: () => boolean, attemptId: string): boolean {
   return isCurrentLoginSession() && isAuthReturnUrlAttemptCurrent(attemptId)
 }
 
@@ -32,31 +22,46 @@ export default function AuthCallbackScreen() {
   const { i18n } = useTranslation()
   const params = useLocalSearchParams<{ token?: string; refreshToken?: string; userId?: string;
     name?: string; email?: string; error?: string; error_description?: string; access_token?: string; refresh_token?: string }>()
-  const rawUrl = Linking.useLinkingURL()
+  const rawUrl = useLinkingURL()
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
   const { callbackUrl: sessionCallbackUrl, isPending,
     returnUrlAttemptId: sessionReturnUrlAttemptId } = usePendingGoogleAuthSession()
   const processed = useRef(false)
-  const returnUrlAttemptRef = useRef<number | null>(null)
+  const returnUrlAttemptRef = useRef<string | null>(null)
   const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
   const [accountBack, setAccountBack] = useState<BackendLoginResponse | null>(null)
   const [loading, setLoading] = useState(false)
-  const callbackUrl = useMemo(() => resolveGoogleAuthCallbackUrl({
+  const [checkedLink, setCheckedLink] = useState(false)
+  const candidateUrl = useMemo(() => resolveGoogleAuthCallbackUrl({
     sessionCallbackUrl, rawUrl, params, callbackUrl: AUTH_CALLBACK_URL,
   }), [params, rawUrl, sessionCallbackUrl])
 
   useEffect(() => {
-    if (processed.current || !callbackUrl) return
-    const returnUrlAttemptId = resolveReturnUrlAttemptId(
-      callbackUrl, sessionCallbackUrl, sessionReturnUrlAttemptId, isPending,
-    )
+    if (processed.current || sessionCallbackUrl || isPending) return
+    let mounted = true
+    async function recoverCallback() {
+      try {
+        if (candidateUrl) await setPendingGoogleAuthCallbackUrl(candidateUrl)
+      } catch {
+        if (mounted) setState('failed')
+      } finally {
+        if (mounted) setCheckedLink(true)
+      }
+    }
+    void recoverCallback()
+    return () => { mounted = false }
+  }, [candidateUrl, isPending, sessionCallbackUrl])
+
+  useEffect(() => {
+    if (processed.current || !sessionCallbackUrl || sessionReturnUrlAttemptId === null) return
+    const returnUrlAttemptId = sessionReturnUrlAttemptId
     if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
     processed.current = true
     returnUrlAttemptRef.current = returnUrlAttemptId
-    clearPendingGoogleAuthSession(returnUrlAttemptId)
     async function handleCallback(url: string) {
       try {
+        await clearPendingGoogleAuthSession(returnUrlAttemptId)
         if (extractGoogleAuthParams(url).error === 'access_denied') {
           const storedReturnUrl = await consumeStoredAuthReturnUrl(returnUrlAttemptId)
           if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
@@ -81,14 +86,15 @@ export default function AuthCallbackScreen() {
         router.replace(getSafeReturnUrl(storedReturnUrl))
       } catch { setState('failed') }
     }
-    void handleCallback(callbackUrl)
-  }, [callbackUrl, i18n.language, isPending, login, router, sessionCallbackUrl, sessionReturnUrlAttemptId])
+    void handleCallback(sessionCallbackUrl)
+  }, [i18n.language, login, router, sessionCallbackUrl, sessionReturnUrlAttemptId])
 
   useEffect(() => {
-    if (shouldRetainEmptyAuthCallback(captureBuildEnabled) || processed.current || state !== 'pending' || callbackUrl || isPending) return
+    if (shouldRetainEmptyAuthCallback(captureBuildEnabled) || processed.current || state !== 'pending'
+      || sessionCallbackUrl || isPending || !checkedLink) return
     const timeout = setTimeout(() => router.replace('/login'), 250)
     return () => clearTimeout(timeout)
-  }, [callbackUrl, isPending, router, state])
+  }, [checkedLink, isPending, router, sessionCallbackUrl, state])
 
   async function continueAccount() {
     if (!accountBack || loading) return

@@ -10,6 +10,7 @@ import { clearPendingNotificationDeletes } from '@/lib/pending-notification-dele
 import { getQueryClient } from '@/lib/query-client'
 import { advanceAccountGeneration, advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
 import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
+import { clearSupabaseSession } from '@/lib/supabase'
 import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
@@ -57,6 +58,7 @@ let lastObservedAccountId: string | null = null
  * reset itself because a sign out is a definite end rather than a wobble.
  */
 function startAccountScopedSession(nextAccountId: string | null): void {
+  if (nextAccountId !== null) clearSupabaseSession()
   if (nextAccountId !== null) sessionReadVersion += 1
   advanceSessionEpoch()
   if (nextAccountId !== null) lastObservedAccountId = nextAccountId
@@ -81,6 +83,7 @@ function forgetPreviousAccountContent(): void {
 }
 
 function clearAccountScopedSessionState(): void {
+  clearSupabaseSession()
   startAccountScopedSession(null)
   clearStepUpState()
 }

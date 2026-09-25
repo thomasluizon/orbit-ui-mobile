@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ListRow } from '@/components/ui/list-row'
-import { RadioRow } from '@/components/ui/radio-row'
+import { RadioRow } from '@/components/ui/select-check'
 import { RowList } from '@/components/ui/row-list'
 import { SettingsGroup } from '@/components/ui/settings-group-list'
 
