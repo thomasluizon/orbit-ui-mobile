@@ -7,23 +7,18 @@ import { useUIStore } from '@/stores/ui-store'
 interface TodayAstraMocks {
   notifications: NotificationItem[]
   markRead: ReturnType<typeof vi.fn>
-  navigateProgress: ReturnType<typeof vi.fn>
   profile: { id: string; timeZone: string; lastCompletionDate?: string | null }
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
   notifications: [],
   markRead: vi.fn(),
-  navigateProgress: vi.fn(),
   profile: { id: 'profile', timeZone: 'UTC' },
 }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: { days: number }) =>
     values ? `${key}:${values.days}` : key,
-}))
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mocks.navigateProgress }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -43,7 +38,6 @@ describe('web Today Astra', () => {
   beforeEach(() => {
     mocks.notifications = []
     mocks.markRead.mockReset()
-    mocks.navigateProgress.mockReset()
     mocks.profile = { id: 'profile', timeZone: 'UTC' }
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
@@ -73,9 +67,9 @@ describe('web Today Astra', () => {
   })
 
   it.each([
-    ['recent subhabit', '2026-08-26', 'todayAstra.returningElapsed:3'],
-    ['older root and newer subhabit', '2026-08-26', 'todayAstra.returningElapsed:3'],
-    ['recent general habit', '2026-08-25', 'todayAstra.returningElapsed:4'],
+    ['three-day completion', '2026-08-26', 'todayAstra.returningElapsed:3'],
+    ['four-day completion', '2026-08-25', 'todayAstra.returningElapsed:4'],
+    ['window boundary', '2026-07-30', 'todayAstra.returningElapsed:30'],
     ['gap beyond the window', '2026-07-29', 'todayAstra.returningBounded'],
   ])('shows the profile interval for %s', (_scenario, lastCompletionDate, expected) => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate }
@@ -93,13 +87,12 @@ describe('web Today Astra', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('opens Progress from the returning line without marking a notification read', () => {
+  it('links to Progress from the returning line without marking a notification read', () => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
 
     renderTodayAstra()
-    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
 
-    expect(mocks.navigateProgress).toHaveBeenCalledWith('/progress')
     expect(mocks.markRead).not.toHaveBeenCalled()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })

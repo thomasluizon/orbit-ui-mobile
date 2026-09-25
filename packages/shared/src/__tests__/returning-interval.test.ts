@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { getReturningInterval } from '../utils/returning-interval'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 
 const noon = new Date('2026-08-29T12:00:00Z')
 
 describe('getReturningInterval', () => {
+  it('describes completions accurately in both locales', () => {
+    expect(en.todayAstra.returningElapsed).toContain('completed a habit')
+    expect(en.todayAstra.returningBounded).toContain('completed a habit')
+    expect(ptBR.todayAstra.returningElapsed).toContain('concluiu um hábito')
+    expect(ptBR.todayAstra.returningBounded).toContain('concluiu um hábito')
+  })
   it.each([null, undefined])('hides an unavailable completion date: %s', (lastCompletionDate) => {
     expect(getReturningInterval(lastCompletionDate, 'UTC', noon)).toBeNull()
   })

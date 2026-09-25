@@ -247,8 +247,8 @@
   "todayAstra": {
     "createSentence": "Me ajude a criar um hábito para hoje",
     "openConversation": "Abrir a conversa",
-    "returningElapsed": "{days} dias sem registros.",
-    "returningBounded": "Mais de 30 dias sem registros.",
+    "returningElapsed": "Você concluiu um hábito pela última vez há {days} dias.",
+    "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
     "viewProgress": "Ver no Progresso",
     "offline": "A Astra precisa de conexão. Você ainda pode registrar hábitos offline.",
     "offlineLog": "Salvo neste dispositivo. O Orbit sincroniza quando você se reconectar."

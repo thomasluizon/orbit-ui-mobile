@@ -87,9 +87,9 @@ describe('mobile Today Astra', () => {
   })
 
   it.each([
-    ['recent subhabit', '2026-08-26', 'todayAstra.returningElapsed:3'],
-    ['older root and newer subhabit', '2026-08-26', 'todayAstra.returningElapsed:3'],
-    ['recent general habit', '2026-08-25', 'todayAstra.returningElapsed:4'],
+    ['three-day completion', '2026-08-26', 'todayAstra.returningElapsed:3'],
+    ['four-day completion', '2026-08-25', 'todayAstra.returningElapsed:4'],
+    ['window boundary', '2026-07-30', 'todayAstra.returningElapsed:30'],
     ['gap beyond the window', '2026-07-29', 'todayAstra.returningBounded'],
   ])('shows the profile interval for %s', async (_scenario, lastCompletionDate, expected) => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate }
