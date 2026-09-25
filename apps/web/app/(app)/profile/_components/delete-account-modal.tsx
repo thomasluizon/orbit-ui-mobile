@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestDeletion } from '@/lib/actions/auth'
-import { getHeldAccountId } from '@/stores/auth-store'
-import { getAccountGeneration } from '@/lib/session-epoch'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { TriangleAlert } from '@/components/ui/icons'
@@ -27,8 +27,9 @@ export function DeleteAccountModal({
   const t = useTranslations()
   const router = useRouter()
   const { sheetRef, closeSheet } = useSheetHost()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const accountId = useHeldAccountId()
+  const [loading, setLoading] = useAccountScopedState(false)
+  const [error, setError] = useAccountScopedState('')
 
   const warningMessage = (() => {
     // WHY: Mirrors https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Application/Auth/Commands/ConfirmAccountDeletionCommand.cs#L31-L33.
@@ -51,6 +52,7 @@ export function DeleteAccountModal({
   }
 
   async function handleRequestDeletion() {
+    if (accountId === null) return
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
     setLoading(true)
@@ -62,13 +64,15 @@ export function DeleteAccountModal({
         setLoading(false)
         return
       }
-      beginStepUpChallenge('delete')
+      beginStepUpChallenge('delete', accountId)
       closeSheet(() => {
         if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
+
         handleOpenChange(false)
         router.push('/step-up?operation=delete')
       })
     } catch (caught: unknown) {
+      if (getAccountGeneration() !== accountGeneration) return
       setError(
         getFriendlyErrorMessage(
           caught,
@@ -123,7 +127,7 @@ export function DeleteAccountModal({
         <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
           <PillButton
             variant="destructive"
-            disabled={loading}
+            disabled={loading || accountId === null}
             loading={loading}
             onClick={() => void handleRequestDeletion()}
           >

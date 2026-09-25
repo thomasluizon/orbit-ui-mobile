@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/stores/auth-store'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -29,6 +30,11 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 import { EditNameSheet } from '@/app/(app)/profile/_components/edit-name-sheet'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 function renderSheet(onOpenChange = vi.fn()) {
   const queryClient = new QueryClient({
@@ -110,5 +116,41 @@ describe('EditNameSheet', () => {
     expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Ana Clara' })
     expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Thomas' })
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
+  })
+})
+
+describe('EditNameSheet across an account change', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    mockProfileName = 'Thomas'
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function typeANewName() {
+    renderSheet()
+    fireEvent.change(screen.getByDisplayValue('Thomas'), { target: { value: 'Ana Clara' } })
+    expect(screen.getByDisplayValue('Ana Clara')).toBeInTheDocument()
+  }
+
+  it('drops the name typed by the previous account when another replaces the tab', async () => {
+    typeANewName()
+    mockProfileName = ''
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByDisplayValue('Ana Clara')).not.toBeInTheDocument()
+  })
+
+  it('keeps the typed name when the same account recovers from a rejected refresh', async () => {
+    typeANewName()
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByDisplayValue('Ana Clara')).toBeInTheDocument()
   })
 })

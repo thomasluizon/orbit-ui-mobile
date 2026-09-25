@@ -37,14 +37,14 @@ import maxButtonWords from "../../eslint-rules/max-button-words.cjs"
 import noMutatingServerAuthFetch from "../../eslint-rules/no-mutating-server-auth-fetch.cjs"
 
 const maxButtonWordControls = [
-  { name: "button", labelProps: ["children", "aria-label"] },
-  { name: "PillButton", labelProps: ["children", "label", "accessibleName"] },
-  { name: "Button", labelProps: ["children", "label", "accessibleName"] },
-  { name: "Chip", labelProps: ["children", "ariaLabel"] },
+  { name: "button", labelProps: ["children"] },
+  { name: "PillButton", labelProps: ["children", "label"], iconOnly: true },
+  { name: "Button", labelProps: ["children", "label"], iconOnly: true },
+  { name: "Chip", labelProps: ["children"] },
   { name: "Pressable", labelProps: ["children"], roles: ["button", "tab", "menuitem"] },
   { name: "SegmentedControl", collectionProps: ["options"] },
   { name: "BottomTabBar", collectionProps: ["items"] },
-  { name: "ListRow", labelProps: ["title", "accessibilityLabel", "action.label"] },
+  { name: "ListRow", labelProps: ["title", "action.label"], iconAction: true },
 ]
 
 export default [

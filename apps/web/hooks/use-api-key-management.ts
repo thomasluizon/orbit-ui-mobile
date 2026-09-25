@@ -1,6 +1,6 @@
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
-import { useState } from 'react'
 import { useQuery, type QueryClient } from '@tanstack/react-query'
+
 import { API } from '@orbit/shared/api'
 import { ApiClientError, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
@@ -9,6 +9,8 @@ import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+
 import {
   clearApiKeyCreationGrant,
   consumeApiKeyCreationGrant,
@@ -46,10 +48,11 @@ export function useApiKeyManagement({
 
   const apiKeys = apiKeysQuery.data ?? []
   const canCreateKey = apiKeys.length < MAX_API_KEYS
-  const [createKeyError, setCreateKeyError] = useState<string | null>(null)
-  const [createGrantAvailable, setCreateGrantAvailable] = useState(hasApiKeyCreationGrant)
-  const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
-  const [revokeKeyError, setRevokeKeyError] = useState<string | null>(null)
+  const [createKeyError, setCreateKeyError] = useAccountScopedState<string | null>(null)
+  const [createGrantAvailable, setCreateGrantAvailable] = useAccountScopedState(hasApiKeyCreationGrant)
+  const [revokingKeyId, setRevokingKeyId] = useAccountScopedState<string | null>(null)
+  const [revokeKeyError, setRevokeKeyError] = useAccountScopedState<string | null>(null)
+
 
   const revokeKeyMutation = useAccountScopedMutation({
     mutationFn: (keyId: string, intendedAccountId) => revokeApiKey(keyId, intendedAccountId),
@@ -69,6 +72,7 @@ export function useApiKeyManagement({
   ): Promise<ApiKeyCreateResponse | null> {
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
+
     setCreateKeyError(null)
     if (!createGrantAvailable) {
       await onCreateGrantRequired()
@@ -80,6 +84,7 @@ export function useApiKeyManagement({
         setCreateKeyError(t('errors.api.accountChanged'))
         return null
       }
+
       if (!result.success) {
         clearApiKeyCreationGrant()
         setCreateGrantAvailable(false)
@@ -91,7 +96,9 @@ export function useApiKeyManagement({
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result.response
     } catch (error) {
+      if (getAccountGeneration() !== accountGeneration) return null
       setCreateKeyError(getFriendlyErrorMessage(error, t, 'orbitMcp.createKeyError'))
+
       return null
     }
   }

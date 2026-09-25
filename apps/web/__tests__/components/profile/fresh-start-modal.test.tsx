@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
+
 
 
 vi.mock('next-intl', () => ({
@@ -20,7 +21,8 @@ vi.mock('next/navigation', () => ({
 }))
 
 const mockQueryClientClear = vi.fn()
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
   useQueryClient: () => ({
     clear: mockQueryClientClear,
   }),
@@ -33,9 +35,17 @@ vi.mock('@/lib/actions/profile', () => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 
+
+import { buildAccountScopedStorageKey } from '@orbit/shared/utils'
 import { FreshStartModal } from '@/app/(app)/profile/_components/fresh-start-modal'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 
 describe('FreshStartModal', () => {
@@ -190,10 +200,12 @@ describe('FreshStartModal', () => {
     fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
     await waitFor(() => expect(mockResetAccount).toHaveBeenCalledOnce())
 
-    advanceAccountGeneration()
-    finishReset()
+    await act(async () => {
+      advanceAccountGeneration()
+      finishReset()
+    })
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('errors.api.accountChanged')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(onOpenChange).not.toHaveBeenCalled()
     expect(mockQueryClientClear).not.toHaveBeenCalled()
     expect(mockRouterPush).not.toHaveBeenCalled()
@@ -245,6 +257,22 @@ describe('FreshStartModal', () => {
     expect(mockResetAccount).not.toHaveBeenCalled()
   })
 
+  it('cancels through the exit transition rather than dropping the sheet', () => {
+    sheetTestControls.defer(true)
+    const onOpenChange = vi.fn()
+    render(<FreshStartModal open onOpenChange={onOpenChange} />)
+
+    fireEvent.click(screen.getByText('common.cancel'))
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(onOpenChange).not.toHaveBeenCalled()
+
+    sheetTestControls.completeDismissal()
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    sheetTestControls.defer(false)
+  })
+
   it('resets state when the sheet closes', () => {
     const onOpenChange = vi.fn()
 
@@ -259,5 +287,99 @@ describe('FreshStartModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
 
     expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
+  })
+})
+
+describe('FreshStartModal across an account change', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    mockResetAccount.mockResolvedValue(undefined)
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function armTheErasure() {
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('common.continue'))
+    const field = screen.getByLabelText('profile.freshStart.confirmLabel')
+    fireEvent.change(field, { target: { value: 'ORBIT' } })
+    expect(field).toHaveValue('ORBIT')
+  }
+
+  it('disarms the typed confirmation when another account replaces the tab', async () => {
+    armTheErasure()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
+    expect(screen.queryByLabelText('profile.freshStart.confirmLabel')).not.toBeInTheDocument()
+  })
+
+  it('keeps the typed confirmation when the same account recovers from a rejected refresh', async () => {
+    armTheErasure()
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByLabelText('profile.freshStart.confirmLabel')).toHaveValue('ORBIT')
+  })
+
+  it('does not clear the next account after a delayed reset completes', async () => {
+    let releaseReset!: () => void
+    mockResetAccount.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      releaseReset = resolve
+    }))
+    const nextNoticeKey = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-2')
+    localStorage.setItem(nextNoticeKey, '1')
+    armTheErasure()
+    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+
+    await replaceAccountWith('user-2')
+    await act(async () => { releaseReset(); await Promise.resolve() })
+
+    expect(localStorage.getItem(nextNoticeKey)).toBe('1')
+    expect(mockQueryClientClear).not.toHaveBeenCalled()
+    expect(mockRouterPush).not.toHaveBeenCalled()
+  })
+})
+
+describe('FreshStartModal and the trial notice', () => {
+  const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    localStorage.clear()
+    mockResetAccount.mockResolvedValue(undefined)
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    vi.unstubAllGlobals()
+  })
+
+  it('lets the trial notice appear again, whichever key suppressed it', async () => {
+    const scopedKey = buildAccountScopedStorageKey(TRIAL_EXPIRED_SEEN_STORAGE_KEY, 'user-1')
+    localStorage.setItem(TRIAL_EXPIRED_SEEN_STORAGE_KEY, '1')
+    localStorage.setItem(scopedKey, '1')
+
+    render(<FreshStartModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByText('common.continue'))
+    fireEvent.change(screen.getByLabelText('profile.freshStart.confirmLabel'), {
+      target: { value: 'ORBIT' },
+    })
+    fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
+
+    await waitFor(() => {
+      expect(mockResetAccount).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(localStorage.getItem(scopedKey)).toBeNull()
+    })
+    expect(localStorage.getItem(TRIAL_EXPIRED_SEEN_STORAGE_KEY)).toBeNull()
   })
 })

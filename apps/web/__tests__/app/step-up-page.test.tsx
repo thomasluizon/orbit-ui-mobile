@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   },
   readTiming: vi.fn(),
   replace: vi.fn(),
+  stopMonitor: vi.fn(),
   router: { replace: vi.fn() },
   serverAuthMutate: vi.fn(),
   heldAccountId: 'account-a',
@@ -52,25 +53,32 @@ vi.mock('@/stores/auth-store', () => {
     logout: mocks.logout,
     confirmSessionRefreshFailure: vi.fn(),
     recoverSessionRefreshFailure: vi.fn(),
+    startExpiryMonitor: () => mocks.stopMonitor,
   }
   return {
-    getHeldAccountId: () => mocks.heldAccountId,
     useAuthStore: Object.assign(
       (selector: (current: unknown) => unknown) => selector(state),
       { getState: () => state },
     ),
+    getHeldAccountId: () => mocks.heldAccountId,
+    useHeldAccountId: () => mocks.heldAccountId,
   }
 })
 vi.mock('@/lib/server-fetch', () => ({
   serverAuthMutate: (...args: unknown[]) => mocks.serverAuthMutate(...args),
 }))
 vi.mock('@/lib/step-up-storage', () => ({
-  beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
-  clearStepUpTiming: (operation: string) => mocks.clearTiming(operation),
-  markStepUpAttemptFailed: (record: unknown) => mocks.markAttemptFailed(record),
-  markStepUpExhausted: (record: unknown) => mocks.markExhausted(record),
+  beginStepUpChallenge: (operation: string, accountId: string | null) =>
+    mocks.beginChallenge(operation, accountId),
+  clearStepUpTiming: (operation: string, accountId: string | null) =>
+    mocks.clearTiming(operation, accountId),
+  markStepUpAttemptFailed: (record: unknown, accountId: string | null) =>
+    mocks.markAttemptFailed(record, accountId),
+  markStepUpExhausted: (record: unknown, accountId: string | null) =>
+    mocks.markExhausted(record, accountId),
   markStepUpVerified: (operation: string) => mocks.markVerified(operation),
-  readStepUpTiming: (operation: string) => mocks.readTiming(operation),
+  readStepUpTiming: (operation: string, accountId: string | null) =>
+    mocks.readTiming(operation, accountId),
 }))
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, action }: Readonly<{ children: React.ReactNode; action?: React.ReactNode }>) => (
@@ -93,7 +101,7 @@ function backendError(errorCode: string, error: string) {
 
 async function renderLiveScreen(record: StepUpTimingRecord = liveRecord()) {
   mocks.readTiming.mockReturnValue(record)
-  render(<StepUpScreen />)
+  render(<StepUpScreen serverAccountId={null} />)
   return screen.findByLabelText('codeLabel')
 }
 
@@ -278,7 +286,7 @@ describe('web step up screen', () => {
     await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
       API.apiKeys.requestCreationChallenge, { method: 'POST' }, 'account-a',
     ))
-    expect(mocks.beginChallenge).toHaveBeenCalledWith('keys')
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('keys', 'account-a')
   })
 
   it('keeps the old challenge when resending fails with an account refusal', async () => {
@@ -317,7 +325,7 @@ describe('web step up screen', () => {
       sentAt: now,
       exhaustedAt: now - STEP_UP_ATTEMPT_WINDOW_MS + 10_000,
     })
-    render(<StepUpScreen />)
+    render(<StepUpScreen serverAccountId={null} />)
 
     expect(await screen.findByText('exhaustedNotice')).toBeInTheDocument()
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
@@ -330,7 +338,7 @@ describe('web step up screen', () => {
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
 
     mocks.readTiming.mockReturnValue(liveRecord(60_000))
-    render(<StepUpScreen />)
+    render(<StepUpScreen serverAccountId={null} />)
     expect((await screen.findByText('resend')).closest('button')).toHaveAttribute('data-variant', 'ghost')
   })
 
@@ -343,7 +351,7 @@ describe('web step up screen', () => {
       { method: 'POST' },
       'account-a',
     ))
-    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete')
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'account-a')
     expect(screen.getByText(/cooldown/)).toBeInTheDocument()
     expect(screen.queryByText('resend')).not.toBeInTheDocument()
   })
@@ -389,7 +397,7 @@ describe('web step up screen', () => {
   it('confirms API key creation and returns to the creation handoff', async () => {
     mocks.operation = 'keys'
     mocks.readTiming.mockReturnValue({ operation: 'keys', sentAt: Date.now() })
-    render(<StepUpScreen />)
+    render(<StepUpScreen serverAccountId={null} />)
     await screen.findByLabelText('codeLabel')
     enterCode()
     clickConfirm()
@@ -399,7 +407,7 @@ describe('web step up screen', () => {
       { method: 'POST', body: JSON.stringify({ code: '123456' }) },
       'account-a',
     ))
-    expect(mocks.clearTiming).toHaveBeenCalledWith('keys')
+    expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'account-a')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
     expect(mocks.replace).toHaveBeenCalledWith('/profile')
   })

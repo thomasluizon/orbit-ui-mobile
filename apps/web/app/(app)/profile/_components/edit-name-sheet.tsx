@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
@@ -10,6 +9,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useProfile } from '@/hooks/use-profile'
 import { updateName } from '@/lib/actions/profile'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface EditNameSheetProps {
   open: boolean
@@ -21,9 +21,9 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
   const { profile, patchProfile, invalidate } = useProfile()
 
   const { sheetRef, closeSheet } = useSheetHost()
-  const [name, setName] = useState(() => profile?.name ?? '')
-  const [error, setError] = useState('')
-  const [prevOpen, setPrevOpen] = useState(open)
+  const [name, setName] = useAccountScopedState(() => profile?.name ?? '')
+  const [error, setError] = useAccountScopedState('')
+  const [prevOpen, setPrevOpen] = useAccountScopedState(open)
   if (open !== prevOpen) {
     setPrevOpen(open)
     if (open) {

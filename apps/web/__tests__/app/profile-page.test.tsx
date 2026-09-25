@@ -121,6 +121,7 @@ vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => 'account-a',
   useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
     selector({ logout: vi.fn() }),
+  useHeldAccountId: () => 'user-1',
 }))
 
 vi.mock('@/components/ui/theme-toggle', () => ({

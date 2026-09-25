@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { BUTTON_SIZES, type ButtonVariant } from '@orbit/shared/theme'
-import { createTokensV2, darkenHex, radius } from '@/lib/theme'
+import { createTokensV2, mixHex, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 /** The canonical five-variant pill action in the shared two-size geometry. */
@@ -22,7 +22,8 @@ export function Button({
   iconOnly,
   label,
   hint,
-}: Readonly<ButtonProps>) {
+  accessibilityRole = 'button',
+}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link' }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const sizeSpec = BUTTON_SIZES[size]
@@ -50,12 +51,12 @@ export function Button({
     }
     if (variant === 'destructive') {
       return {
-        backgroundColor: pressed ? darkenHex(tokens.statusBad, 0.15) : tokens.statusBad,
+        backgroundColor: pressed ? mixHex(tokens.statusBad, tokens.fg1, 0.15) : tokens.statusBad,
       }
     }
     if (variant === 'caution') {
       return {
-        backgroundColor: pressed ? darkenHex(tokens.statusOverdue, 0.15) : tokens.statusOverdue,
+        backgroundColor: pressed ? mixHex(tokens.statusOverdue, '#000000', 0.15) : tokens.statusOverdue,
       }
     }
     return {
@@ -70,7 +71,7 @@ export function Button({
       hitSlop={{ top: verticalHitSlop, bottom: verticalHitSlop, left: horizontalHitSlop, right: horizontalHitSlop }}
       onPress={loading ? undefined : onClick}
       disabled={disabled || loading}
-      accessibilityRole="button"
+      accessibilityRole={accessibilityRole}
       accessibilityLabel={iconOnly ? label : accessibleName}
       accessibilityHint={hint}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
@@ -81,7 +82,7 @@ export function Button({
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
           : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed),
-        disabled ? styles.disabled : null,
+        disabled && !loading ? styles.disabled : null,
         pressed && quietsOnPress ? styles.pressedQuiet : null,
         pressed ? styles.pressedScale : null,
       ]}
@@ -95,7 +96,6 @@ export function Button({
           style={[
             styles.label,
             { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
-            loading ? styles.labelBusy : null,
           ]}
         >
           {children}
@@ -103,6 +103,11 @@ export function Button({
       )}
     </Pressable>
   )
+}
+
+/** Native navigation with the same visual contract as PillButton. */
+export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; children: string }>) {
+  return <Button accessibilityRole="link" onClick={onPress}>{children}</Button>
 }
 
 const styles = StyleSheet.create({
@@ -123,9 +128,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: 'Geist_500Medium',
-  },
-  labelBusy: {
-    opacity: 0.6,
   },
 })
 

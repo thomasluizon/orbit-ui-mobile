@@ -16,6 +16,7 @@ import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useTranslations } from 'next-intl'
 
+
 interface EntrySnapshot {
   accountGeneration: number
   hadHabits: boolean
@@ -82,6 +83,7 @@ export function useRetainedOnboardingGuard(
         }
       })
   }, [accountGeneration, action, forceShow, patchProfile, showPersistentError, t])
+
 
   return forceShow || action === 'show'
 }

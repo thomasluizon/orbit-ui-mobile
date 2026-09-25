@@ -11,7 +11,7 @@ const mockRefetchStatus = vi.hoisted(() => vi.fn())
 const mockRefetchBilling = vi.hoisted(() => vi.fn())
 const mockShowSuccess = vi.hoisted(() => vi.fn())
 const mockShowPersistentError = vi.hoisted(() => vi.fn())
-const mockAccount = vi.hoisted(() => ({ held: 'account-a' }))
+const mockAccount = vi.hoisted(() => ({ held: 'u1' }))
 
 vi.mock('@/stores/auth-store', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/stores/auth-store')>(),
@@ -153,6 +153,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 import UpgradePage from '@/app/(app)/upgrade/page'
+import { holdAccount } from '@/__tests__/support/account-change'
 
 function UsageStatsWithoutProfile() {
   const t = useTranslations()
@@ -213,8 +214,9 @@ describe('UpgradePage subscription management', () => {
     mockRefetchBilling.mockReset().mockResolvedValue(undefined)
     mockShowSuccess.mockReset()
     mockShowPersistentError.mockReset()
-    mockAccount.held = 'account-a'
+    mockAccount.held = 'u1'
     globalThis.sessionStorage.clear()
+    holdAccount('u1')
   })
 
   afterEach(() => {
@@ -625,7 +627,7 @@ describe('UpgradePage subscription management', () => {
     vi.stubGlobal('location', location)
     render(<UpgradePage />)
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
-    await waitFor(() => expect(mockOpenCustomerPortal).toHaveBeenCalledWith('account-a'))
+    await waitFor(() => expect(mockOpenCustomerPortal).toHaveBeenCalledWith('u1'))
     mockAccount.held = 'account-b'
     finish?.({ url: 'https://billing.example/portal' })
     await waitFor(() => expect(mockShowPersistentError).toHaveBeenCalledWith(
@@ -673,7 +675,7 @@ describe('UpgradePage subscription management', () => {
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.managePlay' }))
     await waitFor(() => expect(location.href).toBe('https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=org.useorbit.app'))
     expect(mockOpenCustomerPortal).not.toHaveBeenCalled()
-    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('u1')
   })
 
   it.each(['stripe', 'play'])('recovers the %s handoff after Back restores the page from bfcache', async (source) => {
@@ -686,13 +688,13 @@ describe('UpgradePage subscription management', () => {
       name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage',
     })
     fireEvent.click(action)
-    await waitFor(() => expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1'))
+    await waitFor(() => expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('u1'))
     expect(action).toBeDisabled()
 
     fireEvent(window, new PageTransitionEvent('pageshow', { persisted: false }))
     expect(action).toBeDisabled()
     expect(mockRefetchStatus).not.toHaveBeenCalled()
-    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('u1')
 
     fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
     await waitFor(() => expect(action).toBeEnabled())
@@ -708,7 +710,7 @@ describe('UpgradePage subscription management', () => {
   })
 
   it('refreshes once when a new page mounts after a portal return', async () => {
-    globalThis.sessionStorage.setItem('orbit.subscription.portal-return', '1')
+    globalThis.sessionStorage.setItem('orbit.subscription.portal-return', 'u1')
     render(<UpgradePage />)
     await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('upgrade.billing.portalReturned'))
     expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
@@ -729,12 +731,12 @@ describe('UpgradePage subscription management', () => {
     fireEvent(document, new Event('visibilitychange'))
     expect(mockRefetchStatus).not.toHaveBeenCalled()
     fireEvent.click(action)
-    await waitFor(() => expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1'))
+    await waitFor(() => expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('u1'))
     visibility.mockReturnValue('hidden')
     fireEvent(document, new Event('visibilitychange'))
     expect(action).toBeDisabled()
     expect(mockRefetchStatus).not.toHaveBeenCalled()
-    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('u1')
 
     visibility.mockReturnValue('visible')
     fireEvent(document, new Event('visibilitychange'))
@@ -751,13 +753,13 @@ describe('UpgradePage subscription management', () => {
   it('stops listening for portal returns when the screen unmounts', () => {
     const page = render(<UpgradePage />)
     page.unmount()
-    globalThis.sessionStorage.setItem('orbit.subscription.portal-return', '1')
+    globalThis.sessionStorage.setItem('orbit.subscription.portal-return', 'u1')
     fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
     vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
     fireEvent(document, new Event('visibilitychange'))
     expect(mockRefetchStatus).not.toHaveBeenCalled()
     expect(mockRefetchBilling).not.toHaveBeenCalled()
-    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('u1')
   })
 
   it('labels entitled Play cancellation as access ending and keeps the provider action', () => {

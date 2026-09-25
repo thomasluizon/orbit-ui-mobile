@@ -278,6 +278,29 @@ describe('offline mutations', () => {
     expect(mocks.persistQueryCache).toHaveBeenCalledTimes(1)
   })
 
+  it.each([true, false])('does not send or queue an old mutation after connectivity resolves (online: %s)', async (online) => {
+    let finishConnectivity!: (value: boolean) => void
+    mocks.getCurrentConnectivity.mockImplementationOnce(() => new Promise((resolve) => {
+      finishConnectivity = resolve
+    }))
+    let current = true
+    const execute = vi.fn(() => Promise.resolve(null))
+    const pending = queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'resetProfile', scope: 'profile', endpoint: API.profile.reset, method: 'POST', payload: undefined,
+      }),
+      execute,
+      queuedResult: { queued: true as const },
+      isCurrent: () => current,
+    })
+
+    current = false
+    finishConnectivity(online)
+    await expect(pending).rejects.toThrow('Mutation owner changed')
+    expect(execute).not.toHaveBeenCalled()
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+  })
+
   it('invalidates search pages after replaying an offline tag rename', async () => {
     const mutation = buildQueuedMutation({ type: 'updateTag', scope: 'tags', endpoint: API.tags.update('tag-1'), method: 'PUT', payload: { name: 'Focus', color: '#00ff00' } })
     await queueOrExecute({ mutation, execute: vi.fn(), queuedResult: { queued: true as const } })
@@ -954,8 +977,12 @@ describe('offline mutations', () => {
     })
   })
 
-  it('refreshes the persisted profile before invalidating gamification after replay', async () => {
+  it('refreshes calendar events after the queued timezone write reaches the server', async () => {
     mocks.setOnline(true)
+    let settleTimezoneWrite!: () => void
+    mocks.apiClient.mockReturnValueOnce(new Promise((resolve) => {
+      settleTimezoneWrite = () => resolve(null)
+    }))
     mocks.queued.push(buildQueuedMutation({
       type: 'setTimeZone',
       scope: 'profile',
@@ -964,7 +991,11 @@ describe('offline mutations', () => {
       payload: { timeZone: 'Pacific/Kiritimati' },
     }))
 
-    await flushQueuedMutations()
+    const flush = flushQueuedMutations()
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+    settleTimezoneWrite()
+    await flush
 
     expect(mocks.cancelQueries).toHaveBeenCalledWith({ queryKey: calendarKeys.all })
     expect(mocks.invalidateQueries.mock.calls).toEqual([

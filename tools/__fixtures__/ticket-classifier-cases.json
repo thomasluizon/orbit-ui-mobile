@@ -1,0 +1,423 @@
+[
+  {
+    "id": "ordinary",
+    "body": "## Scope\n\n- Fix the store\n\n## Acceptance\n\n- It works",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "not_reproduced",
+    "body": "## Problem\n\nNOT REPRODUCED on any device yet.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "NOT_REPRODUCED"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "device_repro",
+    "body": "## Technical details\n\nReproduce on a device or emulator first.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "NOT_REPRODUCED"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "first_scope_repro",
+    "body": "## Scope\n\n- Reproduce the crash on a Pixel 7\n- Then fix it",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "NOT_REPRODUCED"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "later_repro_test",
+    "body": "## Scope\n\n- Change the query\n- Add a repro test",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "human_only",
+    "body": "## Scope\n\nHUMAN-ONLY: Thomas clicks the branch protection toggle.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "NOT_CODE_WORK"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "no_code",
+    "body": "## Scope\n\nThere is no code in any repo for this; it is a Stripe dashboard change.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "NOT_CODE_WORK"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "one_pr_per_group",
+    "body": "## Scope\n\nShip one PR per group of surfaces.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "MULTI_PR"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "codemod",
+    "body": "## Technical details\n\nA codemod rewrites every icon import.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "lockfile",
+    "body": "## Scope\n\nThe package-lock.json is regenerated from scratch.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "migration",
+    "body": "## Scope\n\n- Add the EF migration\n- Commit its generated Designer.cs output with the model change",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "orb223",
+    "body": "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n- The dashboard toggle, which is HUMAN-ONLY and no agent can execute this",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "bold_out_scope",
+    "body": "**Scope**\n\n- Add the endpoint\n\n**Out of scope**\n\n- Ops-only dashboard work",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "many_files",
+    "body": "## Affected modules / files\n\n- apps/web/file-0.ts\n- apps/web/file-1.ts\n- apps/web/file-2.ts\n- apps/web/file-3.ts\n- apps/web/file-4.ts\n- apps/web/file-5.ts\n- apps/web/file-6.ts\n- apps/web/file-7.ts\n- apps/web/file-8.ts\n- apps/web/file-9.ts\n- apps/web/file-10.ts\n- apps/web/file-11.ts\n- apps/web/file-12.ts\n- apps/web/file-13.ts\n- apps/web/file-14.ts\n- apps/web/file-15.ts\n- apps/web/file-16.ts\n- apps/web/file-17.ts\n- apps/web/file-18.ts\n- apps/web/file-19.ts\n- apps/web/file-20.ts\n- apps/web/file-21.ts\n- apps/web/file-22.ts\n- apps/web/file-23.ts\n- apps/web/file-24.ts\n- apps/web/file-25.ts\n- apps/web/file-26.ts\n- apps/web/file-27.ts\n- apps/web/file-28.ts\n- apps/web/file-29.ts",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "many_files_scope",
+    "body": "## Affected modules / files\n\n- apps/web/file-0.ts\n- apps/web/file-1.ts\n- apps/web/file-2.ts\n- apps/web/file-3.ts\n- apps/web/file-4.ts\n- apps/web/file-5.ts\n- apps/web/file-6.ts\n- apps/web/file-7.ts\n- apps/web/file-8.ts\n- apps/web/file-9.ts\n- apps/web/file-10.ts\n- apps/web/file-11.ts\n- apps/web/file-12.ts\n- apps/web/file-13.ts\n- apps/web/file-14.ts\n- apps/web/file-15.ts\n- apps/web/file-16.ts\n- apps/web/file-17.ts\n- apps/web/file-18.ts\n- apps/web/file-19.ts\n- apps/web/file-20.ts\n- apps/web/file-21.ts\n- apps/web/file-22.ts\n- apps/web/file-23.ts\n- apps/web/file-24.ts\n- apps/web/file-25.ts\n- apps/web/file-26.ts\n- apps/web/file-27.ts\n- apps/web/file-28.ts\n- apps/web/file-29.ts\n\n## Scope\n\n- Implement one atomic behavior",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "nested_out_scope",
+    "body": "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Thomas flips the toggle.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "resumed_scope",
+    "body": "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Thomas flips the toggle.\n\n## Technical details\n\nNo code in any repo.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "NOT_CODE_WORK"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "deferral_quote",
+    "body": "## Problem\n\nNOT REPRODUCED on a Pixel 7",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "NOT_REPRODUCED"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "ordinary_chat",
+    "body": "## Scope\n\n- Inject the recorder\n- Add one migration\n\n## Acceptance criteria\n\n- A chat round writes a row",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "human_grant",
+    "body": "## Acceptance criteria\n\n* Thomas has opened the page and approved the direction. This is a human grant (D13); no gate and no agent may substitute for it.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "HUMAN_GRANT"
+      ]
+    }
+  },
+  {
+    "id": "delegated_choice",
+    "body": "## Scope\n\n* Decide the stacked-CTA width-matching convention (open question from 2026-07-19).",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "DELEGATED_CHOICE"
+      ]
+    }
+  },
+  {
+    "id": "product_call",
+    "body": "## Technical details\n\nThis needs a brand decision before any copy is written.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "PRODUCT_CALL"
+      ]
+    }
+  },
+  {
+    "id": "pencil",
+    "body": "## Scope\n\n* Then build the prototype in Pencil (`pencil.dev`, via the `pencil` MCP server).\n\n## Technical details\n\n* Claude Design is the prototyping path with `design/reference.html` (Pencil is retired).\n",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "TOOL_CONTRADICTION"
+      ]
+    }
+  },
+  {
+    "id": "d28",
+    "body": "## Rescope\n\n**The design direction changed. D28 is dead.**\n\n## Scope\n\n- Rewrite the token table",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "label_on",
+    "body": "## Scope\n\n- Fix the selector",
+    "labels": [
+      "needs:conversation"
+    ],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "LABEL"
+      ]
+    }
+  },
+  {
+    "id": "label_off",
+    "body": "## Scope\n\n* Then build the prototype in Pencil (`pencil.dev`, via the `pencil` MCP server).\n\n## Technical details\n\n* Claude Design is the prototyping path with `design/reference.html` (Pencil is retired).\n",
+    "labels": [
+      "needs:no-conversation"
+    ],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "label_object",
+    "body": "## Scope\n\n- Fix it",
+    "labels": [
+      {
+        "name": "needs:conversation"
+      }
+    ],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "LABEL"
+      ]
+    }
+  },
+  {
+    "id": "out_scope_grant",
+    "body": "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n- The visual approval, which is a human grant no agent may substitute for",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "it_dead_debt",
+    "body": "## Problem\n\nIt is dead debt, not a break.\n\n## Scope\n\n- Remove the old branch and update its callsites.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "grandchild_test",
+    "body": "## Scope\n\n- Fix nested selection.\n\n## Test scenarios\n\n- Manually pick the grandchild, then deselect childA.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "callsite_test",
+    "body": "## Scope\n\n- Update the type.\n\n## Test scenarios\n\n- Pick one existing callsite of each.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "sibling_after_out_scope",
+    "body": "## Out of scope\n\n- HUMAN-ONLY work.\n\n## Scope\n\n- Build the API.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "non_goal",
+    "body": "## Non goals\n\n- No code in any repo.\n\n## Scope\n\n- Fix the UI.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": []
+    }
+  },
+  {
+    "id": "unreproduced_evidence",
+    "body": "## Problem\n\nUnreproduced, evidence below.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "NOT_REPRODUCED"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "several_prs",
+    "body": "## Scope\n\nThis needs several pull requests.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "MULTI_PR"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "multiple_prs",
+    "body": "## Scope\n\nSplit into 3 PRs.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "MULTI_PR"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "ops_only",
+    "body": "## Scope\n\nThis is ops-only work in the dashboard.",
+    "labels": [],
+    "expected": {
+      "deferrals": [
+        "NOT_CODE_WORK"
+      ],
+      "signals": []
+    }
+  },
+  {
+    "id": "human_grant_short",
+    "body": "## Acceptance criteria\n\nOnly a human can grant final approval.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "HUMAN_GRANT"
+      ]
+    }
+  },
+  {
+    "id": "implementer_choice",
+    "body": "## Scope\n\nEither approach works; the implementer chooses.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "DELEGATED_CHOICE"
+      ]
+    }
+  },
+  {
+    "id": "price_decision",
+    "body": "## Scope\n\nThomas must decide the price before implementation.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "PRODUCT_CALL"
+      ]
+    }
+  },
+  {
+    "id": "explicit_choice_new_phrasing",
+    "body": "## Scope\n\n- Implement account cleanup. Use the queue or the job record to track retries; the implementer can choose either option.",
+    "labels": [],
+    "expected": {
+      "deferrals": [],
+      "signals": [
+        "DELEGATED_CHOICE"
+      ]
+    }
+  }
+]

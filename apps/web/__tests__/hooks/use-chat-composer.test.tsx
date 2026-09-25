@@ -13,6 +13,7 @@ beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
 const mocks = vi.hoisted(() => ({
+  pathname: '/support',
   state: {
     profile: undefined as Profile | undefined,
     isRecording: false,
@@ -38,8 +39,42 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mocks.routerPush }),
+  useRouter: () => ({ push: mocks.routerPush, prefetch: vi.fn(), replace: vi.fn() }),
+  usePathname: () => mocks.pathname,
+  useSearchParams: () => new URLSearchParams(),
 }))
+
+vi.mock('next/dynamic', () => ({ default: () => () => null }))
+vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: React.ReactNode }) => children }))
+vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: React.ReactNode }) => children }))
+vi.mock('@/components/shell/destination-shell', () => ({
+  DestinationShell: ({ composer }: { composer: React.ReactNode }) => <main>{composer}</main>,
+}))
+vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: React.ReactNode }) => children }))
+vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: React.ReactNode }) => children }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
+vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: vi.fn() }))
+vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false }))
+vi.mock('@/hooks/use-habits', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-habits')>(),
+  useTotalHabitCount: () => 0,
+}))
+vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
+vi.mock('@/stores/onboarding-draft-store', () => ({
+  useOnboardingDraftHydrated: () => true,
+  useOnboardingHasPendingAnswers: () => false,
+  useOnboardingDraftStore: (selector: (state: { pushRegistrationFailed: boolean }) => unknown) => selector({ pushRegistrationFailed: false }),
+}))
+vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
+vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
+vi.mock('@/components/ui/back-to-top', () => ({ BackToTop: () => null }))
+vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
+vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
+vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: () => null }))
+vi.mock('@/components/referral/referral-prompt', () => ({ ReferralPrompt: () => null }))
+vi.mock('@/components/milestone-share/milestone-share-prompt', () => ({ MilestoneSharePrompt: () => null }))
+vi.mock('@/components/marketing-consent/marketing-consent-prompt', () => ({ MarketingConsentPrompt: () => null }))
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => mocks.queryClient,
@@ -75,9 +110,11 @@ vi.mock('@/app/actions/chat', () => ({
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useAuthStore } from '@/stores/auth-store'
 import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
+import AppLayout from '@/app/(app)/layout'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -180,6 +217,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: false, contextualSuggestion: null })
+    useUIStore.getState().setAstraConversationOpen(false)
     globalThis.localStorage.clear()
     vi.stubGlobal('fetch', mocks.fetch)
   })
@@ -215,6 +253,57 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
+  it('sends Support entry intent on the first and later requests of that conversation', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    useUIStore.getState().setAstraConversationOpen(true, 'support')
+
+    await act(async () => { await result.current.sendMessage('my streak reset') })
+    await act(async () => { await result.current.sendMessage('can you help?') })
+
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    for (const [, request] of mocks.fetch.mock.calls) {
+      const context = JSON.parse((request.body as FormData).get('clientContext') as string)
+      expect(context.entryPointIntent).toBe('support')
+    }
+  })
+
+  it.each([
+    ['/support', 'open', 'support'],
+    ['/support', 'direct-send', 'support'],
+    ['/profile', 'open', undefined],
+    ['/profile', 'direct-send', undefined],
+  ])('captures route intent through the layout %s %s callback before the first request', async (pathname, action, expectedIntent) => {
+    mocks.pathname = pathname
+    useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
+    mocks.fetch.mockImplementation((path: string) => Promise.resolve(path === '/api/auth/session'
+      ? new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000, userId: 'test-user', refreshFailed: false }))
+      : sseResponse(finalFrame(makeChatResponse()))))
+    render(<AppLayout><p>Support</p></AppLayout>)
+
+    if (action === 'open') fireEvent.click(screen.getByRole('button', { name: 'todayAstra.openConversation' }))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my streak reset' } })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+
+    await waitFor(() => expect(mocks.fetch.mock.calls.some(([, request]) => request?.body instanceof FormData)).toBe(true))
+    const [, request] = mocks.fetch.mock.calls.find(([, options]) => options?.body instanceof FormData)!
+    const context = JSON.parse((request.body as FormData).get('clientContext') as string)
+    expect(context.entryPointIntent).toBe(expectedIntent)
+  })
+
+  it('omits Support entry intent from a normal conversation', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    useUIStore.getState().setAstraConversationOpen(true)
+
+    await act(async () => { await result.current.sendMessage('log water') })
+
+    const [, request] = mocks.fetch.mock.calls[0]!
+    const context = JSON.parse((request.body as FormData).get('clientContext') as string)
+    expect(context).not.toHaveProperty('entryPointIntent')
+
+  })
+
   it('publishes the stream refusal deadline without replaying the send', async () => {
     const payload = { error: 'Too many requests', requestId: 'stream-reference', limit: 10, count: 11, retryAfterUtc: '2026-09-06T00:00:42.000Z' }
     mocks.fetch.mockResolvedValue(new Response(JSON.stringify(payload), { status: 429 }))
@@ -237,6 +326,31 @@ describe('web useChatComposer streaming send', () => {
     await act(async () => { await result.current.sendMessage('hello') })
     expect(useThrottleStore.getState().error).toBeNull()
     expect(result.current.sendError).toBeTruthy()
+  })
+
+  it('finishes a live stream after the same account recovers', async () => {
+    signInAs('user-1')
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+
+    let send!: Promise<void>
+    act(() => { send = result.current.sendMessage('Keep this send') })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    await act(async () => {
+      refuseSessionRefresh()
+      await useAuthStore.getState().confirmSessionRefreshFailure()
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
+      await useAuthStore.getState().recoverSessionRefreshFailure()
+    })
+    await act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Still yours' })))
+      stream.close()
+      await send
+    })
+
+    expect(useChatStore.getState().messages.at(-1)?.content).toBe('Still yours')
+    expect(mocks.queryClient.setQueryData).toHaveBeenCalledOnce()
   })
 
   it('streams deltas into a single ai bubble and the final response wins', async () => {
@@ -992,12 +1106,14 @@ describe('web useChatComposer streaming send', () => {
     signInAs('user-1')
     mocks.fetch.mockRejectedValue(new Error('network unavailable'))
     const { result } = renderHook(() => useChatComposer())
+    useUIStore.getState().setAstraConversationOpen(true, 'support')
 
     await act(async () => {
       await result.current.sendMessage('cancel my 9pm meds reminder')
     })
     expect(result.current.canRetryLastSend).toBe(true)
     expect(result.current.composerProps.onRetry).toBeTypeOf('function')
+    expect(result.current.sendError).toBe('chat.sendError')
 
     await act(async () => {
       answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
@@ -1006,6 +1122,8 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.canRetryLastSend).toBe(false)
     expect(result.current.composerProps.onRetry).toBeUndefined()
+    expect(result.current.sendError).toBeNull()
+    expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined()
   })
 
   it('keeps the retry armed when the same account recovers from a rejected refresh', async () => {
@@ -1030,6 +1148,42 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.canRetryLastSend).toBe(true)
     expect(result.current.composerProps.onRetry).toBeTypeOf('function')
+    expect(result.current.sendError).toBe('chat.sendError')
+  })
+
+  it.each([
+    ['final', finalFrame(makeChatResponse({ aiMessage: 'Account A answer' }))],
+    ['failure', frame('{"type":"error","error":"Account A failed","status":500}')],
+  ])('discards a late %s stream after account replacement', async (_, outcome) => {
+    signInAs('user-1')
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValue(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+
+    let send!: Promise<void>
+    act(() => { send = result.current.sendMessage('Account A prompt') })
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
+      await useAuthStore.getState().checkSession()
+    })
+    act(() => useChatStore.getState().setDraft('Account B draft'))
+
+    await act(async () => {
+      stream.enqueue(frame('{"type":"delta","text":"Account A partial"}'))
+      stream.enqueue(outcome)
+      stream.close()
+      await send
+    })
+
+    expect(useChatStore.getState().messages).toEqual([])
+    expect(useChatStore.getState().draft).toBe('Account B draft')
+    expect(useChatStore.getState().isTyping).toBe(false)
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(result.current.canRetryLastSend).toBe(false)
+    expect(result.current.sendError).toBeNull()
   })
 
   it('drops the previous account text file when another account replaces it', async () => {
@@ -1047,6 +1201,31 @@ describe('web useChatComposer streaming send', () => {
     })
 
     expect(result.current.selectedTextFile).toBeNull()
+  })
+
+  it('discards a text file that finishes reading after account replacement', async () => {
+    signInAs('user-1')
+    let finishRead!: (content: string) => void
+    const file = textFile('account-a.txt', 'unused')
+    Object.defineProperty(file, 'text', {
+      configurable: true,
+      value: () => new Promise<string>((resolve) => { finishRead = resolve }),
+    })
+    const { result } = renderHook(() => useChatComposer())
+
+    let read!: Promise<void>
+    act(() => { read = result.current.handleTextFileSelect(fileChangeEvent(file)) })
+    await act(async () => {
+      answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-2' })
+      await useAuthStore.getState().checkSession()
+    })
+    await act(async () => {
+      finishRead('Account A secret')
+      await read
+    })
+
+    expect(result.current.selectedTextFile).toBeNull()
+    expect(result.current.sendError).toBeNull()
   })
 
   it('keeps the text file when the same account recovers from a rejected refresh', async () => {

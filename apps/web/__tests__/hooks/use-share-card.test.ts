@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const { toBlobMock, reportEventMock } = vi.hoisted(() => ({
   toBlobMock: vi.fn(),
@@ -21,6 +22,7 @@ beforeEach(() => {
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:x')
   globalThis.URL.revokeObjectURL = vi.fn()
   clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  holdAccount('user-1')
 })
 
 afterEach(() => {
@@ -31,6 +33,55 @@ afterEach(() => {
 })
 
 describe('useShareCard', () => {
+  it('does not share a capture that finishes after account replacement', async () => {
+    let finishCapture!: (blob: Blob) => void
+    toBlobMock.mockImplementationOnce(() => new Promise((resolve) => { finishCapture = resolve }))
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+    act(() => { void result.current.share(payload) })
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishCapture(new Blob(['old'], { type: 'image/png' })); await Promise.resolve() })
+
+    expect(clickSpy).not.toHaveBeenCalled()
+    expect(reportEventMock).not.toHaveBeenCalled()
+    expect(result.current.isSharing).toBe(false)
+    expect(result.current.hasError).toBe(false)
+  })
+
+  it('does not download a capture that finishes after account replacement', async () => {
+    let finishCapture!: (blob: Blob) => void
+    toBlobMock.mockImplementationOnce(() => new Promise((resolve) => { finishCapture = resolve }))
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+    act(() => { void result.current.download() })
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishCapture(new Blob(['old'], { type: 'image/png' })); await Promise.resolve() })
+
+    expect(clickSpy).not.toHaveBeenCalled()
+    expect(reportEventMock).not.toHaveBeenCalled()
+    expect(result.current.savedFileName).toBeNull()
+  })
+
+  it('does not award a completed system share to the next account', async () => {
+    let finishShare!: () => void
+    const shareMock = vi.fn(() => new Promise<void>((resolve) => { finishShare = resolve }))
+    Object.defineProperty(navigator, 'canShare', { value: vi.fn(() => true), configurable: true })
+    Object.defineProperty(navigator, 'share', { value: shareMock, configurable: true })
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+    act(() => { void result.current.share(payload) })
+    await act(async () => { await Promise.resolve() })
+    expect(shareMock).toHaveBeenCalledOnce()
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishShare(); await Promise.resolve() })
+
+    expect(reportEventMock).not.toHaveBeenCalled()
+    expect(result.current.isSharing).toBe(false)
+  })
+
   it('captures a blob without fetching a data URL', async () => {
     const { result } = renderHook(() => useShareCard())
     result.current.captureRef.current = document.createElement('div')

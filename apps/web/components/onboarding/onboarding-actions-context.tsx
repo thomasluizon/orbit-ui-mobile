@@ -21,6 +21,7 @@ import {
 import { getHeldAccountId } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
+
 import { getAccountGeneration } from '@/lib/session-epoch'
 
 /** Canonical mode-blind action surface consumed by every onboarding step. */
@@ -166,11 +167,13 @@ export function useLiveOnboardingActions(): OnboardingActions {
             showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
           }
           throw error
+
         }
       },
       deferPushRegistration: () => undefined,
       finishOnboarding: async () => {
         const intendedAccountId = getHeldAccountId()
+
         const accountGeneration = getAccountGeneration()
         try {
           await completeOnboarding(intendedAccountId)
@@ -184,6 +187,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
           showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'))
           throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 })
         }
+        if (getAccountGeneration() !== accountGeneration) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )

@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
+
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface UseBulkActionsOptions {
@@ -30,6 +33,10 @@ function failedHabitIds(results: readonly BulkResultItem[]): string[] {
   return results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : [])
 }
 
+function reportAccountSwitch(error: unknown): boolean {
+  return reportsAccountChanged(error)
+}
+
 export function useBulkActions({
   selectedHabitIds,
   selectedDateStr,
@@ -45,7 +52,12 @@ export function useBulkActions({
   const bulkLog = useBulkLogHabits()
   const bulkSkip = useBulkSkipHabits()
 
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  /**
+   * The confirmation asks the person to delete the habits they selected. Its owner clears it on a
+   * date change and on a read-only day, and neither of those is an account change, so an armed
+   * delete used to sit over the next account's Today with the previous account's count on it.
+   */
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useAccountScopedState(false)
 
   const applyBulkMutationSuccesses = useCallback((
     results: readonly { status: string; habitId: string }[],
@@ -72,17 +84,18 @@ export function useBulkActions({
     )
   }, [onPartialFailure, onSuccess, showQueued, showToast, t])
 
-  function reportAccountSwitch(error: unknown): boolean {
-    return reportsAccountChanged(error)
-  }
-
   async function executeDelete(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
+    const accountGeneration = getAccountGeneration()
     try {
       const result = await bulkDelete.mutateAsync(ids)
-      finish(result, (failedIds) => void executeDelete(failedIds))
+      if (getAccountGeneration() !== accountGeneration) return
+      finish(result, (failedIds) => {
+        if (getAccountGeneration() === accountGeneration) void executeDelete(failedIds)
+      })
     } catch (error) {
+      if (getAccountGeneration() !== accountGeneration) return
       if (!reportAccountSwitch(error)) throw error
     } finally {
       setShowBulkDeleteConfirm(false)
@@ -92,13 +105,18 @@ export function useBulkActions({
   async function executeLog(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
+    const accountGeneration = getAccountGeneration()
     try {
       const result = await bulkLog.mutateAsync(
         ids.map((id) => ({ habitId: id, date: selectedDateStr })),
       )
+      if (getAccountGeneration() !== accountGeneration) return
       applyBulkMutationSuccesses(result.results, 'log')
-      finish(result, (failedIds) => void executeLog(failedIds))
+      finish(result, (failedIds) => {
+        if (getAccountGeneration() === accountGeneration) void executeLog(failedIds)
+      })
     } catch (error) {
+      if (getAccountGeneration() !== accountGeneration) return
       if (!reportAccountSwitch(error)) throw error
     }
   }
@@ -106,13 +124,18 @@ export function useBulkActions({
   async function executeSkip(ids: string[]) {
     if (readOnly) return
     if (ids.length === 0) return
+    const accountGeneration = getAccountGeneration()
     try {
       const result = await bulkSkip.mutateAsync(
         ids.map((id) => ({ habitId: id, date: selectedDateStr })),
       )
+      if (getAccountGeneration() !== accountGeneration) return
       applyBulkMutationSuccesses(result.results, 'skip')
-      finish(result, (failedIds) => void executeSkip(failedIds))
+      finish(result, (failedIds) => {
+        if (getAccountGeneration() === accountGeneration) void executeSkip(failedIds)
+      })
     } catch (error) {
+      if (getAccountGeneration() !== accountGeneration) return
       if (!reportAccountSwitch(error)) throw error
     }
   }

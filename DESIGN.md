@@ -824,6 +824,12 @@ It also deleted `apps/web/lib/overlay-stack.ts` and two defects with it: the `z-
 
 **The 83 callers were migrated in R1 (`#42`).** Both platforms now expose one close path: take `{ sheetRef, closeSheet }` from `useSheetHost()`, pass `ref={sheetRef}`, and call `closeSheet()` or `closeSheet(action)`. `onClose` fires only from the completed dismissal, so a caller never flips the open state directly.
 
+**One exception, and only one.** An account replacement under a running tab hides the previous
+account's overlay immediately, without an exit transition. Most owners reset their open flag through
+`useAccountScopedState`. `CreateHabitModal` gates its rendered sheet by account generation before
+its owner closes the flag. The exit would keep the previous account's content visible. Nothing else
+may flip the flag.
+
 ### Sizing
 
 - **An overlay is content-height by default.** It grows to its content and stops.
@@ -1283,7 +1289,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 
 **Grant 1 landed on 2026-08-16**, so every row below marked "after grant 1" is now unblocked and owes a pull request. The accent bytes and the spacing scale are both settled, which is what those rules encode.
 
-**A `local/*` rule ships at `error` with zero violations, or it does not ship.** There is no suppression baseline and no `warn` tier. A rule whose violation set is still open is not ready to land, and recording those violations rather than fixing them turns the gate into a backlog that a constant satisfies forever. The earlier design shipped each rule at `error` over a committed `eslint-suppressions.json` that only had to shrink, and it never did; both baselines and the ratchet that read them are deleted. `tools/check-lint-severity.mjs` backs the required `Lint Severity` context and fails on four things: an `eslint-suppressions.json` anywhere in the tree, any file a `--suppressions-location` flag names, a `local/*` rule at `warn`, and a `local/*` rule at `off` outside the five scoped blocks the tool declares by name. Widening one of those blocks fails too, so the exception list is closed rather than open.
+**A `local/*` rule ships at `error` with zero violations, or it does not ship.** There is no suppression baseline and no `warn` tier. A rule whose violation set is still open is not ready to land, and recording those violations rather than fixing them turns the gate into a backlog that a constant satisfies forever. The earlier design shipped each rule at `error` over a committed `eslint-suppressions.json` that only had to shrink, and it never did; both baselines and the ratchet that read them are deleted. `tools/check-lint-severity.mjs` backs the required `Lint Severity` context and fails on seven things: an `eslint-suppressions.json` anywhere in the tree, any file a `--suppressions-location` flag names, a `local/*` rule at `warn`, a `local/*` rule at `off` outside the five scoped blocks the tool declares by name, an inventoried ESLint config that is missing, a change to an inventoried config's global ignores or local rule block scopes, and an ESLint config the inventory does not name that carries top-level ignores or a `local/*` rule block. Widening one of those blocks fails too, so the exception list is closed rather than open.
 
 ### Gate-backed
 

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -15,8 +15,38 @@ const localSettings = async (path) => {
 const [webMainRules, webScreenRules, webTestRules] = await localSettings("apps/web/eslint.config.mjs")
 const [sharedMainRules] = await localSettings("packages/shared/eslint.config.mjs")
 
+const inventoriedConfigs = [
+  "apps/web/eslint.config.mjs",
+  "apps/mobile/eslint.config.js",
+  "packages/shared/eslint.config.mjs",
+]
+const fixtureConfigs = new Map()
+for (const path of inventoriedConfigs) {
+  const { default: config } = await import(pathToFileURL(join(REPO_ROOT, path)).href)
+  const blocks = config.flat(Infinity)
+    .filter((block) => block && typeof block === "object")
+    .filter((block) =>
+      (block.ignores !== undefined && block.files === undefined && block.rules === undefined)
+      || Object.keys(block.rules ?? {}).some((rule) => rule.startsWith("local/")),
+    )
+    .map((block) => ({
+      ...(block.files === undefined ? {} : { files: block.files }),
+      ...(block.ignores === undefined ? {} : { ignores: block.ignores }),
+      ...(block.rules === undefined ? {} : {
+        rules: Object.fromEntries(Object.entries(block.rules).filter(([rule]) => rule.startsWith("local/"))),
+      }),
+    }))
+  fixtureConfigs.set(path, `${path.endsWith(".js") ? "module.exports =" : "export default"} ${JSON.stringify(blocks)}\n`)
+}
+
 const stageConfig = (label, body, relativePath = "eslint.config.mjs") => {
   const repository = join(root, "lint-severity", label)
+  for (const [inventoryPath, configBody] of fixtureConfigs) {
+    const inventoryFile = join(repository, inventoryPath)
+    if (existsSync(inventoryFile)) continue
+    mkdirSync(join(inventoryFile, ".."), { recursive: true })
+    writeFileSync(inventoryFile, configBody)
+  }
   const configPath = join(repository, relativePath)
   mkdirSync(join(configPath, ".."), { recursive: true })
   writeFileSync(configPath, body)
@@ -88,6 +118,23 @@ export const cases = () => {
     "apps/web/eslint.config.mjs",
   )
   run("accepts the allowlisted full-screen off scope", fullScreen, { status: 0 })
+
+  const missingWeb = stageConfig("missing-web", sharedConfig(), "packages/shared/eslint.config.mjs")
+  rmSync(join(missingWeb, "apps/web/eslint.config.mjs"))
+  run("rejects a removed inventoried web config", missingWeb, {
+    status: 1,
+    stderr: /apps\/web\/eslint\.config\.mjs.*inventoried config is missing/,
+  })
+
+  for (const [label, configPath] of [
+    ["mobile", "apps/mobile/eslint.config.js"],
+    ["shared", "packages/shared/eslint.config.mjs"],
+  ]) {
+    const missingConfig = stageConfig(`missing-${label}`, webConfig(), "apps/web/eslint.config.mjs")
+    rmSync(join(missingConfig, configPath))
+    const result = run(`rejects a removed inventoried ${label} config`, missingConfig, { status: 1 })
+    T(`${TOOL}: missing ${label} config is named`, result.stderr.includes(`${configPath}: inventoried config is missing`), result.stderr)
+  }
 
   const addedConfig = stageConfig("added-config", webConfig(), "apps/web/eslint.config.mjs")
   stageConfig("added-config", 'export default [{ ignores: ["hidden/**"] }, { files: ["hidden/**/*.ts"], rules: { "local/example": "error" } }]\n', "apps/extra/eslint.config.mjs")

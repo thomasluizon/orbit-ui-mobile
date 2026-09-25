@@ -8,14 +8,14 @@ import { parseShowGeneralOnTodayPreference, resolveSystemLocale } from '@orbit/s
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
-import { useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   updateWeekStartDay,
   updateLanguage,
   updateTimezone,
 } from '@/lib/actions/profile'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-import { getHeldAccountId } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { PreferencePicker } from './preference-picker-sheet'
@@ -34,7 +34,7 @@ export function usePreferenceControls() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { currentTheme, applyTheme } = useColorScheme()
 
-  const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
+  const [activePicker, setActivePicker] = useAccountScopedState<PreferencePicker | null>(null)
 
   useEffect(() => {
     localStorage.removeItem('orbit_time_format')

@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { VOICE_LEVEL_POLL_MS, VOICE_SILENCE_TIMEOUT_MS } from '@orbit/shared/chat'
+import { API } from '@orbit/shared/api'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
+
 import { useAuthStore } from '@/stores/auth-store'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -39,9 +46,21 @@ class MockMediaRecorder {
   })
 }
 
+const microphoneTracks: { stop: ReturnType<typeof vi.fn> }[] = []
+
 function makeStream(): MediaStream {
   const track = { stop: vi.fn() }
+  microphoneTracks.push(track)
   return { getTracks: () => [track] } as unknown as MediaStream
+}
+
+/** The microphone this recording opened, which an account change has to close. */
+function openMicrophone(): { stop: ReturnType<typeof vi.fn> } {
+  return microphoneTracks.at(-1)!
+}
+
+function transcriptionCalls(fetchMock: ReturnType<typeof vi.fn>): unknown[][] {
+  return fetchMock.mock.calls.filter((call) => call[0] === API.chat.transcribe)
 }
 
 const getUserMedia = vi.fn(async () => makeStream())
@@ -49,8 +68,10 @@ const getUserMedia = vi.fn(async () => makeStream())
 describe('useSpeechToText', () => {
   beforeEach(() => {
     MockMediaRecorder.instances = []
+    microphoneTracks.length = 0
     vi.clearAllMocks()
     useThrottleStore.getState().clear()
+    holdAccount('user-1')
     vi.stubGlobal('MediaRecorder', MockMediaRecorder)
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } })
   })
@@ -81,6 +102,21 @@ describe('useSpeechToText', () => {
 
   describe('with recording support', () => {
     it('sends the account held when recording began', async () => {
+      holdAccount('account-a')
+      const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json({ text: 'hello' }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+      expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+        'X-Orbit-Held-Account-Id': 'account-a',
+      })
+    })
+
+    it('does not send a recording after the account changes', async () => {
       useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
       const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json({ text: 'hello' }))
       vi.stubGlobal('fetch', fetchMock)
@@ -90,10 +126,7 @@ describe('useSpeechToText', () => {
       useAuthStore.getState().setAuth({ userId: 'account-b', name: 'Thomas', email: 'thomas@example.com' })
       await act(async () => { result.current.stopRecording() })
 
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-      expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
-        'X-Orbit-Held-Account-Id': 'account-a',
-      })
+      expect(fetchMock).not.toHaveBeenCalled()
     })
 
     it('shows reload guidance after a transcription account switch refusal', async () => {
@@ -286,6 +319,247 @@ describe('useSpeechToText', () => {
 
       expect(result.current.isRecording).toBe(false)
       expect(result.current.transcript).toBe('log water')
+    })
+
+    it('closes the microphone and forgets the recording when another account replaces the tab', async () => {
+      vi.useFakeTimers()
+      const fetchMock = vi.fn(async () => Response.json({ text: 'log water' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      expect(result.current.isRecording).toBe(true)
+      const recorder = MockMediaRecorder.instances.at(-1)!
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+      expect(result.current.recordingDuration).toBe(3)
+
+      await replaceAccountWith('user-2')
+
+      expect(result.current.isRecording).toBe(false)
+      expect(result.current.recordingDuration).toBe(0)
+      expect(recorder.state).toBe('inactive')
+      expect(openMicrophone().stop).toHaveBeenCalled()
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+    })
+
+    it('drops the previous account transcript when another account replaces the tab', async () => {
+      const fetchMock = vi.fn(async () => Response.json({ text: 'cancel my meds reminder' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+      await waitFor(() => expect(result.current.transcript).toBe('cancel my meds reminder'))
+
+      await replaceAccountWith('user-2')
+
+      expect(result.current.transcript).toBe('')
+      expect(result.current.isTranscribing).toBe(false)
+    })
+
+    it('drops the previous account microphone refusal when another account replaces the tab', async () => {
+      vi.stubGlobal('fetch', vi.fn())
+      getUserMedia.mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'))
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      expect(result.current.error).toBe('speech.micDenied')
+
+      await replaceAccountWith('user-2')
+
+      expect(result.current.error).toBeNull()
+    })
+
+    it('never posts the previous account audio under the next account', async () => {
+      const fetchMock = vi.fn(async () => Response.json({ text: 'cancel my meds reminder' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await replaceAccountWith('user-2')
+      await act(async () => { result.current.stopRecording() })
+
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+      expect(result.current.transcript).toBe('')
+    })
+
+    it('does not post audio when the stop event arrives after account replacement', async () => {
+      const fetchMock = vi.fn(async () => Response.json({ text: 'old words' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      const recorder = MockMediaRecorder.instances.at(-1)!
+      recorder.stop = vi.fn(() => { recorder.state = 'inactive' })
+      act(() => { result.current.stopRecording() })
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+
+      await replaceAccountWith('user-2')
+      act(() => {
+        recorder.ondataavailable?.({ data: new Blob(['old audio'], { type: 'audio/webm' }) })
+        recorder.onstop?.()
+      })
+
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+      expect(result.current.transcript).toBe('')
+    })
+
+    it('does not post a queued stop event before account-change effects run', async () => {
+      const fetchMock = vi.fn(async () => Response.json({ text: 'old words' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      const recorder = MockMediaRecorder.instances.at(-1)!
+      recorder.stop = vi.fn(() => { recorder.state = 'inactive' })
+      act(() => { result.current.stopRecording() })
+
+      act(() => {
+        useAuthStore.getState().setAuth({
+          userId: 'user-2', name: 'Next account', email: 'next@example.com',
+        })
+        recorder.ondataavailable?.({ data: new Blob(['old audio'], { type: 'audio/webm' }) })
+        recorder.onstop?.()
+      })
+
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+      expect(result.current.transcript).toBe('')
+    })
+
+    it('closes a microphone granted after the account changes before recording begins', async () => {
+      let grantMicrophone!: (stream: MediaStream) => void
+      getUserMedia.mockImplementationOnce(() => new Promise<MediaStream>((resolve) => {
+        grantMicrophone = resolve
+      }))
+      const fetchMock = vi.fn(async () => Response.json({ text: 'old words' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      let startPromise!: Promise<void>
+      act(() => { startPromise = result.current.startRecording() })
+      await replaceAccountWith('user-2')
+      const stream = makeStream()
+      await act(async () => { grantMicrophone(stream); await startPromise })
+
+      expect(result.current.isRecording).toBe(false)
+      expect(openMicrophone().stop).toHaveBeenCalled()
+      expect(MockMediaRecorder.instances).toHaveLength(0)
+      expect(transcriptionCalls(fetchMock)).toEqual([])
+    })
+
+    it('drops a transcription still in flight when another account replaces the tab', async () => {
+      let settleTranscription!: (response: Response) => void
+      const fetchMock = vi.fn((input: unknown) =>
+        input === API.chat.transcribe
+          ? new Promise<Response>((resolve) => { settleTranscription = resolve })
+          : Promise.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-2', refreshFailed: false })))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+      await waitFor(() => expect(transcriptionCalls(fetchMock)).toHaveLength(1))
+
+      await replaceAccountWith('user-2')
+      await act(async () => {
+        settleTranscription(Response.json({ text: 'cancel my meds reminder' }, { status: 200 }))
+        await Promise.resolve()
+      })
+
+      expect(result.current.transcript).toBe('')
+      expect(result.current.error).toBeNull()
+    })
+
+    it('never reports the previous account transcription failure to the next account', async () => {
+      let refuseTranscription!: (reason: Error) => void
+      const fetchMock = vi.fn((input: unknown) =>
+        input === API.chat.transcribe
+          ? new Promise<Response>((_resolve, reject) => { refuseTranscription = reject })
+          : Promise.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-2', refreshFailed: false })))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+      await waitFor(() => expect(transcriptionCalls(fetchMock)).toHaveLength(1))
+
+      await replaceAccountWith('user-2')
+      await act(async () => {
+        refuseTranscription(new Error('network down'))
+        await Promise.resolve()
+      })
+
+      expect(result.current.error).toBeNull()
+    })
+
+    it('keeps the recording running when the same account recovers from a rejected refresh', async () => {
+      const fetchMock = vi.fn(async () => Response.json({ text: 'log water' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await recoverSameAccount('user-1')
+
+      expect(result.current.isRecording).toBe(true)
+      expect(openMicrophone().stop).not.toHaveBeenCalled()
+
+      fetchMock.mockImplementation(async () => Response.json({ text: 'log water' }, { status: 200 }))
+      await act(async () => { result.current.stopRecording() })
+      await waitFor(() => expect(result.current.transcript).toBe('log water'))
+    })
+
+    it('stops the duration timer so it cannot double count the next account recording', async () => {
+      vi.useFakeTimers()
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({ text: 'log water' }, { status: 200 })))
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+      expect(result.current.recordingDuration).toBe(3)
+
+      await replaceAccountWith('user-2')
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+
+      expect(result.current.recordingDuration).toBe(3)
+    })
+
+    it('closes the silence monitor so it cannot poll under the next account', async () => {
+      vi.useFakeTimers()
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({ text: 'log water' }, { status: 200 })))
+      let analyserReads = 0
+      const contexts: { close: ReturnType<typeof vi.fn> }[] = []
+      class MockAudioContext {
+        close = vi.fn(async () => {})
+        constructor() {
+          contexts.push(this)
+        }
+        createMediaStreamSource() {
+          return { connect: vi.fn() }
+        }
+        createAnalyser() {
+          return {
+            fftSize: 2048,
+            getByteTimeDomainData: (buffer: Uint8Array) => {
+              analyserReads += 1
+              buffer.fill(200)
+            },
+          }
+        }
+      }
+      vi.stubGlobal('AudioContext', MockAudioContext)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { await vi.advanceTimersByTimeAsync(VOICE_LEVEL_POLL_MS) })
+      expect(analyserReads).toBeGreaterThan(0)
+
+      await replaceAccountWith('user-2')
+      const readsAtReplacement = analyserReads
+      await act(async () => { await vi.advanceTimersByTimeAsync(VOICE_LEVEL_POLL_MS * 3) })
+
+      expect(contexts.at(-1)!.close).toHaveBeenCalled()
+      expect(analyserReads).toBe(readsAtReplacement)
     })
   })
 })

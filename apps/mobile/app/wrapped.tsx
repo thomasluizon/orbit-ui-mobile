@@ -102,7 +102,6 @@ function WrappedScreenContent({ initialSelection }: Readonly<{
   return (
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <View style={[styles.coverExit, { top: insets.top + 8 }]}>
-        {/* eslint-disable-next-line local/max-button-words -- ORB-57 requires the existing common.backToProfile copy. */}
         <Button
           variant="ghost"
           size="sm"

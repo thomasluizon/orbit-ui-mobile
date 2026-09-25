@@ -1,6 +1,7 @@
 import React from 'react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 
 const pushMock = vi.fn()
@@ -129,6 +130,7 @@ describe('buffer onboarding actions', () => {
 })
 
 describe('live onboarding actions', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
   beforeEach(() => {
     pushMock.mockReset()
     Object.values(mocks).forEach((fn) => fn.mockReset())
@@ -167,6 +169,23 @@ describe('live onboarding actions', () => {
     expect(updater(undefined)).toBeUndefined()
   })
 
+  it('does not invalidate the next account after the previous week-start save settles', async () => {
+    holdAccount('user-1')
+    vi.stubGlobal('fetch', vi.fn())
+    let finishSave!: () => void
+    mocks.updateWeekStartDay.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishSave = resolve
+    }))
+    const { result } = renderHook(() => useLiveOnboardingActions())
+    let saving!: Promise<void>
+    act(() => { saving = result.current.setWeekStartDay(0) })
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishSave(); await saving })
+
+    expect(mocks.invalidateQueries).not.toHaveBeenCalled()
+  })
+
   it('finishes onboarding and routes home even when completion fails', async () => {
     mocks.completeOnboarding.mockRejectedValue(new Error('offline'))
     const { result } = renderHook(() => useLiveOnboardingActions())
@@ -184,6 +203,28 @@ describe('live onboarding actions', () => {
     expect(mocks.setQueryData).not.toHaveBeenCalled()
     expect(pushMock).not.toHaveBeenCalled()
     expect(mocks.showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss')
+  })
+
+  it('does not finish the previous account onboarding in the next account cache', async () => {
+    holdAccount('user-1')
+    vi.stubGlobal('fetch', vi.fn())
+    let finishCompletion!: () => void
+    mocks.completeOnboarding.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishCompletion = resolve
+    }))
+    const { result } = renderHook(() => useLiveOnboardingActions())
+    let finishing!: Promise<void>
+    act(() => { finishing = result.current.finishOnboarding() })
+
+    await replaceAccountWith('user-2')
+    await act(async () => {
+      finishCompletion()
+      await expect(finishing).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    })
+
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
+
   })
 
   it('seeds the chat draft and opens Astra on import', () => {

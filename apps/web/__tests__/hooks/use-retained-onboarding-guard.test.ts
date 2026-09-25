@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -32,6 +33,7 @@ function profile(hasCompletedOnboarding: boolean): Profile {
 }
 
 describe('useRetainedOnboardingGuard', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
   beforeEach(() => {
     completeOnboardingMock.mockReset().mockResolvedValue(undefined)
     patchProfileMock.mockReset()
@@ -121,5 +123,23 @@ describe('useRetainedOnboardingGuard', () => {
 
     await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(2))
     expect(result.current).toBe(false)
+  })
+
+  it('does not patch the next account when the previous auto-completion settles', async () => {
+    holdAccount('user-1')
+    vi.stubGlobal('fetch', vi.fn())
+    let finishCompletion!: () => void
+    completeOnboardingMock.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishCompletion = resolve
+    }))
+    habitCount.count = 3
+    renderHook(() => useRetainedOnboardingGuard(profile(false), false))
+    await waitFor(() => expect(completeOnboardingMock).toHaveBeenCalledTimes(1))
+
+    habitCount.count = 0
+    await replaceAccountWith('user-2')
+    await act(async () => { finishCompletion(); await Promise.resolve() })
+
+    expect(patchProfileMock).not.toHaveBeenCalled()
   })
 })
