@@ -134,12 +134,14 @@ describe('mobile timezone calendar cache settlement', () => {
     settleTimezoneWrite()
 
     await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(3))
-    resolveOptimisticRequest([calendarEvent('2026-09-13')])
-    await vi.waitFor(() => {
-      if (current.events.data?.status === 'connected') {
-        expect(current.events.data.events[0]?.startDate).toBe('2026-09-12')
-      }
+    await TestRenderer.act(async () => {
+      resolveOptimisticRequest([calendarEvent('2026-09-13')])
+      await Promise.resolve()
     })
+    await vi.waitFor(() => expect(current.events.data).toEqual({
+      status: 'connected',
+      events: [calendarEvent('2026-09-12')],
+    }))
     expect(
       queryClient.getQueryState([...calendarKeys.all, 'manual-fetch', 'UTC'])?.isInvalidated,
     ).toBe(true)

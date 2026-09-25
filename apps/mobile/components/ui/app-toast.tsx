@@ -17,6 +17,25 @@ import { resolveCenteredOverlayFrame } from './centered-overlay-frame'
 
 const MINIMUM_TOAST_LIFE_MS = 5000
 
+function resolveActionColor(
+  kind: ToastProps['kind'],
+  pressed: boolean,
+  rest: string,
+  tokens: ReturnType<typeof createTokensV2>,
+) {
+  if (!pressed) return rest
+  return kind === 'lost' ? tokens.fg1 : tokens.fg2
+}
+
+function resolveActionOutline(focused: boolean, color: string) {
+  return focused ? {
+    outlineWidth: 2,
+    outlineStyle: 'solid' as const,
+    outlineColor: color,
+    outlineOffset: 2,
+  } : undefined
+}
+
 function useToastLife(
   kind: ToastProps['kind'],
   message: string,
@@ -72,6 +91,8 @@ export function Toast(props: Readonly<ToastProps>) {
   const [announcedMessage, setAnnouncedMessage] = useState('')
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
+  const [actionPressed, setActionPressed] = useState(false)
+  const [actionFocused, setActionFocused] = useState(false)
   const onDone = props.kind === 'done' || props.kind === 'neutral' ? props.onDone : undefined
   const doneAfterMs = props.kind === 'done' || props.kind === 'neutral' ? props.doneAfterMs : undefined
   const lossColors = { background: tokens.bg, action: tokens.primarySoft }
@@ -135,15 +156,21 @@ export function Toast(props: Readonly<ToastProps>) {
       {(props.kind === 'neutral' || props.kind === 'lost') && props.actionLabel ? (
         <Pressable
           onPress={props.onAction}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onPressIn={() => setActionPressed(true)}
+          onPressOut={() => setActionPressed(false)}
+          onFocus={() => { setFocused(true); setActionFocused(true) }}
+          onBlur={() => { setFocused(false); setActionPressed(false); setActionFocused(false) }}
           accessibilityRole="button"
           accessibilityLabel={props.actionLabel}
           hitSlop={8}
-          style={({ pressed }) => [styles.action, pressed ? styles.pressed : null]}
+          style={[styles.action, resolveActionOutline(actionFocused, tokens.fg1)]}
           testID="toast-action"
         >
-          <Text style={[styles.actionText, { color: colors.action }]}>{props.actionLabel}</Text>
+          <Text style={[styles.actionText, {
+            color: resolveActionColor(props.kind, actionPressed, colors.action, tokens),
+          }]}>
+            {props.actionLabel}
+          </Text>
         </Pressable>
       ) : null}
     </Pressable>
@@ -205,11 +232,10 @@ const styles = StyleSheet.create({
   copy: { flex: 1, gap: 4 },
   message: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   detail: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  action: { padding: 8 },
+  action: { padding: 8, minWidth: 28, minHeight: 28 },
   actionText: {
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
     textDecorationLine: 'underline',
   },
-  pressed: { opacity: 0.7 },
 })
