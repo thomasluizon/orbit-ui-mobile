@@ -7,10 +7,11 @@ import {
   type NotificationPermissionsResponse,
 } from '@/lib/push-notification-permissions'
 import { usePersistentReminderStore } from '@/stores/persistent-reminder-store'
+import { nativeOrbitWidgetModule } from '../modules/orbit-widget/src/OrbitWidgetModule'
+import type { OrbitWidgetModuleType } from '../modules/orbit-widget/src/OrbitWidget.types'
 
 const PERSISTENT_REMINDER_ID = 'orbit-persistent-reminder'
 const PERSISTENT_REMINDER_CHANNEL_ID = 'persistent-reminder'
-const TODAY_DEEP_LINK = '/'
 
 /** Streak and today's progress projected from the same widget feed payload. */
 export interface ReminderFeed {
@@ -19,26 +20,12 @@ export interface ReminderFeed {
   total: number
 }
 
-interface ReminderContent {
-  title: string
-  body: string
-  sticky: boolean
-  autoDismiss: boolean
-  color: string
-  data: { url: string }
-}
-
 interface PersistentReminderNotificationsModule {
   AndroidImportance: { LOW: number }
   setNotificationChannelAsync: (
     channelId: string,
     options: Record<string, unknown>,
   ) => Promise<unknown>
-  scheduleNotificationAsync: (request: {
-    identifier?: string
-    content: ReminderContent
-    trigger: { channelId: string } | null
-  }) => Promise<string>
   dismissNotificationAsync: (identifier: string) => Promise<void>
   getPermissionsAsync: () => Promise<NotificationPermissionsResponse>
   requestPermissionsAsync: () => Promise<NotificationPermissionsResponse>
@@ -59,7 +46,6 @@ function isNotificationsModule(
 
   return (
     hasFunctionProperty(value, 'setNotificationChannelAsync') &&
-    hasFunctionProperty(value, 'scheduleNotificationAsync') &&
     hasFunctionProperty(value, 'dismissNotificationAsync') &&
     hasFunctionProperty(value, 'getPermissionsAsync') &&
     hasFunctionProperty(value, 'requestPermissionsAsync') &&
@@ -85,9 +71,16 @@ function loadNotificationsModule(): PersistentReminderNotificationsModule | null
 
 let notificationsModule: PersistentReminderNotificationsModule | null =
   loadNotificationsModule()
+let reminderNativeModule: OrbitWidgetModuleType | null = nativeOrbitWidgetModule
 
 export function __setPersistentReminderModuleForTests(nextModule: unknown): void {
   notificationsModule = isNotificationsModule(nextModule) ? nextModule : null
+}
+
+export function __setPersistentReminderNativeModuleForTests(
+  nextModule: OrbitWidgetModuleType | null,
+): void {
+  reminderNativeModule = nextModule
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -167,8 +160,8 @@ async function ensureChannel(
  * A null token means the payload could not be attributed to an account, which is never enough to
  * post: the reminder shows one account's figures and nothing that identifies whose they are.
  *
- * Call this at the LAST boundary before scheduling, never at the top of a refresh. Every await
- * between the check and the post is a window a sign-out can land in, and `ensureChannel` is one.
+ * Call this at the last JavaScript boundary before posting. Native generation checks cover
+ * cancellation that happens after this check.
  */
 async function stillSignedInAs(authorizingToken: string | null): Promise<boolean> {
   if (!authorizingToken) return false
@@ -183,6 +176,7 @@ async function stillSignedInAs(authorizingToken: string | null): Promise<boolean
 
 async function postReminder(
   activeModule: PersistentReminderNotificationsModule,
+  nativeModule: OrbitWidgetModuleType,
   feed: ReminderFeed,
   authorizingToken: string | null,
   generation: number,
@@ -192,27 +186,14 @@ async function postReminder(
   if (!(await stillSignedInAs(authorizingToken))) return
   if (generation !== presentationGeneration) return
 
-  await activeModule.scheduleNotificationAsync({
-    identifier: PERSISTENT_REMINDER_ID,
-    content: {
-      title,
-      body,
-      sticky: true,
-      autoDismiss: false,
-      color: schemes.purple.accent.dark.primary,
-      data: { url: TODAY_DEEP_LINK },
-    },
-    trigger: { channelId: PERSISTENT_REMINDER_CHANNEL_ID },
-  })
-
-  if (generation !== presentationGeneration) {
-    await activeModule.dismissNotificationAsync(PERSISTENT_REMINDER_ID)
-  }
+  await nativeModule.postPersistentReminder(
+    generation, title, body, schemes.purple.accent.dark.primary,
+  )
 }
 
 /** True when the ongoing reminder can run on this device (Android + module present). */
 export function isPersistentReminderSupported(): boolean {
-  return notificationsModule !== null && Platform.OS === 'android'
+  return notificationsModule !== null && reminderNativeModule !== null && Platform.OS === 'android'
 }
 
 /**
@@ -221,7 +202,7 @@ export function isPersistentReminderSupported(): boolean {
  */
 export async function requestPersistentReminderPermission(): Promise<boolean> {
   const activeModule = notificationsModule
-  if (!activeModule || Platform.OS !== 'android') return false
+  if (!activeModule || !reminderNativeModule || Platform.OS !== 'android') return false
 
   try {
     await ensureChannel(activeModule)
@@ -243,15 +224,15 @@ export async function requestPersistentReminderPermission(): Promise<boolean> {
  * Removes the ongoing reminder from the tray.
  *
  * Bumping the generation FIRST is what invalidates every refresh already in flight. A refresh
- * snapshots the value before its first await and rechecks it immediately before scheduling, so a
- * cancellation during channel setup or the SecureStore read stops it. `expo-notifications` handles
- * schedule and dismiss on separate threads, so invocation order is not completion order, and a
- * refresh whose schedule was already pending reconciles by dismissing again once it returns.
+ * snapshots the value before its first await and rechecks it immediately before posting. The
+ * native module serializes posting with cancellation and rejects older generations.
  */
 export async function cancelPersistentReminder(): Promise<void> {
   presentationGeneration += 1
   const activeModule = notificationsModule
-  if (!activeModule || Platform.OS !== 'android') return
+  const nativeModule = reminderNativeModule
+  if (!activeModule || !nativeModule || Platform.OS !== 'android') return
+  await nativeModule.cancelPersistentReminder(presentationGeneration)
   await activeModule.dismissNotificationAsync(PERSISTENT_REMINDER_ID)
 }
 
@@ -268,15 +249,17 @@ export async function refreshPersistentReminder(
   if (!usePersistentReminderStore.getState().enabled) return
 
   const activeModule = notificationsModule
-  if (!activeModule || Platform.OS !== 'android') return
+  const nativeModule = reminderNativeModule
+  if (!activeModule || !nativeModule || Platform.OS !== 'android') return
 
   if (data === null) {
     presentationGeneration += 1
+    await nativeModule.cancelPersistentReminder(presentationGeneration)
     await activeModule.dismissNotificationAsync(PERSISTENT_REMINDER_ID)
     return
   }
 
   const feed = extractReminderFeed(data)
   if (!feed) return
-  await postReminder(activeModule, feed, authorizingToken, generation)
+  await postReminder(activeModule, nativeModule, feed, authorizingToken, generation)
 }

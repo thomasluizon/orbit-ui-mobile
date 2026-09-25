@@ -31,6 +31,8 @@ describe('syncWidgetData account ownership', () => {
       clearToken: vi.fn(),
       syncTheme: vi.fn(),
       syncWidgetData: vi.fn(),
+      postPersistentReminder: vi.fn(),
+      cancelPersistentReminder: vi.fn(),
     })
   })
 

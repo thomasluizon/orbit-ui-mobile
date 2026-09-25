@@ -231,16 +231,17 @@ describe('usePreferenceControls', () => {
     settleTimezoneWrite()
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(3))
-    resolveOptimisticRequest({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve([calendarEvent('2026-09-13')]),
-    } as Response)
-    await waitFor(() => {
-      if (result.current.events.data?.status === 'connected') {
-        expect(result.current.events.data.events[0]?.startDate).toBe('2026-09-12')
-      }
+    await act(async () => {
+      resolveOptimisticRequest({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([calendarEvent('2026-09-13')]),
+      } as Response)
     })
+    await waitFor(() => expect(result.current.events.data).toEqual({
+      status: 'connected',
+      events: [calendarEvent('2026-09-12')],
+    }))
     expect(
       queryClient.getQueryState([...calendarKeys.all, 'manual-fetch', 'UTC'])?.isInvalidated,
     ).toBe(true)
