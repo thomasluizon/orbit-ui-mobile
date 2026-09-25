@@ -195,9 +195,10 @@ function initialChatRefusal(
     })
   }
   const heldAccountId = request.headers.get('x-orbit-held-account-id')
-  return heldAccountId && getAccountIdFromToken(token) === heldAccountId
-    ? null
-    : accountChangedResponse()
+  const cookieAccountId = getAccountIdFromToken(token)
+  return heldAccountId && cookieAccountId && cookieAccountId !== heldAccountId
+    ? accountChangedResponse()
+    : null
 }
 
 async function toNextResponse(
@@ -226,8 +227,10 @@ async function handleProxy(request: NextRequest, path: string) {
   if (response.status === 401 && path !== REFRESH_PATH) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (refreshedSession.token) {
-      if (protectChatWrite
-        && getAccountIdFromToken(refreshedSession.token) !== heldAccountId) {
+      const refreshedAccountId = protectChatWrite
+        ? getAccountIdFromToken(refreshedSession.token)
+        : null
+      if (heldAccountId && refreshedAccountId && refreshedAccountId !== heldAccountId) {
         return accountChangedResponse()
       }
       const retryResponse = await proxyRequest(request, path, refreshedSession.token)

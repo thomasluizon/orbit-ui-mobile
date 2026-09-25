@@ -5,6 +5,8 @@ import * as Sentry from '@sentry/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, goalKeys, profileKeys, gamificationKeys } from '@orbit/shared/query'
 import { applyOnboarding } from '@/lib/actions/onboarding'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useProfile } from '@/hooks/use-profile'
 import {
   useOnboardingDraftStore,
@@ -34,9 +36,11 @@ export function useOnboardingFlush(): void {
 
     runningRef.current = true
     const store = useOnboardingDraftStore.getState()
+    const intent = captureAccountIntent()
 
-    void applyOnboarding(store.buildApplyPayload())
+    void intent.run(() => applyOnboarding(store.buildApplyPayload()))
       .then(() => {
+        if (!intent.stillCurrent()) return
         store.reset()
         patchProfile({ hasCompletedOnboarding: true })
         void queryClient.invalidateQueries({ queryKey: habitKeys.all })
@@ -45,6 +49,8 @@ export function useOnboardingFlush(): void {
         void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       })
       .catch((error: unknown) => {
+        if (reportsAccountChanged(error)) reportAccountChanged()
+        if (!intent.stillCurrent()) return
         Sentry.captureException(error)
       })
       .finally(() => {

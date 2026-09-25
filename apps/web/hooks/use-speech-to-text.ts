@@ -10,6 +10,7 @@ import {
 } from '@orbit/shared/chat'
 import { ERROR_CODE_TO_KEY } from '@orbit/shared/utils'
 import { sessionAwareFetch } from '@/lib/api-fetch'
+import { captureAccountIntent } from '@/lib/client-action'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
@@ -79,13 +80,17 @@ export function useSpeechToText() {
   }, [])
 
   const transcribe = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob, intent: ReturnType<typeof captureAccountIntent>) => {
+      if (!intent.stillCurrent()) { setError(t('errors.api.accountChanged')); return }
       setIsTranscribing(true)
       try {
         const formData = new FormData()
         formData.append('audio', blob, 'recording.webm')
         const response = await sessionAwareFetch(API.chat.transcribe, {
           method: 'POST',
+          ...(intent.intendedAccountId
+            ? { headers: { 'X-Orbit-Held-Account-Id': intent.intendedAccountId } }
+            : {}),
           body: formData,
         })
         const data = (await response.json().catch(() => null)) as TranscriptionResponse | null
@@ -96,7 +101,7 @@ export function useSpeechToText() {
           setError(t(key))
           return
         }
-        setTranscript(text)
+        if (intent.stillCurrent()) setTranscript(text)
       } catch {
         setError(t('errors.api.transcriptionFailed'))
       } finally {
@@ -160,6 +165,7 @@ export function useSpeechToText() {
 
   const startRecording = useCallback(async () => {
     if (!isSupported || isRecording) return
+    const intent = captureAccountIntent()
     setError(null)
     setTranscript('')
     setRecordingDuration(0)
@@ -180,7 +186,7 @@ export function useSpeechToText() {
         stopStream()
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
         chunksRef.current = []
-        if (blob.size > 0) void transcribe(blob)
+        if (blob.size > 0) void transcribe(blob, intent)
       }
 
       recorder.start()

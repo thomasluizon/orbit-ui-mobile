@@ -45,6 +45,22 @@ describe('catch-all API proxy route', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
+  it('forwards a chat write when the tab knew no account', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'other-token', expiresAt: Date.now() + 3600000,
+      refreshed: false, refreshFailed: false,
+    })
+    mockFetch.mockResolvedValue(new Response('{"ok":true}', { status: 200 }))
+    const request = new NextRequest('http://localhost:3000/api/chat', {
+      method: 'POST', body: new FormData(),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat'] }) })
+
+    expect(response.status).toBe(200)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects malformed paths before calling auth or backend', async () => {
     const request = createRequest('auth//session')
 

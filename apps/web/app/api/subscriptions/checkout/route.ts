@@ -94,7 +94,8 @@ export async function POST(request: NextRequest) {
   }
 
   const heldAccountId = request.headers.get('x-orbit-held-account-id')
-  if (heldAccountId && getAccountIdFromToken(session.token) !== heldAccountId) {
+  const cookieAccountId = getAccountIdFromToken(session.token)
+  if (heldAccountId && cookieAccountId && cookieAccountId !== heldAccountId) {
     return buildNoStoreJsonResponse(
       JSON.stringify({ error: 'Account changed', errorCode: ACCOUNT_CHANGED_ERROR_CODE }),
       409,
@@ -109,7 +110,8 @@ export async function POST(request: NextRequest) {
   if (response.status === 401) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (refreshedSession.token) {
-      if (heldAccountId && getAccountIdFromToken(refreshedSession.token) !== heldAccountId) {
+      const refreshedAccountId = getAccountIdFromToken(refreshedSession.token)
+      if (heldAccountId && refreshedAccountId && refreshedAccountId !== heldAccountId) {
         return buildNoStoreJsonResponse(
           JSON.stringify({ error: 'Account changed', errorCode: ACCOUNT_CHANGED_ERROR_CODE }),
           409,

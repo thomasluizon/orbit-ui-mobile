@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
     return unauthorizedResponse(session.refreshFailed)
   }
   const heldAccountId = request.headers.get('x-orbit-held-account-id')
-  if (!heldAccountId || getAccountIdFromToken(session.token) !== heldAccountId) {
+  const cookieAccountId = getAccountIdFromToken(session.token)
+  if (heldAccountId && cookieAccountId && cookieAccountId !== heldAccountId) {
     return accountChangedResponse()
   }
 
@@ -62,7 +63,8 @@ export async function POST(request: NextRequest) {
     if (!refreshedSession.token) {
       return unauthorizedResponse(refreshedSession.refreshFailed)
     }
-    if (getAccountIdFromToken(refreshedSession.token) !== heldAccountId) {
+    const refreshedAccountId = getAccountIdFromToken(refreshedSession.token)
+    if (heldAccountId && refreshedAccountId && refreshedAccountId !== heldAccountId) {
       return accountChangedResponse()
     }
     upstream = await forwardStream(request, formData, refreshedSession.token)

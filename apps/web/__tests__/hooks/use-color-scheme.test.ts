@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
+const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
+vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => account.id,
+  getAccountGeneration: () => account.generation,
+}))
+
 vi.mock('@/lib/actions/profile', () => ({
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
@@ -60,9 +66,13 @@ Object.defineProperty(document, 'documentElement', {
 vi.spyOn(document, 'querySelector').mockImplementation(() => null)
 
 import { useColorScheme } from '@/hooks/use-color-scheme'
+import { updateThemePreference } from '@/lib/actions/profile'
 
 describe('useColorScheme', () => {
   beforeEach(() => {
+    account.id = 'account-a'
+    account.generation = 1
+    vi.mocked(updateThemePreference).mockReset().mockResolvedValue(undefined)
     mockCookies = {}
     mockSetProperty.mockClear()
     mockClassList.add.mockClear()
@@ -125,6 +135,20 @@ describe('useColorScheme', () => {
     })
 
     expect(result.current.currentTheme).toBe('light')
+  })
+
+  it('does not roll back theme after a same-account session change', async () => {
+    let rejectUpdate: (error: Error) => void = () => {}
+    vi.mocked(updateThemePreference).mockReturnValueOnce(new Promise<void>((_resolve, reject) => {
+      rejectUpdate = reject
+    }))
+    const { result } = renderHook(() => useColorScheme())
+    act(() => { result.current.applyTheme('light') })
+    account.generation++
+    await act(async () => { rejectUpdate(new Error('old session')); await Promise.resolve() })
+
+    expect(result.current.currentTheme).toBe('light')
+    expect(mockCookies['orbit_theme_mode']).toBe('light')
   })
 
   it('toggleTheme switches between dark and light', () => {

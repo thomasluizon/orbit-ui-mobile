@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 
 const mockLogout = vi.fn()
+let heldAccountId: string | null = 'account-a'
+let accountGeneration = 1
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -15,6 +17,8 @@ vi.mock('next-intl', () => ({
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
     selector({ logout: mockLogout }),
+  getHeldAccountId: () => heldAccountId,
+  getAccountGeneration: () => accountGeneration,
 }))
 
 const mockRequestDeletion = vi.fn()
@@ -95,6 +99,8 @@ const defaultProfile = {
 describe('DeleteAccountModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    heldAccountId = 'account-a'
+    accountGeneration = 1
     mockRequestDeletion.mockResolvedValue(undefined)
     mockConfirmDeletion.mockResolvedValue({ scheduledDeletionAt: '2025-02-01T00:00:00Z' })
   })
@@ -221,6 +227,22 @@ describe('DeleteAccountModal', () => {
     await waitFor(() => {
       expect(screen.getByText('profile.logout')).toBeInTheDocument()
     })
+  })
+
+  it('does not confirm deletion after the account changes between code request and confirmation', async () => {
+    render(<DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />)
+    fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
+    await waitFor(() => expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument())
+    screen.getAllByRole('textbox').forEach((input, index) => {
+      fireEvent.change(input, { target: { value: String(index + 1) } })
+    })
+
+    heldAccountId = 'account-b'
+    accountGeneration++
+    fireEvent.click(screen.getByText('profile.deleteAccount.confirmDelete'))
+
+    expect(mockConfirmDeletion).not.toHaveBeenCalled()
+    expect(screen.queryByText('profile.logout')).not.toBeInTheDocument()
   })
 
   it('shows error when confirmDeletion fails', async () => {

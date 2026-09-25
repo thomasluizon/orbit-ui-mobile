@@ -90,4 +90,22 @@ describe('chat stream route', () => {
     expect(await response.json()).toMatchObject({ errorCode: 'ACCOUNT_CHANGED' })
     expect(mockFetch).not.toHaveBeenCalled()
   })
+
+  it('forwards a stream when no held account was known', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'other-token', expiresAt: Date.now() + 3600000,
+      refreshed: false, refreshFailed: false,
+    })
+    mockFetch.mockResolvedValue(new Response('data: done\n\n', {
+      status: 200, headers: { 'Content-Type': 'text/event-stream' },
+    }))
+    const request = new NextRequest('http://localhost:3000/api/chat/stream', {
+      method: 'POST', body: new FormData(),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
 })

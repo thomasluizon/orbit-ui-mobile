@@ -35,6 +35,25 @@ describe('subscriptions checkout route', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
+  it('forwards checkout when the cookie account cannot be read', async () => {
+    const { getAccountIdFromToken } = await import('@/lib/auth-api')
+    vi.mocked(getAccountIdFromToken).mockReturnValueOnce(null)
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'unreadable-token', expiresAt: Date.now() + 3600000,
+      refreshed: false, refreshFailed: false,
+    })
+    mockFetch.mockResolvedValue(new Response('{"url":"https://example.com"}', { status: 200 }))
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' },
+      body: JSON.stringify({ interval: 'monthly' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
   it('forwards geo country headers and a sanitized client ip', async () => {
     vi.mocked(resolveServerSession).mockResolvedValue({
       token: 'token',

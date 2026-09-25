@@ -7,10 +7,8 @@ import {
   type MutateOptions,
   type UseMutationOptions,
 } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { reportsAccountChanged } from '@/app/actions/action-result'
-import { withAccountIntent } from '@/lib/client-action'
-import { translateApiFetchMessage } from '@/lib/api-fetch'
+import { reportAccountChanged, withAccountIntent } from '@/lib/client-action'
 import { getAccountGeneration, getHeldAccountId } from '@/stores/auth-store'
 
 interface ScopedVariables<TVariables> {
@@ -91,8 +89,7 @@ export function useAccountScopedMutation<
   scopedOptions.onError = (error, variables, result, context) => {
     if (reportsAccountChanged(error)) {
       if (sameGeneration(variables)) queryClient.clear()
-      const message = translateApiFetchMessage('errors.api.accountChanged')
-      if (message) toast.error(message)
+      reportAccountChanged()
       return
     }
     if (stillHeld(variables)) return onError?.(error, variables.input, result, context)

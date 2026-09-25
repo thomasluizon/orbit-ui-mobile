@@ -3,6 +3,14 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { VOICE_LEVEL_POLL_MS, VOICE_SILENCE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 
+let heldAccountId: string | null = 'account-a'
+let accountGeneration = 1
+vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => heldAccountId,
+  getAccountGeneration: () => accountGeneration,
+  useAuthStore: { getState: () => ({ recoverSessionRefreshFailure: async () => {} }) },
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
@@ -40,6 +48,8 @@ const getUserMedia = vi.fn(async () => makeStream())
 
 describe('useSpeechToText', () => {
   beforeEach(() => {
+    heldAccountId = 'account-a'
+    accountGeneration = 1
     MockMediaRecorder.instances = []
     vi.clearAllMocks()
     vi.stubGlobal('MediaRecorder', MockMediaRecorder)
@@ -125,11 +135,26 @@ describe('useSpeechToText', () => {
       expect(result.current.error).toBeNull()
 
       const init = fetchMock.mock.calls[0]?.[1]
+      expect(new Headers(init?.headers).get('x-orbit-held-account-id')).toBe('account-a')
       const body = init?.body
       expect(body).toBeInstanceOf(FormData)
       if (body instanceof FormData) {
         expect(body.get('audio')).toBeInstanceOf(Blob)
       }
+    })
+
+    it('does not transcribe a recording after the held account changes', async () => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      heldAccountId = 'account-b'
+      accountGeneration++
+      await act(async () => { result.current.stopRecording() })
+
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(result.current.error).toBe('errors.api.accountChanged')
     })
 
     it('surfaces the mapped error key when transcription returns an error code', async () => {
