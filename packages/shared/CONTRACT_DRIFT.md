@@ -15,20 +15,26 @@ the append-only and deploy-API-first rules in the root `CLAUDE.md`.
 `.github/workflows/contract-rebaseline.yml` runs every six hours on the default
 branch, `main`. It also accepts the `orbit-api-contract-drift`
 `repository_dispatch` event. GitHub runs both triggers from the default branch;
-the `redesign/main` port is separate. The job compares the committed OpenAPI spec
-at the pin with orbit-api `main`. When the spec bytes differ, it regenerates with
-`orval@8.37.0`, updates the pin, and opens or updates the single
-`chore/contract-snapshot` pull request against `main`. It never pushes to `main`.
+the `redesign/main` port is separate. The `generate` job compares the committed
+OpenAPI spec at the pin with orbit-api `main`. When the spec bytes differ, it
+regenerates with `orval@8.37.0` and updates the pin. The `publish` job opens or
+updates the single `chore/contract-snapshot` pull request against `main`. It
+never pushes to `main`.
 The branch name and workflow concurrency group keep repeat runs on one pull
 request. A spec change that produces identical Zod output still updates the pin,
 so the review shows the spec moved.
 
 Review that pull request's generated diff. If the consumed contract changed,
 update the matching hand-written Zod schemas in the shared package before
-merging. The `GITHUB_TOKEN` needs `contents: write` and
-`pull-requests: write`; the repository's Actions setting must allow GitHub
-Actions to create pull requests. A pull request opened with `GITHUB_TOKEN` may
-require approval before its checks run.
+merging.
+
+The workflow runs two jobs. The `generate` job runs `npm ci` and Orval with a
+read-only token and uploads only the two generated files. The `publish` job
+gets `contents: write` and `pull-requests: write`, installs nothing, and
+commits and pushes with `core.hooksPath=/dev/null`, so no install script or
+repository hook runs while the write token exists. The repository's Actions
+setting must allow GitHub Actions to create pull requests. A pull request
+opened with `GITHUB_TOKEN` may require approval before its checks run.
 
 ## Regenerating locally
 
