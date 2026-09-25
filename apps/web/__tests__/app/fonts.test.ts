@@ -55,7 +55,7 @@ describe('local web fonts', () => {
     const fontDirectory = resolve(webRoot, 'fonts')
     for (const [options] of localFont.mock.calls) {
       const source = resolve(dirname(fontModule), options.src)
-      expect(source.startsWith(`${fontDirectory}/`)).toBe(true)
+      expect(dirname(source)).toBe(fontDirectory)
       expect(existsSync(source)).toBe(true)
     }
   })
