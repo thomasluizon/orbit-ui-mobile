@@ -2,7 +2,7 @@
  * Local ESLint rule: every layout spacing value must sit on the DESIGN.md scale.
  *
  * DESIGN.md `### Spacing (base 4)` enumerates the only legal steps
- * (0 4 8 12 16 20 24 28 32 40 48 56 64 px). This gate reads spacing from the
+ * (0 4 8 12 16 24 32 48 64 96 px, `DEFAULT_SCALE` below). This gate reads spacing from the
  * three places it actually lives in Orbit - JSX inline `style={{ }}` objects,
  * React Native `StyleSheet.create({ })` objects, and Tailwind `className`
  * utilities (both scale steps and arbitrary `[13px]` values) - because a
