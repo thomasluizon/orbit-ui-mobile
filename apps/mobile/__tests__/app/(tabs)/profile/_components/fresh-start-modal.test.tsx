@@ -9,6 +9,8 @@ import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
+vi.mock('@/lib/supabase', () => ({ clearSupabaseSession: vi.fn(async () => {}) }))
+
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const replace = vi.fn()

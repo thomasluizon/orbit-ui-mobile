@@ -6,6 +6,8 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { useAuthStore } from '@/stores/auth-store'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
+vi.mock('@/lib/supabase', () => ({ clearSupabaseSession: vi.fn(async () => {}) }))
+
 const LEGACY_TRIAL_KEY = 'orbit_trial_expired_seen'
 const ACCOUNT_A_TRIAL_KEY = buildAccountScopedStorageKey(LEGACY_TRIAL_KEY, 'user-1')
 const ACCOUNT_B_TRIAL_KEY = buildAccountScopedStorageKey(LEGACY_TRIAL_KEY, 'user-2')
