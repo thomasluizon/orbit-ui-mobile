@@ -10,6 +10,7 @@ import {
   recoverSameAccount,
   replaceAccountWith,
 } from '@/__tests__/support/account-change'
+
 import { useAuthStore } from '@/stores/auth-store'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -100,6 +101,46 @@ describe('useSpeechToText', () => {
   })
 
   describe('with recording support', () => {
+    it('sends the account held when recording began', async () => {
+      holdAccount('account-a')
+      const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json({ text: 'hello' }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+      expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+        'X-Orbit-Held-Account-Id': 'account-a',
+      })
+    })
+
+    it('does not send a recording after the account changes', async () => {
+      useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+      const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json({ text: 'hello' }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      useAuthStore.getState().setAuth({ userId: 'account-b', name: 'Thomas', email: 'thomas@example.com' })
+      await act(async () => { result.current.stopRecording() })
+
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('shows reload guidance after a transcription account switch refusal', async () => {
+      useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+        error: 'Account changed', errorCode: 'ACCOUNT_CHANGED',
+      }, { status: 409 })))
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+
+      await waitFor(() => expect(result.current.error).toBe('errors.api.accountChanged'))
+    })
     it('blocks recording after a timed transcription refusal until the deadline, then allows another attempt', async () => {
       const retryAt = Date.now() + 60_000
       const fetchMock = vi.fn(async () => Response.json({

@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -80,6 +81,10 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
     searchMatches: overrides.searchMatches,
   }
 }
+
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
 
 describe('web tag hooks', () => {
   beforeEach(() => {
@@ -219,7 +224,7 @@ describe('web tag hooks', () => {
       })
     })
 
-    expect(suggestTags).toHaveBeenCalledWith('Morning run', null, 'en')
+    expect(suggestTags).toHaveBeenCalledWith('Morning run', null, 'en', 'account-a')
     expect(returned).toEqual(response)
   })
 
@@ -285,7 +290,7 @@ describe('web tag hooks', () => {
       performUndo()
     })
 
-    await waitFor(() => expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1'))
+    await waitFor(() => expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1', 'account-a'))
   })
 
   it('restores a tag, invalidates tag and habit lists, and confirms', async () => {
@@ -305,7 +310,7 @@ describe('web tag hooks', () => {
       await result.current.mutateAsync('tag-1')
     })
 
-    expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1')
+    expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1', 'account-a')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: tagKeys.all })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')

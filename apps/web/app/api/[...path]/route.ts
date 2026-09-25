@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { APP_VERSION_HEADER } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
-import { resolveServerSession } from '@/lib/auth-api'
+import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
+import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 import {
   SESSION_REFRESH_FAILED_VALUE,
@@ -165,6 +166,40 @@ function buildResponseHeaders(source: Response): Headers {
 
 const NULL_BODY_STATUSES = new Set([204, 205, 304])
 const REFRESH_PATH = API.auth.refresh.replace(/^\/api\//, '')
+function requiresHeldAccount(request: NextRequest, path: string): boolean {
+  const decodedPath = safeDecodePath(path)?.toLowerCase()
+  return request.method === 'POST' && (decodedPath === 'chat' || decodedPath?.startsWith('chat/') === true)
+}
+
+function accountChangedResponse(): NextResponse {
+  return NextResponse.json(
+    { error: 'Account changed', errorCode: ACCOUNT_CHANGED_ERROR_CODE },
+    { status: 409, headers: { 'cache-control': 'private, no-store, max-age=0' } },
+  )
+}
+
+function initialChatRefusal(
+  request: NextRequest,
+  path: string,
+  token: string | null,
+  refreshFailed: boolean,
+): NextResponse | null {
+  if (!requiresHeldAccount(request, path)) return null
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, {
+      status: 401,
+      headers: {
+        'cache-control': 'private, no-store, max-age=0',
+        ...(refreshFailed ? { [SESSION_REFRESH_HEADER]: SESSION_REFRESH_FAILED_VALUE } : {}),
+      },
+    })
+  }
+  const heldAccountId = request.headers.get('x-orbit-held-account-id')
+  return heldAccountId && getAccountIdFromToken(token) === heldAccountId
+    ? null
+    : accountChangedResponse()
+}
+
 async function toNextResponse(
   source: Response,
   sessionRefreshFailed = false,
@@ -182,11 +217,19 @@ async function toNextResponse(
 
 async function handleProxy(request: NextRequest, path: string) {
   const session = await resolveServerSession()
+  const protectChatWrite = requiresHeldAccount(request, path)
+  const heldAccountId = request.headers.get('x-orbit-held-account-id')
+  const refusal = initialChatRefusal(request, path, session.token, session.refreshFailed)
+  if (refusal) return refusal
   const response = await proxyRequest(request, path, session.token)
 
   if (response.status === 401 && path !== REFRESH_PATH) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (refreshedSession.token) {
+      if (protectChatWrite
+        && getAccountIdFromToken(refreshedSession.token) !== heldAccountId) {
+        return accountChangedResponse()
+      }
       const retryResponse = await proxyRequest(request, path, refreshedSession.token)
       return toNextResponse(retryResponse)
     }

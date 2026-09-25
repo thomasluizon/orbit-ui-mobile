@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET, PUT } from '@/app/api/[...path]/route'
+import { GET, POST, PUT } from '@/app/api/[...path]/route'
 import { resolveServerSession } from '@/lib/auth-api'
 import { API } from '@orbit/shared/api'
 
@@ -9,9 +9,15 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-vi.mock('@/lib/auth-api', () => ({
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-api')>()),
   resolveServerSession: vi.fn(),
 }))
+
+const ACCOUNT_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+function tokenFor(accountId: string): string {
+  return `e30.${Buffer.from(JSON.stringify({ [ACCOUNT_CLAIM]: accountId })).toString('base64url')}.signature`
+}
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -29,6 +35,62 @@ describe('catch-all API proxy route', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     vi.mocked(resolveServerSession).mockReset()
+  })
+
+  it.each([null, 'account-a'])('refuses transcription with missing or stale held account %s', async (heldAccountId) => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-b'), expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValue(Response.json({ text: 'wrong account' }))
+    const request = new NextRequest('http://localhost:3000/api/chat/transcribe', {
+      method: 'POST',
+      ...(heldAccountId ? { headers: { 'x-orbit-held-account-id': heldAccountId } } : {}),
+      body: new FormData(),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat', 'transcribe'] }) })
+
+    expect(response.status).toBe(409)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('forwards transcription for the held account', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValue(Response.json({ text: 'done' }))
+    const request = new NextRequest('http://localhost:3000/api/chat/transcribe', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat', 'transcribe'] }) })
+
+    expect(response.status).toBe(200)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not forward transcription without an authenticated session', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: null, expiresAt: null, refreshed: false, refreshFailed: true })
+    const request = new NextRequest('http://localhost:3000/api/chat/transcribe', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat', 'transcribe'] }) })
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('refuses transcription when refresh switches accounts before retry', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
+      .mockResolvedValueOnce({ token: tokenFor('account-b'), expiresAt: null, refreshed: true, refreshFailed: false })
+    mockFetch.mockResolvedValue(Response.json({ error: 'Unauthorized' }, { status: 401 }))
+    const request = new NextRequest('http://localhost:3000/api/chat/transcribe', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ path: ['chat', 'transcribe'] }) })
+
+    expect(response.status).toBe(409)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
   it('rejects malformed paths before calling auth or backend', async () => {

@@ -34,6 +34,7 @@ import iconSizeGrid from "../../eslint-rules/icon-size-grid.cjs"
 import noPillRadiusOnStatic from "../../eslint-rules/no-pill-radius-on-static.cjs"
 import willChangeDiscipline from "../../eslint-rules/will-change-discipline.cjs"
 import maxButtonWords from "../../eslint-rules/max-button-words.cjs"
+import noMutatingServerAuthFetch from "../../eslint-rules/no-mutating-server-auth-fetch.cjs"
 
 const maxButtonWordControls = [
   { name: "button", labelProps: ["children"] },
@@ -116,6 +117,7 @@ export default [
           "no-pill-radius-on-static": noPillRadiusOnStatic,
           "will-change-discipline": willChangeDiscipline,
           "max-button-words": maxButtonWords,
+          "no-mutating-server-auth-fetch": noMutatingServerAuthFetch,
         },
       },
     },
@@ -187,6 +189,8 @@ export default [
       // and tools/check-lint-severity.mjs fails if one ever returns.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/175
       "local/spacing-scale": "error",
+
+      "local/no-mutating-server-auth-fetch": "error",
     },
   },
   {

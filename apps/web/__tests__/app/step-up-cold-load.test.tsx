@@ -75,7 +75,7 @@ it('renders the live challenge on a cold load that has observed no session', asy
   expect(screen.getByLabelText('codeLabel')).toBeInTheDocument()
 })
 
-it('starts the session monitor, so the route learns the account it was never told', async () => {
+it('starts the session monitor to verify the server account', async () => {
   storeLiveChallenge('user-1')
 
   await act(async () => {

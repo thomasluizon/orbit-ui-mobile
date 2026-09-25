@@ -6,8 +6,10 @@ import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
+
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface UseBulkActionsOptions {
@@ -29,6 +31,10 @@ interface BulkActionOutcome {
 
 function failedHabitIds(results: readonly BulkResultItem[]): string[] {
   return results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : [])
+}
+
+function reportAccountSwitch(error: unknown): boolean {
+  return reportsAccountChanged(error)
 }
 
 export function useBulkActions({
@@ -92,6 +98,9 @@ export function useBulkActions({
       finish(result, (failedIds) => {
         if (getAccountGeneration() === accountGeneration) void executeDelete(failedIds)
       })
+    } catch (error) {
+      if (getAccountGeneration() !== accountGeneration) return
+      if (!reportAccountSwitch(error)) throw error
     } finally {
       setShowBulkDeleteConfirm(false)
     }
@@ -102,14 +111,20 @@ export function useBulkActions({
     if (ids.length === 0) return
     const date = selectedDateStr
     const accountGeneration = getAccountGeneration()
-    const result = await bulkLog.mutateAsync(
-      ids.map((id) => ({ habitId: id, date })),
-    )
-    if (getAccountGeneration() !== accountGeneration) return
-    applyBulkMutationSuccesses(result.results, 'log', date)
-    finish(result, (failedIds) => {
-      if (getAccountGeneration() === accountGeneration) void executeLog(failedIds)
-    })
+    try {
+      const result = await bulkLog.mutateAsync(
+        ids.map((id) => ({ habitId: id, date })),
+      )
+      if (getAccountGeneration() !== accountGeneration) return
+      applyBulkMutationSuccesses(result.results, 'log', date)
+      if (currentPermission.current.selectedDateStr !== date) return
+      finish(result, (failedIds) => {
+        if (getAccountGeneration() === accountGeneration) void executeLog(failedIds)
+      })
+    } catch (error) {
+      if (getAccountGeneration() !== accountGeneration) return
+      if (!reportAccountSwitch(error)) throw error
+    }
   }
 
   async function executeSkip(ids: string[]) {
@@ -117,14 +132,20 @@ export function useBulkActions({
     if (ids.length === 0) return
     const date = selectedDateStr
     const accountGeneration = getAccountGeneration()
-    const result = await bulkSkip.mutateAsync(
-      ids.map((id) => ({ habitId: id, date })),
-    )
-    if (getAccountGeneration() !== accountGeneration) return
-    applyBulkMutationSuccesses(result.results, 'skip', date)
-    finish(result, (failedIds) => {
-      if (getAccountGeneration() === accountGeneration) void executeSkip(failedIds)
-    })
+    try {
+      const result = await bulkSkip.mutateAsync(
+        ids.map((id) => ({ habitId: id, date })),
+      )
+      if (getAccountGeneration() !== accountGeneration) return
+      applyBulkMutationSuccesses(result.results, 'skip', date)
+      if (currentPermission.current.selectedDateStr !== date) return
+      finish(result, (failedIds) => {
+        if (getAccountGeneration() === accountGeneration) void executeSkip(failedIds)
+      })
+    } catch (error) {
+      if (getAccountGeneration() !== accountGeneration) return
+      if (!reportAccountSwitch(error)) throw error
+    }
   }
 
   const confirmBulkDelete = () => executeDelete(

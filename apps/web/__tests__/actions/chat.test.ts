@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockServerAuthFetch = vi.fn()
+const mockServerAuthMutate = vi.fn()
 vi.mock('@/lib/server-fetch', () => ({
-  serverAuthFetch: mockServerAuthFetch,
+  serverAuthMutate: mockServerAuthMutate,
 }))
 
 const {
@@ -14,18 +14,18 @@ const {
 
 describe('chat server actions', () => {
   beforeEach(() => {
-    mockServerAuthFetch.mockReset()
+    mockServerAuthMutate.mockReset()
   })
 
   describe('pending-operation actions', () => {
     it('confirms a pending operation through the ai endpoint', async () => {
-      mockServerAuthFetch.mockResolvedValue({
+      mockServerAuthMutate.mockResolvedValue({
         pendingOperationId: 'pending-1',
         confirmationToken: 'confirm-token',
         expiresAtUtc: '2025-01-15T10:05:00Z',
       })
 
-      const result = await confirmPendingOperation('pending-1')
+      const result = await confirmPendingOperation('pending-1', null)
 
       expect(result).toEqual({
         ok: true,
@@ -35,45 +35,49 @@ describe('chat server actions', () => {
           expiresAtUtc: '2025-01-15T10:05:00Z',
         },
       })
-      expect(mockServerAuthFetch).toHaveBeenCalledWith('/api/ai/pending-operations/pending-1/confirm', {
-        method: 'POST',
-      })
+      expect(mockServerAuthMutate).toHaveBeenCalledWith(
+        '/api/ai/pending-operations/pending-1/confirm',
+        { method: 'POST' },
+        null,
+      )
     })
 
     it('requests a step-up challenge', async () => {
-      mockServerAuthFetch.mockResolvedValue({
+      mockServerAuthMutate.mockResolvedValue({
         challengeId: 'challenge-1',
         pendingOperationId: 'pending-1',
         expiresAtUtc: '2025-01-15T10:05:00Z',
       })
 
-      const result = await issuePendingOperationStepUp('pending-1', 'en')
+      const result = await issuePendingOperationStepUp('pending-1', 'en', null)
 
       expect(result.ok).toBe(true)
-      expect(mockServerAuthFetch).toHaveBeenCalledWith('/api/ai/pending-operations/pending-1/step-up', {
-        method: 'POST',
-        body: JSON.stringify({ language: 'en' }),
-      })
+      expect(mockServerAuthMutate).toHaveBeenCalledWith(
+        '/api/ai/pending-operations/pending-1/step-up',
+        { method: 'POST', body: JSON.stringify({ language: 'en' }) },
+        null,
+      )
     })
 
     it('verifies a step-up challenge', async () => {
-      mockServerAuthFetch.mockResolvedValue({ id: 'challenge-1' })
+      mockServerAuthMutate.mockResolvedValue({ id: 'challenge-1' })
 
-      const result = await verifyPendingOperationStepUp('pending-1', 'challenge-1', '123456')
+      const result = await verifyPendingOperationStepUp('pending-1', 'challenge-1', '123456', null)
 
       expect(result.ok).toBe(true)
-      expect(mockServerAuthFetch).toHaveBeenCalledWith('/api/ai/pending-operations/pending-1/step-up/verify', {
-        method: 'POST',
-        body: JSON.stringify({ challengeId: 'challenge-1', code: '123456' }),
-      })
+      expect(mockServerAuthMutate).toHaveBeenCalledWith(
+        '/api/ai/pending-operations/pending-1/step-up/verify',
+        { method: 'POST', body: JSON.stringify({ challengeId: 'challenge-1', code: '123456' }) },
+        null,
+      )
     })
 
     it('forwards the backend error code when a pending-operation call fails', async () => {
-      mockServerAuthFetch.mockRejectedValue(
+      mockServerAuthMutate.mockRejectedValue(
         Object.assign(new Error('Step-up required'), { status: 403, code: 'STEP_UP_REQUIRED' }),
       )
 
-      const result = await confirmPendingOperation('pending-1')
+      const result = await confirmPendingOperation('pending-1', null)
 
       expect(result).toEqual({
         ok: false,
@@ -84,24 +88,24 @@ describe('chat server actions', () => {
       })
     })
 
-    it('rejects an unauthenticated call with 401 (serverAuthFetch throws before any request)', async () => {
-      mockServerAuthFetch.mockRejectedValue(
+    it('rejects an unauthenticated call with 401 (serverAuthMutate throws before any request)', async () => {
+      mockServerAuthMutate.mockRejectedValue(
         Object.assign(new Error('Unauthorized'), { status: 401, code: 'UNAUTHORIZED' }),
       )
 
-      await expect(confirmPendingOperation('pending-1')).resolves.toMatchObject({
+      await expect(confirmPendingOperation('pending-1', null)).resolves.toMatchObject({
         ok: false,
         status: 401,
         code: 'UNAUTHORIZED',
       })
-      await expect(executePendingOperation('pending-1', 'confirm-token')).resolves.toMatchObject({
+      await expect(executePendingOperation('pending-1', 'confirm-token', null)).resolves.toMatchObject({
         ok: false,
         status: 401,
       })
     })
 
     it('executes a confirmed pending operation', async () => {
-      mockServerAuthFetch.mockResolvedValue({
+      mockServerAuthMutate.mockResolvedValue({
         operation: {
           operationId: 'habit.delete',
           sourceName: 'Delete habit',
@@ -111,13 +115,14 @@ describe('chat server actions', () => {
         },
       })
 
-      const result = await executePendingOperation('pending-1', 'confirm-token')
+      const result = await executePendingOperation('pending-1', 'confirm-token', null)
 
       expect(result.ok).toBe(true)
-      expect(mockServerAuthFetch).toHaveBeenCalledWith('/api/ai/pending-operations/pending-1/execute', {
-        method: 'POST',
-        body: JSON.stringify({ confirmationToken: 'confirm-token' }),
-      })
+      expect(mockServerAuthMutate).toHaveBeenCalledWith(
+        '/api/ai/pending-operations/pending-1/execute',
+        { method: 'POST', body: JSON.stringify({ confirmationToken: 'confirm-token' }) },
+        null,
+      )
     })
   })
 })

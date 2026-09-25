@@ -1,6 +1,5 @@
 'use client'
 
-import { useMutation } from '@tanstack/react-query'
 import { Mail } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -10,6 +9,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
 import { updateMarketingConsent } from '@/lib/actions/profile'
+import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 
 /** Self-contained "Product updates by email" preference row: reflects and optimistically toggles marketing-email consent, rolling back on error. Never Pro-gated. */
 export function MarketingConsentSection({
@@ -26,8 +26,9 @@ export function MarketingConsentSection({
   const enabled = profile?.marketingEmailConsent === true
 
   // react-doctor-disable-next-line query-mutation-missing-invalidation -- optimistic cache update via patchProfile (setQueryData) + onError rollback keeps the profile cache in sync; no dependent query to refetch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const mutation = useMutation({
-    mutationFn: (next: boolean) => updateMarketingConsent({ enabled: next }),
+  const mutation = useAccountScopedMutation({
+    mutationFn: (next: boolean, intendedAccountId) =>
+      updateMarketingConsent({ enabled: next }, intendedAccountId),
     onMutate: (next) => {
       const previous = profile?.marketingEmailConsent ?? null
       patchProfile({ marketingEmailConsent: next })

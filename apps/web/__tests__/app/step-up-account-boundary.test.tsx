@@ -17,7 +17,7 @@ import { hasApiKeyCreationGrant } from '@/lib/step-up-storage'
 const mocks = vi.hoisted(() => ({
   operation: 'keys',
   router: { replace: vi.fn() },
-  serverAuthFetch: vi.fn(),
+  serverAuthMutate: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -35,7 +35,7 @@ vi.mock('@/hooks/use-date-format', () => ({
   useDateFormat: () => ({ displayDate: (value: string) => value }),
 }))
 vi.mock('@/lib/server-fetch', () => ({
-  serverAuthFetch: (...args: unknown[]) => mocks.serverAuthFetch(...args),
+  serverAuthMutate: (...args: unknown[]) => mocks.serverAuthMutate(...args),
 }))
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ children, action }: Readonly<{ children: React.ReactNode; action?: React.ReactNode }>) => (
@@ -69,6 +69,23 @@ async function renderChallenge(operation: 'keys' | 'delete' = 'keys') {
   return screen.getByLabelText('codeLabel')
 }
 
+async function renderColdChallenge(operation: 'keys' | 'delete') {
+  mocks.operation = operation
+  holdAccount('user-1')
+  respondWithInactiveSession()
+  useAuthStore.getState().adoptAccountFromSignal(null)
+  await waitFor(() => expect(getHeldAccountId()).toBeNull())
+  useAuthStore.setState({ sessionInactive: false })
+  const sentAt = Date.now() - 60_000
+  storeChallenge('user-1', operation, sentAt)
+  const pendingSession = deferred<Response>()
+  vi.mocked(globalThis.fetch).mockImplementation(() => pendingSession.promise)
+  await act(async () => { render(<StepUpScreen serverAccountId="user-1" />) })
+  expect(getHeldAccountId()).toBe('user-1')
+  expect(screen.getByLabelText('codeLabel')).toBeInTheDocument()
+  return { sentAt, pendingSession }
+}
+
 function confirmCode() {
   fireEvent.change(screen.getByLabelText('codeLabel'), { target: { value: '123456' } })
   fireEvent.click(within(screen.getByTestId('shell-action')).getByRole('button'))
@@ -78,7 +95,7 @@ beforeEach(() => {
   globalThis.localStorage.clear()
   vi.stubGlobal('fetch', vi.fn())
   mocks.router.replace.mockReset()
-  mocks.serverAuthFetch.mockReset()
+  mocks.serverAuthMutate.mockReset()
 })
 
 afterEach(() => {
@@ -87,16 +104,132 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+it('accepts a cold-load resend completed before session hydration', async () => {
+  mocks.serverAuthMutate.mockResolvedValue({ message: 'sent' })
+  const { sentAt } = await renderColdChallenge('keys')
+
+  fireEvent.click(screen.getByText('resend'))
+
+  await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
+    API.apiKeys.requestCreationChallenge, { method: 'POST' }, 'user-1',
+  ))
+  await waitFor(() => expect(JSON.parse(
+    globalThis.localStorage.getItem(getStepUpStorageKey('keys', 'user-1')) ?? '{}',
+  ).sentAt).toBeGreaterThan(sentAt))
+})
+
+it('accepts a cold-load key confirmation completed before session hydration', async () => {
+  mocks.serverAuthMutate.mockResolvedValue({ message: 'confirmed' })
+  const { pendingSession } = await renderColdChallenge('keys')
+
+  confirmCode()
+
+  await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
+    API.apiKeys.confirmCreationChallenge,
+    { method: 'POST', body: JSON.stringify({ code: '123456' }) },
+    'user-1',
+  ))
+  await waitFor(() => expect(hasApiKeyCreationGrant()).toBe(true))
+  expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
+
+  await act(async () => {
+    pendingSession.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
+    await pendingSession.promise
+  })
+  expect(getHeldAccountId()).toBe('user-1')
+  expect(hasApiKeyCreationGrant()).toBe(true)
+})
+
+it('shows a cold-load deletion completed before session hydration', async () => {
+  mocks.serverAuthMutate.mockResolvedValue({
+    message: 'confirmed', scheduledDeletionAt: '2026-09-04T03:00:00Z',
+  })
+  const { pendingSession } = await renderColdChallenge('delete')
+
+  confirmCode()
+
+  await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
+    API.auth.confirmDeletion,
+    { method: 'POST', body: JSON.stringify({ code: '123456' }) },
+    'user-1',
+  ))
+  expect(await screen.findByText(/successTitle/)).toBeInTheDocument()
+
+  await act(async () => {
+    pendingSession.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
+    await pendingSession.promise
+  })
+  expect(getHeldAccountId()).toBe('user-1')
+  expect(screen.getByText(/successTitle/)).toBeInTheDocument()
+  expect(mocks.router.replace).not.toHaveBeenCalledWith('/profile')
+})
+
+it('accepts a cold resend when the same account hydrates while it is pending', async () => {
+  const pendingAction = deferred<{ message: string }>()
+  mocks.serverAuthMutate.mockReturnValue(pendingAction.promise)
+  const { sentAt, pendingSession } = await renderColdChallenge('keys')
+
+  fireEvent.click(screen.getByText('resend'))
+  await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledOnce())
+  await act(async () => {
+    pendingSession.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
+    await pendingSession.promise
+  })
+  await act(async () => { pendingAction.resolve({ message: 'sent' }); await pendingAction.promise })
+
+  expect(JSON.parse(globalThis.localStorage.getItem(getStepUpStorageKey('keys', 'user-1')) ?? '{}').sentAt)
+    .toBeGreaterThan(sentAt)
+  expect(screen.queryByText('errors.api.accountChanged')).not.toBeInTheDocument()
+})
+
+it('keeps a cold key confirmation when the same account hydrates while it is pending', async () => {
+  const pendingAction = deferred<{ message: string }>()
+  mocks.serverAuthMutate.mockReturnValue(pendingAction.promise)
+  const { pendingSession } = await renderColdChallenge('keys')
+
+  confirmCode()
+  await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledOnce())
+  await act(async () => {
+    pendingSession.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
+    await pendingSession.promise
+  })
+  await act(async () => { pendingAction.resolve({ message: 'confirmed' }); await pendingAction.promise })
+
+  expect(hasApiKeyCreationGrant()).toBe(true)
+  expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
+})
+
+it('shows cold deletion success when the same account hydrates while it is pending', async () => {
+  const pendingAction = deferred<{ message: string; scheduledDeletionAt: string }>()
+  mocks.serverAuthMutate.mockReturnValue(pendingAction.promise)
+  const { pendingSession } = await renderColdChallenge('delete')
+
+  confirmCode()
+  await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledOnce())
+  await act(async () => {
+    pendingSession.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
+    await pendingSession.promise
+  })
+  await act(async () => {
+    pendingAction.resolve({ message: 'confirmed', scheduledDeletionAt: '2026-09-04T03:00:00Z' })
+    await pendingAction.promise
+  })
+
+  expect(screen.getByText(/successTitle/)).toBeInTheDocument()
+  expect(mocks.router.replace).not.toHaveBeenCalledWith('/profile')
+})
+
 it('discards a deferred key confirmation after account replacement', async () => {
   const pending = deferred<{ message: string }>()
-  mocks.serverAuthFetch.mockImplementation((endpoint: string) =>
+  mocks.serverAuthMutate.mockImplementation((endpoint: string) =>
     endpoint === API.apiKeys.confirmCreationChallenge ? pending.promise : Promise.resolve({ message: 'sent' }),
   )
   await renderChallenge()
   confirmCode()
-  await waitFor(() => expect(mocks.serverAuthFetch).toHaveBeenCalledWith(
+  await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
     API.apiKeys.confirmCreationChallenge,
     { method: 'POST', body: JSON.stringify({ code: '123456' }) },
+    'user-1',
   ))
   storeChallenge('user-2')
   await replaceAccountWith('user-2')
@@ -111,14 +244,15 @@ it('discards a deferred key confirmation after account replacement', async () =>
 
 it('discards a deferred deletion failure after account replacement', async () => {
   const pending = deferred<never>()
-  mocks.serverAuthFetch.mockImplementation((endpoint: string) =>
+  mocks.serverAuthMutate.mockImplementation((endpoint: string) =>
     endpoint === API.auth.confirmDeletion ? pending.promise : Promise.resolve({ message: 'sent' }),
   )
   await renderChallenge('delete')
   confirmCode()
-  await waitFor(() => expect(mocks.serverAuthFetch).toHaveBeenCalledWith(
+  await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
     API.auth.confirmDeletion,
     { method: 'POST', body: JSON.stringify({ code: '123456' }) },
+    'user-1',
   ))
   storeChallenge('user-2', 'delete')
   await replaceAccountWith('user-2')
@@ -131,13 +265,13 @@ it('discards a deferred deletion failure after account replacement', async () =>
 
 it('discards a deferred resend after account replacement', async () => {
   const pending = deferred<{ message: string }>()
-  mocks.serverAuthFetch.mockImplementation((endpoint: string) =>
+  mocks.serverAuthMutate.mockImplementation((endpoint: string) =>
     endpoint === API.apiKeys.requestCreationChallenge ? pending.promise : Promise.resolve({ message: 'sent' }),
   )
   await renderChallenge()
   fireEvent.click(screen.getByText('resend'))
-  await waitFor(() => expect(mocks.serverAuthFetch).toHaveBeenCalledWith(
-    API.apiKeys.requestCreationChallenge, { method: 'POST' },
+  await waitFor(() => expect(mocks.serverAuthMutate).toHaveBeenCalledWith(
+    API.apiKeys.requestCreationChallenge, { method: 'POST' }, 'user-1',
   ))
   const nextSentAt = Date.now() - 61_000
   storeChallenge('user-2', 'keys', nextSentAt)

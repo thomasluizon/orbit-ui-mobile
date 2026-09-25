@@ -23,7 +23,7 @@ import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
-import { useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
@@ -36,6 +36,8 @@ import {
 } from '@orbit/shared/stores'
 import { dismissCalendarImport } from '@/lib/actions/calendar'
 import { dismissImportPrompt } from '@/lib/actions/onboarding'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -98,6 +100,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const t = useTranslations()
+  const { showPersistentError } = useAppToast()
   const { profile, patchProfile } = useProfile()
   const { isOnline } = useOffline()
   useTimezoneAutoSync(profile)
@@ -171,15 +174,21 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const handleDismissCalendarPrompt = useCallback(() => {
     setShowCalendarPrompt(false)
-    dismissCalendarImport().catch(() => {})
-  }, [setShowCalendarPrompt])
+    dismissCalendarImport(getHeldAccountId()).catch((error: unknown) => {
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+    })
+  }, [setShowCalendarPrompt, showPersistentError, t])
+
 
   const handleCalendarImport = useCallback(() => {
     setShowCalendarPrompt(false)
-    dismissCalendarImport().catch(() => {})
+    dismissCalendarImport(getHeldAccountId()).catch((error: unknown) => {
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+    })
     setRouteTransitionIntent('forward')
     router.push('/calendar-sync')
-  }, [router, setShowCalendarPrompt])
+  }, [router, setShowCalendarPrompt, showPersistentError, t])
+
 
   const handleCalendarPromptOpenChange = useCallback(
     (open: boolean) => {
@@ -192,13 +201,18 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const handleDismissImportPrompt = useCallback(() => {
     setShowImportPrompt(false)
-    dismissImportPrompt().catch(() => {})
+    dismissImportPrompt(getHeldAccountId()).catch((error: unknown) => {
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+    })
     patchProfile({ hasSeenImportPrompt: true })
-  }, [patchProfile, setShowImportPrompt])
+  }, [patchProfile, setShowImportPrompt, showPersistentError, t])
+
 
   const handleImportWithAstra = useCallback(() => {
     setShowImportPrompt(false)
-    dismissImportPrompt().catch(() => {})
+    dismissImportPrompt(getHeldAccountId()).catch((error: unknown) => {
+      if (reportsAccountChanged(error)) showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+    })
     patchProfile({ hasSeenImportPrompt: true })
     if ('localStorage' in globalThis) {
       globalThis.localStorage.setItem(
@@ -208,7 +222,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     }
     setRouteTransitionIntent('forward')
     setAstraConversationOpen(true)
-  }, [patchProfile, setAstraConversationOpen, setShowImportPrompt, t])
+  }, [patchProfile, setAstraConversationOpen, setShowImportPrompt, showPersistentError, t])
+
 
   const handleImportPromptOpenChange = useCallback(
     (open: boolean) => {

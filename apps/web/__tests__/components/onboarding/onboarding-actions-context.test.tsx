@@ -19,6 +19,11 @@ const mocks = vi.hoisted(() => ({
   updateWeekStartDay: vi.fn(),
   setQueryData: vi.fn(),
   invalidateQueries: vi.fn(),
+  showPersistentError: vi.fn(),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showPersistentError: mocks.showPersistentError }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -157,7 +162,7 @@ describe('live onboarding actions', () => {
   it('optimistically patches the profile week-start day then persists and invalidates', async () => {
     const { result } = renderHook(() => useLiveOnboardingActions())
     await result.current.setWeekStartDay(0)
-    expect(mocks.updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 })
+    expect(mocks.updateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 }, null)
     expect(mocks.invalidateQueries).toHaveBeenCalled()
     const updater = mocks.setQueryData.mock.calls[0]![1] as (old: unknown) => unknown
     expect(updater({ weekStartDay: 1 })).toMatchObject({ weekStartDay: 0 })
@@ -189,6 +194,17 @@ describe('live onboarding actions', () => {
     expect(pushMock).toHaveBeenCalledWith('/')
   })
 
+  it('keeps onboarding open when the account switch guard refuses completion', async () => {
+    mocks.completeOnboarding.mockRejectedValue({ code: 'ACCOUNT_CHANGED', status: 409 })
+    const { result } = renderHook(() => useLiveOnboardingActions())
+
+    await expect(result.current.finishOnboarding()).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+
+    expect(mocks.setQueryData).not.toHaveBeenCalled()
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(mocks.showPersistentError).toHaveBeenCalledWith('errors.api.accountChanged', 'common.dismiss', 'errorScreen.reload')
+  })
+
   it('does not finish the previous account onboarding in the next account cache', async () => {
     holdAccount('user-1')
     vi.stubGlobal('fetch', vi.fn())
@@ -201,10 +217,14 @@ describe('live onboarding actions', () => {
     act(() => { finishing = result.current.finishOnboarding() })
 
     await replaceAccountWith('user-2')
-    await act(async () => { finishCompletion(); await finishing })
+    await act(async () => {
+      finishCompletion()
+      await expect(finishing).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
+    })
 
     expect(mocks.setQueryData).not.toHaveBeenCalled()
     expect(pushMock).not.toHaveBeenCalled()
+
   })
 
   it('seeds the chat draft and opens Astra on import', () => {

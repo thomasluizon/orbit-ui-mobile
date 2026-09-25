@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   resolveAccessibleColorScheme,
   type ColorScheme,
@@ -15,6 +16,10 @@ import {
   normalizeColorScheme,
   normalizeThemeMode,
 } from '@/lib/theme-dom'
+import { getHeldAccountId } from '@/stores/auth-store'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
@@ -27,6 +32,8 @@ function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
 }
 
 export function useColorScheme() {
+  const t = useTranslations()
+  const { showPersistentError } = useAppToast()
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(() =>
     normalizeColorScheme(getCookie('orbit_color_scheme')),
   )
@@ -39,29 +46,41 @@ export function useColorScheme() {
   }, [currentScheme, currentTheme])
 
   const applyScheme = useCallback((scheme: ColorScheme, persistToDb = true) => {
+    const intendedAccountId = getHeldAccountId()
     setCookie('orbit_color_scheme', scheme)
     setCurrentScheme(scheme)
     applyThemeTokensToDOM(scheme, currentTheme, true)
 
     if (persistToDb) {
-      updateColorSchemeAction({ colorScheme: scheme }).catch(() => {})
+      updateColorSchemeAction({ colorScheme: scheme }, intendedAccountId).catch((error: unknown) => {
+        if (reportsAccountChanged(error)) {
+          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+        }
+      })
     }
-  }, [currentTheme])
+  }, [currentTheme, showPersistentError, t])
 
   const applyTheme = useCallback((theme: ThemeMode, persistToDb = true) => {
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
     const prev = currentTheme
     setCookie('orbit_theme_mode', theme)
     setCurrentTheme(theme)
     applyThemeTokensToDOM(currentScheme, theme, true)
 
     if (persistToDb) {
-      updateThemePreferenceAction({ themePreference: theme }).catch((_err: unknown) => {
+      updateThemePreferenceAction({ themePreference: theme }, intendedAccountId).catch((error: unknown) => {
+        if (reportsAccountChanged(error)) {
+          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+          return
+        }
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) return
         setCookie('orbit_theme_mode', prev)
         setCurrentTheme(prev)
         applyThemeTokensToDOM(currentScheme, prev, true)
       })
     }
-  }, [currentScheme, currentTheme])
+  }, [currentScheme, currentTheme, showPersistentError, t])
 
   const toggleTheme = useCallback(() => {
     const next: ThemeMode = currentTheme === 'dark' ? 'light' : 'dark'
@@ -92,8 +111,12 @@ export function useColorScheme() {
    */
   const detectAndSaveSchemeIfNeeded = useCallback((dbColorScheme: string | null) => {
     if (dbColorScheme !== null) return
-    updateColorSchemeAction({ colorScheme: currentScheme }).catch(() => {})
-  }, [currentScheme])
+    updateColorSchemeAction({ colorScheme: currentScheme }, getHeldAccountId()).catch((error: unknown) => {
+      if (reportsAccountChanged(error)) {
+        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      }
+    })
+  }, [currentScheme, showPersistentError, t])
 
   /**
    * Sync cookie with DB value (DB is source of truth).
@@ -123,8 +146,12 @@ export function useColorScheme() {
     setCookie('orbit_theme_mode', detected)
     setCurrentTheme(detected)
     applyThemeTokensToDOM(currentScheme, detected)
-    updateThemePreferenceAction({ themePreference: detected }).catch(() => {})
-  }, [currentScheme])
+    updateThemePreferenceAction({ themePreference: detected }, getHeldAccountId()).catch((error: unknown) => {
+      if (reportsAccountChanged(error)) {
+        showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+      }
+    })
+  }, [currentScheme, showPersistentError, t])
 
   return {
     currentScheme,
