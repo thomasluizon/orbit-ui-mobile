@@ -353,6 +353,8 @@ describe('mobile useChatComposer', () => {
     const [formData] = mocks.openChatStream.mock.calls[0]!
     const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
     expect(context).not.toHaveProperty('entryPointIntent')
+    expect(context.supportsMetricsCard).toBe(true)
+    expect(context.supportsPeriodInsightCard).toBe(true)
   })
 
   it('streams deltas into a single ai bubble and the final response wins', async () => {
@@ -360,7 +362,10 @@ describe('mobile useChatComposer', () => {
       frame('{"type":"started"}'),
       frame('{"type":"delta","text":"Logged"}'),
       frame('{"type":"delta","text":" it"}'),
-      finalFrame(makeChatResponse({ aiMessage: 'Logged it', correlationId: 'trace-1' })),
+      finalFrame(makeChatResponse({ aiMessage: 'Logged it', correlationId: 'trace-1', metricsCard: {
+        period: 'week', completionRate: 50, totalCompletions: 1, totalScheduled: 2,
+        activeDays: 1, currentStreak: 1, bestStreak: 1, hasData: true, surfaceId: 'progress',
+      } })),
     ))
     const composer = await renderComposer()
 
@@ -375,6 +380,7 @@ describe('mobile useChatComposer', () => {
       role: 'ai',
       content: 'Logged it',
       correlationId: 'trace-1',
+      metricsCard: { completionRate: 50 },
     })
     expect(useChatStore.getState().isTyping).toBe(false)
     expect(composer.current.canRetryLastSend).toBe(false)
