@@ -1,10 +1,13 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
+  getReturningInterval,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
+  shouldShowTodayAstraSurface,
 } from '@orbit/shared/utils'
 import { useMarkNotificationRead, useNotifications } from '@/hooks/use-notifications'
 import { useProfile } from '@/hooks/use-profile'
@@ -22,7 +25,6 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const { notifications } = useNotifications()
   const markRead = useMarkNotificationRead()
   const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
-  const proactive = selectNewestUnreadProactiveCheckin(notifications)
   const isOnline = useSyncExternalStore(
     (onChange) => {
       globalThis.addEventListener('online', onChange)
@@ -37,11 +39,23 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   )
   const openConversation = () => setConversationOpen(true)
   const atMessageLimit = profile != null && profile.aiMessagesUsed >= profile.aiMessagesLimit
+  const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
+  const proactive = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline, atLimit: atMessageLimit })
+    ? selectNewestUnreadProactiveCheckin(notifications)
+    : null
 
-  const line = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline, atLimit: atMessageLimit })
+  const line = shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })
     ? proactive
       ? { text: proactive.body, action: t('todayAstra.openConversation'), notificationId: proactive.id }
-      : null
+      : returning
+        ? {
+            text: returning.kind === 'elapsed'
+              ? t('todayAstra.returningElapsed', { days: returning.days })
+              : t('todayAstra.returningBounded'),
+            action: t('todayAstra.viewProgress'),
+            notificationId: null,
+          }
+        : null
     : null
 
   return (
@@ -51,16 +65,22 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
           <AstraGlyph size={20} color="var(--fg-3)" />
           <p className="m-0 min-w-0 flex-1">
             {line.text}{' '}
-            <button
-              type="button"
-              className="orbit-link-action orbit-link-action-persistent border-0 bg-transparent p-0 text-inherit"
-              onClick={() => {
-                markRead.mutate(line.notificationId)
-                openConversation()
-              }}
-            >
-              {line.action}
-            </button>
+            {line.notificationId ? (
+              <button
+                type="button"
+                className="orbit-link-action orbit-link-action-persistent today-astra-action border-0 bg-transparent p-0 text-inherit"
+                onClick={() => {
+                  markRead.mutate(line.notificationId)
+                  openConversation()
+                }}
+              >
+                {line.action}
+              </button>
+            ) : (
+              <Link className="orbit-link-action orbit-link-action-persistent today-astra-action text-inherit" href="/progress">
+                {line.action}
+              </Link>
+            )}
           </p>
         </div>
       ) : null}

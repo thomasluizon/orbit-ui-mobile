@@ -26,6 +26,24 @@ import {
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 
+describe('returning profile after other completion writes', () => {
+  it.each([
+    ['skip', () => useSkipHabit()],
+    ['edit bad-habit flag', () => useUpdateHabit()],
+    ['delete', () => useDeleteHabit()],
+    ['restore', () => useRestoreHabit()],
+    ['checklist', () => useUpdateChecklist()],
+    ['bulk delete', () => useBulkDeleteHabits()],
+    ['bulk skip', () => useBulkSkipHabits()],
+  ] as const)('refreshes profile after %s', (_name, useWrite) => {
+    mocks.queryClient.invalidateQueries.mockClear()
+    const mutation = useWrite() as unknown as MutationConfig<unknown, unknown, unknown>
+    mutation.onSettled?.({}, null, {}, undefined)
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+})
+
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
@@ -866,6 +884,7 @@ describe('mobile habit hooks', () => {
       completionCount: 0,
       activeDays: [],
     })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('optimistically completes before query cancellation resolves', () => {
@@ -1907,6 +1926,7 @@ describe('mobile habit hooks', () => {
       results: [],
       ambiguousIds: ['habit-1', 'habit-2'],
       offlineFailureIds: [],
+      hasConfirmedSuccess: false,
     })
     expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
     expect(useReviewReminderStore.getState().completionCount).toBe(0)
@@ -2065,6 +2085,22 @@ describe('mobile habit hooks', () => {
       completionCount: 1,
       activeDays: ['2026-08-28'],
     })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it('leaves the profile untouched when a bulk log is only queued offline', async () => {
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<
+      BulkLogOutcome,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const variables = [{ habitId: 'habit-1' }]
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+
+    mutation.onSuccess?.(result, variables, context)
+
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 })
 

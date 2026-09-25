@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   habit: { id: 'habit-1', parentId: null, title: 'Walk' } as NormalizedHabit,
   habitListProps: null as Record<string, unknown> | null,
   routerPush: vi.fn(),
+  lastCompletionDate: undefined as string | null | undefined,
+  noHabits: false,
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -24,20 +26,30 @@ vi.mock('expo-router', () => ({
   },
 }))
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string, values?: { days: number }) =>
+    values ? `${key}:${values.days}` : key }),
 }))
 vi.mock('@orbit/shared/utils', async (importOriginal) => ({
   ...await importOriginal<typeof import('@orbit/shared/utils')>(),
   getTodayBoundary: () => null,
   parseShowGeneralOnTodayPreference: () => false,
 }))
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: 'UTC', lastCompletionDate: mocks.lastCompletionDate } }),
+}))
+vi.mock('@/hooks/use-notifications', () => ({
+  useNotifications: () => ({ notifications: [] }),
+  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+}))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/hooks/use-ad-mob', () => ({
   useAdMob: () => ({ showInterstitialIfDue: vi.fn() }),
 }))
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(),
   useHabits: () => ({
-    data: { habitsById: new Map([[mocks.habit.id, mocks.habit]]) },
+    data: { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]) },
     isLoading: false,
     isFetching: false,
     isError: false,
@@ -59,10 +71,16 @@ vi.mock('@/components/habits/selection-tray', () => ({ SelectionTray: () => null
 vi.mock('@/components/ui/capacity-notice', () => ({ CapacityNotice: () => null }))
 vi.mock('@/components/today/today-date-control', () => ({ TodayDateControl: () => null }))
 vi.mock('@/components/today/today-modals', () => ({ TodayModals: () => null }))
-vi.mock('@/components/today/today-astra', () => ({
-  TodayAstra: (props: { suppressed: boolean }) =>
-    React.createElement('TodayAstraMock', { suppressed: props.suppressed }),
-}))
+vi.mock('@/components/today/today-astra', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/today/today-astra')>()
+  return {
+    TodayAstra: (props: { isTodaySelected: boolean; suppressed: boolean }) =>
+      React.createElement(React.Fragment, null,
+        React.createElement('TodayAstraMock', { suppressed: props.suppressed }),
+        React.createElement(original.TodayAstra, props),
+      ),
+  }
+})
 vi.mock('@/components/ui/trial-banner', () => ({ TrialBanner: () => null }))
 vi.mock('@/app/(tabs)/use-today-motion', () => ({
   useTodayMotion: () => ({
@@ -73,7 +91,7 @@ vi.mock('@/app/(tabs)/use-today-motion', () => ({
   }),
 }))
 vi.mock('@/components/shell/shell-composer-slot', () => ({ useShellComposerSlot: () => {} }))
-vi.mock('@/lib/theme', () => ({ createTokensV2: () => ({ bg: '#111111' }) }))
+vi.mock('@/lib/theme', () => ({ createTokensV2: () => ({ bg: '#111111', fg1: '#ffffff', fg2: '#eeeeee', fg3: '#aaaaaa' }) }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }),
 }))
@@ -116,6 +134,8 @@ describe('mobile Today Astra owned surfaces', () => {
   beforeEach(() => {
     mocks.habitListProps = null
     mocks.routerPush.mockReset()
+    mocks.lastCompletionDate = undefined
+    mocks.noHabits = false
     useUIStore.setState({
       showCreateModal: false,
       isSelectMode: false,
@@ -140,6 +160,29 @@ describe('mobile Today Astra owned surfaces', () => {
     })
 
     expect(isSuppressed(tree)).toBe(true)
+  })
+
+  it.each([
+    ['2026-08-26', true],
+    [null, false],
+    [undefined, false],
+  ])('shows returning guidance with zero habits only for a qualifying completion: %s', async (lastCompletionDate, visible) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
+    mocks.lastCompletionDate = lastCompletionDate
+    mocks.noHabits = true
+
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    const returning = tree.root.findAll((node) =>
+      Array.isArray(node.props.children) && node.props.children.includes('todayAstra.returningElapsed:3'),
+    )
+    expect(returning.length > 0).toBe(visible)
+    vi.useRealTimers()
   })
 
   it('routes detail into the habit flow instead of opening a Today surface', async () => {

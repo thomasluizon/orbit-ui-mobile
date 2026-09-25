@@ -21,7 +21,17 @@ export function shouldShowTodayAstraLine({
   isOnline: boolean
   atLimit: boolean
 }>): boolean {
-  return isTodaySelected && !inDrillOrSurface && isOnline && !atLimit
+  return shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface }) && isOnline && !atLimit
+}
+
+export function shouldShowTodayAstraSurface({
+  isTodaySelected,
+  inDrillOrSurface,
+}: Readonly<{
+  isTodaySelected: boolean
+  inDrillOrSurface: boolean
+}>): boolean {
+  return isTodaySelected && !inDrillOrSurface
 }
 
 export function isViewableNotificationUrl(

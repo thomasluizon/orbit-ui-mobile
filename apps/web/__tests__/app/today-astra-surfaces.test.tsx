@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   ),
   reducedMotion: false,
   motionSets: [] as number[],
+  lastCompletionDate: undefined as string | null | undefined,
   view: {
     isSelectMode: false,
     showCreateModal: false,
@@ -49,11 +50,29 @@ vi.mock('@/app/(app)/today-page-view', async (importOriginal) => ({
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: () => <div data-testid="today-habit-list" />,
 }))
-vi.mock('@/components/today/today-astra', () => ({
-  TodayAstra: ({ suppressed }: { suppressed: boolean }) => (
-    <div data-testid="today-astra" data-suppressed={suppressed ? 'true' : 'false'} />
-  ),
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string, values?: { days: number }) =>
+    values ? `${key}:${values.days}` : key,
 }))
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: 'UTC', lastCompletionDate: mocks.lastCompletionDate } }),
+}))
+vi.mock('@/hooks/use-notifications', () => ({
+  useNotifications: () => ({ notifications: [] }),
+  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+}))
+vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
+vi.mock('@/components/today/today-astra', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/today/today-astra')>()
+  return {
+    TodayAstra: (props: { isTodaySelected: boolean; suppressed: boolean }) => (
+      <>
+        <div data-testid="today-astra" data-suppressed={props.suppressed ? 'true' : 'false'} />
+        <original.TodayAstra {...props} />
+      </>
+    ),
+  }
+})
 vi.mock('motion/react', async () => {
   const React = await import('react')
   const MotionDiv = ({
@@ -95,6 +114,7 @@ describe('web Today Astra owned surfaces', () => {
     mocks.view.data.isRefetching = false
     mocks.view.data.showLoadError = false
     mocks.view.data.habitsCount = 1
+    mocks.lastCompletionDate = undefined
     mocks.view.nav.dateStr = '2026-08-29'
     mocks.animate.mockClear()
     mocks.reducedMotion = false
@@ -109,6 +129,27 @@ describe('web Today Astra owned surfaces', () => {
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
     expect(screen.getByTestId('today-astra')).toHaveAttribute('data-suppressed', 'true')
+  })
+
+  it.each([
+    ['2026-08-26', true],
+    [null, false],
+    [undefined, false],
+  ])('shows returning guidance with zero habits only for a qualifying completion: %s', (lastCompletionDate, visible) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
+    mocks.view.data.habitsCount = 0
+    mocks.lastCompletionDate = lastCompletionDate
+
+    render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+
+    if (visible) {
+      expect(screen.getByText('todayAstra.returningElapsed:3', { exact: false })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
+    } else {
+      expect(screen.queryByText('todayAstra.returningElapsed:3', { exact: false })).not.toBeInTheDocument()
+    }
+    vi.useRealTimers()
   })
 
   it('retargets the full day block from its live value when the date changes quickly', () => {
