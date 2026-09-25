@@ -19,6 +19,7 @@ import { openCustomerPortal } from '@/lib/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 
@@ -74,6 +75,7 @@ export default function UpgradePage() {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
+      reportAccountChangedIfNeeded(err)
       setCheckoutError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
       setCheckoutLoading(null)
@@ -88,6 +90,7 @@ export default function UpgradePage() {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
+      reportAccountChangedIfNeeded(err)
       setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     }
   }, [t])

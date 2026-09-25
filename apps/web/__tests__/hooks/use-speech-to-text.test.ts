@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { VOICE_LEVEL_POLL_MS, VOICE_SILENCE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
+import { toast } from 'sonner'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 let heldAccountId: string | null = 'account-a'
 let accountGeneration = 1
@@ -48,6 +52,7 @@ const getUserMedia = vi.fn(async () => makeStream())
 
 describe('useSpeechToText', () => {
   beforeEach(() => {
+    setApiFetchTranslate((key) => key)
     heldAccountId = 'account-a'
     accountGeneration = 1
     MockMediaRecorder.instances = []
@@ -173,6 +178,21 @@ describe('useSpeechToText', () => {
 
       expect(fetchMock).not.toHaveBeenCalled()
       expect(result.current.error).toBe('errors.api.accountChanged')
+    })
+
+    it('offers reload when transcription is refused by the account fence', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+        error: 'Account changed', errorCode: 'ACCOUNT_CHANGED',
+      }, { status: 409 })))
+      const { result } = renderHook(() => useSpeechToText())
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+
+      await waitFor(() => expect(result.current.error).toBe('errors.api.accountChanged'))
+      expect(toast.error).toHaveBeenCalledWith('errors.api.accountChanged', expect.objectContaining({
+        id: 'account-changed',
+      }))
+      expect(result.current.transcript).toBe('')
     })
 
     it('does not show an error from an old account request after the switch', async () => {

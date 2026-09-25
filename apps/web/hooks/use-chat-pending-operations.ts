@@ -11,11 +11,17 @@ import {
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
 import { applyServerActionFailure } from '@/lib/client-action'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import { getHeldAccountId } from '@/stores/auth-store'
 
 type PendingExecutionResult =
   | { ok: true; response: AgentExecuteOperationResponse }
   | { ok: false; error: string }
+
+function accountRefusalResult(error: unknown, t: (key: string) => string): PendingExecutionResult {
+  if (!reportsAccountChanged(error)) throw error
+  return { ok: false, error: t('errors.api.accountChanged') }
+}
 
 /**
  * Confirm/execute and step-up verification flows for chat pending operations.
@@ -29,6 +35,7 @@ export function useChatPendingOperations(
   const locale = useLocale()
 
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
+    try {
     const intendedAccountId = getHeldAccountId()
     const confirmation = await confirmPendingOperation(pendingOperationId, intendedAccountId)
     await applyServerActionFailure(confirmation)
@@ -49,10 +56,14 @@ export function useChatPendingOperations(
 
     await onExecuted(execution.data)
     return { ok: true, response: execution.data }
+    } catch (error) {
+      return accountRefusalResult(error, t)
+    }
   }, [onExecuted, t])
 
   const prepareStepUpForBubble = useCallback(
     async (pendingOperationId: string) => {
+      try {
       const intendedAccountId = getHeldAccountId()
       const confirmation = await confirmPendingOperation(pendingOperationId, intendedAccountId)
       await applyServerActionFailure(confirmation)
@@ -71,6 +82,9 @@ export function useChatPendingOperations(
         challengeId: challenge.data.challengeId,
         confirmationToken: confirmation.data.confirmationToken,
       }
+      } catch (error) {
+        return accountRefusalResult(error, t)
+      }
     },
     [locale, t],
   )
@@ -82,6 +96,7 @@ export function useChatPendingOperations(
       code: string,
       confirmationToken: string,
     ) => {
+      try {
       const intendedAccountId = getHeldAccountId()
       const verification = await verifyPendingOperationStepUp(
         pendingOperationId,
@@ -103,6 +118,9 @@ export function useChatPendingOperations(
 
       await onExecuted(execution.data)
       return { ok: true as const, response: execution.data }
+      } catch (error) {
+        return accountRefusalResult(error, t)
+      }
     },
     [onExecuted, t],
   )

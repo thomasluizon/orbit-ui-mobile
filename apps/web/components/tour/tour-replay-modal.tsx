@@ -11,6 +11,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile, TourSection } from '@orbit/shared/types'
 import { useProfile } from '@/hooks/use-profile'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 import { TOUR_SECTIONS, TOUR_SECTION_ICONS } from '@orbit/shared/types'
 import { getSectionStepCount } from '@orbit/shared/tour'
 import {
@@ -66,12 +68,14 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
   )
 
   const handleReplayAll = useCallback(async () => {
-    onOpenChange(false)
-
     try {
       await resetTour()
-    } catch {
+    } catch (error) {
+      reportAccountChangedIfNeeded(error)
+      if (reportsAccountChanged(error)) return
     }
+
+    onOpenChange(false)
 
     queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
       if (!old) return old

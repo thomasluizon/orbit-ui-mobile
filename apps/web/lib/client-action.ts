@@ -45,6 +45,13 @@ export function reportAccountChangedIfNeeded(error: unknown): void {
 }
 
 export async function applyServerActionFailure<T>(result: ServerActionResult<T>): Promise<void> {
+  if (!result.ok && reportsAccountChanged(result)) {
+    reportAccountChanged()
+    throw createApiClientError(result.status, {
+      error: result.error,
+      errorCode: result.code,
+    }, result.error)
+  }
   if (!result.ok && result.sessionRefreshFailed) {
     await useAuthStore.getState().confirmSessionRefreshFailure()
     return

@@ -11,6 +11,8 @@ import type {
 import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
 import { createApiKey, revokeApiKey } from '@/lib/actions/api-keys'
 import { sessionAwareFetch } from '@/lib/api-fetch'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 
 const MAX_API_KEYS = 5
 
@@ -109,7 +111,9 @@ export function useApiKeyManagement({
       const result = await createApiKey(request)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
-    } catch {
+    } catch (error) {
+      reportAccountChangedIfNeeded(error)
+      if (reportsAccountChanged(error)) return null
       setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
     }

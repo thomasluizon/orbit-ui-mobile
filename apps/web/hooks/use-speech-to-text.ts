@@ -10,7 +10,7 @@ import {
 } from '@orbit/shared/chat'
 import { ERROR_CODE_TO_KEY } from '@orbit/shared/utils'
 import { sessionAwareFetch } from '@/lib/api-fetch'
-import { captureAccountIntent } from '@/lib/client-action'
+import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
@@ -81,7 +81,7 @@ export function useSpeechToText() {
 
   const transcribe = useCallback(
     async (blob: Blob, intent: ReturnType<typeof captureAccountIntent>) => {
-      if (!intent.stillCurrent()) { setError(t('errors.api.accountChanged')); return }
+      if (!intent.stillCurrent()) { reportAccountChanged(); setError(t('errors.api.accountChanged')); return }
       setIsTranscribing(true)
       try {
         const formData = new FormData()
@@ -97,6 +97,7 @@ export function useSpeechToText() {
         if (!intent.stillCurrent()) return
         const text = data?.text?.trim() ?? ''
         if (!response.ok || !text) {
+          if (data?.errorCode === 'ACCOUNT_CHANGED') reportAccountChanged()
           const key =
             (data?.errorCode && ERROR_CODE_TO_KEY[data.errorCode]) ?? 'errors.api.transcriptionFailed'
           setError(t(key))
@@ -176,6 +177,7 @@ export function useSpeechToText() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       if (!intent.stillCurrent()) {
         stream.getTracks().forEach((track) => track.stop())
+        reportAccountChanged()
         setError(t('errors.api.accountChanged'))
         return
       }

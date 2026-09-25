@@ -22,6 +22,10 @@ vi.mock('@/app/actions/chat', () => ({
 }))
 
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
+import { setApiFetchTranslate } from '@/lib/api-fetch'
+import { toast } from 'sonner'
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 function makeExecution(summary: string): AgentExecuteOperationResponse {
   return {
@@ -38,6 +42,8 @@ function makeExecution(summary: string): AgentExecuteOperationResponse {
 
 describe('useChatPendingOperations', () => {
   beforeEach(() => {
+    setApiFetchTranslate((key) => key)
+    vi.mocked(toast.error).mockClear()
     mocks.confirmPendingOperation.mockReset()
     mocks.executePendingOperation.mockReset()
     mocks.issuePendingOperationStepUp.mockReset()
@@ -171,5 +177,32 @@ describe('useChatPendingOperations', () => {
     expect(mocks.executePendingOperation).not.toHaveBeenCalled()
     expect(onExecuted).not.toHaveBeenCalled()
     expect(outcome).toMatchObject({ ok: false, error: 'chat.sendError' })
+  })
+
+  it.each([
+    ['confirm', 'confirmAndExecutePendingOperation'],
+    ['execute', 'confirmAndExecutePendingOperation'],
+    ['challenge', 'prepareStepUpForBubble'],
+    ['verify', 'verifyStepUpForBubble'],
+  ])('stops and reports a %s account refusal', async (stage, flow) => {
+    const refusal = { ok: false, error: 'Account changed', status: 409, code: 'ACCOUNT_CHANGED', sessionRefreshFailed: false }
+    mocks.confirmPendingOperation.mockResolvedValue(stage === 'confirm' ? refusal : { ok: true, data: { confirmationToken: 'token' } })
+    mocks.executePendingOperation.mockResolvedValue(refusal)
+    mocks.issuePendingOperationStepUp.mockResolvedValue(refusal)
+    mocks.verifyPendingOperationStepUp.mockResolvedValue(refusal)
+    const onExecuted = vi.fn(async () => {})
+    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
+
+    await act(async () => {
+      const action = flow === 'confirmAndExecutePendingOperation'
+        ? result.current.confirmAndExecutePendingOperation('pending-1')
+        : flow === 'prepareStepUpForBubble'
+          ? result.current.prepareStepUpForBubble('pending-1')
+          : result.current.verifyStepUpForBubble('pending-1', 'challenge', '123456', 'token')
+      const outcome = await action
+      expect(outcome).toMatchObject({ ok: false, error: 'errors.api.accountChanged' })
+    })
+    expect(onExecuted).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalled()
   })
 })

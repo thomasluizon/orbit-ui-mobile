@@ -10,6 +10,7 @@ import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types'
 import { COACH_MARK_SECTIONS } from '@orbit/shared/types'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import { reportAccountChangedIfNeeded } from '@/lib/client-action'
 
 /**
  * Composes TourSpotlight + TourTooltip. The spotlight scrim stays mounted for
@@ -40,13 +41,19 @@ export function TourOverlay() {
   const isFirstStep = currentStepIndex === 0
   const isLastStep = currentStepIndex === totalSteps - 1
 
-  const handleEnd = useCallback(() => {
+  const handleEnd = useCallback(async () => {
     const { replaySection, isCoachTour } = useTourStore.getState()
-    endTour()
     if (isCoachTour || (replaySection && COACH_MARK_SECTIONS.includes(replaySection))) {
+      endTour()
       return
     }
-    completeTour().catch(() => {})
+    try {
+      await completeTour()
+    } catch (error) {
+      reportAccountChangedIfNeeded(error)
+      return
+    }
+    endTour()
     queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
       if (!old) return old
       return { ...old, hasCompletedTour: true }
@@ -68,14 +75,14 @@ export function TourOverlay() {
 
   const handleNext = useCallback(() => {
     if (isLastStep) {
-      handleEnd()
+      void handleEnd()
       return
     }
     nextStep()
   }, [isLastStep, nextStep, handleEnd])
 
   const handleSkip = useCallback(() => {
-    handleEnd()
+    void handleEnd()
   }, [handleEnd])
 
   useOverlayEscape({

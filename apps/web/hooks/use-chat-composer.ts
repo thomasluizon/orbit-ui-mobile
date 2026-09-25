@@ -47,6 +47,7 @@ import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
+import { reportAccountChanged } from '@/lib/client-action'
 
 interface AttemptedSend {
   intendedAccountId: string | null
@@ -254,6 +255,7 @@ export function useChatComposer() {
   ) => {
     setIsTyping(false)
     if (failureInput.code === ACCOUNT_CHANGED_ERROR_CODE) {
+      reportAccountChanged()
       const message = t('errors.api.accountChanged')
       setSendError(message)
       setLastFailedSend(null)

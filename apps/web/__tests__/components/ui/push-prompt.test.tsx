@@ -312,4 +312,18 @@ describe('PushPrompt enable flow', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('pushPrompt.retryHint')
     await waitFor(() => expect(screen.getByRole('dialog').style.opacity).toBe('1'))
   })
+
+  it('keeps the prompt without a retry hint when the account changed', async () => {
+    vi.spyOn(MockNotification, 'requestPermission').mockResolvedValue('granted')
+    mountEnableFlow({
+      getSubscription: vi.fn().mockResolvedValue(null),
+      subscribe: vi.fn().mockResolvedValue({ toJSON: () => ({ endpoint: 'https://push.example.com/new' }) }),
+    })
+    vi.mocked(subscribePush).mockRejectedValueOnce(Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED' }))
+    render(<PushPrompt />)
+    fireEvent.click(await screen.findByText('pushPrompt.enable'))
+    await waitFor(() => expect(subscribePush).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog').style.opacity).toBe('1')
+  })
 })

@@ -6,6 +6,7 @@ import {
   captureAccountIntent,
   reportAccountChanged,
   reportAccountChangedIfNeeded,
+  applyServerActionFailure,
 } from '@/lib/client-action'
 
 const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
@@ -13,6 +14,7 @@ const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation
 vi.mock('@/stores/auth-store', () => ({
   getHeldAccountId: () => account.id,
   getAccountGeneration: () => account.generation,
+  useAuthStore: { getState: () => ({ recoverSessionRefreshFailure: vi.fn(async () => {}) }) },
 }))
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
@@ -53,6 +55,14 @@ describe('client account intent', () => {
     expect(toast.error).not.toHaveBeenCalled()
 
     reportAccountChangedIfNeeded({ code: 'ACCOUNT_CHANGED' })
+    expect(toast.error).toHaveBeenCalledWith(en.errors.api.accountChanged, expect.any(Object))
+  })
+
+  it('reports and stops an account refusal before callers can apply success state', async () => {
+    await expect(applyServerActionFailure({
+      ok: false, error: 'Account changed', status: 409,
+      code: 'ACCOUNT_CHANGED', sessionRefreshFailed: false,
+    })).rejects.toMatchObject({ code: 'ACCOUNT_CHANGED' })
     expect(toast.error).toHaveBeenCalledWith(en.errors.api.accountChanged, expect.any(Object))
   })
 })
