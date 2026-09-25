@@ -2,11 +2,11 @@
  * Local ESLint rule: every layout spacing value must sit on the DESIGN.md scale.
  *
  * DESIGN.md `### Spacing (base 4)` enumerates the only legal steps
- * (0 4 8 12 16 24 32 48 64 96 px). This gate reads spacing from the
- * three places it actually lives in Orbit - JSX inline and local constant style objects,
+ * (0 4 8 12 16 20 24 28 32 40 48 56 64 px). This gate reads spacing from the
+ * three places it actually lives in Orbit - JSX inline `style={{ }}` objects,
  * React Native `StyleSheet.create({ })` objects, and Tailwind `className`
  * utilities (both scale steps and arbitrary `[13px]` values) - because a
- * CSS-only linter sees none of the first two. Style values are read both
+ * CSS-only linter sees none of the first two. Inline-style values are read both
  * as a single length (`padding: 15`, `'15px'`) and as a multi-value shorthand
  * string (`padding: '0 20px 6px'`), so a spaced shorthand is not a loophole;
  * unparseable tokens (`auto`, `calc(...)`, `%`) make the rule skip that value.
@@ -23,11 +23,9 @@
  * deletes spacing rather than correcting it.
  *
  * https://github.com/thomasluizon/orbit-ui-mobile/issues/539
- * Local constants carry possible literal, absent, and unknown values per key.
- * Evaluation follows source order through writes, deletes, branches, arrays,
- * spreads, and Object.assign. Branches join their possible values. Unknown
- * keys add uncertainty without removing a known value that may remain applied.
- * Nested functions and class bodies are outside the analysis.
+ * JSX style identifiers resolve only write-free local const object literals.
+ * Their static literal properties and qualifying const spreads are checked;
+ * runtime values and escaping bindings are outside this rule's contract.
  */
 
 // DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
@@ -141,7 +139,7 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Require every margin/padding/gap/inset value to sit on the enumerated DESIGN.md spacing scale, across JSX styles, StyleSheet.create, and Tailwind classes.',
+        'Require DESIGN.md spacing in inline JSX, StyleSheet.create, Tailwind classes, and write-free local const object literals passed as JSX style identifiers; runtime values are not evaluated.',
     },
     fixable: 'code',
     schema: [
@@ -175,8 +173,8 @@ module.exports = {
 
     const scaleLabel = scale.join(' ')
     const scaleSet = new Set(scale)
-    const jsxStyleExpressions = []
-    const styleSheetExpressions = []
+    const styleIdentifiers = []
+    const reportedLiterals = new WeakSet()
 
     function isOnScale(px, prop) {
       const magnitude = Math.abs(px)
@@ -217,7 +215,7 @@ module.exports = {
         node: valueNode,
         messageId: 'offScaleStyle',
         data: { value: String(px), prop, scale: scaleLabel, nearest: String(nearest) },
-        fix: !valueNode.derived && isUnambiguous(px)
+        fix: isUnambiguous(px)
           ? (fixer) => {
               if (valueNode.type === 'Literal' && typeof valueNode.value === 'string') {
                 const unit = valueNode.value.trim().endsWith('rem') ? 'rem' : 'px'
@@ -239,7 +237,7 @@ module.exports = {
       if (offScale.length === 0) return
       const allFixable = offScale.every((token) => isUnambiguous(token.px))
       let fix
-      if (allFixable && !valueNode.derived) {
+      if (allFixable) {
         const quote = context.sourceCode.getText(valueNode)[0]
         const fixed = tokens
           .map((token) => (isOnScale(token.px, prop) ? token.raw : renderScaleAmount(token.px, token.unit)))
@@ -268,7 +266,8 @@ module.exports = {
     }
 
     function unwrapStyleExpression(node) {
-      while (node && (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression' || node.type === 'TSNonNullExpression')) node = node.expression
+      while (node && (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression' ||
+        node.type === 'TSNonNullExpression' || node.type === 'ParenthesizedExpression')) node = node.expression
       return node
     }
 
@@ -276,446 +275,102 @@ module.exports = {
       let scope = context.sourceCode.getScope(node)
       while (scope) {
         const variable = scope.set.get(node.name)
-        // A type alias or interface lives only in TypeScript's type namespace, so it never shadows a value.
         if (variable && variable.isValueVariable !== false) return variable
         scope = scope.upper
       }
       return null
     }
 
-    function isObjectAssign(node) {
-      if (node.type !== 'CallExpression' || node.callee.type !== 'MemberExpression' || node.callee.computed ||
-        node.callee.object.type !== 'Identifier' || node.callee.object.name !== 'Object' ||
-        node.callee.property.type !== 'Identifier' || node.callee.property.name !== 'assign') return false
-      const variable = findBinding(node.callee.object)
-      return variable?.scope.type === 'global' && variable.defs.every((definition) => definition.isVariableDefinition === false)
-    }
-
-    const ABSENT = Symbol('absent')
-    const UNKNOWN = Symbol('unknown')
-    const UNDEFINED = Symbol('undefined')
-    const reportedValues = new WeakSet()
-
-    function emptyState() {
-      return { keys: new Map(), other: new Set([ABSENT]), values: new Set([UNKNOWN]), arrayLength: null }
-    }
-
-    function unknownState() {
-      return { keys: new Map(), other: new Set([ABSENT, UNKNOWN]), values: new Set([UNKNOWN]), arrayLength: null }
-    }
-
-    function scalarState(value) {
-      const state = emptyState()
-      state.values = new Set([value])
-      return state
-    }
-
-    function valuesFor(state, key) {
-      return state.keys.get(key) ?? state.other
-    }
-
-    function copyState(state) {
-      return { keys: new Map([...state.keys].map(([key, values]) => [key, new Set(values)])),
-        other: new Set(state.other), values: new Set(state.values), arrayLength: state.arrayLength }
-    }
-
-    function joinStates(left, right) {
-      const joined = { keys: new Map(), other: new Set([...left.other, ...right.other]),
-        values: new Set([...left.values, ...right.values]), arrayLength: left.arrayLength === right.arrayLength ? left.arrayLength : null }
-      for (const key of new Set([...left.keys.keys(), ...right.keys.keys()])) {
-        joined.keys.set(key, new Set([...valuesFor(left, key), ...valuesFor(right, key)]))
+    function referenceUse(node, seen) {
+      let parent = node.parent
+      while (parent && (parent.type === 'TSAsExpression' || parent.type === 'TSSatisfiesExpression' ||
+        parent.type === 'TSNonNullExpression' || parent.type === 'ParenthesizedExpression')) {
+        node = parent
+        parent = node.parent
       }
-      return joined
+      if (parent?.type === 'JSXExpressionContainer' && parent.parent?.type === 'JSXAttribute' &&
+        parent.parent.name.type === 'JSXIdentifier' && parent.parent.name.name === 'style') return true
+      if (parent?.type !== 'SpreadElement' || parent.parent?.type !== 'ObjectExpression') return false
+      const object = parent.parent
+      let owner = object.parent
+      while (owner && (owner.type === 'TSAsExpression' || owner.type === 'TSSatisfiesExpression' ||
+        owner.type === 'TSNonNullExpression' || owner.type === 'ParenthesizedExpression')) owner = owner.parent
+      return owner?.type === 'VariableDeclarator' && owner.id.type === 'Identifier' &&
+        qualifyingInitializer(findBinding(owner.id), seen) === object
     }
 
-    function overlay(target, source) {
-      const result = emptyState()
-      const apply = (previous, incoming) => incoming.has(ABSENT)
-        ? new Set([...previous, ...[...incoming].filter((value) => value !== ABSENT)])
-        : new Set(incoming)
-      result.other = apply(target.other, source.other)
-      result.values = new Set(target.values)
-      for (const key of new Set([...target.keys.keys(), ...source.keys.keys()])) {
-        result.keys.set(key, apply(valuesFor(target, key), valuesFor(source, key)))
-      }
-      return result
-    }
-
-    function changeUnknownKey(state, effect) {
-      const changed = copyState(state)
-      for (const values of changed.keys.values()) values.add(effect)
-      changed.other.add(effect)
-      return changed
-    }
-
-    function abstractValue(node) {
-      return node ?? UNKNOWN
-    }
-
-    function derivedLiteral(node, value) {
-      return { type: 'Literal', value, range: node.range, loc: node.loc, derived: true }
-    }
-
-    function literalValues(node, cutoff, active) {
-      const values = evaluateStyleExpression(node, cutoff, active).values
-      return values.has(UNKNOWN) ? null : [...values].map((value) => value?.type === 'Literal' ? value.value : undefined)
-    }
-
-    function bindingRoot(variable, seen = new Set()) {
-      if (!variable || seen.has(variable)) return variable
-      seen.add(variable)
-      const definition = variable.defs[0]
-      if (variable.defs.length !== 1 || definition?.type !== 'Variable' || definition.parent.kind !== 'const') return variable
+    function qualifyingInitializer(variable, seen = new Set()) {
+      if (!variable || seen.has(variable)) return null
+      const definition = variable?.defs[0]
+      if (variable?.defs.length !== 1 || definition?.type !== 'Variable' ||
+        definition.parent.kind !== 'const' || definition.node.id.type !== 'Identifier') return null
       const initializer = unwrapStyleExpression(definition.node.init)
-      return initializer?.type === 'Identifier' ? bindingRoot(findBinding(initializer), seen) : variable
+      if (initializer?.type !== 'ObjectExpression') return null
+      const next = new Set(seen).add(variable)
+      if (variable.references.some((reference) => reference.identifier !== definition.node.id &&
+        (!reference.isReadOnly() || !referenceUse(reference.identifier, next)))) return null
+      return initializer
     }
 
-    function executionContext(node) {
-      for (let parent = node; parent; parent = parent.parent) {
-        if (parent.type === 'Program' || parent.type === 'FunctionDeclaration' || parent.type === 'FunctionExpression' || parent.type === 'ArrowFunctionExpression') return parent
-      }
-      return null
-    }
-
-    function evaluateBinding(variable, cutoff, active) {
-      variable = bindingRoot(variable)
-      if (!variable || active.has(variable)) return unknownState()
-      const definition = variable.defs[0]
-      if (variable.defs.length !== 1 || definition?.type !== 'Variable' || definition.parent.kind !== 'const' || !definition.node.init) return unknownState()
-      const initializer = definition.node.init
-      if (initializer.range[0] >= cutoff) return unknownState()
-      active.add(variable)
-      let state = evaluateStyleExpression(initializer, initializer.range[0], active)
-      const container = executionContext(definition.node)
-      if (container) {
-        const body = container.type === 'Program' ? container : container.body
-        const outcomes = walk(body, state, initializer.range[1], cutoff, variable, active)
-        state = outcomes.filter((outcome) => outcome.flow === 'normal').map((outcome) => outcome.state)
-          .reduce((combined, next) => combined ? joinStates(combined, next) : next, null) ?? state
-      }
-      active.delete(variable)
-      return state
-    }
-
-    function evaluateStyleExpression(node, cutoff, active = new Set()) {
+    function resolveObject(node, active) {
       node = unwrapStyleExpression(node)
-      if (!node) return unknownState()
-      if (node.type === 'Literal') return scalarState(node)
-      if (node.type === 'Identifier') {
+      if (node?.type === 'Identifier') {
         const variable = findBinding(node)
-        if (node.name === 'undefined' && (!variable || (variable.scope.type === 'global' && variable.defs.length === 0))) return scalarState(UNDEFINED)
-        return evaluateBinding(variable, cutoff, active)
+        const initializer = qualifyingInitializer(variable)
+        if (!initializer || active.has(variable)) return null
+        active.add(variable)
+        const values = resolveObject(initializer, active)
+        active.delete(variable)
+        return values
       }
-      if (node.type === 'UnaryExpression') {
-        if (node.operator === 'void') return scalarState(UNDEFINED)
-        if (node.operator === '-' && node.argument.type === 'Literal' && typeof node.argument.value === 'number') return scalarState(node)
-        return unknownState()
-      }
-      if (node.type === 'BinaryExpression') {
-        const left = literalValues(node.left, node.left.range[0], active)
-        const right = literalValues(node.right, node.right.range[0], active)
-        if (!left || !right || left.some((value) => typeof value !== 'number') || right.some((value) => typeof value !== 'number')) return unknownState()
-        const operations = {
-          '+': (a, b) => a + b, '-': (a, b) => a - b, '*': (a, b) => a * b,
-          '/': (a, b) => a / b, '%': (a, b) => a % b, '**': (a, b) => a ** b,
-        }
-        const operation = operations[node.operator]
-        if (!operation) return unknownState()
-        const results = left.flatMap((first) => right.map((second) => operation(first, second)))
-        if (results.some((value) => !Number.isFinite(value))) return unknownState()
-        const state = scalarState(UNKNOWN)
-        state.values = new Set(results.map((value) => derivedLiteral(node, value)))
-        return state
-      }
-      if (node.type === 'TemplateLiteral') {
-        let parts = ['']
-        for (const [index, quasi] of node.quasis.entries()) {
-          parts = parts.map((part) => part + quasi.value.cooked)
-          if (index < node.expressions.length) {
-            const values = literalValues(node.expressions[index], node.expressions[index].range[0], active)
-            if (!values) return unknownState()
-            parts = parts.flatMap((part) => values.map((value) => part + String(value)))
-          }
-        }
-        const state = scalarState(UNKNOWN)
-        state.values = new Set(parts.map((value) => derivedLiteral(node, value)))
-        return state
-      }
-      if (node.type === 'ArrayExpression') {
-        let state = emptyState()
-        let index = 0
-        let shifted = false
-        for (const element of node.elements) {
-          if (element?.type === 'SpreadElement') {
-            const spread = evaluateStyleExpression(element.argument, element.range[0], active)
-            if (shifted || spread.arrayLength === null) {
-              shifted = true
-              state.other.add(UNKNOWN)
-              continue
-            }
-            for (let position = 0; position < spread.arrayLength; position++) {
-              const values = valuesFor(spread, String(position))
-              for (const value of values) if (value?.type) state = overlay(state, evaluateStyleExpression(value, value.range[0], active))
-              state.keys.set(String(index++), new Set(values))
-            }
-            continue
-          }
-          if (element) state = overlay(state, evaluateStyleExpression(element, element.range[0], active))
-          if (!shifted) state.keys.set(String(index++), new Set(element ? evaluateStyleExpression(element, element.range[0], active).values : [UNDEFINED]))
-        }
-        state.values = new Set([node])
-        state.arrayLength = shifted ? null : index
-        return state
-      }
-      if (node.type === 'ConditionalExpression') {
-        if (node.test.type === 'Literal' && typeof node.test.value === 'boolean') {
-          return evaluateStyleExpression(node.test.value ? node.consequent : node.alternate, cutoff, active)
-        }
-        return joinStates(evaluateStyleExpression(node.consequent, cutoff, active), evaluateStyleExpression(node.alternate, cutoff, active))
-      }
-      if (node.type === 'LogicalExpression') {
-        if (node.left.type === 'Literal') {
-          const runsRight = node.operator === '&&' ? Boolean(node.left.value)
-            : node.operator === '||' ? !node.left.value : node.left.value === null
-          return runsRight ? evaluateStyleExpression(node.right, cutoff, active) : emptyState()
-        }
-        return joinStates(emptyState(), evaluateStyleExpression(node.right, cutoff, active))
-      }
-      if (isObjectAssign(node)) {
-        const state = node.arguments.slice(1).reduce((state, source) => overlay(state, evaluateStyleExpression(source, node.range[0], active)),
-          evaluateStyleExpression(node.arguments[0], node.range[0], active))
-        state.values = new Set([node])
-        return state
-      }
-      if (node.type !== 'ObjectExpression') return unknownState()
-      let state = emptyState()
+      if (node?.type !== 'ObjectExpression') return null
+      const values = new Map()
       for (const property of node.properties) {
         if (property.type === 'SpreadElement') {
-          state = overlay(state, evaluateStyleExpression(property.argument, property.range[0], active))
+          const spread = resolveObject(property.argument, active)
+          if (spread) for (const [name, value] of spread) values.set(name, value)
+          else values.clear()
           continue
         }
         const name = propertyName(property)
-        if (name === null) state = changeUnknownKey(state, UNKNOWN)
-        else state.keys.set(name, new Set([property.kind === 'init' ? abstractValue(property.value) : UNKNOWN]))
-      }
-      state.values = new Set([node])
-      return state
-    }
-
-    function mutationPropertyName(node) {
-      if (!node.computed && node.property.type === 'Identifier') return node.property.name
-      if (node.computed && node.property.type === 'Literal') return String(node.property.value)
-      return null
-    }
-
-    function mutate(state, member, value, remove) {
-      const name = mutationPropertyName(member)
-      if (name === null) return changeUnknownKey(state, remove ? ABSENT : UNKNOWN)
-      const changed = copyState(state)
-      changed.keys.set(name, new Set([remove ? ABSENT : abstractValue(value)]))
-      return changed
-    }
-
-    function targetsBinding(node, variable) {
-      node = unwrapStyleExpression(node)
-      return node?.type === 'Identifier' && bindingRoot(findBinding(node)) === variable
-    }
-
-    function staticKey(node, computed) {
-      if (!computed && node.type === 'Identifier') return node.name
-      if (node.type === 'Literal') return String(node.value)
-      return null
-    }
-
-    function patternSourceValues(source, key, state, variable, active) {
-      source = unwrapStyleExpression(source)
-      if (!source || source === UNKNOWN) return new Set([UNKNOWN])
-      if (source === ABSENT || source === UNDEFINED) return new Set([UNDEFINED])
-      const resolved = targetsBinding(source, variable) ? state : evaluateStyleExpression(source, source.range[0], active)
-      const selected = new Set()
-      for (const value of valuesFor(resolved, key)) {
-        if (value === ABSENT || value === UNDEFINED) selected.add(UNDEFINED)
-        else if (value === UNKNOWN) selected.add(UNKNOWN)
-        else for (const result of evaluateStyleExpression(value, value.range[0], active).values) selected.add(result)
-      }
-      return selected
-    }
-
-    function assignedMember(state, member, values, variable) {
-      const receiver = unwrapStyleExpression(member.object)
-      if (targetsBinding(receiver, variable)) {
-        const name = mutationPropertyName(member)
-        if (name === null) return changeUnknownKey(state, UNKNOWN)
-        const changed = copyState(state)
-        changed.keys.set(name, new Set([...values].map((value) => value === ABSENT ? UNDEFINED : abstractValue(unwrapStyleExpression(value)))))
-        return changed
-      }
-      if (receiver?.type === 'MemberExpression') {
-        const root = memberRoot(receiver, variable)
-        if (root) return mutate(state, root, null, false)
-      }
-      return state
-    }
-
-    function memberRoot(member, variable) {
-      while (member.type === 'MemberExpression' && !targetsBinding(member.object, variable)) member = unwrapStyleExpression(member.object)
-      return member.type === 'MemberExpression' && targetsBinding(member.object, variable) ? member : false
-    }
-
-    function writePattern(state, target, values, variable, active) {
-      target = unwrapStyleExpression(target)
-      if (target.type === 'MemberExpression') return assignedMember(state, target, values, variable)
-      if (target.type === 'AssignmentPattern') {
-        const selected = new Set()
-        if (values.has(UNKNOWN)) return writePattern(state, target.left, new Set([UNKNOWN]), variable, active)
-        for (const value of values) if (value !== UNDEFINED && value !== ABSENT) selected.add(value)
-        if (values.has(UNDEFINED) || values.has(ABSENT)) {
-          for (const value of evaluateStyleExpression(target.right, target.right.range[0], active).values) selected.add(value)
-        }
-        return writePattern(state, target.left, selected, variable, active)
-      }
-      if (target.type === 'RestElement') return writePattern(state, target.argument, new Set([UNKNOWN]), variable, active)
-      if (target.type === 'ObjectPattern') {
-        for (const property of target.properties) {
-          if (property.type === 'RestElement') {
-            state = writePattern(state, property, new Set([UNKNOWN]), variable, active)
-            continue
-          }
-          const key = staticKey(property.key, property.computed)
-          const selected = new Set()
-          for (const value of values) {
-            for (const result of key === null ? [UNKNOWN] : patternSourceValues(value, key, state, variable, active)) selected.add(result)
-          }
-          state = writePattern(state, property.value, selected.has(UNKNOWN) ? new Set([UNKNOWN]) : selected, variable, active)
-        }
-      } else if (target.type === 'ArrayPattern') {
-        for (const [index, element] of target.elements.entries()) {
-          if (!element) continue
-          const selected = new Set()
-          for (const value of values) for (const result of patternSourceValues(value, String(index), state, variable, active)) selected.add(result)
-          state = writePattern(state, element, selected.has(UNKNOWN) ? new Set([UNKNOWN]) : selected, variable, active)
+        if (name === null) {
+          values.clear()
+        } else if (property.kind === 'init' && !property.method &&
+          (property.value.type === 'Literal' || property.value.type === 'UnaryExpression')) {
+          values.set(name, property.value)
+        } else {
+          values.delete(name)
         }
       }
-      return state
+      return values
     }
 
-    function combineOutcomes(outcomes) {
-      const combined = new Map()
-      for (const outcome of outcomes) {
-        const previous = combined.get(outcome.flow)
-        combined.set(outcome.flow, previous ? joinStates(previous, outcome.state) : outcome.state)
+    function scanConstStyle(identifier) {
+      const values = resolveObject(identifier, new Set())
+      if (!values) return
+      for (const [name, value] of values) {
+        if (!SPACING_PROPS.has(name) || reportedLiterals.has(value)) continue
+        reportedLiterals.add(value)
+        reportStyleValue(value, name)
       }
-      return [...combined].map(([flow, state]) => ({ flow, state }))
-    }
-
-    function sequence(nodes, state, start, cutoff, variable, active) {
-      let outcomes = [{ state, flow: 'normal' }]
-      for (const node of nodes) {
-        outcomes = combineOutcomes(outcomes.flatMap((outcome) => outcome.flow === 'normal'
-          ? walk(node, outcome.state, start, cutoff, variable, active) : [outcome]))
-      }
-      return outcomes
-    }
-
-    function children(node) {
-      return Object.entries(node).filter(([key]) => key !== 'parent' && key !== 'tokens' && key !== 'comments')
-        .flatMap(([, value]) => Array.isArray(value) ? value : [value])
-        .filter((value) => value && typeof value === 'object' && typeof value.type === 'string' && Array.isArray(value.range))
-        .sort((left, right) => left.range[0] - right.range[0])
-    }
-
-    function walk(node, state, start, cutoff, variable, active) {
-      if (!node || node.range[1] <= start || node.range[0] >= cutoff) return [{ state, flow: 'normal' }]
-      if (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression' || node.type === 'ClassDeclaration' || node.type === 'ClassExpression') return [{ state, flow: 'normal' }]
-      if (node.type === 'BreakStatement' || node.type === 'ContinueStatement') {
-        return [{ state, flow: node.type }]
-      }
-      if (node.type === 'ReturnStatement' || node.type === 'ThrowStatement') {
-        const outcomes = node.argument ? walk(node.argument, state, start, cutoff, variable, active) : [{ state, flow: 'normal' }]
-        return node.range[1] > cutoff ? outcomes : outcomes.map((outcome) => ({ ...outcome, flow: node.type }))
-      }
-      if (node.type === 'IfStatement') {
-        const tested = sequence([node.test], state, start, cutoff, variable, active)
-        let branches = node.test.type === 'Literal' && typeof node.test.value === 'boolean'
-          ? [node.test.value ? node.consequent : node.alternate]
-          : [node.consequent, node.alternate]
-        const containing = branches.find((branch) => branch && branch.range[0] <= cutoff && branch.range[1] >= cutoff)
-        if (containing) branches = [containing]
-        return combineOutcomes(tested.flatMap((outcome) => branches.flatMap((branch) => branch
-          ? walk(branch, copyState(outcome.state), start, cutoff, variable, active) : [outcome])))
-      }
-      if (node.type === 'ConditionalExpression' || node.type === 'LogicalExpression') {
-        const condition = node.type === 'ConditionalExpression' ? node.test : node.left
-        const tested = sequence([condition], state, start, cutoff, variable, active)
-        let branches = node.type === 'ConditionalExpression' ? [node.consequent, node.alternate] : [node.right, null]
-        if (condition.type === 'Literal') {
-          if (node.type === 'ConditionalExpression') branches = [condition.value ? node.consequent : node.alternate]
-          if (node.type === 'LogicalExpression') {
-            const runsRight = node.operator === '&&' ? Boolean(condition.value)
-              : node.operator === '||' ? !condition.value : condition.value === null
-            branches = [runsRight ? node.right : null]
-          }
-        }
-        return combineOutcomes(tested.flatMap((outcome) => branches.flatMap((branch) => branch
-          ? walk(branch, copyState(outcome.state), start, cutoff, variable, active) : [outcome])))
-      }
-      if (node.type === 'SwitchStatement') {
-        const tested = sequence([node.discriminant], state, start, cutoff, variable, active)
-        return combineOutcomes(tested.flatMap((outcome) => [outcome, ...node.cases.flatMap((_, index) =>
-          sequence(node.cases.slice(index).flatMap((branch) => branch.consequent), copyState(outcome.state), start, cutoff, variable, active))]
-          .map((result) => result.flow === 'BreakStatement' ? { ...result, flow: 'normal' } : result)))
-      }
-      if (node.type === 'ForStatement' || node.type === 'ForInStatement' || node.type === 'ForOfStatement' || node.type === 'WhileStatement' || node.type === 'DoWhileStatement') {
-        const beforeBody = node.type === 'ForStatement' ? [node.init, node.test] : node.type === 'ForInStatement' || node.type === 'ForOfStatement'
-          ? [node.left, node.right] : node.type === 'WhileStatement' ? [node.test] : []
-        const entry = sequence(beforeBody.filter(Boolean), state, start, cutoff, variable, active)
-        return combineOutcomes(entry.flatMap((outcome) => {
-          const body = walk(node.body, copyState(outcome.state), start, cutoff, variable, active)
-          const exits = body.flatMap((result) => {
-            if (result.flow === 'BreakStatement') return [{ state: result.state, flow: 'normal' }]
-            if (result.flow !== 'normal' && result.flow !== 'ContinueStatement') return [result]
-            const afterBody = node.type === 'ForStatement' ? [node.update] : node.type === 'DoWhileStatement' ? [node.test] : []
-            return sequence(afterBody.filter(Boolean), result.state, start, cutoff, variable, active)
-          })
-          return [outcome, ...exits]
-        }))
-      }
-      if (node.type === 'TryStatement') {
-        const outcomes = [...walk(node.block, copyState(state), start, cutoff, variable, active)]
-        if (node.handler) outcomes.push(...walk(node.handler, copyState(state), start, cutoff, variable, active))
-        return combineOutcomes(node.finalizer ? outcomes.flatMap((outcome) => walk(node.finalizer, outcome.state, start, cutoff, variable, active)) : outcomes)
-      }
-      const traversed = sequence(children(node), state, start, cutoff, variable, active)
-      return traversed.map((outcome) => {
-        if (outcome.flow !== 'normal') return outcome
-        let next = outcome.state
-        if (node.type === 'AssignmentExpression') {
-          if (node.left.type === 'MemberExpression') {
-            next = assignedMember(next, node.left, new Set([node.operator === '=' ? node.right : UNKNOWN]), variable)
-          } else if (node.left.type === 'ObjectPattern' || node.left.type === 'ArrayPattern') {
-            next = writePattern(next, node.left, new Set([node.operator === '=' ? node.right : UNKNOWN]), variable, active)
-          }
-        } else if (node.type === 'UpdateExpression' && node.argument.type === 'MemberExpression') {
-          next = assignedMember(next, node.argument, new Set([UNKNOWN]), variable)
-        } else if (node.type === 'UnaryExpression' && node.operator === 'delete' && node.argument.type === 'MemberExpression') {
-          next = targetsBinding(node.argument.object, variable) ? mutate(next, node.argument, null, true)
-            : assignedMember(next, node.argument, new Set([UNKNOWN]), variable)
-        } else if (isObjectAssign(node) && targetsBinding(node.arguments[0], variable)) {
-          for (const source of node.arguments.slice(1)) next = overlay(next, evaluateStyleExpression(source, node.range[0], active))
-        }
-        return { state: next, flow: 'normal' }
-      })
     }
 
     function scanStyleObject(node) {
-      const state = evaluateStyleExpression(node, node.range[0])
-      for (const [name, values] of state.keys) {
-        if (!SPACING_PROPS.has(name)) continue
-        for (const value of values) {
-          if (value === ABSENT || value === UNKNOWN || value === UNDEFINED || reportedValues.has(value)) continue
-          reportedValues.add(value)
-          reportStyleValue(value, name)
-        }
+      if (!node) return
+      if (node.type === 'ArrayExpression') {
+        for (const element of node.elements) scanStyleObject(element)
+        return
+      }
+      if (node.type === 'ConditionalExpression') {
+        scanStyleObject(node.consequent)
+        scanStyleObject(node.alternate)
+        return
+      }
+      if (node.type !== 'ObjectExpression') return
+      for (const property of node.properties) {
+        const name = propertyName(property)
+        if (name === null || !SPACING_PROPS.has(name)) continue
+        reportStyleValue(property.value, name)
       }
     }
 
@@ -799,7 +454,9 @@ module.exports = {
       JSXAttribute(node) {
         const name = node.name.type === 'JSXIdentifier' ? node.name.name : null
         if (name === 'style' && node.value?.type === 'JSXExpressionContainer') {
-          jsxStyleExpressions.push(node.value.expression)
+          const expression = unwrapStyleExpression(node.value.expression)
+          if (expression?.type === 'Identifier') styleIdentifiers.push(expression)
+          else scanStyleObject(node.value.expression)
           return
         }
         if (name !== 'className' && name !== 'class') return
@@ -812,11 +469,11 @@ module.exports = {
         if (argument?.type !== 'ObjectExpression') return
         for (const property of argument.properties) {
           if (property.type !== 'Property') continue
-          styleSheetExpressions.push(property.value)
+          scanStyleObject(property.value)
         }
       },
       'Program:exit'() {
-        for (const expression of [...jsxStyleExpressions, ...styleSheetExpressions]) scanStyleObject(expression)
+        for (const identifier of styleIdentifiers) scanConstStyle(identifier)
       },
     }
   },
