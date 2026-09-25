@@ -18,7 +18,7 @@ export function MetricsCard({ metricsCard }: Readonly<{ metricsCard: MetricsCard
   const rows = getMetricsRows(metricsCard).map((row) => ({
     id: row.id,
     label: t(row.labelKey),
-    control: <span className="max-w-[45%] truncate text-right text-base tabular-nums text-[var(--fg-1)]" style={{ fontFamily: 'var(--font-display)' }} title={row.value ?? undefined}>{row.value ?? t('chat.metrics.noFigure')}</span>,
+    control: <span className="max-w-[45%] break-words text-right text-base tabular-nums text-[var(--fg-1)]" style={{ fontFamily: 'var(--font-display)' }}>{row.value ?? t('chat.metrics.noFigure')}</span>,
   }))
   const body = !metricsCard.hasData
     ? <p className="text-sm text-[var(--fg-3)]">{t('chat.metrics.empty')}</p>

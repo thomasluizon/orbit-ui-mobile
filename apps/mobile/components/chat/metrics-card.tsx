@@ -20,7 +20,7 @@ export function MetricsCard({ metricsCard }: Readonly<{ metricsCard: MetricsCard
   const rows = getMetricsRows(metricsCard).map((row) => ({
     id: row.id,
     label: t(row.labelKey),
-    control: <Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'], maxWidth: 130, textAlign: 'right' }}>{row.value ?? t('chat.metrics.noFigure')}</Text>,
+    control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'], maxWidth: '45%', textAlign: 'right' }}>{row.value ?? t('chat.metrics.noFigure')}</Text>,
   }))
   const body = !metricsCard.hasData
     ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.metrics.empty')}</Text>
