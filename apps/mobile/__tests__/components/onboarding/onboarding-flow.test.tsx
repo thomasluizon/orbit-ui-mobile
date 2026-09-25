@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => ({
   requestPermissionOutcome: vi.fn(),
   navigate: vi.fn(),
   isLive: true,
-  profile: { aiMessagesLimit: 5, aiMessagesUsed: 0 },
+  profile: { aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC' },
   push: {
     isLoading: false,
     isSupported: true,
@@ -160,6 +160,7 @@ describe('OnboardingFlow state model', () => {
     vi.clearAllMocks()
     vi.useRealTimers()
     mocks.profile.aiMessagesUsed = 0
+    mocks.profile.timeZone = 'UTC'
     mocks.push.isSupported = true
     mocks.push.permissionStatus = 'undetermined'
     mocks.push.permissionCanAskAgain = true
@@ -260,6 +261,13 @@ describe('OnboardingFlow state model', () => {
     await pressTextAction(tree, 'onboarding.flow.remind.deny')
     expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
     expect(prop<boolean>(oneByType(tree.root, 'Done'), 'general')).toBe(false)
+  })
+
+  it('uses the profile weekday on the done screen across midnight', async () => {
+    vi.setSystemTime(new Date('2026-09-14T02:00:00.000Z'))
+    mocks.profile.timeZone = 'America/Sao_Paulo'
+    const tree = await reachDone(true)
+    expect(prop<boolean>(oneByType(tree.root, 'Done'), 'dueToday')).toBe(false)
   })
 
   it('never tells the done screen a habit with no day is in the day', async () => {

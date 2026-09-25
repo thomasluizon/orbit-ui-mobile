@@ -12,6 +12,7 @@ import {
   buildOnboardingScheduleFromSuggestion,
   changeOnboardingScheduleMode,
   clampOnboardingRepeatWeeks,
+  getClientTimeZone,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
   getOnboardingHabitTitle,
@@ -217,11 +218,7 @@ export function OnboardingFlow() {
         setCreatedId(result.id)
       }
       setCreatedTitle(input.title)
-      /**
-       * The device clock decides today here while the API resolves it from the profile time zone, so a
-       * person straddling midnight in another zone can read one day wrong until #602 lands.
-       */
-      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date()))
+      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), profile ? profile.timeZone : getClientTimeZone()))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState())
       setStep(ONBOARDING_REMIND_STEP)
