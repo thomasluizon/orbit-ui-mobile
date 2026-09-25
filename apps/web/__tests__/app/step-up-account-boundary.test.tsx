@@ -72,9 +72,10 @@ async function renderChallenge(operation: 'keys' | 'delete' = 'keys') {
 async function renderColdChallenge(operation: 'keys' | 'delete') {
   mocks.operation = operation
   holdAccount('user-1')
+  respondWithInactiveSession()
   useAuthStore.getState().adoptAccountFromSignal(null)
+  await waitFor(() => expect(getHeldAccountId()).toBeNull())
   useAuthStore.setState({ sessionInactive: false })
-  expect(getHeldAccountId()).toBeNull()
   const sentAt = Date.now() - 60_000
   storeChallenge('user-1', operation, sentAt)
   const pendingSession = deferred<Response>()
