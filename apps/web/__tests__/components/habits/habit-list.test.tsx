@@ -1696,7 +1696,9 @@ describe('HabitList', () => {
     ])
   })
 
-  it('does not apply a delayed bulk result to the newly viewed date', async () => {
+  it.each(['log', 'skip'] as const)(
+    'does not apply a delayed bulk %s result to the newly viewed date',
+    async (mode) => {
     const parent = createMockHabit({
       id: 'parent',
       hasSubHabits: true,
@@ -1723,13 +1725,16 @@ describe('HabitList', () => {
     rerenderWithProviders(renderList(TODAY))
 
     act(() => {
-      ref.current?.settleBulkHabitResolutions([{ habitId: child.id, mode: 'log' }], YESTERDAY)
+      ref.current?.settleBulkHabitResolutions([{ habitId: child.id, mode }], YESTERDAY)
     })
 
     expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-state', 'empty')
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(false)
     expect(logHabitMutateAsync).not.toHaveBeenCalled()
+    expect(skipHabitMutateAsync).not.toHaveBeenCalled()
     rerenderWithProviders(renderList(YESTERDAY))
     expect(screen.getByTestId(`habit-card-${child.id}`)).toHaveAttribute('data-state', 'done')
+    expect(capturedDrillOptions?.recentlyCompletedIds.has(child.id)).toBe(true)
   })
 
   it('keeps the current parent guard when an earlier date settlement rejects', async () => {
