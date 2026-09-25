@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { useRouter } from 'expo-router'
 import {
   getReturningInterval,
   selectNewestUnreadProactiveCheckin,
@@ -21,6 +22,7 @@ interface TodayAstraProps {
 
 export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const { t } = useTranslation()
+  const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const [actionPressed, setActionPressed] = useState(false)
@@ -41,7 +43,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
             text: returning.kind === 'elapsed'
               ? t('todayAstra.returningElapsed', { days: returning.days })
               : t('todayAstra.returningBounded'),
-            action: t('todayAstra.openConversation'),
+            action: t('todayAstra.viewProgress'),
             notificationId: null,
           }
         : null
@@ -62,8 +64,12 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
           onPressIn={() => setActionPressed(true)}
           onPressOut={() => setActionPressed(false)}
           onPress={() => {
-            if (line.notificationId) markRead.mutate(line.notificationId)
-            setConversationOpen(true)
+            if (line.notificationId) {
+              markRead.mutate(line.notificationId)
+              setConversationOpen(true)
+            } else {
+              router.navigate('/progress')
+            }
           }}
         >
           {line.action}

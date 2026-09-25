@@ -7,18 +7,23 @@ import { useUIStore } from '@/stores/ui-store'
 interface TodayAstraMocks {
   notifications: NotificationItem[]
   markRead: ReturnType<typeof vi.fn>
+  navigateProgress: ReturnType<typeof vi.fn>
   profile: { id: string; timeZone: string; lastCompletionDate?: string | null }
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
   notifications: [],
   markRead: vi.fn(),
+  navigateProgress: vi.fn(),
   profile: { id: 'profile', timeZone: 'UTC' },
 }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: { days: number }) =>
     values ? `${key}:${values.days}` : key,
+}))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mocks.navigateProgress }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -38,6 +43,7 @@ describe('web Today Astra', () => {
   beforeEach(() => {
     mocks.notifications = []
     mocks.markRead.mockReset()
+    mocks.navigateProgress.mockReset()
     mocks.profile = { id: 'profile', timeZone: 'UTC' }
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
@@ -85,6 +91,17 @@ describe('web Today Astra', () => {
     const { container } = renderTodayAstra()
 
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('opens Progress from the returning line without marking a notification read', () => {
+    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
+
+    renderTodayAstra()
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(mocks.navigateProgress).toHaveBeenCalledWith('/progress')
+    expect(mocks.markRead).not.toHaveBeenCalled()
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
   it('renders a proactive check-in and opens its conversation', () => {

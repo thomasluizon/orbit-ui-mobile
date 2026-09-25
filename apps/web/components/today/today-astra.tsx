@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import {
   getReturningInterval,
   selectNewestUnreadProactiveCheckin,
@@ -19,6 +20,7 @@ interface TodayAstraProps {
 
 export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const t = useTranslations()
+  const router = useRouter()
   const { profile } = useProfile()
   const { notifications } = useNotifications()
   const markRead = useMarkNotificationRead()
@@ -48,7 +50,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
             text: returning.kind === 'elapsed'
               ? t('todayAstra.returningElapsed', { days: returning.days })
               : t('todayAstra.returningBounded'),
-            action: t('todayAstra.openConversation'),
+            action: t('todayAstra.viewProgress'),
             notificationId: null,
           }
         : null
@@ -65,8 +67,12 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
               type="button"
               className="orbit-link-action orbit-link-action-persistent border-0 bg-transparent p-0 text-inherit"
               onClick={() => {
-                if (line.notificationId) markRead.mutate(line.notificationId)
-                openConversation()
+                if (line.notificationId) {
+                  markRead.mutate(line.notificationId)
+                  openConversation()
+                } else {
+                  router.push('/progress')
+                }
               }}
             >
               {line.action}
