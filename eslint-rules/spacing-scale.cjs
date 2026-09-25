@@ -174,6 +174,7 @@ module.exports = {
     const scaleLabel = scale.join(' ')
     const scaleSet = new Set(scale)
     const styleIdentifiers = []
+    const styleSpreadObjects = []
     const reportedLiterals = new WeakSet()
 
     function isOnScale(px, prop) {
@@ -265,10 +266,29 @@ module.exports = {
       }
     }
 
+    function isTypeWrapper(node) {
+      return node?.type === 'TSAsExpression' || node?.type === 'TSSatisfiesExpression' ||
+        node?.type === 'TSNonNullExpression'
+    }
+
     function unwrapStyleExpression(node) {
-      while (node && (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression' ||
-        node.type === 'TSNonNullExpression' || node.type === 'ParenthesizedExpression')) node = node.expression
+      while (isTypeWrapper(node)) node = node.expression
       return node
+    }
+
+    function isStyleAttributeValue(node) {
+      return node?.type === 'JSXExpressionContainer' && node.parent?.type === 'JSXAttribute' &&
+        node.parent.name.type === 'JSXIdentifier' && node.parent.name.name === 'style'
+    }
+
+    function isInlineStyleObject(object) {
+      let node = object
+      let parent = node.parent
+      while ((parent?.type === 'ConditionalExpression' && parent.test !== node) || parent?.type === 'ArrayExpression') {
+        node = parent
+        parent = node.parent
+      }
+      return isStyleAttributeValue(parent)
     }
 
     function findBinding(node) {
@@ -283,18 +303,16 @@ module.exports = {
 
     function referenceUse(node, seen) {
       let parent = node.parent
-      while (parent && (parent.type === 'TSAsExpression' || parent.type === 'TSSatisfiesExpression' ||
-        parent.type === 'TSNonNullExpression' || parent.type === 'ParenthesizedExpression')) {
+      while (isTypeWrapper(parent)) {
         node = parent
         parent = node.parent
       }
-      if (parent?.type === 'JSXExpressionContainer' && parent.parent?.type === 'JSXAttribute' &&
-        parent.parent.name.type === 'JSXIdentifier' && parent.parent.name.name === 'style') return true
+      if (isStyleAttributeValue(parent)) return true
       if (parent?.type !== 'SpreadElement' || parent.parent?.type !== 'ObjectExpression') return false
       const object = parent.parent
+      if (isInlineStyleObject(object)) return true
       let owner = object.parent
-      while (owner && (owner.type === 'TSAsExpression' || owner.type === 'TSSatisfiesExpression' ||
-        owner.type === 'TSNonNullExpression' || owner.type === 'ParenthesizedExpression')) owner = owner.parent
+      while (isTypeWrapper(owner)) owner = owner.parent
       return owner?.type === 'VariableDeclarator' && owner.id.type === 'Identifier' &&
         qualifyingInitializer(findBinding(owner.id), seen) === object
     }
@@ -345,8 +363,8 @@ module.exports = {
       return values
     }
 
-    function scanConstStyle(identifier) {
-      const values = resolveObject(identifier, new Set())
+    function scanConstStyle(styleNode) {
+      const values = resolveObject(styleNode, new Set())
       if (!values) return
       for (const [name, value] of values) {
         if (!SPACING_PROPS.has(name) || reportedLiterals.has(value)) continue
@@ -355,21 +373,23 @@ module.exports = {
       }
     }
 
-    function scanStyleObject(node) {
+    function scanStyleObject(node, inlineJsx = false) {
       if (!node) return
       if (node.type === 'ArrayExpression') {
-        for (const element of node.elements) scanStyleObject(element)
+        for (const element of node.elements) scanStyleObject(element, inlineJsx)
         return
       }
       if (node.type === 'ConditionalExpression') {
-        scanStyleObject(node.consequent)
-        scanStyleObject(node.alternate)
+        scanStyleObject(node.consequent, inlineJsx)
+        scanStyleObject(node.alternate, inlineJsx)
         return
       }
       if (node.type !== 'ObjectExpression') return
+      if (inlineJsx && node.properties.some((property) => property.type === 'SpreadElement')) styleSpreadObjects.push(node)
       for (const property of node.properties) {
         const name = propertyName(property)
         if (name === null || !SPACING_PROPS.has(name)) continue
+        reportedLiterals.add(property.value)
         reportStyleValue(property.value, name)
       }
     }
@@ -456,7 +476,7 @@ module.exports = {
         if (name === 'style' && node.value?.type === 'JSXExpressionContainer') {
           const expression = unwrapStyleExpression(node.value.expression)
           if (expression?.type === 'Identifier') styleIdentifiers.push(expression)
-          else scanStyleObject(node.value.expression)
+          else scanStyleObject(node.value.expression, true)
           return
         }
         if (name !== 'className' && name !== 'class') return
@@ -474,6 +494,7 @@ module.exports = {
       },
       'Program:exit'() {
         for (const identifier of styleIdentifiers) scanConstStyle(identifier)
+        for (const object of styleSpreadObjects) scanConstStyle(object)
       },
     }
   },
