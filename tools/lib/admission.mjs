@@ -1,6 +1,10 @@
+import { randomUUID } from "node:crypto"
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
+
 import { runBounded } from "./bounded-process.mjs"
 import { repositorySlug } from "./github-auth.mjs"
-import { existsSync } from "node:fs"
+import { gitDirectoryOf, processIsAlive, processStartIdentity, REPO_ROOT } from "./run-state.mjs"
 
 /** The checked-in repo paths are Windows paths. On macOS, their final directory names match the
  * verified GitHub origins, while the Windows checkouts themselves do not exist. */
@@ -12,6 +16,47 @@ export const configuredRepositorySlug = (path, owner) => {
 }
 
 export const ADMISSION_REFUSED_EXIT = 8
+const LOCK_WAIT_MS = 5000
+const LOCK_RETRY_MS = 25
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const reservationDirectory = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-admission-reservations")
+const lockPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-admission.lock")
+
+export const releaseAdmission = (reservationId, repoRoot = REPO_ROOT) => {
+  if (!reservationId) return
+  rmSync(join(reservationDirectory(repoRoot), `${reservationId}.json`), { force: true })
+}
+
+const acquireLock = async (repoRoot, startIdentity, waitMs) => {
+  const path = lockPath(repoRoot)
+  const deadline = Date.now() + waitMs
+  mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
+  while (true) {
+    try {
+      writeFileSync(path, JSON.stringify({ pid: process.pid, startIdentity, timestamp: new Date().toISOString() }), { flag: "wx" })
+      return () => rmSync(path, { force: true })
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error
+    }
+    const stat = statSync(path, { throwIfNoEntry: false })
+    if (stat) {
+      let holder
+      try { holder = JSON.parse(readFileSync(path, "utf8")) } catch { holder = null }
+      const observedIdentity = Number.isInteger(holder?.pid) ? processStartIdentity(holder.pid) : null
+      if (Number.isInteger(holder?.pid) && typeof holder.startIdentity === "string" &&
+          observedIdentity !== holder.startIdentity && (observedIdentity !== null || !processIsAlive(holder.pid))) {
+        const current = statSync(path, { throwIfNoEntry: false })
+        if (current && current.ino === stat.ino && current.mtimeMs === stat.mtimeMs) rmSync(path, { force: true })
+      } else if (!holder && Date.now() - stat.mtimeMs > LOCK_WAIT_MS) {
+        const current = statSync(path, { throwIfNoEntry: false })
+        if (current && current.ino === stat.ino && current.mtimeMs === stat.mtimeMs) rmSync(path, { force: true })
+      }
+    }
+    if (Date.now() >= deadline) throw new Error(`admission lock timed out after ${waitMs} ms`)
+    await sleep(LOCK_RETRY_MS)
+  }
+}
 
 /**
  * Only a run created in the last 24 hours counts as queued. Measured 2026-09-25: 8 orbit-ui-mobile
@@ -51,19 +96,60 @@ const openPullRequests = async (slug, environment) => {
   }
 }
 
-export const checkAdmission = async ({ config, repositoryKey, branch, environment, worktree, now = Date.now() }) => {
+const branchPullRequests = async (slug, owner, branch, environment) => {
+  const head = encodeURIComponent(`${owner}:${branch}`)
+  const pulls = await readGithub(`repos/${slug}/pulls?head=${head}&state=open&per_page=100`, environment)
+  if (!Array.isArray(pulls) || pulls.some((pull) => !Number.isInteger(pull.number))) {
+    throw new Error(`GitHub branch pull requests for ${slug} had an unexpected shape`)
+  }
+  return pulls
+}
+
+const liveReservations = async (repoRoot, owner, environment) => {
+  const directory = reservationDirectory(repoRoot)
+  if (!existsSync(directory)) return 0
+  let count = 0
+  for (const name of readdirSync(directory)) {
+    if (!name.endsWith(".json")) continue
+    const path = join(directory, name)
+    const reservation = JSON.parse(readFileSync(path, "utf8"))
+    if (!Number.isInteger(reservation.pid) || typeof reservation.startIdentity !== "string" ||
+        typeof reservation.repository !== "string" || typeof reservation.branch !== "string") {
+      throw new Error(`invalid admission reservation ${name}`)
+    }
+    const observedIdentity = processStartIdentity(reservation.pid)
+    if (observedIdentity === null && processIsAlive(reservation.pid)) {
+      throw new Error(`could not verify live admission reservation ${name}`)
+    }
+    if (observedIdentity !== reservation.startIdentity) {
+      rmSync(path, { force: true })
+      continue
+    }
+    if ((await branchPullRequests(reservation.repository, owner, reservation.branch, environment)).length > 0) {
+      rmSync(path, { force: true })
+      continue
+    }
+    count++
+  }
+  return count
+}
+
+export const checkAdmission = async ({ config, repositoryKey, branch, environment, worktree, now = Date.now(), repoRoot = REPO_ROOT, lockWaitMs = LOCK_WAIT_MS }) => {
   const limits = { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }
-  const counts = { openPullRequests: null, queuedRuns: null }
+  const counts = { openPullRequests: null, queuedRuns: null, reservations: null }
+  let unlock
   try {
+    const startIdentity = processStartIdentity(process.pid)
+    if (!startIdentity) throw new Error("could not verify admission launcher process start identity")
+    unlock = await acquireLock(repoRoot, startIdentity, lockWaitMs)
     const targetPath = config.repos[repositoryKey]
     const owner = repositorySlug(existsSync(targetPath) ? targetPath : worktree).split("/")[0]
     const target = configuredRepositorySlug(config.repos[repositoryKey], owner)
-    const head = encodeURIComponent(`${owner}:${branch}`)
-    const existing = await readGithub(`repos/${target}/pulls?head=${head}&state=open&per_page=100`, environment)
-    if (!Array.isArray(existing) || existing.some((pull) => !Number.isInteger(pull.number))) {
-      throw new Error(`GitHub branch pull requests for ${target} had an unexpected shape`)
-    }
+    const existing = await branchPullRequests(target, owner, branch, environment)
     if (existing.length > 0) return { admitted: true, existingPullRequest: existing[0].number, counts, limits }
+    // Reconcile first, then read the fleet counts. A PR appearing between these reads can
+    // temporarily count twice, but cannot disappear from both the claim and GitHub total.
+    counts.reservations = await liveReservations(repoRoot, owner, environment)
     counts.openPullRequests = 0
     counts.queuedRuns = 0
     for (const path of Object.values(config.repos)) {
@@ -75,11 +161,18 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
       }
       counts.queuedRuns += runs.total_count
     }
-    if (counts.openPullRequests > limits.maxOpenPullRequests || counts.queuedRuns > limits.maxQueuedRuns) {
+    if (counts.openPullRequests + counts.reservations >= limits.maxOpenPullRequests ||
+        counts.queuedRuns + counts.reservations >= limits.maxQueuedRuns) {
       return { admitted: false, reason: "ADMISSION_REFUSED", counts, limits, error: null }
     }
-    return { admitted: true, counts, limits }
+    const reservationId = randomUUID()
+    mkdirSync(reservationDirectory(repoRoot), { recursive: true })
+    writeFileSync(join(reservationDirectory(repoRoot), `${reservationId}.json`),
+      JSON.stringify({ pid: process.pid, startIdentity, repository: target, branch, timestamp: new Date(now).toISOString() }), { flag: "wx" })
+    return { admitted: true, reservationId, counts, limits }
   } catch (error) {
     return { admitted: false, reason: "ADMISSION_REFUSED", counts, limits, error: error.message }
+  } finally {
+    if (unlock) unlock()
   }
 }

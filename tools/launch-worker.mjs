@@ -18,7 +18,7 @@ import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
-import { ADMISSION_REFUSED_EXIT, checkAdmission, configuredRepositorySlug } from "./lib/admission.mjs"
+import { ADMISSION_REFUSED_EXIT, checkAdmission, configuredRepositorySlug, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
@@ -248,6 +248,7 @@ if (!admission.admitted) {
   console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
   process.exit(ADMISSION_REFUSED_EXIT)
 }
+process.on("exit", () => releaseAdmission(admission.reservationId))
 
 console.error(`starting the ${engineName} worker for ${issue} in ${runDirectory}; log: ${logFile}`)
 const startedAt = new Date().toISOString()
@@ -276,6 +277,13 @@ const child = spawn(executable, workerArgs, {
     ORCA_CLI_COMMAND: process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca",
   },
 })
+for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
+  process.once(signal, () => {
+    if (child.pid) killTree(child.pid)
+    releaseAdmission(admission.reservationId)
+    process.exit(exitCode)
+  })
+}
 
 /**
  * THIS process, not the child, is what the orchestrator backgrounds and what its exit re-invokes the
@@ -289,6 +297,7 @@ let finishing = false
 const finish = (outcome, exitCode) => {
   if (finishing) return
   finishing = true
+  releaseAdmission(admission.reservationId)
   clearWakeSource(process.pid)
   closeSync(logFd)
   /**

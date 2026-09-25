@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { spawn } from "node:child_process"
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
@@ -31,6 +32,7 @@ const stubEngine = (script) => ({ engine: { args: [script], models: { default: {
 
 const SLEEPER = stage("launch-worker/sleeping-worker.js", "setTimeout(() => {}, 60000)\n")
 const IMMEDIATE = stage("launch-worker/immediate-worker.js", "process.exit(0)\n")
+const SHORT_HOLD = stage("launch-worker/short-hold-worker.js", "setTimeout(() => {}, 3000)\n")
 /** Floods stdout the way ORB-201 did, which is how a 61.73 MB log happened. It never exits on its
  * own, so the only thing that can end it is the launcher noticing the flood. */
 const FLOODER = stage("launch-worker/flooding-worker.js", "const line = 'x'.repeat(4096)\nsetInterval(() => { for (let i = 0; i < 64; i++) process.stdout.write(line + '\\n') }, 5)\n")
@@ -61,7 +63,7 @@ const discardLog = (stdout) => {
   }
 }
 
-export const cases = () => {
+export const cases = async () => {
   const fixture = launch("dry-run", launchConfig())
   if (!fixture) {
     T(`${TOOL}: a real git worktree fixture is available`, false, "could not stage a git repository")
@@ -154,6 +156,40 @@ export const cases = () => {
   check(TOOL, "existing pull request branch launches above the cap",
     ["--issue", "ORB-201", "--worktree", exempt.worktree, "--prompt", exempt.prompt],
     { status: 0, stdout: /"outcome": "EXITED"/ }, { path: exempt.path, env: githubAuthEnv(Array.from({ length: 11 }, (_, index) => index + 1), [99]) })
+  const concurrent = launch("concurrent-admission", launchConfig(stubEngine(SHORT_HOLD)))
+  const concurrentArgv = ["--issue", "ORB-201", "--worktree", concurrent.worktree, "--prompt", concurrent.prompt]
+  const startConcurrent = () => new Promise((resolve) => {
+    const child = spawn(process.execPath, [concurrent.path, ...concurrentArgv], {
+      cwd: concurrent.base, env: { ...process.env, ...githubAuthEnv(Array.from({ length: 9 }, (_, index) => index + 1)) },
+    })
+    let stdout = ""
+    child.stdout.on("data", (chunk) => { stdout += chunk })
+    child.stderr.resume()
+    child.on("exit", (status) => resolve({ status, stdout }))
+  })
+  const concurrentResults = await Promise.all([startConcurrent(), startConcurrent()])
+  T("launch-worker: two processes racing for one allowance launch exactly one worker",
+    concurrentResults.map((result) => result.status).sort().join(",") === "0,8", JSON.stringify(concurrentResults))
+  T("launch-worker: completed launch releases its admission reservation",
+    !existsSync(join(concurrent.base, ".git", "orbit-admission-reservations")) ||
+    readdirSync(join(concurrent.base, ".git", "orbit-admission-reservations")).length === 0)
+  const signalled = launch("signal-admission", launchConfig(stubEngine(SLEEPER)))
+  const signalChild = spawn(process.execPath,
+    [signalled.path, "--issue", "ORB-201", "--worktree", signalled.worktree, "--prompt", signalled.prompt],
+    { cwd: signalled.base, env: { ...process.env, ...githubAuthEnv() } })
+  signalChild.stdout.resume()
+  signalChild.stderr.resume()
+  const signalDirectory = join(signalled.base, ".git", "orbit-admission-reservations")
+  let hadReservation = false
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (existsSync(signalDirectory) && readdirSync(signalDirectory).length > 0) { hadReservation = true; break }
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  const signalledExit = new Promise((resolve) => signalChild.on("exit", resolve))
+  signalChild.kill("SIGTERM")
+  const signalStatus = await signalledExit
+  T("launch-worker: SIGTERM clears its reservation", hadReservation && signalStatus === 143 &&
+    existsSync(signalDirectory) && readdirSync(signalDirectory).length === 0, `reserved=${hadReservation}, exit=${signalStatus}`)
   const real = realOrchestratorConfig()
   const engine = real.workers[real.worker]
   let plan = null
