@@ -339,9 +339,7 @@ module.exports = {
     }
 
     function abstractValue(node) {
-      return node?.type === 'Literal' ||
-        (node?.type === 'UnaryExpression' && node.operator === '-' && node.argument.type === 'Literal')
-        ? node : UNKNOWN
+      return node ?? UNKNOWN
     }
 
     function bindingRoot(variable, seen = new Set()) {
@@ -386,7 +384,14 @@ module.exports = {
       if (node.type === 'Literal' && (node.value === null || node.value === false)) return emptyState()
       if (node.type === 'Identifier') return evaluateBinding(findBinding(node), cutoff, active)
       if (node.type === 'ArrayExpression') {
-        return node.elements.reduce((state, element) => overlay(state, evaluateStyleExpression(element, element?.range[0] ?? cutoff, active)), emptyState())
+        let state = emptyState()
+        let shifted = false
+        for (const [index, element] of node.elements.entries()) {
+          if (element) state = overlay(state, evaluateStyleExpression(element, element.range[0], active))
+          if (element?.type === 'SpreadElement') shifted = true
+          state.keys.set(String(index), new Set([shifted ? UNKNOWN : element ?? ABSENT]))
+        }
+        return state
       }
       if (node.type === 'ConditionalExpression') {
         if (node.test.type === 'Literal' && typeof node.test.value === 'boolean') {
@@ -415,7 +420,7 @@ module.exports = {
         }
         const name = propertyName(property)
         if (name === null) state = changeUnknownKey(state, UNKNOWN)
-        else state.keys.set(name, new Set([abstractValue(property.value)]))
+        else state.keys.set(name, new Set([property.kind === 'init' ? abstractValue(property.value) : UNKNOWN]))
       }
       return state
     }
@@ -448,34 +453,20 @@ module.exports = {
     function patternSourceValues(source, key, state, variable, active) {
       source = unwrapStyleExpression(source)
       if (!source || source === UNKNOWN || source === ABSENT) return new Set([source === ABSENT ? ABSENT : UNKNOWN])
-      if (source.type === 'ObjectExpression') {
-        let values = new Set([ABSENT])
-        for (const property of source.properties) {
-          if (property.type === 'SpreadElement') {
-            const spread = evaluateStyleExpression(property.argument, property.range[0], active)
-            const incoming = valuesFor(spread, key)
-            values = incoming.has(ABSENT)
-              ? new Set([...values, ...[...incoming].filter((value) => value !== ABSENT)]) : new Set(incoming)
-          } else {
-            const name = staticKey(property.key, property.computed)
-            if (name === key) values = new Set([property.kind === 'init' ? property.value : UNKNOWN])
-            else if (name === null) values.add(UNKNOWN)
-          }
-        }
-        return values
-      }
-      if (source.type === 'Identifier') {
-        const resolved = targetsBinding(source, variable) ? state : evaluateStyleExpression(source, source.range[0], active)
-        return valuesFor(resolved, key)
-      }
-      return new Set([UNKNOWN])
+      const resolved = targetsBinding(source, variable) ? state : evaluateStyleExpression(source, source.range[0], active)
+      return valuesFor(resolved, key)
     }
 
-    function arraySourceValues(source, index) {
-      source = unwrapStyleExpression(source)
-      if (source?.type !== 'ArrayExpression') return new Set([UNKNOWN])
-      if (source.elements.slice(0, index + 1).some((element) => element?.type === 'SpreadElement')) return new Set([UNKNOWN])
-      return new Set([source.elements[index] ?? ABSENT])
+    function definitelyUndefined(value) {
+      const node = unwrapStyleExpression(value)
+      return value === ABSENT || (node?.type === 'UnaryExpression' && node.operator === 'void')
+    }
+
+    function possiblyUndefined(value) {
+      if (definitelyUndefined(value) || value === UNKNOWN) return true
+      const node = unwrapStyleExpression(value)
+      if (node?.type === 'UnaryExpression') return false
+      return node?.type !== 'Literal' && node?.type !== 'ObjectExpression' && node?.type !== 'ArrayExpression'
     }
 
     function assignedMember(state, member, values, variable) {
@@ -503,7 +494,11 @@ module.exports = {
       target = unwrapStyleExpression(target)
       if (target.type === 'MemberExpression') return assignedMember(state, target, values, variable)
       if (target.type === 'AssignmentPattern') {
-        const selected = new Set([...values].map((value) => value === ABSENT ? target.right : value))
+        const selected = new Set()
+        for (const value of values) {
+          if (!definitelyUndefined(value)) selected.add(value)
+          if (possiblyUndefined(value)) selected.add(target.right)
+        }
         return writePattern(state, target.left, selected, variable, active)
       }
       if (target.type === 'RestElement') return writePattern(state, target.argument, new Set([UNKNOWN]), variable, active)
@@ -524,7 +519,7 @@ module.exports = {
         for (const [index, element] of target.elements.entries()) {
           if (!element) continue
           const selected = new Set()
-          for (const value of values) for (const result of arraySourceValues(value, index)) selected.add(result)
+          for (const value of values) for (const result of patternSourceValues(value, String(index), state, variable, active)) selected.add(result)
           state = writePattern(state, element, selected, variable, active)
         }
       }
