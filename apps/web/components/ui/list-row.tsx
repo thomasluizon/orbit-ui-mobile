@@ -11,13 +11,13 @@ type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
 }
 
 function RowBody({ title, wrapTitle, description, icon, value, danger, trailing }: Readonly<Pick<ListRowProps, 'title' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'danger' | 'trailing'>>) {
-  const iconColor = danger ? 'var(--status-bad)' : 'var(--fg-1)'
+  const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return (
     <>
       {icon ? (
-        <span style={{ width: 28, flexShrink: 0, color: iconColor }}>
-          {typeof icon === 'string' ? <Icon name={icon} size={24} color={iconColor} /> : icon}
+        <span style={{ width: 28, flexShrink: 0, color: rowColors.iconColor }}>
+          {typeof icon === 'string' ? <Icon name={icon} size={24} color={rowColors.iconColor} /> : icon}
         </span>
       ) : null}
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
@@ -47,9 +47,9 @@ export function ListRow(props: Readonly<WebListRowProps>) {
         <button type="button" aria-label={accessibilityLabel} onClick={onClick} disabled={disabled} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
       )}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action group/list-action flex shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent" style={{ padding: 16, paddingInlineStart: 0, color: action.danger ? 'var(--status-bad)' : 'var(--fg-2)' }}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action group/list-action flex shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent" style={{ padding: 16, paddingInlineStart: 0 }}>
           <span className="habit-control-motion flex shrink-0 items-center justify-center rounded-full group-hover/list-action:bg-[var(--bg-hover)] group-active/list-action:scale-[0.96]" style={{ width: 44, height: 44 }}>
-            <Icon name={action.icon} size={20} color="currentColor" />
+            <Icon name={action.icon} size={20} color={action.danger ? 'var(--status-bad)' : 'var(--fg-2)'} />
           </span>
         </button>
       ) : null}

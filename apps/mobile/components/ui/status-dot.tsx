@@ -34,15 +34,15 @@ export function StatusDot({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isFilled = state === 'done' || state === 'skip' || state === 'frozen'
-  const colorMap: Record<StatusDotState, string> = {
-    done: tokens.statusDone,
-    empty: tokens.statusEmpty,
-    skip: tokens.fg3,
-    overdue: tokens.statusOverdue,
-    bad: tokens.statusBad,
-    frozen: tokens.fg2,
+  const colorMap: Record<StatusDotState, { graphic: string }> = {
+    done: { graphic: tokens.statusDone },
+    empty: { graphic: tokens.statusEmpty },
+    skip: { graphic: tokens.fg3 },
+    overdue: { graphic: tokens.statusOverdue },
+    bad: { graphic: tokens.statusBad },
+    frozen: { graphic: tokens.fg2 },
   }
-  const color = colorMap[state]
+  const color = colorMap[state].graphic
 
   const dot = (
     <View

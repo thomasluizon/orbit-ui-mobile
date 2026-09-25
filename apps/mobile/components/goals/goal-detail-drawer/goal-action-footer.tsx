@@ -15,8 +15,8 @@ interface GoalActionFooterProps {
   isActive: boolean
   isAbandoned: boolean
   isUpdatingStatus: boolean
+  defaultIconColor: string
   iconColor: string
-  dangerColor: string
   onMarkAbandoned: () => void
   onReactivate: () => void
   onEdit: () => void
@@ -28,8 +28,8 @@ export function GoalActionFooter({
   isActive,
   isAbandoned,
   isUpdatingStatus,
+  defaultIconColor,
   iconColor,
-  dangerColor,
   onMarkAbandoned,
   onReactivate,
   onEdit,
@@ -43,7 +43,7 @@ export function GoalActionFooter({
       <ListRow
         title={t('goals.detail.edit')}
         accessibilityLabel={t('goals.detail.edit')}
-        icon={<PencilLine size={24} strokeWidth={1.5} color={iconColor} />}
+        icon={<PencilLine size={24} strokeWidth={1.5} color={defaultIconColor} />}
         chevron={false}
         onClick={onEdit}
       />
@@ -51,7 +51,7 @@ export function GoalActionFooter({
         <ListRow
           title={t('goals.detail.reactivate')}
           accessibilityLabel={t('goals.detail.reactivate')}
-          icon={<RotateCw size={24} strokeWidth={1.5} color={iconColor} />}
+          icon={<RotateCw size={24} strokeWidth={1.5} color={defaultIconColor} />}
           chevron={false}
           onClick={onReactivate}
           disabled={isUpdatingStatus}
@@ -61,7 +61,7 @@ export function GoalActionFooter({
           <ListRow
             title={t('goals.detail.markAbandoned')}
             accessibilityLabel={t('goals.detail.markAbandoned')}
-            icon={<ArchiveX size={24} strokeWidth={1.5} color={iconColor} />}
+            icon={<ArchiveX size={24} strokeWidth={1.5} color={defaultIconColor} />}
             chevron={false}
             onClick={onMarkAbandoned}
             disabled={isUpdatingStatus}
@@ -70,7 +70,7 @@ export function GoalActionFooter({
       <ListRow
         title={t('goals.detail.delete')}
         accessibilityLabel={t('goals.detail.delete')}
-        icon={<Trash2 size={24} strokeWidth={1.5} color={dangerColor} />}
+        icon={<Trash2 size={24} strokeWidth={1.5} color={iconColor} />}
         danger
         chevron={false}
         onClick={onDelete}
