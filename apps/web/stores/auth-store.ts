@@ -10,9 +10,24 @@ let sessionRecoveryUser: User | null = null
 let sessionOwnershipEpoch = 0
 let loginsWaitingForLogout = 0
 let accountGeneration = 0
+let accountSwitchPending = false
 
 export function getAccountGeneration(): number {
   return accountGeneration
+}
+
+function reloadWhenCookieReplacesAccount(
+  heldAccountId: string | null,
+  cookieAccountId: string | null,
+): boolean {
+  if (!heldAccountId || !cookieAccountId || heldAccountId === cookieAccountId) return false
+  if (!accountSwitchPending) {
+    accountSwitchPending = true
+    accountGeneration += 1
+    getQueryClient().clear()
+    if ('location' in globalThis) globalThis.location.reload()
+  }
+  return true
 }
 
 export async function withCookieSettingLogin<T>(task: () => Promise<T>): Promise<T> {
@@ -85,6 +100,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setAuth: (loginResponse: LoginResponse) => {
     sessionOwnershipEpoch += 1
+    accountSwitchPending = false
     accountGeneration += 1
     getQueryClient().clear()
     sessionRecoveryUser = null
@@ -105,6 +121,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const session = await readCurrentSession()
     if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
+      if (reloadWhenCookieReplacesAccount(get().heldAccountId, session.accountId)) return
       const accountId = session.accountId ?? get().heldAccountId
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
@@ -124,10 +141,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'inactive') {
+      accountGeneration += 1
+      getQueryClient().clear()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
-        heldAccountId: null,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -152,6 +170,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const session = await readCurrentSession()
     if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
+      if (reloadWhenCookieReplacesAccount(get().heldAccountId, session.accountId)) return
       const accountId = session.accountId ?? get().heldAccountId
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
@@ -169,10 +188,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      accountGeneration += 1
+      getQueryClient().clear()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
-        heldAccountId: null,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -189,6 +209,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'active') {
+      if (reloadWhenCookieReplacesAccount(get().heldAccountId, session.accountId)) return
       const accountId = session.accountId ?? get().heldAccountId
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
@@ -206,10 +227,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      accountGeneration += 1
+      getQueryClient().clear()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
-        heldAccountId: null,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -249,6 +271,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (logoutEpoch !== sessionOwnershipEpoch) return
 
     sessionOwnershipEpoch += 1
+    accountSwitchPending = false
     accountGeneration += 1
     getQueryClient().clear()
     sessionRecoveryUser = null
