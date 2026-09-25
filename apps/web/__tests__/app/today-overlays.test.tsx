@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { TodayHeaderRegion, TodayHabitsPanel, TodayOverlays } from '@/app/(app)/today-page-view'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import { DestinationShell } from '@/components/shell/destination-shell'
+import { getTodayBoundary } from '@orbit/shared/utils'
 
 const chunks = vi.hoisted(() => {
   let resolveSelection!: () => void
@@ -59,6 +60,7 @@ vi.mock('@/components/habits/habit-list', () => ({
 }))
 
 function TodayHarness() {
+  const [today, setToday] = useState('2026-09-13')
   const [isSelectMode, setSelectMode] = useState(false)
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   const [selectedHabitIds, setSelectedHabitIds] = useState(new Set(['walk']))
@@ -66,7 +68,7 @@ function TodayHarness() {
   const view = {
     nav: {
       dateStr: '2026-09-06',
-      today: '2026-09-06',
+      today,
       selectedDate: new Date('2026-09-06T00:00:00'),
       dateNav: {
         dayName: 'Sunday', numericDate: '06/09/2026', isTodaySelected: true,
@@ -81,6 +83,7 @@ function TodayHarness() {
     toggleSelectMode: () => setSelectMode((selected) => !selected),
     selection: {
       allSelected: selectedHabitIds.size === 2,
+      completionReadOnly: getTodayBoundary('2026-09-06', today) === 'read-only',
       selectAll: () => setSelectedHabitIds(new Set(['walk', 'read'])),
       deselectAll: () => setSelectedHabitIds(new Set()),
       showBulkDeleteConfirm,
@@ -96,6 +99,7 @@ function TodayHarness() {
       <DestinationShell onCreate={vi.fn()} composer={<p>Astra composer</p>}>
         <h1>Today</h1>
         <output aria-label="Last action">{lastAction}</output>
+        <button type="button" onClick={() => setToday('2026-09-14')}>Advance day</button>
         <TodayHeaderRegion view={view} />
         <TodayHabitsPanel view={view} />
         <TodayOverlays view={view} />
@@ -165,5 +169,19 @@ describe('Today lazy overlays', () => {
     await screen.findByRole('heading', { name: 'Today' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Last action')).toHaveTextContent('deleted')
+  })
+
+  it('refreshes the hosted tray when a pinned selection passes the logging limit', async () => {
+    render(<TodayHarness />)
+    enterSelection()
+    const tray = await screen.findByTestId('bulk-action-bar')
+    expect(within(tray).getByRole('button', { name: 'habits.bulkBar.log' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Advance day' }))
+    expect(within(tray).getByRole('button', { name: 'habits.bulkBar.log' })).toHaveAttribute('aria-disabled', 'true')
+    expect(within(tray).getByRole('button', { name: 'habits.bulkBar.skip' })).toHaveAttribute('aria-disabled', 'true')
+    expect(within(tray).getByRole('button', { name: 'habits.bulkBar.delete' })).toBeEnabled()
+    fireEvent.click(within(tray).getByRole('button', { name: 'habits.bulkBar.log' }))
+    fireEvent.click(within(tray).getByRole('button', { name: 'habits.bulkBar.skip' }))
+    expect(screen.getByLabelText('Last action')).toHaveTextContent('none')
   })
 })

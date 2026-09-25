@@ -8,6 +8,7 @@ import {
   formatAPIDate,
   formatAPIDateInTimeZone,
   formatLocaleDate,
+  millisecondsUntilNextDay,
 } from '@orbit/shared/utils'
 
 function getMillisecondsUntilNextLocalMidnight(): number {
@@ -49,7 +50,7 @@ export function useCurrentDate(timeZone?: string | null): string {
       rolloverTimer = globalThis.setTimeout(() => {
         setDateTick((tick) => tick + 1)
         reset()
-      }, timeZone === undefined ? getMillisecondsUntilNextLocalMidnight() : 60_000)
+      }, timeZone === undefined ? getMillisecondsUntilNextLocalMidnight() : millisecondsUntilNextDay(new Date(), timeZone))
     }
     reset()
     const subscription = AppState.addEventListener('change', (state) => {

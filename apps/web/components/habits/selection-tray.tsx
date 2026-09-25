@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import {
   CheckCircle2,
   FastForward,
@@ -35,6 +36,7 @@ export interface SelectionTrayProps {
   onBulkSkip: () => void
   onBulkDelete: () => void
   onCancel: () => void
+  completionReadOnly?: boolean
 }
 
 interface BulkBtnProps {
@@ -43,16 +45,21 @@ interface BulkBtnProps {
   iconColor: string
   onClick: () => void
   disabled?: boolean
+  reason?: string
 }
 
-function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false }: Readonly<BulkBtnProps>) {
+function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reason }: Readonly<BulkBtnProps>) {
+  const reasonId = useId()
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { if (!disabled) onClick() }}
       aria-label={label}
-      disabled={disabled}
-      className={`appearance-none border-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${
+      disabled={disabled && !reason}
+      aria-disabled={disabled && reason ? true : undefined}
+      aria-describedby={disabled && reason ? reasonId : undefined}
+      title={disabled ? reason : undefined}
+      className={`appearance-none border-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${
         disabled
           ? 'opacity-45'
           : 'cursor-pointer hover:bg-[var(--bg-sunk)] active:scale-[0.96]'
@@ -66,6 +73,7 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false }: Re
       }}
     >
       <Icon size={20} strokeWidth={1.8} />
+      {disabled && reason ? <span id={reasonId} className="sr-only">{reason}</span> : null}
     </button>
   )
 }
@@ -79,11 +87,13 @@ export function SelectionTray({
   onBulkSkip,
   onBulkDelete,
   onCancel,
+  completionReadOnly = false,
 }: Readonly<SelectionTrayProps>) {
   const t = useTranslations()
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
   const nothingSelected = selectedCount === 0
+  const completionReason = completionReadOnly ? t('habits.todayBoundary.readOnly') : undefined
   return (
     <motion.div
       data-testid="bulk-action-bar"
@@ -149,14 +159,16 @@ export function SelectionTray({
           label={t('habits.bulkBar.log')}
           iconColor="var(--primary)"
           onClick={onBulkLog}
-          disabled={nothingSelected}
+          disabled={nothingSelected || completionReadOnly}
+          reason={completionReason}
         />
         <BulkBtn
           icon={FastForward}
           label={t('habits.bulkBar.skip')}
           iconColor="var(--fg-3)"
           onClick={onBulkSkip}
-          disabled={nothingSelected}
+          disabled={nothingSelected || completionReadOnly}
+          reason={completionReason}
         />
         <BulkBtn
           icon={Trash2}

@@ -77,12 +77,12 @@ describe('TodayProvider', () => {
 
   it('advances at account midnight while the device remains on the previous day', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-11T09:59:30.000Z'))
+    vi.setSystemTime(new Date('2026-09-11T09:59:59.000Z'))
     render(<TodayProvider><AccountTodayProbe /></TodayProvider>)
     expect(screen.getByTestId('today')).toHaveTextContent('2026-09-11')
 
     act(() => {
-      vi.advanceTimersByTime(60_000)
+      vi.advanceTimersByTime(2_000)
     })
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
