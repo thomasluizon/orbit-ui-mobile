@@ -120,7 +120,7 @@ jobs:
           merged_stdout=$(git merge-tree --write-tree HEAD origin/main 2>"$RUNNER_TEMP/merge-tree-stderr.txt")
           merged_rc=$?
           set -e
-          merged=$(printf '%s\n' "$merged_stdout" | head -1)
+          merged=${merged_stdout%%$'\n'*}
           if [ "$merged_rc" -ne 0 ] || ! printf '%s' "$merged" | grep -qE '^([0-9a-f]{40}|[0-9a-f]{64})$'; then
             # A conflict, a git too old for --write-tree (2.38+), or a first line that is not an object
             # id. None is a signal this step can interpret, and refusing on an unknown would block every
