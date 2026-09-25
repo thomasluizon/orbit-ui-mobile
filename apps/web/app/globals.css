@@ -1278,13 +1278,25 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    ACCESSIBILITY
    ═══════════════════════════════════════════════════════ */
 
-/* Reduced motion: kill all animations and transitions */
+.orbit-pill-action {
+  transition: background-color var(--dur-hover-control) var(--ease-standard),
+    color var(--dur-hover-control) var(--ease-standard),
+    opacity var(--dur-hover-control) var(--ease-standard),
+    transform var(--dur-1) var(--ease-out);
+}
+
+/* Reduced motion: keep essential loading feedback while suppressing other motion. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .orbit-essential-loading {
+    animation-duration: 3s !important;
+    animation-iteration-count: infinite !important;
   }
 
   .stagger-enter > * {

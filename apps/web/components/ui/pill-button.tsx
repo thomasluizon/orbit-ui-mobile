@@ -30,7 +30,7 @@ const linkInteractionClasses: Record<ButtonVariant, string> = {
   caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] active:scale-[0.96]',
 }
 
-const baseClasses = 'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40'
+const baseClasses = 'orbit-pill-action inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed disabled:opacity-40'
 
 function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link') {
   const interactionClasses = element === 'button'
@@ -85,7 +85,7 @@ export function Button({
       style={actionStyle(size, iconOnly)}
     >
       {loading ? (
-        <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin" aria-hidden="true" />
+        <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
       ) : iconOnly ? children : null}
       {iconOnly ? null : <span className={loading ? 'opacity-60' : undefined}>{children}</span>}
     </button>

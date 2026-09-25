@@ -169,6 +169,42 @@ describe('PillButton', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
+  it('keeps its loading spinner perceivable under reduced motion', () => {
+    render(<PillButton loading>Saving</PillButton>)
+    const button = screen.getByRole('button', { name: 'Saving' })
+    expect(button.querySelector('svg')).toHaveClass('orbit-essential-loading')
+
+    const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
+    const declarations: string[] = []
+    css.walkAtRules('media', (media) => {
+      if (media.params !== '(prefers-reduced-motion: reduce)') return
+      media.walkRules('.orbit-essential-loading', (rule) => {
+        rule.walkDecls((declaration) => {
+          declarations.push(`${declaration.prop}: ${declaration.value}${declaration.important ? ' !important' : ''}`)
+        })
+      })
+    })
+    expect(declarations).toEqual([
+      'animation-duration: 3s !important',
+      'animation-iteration-count: infinite !important',
+    ])
+  })
+
+  it('uses separate hover color and interruptible press transform timings', () => {
+    render(<PillButton onClick={() => {}}>Continue</PillButton>)
+    const button = screen.getByRole('button', { name: 'Continue' })
+    expect(button).toHaveClass('orbit-pill-action', 'enabled:active:scale-[0.96]')
+
+    const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
+    const transitions: string[] = []
+    css.walkRules('.orbit-pill-action', (rule) => {
+      rule.walkDecls('transition', (declaration) => { transitions.push(declaration.value) })
+    })
+    expect(transitions).toHaveLength(1)
+    expect(transitions[0]).toContain('background-color var(--dur-hover-control) var(--ease-standard)')
+    expect(transitions[0]).toContain('transform var(--dur-1) var(--ease-out)')
+  })
+
   it('renders all five variants', () => {
     render(
       <>
