@@ -1749,6 +1749,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             data={[]}
+            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={() => 'load-error'}
             renderItem={undefined}
             ListHeaderComponent={listHeaderComponent}

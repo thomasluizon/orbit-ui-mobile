@@ -47,6 +47,7 @@ const {
   clearAllTokensMock,
   getRefreshTokenMock,
   clearWidgetTokenMock,
+  clearSupabaseSessionMock,
   saveWidgetTokenMock,
   apiClientMock,
   clearPersistedQueryCacheMock,
@@ -78,6 +79,7 @@ const {
   clearAllTokensMock: vi.fn(),
   getRefreshTokenMock: vi.fn(),
   clearWidgetTokenMock: vi.fn(),
+  clearSupabaseSessionMock: vi.fn(async () => {}),
   saveWidgetTokenMock: vi.fn(),
   apiClientMock: vi.fn(),
   clearPersistedQueryCacheMock: vi.fn(),
@@ -121,6 +123,10 @@ vi.mock('@/lib/secure-store', () => ({
 vi.mock('@/lib/orbit-widget', () => ({
   clearWidgetToken: clearWidgetTokenMock,
   saveWidgetToken: saveWidgetTokenMock,
+}))
+
+vi.mock('@/lib/supabase', () => ({
+  clearSupabaseSession: clearSupabaseSessionMock,
 }))
 
 vi.mock('@/lib/persistent-reminder', () => ({
@@ -245,6 +251,8 @@ describe('mobile auth store security paths', () => {
     clearAllTokensMock.mockReset()
     getRefreshTokenMock.mockReset()
     clearWidgetTokenMock.mockReset()
+    clearSupabaseSessionMock.mockReset()
+    clearSupabaseSessionMock.mockResolvedValue(undefined)
     saveWidgetTokenMock.mockReset()
     apiClientMock.mockReset()
     clearPersistedQueryCacheMock.mockReset()
@@ -321,6 +329,7 @@ describe('mobile auth store security paths', () => {
     })
 
     expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
+    expect(clearSupabaseSessionMock).toHaveBeenCalledOnce()
   })
 
   it('revokes a completed login owner when a replacement login publishes', async () => {
@@ -1008,6 +1017,7 @@ describe('mobile auth store security paths', () => {
     await useAuthStore.getState().logout()
 
     expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
+    expect(clearSupabaseSessionMock).toHaveBeenCalledOnce()
   })
 
   it('keeps onboarding hidden after a returning person signs out', async () => {
