@@ -269,7 +269,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
           !canSend ? styles.disabled : null,
         ]}
       >
-        <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg4} />
+        <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />
       </Pressable>
     </View>
   )

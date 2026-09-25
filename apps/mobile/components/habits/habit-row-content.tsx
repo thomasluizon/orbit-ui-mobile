@@ -40,7 +40,7 @@ export function HabitRowContent({
             fontSize: titleSize,
             color: titleColor,
             textDecorationLine: isDoneForRange ? 'line-through' : 'none',
-            textDecorationColor: tokens.fg4,
+            textDecorationColor: tokens.fg3,
           },
         ]}
       >

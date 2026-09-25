@@ -39,6 +39,7 @@ vi.mock('@/stores/auth-store', () => ({
       recoverSessionRefreshFailure: mocks.recoverSessionRefreshFailure,
     }),
   }),
+  withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
 }))
 
 vi.mock('@/lib/supabase', () => ({

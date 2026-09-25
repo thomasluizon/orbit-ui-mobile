@@ -11,7 +11,7 @@ import {
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys } from '@orbit/shared/query'
-import { formatAPIDate, formatAPIDateInTimeZone } from '@orbit/shared/utils'
+import { formatAPIDate, formatAPIDateInTimeZone, millisecondsUntilNextDay } from '@orbit/shared/utils'
 import { useTodayTick } from './use-follow-today-sync'
 
 const TodayContext = createContext<string | null>(null)
@@ -52,8 +52,15 @@ export function useToday(timeZone?: string | null): string {
   const [, setAccountDateTick] = useState(0)
   useEffect(() => {
     if (timeZone === undefined) return
-    const interval = globalThis.setInterval(() => setAccountDateTick((tick) => tick + 1), 60_000)
-    return () => globalThis.clearInterval(interval)
+    let rolloverTimer: ReturnType<typeof globalThis.setTimeout>
+    const scheduleRollover = () => {
+      rolloverTimer = globalThis.setTimeout(() => {
+        setAccountDateTick((tick) => tick + 1)
+        scheduleRollover()
+      }, millisecondsUntilNextDay(new Date(), timeZone))
+    }
+    scheduleRollover()
+    return () => globalThis.clearTimeout(rolloverTimer)
   }, [timeZone])
   if (today === null) {
     throw new Error('useToday must be used within a TodayProvider')

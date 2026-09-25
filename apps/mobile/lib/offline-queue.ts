@@ -206,6 +206,11 @@ const LAST_WRITE_WINS_TYPES = new Set<string>([
 ])
 
 const FIRST_WRITE_WINS_TYPES = new Set<string>(['logHabit'])
+export const ACCOUNT_TIMEZONE_DEPENDENCY = 'offline-account-timezone'
+
+export function accountTimezoneDependency(timezoneMutationId: string): string {
+  return `${ACCOUNT_TIMEZONE_DEPENDENCY}:${timezoneMutationId}`
+}
 
 export function findUnfinalizedFirstWrite(
   mutation: Pick<QueuedMutation, 'type' | 'dedupeKey'>,
@@ -336,6 +341,27 @@ export function enqueue(
   const existingMutation = findFirstWrite(existing, normalized)
 
   if (existingMutation) return existingMutation.id
+
+  if (normalized.type === 'setTimeZone' && normalized.dedupeKey === 'profile-timezone-auto') {
+    const pendingTimezone = existing.find((queued) =>
+      queued.type === normalized.type && queued.dedupeKey === normalized.dedupeKey)
+    if (pendingTimezone) {
+      const hasDependentHabit = existing.some((queued) =>
+        queued.dependsOn?.includes(accountTimezoneDependency(pendingTimezone.id)))
+      const samePayload = JSON.stringify(pendingTimezone.payload) === JSON.stringify(normalized.payload)
+      if (hasDependentHabit || samePayload) {
+        const droppedDependency = accountTimezoneDependency(normalized.id)
+        const retainedDependency = accountTimezoneDependency(pendingTimezone.id)
+        if (samePayload && droppedDependency !== retainedDependency && existing.some((queued) => queued.dependsOn?.includes(droppedDependency))) {
+          replaceAll(existing.map((queued) => ({
+            ...queued,
+            dependsOn: queued.dependsOn?.map((dependency) => dependency === droppedDependency ? retainedDependency : dependency),
+          })))
+        }
+        return pendingTimezone.id
+      }
+    }
+  }
 
   const compacted = compactQueuedMutations(existing, normalized)
   replaceAll(compacted)
