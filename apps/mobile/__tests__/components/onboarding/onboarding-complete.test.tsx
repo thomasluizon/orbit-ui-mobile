@@ -143,6 +143,23 @@ describe('OnboardingComplete', () => {
     }
   })
 
+  it('hides the decorative emoji beside the created habit name', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <OnboardingComplete createdHabit="Exercise" emoji="🏃" remindersOff={false} skipped={false} signedOut={false} dueToday general={false} onFinish={vi.fn()} />,
+      )
+    })
+    const hiddenEmoji = tree.root.findAll((node) =>
+      String(node.type) === 'View' && node.props.accessibilityElementsHidden === true
+      && node.props.importantForAccessibility === 'no-hide-descendants'
+      && node.findAll((child) => String(child.type) === 'Text' && child.props.children === '🏃').length > 0,
+    )
+    expect(hiddenEmoji).toHaveLength(1)
+    expect(hiddenEmoji[0]!.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Exercise')).toHaveLength(0)
+    expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Exercise')).toHaveLength(1)
+  })
+
   it('names the created habit without claiming a personalized theme', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {

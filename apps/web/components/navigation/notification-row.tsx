@@ -49,8 +49,8 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
       <button type="button" aria-label={t('notifications.deleteNotification', { title: item.title })}
         style={{ transition: 'background-color var(--dur-hover-control) var(--ease-standard)' }}
         onClick={() => onDelete(item)}
-        className="grid size-11 shrink-0 cursor-pointer place-items-center self-center rounded-full border-0 bg-transparent text-[var(--status-bad)] hover:bg-[var(--bg-hover)]">
-        <Trash2 size={20} aria-hidden="true" />
+        className="grid size-11 shrink-0 cursor-pointer place-items-center self-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)]">
+        <Trash2 size={20} aria-hidden="true" className="text-[var(--status-bad)]" />
       </button>
     </li>
   )

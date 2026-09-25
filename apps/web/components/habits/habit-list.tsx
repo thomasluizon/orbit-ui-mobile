@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useId, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { useMemo, useCallback, useEffect, useId, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -81,6 +81,7 @@ import {
 } from '@dnd-kit/sortable'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
 
 const CreateHabitModal = dynamic(() =>
@@ -345,8 +346,8 @@ export function HabitList({
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : formatAPIDate(new Date())
   const todayStr = formatAPIDate(new Date())
 
-  const [recentlyCompletedDates, setRecentlyCompletedDates] = useState(
-    new Map<string, Set<string>>(),
+  const [recentlyCompletedDates, setRecentlyCompletedDates] = useAccountScopedState(
+    () => new Map<string, Set<string>>(),
   )
   const recentlyCompletedIds = useMemo(
     () => getRecentlyCompletedIdsForDate(recentlyCompletedDates, selectedDateStr),
@@ -357,10 +358,10 @@ export function HabitList({
   const confirmedResolutionsRef = useReactRef(
     createConfirmedResolutionRecord(selectedDateStr),
   )
-  const [parentPromptQueue, setParentPromptQueue] = useState<ParentPromptQueue>({
+  const [parentPromptQueue, setParentPromptQueue] = useAccountScopedState<ParentPromptQueue>(() => ({
     date: selectedDateStr,
     prompts: [],
-  })
+  }))
   const parentPrompt = getCurrentParentPrompt(parentPromptQueue, selectedDateStr)
   const hasQueuedParentPrompt = parentPrompt !== null
   const promptDataRef = useReactRef<ParentSettlementData | null>(null)
@@ -392,7 +393,7 @@ export function HabitList({
         setRecentlyCompletedDates((prev) => removeRecentCompletion(prev, habitId, date))
       }, 1400),
     )
-  }, [recentlyCompletedTimersRef, selectedDateStr])
+  }, [recentlyCompletedTimersRef, selectedDateStr, setRecentlyCompletedDates])
 
   const clearRecentlyCompleted = useCallback((habitId: string, date = selectedDateStr) => {
     const timers = recentlyCompletedTimersRef.current
@@ -403,7 +404,7 @@ export function HabitList({
       timers.delete(timerKey)
     }
     setRecentlyCompletedDates((prev) => removeRecentCompletion(prev, habitId, date))
-  }, [recentlyCompletedTimersRef, selectedDateStr])
+  }, [recentlyCompletedTimersRef, selectedDateStr, setRecentlyCompletedDates])
 
   useEffect(() => {
     promptedParentIdsRef.current.clear()
@@ -435,7 +436,7 @@ export function HabitList({
     recentlyCompletedDates,
   }, view)
 
-  const [collapsedIds, setCollapsedIds] = useState(new Set<string>())
+  const [collapsedIds, setCollapsedIds] = useAccountScopedState(() => new Set<string>())
 
   const toggleExpand = useCallback((habitId: string) => {
     setCollapsedIds((prev) => {
@@ -447,7 +448,7 @@ export function HabitList({
       }
       return next
     })
-  }, [])
+  }, [setCollapsedIds])
 
   const expandableIds = useMemo(() => {
     const ids: string[] = []
@@ -467,11 +468,11 @@ export function HabitList({
 
   const collapseAll = useCallback(() => {
     setCollapsedIds(new Set(expandableIds))
-  }, [expandableIds])
+  }, [expandableIds, setCollapsedIds])
 
   const expandAll = useCallback(() => {
     setCollapsedIds(new Set())
-  }, [])
+  }, [setCollapsedIds])
 
   const habits = useMemo(() => {
     if (view === 'all') {
@@ -614,7 +615,7 @@ export function HabitList({
     return buildDragItemsFlat(habits, collapsedIds, visibility.getVisibleChildren, view)
   }, [habits, collapsedIds, visibility, view])
 
-  const [isDragging, setIsDragging] = useState(false)
+  const [isDragging, setIsDragging] = useAccountScopedState(false)
   const autoCollapsedOnDragRef = useReactRef<string | null>(null)
 
   const dragItemsRef = useReactRef<DragItem[]>(dragItems)
@@ -622,7 +623,7 @@ export function HabitList({
     dragItemsRef.current = dragItems
   }, [dragItems, dragItemsRef])
 
-  const [dragOverrideItems, setDragOverrideItems] = useState<DragItem[] | null>(null)
+  const [dragOverrideItems, setDragOverrideItems] = useAccountScopedState<DragItem[] | null>(null)
   const activeDragItems = dragOverrideItems ?? dragItems
   const dragPanels = useMemo(() => groupDragItemsByPanel(dragItems), [dragItems])
   const activeDragPanels = useMemo(
@@ -709,21 +710,36 @@ export function HabitList({
 
   const cardSelectedDate = view === 'today' ? (selectedDate ?? new Date()) : undefined
 
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [habitToEdit, setHabitToEdit] = useState<NormalizedHabit | null>(null)
-  const [editModalOnSaved, setEditModalOnSaved] = useState<(() => void | Promise<void>) | null>(null)
-  const [showSubHabitModal, setShowSubHabitModal] = useState(false)
-  const [subHabitParent, setSubHabitParent] = useState<NormalizedHabit | null>(null)
-  const [showRescheduleSheet, setShowRescheduleSheet] = useState(false)
-  const [habitToReschedule, setHabitToReschedule] = useState<NormalizedHabit | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
-  const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
+  const [showEditModal, setShowEditModal] = useAccountScopedState(false)
+  const [habitToEdit, setHabitToEdit] = useAccountScopedState<NormalizedHabit | null>(null)
+  const [editModalOnSaved, setEditModalOnSaved] = useAccountScopedState<(() => void | Promise<void>) | null>(null)
+  const [showSubHabitModal, setShowSubHabitModal] = useAccountScopedState(false)
+  const [subHabitParent, setSubHabitParent] = useAccountScopedState<NormalizedHabit | null>(null)
+  const [showRescheduleSheet, setShowRescheduleSheet] = useAccountScopedState(false)
+  const [habitToReschedule, setHabitToReschedule] = useAccountScopedState<NormalizedHabit | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useAccountScopedState(false)
+  const [habitToDelete, setHabitToDelete] = useAccountScopedState<string | null>(null)
+  const [habitToDuplicate, setHabitToDuplicate] = useAccountScopedState<NormalizedHabit | null>(null)
 
-  const [showMoveParentOverlay, setShowMoveParentOverlay] = useState(false)
-  const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
-  const [selectedMoveParentId, setSelectedMoveParentId] = useState<string | null>(null)
-  const [isMovingParent, setIsMovingParent] = useState(false)
+  const [showMoveParentOverlay, setShowMoveParentOverlay] = useAccountScopedState(false)
+  const [movingHabitId, setMovingHabitId] = useAccountScopedState<string | null>(null)
+  const [selectedMoveParentId, setSelectedMoveParentId] = useAccountScopedState<string | null>(null)
+  const [isMovingParent, setIsMovingParent] = useAccountScopedState(false)
+
+  /**
+   * The state above drops itself, but a ref carries the previous account's habit ids past an
+   * account change with nothing to notice: a queued parent prompt, a pending toggle and a running
+   * highlight timer each key on an id the next account does not own.
+   */
+  useResetOnAccountChange(() => {
+    for (const timer of recentlyCompletedTimersRef.current.values()) clearTimeout(timer)
+    recentlyCompletedTimersRef.current.clear()
+    pendingToggleHabitIdsRef.current.clear()
+    promptedParentIdsRef.current.clear()
+    confirmedResolutionsRef.current = createConfirmedResolutionRecord(selectedDateStr)
+    promptDataRef.current = null
+    autoCollapsedOnDragRef.current = null
+  })
   const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
   const deleteConfirmation = getDeleteConfirmation(
     habitToDelete,
@@ -1005,7 +1021,7 @@ export function HabitList({
       setHabitToEdit(null)
       setEditModalOnSaved(null)
     }
-  }, [])
+  }, [setEditModalOnSaved, setHabitToEdit, setShowEditModal])
 
   function promptDelete(habitId: string) {
     setHabitToDelete(habitId)

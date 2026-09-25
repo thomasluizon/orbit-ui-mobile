@@ -21,6 +21,8 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
@@ -80,12 +82,18 @@ function CalendarSyncPageContent() {
   const isReviewMode = searchParams.get('mode') === 'review'
   const isProUser = Boolean(profile) && hasProAccess
 
-  const [wizardStage, setWizardStage] = useState<WizardStage>('browse')
+  /**
+   * `events`, `selectedIds`, `visibleCount` and the latch below re-derive from the query cache
+   * through the `eventsKey` sync, so emptying that cache empties them. The four that follow do
+   * not: they are the wizard's own answer, and `importResult` names the habits the PREVIOUS
+   * account just created.
+   */
+  const [wizardStage, setWizardStage] = useAccountScopedState<WizardStage>('browse')
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [errorMessage, setErrorMessage] = useState('')
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
+  const [errorMessage, setErrorMessage] = useAccountScopedState('')
+  const [importResult, setImportResult] = useAccountScopedState<ImportResult | null>(null)
+  const [isConnecting, setIsConnecting] = useAccountScopedState(false)
   const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
 
@@ -178,28 +186,33 @@ function CalendarSyncPageContent() {
   }
 
   async function handleDismissSuggestion(suggestionId: string) {
+    const requestAccount = getAccountGeneration()
     try {
       await dismissSuggestion.mutateAsync({ id: suggestionId })
     } catch (err: unknown) {
+      if (getAccountGeneration() !== requestAccount) return
       toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
     }
   }
 
   async function handleConnect() {
     if (!isOnline || isConnecting) return
+    const requestAccount = getAccountGeneration()
     setIsConnecting(true)
     try {
       await connectGoogle()
     } catch {
+      if (getAccountGeneration() !== requestAccount) return
       toast.error(t('auth.googleError'))
     } finally {
-      setIsConnecting(false)
+      if (getAccountGeneration() === requestAccount) setIsConnecting(false)
     }
   }
 
   function importSelected() {
     if (!isOnline) return
     if (selectedIds.size === 0) return
+    const importAccount = getAccountGeneration()
     setWizardStage('importing')
 
     try {
@@ -213,6 +226,7 @@ function CalendarSyncPageContent() {
         { habits },
         {
           onSuccess: (result) => {
+            if (getAccountGeneration() !== importAccount) return
             const successCount = result.results.filter((r) => r.status === 'Success').length
             const failedItems = result.results.filter((r) => r.status !== 'Success')
             if (failedItems.length > 0 && successCount === 0) {
@@ -245,12 +259,14 @@ function CalendarSyncPageContent() {
             }
           },
           onError: (err: unknown) => {
+            if (getAccountGeneration() !== importAccount) return
             setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
             setWizardStage('error')
           },
         },
       )
     } catch (err: unknown) {
+      if (getAccountGeneration() !== importAccount) return
       setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
       setWizardStage('error')
     }

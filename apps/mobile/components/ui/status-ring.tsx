@@ -12,11 +12,11 @@ export function StatusRing({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const color = {
-    empty: tokens.statusEmpty,
-    done: tokens.fg1,
-    overdue: tokens.statusOverdue,
-    bad: tokens.statusBad,
-  }[status]
+    empty: { graphic: tokens.statusEmpty },
+    done: { graphic: tokens.fg1 },
+    overdue: { graphic: tokens.statusOverdue },
+    bad: { graphic: tokens.statusBad },
+  }[status].graphic
   const done = status === 'done'
 
   return (

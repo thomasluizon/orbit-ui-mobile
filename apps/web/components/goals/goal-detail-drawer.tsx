@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, type MouseEvent } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
@@ -9,6 +9,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
 import { GoalDetailCollections } from './goal-detail-drawer/goal-detail-collections'
@@ -36,8 +37,8 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, o
   const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
   const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
   const deleteGoal = useDeleteGoal()
-  const [editing, setEditing] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const [editing, setEditing] = useAccountScopedState(false)
+  const [deleting, setDeleting] = useAccountScopedState(false)
   const { sheetRef, closeSheet } = useSheetHost()
   const onClose = useCallback(() => onOpenChange(false), [onOpenChange])
   const close = useCallback((exitAction?: () => void) => {

@@ -29,12 +29,14 @@ type StatusLabels = Readonly<Record<BlockFrameItemStatus, string>>
 
 function StatusView({ status, label }: StatusViewProps) {
   const Glyph = status === 'done' ? CheckCircle2 : status === 'failed' ? XCircle : RefreshCw
-  const iconColor = status === 'failed' ? 'var(--status-bad)' : status === 'done' ? 'var(--fg-1)' : 'var(--fg-2)'
+  const statusColors = {
+    iconColor: status === 'failed' ? 'var(--status-bad)' : status === 'done' ? 'var(--fg-1)' : 'var(--fg-2)',
+  }
   const labelColor = status === 'failed' ? 'var(--status-bad-text)' : status === 'done' ? 'var(--fg-1)' : 'var(--fg-2)'
 
   return (
     <span className="flex shrink-0 items-center gap-1 text-xs" style={{ color: labelColor }}>
-      <Glyph aria-hidden="true" size={20} strokeWidth={1.5} color={iconColor} />
+      <Glyph aria-hidden="true" size={20} strokeWidth={1.5} color={statusColors.iconColor} />
       <span>{label}</span>
     </span>
   )

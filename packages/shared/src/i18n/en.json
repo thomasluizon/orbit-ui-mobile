@@ -50,14 +50,6 @@
     "description": "The address may have changed, or the item was deleted. Your day is still where it was.",
     "action": "Open Today"
   },
-  "updatePrompt": {
-    "eyebrow": "Update available",
-    "title": "Update available",
-    "description": "A new version of Orbit is available with improvements and fixes",
-    "update": "Update",
-    "later": "Not now",
-    "version": "v{previous} → v{next}"
-  },
   "notifications": {
     "title": "Alerts",
     "bell": "Alerts",
