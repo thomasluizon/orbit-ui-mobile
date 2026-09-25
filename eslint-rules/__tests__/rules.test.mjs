@@ -472,9 +472,36 @@ ruleTester.run('react19-api', rule('react19-api'), {
   ],
 })
 
+const spacingPatternCases = [
+  { name: 'literal', source: '{ gap: 12 }', defaultValue: '14', sourceErrors: 0, defaultErrors: 1 },
+  { name: 'conditional literals', source: '{ gap: cond ? 12 : 16 }', defaultValue: 'cond ? 12 : 14', sourceErrors: 0, defaultErrors: 1 },
+  { name: 'binary literals', source: '{ gap: 8 + 8 }', defaultValue: '7 + 7', sourceErrors: 0, defaultErrors: 1 },
+  { name: 'template literal', source: '{ gap: `12px` }', defaultValue: '`14px`', sourceErrors: 0, defaultErrors: 1 },
+  { name: 'const identifier', prefix: 'const known = 12; const fallback = 14;', source: '{ gap: known }', defaultValue: 'fallback', sourceErrors: 0, defaultErrors: 1 },
+  { name: 'call result', source: '{ gap: getGap() }', defaultValue: 'getGap()', sourceErrors: 0, defaultErrors: 0 },
+  { name: 'void', source: '{ gap: void 0 }', defaultValue: 'void 0', sourceErrors: 1, defaultErrors: 0 },
+  { name: 'missing key', source: '{ padding: 12 }', defaultValue: '22', sourceErrors: 1, defaultErrors: 1 },
+]
+
+const spacingPatternSource = (testCase) => `${testCase.prefix ?? ''} const row = { gap: 12 }; ({ gap: row.gap = 14 } = ${testCase.source}); <div style={row} />`
+const spacingPatternDefault = (testCase) => `${testCase.prefix ?? ''} const row = { gap: 12 }; ({ gap: row.gap = ${testCase.defaultValue} } = {}); <div style={row} />`
+const spacingArrayPatternCases = [
+  { name: 'known array spread', source: '[...[14]]', defaultSource: '[...[void 0]]', sourceErrors: 1, defaultErrors: 1 },
+  { name: 'bound array spread', prefix: 'const source = [14];', source: '[...source]', defaultSource: '[...[void 0]]', sourceErrors: 1, defaultErrors: null },
+  { name: 'unknown array spread', source: '[...runtimeValues]', defaultSource: '[...runtimeValues]', sourceErrors: 0, defaultErrors: 0 },
+]
+const spacingArrayPatternSource = (testCase) => `${testCase.prefix ?? ''} const row = { gap: 12 }; [row.gap] = ${testCase.source}; <div style={row} />`
+const spacingArrayPatternDefault = (testCase) => `${testCase.prefix ?? ''} const row = { gap: 12 }; ([row.gap = 14] = ${testCase.defaultSource}); <div style={row} />`
+
 ruleTester.run('spacing-scale', rule('spacing-scale'), {
   valid: [
+    ...spacingPatternCases.filter((testCase) => testCase.sourceErrors === 0).map(spacingPatternSource),
+    ...spacingPatternCases.filter((testCase) => testCase.defaultErrors === 0).map(spacingPatternDefault),
+    ...spacingArrayPatternCases.filter((testCase) => testCase.sourceErrors === 0).map(spacingArrayPatternSource),
+    ...spacingArrayPatternCases.filter((testCase) => testCase.defaultErrors === 0).map(spacingArrayPatternDefault),
+    'const row = { gap: 12 }; [row.gap] = [...runtimeValues, 14]; <div style={row} />',
     '<div style={{ gap: 12, paddingInline: 16 }} />',
+    'const HEADER_HEIGHT = 52; const row = { top: HEADER_HEIGHT }; <div style={row} />',
     '<div style={{ marginTop: 0, marginBottom: -8 }} />',
     '<div style={{ padding: "24px" }} />',
     '<div style={{ width: 34, height: 220, fontSize: 13 }} />',
@@ -495,6 +522,7 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     'const row = { gap: 14, padding: 16 }; [...row.gap] = runtimeValues; <div style={row} />',
     'const row = { gap: 14, padding: 16 }; ({ ...row.gap } = runtimeStyle); <div style={row} />',
     'const row = { gap: 14, padding: 16 }; ({ gap: row.gap } = { gap: runtimeGap }); <div style={row} />',
+    'const row = { gap: 12 }; ({ gap: row.gap = 14 } = { gap: runtimeGap }); <div style={row} />',
     'const row = { gap: 14, padding: 16 }; row.gap.value = runtimeGap; <div style={row} />',
     'const row = { gap: 14, padding: 16 }; row.gap.value++; <div style={row} />',
     'const row = { gap: 14, padding: 16 }; delete row.gap.value; <div style={row} />',
@@ -555,14 +583,19 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
   ],
   invalid: [
+    ...spacingPatternCases.filter((testCase) => testCase.sourceErrors === 1).map((testCase) => ({ code: spacingPatternSource(testCase), output: null, errors: [{ messageId: 'offScaleStyle' }] })),
+    ...spacingPatternCases.filter((testCase) => testCase.defaultErrors === 1).map((testCase) => ({ code: spacingPatternDefault(testCase), output: null, errors: [{ messageId: 'offScaleStyle' }] })),
+    ...spacingArrayPatternCases.filter((testCase) => testCase.sourceErrors === 1).map((testCase) => ({ code: spacingArrayPatternSource(testCase), output: null, errors: [{ messageId: 'offScaleStyle' }] })),
+    ...spacingArrayPatternCases.filter((testCase) => testCase.defaultErrors === 1).map((testCase) => ({ code: spacingArrayPatternDefault(testCase), output: null, errors: [{ messageId: 'offScaleStyle' }] })),
+    { code: 'const row = { gap: 12 }; [row.gap] = [14, ...runtimeValues]; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const row = { gap: 12 }; [, row.gap] = [...[12, 14]]; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const row = { gap: 12 }; ({ gap: row.gap = 14 } = { gap: undefined }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 12 }; ({ gap: row.gap } = (cond ? { gap: 14 } : { gap: 12 })); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 12 }; ({ gap: row.gap } = Object.assign({}, { gap: 14 })); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 12 }; const source = [14]; [row.gap] = source; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 12 }; ({ gap: row.gap = 14 } = { gap: void 0 }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 12 }; ({ gap: row.gap = 14 } = { gap: (void 0) as undefined }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 12 }; ({ gap: row.gap } = { ...{ gap: 14 } }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
-    { code: 'const row = { gap: 12 }; ({ gap: row.gap = 14 } = {}); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
-    { code: 'const row = { gap: 12 }; ({ gap: row.gap = 14 } = { gap: runtimeGap }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 12 }; ({ gap: row.gap } = { gap: 14 }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 12 }; ({ nested: { gap: row.gap } } = { nested: { gap: 14 } }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 12 }; ({ ["gap"]: row.gap } = { gap: 14 }); <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },

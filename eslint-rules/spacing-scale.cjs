@@ -217,7 +217,7 @@ module.exports = {
         node: valueNode,
         messageId: 'offScaleStyle',
         data: { value: String(px), prop, scale: scaleLabel, nearest: String(nearest) },
-        fix: isUnambiguous(px)
+        fix: !valueNode.derived && isUnambiguous(px)
           ? (fixer) => {
               if (valueNode.type === 'Literal' && typeof valueNode.value === 'string') {
                 const unit = valueNode.value.trim().endsWith('rem') ? 'rem' : 'px'
@@ -239,7 +239,7 @@ module.exports = {
       if (offScale.length === 0) return
       const allFixable = offScale.every((token) => isUnambiguous(token.px))
       let fix
-      if (allFixable) {
+      if (allFixable && !valueNode.derived) {
         const quote = context.sourceCode.getText(valueNode)[0]
         const fixed = tokens
           .map((token) => (isOnScale(token.px, prop) ? token.raw : renderScaleAmount(token.px, token.unit)))
@@ -293,14 +293,21 @@ module.exports = {
 
     const ABSENT = Symbol('absent')
     const UNKNOWN = Symbol('unknown')
+    const UNDEFINED = Symbol('undefined')
     const reportedValues = new WeakSet()
 
     function emptyState() {
-      return { keys: new Map(), other: new Set([ABSENT]) }
+      return { keys: new Map(), other: new Set([ABSENT]), values: new Set([UNKNOWN]), arrayLength: null }
     }
 
     function unknownState() {
-      return { keys: new Map(), other: new Set([ABSENT, UNKNOWN]) }
+      return { keys: new Map(), other: new Set([ABSENT, UNKNOWN]), values: new Set([UNKNOWN]), arrayLength: null }
+    }
+
+    function scalarState(value) {
+      const state = emptyState()
+      state.values = new Set([value])
+      return state
     }
 
     function valuesFor(state, key) {
@@ -308,11 +315,13 @@ module.exports = {
     }
 
     function copyState(state) {
-      return { keys: new Map([...state.keys].map(([key, values]) => [key, new Set(values)])), other: new Set(state.other) }
+      return { keys: new Map([...state.keys].map(([key, values]) => [key, new Set(values)])),
+        other: new Set(state.other), values: new Set(state.values), arrayLength: state.arrayLength }
     }
 
     function joinStates(left, right) {
-      const joined = { keys: new Map(), other: new Set([...left.other, ...right.other]) }
+      const joined = { keys: new Map(), other: new Set([...left.other, ...right.other]),
+        values: new Set([...left.values, ...right.values]), arrayLength: left.arrayLength === right.arrayLength ? left.arrayLength : null }
       for (const key of new Set([...left.keys.keys(), ...right.keys.keys()])) {
         joined.keys.set(key, new Set([...valuesFor(left, key), ...valuesFor(right, key)]))
       }
@@ -325,6 +334,7 @@ module.exports = {
         ? new Set([...previous, ...[...incoming].filter((value) => value !== ABSENT)])
         : new Set(incoming)
       result.other = apply(target.other, source.other)
+      result.values = new Set(target.values)
       for (const key of new Set([...target.keys.keys(), ...source.keys.keys()])) {
         result.keys.set(key, apply(valuesFor(target, key), valuesFor(source, key)))
       }
@@ -340,6 +350,15 @@ module.exports = {
 
     function abstractValue(node) {
       return node ?? UNKNOWN
+    }
+
+    function derivedLiteral(node, value) {
+      return { type: 'Literal', value, range: node.range, loc: node.loc, derived: true }
+    }
+
+    function literalValues(node, cutoff, active) {
+      const values = evaluateStyleExpression(node, cutoff, active).values
+      return values.has(UNKNOWN) ? null : [...values].map((value) => value?.type === 'Literal' ? value.value : undefined)
     }
 
     function bindingRoot(variable, seen = new Set()) {
@@ -381,16 +400,71 @@ module.exports = {
     function evaluateStyleExpression(node, cutoff, active = new Set()) {
       node = unwrapStyleExpression(node)
       if (!node) return unknownState()
-      if (node.type === 'Literal' && (node.value === null || node.value === false)) return emptyState()
-      if (node.type === 'Identifier') return evaluateBinding(findBinding(node), cutoff, active)
+      if (node.type === 'Literal') return scalarState(node)
+      if (node.type === 'Identifier') {
+        const variable = findBinding(node)
+        if (node.name === 'undefined' && (!variable || (variable.scope.type === 'global' && variable.defs.length === 0))) return scalarState(UNDEFINED)
+        return evaluateBinding(variable, cutoff, active)
+      }
+      if (node.type === 'UnaryExpression') {
+        if (node.operator === 'void') return scalarState(UNDEFINED)
+        if (node.operator === '-' && node.argument.type === 'Literal' && typeof node.argument.value === 'number') return scalarState(node)
+        return unknownState()
+      }
+      if (node.type === 'BinaryExpression') {
+        const left = literalValues(node.left, node.left.range[0], active)
+        const right = literalValues(node.right, node.right.range[0], active)
+        if (!left || !right || left.some((value) => typeof value !== 'number') || right.some((value) => typeof value !== 'number')) return unknownState()
+        const operations = {
+          '+': (a, b) => a + b, '-': (a, b) => a - b, '*': (a, b) => a * b,
+          '/': (a, b) => a / b, '%': (a, b) => a % b, '**': (a, b) => a ** b,
+        }
+        const operation = operations[node.operator]
+        if (!operation) return unknownState()
+        const results = left.flatMap((first) => right.map((second) => operation(first, second)))
+        if (results.some((value) => !Number.isFinite(value))) return unknownState()
+        const state = scalarState(UNKNOWN)
+        state.values = new Set(results.map((value) => derivedLiteral(node, value)))
+        return state
+      }
+      if (node.type === 'TemplateLiteral') {
+        let parts = ['']
+        for (const [index, quasi] of node.quasis.entries()) {
+          parts = parts.map((part) => part + quasi.value.cooked)
+          if (index < node.expressions.length) {
+            const values = literalValues(node.expressions[index], node.expressions[index].range[0], active)
+            if (!values) return unknownState()
+            parts = parts.flatMap((part) => values.map((value) => part + String(value)))
+          }
+        }
+        const state = scalarState(UNKNOWN)
+        state.values = new Set(parts.map((value) => derivedLiteral(node, value)))
+        return state
+      }
       if (node.type === 'ArrayExpression') {
         let state = emptyState()
+        let index = 0
         let shifted = false
-        for (const [index, element] of node.elements.entries()) {
+        for (const element of node.elements) {
+          if (element?.type === 'SpreadElement') {
+            const spread = evaluateStyleExpression(element.argument, element.range[0], active)
+            if (shifted || spread.arrayLength === null) {
+              shifted = true
+              state.other.add(UNKNOWN)
+              continue
+            }
+            for (let position = 0; position < spread.arrayLength; position++) {
+              const values = valuesFor(spread, String(position))
+              for (const value of values) if (value?.type) state = overlay(state, evaluateStyleExpression(value, value.range[0], active))
+              state.keys.set(String(index++), new Set(values))
+            }
+            continue
+          }
           if (element) state = overlay(state, evaluateStyleExpression(element, element.range[0], active))
-          if (element?.type === 'SpreadElement') shifted = true
-          state.keys.set(String(index), new Set([shifted ? UNKNOWN : element ?? ABSENT]))
+          if (!shifted) state.keys.set(String(index++), new Set(element ? evaluateStyleExpression(element, element.range[0], active).values : [UNDEFINED]))
         }
+        state.values = new Set([node])
+        state.arrayLength = shifted ? null : index
         return state
       }
       if (node.type === 'ConditionalExpression') {
@@ -408,8 +482,10 @@ module.exports = {
         return joinStates(emptyState(), evaluateStyleExpression(node.right, cutoff, active))
       }
       if (isObjectAssign(node)) {
-        return node.arguments.slice(1).reduce((state, source) => overlay(state, evaluateStyleExpression(source, node.range[0], active)),
+        const state = node.arguments.slice(1).reduce((state, source) => overlay(state, evaluateStyleExpression(source, node.range[0], active)),
           evaluateStyleExpression(node.arguments[0], node.range[0], active))
+        state.values = new Set([node])
+        return state
       }
       if (node.type !== 'ObjectExpression') return unknownState()
       let state = emptyState()
@@ -422,6 +498,7 @@ module.exports = {
         if (name === null) state = changeUnknownKey(state, UNKNOWN)
         else state.keys.set(name, new Set([property.kind === 'init' ? abstractValue(property.value) : UNKNOWN]))
       }
+      state.values = new Set([node])
       return state
     }
 
@@ -452,21 +529,16 @@ module.exports = {
 
     function patternSourceValues(source, key, state, variable, active) {
       source = unwrapStyleExpression(source)
-      if (!source || source === UNKNOWN || source === ABSENT) return new Set([source === ABSENT ? ABSENT : UNKNOWN])
+      if (!source || source === UNKNOWN) return new Set([UNKNOWN])
+      if (source === ABSENT || source === UNDEFINED) return new Set([UNDEFINED])
       const resolved = targetsBinding(source, variable) ? state : evaluateStyleExpression(source, source.range[0], active)
-      return valuesFor(resolved, key)
-    }
-
-    function definitelyUndefined(value) {
-      const node = unwrapStyleExpression(value)
-      return value === ABSENT || (node?.type === 'UnaryExpression' && node.operator === 'void')
-    }
-
-    function possiblyUndefined(value) {
-      if (definitelyUndefined(value) || value === UNKNOWN) return true
-      const node = unwrapStyleExpression(value)
-      if (node?.type === 'UnaryExpression') return false
-      return node?.type !== 'Literal' && node?.type !== 'ObjectExpression' && node?.type !== 'ArrayExpression'
+      const selected = new Set()
+      for (const value of valuesFor(resolved, key)) {
+        if (value === ABSENT || value === UNDEFINED) selected.add(UNDEFINED)
+        else if (value === UNKNOWN) selected.add(UNKNOWN)
+        else for (const result of evaluateStyleExpression(value, value.range[0], active).values) selected.add(result)
+      }
+      return selected
     }
 
     function assignedMember(state, member, values, variable) {
@@ -475,7 +547,7 @@ module.exports = {
         const name = mutationPropertyName(member)
         if (name === null) return changeUnknownKey(state, UNKNOWN)
         const changed = copyState(state)
-        changed.keys.set(name, new Set([...values].map((value) => value === ABSENT ? UNKNOWN : abstractValue(unwrapStyleExpression(value)))))
+        changed.keys.set(name, new Set([...values].map((value) => value === ABSENT ? UNDEFINED : abstractValue(unwrapStyleExpression(value)))))
         return changed
       }
       if (receiver?.type === 'MemberExpression') {
@@ -495,9 +567,10 @@ module.exports = {
       if (target.type === 'MemberExpression') return assignedMember(state, target, values, variable)
       if (target.type === 'AssignmentPattern') {
         const selected = new Set()
-        for (const value of values) {
-          if (!definitelyUndefined(value)) selected.add(value)
-          if (possiblyUndefined(value)) selected.add(target.right)
+        if (values.has(UNKNOWN)) return writePattern(state, target.left, new Set([UNKNOWN]), variable, active)
+        for (const value of values) if (value !== UNDEFINED && value !== ABSENT) selected.add(value)
+        if (values.has(UNDEFINED) || values.has(ABSENT)) {
+          for (const value of evaluateStyleExpression(target.right, target.right.range[0], active).values) selected.add(value)
         }
         return writePattern(state, target.left, selected, variable, active)
       }
@@ -513,14 +586,14 @@ module.exports = {
           for (const value of values) {
             for (const result of key === null ? [UNKNOWN] : patternSourceValues(value, key, state, variable, active)) selected.add(result)
           }
-          state = writePattern(state, property.value, selected, variable, active)
+          state = writePattern(state, property.value, selected.has(UNKNOWN) ? new Set([UNKNOWN]) : selected, variable, active)
         }
       } else if (target.type === 'ArrayPattern') {
         for (const [index, element] of target.elements.entries()) {
           if (!element) continue
           const selected = new Set()
           for (const value of values) for (const result of patternSourceValues(value, String(index), state, variable, active)) selected.add(result)
-          state = writePattern(state, element, selected, variable, active)
+          state = writePattern(state, element, selected.has(UNKNOWN) ? new Set([UNKNOWN]) : selected, variable, active)
         }
       }
       return state
@@ -639,7 +712,7 @@ module.exports = {
       for (const [name, values] of state.keys) {
         if (!SPACING_PROPS.has(name)) continue
         for (const value of values) {
-          if (value === ABSENT || value === UNKNOWN || reportedValues.has(value)) continue
+          if (value === ABSENT || value === UNKNOWN || value === UNDEFINED || reportedValues.has(value)) continue
           reportedValues.add(value)
           reportStyleValue(value, name)
         }
