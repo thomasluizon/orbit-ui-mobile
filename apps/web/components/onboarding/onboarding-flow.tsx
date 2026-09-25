@@ -39,6 +39,7 @@ import { Toast } from '@/components/ui/toast'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
+import { updateTimezone } from '@/lib/actions/profile'
 import { requestWebPushPermission, subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { OnboardingComplete } from './onboarding-complete'
@@ -214,13 +215,17 @@ export function OnboardingFlow() {
     try {
       const accountProfile = isLive ? profile ?? (await refetchProfile()).data : undefined
       if (isLive && !accountProfile) throw new Error('Profile unavailable')
+      const accountTimeZone = accountProfile?.timeZone ?? getClientTimeZone()
+      if (isLive && accountProfile?.timeZone == null && accountTimeZone && accountTimeZone !== 'UTC') {
+        await updateTimezone({ timeZone: accountTimeZone })
+      }
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else {
         const result = await actions.createHabit(input)
         setCreatedId(result.id)
       }
       setCreatedTitle(input.title)
-      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountProfile ? accountProfile.timeZone : getClientTimeZone()))
+      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountTimeZone))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState())
       setStep(ONBOARDING_REMIND_STEP)

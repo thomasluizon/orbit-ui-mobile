@@ -6,19 +6,25 @@ import { OnboardingActionsProvider, type OnboardingActions } from '@/components/
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
-const mocks = vi.hoisted(() => ({
-  createHabit: vi.fn(),
-  updateHabit: vi.fn(),
-  finishOnboarding: vi.fn(),
-  suggest: vi.fn(),
-  subscribe: vi.fn(),
-  requestPermissionOnly: vi.fn(),
-  navigate: vi.fn(),
-  refetchProfile: vi.fn(),
-  profileAvailable: true,
-  profile: { aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC' },
-  push: { supported: true, permission: 'default', status: 'not-registered' },
-}))
+const mocks = vi.hoisted(() => {
+  const profile: { aiMessagesLimit: number; aiMessagesUsed: number; timeZone: string | null } = {
+    aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC',
+  }
+  return {
+    createHabit: vi.fn(),
+    updateHabit: vi.fn(),
+    finishOnboarding: vi.fn(),
+    suggest: vi.fn(),
+    subscribe: vi.fn(),
+    requestPermissionOnly: vi.fn(),
+    navigate: vi.fn(),
+    refetchProfile: vi.fn(),
+    updateTimezone: vi.fn(),
+    profileAvailable: true,
+    profile,
+    push: { supported: true, permission: 'default', status: 'not-registered' },
+  }
+})
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -27,6 +33,7 @@ vi.mock('next-intl', () => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.navigate }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
+vi.mock('@/lib/actions/profile', () => ({ updateTimezone: mocks.updateTimezone }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ mutateAsync: mocks.suggest, isPending: false }),
 }))
@@ -111,6 +118,7 @@ describe('OnboardingFlow state model', () => {
     mocks.profile.timeZone = 'UTC'
     mocks.profileAvailable = true
     mocks.refetchProfile.mockResolvedValue({ data: mocks.profile })
+    mocks.updateTimezone.mockResolvedValue(undefined)
     mocks.push.supported = true
     mocks.push.permission = 'default'
     mocks.push.status = 'not-registered'
@@ -182,6 +190,16 @@ describe('OnboardingFlow state model', () => {
     mocks.profileAvailable = false
     await reachDone(true)
     expect(mocks.refetchProfile).toHaveBeenCalledOnce()
+    expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', 'false')
+  })
+
+  it('sets a loaded null timezone before creating in the device account day', async () => {
+    process.env.TZ = 'America/Sao_Paulo'
+    vi.setSystemTime(new Date('2026-09-14T00:30:00.000Z'))
+    mocks.profile.timeZone = null
+    await reachDone(true)
+    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(mocks.updateTimezone.mock.invocationCallOrder[0]).toBeLessThan(mocks.createHabit.mock.invocationCallOrder[0]!)
     expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', 'false')
   })
 

@@ -278,6 +278,108 @@ describe('offline mutations', () => {
     expect(mocks.persistQueryCache).toHaveBeenCalledTimes(1)
   })
 
+  it('queues a habit while an account timezone write is pending, even after reconnection', async () => {
+    mocks.queued.push(buildQueuedMutation({
+      type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone,
+      method: 'PUT', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+    mocks.setOnline(true)
+    const execute = vi.fn(() => Promise.resolve({ id: 'habit-1' }))
+
+    const result = await queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'createHabit', scope: 'habits', endpoint: API.habits.create,
+        method: 'POST', payload: { title: 'Walk' }, entityType: 'habit', clientEntityId: 'offline-habit-1',
+      }),
+      execute,
+      queuedResultFactory: createQueuedAck,
+    })
+
+    expect(isQueuedResult(result)).toBe(true)
+    expect(execute).not.toHaveBeenCalled()
+    expect(mocks.queued.map((mutation) => mutation.type)).toEqual(['setTimeZone', 'createHabit'])
+    expect(mocks.queued[1]?.dependsOn).not.toEqual([])
+  })
+
+  it('replays an account timezone before a habit already waiting in the queue', async () => {
+    await queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'createHabit', scope: 'habits', endpoint: API.habits.create,
+        method: 'POST', payload: { title: 'Walk' }, entityType: 'habit', clientEntityId: 'offline-habit-1',
+      }),
+      execute: vi.fn(),
+      queuedResultFactory: createQueuedAck,
+    })
+    mocks.queued.push(buildQueuedMutation({
+      type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone,
+      method: 'PUT', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+    mocks.setOnline(true)
+
+    await flushQueuedMutations()
+
+    expect(mocks.apiClient.mock.calls.map(([endpoint]) => endpoint)).toEqual([API.profile.timezone, API.habits.create])
+    expect(mocks.queued).toHaveLength(0)
+  })
+
+  it('keeps a dependent habit queued when its account timezone is rejected, then replays after a successful retry', async () => {
+    mocks.queued.push(buildQueuedMutation({
+      type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone,
+      method: 'PUT', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+    await queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'createHabit', scope: 'habits', endpoint: API.habits.create,
+        method: 'POST', payload: { title: 'Walk' }, entityType: 'habit', clientEntityId: 'offline-habit-1',
+      }),
+      execute: vi.fn(),
+      queuedResultFactory: createQueuedAck,
+    })
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValueOnce(new Error('400 validation failed'))
+
+    const result = await flushQueuedMutations()
+
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(result.droppedMutations.map((mutation) => mutation.type)).toEqual(['setTimeZone'])
+    expect(mocks.queued.map((mutation) => mutation.type)).toEqual(['createHabit'])
+
+    vi.setSystemTime(new Date(PINNED_TEST_TIME.getTime() + 25 * 60 * 60 * 1000))
+    await flushQueuedMutations()
+    expect(mocks.queued.map((mutation) => mutation.type)).toEqual(['createHabit'])
+
+    mocks.queued.push(buildQueuedMutation({
+      type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone,
+      method: 'PUT', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+    await flushQueuedMutations()
+
+    expect(mocks.apiClient.mock.calls.map(([endpoint]) => endpoint)).toEqual([
+      API.profile.timezone, API.profile.timezone, API.habits.create,
+    ])
+    expect(mocks.queued).toHaveLength(0)
+  })
+
+  it('preserves an older unrelated habit write when a later timezone write is rejected', async () => {
+    mocks.queued.push(buildQueuedMutation({
+      type: 'updateHabit', scope: 'habits', endpoint: API.habits.update('habit-old'),
+      method: 'PUT', payload: { title: 'Read' },
+    }))
+    mocks.queued.push(buildQueuedMutation({
+      type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone,
+      method: 'PUT', payload: { timeZone: 'America/Sao_Paulo' },
+    }))
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValueOnce(new Error('400 validation failed'))
+
+    const result = await flushQueuedMutations()
+
+    expect(result.droppedMutations.map((mutation) => mutation.type)).toEqual(['setTimeZone'])
+    expect(mocks.apiClient.mock.calls.map(([endpoint]) => endpoint)).toEqual([
+      API.profile.timezone, API.habits.update('habit-old'),
+    ])
+  })
+
   it('invalidates search pages after replaying an offline tag rename', async () => {
     const mutation = buildQueuedMutation({ type: 'updateTag', scope: 'tags', endpoint: API.tags.update('tag-1'), method: 'PUT', payload: { name: 'Focus', color: '#00ff00' } })
     await queueOrExecute({ mutation, execute: vi.fn(), queuedResult: { queued: true as const } })

@@ -265,6 +265,13 @@ function getPendingOfflineDependencies(mutation: PersistedQueuedMutation): strin
   ].filter((id) => id.startsWith('offline-'))
 }
 
+function releaseAccountTimezoneDependencies(): void {
+  for (const queued of getAll()) {
+    if (!queued.dependsOn?.includes(ACCOUNT_TIMEZONE_DEPENDENCY)) continue
+    update(queued.id, { dependsOn: queued.dependsOn.filter((dependency) => dependency !== ACCOUNT_TIMEZONE_DEPENDENCY) })
+  }
+}
+
 export function hasPendingOfflineDependencies(mutation: PersistedQueuedMutation): boolean {
   return getPendingOfflineDependencies(mutation).length > 0
 }
@@ -317,6 +324,7 @@ async function resolveMutationReferences<T extends PersistedQueuedMutation>(muta
 const BACKOFF_BASE_DELAY_MS = 2_000
 const BACKOFF_MAX_DELAY_MS = 60_000
 const DEPENDENCY_MAX_AGE_MS = 24 * 60 * 60 * 1000
+export const ACCOUNT_TIMEZONE_DEPENDENCY = 'offline-account-timezone'
 const RECOVERY_KEY = '@orbit/offline-queue-recovery-310'
 
 let installedQueueRecovered = false
@@ -567,10 +575,14 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     getCurrentConnectivity(),
   ])
   const hasPendingDependencies = hasPendingOfflineDependencies(resolvedMutation)
+  const pendingAccountTimezone = resolvedMutation.scope === 'habits' && getAll().some((queued) => queued.type === 'setTimeZone')
+  if (pendingAccountTimezone) {
+    resolvedMutation.dependsOn = [...new Set([...(resolvedMutation.dependsOn ?? []), ACCOUNT_TIMEZONE_DEPENDENCY])]
+  }
   const retainedMutation = findUnfinalizedFirstWrite(resolvedMutation)
 
   if (
-    (!online || hasPendingDependencies) &&
+    (!online || hasPendingDependencies || pendingAccountTimezone) &&
     isAutomaticReplayBlocked(resolvedMutation.type)
   ) {
     throw new OfflineMutationPreflightError()
@@ -580,14 +592,16 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
     return queuedResultFactory?.(retainedMutation.id, true) ?? queuedResult as TQueuedResult
   }
 
-  if (!online || hasPendingDependencies) {
+  if (!online || hasPendingDependencies || pendingAccountTimezone) {
     const queuedMutationId = await markQueuedMutation(resolvedMutation)
     return queuedResultFactory?.(queuedMutationId, false) ?? queuedResult as TQueuedResult
   }
 
   try {
     setPendingIdempotencyKey(resolvedMutation.id)
-    return await execute(resolvedMutation)
+    const result = await execute(resolvedMutation)
+    if (resolvedMutation.type === 'setTimeZone') releaseAccountTimezoneDependencies()
+    return result
   } catch (error: unknown) {
     if (!isTransientNetworkError(error) || isAutomaticReplayBlocked(resolvedMutation.type)) {
       throw error
@@ -662,6 +676,7 @@ async function finalizeSuccessfulFlush(
   addTouchedScope(touchedScopes, mutation)
   applySuccessfulProfileMutation(mutation)
   if (mutation.type === 'setTimeZone') {
+    releaseAccountTimezoneDependencies()
     await queryClient.cancelQueries({ queryKey: calendarKeys.all })
     await queryClient.invalidateQueries({ queryKey: calendarKeys.all })
   }
@@ -776,7 +791,7 @@ type FlushStepResult = {
 function hasExpiredOrphanDependency(mutation: PersistedQueuedMutation, dependencies: string[]): boolean {
   if (Date.now() - mutation.timestamp < DEPENDENCY_MAX_AGE_MS) return false
   const producers = getAll().filter((queued) => queued.id !== mutation.id && queued.clientEntityId)
-  return dependencies.some((id) => !producers.some((producer) => producer.clientEntityId === id))
+  return dependencies.some((id) => id !== ACCOUNT_TIMEZONE_DEPENDENCY && !producers.some((producer) => producer.clientEntityId === id))
 }
 
 async function processQueuedMutationFlush(
@@ -798,6 +813,10 @@ async function processQueuedMutationFlush(
   }
 
   const mutation = await resolveMutationReferences(currentMutation)
+  if (mutation.scope === 'habits' && getAll().some((queued) => queued.type === 'setTimeZone')) {
+    update(mutation.id, { status: 'pending', lastError: null })
+    return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
+  }
   const dependencies = getPendingOfflineDependencies(mutation)
   if (dependencies.length > 0) {
     if (hasExpiredOrphanDependency(mutation, dependencies)) {
@@ -848,7 +867,11 @@ async function runQueueFlush(): Promise<FlushOutcome> {
   let stopReason: FlushStopReason = null
   const droppedMutations: DroppedMutation[] = []
   const touchedScopes = new Set<MutationScope>()
-  const pending = getAll()
+  const mutations = getAll()
+  const pending = [
+    ...mutations.filter((mutation) => mutation.type === 'setTimeZone'),
+    ...mutations.filter((mutation) => mutation.type !== 'setTimeZone'),
+  ]
 
   for (const originalMutation of pending) {
     const step = await processQueuedMutationFlush(originalMutation, touchedScopes)

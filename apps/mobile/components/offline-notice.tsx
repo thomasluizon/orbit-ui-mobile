@@ -12,8 +12,8 @@ import { AlertTriangle, RefreshCw, WifiOff, X } from '@/components/ui/icons'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { enqueue } from '@/lib/offline-queue'
-import { buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
+import { enqueue, getAll } from '@/lib/offline-queue'
+import { ACCOUNT_TIMEZONE_DEPENDENCY, buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
 import { canRetryDroppedMutation, getDroppedItemName, getRecoveryDate, getRecoveryMessage, needsHabitCreation } from '@/lib/offline-recovery'
 
 function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; remaining: number }>) {
@@ -26,6 +26,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   const mutation = drop.mutation
   const needsCreation = needsHabitCreation(mutation)
   const retryable = canRetryDroppedMutation(mutation)
+  const timezoneRecoveryRequired = mutation.type === 'setTimeZone' && getAll().some((queued) => queued.dependsOn?.includes(ACCOUNT_TIMEZONE_DEPENDENCY))
   const scope = mutation.scope ?? getMutationScope(mutation.type) ?? 'profile'
   const date = getRecoveryDate(mutation)
   const item = drop.itemName ?? getDroppedItemName(mutation) ?? t(`common.syncEntity.${scope}`)
@@ -53,10 +54,10 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
         detail={t(needsCreation ? 'common.syncOrphanedDetail' : remaining > 0 ? 'common.syncDroppedPending' : mutation.type === 'logHabit' ? 'common.syncDroppedDetail' : 'common.syncChangeDroppedDetail')}
         icon={<AlertTriangle size={20} color={tokens.statusBad} />}
         actionLabel={actionLabel} onAction={recover} />
-      <Pressable accessibilityRole="button" accessibilityLabel={t('common.dismiss')}
+      {!timezoneRecoveryRequired ? <Pressable accessibilityRole="button" accessibilityLabel={t('common.dismiss')}
         disabled={creating} onPress={() => dismissDrop(drop.id)} style={styles.dismiss}>
         <X size={20} color={tokens.fg2} />
-      </Pressable>
+      </Pressable> : null}
       <CreateHabitModal open={creating} initialDate={date} recoveryMessage={message}
         onClose={() => setCreating(false)} onCreated={() => dismissDrop(drop.id)} />
     </View>

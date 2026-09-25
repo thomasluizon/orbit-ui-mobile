@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
+import { API } from '@orbit/shared/api'
 import {
   buildOnboardingHabitInput,
   buildOnboardingScheduleFromPhrase,
@@ -34,6 +35,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -180,10 +182,14 @@ export function OnboardingFlow() {
     try {
       const accountProfile = isLive ? profile ?? (await refetchProfile()).data : undefined
       if (isLive && !accountProfile) throw new Error('Profile unavailable')
+      const accountTimeZone = accountProfile?.timeZone ?? getClientTimeZone()
+      if (isLive && accountProfile?.timeZone == null && accountTimeZone && accountTimeZone !== 'UTC') {
+        await performQueuedApiMutation({ type: 'setTimeZone', scope: 'profile', endpoint: API.profile.timezone, method: 'PUT', payload: { timeZone: accountTimeZone }, dedupeKey: 'profile-timezone-auto' })
+      }
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else { const result = await actions.createHabit(input); setCreatedId(result.id) }
       setCreatedTitle(input.title)
-      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountProfile ? accountProfile.timeZone : getClientTimeZone()))
+      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountTimeZone))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState()); setStep(ONBOARDING_REMIND_STEP)
     } catch { setCreateFailed(true) } finally { setCreating(false) }

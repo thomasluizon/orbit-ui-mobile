@@ -10,6 +10,8 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
+import { ACCOUNT_TIMEZONE_DEPENDENCY, buildQueuedMutation } from '@/lib/offline-mutations'
+import type { PersistedQueuedMutation } from '@orbit/shared/types/sync'
 
 const TestRenderer = require('react-test-renderer')
 interface RenderTree {
@@ -24,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   storage: new Map<string, string>(),
   queue: { isOnline: false, pendingCount: 0, isFlushing: false, hasFailed: false },
   enqueue: vi.fn(),
+  queued: [] as PersistedQueuedMutation[],
   push: vi.fn(),
   translate: (key: string, values?: Record<string, unknown>) => key + JSON.stringify(values),
 }))
@@ -33,7 +36,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
   removeItem: (key: string) => { mocks.storage.delete(key); return Promise.resolve() },
 } }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => mocks.queue }))
-vi.mock('@/lib/offline-queue', () => ({ enqueue: mocks.enqueue }))
+vi.mock('@/lib/offline-queue', () => ({ enqueue: mocks.enqueue, getAll: () => mocks.queued }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/lib/query-client', () => ({ queryClient: {}, persistQueryCache: vi.fn() }))
@@ -63,6 +66,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     mocks.translate = (key, values) => language.t(key, values)
     Object.assign(mocks.queue, { isOnline: false, pendingCount: 0, isFlushing: false, hasFailed: false })
     mocks.enqueue.mockClear()
+    mocks.queued.length = 0
     mocks.push.mockClear()
     useOfflineSyncStore.setState({ drops: [] })
     useAppToastStore.setState({ currentToast: null, queue: [] })
@@ -118,6 +122,30 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     TestRenderer.act(() => (toast().onAction as () => void)())
     expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ targetEntityId: 'walk', payload: { date: '2026-09-05' }, retries: 0 }))
     expect(useOfflineSyncStore.getState().drops).toEqual([])
+  })
+
+  it('keeps timezone recovery visible while an onboarding habit depends on it', async () => {
+    const timezoneMutation = buildQueuedMutation({
+      type: 'setTimeZone', scope: 'profile', endpoint: '/api/profile/timezone',
+      method: 'PUT', payload: { timeZone: 'America/Sao_Paulo' },
+    })
+    mocks.queued.push(buildQueuedMutation({
+      type: 'createHabit', scope: 'habits', endpoint: '/api/habits',
+      method: 'POST', payload: { title: 'Walk' }, dependsOn: [ACCOUNT_TIMEZONE_DEPENDENCY],
+    }))
+    update({ pendingCount: 1, isOnline: true })
+    await TestRenderer.act(async () => {
+      useOfflineSyncStore.getState().addDrop({
+        id: timezoneMutation.id, type: timezoneMutation.type,
+        lastError: '400 validation failed', mutation: timezoneMutation,
+      })
+      await Promise.resolve()
+    })
+
+    expect(toast().actionLabel).toBe(language.t('common.syncRetryAction'))
+    expect(tree.root.findAllByType(Pressable).some((node) => node.props.accessibilityLabel === language.t('common.dismiss'))).toBe(false)
+    TestRenderer.act(() => (toast().onAction as () => void)())
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ type: 'setTimeZone' }))
   })
 
   it('keeps Undo operable alongside pending queue status and removes the empty host', () => {
