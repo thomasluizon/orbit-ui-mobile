@@ -866,6 +866,7 @@ describe('mobile habit hooks', () => {
       completionCount: 0,
       activeDays: [],
     })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('optimistically completes before query cancellation resolves', () => {
@@ -1890,6 +1891,7 @@ describe('mobile habit hooks', () => {
       results: [],
       ambiguousIds: ['habit-1', 'habit-2'],
       offlineFailureIds: [],
+      hasConfirmedSuccess: false,
     })
     expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
     expect(useReviewReminderStore.getState().completionCount).toBe(0)
@@ -2048,6 +2050,22 @@ describe('mobile habit hooks', () => {
       completionCount: 1,
       activeDays: ['2026-08-28'],
     })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it('leaves the profile untouched when a bulk log is only queued offline', async () => {
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<
+      BulkLogOutcome,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const variables = [{ habitId: 'habit-1' }]
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+
+    mutation.onSuccess?.(result, variables, context)
+
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 })
 

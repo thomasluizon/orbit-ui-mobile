@@ -6,6 +6,7 @@ import {
   getReturningInterval,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
+  shouldShowTodayAstraSurface,
 } from '@orbit/shared/utils'
 import { useMarkNotificationRead, useNotifications } from '@/hooks/use-notifications'
 import { useProfile } from '@/hooks/use-profile'
@@ -23,7 +24,6 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const { notifications } = useNotifications()
   const markRead = useMarkNotificationRead()
   const setConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
-  const proactive = selectNewestUnreadProactiveCheckin(notifications)
   const isOnline = useSyncExternalStore(
     (onChange) => {
       globalThis.addEventListener('online', onChange)
@@ -39,8 +39,11 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const openConversation = () => setConversationOpen(true)
   const atMessageLimit = profile != null && profile.aiMessagesUsed >= profile.aiMessagesLimit
   const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
+  const proactive = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline, atLimit: atMessageLimit })
+    ? selectNewestUnreadProactiveCheckin(notifications)
+    : null
 
-  const line = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline, atLimit: atMessageLimit })
+  const line = shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })
     ? proactive
       ? { text: proactive.body, action: t('todayAstra.openConversation'), notificationId: proactive.id }
       : returning

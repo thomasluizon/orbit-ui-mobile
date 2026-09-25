@@ -415,6 +415,7 @@ export {
   resolveNotificationUrl,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
+  shouldShowTodayAstraSurface,
 } from './notification-actions'
 export {
   buildTempGoal,

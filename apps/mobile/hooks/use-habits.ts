@@ -116,6 +116,10 @@ type OfflineBulkMutationOutcome<TResponse> = TResponse & {
   offlineFailureIds: string[]
 }
 
+type BulkLogMutationOutcome = OfflineBulkMutationOutcome<BulkLogResult> & {
+  hasConfirmedSuccess: boolean
+}
+
 export {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -393,8 +397,9 @@ export function useLogHabit() {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
-        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       }
+
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
 
       if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -1114,7 +1119,7 @@ export function useBulkLogHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    OfflineBulkMutationOutcome<BulkLogResult>,
+    BulkLogMutationOutcome,
     Error,
     BulkLogItemRequest[],
     { previousLists: HabitListSnapshots }
@@ -1123,6 +1128,7 @@ export function useBulkLogHabits() {
       const results: BulkLogResult['results'] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
+      let hasConfirmedSuccess = false
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
         try {
@@ -1144,6 +1150,9 @@ export function useBulkLogHabits() {
               queuedMutationId: mutationId,
             }),
           })
+          if (!isQueuedResult(response) && response.results.some((result) => result.status === 'Success')) {
+            hasConfirmedSuccess = true
+          }
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
         } catch (error: unknown) {
           const failedIds = chunk.map((item) => item.habitId)
@@ -1154,7 +1163,7 @@ export function useBulkLogHabits() {
           }
         }
       }
-      return { results, ambiguousIds, offlineFailureIds }
+      return { results, ambiguousIds, offlineFailureIds, hasConfirmedSuccess }
     },
 
     onMutate: async (items) => {
@@ -1180,6 +1189,9 @@ export function useBulkLogHabits() {
     },
 
     onSuccess: (data, variables, context) => {
+      if (data.hasConfirmedSuccess) {
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      }
       const failedIds = new Set(
         data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
       )

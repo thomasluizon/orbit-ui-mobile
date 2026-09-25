@@ -10,7 +10,8 @@ interface TodayAstraMocks {
   notifications: NotificationItem[]
   markRead: ReturnType<typeof vi.fn>
   navigateProgress: ReturnType<typeof vi.fn>
-  profile: { id: string; timeZone: string; lastCompletionDate?: string | null }
+  profile: { id: string; timeZone: string; lastCompletionDate?: string | null; aiMessagesUsed?: number; aiMessagesLimit?: number }
+  isOnline: boolean
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
@@ -18,6 +19,7 @@ const mocks = vi.hoisted((): TodayAstraMocks => ({
   markRead: vi.fn(),
   navigateProgress: vi.fn(),
   profile: { id: 'profile', timeZone: 'UTC' },
+  isOnline: true,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -30,7 +32,7 @@ vi.mock('expo-router', () => ({
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }))
-vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profile, isPending: false, isError: false }),
 }))
@@ -81,6 +83,7 @@ describe('mobile Today Astra', () => {
     mocks.markRead.mockReset()
     mocks.navigateProgress.mockReset()
     mocks.profile = { id: 'profile', timeZone: 'UTC' }
+    mocks.isOnline = true
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-29T12:00:00Z'))
     useUIStore.setState({ astraConversationOpen: false })
@@ -122,6 +125,21 @@ describe('mobile Today Astra', () => {
     expect(mocks.navigateProgress).toHaveBeenCalledWith('/progress')
     expect(mocks.markRead).not.toHaveBeenCalled()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  })
+
+  it.each(['offline', 'quota exhausted'])('keeps Progress available when %s', async (state) => {
+    mocks.profile = {
+      id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26',
+      aiMessagesUsed: state === 'quota exhausted' ? 10 : 0, aiMessagesLimit: 10,
+    }
+    mocks.isOnline = state !== 'offline'
+
+    const tree = await renderTodayAstra()
+
+    expect(hasText(tree, 'todayAstra.returningElapsed:3')).toBe(true)
+    expect(tree.root.findAll((node) =>
+      node.props.accessibilityRole === 'link' && node.props.children === 'todayAstra.viewProgress',
+    ).length).toBeGreaterThan(0)
   })
 
   it('renders a proactive check-in and opens its conversation', async () => {
@@ -174,6 +192,20 @@ describe('mobile Today Astra', () => {
     })
     expect(mocks.markRead).toHaveBeenCalledWith('check-in')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  })
+
+  it('shows returning Progress when a proactive check-in is unavailable offline', async () => {
+    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
+    mocks.notifications = [{
+      id: 'check-in', title: 'Astra', body: 'Check in', url: '/chat', habitId: null,
+      isRead: false, createdAtUtc: '2026-08-29T10:00:00Z',
+    }]
+    mocks.isOnline = false
+
+    const tree = await renderTodayAstra()
+
+    expect(hasText(tree, 'todayAstra.returningElapsed:3')).toBe(true)
+    expect(hasText(tree, 'Check in')).toBe(false)
   })
 
   it('does not add retired inline Astra content to a 50 habit list', async () => {

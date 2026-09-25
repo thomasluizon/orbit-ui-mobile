@@ -264,8 +264,9 @@ export function useLogHabit() {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
-        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       }
+
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
 
       if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -746,6 +747,9 @@ export function useBulkLogHabits() {
 
     onSuccess: (result, _items, context) => {
       restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
+      if (result.results.some((item) => item.status === 'Success')) {
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      }
     },
 
     onSettled: () => {

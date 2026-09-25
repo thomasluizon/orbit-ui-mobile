@@ -7,7 +7,7 @@ import { useUIStore } from '@/stores/ui-store'
 interface TodayAstraMocks {
   notifications: NotificationItem[]
   markRead: ReturnType<typeof vi.fn>
-  profile: { id: string; timeZone: string; lastCompletionDate?: string | null }
+  profile: { id: string; timeZone: string; lastCompletionDate?: string | null; aiMessagesUsed?: number; aiMessagesLimit?: number }
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
@@ -36,6 +36,7 @@ function renderTodayAstra() {
 
 describe('web Today Astra', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
     mocks.notifications = []
     mocks.markRead.mockReset()
     mocks.profile = { id: 'profile', timeZone: 'UTC' }
@@ -97,6 +98,19 @@ describe('web Today Astra', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
   })
 
+  it.each(['offline', 'quota exhausted'])('keeps Progress available when %s', (state) => {
+    mocks.profile = {
+      id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26',
+      aiMessagesUsed: state === 'quota exhausted' ? 10 : 0, aiMessagesLimit: 10,
+    }
+    if (state === 'offline') vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+
+    renderTodayAstra()
+
+    expect(screen.getByText('todayAstra.returningElapsed:3', { exact: false })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
+  })
+
   it('renders a proactive check-in and opens its conversation', () => {
     mocks.notifications = [{
       id: 'check-in',
@@ -116,6 +130,20 @@ describe('web Today Astra', () => {
     fireEvent.click(action)
     expect(mocks.markRead).toHaveBeenCalledWith('check-in')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
+  })
+
+  it('shows returning Progress when a proactive check-in is unavailable offline', () => {
+    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
+    mocks.notifications = [{
+      id: 'check-in', title: 'Astra', body: 'Check in', url: '/chat', habitId: null,
+      isRead: false, createdAtUtc: '2026-08-29T10:00:00Z',
+    }]
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+
+    renderTodayAstra()
+
+    expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
+    expect(screen.queryByText('Check in', { exact: false })).not.toBeInTheDocument()
   })
 
 })
