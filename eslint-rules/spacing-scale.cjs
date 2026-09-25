@@ -284,7 +284,8 @@ module.exports = {
     function isInlineStyleObject(object) {
       let node = object
       let parent = node.parent
-      while ((parent?.type === 'ConditionalExpression' && parent.test !== node) || parent?.type === 'ArrayExpression') {
+      while (isTypeWrapper(parent) || (parent?.type === 'ConditionalExpression' && parent.test !== node) ||
+        parent?.type === 'ArrayExpression') {
         node = parent
         parent = node.parent
       }
@@ -374,6 +375,7 @@ module.exports = {
     }
 
     function scanStyleObject(node, inlineJsx = false) {
+      node = unwrapStyleExpression(node)
       if (!node) return
       if (node.type === 'ArrayExpression') {
         for (const element of node.elements) scanStyleObject(element, inlineJsx)
@@ -476,7 +478,7 @@ module.exports = {
         if (name === 'style' && node.value?.type === 'JSXExpressionContainer') {
           const expression = unwrapStyleExpression(node.value.expression)
           if (expression?.type === 'Identifier') styleIdentifiers.push(expression)
-          else scanStyleObject(node.value.expression, true)
+          else scanStyleObject(expression, true)
           return
         }
         if (name !== 'className' && name !== 'class') return

@@ -521,6 +521,10 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
     { code: 'const SETTINGS_ROW_STYLE: React.CSSProperties = { padding: "20px", gap: 14 }; <button style={{ ...SETTINGS_ROW_STYLE, border: 0 }} />; <div style={SETTINGS_ROW_STYLE} />', output: null, errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }] },
     { code: 'const base = { gap: 14 }; <div style={{ ...base, padding: 15 }} />', output: 'const base = { gap: 14 }; <div style={{ ...base, padding: 16 }} />', errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }] },
     { code: 'const base = { gap: 14 }; <div style={active ? { ...base } : undefined} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <div style={{ ...base } as React.CSSProperties} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <div style={{ ...base } satisfies React.CSSProperties} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: 'const base = { gap: 14 }; <div style={active ? ({ ...base } as React.CSSProperties) : undefined} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
+    { code: '<div style={{ gap: 14 } as React.CSSProperties} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { ...runtimeStyle, gap: 14 }; <div style={row} />', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     { code: 'const row = { gap: 14 }; <><div style={row} /><span style={row} /></>', output: null, errors: [{ messageId: 'offScaleStyle' }] },
     // DESIGN.md drops 20, 28, 40 and 56. Each is EXACTLY midway between two surviving
