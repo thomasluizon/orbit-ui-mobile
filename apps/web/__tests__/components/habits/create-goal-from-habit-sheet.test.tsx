@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -40,6 +40,11 @@ vi.mock('@orbit/shared/utils/dates', () => ({
 }))
 
 import { CreateGoalFromHabitSheet } from '@/components/habits/create-goal-from-habit-sheet'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 describe('CreateGoalFromHabitSheet', () => {
   beforeEach(() => {
@@ -164,5 +169,59 @@ describe('CreateGoalFromHabitSheet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'common.discard' }))
     expect(onClose).toHaveBeenCalledOnce()
+  })
+})
+
+describe('CreateGoalFromHabitSheet across an account change', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function describeAccountAGoal() {
+    render(<CreateGoalFromHabitSheet open onClose={vi.fn()} />)
+    const field = screen.getByLabelText(/goals.form.description/)
+    fireEvent.change(field, { target: { value: 'Run a half marathon' } })
+    expect(field).toHaveValue('Run a half marathon')
+  }
+
+  it('drops the goal the previous account described when another replaces the tab', async () => {
+    describeAccountAGoal()
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.getByLabelText(/goals.form.description/)).toHaveValue('')
+  })
+
+  it('keeps the described goal when the same account recovers from a rejected refresh', async () => {
+    describeAccountAGoal()
+
+    await recoverSameAccount('user-1')
+
+    expect(screen.getByLabelText(/goals.form.description/)).toHaveValue('Run a half marathon')
+  })
+
+  it('does not close the next account sheet after an old create completes', async () => {
+    let finishCreate!: (value: object) => void
+    mockMutateAsync.mockImplementationOnce(() => new Promise((resolve) => { finishCreate = resolve }))
+    const onClose = vi.fn()
+    render(<CreateGoalFromHabitSheet open onClose={onClose} />)
+    fireEvent.change(screen.getByLabelText(/goals.form.description/), { target: { value: 'Read' } })
+    fireEvent.change(screen.getByLabelText('goals.form.targetValue'), { target: { value: '12' } })
+    fireEvent.change(screen.getByLabelText('goals.form.unit'), { target: { value: 'books' } })
+    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
+    expect(mockMutateAsync).toHaveBeenCalledOnce()
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishCreate({}) })
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(mockShowError).not.toHaveBeenCalled()
   })
 })

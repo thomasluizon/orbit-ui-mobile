@@ -5,7 +5,7 @@ interface ParentRingProps {
   size?: number
   ariaLabel?: string
   /** Progress stroke color (defaults to `--primary`). */
-  color?: string
+  stroke?: string
   /** Track stroke color (defaults to `--hairline-strong`). */
   trackColor?: string
 }
@@ -15,7 +15,7 @@ export function ParentRing({
   total,
   size = 12,
   ariaLabel,
-  color,
+  stroke,
   trackColor,
 }: Readonly<ParentRingProps>) {
   const pct = total > 0 ? Math.min(Math.max(done / total, 0), 1) : 0
@@ -47,7 +47,7 @@ export function ParentRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={color ?? 'var(--primary)'}
+          stroke={stroke ?? 'var(--primary)'}
           strokeWidth="1.5"
           strokeDasharray={`${c * pct} ${c}`}
           strokeLinecap="round"

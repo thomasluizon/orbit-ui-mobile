@@ -2,6 +2,11 @@ export { achievementEmoji } from './achievement-emoji'
 export { getRadioNavigationIndex } from './radio-navigation'
 export { createClientId } from './client-id'
 export {
+  buildAccountScopedStorageKey,
+  readAccountScopedFlag,
+  type AccountScopedFlagState,
+} from './account-scoped-storage'
+export {
   parseAPIDate,
   formatAPIDate,
   formatAPIDateInTimeZone,

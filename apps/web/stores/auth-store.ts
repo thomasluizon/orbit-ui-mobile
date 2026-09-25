@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
@@ -15,6 +16,7 @@ import { useOnboardingDraftStore } from './onboarding-draft-store'
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
+let sessionReadVersion = 0
 
 let lastObservedAccountId: string | null = null
 
@@ -44,10 +46,9 @@ let lastObservedAccountId: string | null = null
  * reset itself because a sign out is a definite end rather than a wobble.
  */
 function startAccountScopedSession(nextAccountId: string | null): void {
+  if (nextAccountId !== null) sessionReadVersion += 1
   const previousAccountId = lastObservedAccountId
-  const accountChanged = nextAccountId !== null
-    && previousAccountId !== null
-    && previousAccountId !== nextAccountId
+  const accountChanged = nextAccountId !== null && previousAccountId !== nextAccountId
 
   advanceSessionEpoch()
   if (nextAccountId !== null) lastObservedAccountId = nextAccountId
@@ -84,27 +85,37 @@ function clearAccountScopedSessionState(): void {
  * so the two callers cannot drift, which is how the support draft once outlived the Astra one.
  */
 function endSessionLocally(): void {
+  sessionReadVersion += 1
   clearAccountScopedSessionState()
   forgetPreviousAccountContent()
+  getQueryClient().clear()
+  lastObservedAccountId = null
   sessionRecoveryUser = null
   useOnboardingDraftStore.getState().reset()
 }
 
 /**
- * Reads the account the cookie now names. A tab that has not yet learned an account only records it,
- * which leaves a reload of the same account untouched, and a replacement also drops the remembered
- * user because this tab cannot prove the new account's name.
+ * Reads the account the cookie now names. A tab that has not yet learned an account starts a new
+ * boundary even on its first check: server-rendered data may belong to a different account if the
+ * shared cookie changed between the server render and this check.
+ *
+ * The step-up state is cleared BEFORE the account generation rises, because the rise is what tells
+ * every listener to re-read, and `use-api-key-management` re-reads the creation grant through a
+ * lazy initializer at exactly that moment. React happens to defer that render to a microtask, so
+ * the other order works, but a grant that lets the next account skip the emailed code should not
+ * rest on a flush order nothing states. `endSessionLocally` already clears first.
  */
 function adoptSessionAccount(userId: string | null): boolean {
   if (userId === null) return false
   if (lastObservedAccountId === userId) return false
   if (lastObservedAccountId === null) {
-    lastObservedAccountId = userId
-    return false
+    bindStepUpStateToAccount(userId)
+    startAccountScopedSession(userId)
+    return true
   }
 
-  startAccountScopedSession(userId)
   bindStepUpStateToAccount(userId)
+  startAccountScopedSession(userId)
   return true
 }
 
@@ -119,14 +130,31 @@ export function getHeldAccountId(): string | null {
   return lastObservedAccountId
 }
 
-function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
-  const next = sessionRevalidationQueue.then(task, task)
+/**
+ * Reports the held account to a component and re-renders it when that account arrives.
+ *
+ * The first session check can leave `user` null while the held account is known, so subscribers
+ * read the held id from the store notification. Every writer sets the id before it calls `set`,
+ * so the notification already carries the new answer. The id is a string, which
+ * `useSyncExternalStore` compares without a cached snapshot.
+ */
+export function useHeldAccountId(): string | null {
+  return useSyncExternalStore(useAuthStore.subscribe, getHeldAccountId, getHeldAccountId)
+}
+
+function queueSessionRevalidation(task: (requestVersion: number) => Promise<void>): Promise<void> {
+  const requestVersion = sessionReadVersion
+  const next = sessionRevalidationQueue.then(
+    () => task(requestVersion),
+    () => task(requestVersion),
+  )
   sessionRevalidationQueue = next.catch(() => {})
   return next
 }
 
 interface AuthState {
   isAuthenticated: boolean
+  sessionInactive: boolean
   user: User | null
   expiresAt: number | null
   sessionRefreshFailed: boolean
@@ -173,16 +201,18 @@ async function readCurrentSession(): Promise<SessionSnapshot> {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
+  sessionInactive: false,
   user: null,
   expiresAt: null,
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
     sessionRecoveryUser = null
-    startAccountScopedSession(loginResponse.userId)
     bindStepUpStateToAccount(loginResponse.userId)
+    startAccountScopedSession(loginResponse.userId)
     set({
       isAuthenticated: true,
+      sessionInactive: false,
       user: {
         userId: loginResponse.userId,
         name: loginResponse.name,
@@ -208,11 +238,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   adoptAccountFromSignal: (accountId: string | null) => {
     if (accountId === null) {
-      if (!get().isAuthenticated && !get().sessionRefreshFailed) return
+      if (get().sessionInactive) return
 
       endSessionLocally()
       set({
         isAuthenticated: false,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -223,18 +254,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!adoptSessionAccount(accountId)) return
 
     sessionRecoveryUser = null
-    set({ isAuthenticated: true, user: null, sessionRefreshFailed: false })
+    set({ isAuthenticated: true, sessionInactive: false, user: null, sessionRefreshFailed: false })
     void get().checkSession()
   },
 
-  confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+  confirmSessionRefreshFailure: () => queueSessionRevalidation(async (requestVersion) => {
+    if (sessionReadVersion !== requestVersion) return
     const session = await readCurrentSession()
+    if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'active') {
       const accountChanged = adoptSessionAccount(session.userId)
       const user = accountChanged ? null : get().user ?? sessionRecoveryUser
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        sessionInactive: false,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
@@ -242,10 +276,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'inactive') {
-      sessionRecoveryUser = null
-      clearAccountScopedSessionState()
+      endSessionLocally()
       set({
         isAuthenticated: false,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -257,6 +291,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       clearAccountScopedSessionState()
       set({
         isAuthenticated: false,
+        sessionInactive: false,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: true,
@@ -264,25 +299,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   }),
 
-  recoverSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+  recoverSessionRefreshFailure: () => queueSessionRevalidation(async (requestVersion) => {
+    if (sessionReadVersion !== requestVersion) return
     if (!get().sessionRefreshFailed) return
 
     const session = await readCurrentSession()
+    if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'active') {
       const accountChanged = adoptSessionAccount(session.userId)
       const user = accountChanged ? null : get().user ?? sessionRecoveryUser
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        sessionInactive: false,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
-      sessionRecoveryUser = null
-      clearAccountScopedSessionState()
+      endSessionLocally()
       set({
         isAuthenticated: false,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -291,7 +329,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }),
 
   checkSession: async () => {
+    const requestVersion = sessionReadVersion
     const session = await readCurrentSession()
+    if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'rejected') {
       await get().confirmSessionRefreshFailure()
       return
@@ -302,15 +342,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        sessionInactive: false,
         user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
-      sessionRecoveryUser = null
-      clearAccountScopedSessionState()
+      endSessionLocally()
       set({
         isAuthenticated: false,
+        sessionInactive: true,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -331,8 +372,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
 
     const intervalId = setInterval(() => {
-      const { isAuthenticated, sessionRefreshFailed } = get()
-      if (!isAuthenticated && !sessionRefreshFailed) {
+      const { isAuthenticated, sessionInactive, sessionRefreshFailed } = get()
+      if (!isAuthenticated && sessionInactive && !sessionRefreshFailed) {
         return
       }
 
@@ -355,6 +396,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({
       isAuthenticated: false,
+      sessionInactive: true,
       user: null,
       expiresAt: null,
       sessionRefreshFailed: false,
