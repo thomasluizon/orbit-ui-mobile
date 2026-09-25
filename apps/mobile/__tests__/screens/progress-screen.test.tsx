@@ -551,6 +551,7 @@ describe('mobile ProgressContent', () => {
       maxStreakFreezesAccumulated: 3,
       daysUntilNextFreeze: 3,
     })
+    delete (mocks.freeze.streakInfo as typeof mocks.freeze.streakInfo & { lastFreezeCoveredOrigin?: string | null }).lastFreezeCoveredOrigin
     mocks.freeze.streakQuery.isError = false
     mocks.freeze.freezesAvailable = 2
     mocks.freeze.streakFreezesAccumulated = 2
@@ -963,10 +964,54 @@ describe('mobile ProgressContent', () => {
     expect(text).toContain('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')
   })
 
+  it('names automatic coverage, then keeps a confirmed manual repair source-neutral', async () => {
+    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
+    mocks.freeze.streakInfo.freezeBankRemaining = 2
+    Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'automatic' })
+    const tree = await renderProgress()
+    const messages = () => tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+    expect(messages()).toContain('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}')
+
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-09-09'
+    await TestRenderer.act(() => tree.update(<ProgressScreen />))
+    const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')
+    await TestRenderer.act(() => (action.props.onPress as () => void)())
+    const confirm = tree.root.findAll((node) => node.type === 'ConfirmSheet')[0]
+    await TestRenderer.act(() => (confirm!.props.onConfirm as () => void)())
+    expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
+
+    Object.assign(mocks.freeze.streakInfo, {
+      lastFreezeCoveredDate: '2026-09-09',
+      freezeBankRemaining: 1,
+      lastFreezeCoveredOrigin: 'manual',
+      isRepairAvailable: false,
+    })
+    await TestRenderer.act(() => tree.update(<ProgressScreen />))
+    expect(messages()).toContain('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')
+    expect(messages()).not.toContain('progressScreen.streak.automaticCovered:{"date":"Wednesday, Sep 9","count":1}')
+  })
+
   it('makes no automatic claim when a manual repair returns the same lastFreezeCoveredDate', async () => {
     mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-09'
     mocks.freeze.streakInfo.freezeBankRemaining = 1
     mocks.freeze.streakInfo.isRepairAvailable = false
+    Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'manual' })
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toContain('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')
+    expect(text.some((entry) => String(entry).includes('automaticCovered'))).toBe(false)
+  })
+
+  it.each([null, 'unknown'])('keeps %s freeze origin source-neutral', async (origin) => {
+    Object.assign(mocks.freeze.streakInfo, {
+      lastFreezeCoveredDate: '2026-09-09',
+      freezeBankRemaining: 1,
+      lastFreezeCoveredOrigin: origin,
+    })
 
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)

@@ -143,6 +143,7 @@ export const streakInfoSchema = z.object({
   repairDate: z.string().nullable().optional(),
   repairableGapDates: z.array(z.string()).nullable().optional(),
   lastFreezeCoveredDate: z.string().nullable().optional(),
+  lastFreezeCoveredOrigin: z.string().nullable().optional(),
   freezeBankRemaining: z.number().nullable().optional(),
 })
 
