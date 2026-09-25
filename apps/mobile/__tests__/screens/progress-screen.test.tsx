@@ -975,6 +975,14 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo.currentStreak = 0
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
+    mocks.repair.mutate.mockImplementationOnce(() => {
+      Object.assign(mocks.freeze.streakInfo, {
+        lastFreezeCoveredDate: '2026-09-09',
+        freezeBankRemaining: 1,
+        lastFreezeCoveredOrigin: 'manual',
+        isRepairAvailable: false,
+      })
+    })
     await TestRenderer.act(() => tree.update(<ProgressScreen />))
     const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')
     await TestRenderer.act(() => (action.props.onPress as () => void)())
@@ -982,12 +990,6 @@ describe('mobile ProgressContent', () => {
     await TestRenderer.act(() => (confirm!.props.onConfirm as () => void)())
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
 
-    Object.assign(mocks.freeze.streakInfo, {
-      lastFreezeCoveredDate: '2026-09-09',
-      freezeBankRemaining: 1,
-      lastFreezeCoveredOrigin: 'manual',
-      isRepairAvailable: false,
-    })
     await TestRenderer.act(() => tree.update(<ProgressScreen />))
     expect(messages()).toContain('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')
     expect(messages()).not.toContain('progressScreen.streak.automaticCovered:{"date":"Wednesday, Sep 9","count":1}')

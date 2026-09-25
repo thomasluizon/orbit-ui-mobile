@@ -854,17 +854,19 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.currentStreak = 0
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-09-09'
+    mocks.repair.mutate.mockImplementationOnce(() => {
+      Object.assign(mocks.freeze.streakInfo, {
+        lastFreezeCoveredDate: '2026-09-09',
+        freezeBankRemaining: 1,
+        lastFreezeCoveredOrigin: 'manual',
+        isRepairAvailable: false,
+      })
+    })
     view.rerender(<ProgressPage />)
     fireEvent.click(screen.getByText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}'))
     fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
 
-    Object.assign(mocks.freeze.streakInfo, {
-      lastFreezeCoveredDate: '2026-09-09',
-      freezeBankRemaining: 1,
-      lastFreezeCoveredOrigin: 'manual',
-      isRepairAvailable: false,
-    })
     view.rerender(<ProgressPage />)
     expect(screen.getByText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')).toBeInTheDocument()
     expect(screen.queryByText(/progressScreen\.streak\.automaticCovered/)).not.toBeInTheDocument()
