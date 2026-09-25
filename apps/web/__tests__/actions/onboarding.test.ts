@@ -2,36 +2,39 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { API } from '@orbit/shared/api'
 import type { ApplyOnboardingRequest } from '@orbit/shared/types/onboarding'
 
-const mockServerAuthFetch = vi.fn()
+const mockServerAuthMutate = vi.fn()
 vi.mock('@/lib/server-fetch', () => ({
-  serverAuthFetch: mockServerAuthFetch,
+  serverAuthMutate: mockServerAuthMutate,
 }))
 
 const { applyOnboarding, dismissImportPrompt } = await import('@/lib/actions/onboarding')
 
 describe('onboarding server actions', () => {
   beforeEach(() => {
-    mockServerAuthFetch.mockReset()
+    mockServerAuthMutate.mockReset()
   })
 
   it('posts the onboarding payload and returns the apply response', async () => {
     const payload: ApplyOnboardingRequest = { habits: [] }
-    mockServerAuthFetch.mockResolvedValue({ appliedHabitCount: 0 })
+    mockServerAuthMutate.mockResolvedValue({ appliedHabitCount: 0 })
 
-    const result = await applyOnboarding(payload)
+    const result = await applyOnboarding(payload, null)
 
     expect(result).toEqual({ appliedHabitCount: 0 })
-    expect(mockServerAuthFetch).toHaveBeenCalledWith(API.profile.onboardingApply, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    expect(mockServerAuthMutate).toHaveBeenCalledWith(
+      API.profile.onboardingApply,
+      { method: 'POST', body: JSON.stringify(payload) },
+      null,
+    )
   })
 
   it('dismisses the import prompt with a PUT', async () => {
-    mockServerAuthFetch.mockResolvedValue(undefined)
-    await dismissImportPrompt()
-    expect(mockServerAuthFetch).toHaveBeenCalledWith(API.profile.importPromptDismiss, {
-      method: 'PUT',
-    })
+    mockServerAuthMutate.mockResolvedValue(undefined)
+    await dismissImportPrompt(null)
+    expect(mockServerAuthMutate).toHaveBeenCalledWith(
+      API.profile.importPromptDismiss,
+      { method: 'PUT' },
+      null,
+    )
   })
 })

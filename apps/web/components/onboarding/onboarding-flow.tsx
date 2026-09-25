@@ -42,6 +42,8 @@ import { useProfile } from '@/hooks/use-profile'
 import { updateTimezone } from '@/lib/actions/profile'
 import { requestWebPushPermission, subscribeToPushNotifications, usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { getHeldAccountId } from '@/stores/auth-store'
+import { reportsAccountChanged } from '@/app/actions/action-result'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
 import { OnboardingRemind } from './onboarding-remind'
@@ -209,6 +211,7 @@ export function OnboardingFlow() {
 
   async function saveHabit() {
     if (creating) return
+    const intendedAccountId = getHeldAccountId()
     setCreating(true)
     setCreateFailed(false)
     const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: false, schedule })
@@ -217,7 +220,7 @@ export function OnboardingFlow() {
       if (isLive && !accountProfile) throw new Error('Profile unavailable')
       const accountTimeZone = accountProfile?.timeZone ?? getClientTimeZone()
       if (isLive && accountProfile?.timeZone == null && accountTimeZone && accountTimeZone !== 'UTC') {
-        await updateTimezone({ timeZone: accountTimeZone })
+        await updateTimezone({ timeZone: accountTimeZone }, intendedAccountId)
       }
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else {
@@ -287,7 +290,8 @@ export function OnboardingFlow() {
     try {
       if (isLive) await allowLiveReminders()
       else await allowSignedOutReminders()
-    } catch {
+    } catch (error) {
+      if (reportsAccountChanged(error)) return
       await setReminderFailure('failed')
     } finally {
       setReminderDecision('idle')
@@ -295,8 +299,8 @@ export function OnboardingFlow() {
   }
 
   async function finishDeferredPushRecovery() {
-    useOnboardingDraftStore.getState().reset()
     await actions.finishOnboarding()
+    useOnboardingDraftStore.getState().reset()
   }
 
   async function continueWithoutReminders() {
@@ -310,6 +314,8 @@ export function OnboardingFlow() {
       if (!await persistReminderDecision(false)) return
       setRemindersOff(true)
       setStep(ONBOARDING_DONE_STEP)
+    } catch (error) {
+      if (!reportsAccountChanged(error)) throw error
     } finally {
       setReminderDecision('idle')
     }
@@ -334,14 +340,16 @@ export function OnboardingFlow() {
 
   const decisionProps: DecisionProps = { step, sentence, locale, marks: read.consumed, isLive, emoji, schedule, dueTime, proposed, correcting, atLimit, allowance, createFailed, creating, suggestionPending, reminderDecision, reminderState, createdTitle, onAccount: () => router.push('/login'), onSentence: (value) => { if (!suggestionPending) setSentence(value) }, onContinueWhat: () => void continueFromWhat(), onCorrect: () => setCorrecting(true), onToggleDay: (day) => setSchedule((current) => toggleOnboardingScheduleDay(current, day)), onTime: (value) => setSchedule((current) => ({ ...current, dueTime: value })), onMode: (mode) => setSchedule((current) => changeOnboardingScheduleMode(current, mode)), onFrequencyUnit: (frequencyUnit) => setSchedule((current) => ({ ...current, frequencyUnit, days: [], isGeneral: false })), onQuantity: (frequencyQuantity) => setSchedule((current) => ({ ...current, frequencyQuantity })), onIntervalWeeks: (intervalWeeks) => setSchedule((current) => ({ ...current, intervalWeeks })), onSave: () => void saveHabit(), onAllow: () => void allowReminders(), onContinueWithout: () => void continueWithoutReminders(), onEditSchedule: () => runStepTransition(() => setStep(ONBOARDING_WHEN_STEP)) }
 
-  /**
-   * The one exit for the done button, the done tab bar and Escape: the overlay has to close first,
-   * because the persistent app layout mounts this flow and it would otherwise cover the destination.
-   */
+  /** The one exit for the done button, the done tab bar and Escape. */
   async function completeAndLeave(destination?: string) {
+    try {
+      if (resolvingDeferredPush) await finishDeferredPushRecovery()
+      else await actions.finishOnboarding()
+    } catch (error) {
+      if (reportsAccountChanged(error)) return
+      throw error
+    }
     setOverlayOpen(false)
-    if (resolvingDeferredPush) await finishDeferredPushRecovery()
-    else await actions.finishOnboarding()
     if (destination) router.push(destination)
   }
 

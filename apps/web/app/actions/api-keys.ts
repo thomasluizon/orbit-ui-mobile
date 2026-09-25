@@ -10,8 +10,9 @@ import {
   extractStepUpAttemptsRemaining,
   validateApiResponse,
 } from '@orbit/shared/utils'
-import { serverAuthFetch } from '@/lib/server-fetch'
+import { serverAuthMutate } from '@/lib/server-fetch'
 import {
+  reportsAccountChanged,
   reportsSessionRefreshFailure,
   wrapServerAction,
   type ServerActionResult,
@@ -27,13 +28,14 @@ export type CreateApiKeyResult =
 
 export async function createApiKey(
   request: ApiKeyCreateRequest,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<CreateApiKeyResult>> {
   return wrapServerAction(async () => {
     try {
-      const response = await serverAuthFetch<ApiKeyCreateResponse>(API.apiKeys.create, {
+      const response = await serverAuthMutate<ApiKeyCreateResponse>(API.apiKeys.create, {
         method: 'POST',
         body: JSON.stringify(request),
-      })
+      }, intendedAccountId)
       return { success: true, response }
     } catch (caught: unknown) {
       if (
@@ -47,15 +49,23 @@ export async function createApiKey(
   })
 }
 
-export async function revokeApiKey(keyId: string): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthFetch(API.apiKeys.delete(keyId), { method: 'DELETE' }))
+export async function revokeApiKey(
+  keyId: string,
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
+  return wrapServerAction(
+    () => serverAuthMutate(API.apiKeys.delete(keyId), { method: 'DELETE' }, intendedAccountId),
+  )
 }
 
-export async function requestApiKeyCreationChallenge(): Promise<ServerActionResult<void>> {
+export async function requestApiKeyCreationChallenge(
+  intendedAccountId: string | null,
+): Promise<ServerActionResult<void>> {
   return wrapServerAction(async () => {
-    const response: unknown = await serverAuthFetch(
-    API.apiKeys.requestCreationChallenge,
-    { method: 'POST' },
+    const response: unknown = await serverAuthMutate(
+      API.apiKeys.requestCreationChallenge,
+      { method: 'POST' },
+      intendedAccountId,
     )
     validateApiResponse(
       response,
@@ -67,12 +77,14 @@ export async function requestApiKeyCreationChallenge(): Promise<ServerActionResu
 
 export async function confirmApiKeyCreationChallenge(
   code: string,
+  intendedAccountId: string | null,
 ): Promise<ServerActionResult<ConfirmApiKeyChallengeResult>> {
   return wrapServerAction(async () => {
     try {
-      const response: unknown = await serverAuthFetch(
+      const response: unknown = await serverAuthMutate(
         API.apiKeys.confirmCreationChallenge,
         { method: 'POST', body: JSON.stringify({ code }) },
+        intendedAccountId,
       )
       validateApiResponse(
         response,
@@ -81,7 +93,7 @@ export async function confirmApiKeyCreationChallenge(
       )
       return { success: true }
     } catch (caught: unknown) {
-      if (reportsSessionRefreshFailure(caught)) throw caught
+      if (reportsSessionRefreshFailure(caught) || reportsAccountChanged(caught)) throw caught
       return {
         success: false,
         errorCode: extractBackendErrorCode(caught) ?? null,

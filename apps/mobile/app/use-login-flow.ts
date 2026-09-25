@@ -18,7 +18,7 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 interface ReturnUrlAttempt {
   returnUrl?: string
-  id: number
+  id: string
   ready: Promise<void>
 }
 
@@ -134,7 +134,7 @@ export function useLoginFlow(isAuthCallback = false) {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  async function completeLogin(response: BackendLoginResponse, attemptId: number, today = false) {
+  async function completeLogin(response: BackendLoginResponse, attemptId: string, today = false) {
     const isCurrentLoginSession = await login(response.token, response.refreshToken, {
       userId: response.userId, name: response.name, email: response.email,
     })

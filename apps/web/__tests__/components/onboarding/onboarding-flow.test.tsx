@@ -219,8 +219,9 @@ describe('OnboardingFlow state model', () => {
     process.env.TZ = 'America/Sao_Paulo'
     vi.setSystemTime(new Date('2026-09-14T00:30:00.000Z'))
     mocks.profile.timeZone = null
+    holdAccount('user-1')
     await reachDone(true)
-    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' }, 'user-1')
     expect(mocks.updateTimezone.mock.invocationCallOrder[0]).toBeLessThan(mocks.createHabit.mock.invocationCallOrder[0]!)
     expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', 'false')
   })

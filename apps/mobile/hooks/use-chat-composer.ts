@@ -50,6 +50,13 @@ import { useUIStore } from "@/stores/ui-store";
 import { useResetOnAccountChange } from "@/hooks/use-session-reset";
 import { getAccountGeneration } from "@/lib/session-epoch";
 
+let nextChatMessageSequence = 0;
+
+function createChatMessageId(): string {
+  nextChatMessageSequence += 1;
+  return `msg-${Date.now()}-${nextChatMessageSequence}-ai`;
+}
+
 interface AttemptedSend {
   content: string;
   draftContent: string;
@@ -465,7 +472,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         updateMessage(draftMessageId, finalFields);
       } else {
         const aiMessage: ChatMessage = {
-          id: `msg-${Date.now()}-ai`,
+          id: createChatMessageId(),
           role: "ai",
           timestamp: new Date(),
           ...finalFields,
@@ -560,7 +567,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       let draftMessageId: string | null = null;
       const ensureDraftMessage = () => {
         if (draftMessageId) return draftMessageId;
-        draftMessageId = `msg-${Date.now()}-ai`;
+        draftMessageId = createChatMessageId();
         setStreamingMessageId(draftMessageId);
         setIsTyping(false);
         addMessage({

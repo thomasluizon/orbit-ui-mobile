@@ -59,6 +59,8 @@
     "pollSeconds": 60
   },
   "caps": {
+    "maxOpenPullRequests": 10,
+    "maxQueuedRuns": 30,
     "parallelTickets": 6,
     "cloudParallelTasks": 8,
     "reviewFixAttempts": 3,

@@ -239,6 +239,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  "eslint-rules/no-mutating-server-auth-fetch.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   "eslint-rules/no-nested-component-definition.cjs": {
     "scope": "changed-files",
     "snapshot": "none",

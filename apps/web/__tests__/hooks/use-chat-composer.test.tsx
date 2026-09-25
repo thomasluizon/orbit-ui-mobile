@@ -228,6 +228,31 @@ describe('web useChatComposer streaming send', () => {
     vi.useRealTimers()
   })
 
+  it('sends the account held when chat intent formed', async () => {
+    signInAs('account-a')
+    mocks.fetch.mockResolvedValue(new Response('{"error":"failed"}', { status: 500 }))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => { await result.current.sendMessage('hello') })
+
+    expect(mocks.fetch.mock.calls[0]?.[1]?.headers).toMatchObject({
+      'X-Orbit-Held-Account-Id': 'account-a',
+    })
+  })
+
+  it('shows reload guidance and disables retry after an account switch refusal', async () => {
+    signInAs('account-a')
+    mocks.fetch.mockResolvedValue(Response.json({
+      error: 'Account changed', errorCode: 'ACCOUNT_CHANGED',
+    }, { status: 409 }))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => { await result.current.sendMessage('hello') })
+
+    expect(result.current.sendError).toBe('errors.api.accountChanged')
+    expect(result.current.canRetryLastSend).toBe(false)
+  })
+
   it('sends Support entry intent on the first and later requests of that conversation', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
     const { result } = renderHook(() => useChatComposer())
@@ -276,6 +301,7 @@ describe('web useChatComposer streaming send', () => {
     const [, request] = mocks.fetch.mock.calls[0]!
     const context = JSON.parse((request.body as FormData).get('clientContext') as string)
     expect(context).not.toHaveProperty('entryPointIntent')
+
   })
 
   it('publishes the stream refusal deadline without replaying the send', async () => {

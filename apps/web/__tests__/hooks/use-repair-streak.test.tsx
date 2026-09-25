@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 import { act, renderHook, waitFor } from '@testing-library/react'
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useRepairStreak } from '@/hooks/use-gamification'
@@ -39,6 +41,7 @@ describe('useRepairStreak', () => {
   beforeEach(() => {
     repairStreakGapAction.mockReset()
     mockFetch.mockReset()
+    useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Thomas', email: 'thomas@example.com' })
     useAuthStore.setState({
       isAuthenticated: true,
       user: { userId: 'user-1', name: 'Thomas', email: 'thomas@example.com' },

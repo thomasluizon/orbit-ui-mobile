@@ -10,6 +10,7 @@ import { clearPendingNotificationDeletes } from '@/lib/pending-notification-dele
 import { getQueryClient } from '@/lib/query-client'
 import { advanceAccountGeneration, advanceSessionEpoch, getSessionEpoch } from '@/lib/session-epoch'
 import { forgetStoredSupportDraft } from '@/lib/support-draft-storage'
+import { clearSupabaseSession } from '@/lib/supabase'
 import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
@@ -45,8 +46,8 @@ let lastObservedAccountId: string | null = null
  *
  * The other two are gated, on different conditions, because they cost different things:
  *
- * The query cache empties only on a real account change, since a rejected refresh that recovers must
- * not blank a tab full of habits, goals and profile rows.
+ * The query cache empties when an account session ends or starts, including a login to the same
+ * account. A rejected refresh keeps the session's cache while the person can still recover it.
  *
  * The content the previous account typed, which is the Astra chat with its stored draft and the
  * stored support draft, empties whenever a session STARTS under an account. That is the point where
@@ -57,15 +58,12 @@ let lastObservedAccountId: string | null = null
  * reset itself because a sign out is a definite end rather than a wobble.
  */
 function startAccountScopedSession(nextAccountId: string | null): void {
+  if (nextAccountId !== null) clearSupabaseSession()
   if (nextAccountId !== null) sessionReadVersion += 1
-  const previousAccountId = lastObservedAccountId
-  const accountChanged = nextAccountId !== null && previousAccountId !== nextAccountId
-
   advanceSessionEpoch()
   if (nextAccountId !== null) lastObservedAccountId = nextAccountId
   clearPendingNotificationDeletes()
   if (nextAccountId !== null) forgetPreviousAccountContent()
-  if (accountChanged) getQueryClient().clear()
 }
 
 /**
@@ -78,12 +76,14 @@ function startAccountScopedSession(nextAccountId: string | null): void {
  * reach, a pasted image and an armed retry, drops on exactly the transitions that drop a draft.
  */
 function forgetPreviousAccountContent(): void {
+  getQueryClient().clear()
   useChatStore.getState().resetAccountScopedChat()
   forgetStoredSupportDraft()
   advanceAccountGeneration()
 }
 
 function clearAccountScopedSessionState(): void {
+  clearSupabaseSession()
   startAccountScopedSession(null)
   clearStepUpState()
 }
@@ -171,6 +171,7 @@ interface AuthState {
   sessionRefreshFailed: boolean
 
   setAuth: (loginResponse: LoginResponse) => void
+  adoptServerAccount: (accountId: string) => void
   adoptAccountFromSignal: (accountId: string | null) => void
   confirmSessionRefreshFailure: () => Promise<void>
   recoverSessionRefreshFailure: () => Promise<void>
@@ -232,6 +233,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionRefreshFailed: false,
     })
     announceAccountToOtherTabs(loginResponse.userId)
+  },
+
+  adoptServerAccount: (accountId: string) => {
+    if (get().sessionInactive || lastObservedAccountId !== null) return
+    adoptSessionAccount(accountId)
+    set({ isAuthenticated: true, sessionInactive: false, user: null, sessionRefreshFailed: false })
   },
 
   /**

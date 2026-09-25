@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   createAuthReturnUrlAttempt: vi.fn(),
   isAuthReturnUrlAttemptCurrent: vi.fn(),
   pendingGoogleSession: { callbackUrl: null as string | null, isPending: false,
-    returnUrlAttemptId: null as number | null },
+    returnUrlAttemptId: null as string | null },
   rawCallbackUrl: 'https://app.useorbit.org/auth-callback?code=old',
   continueAccount: null as null | (() => void),
   callbackState: 'pending',
@@ -48,8 +48,9 @@ vi.mock('@/lib/auth-flow', () => ({
 }))
 vi.mock('@/lib/google-auth-callback', () => ({
   AUTH_CALLBACK_URL: 'https://app.useorbit.org/auth-callback',
-  clearPendingGoogleAuthSession: vi.fn(),
+  clearPendingGoogleAuthSession: vi.fn(() => Promise.resolve()),
   extractGoogleAuthParams: () => ({}),
+  setPendingGoogleAuthCallbackUrl: vi.fn(() => Promise.resolve(false)),
   resolveGoogleAuthCallbackUrl: ({ sessionCallbackUrl }: { sessionCallbackUrl: string | null }) =>
     sessionCallbackUrl ?? mocks.rawCallbackUrl,
   usePendingGoogleAuthSession: () => mocks.pendingGoogleSession,
@@ -72,10 +73,11 @@ beforeEach(() => {
   mocks.getStoredReferralCode.mockResolvedValue(null)
   mocks.consumeStoredAuthReturnUrl.mockResolvedValue('/home')
   mocks.getStoredAuthReturnUrl.mockResolvedValue('/home')
-  mocks.createAuthReturnUrlAttempt.mockReturnValue(1)
+  mocks.createAuthReturnUrlAttempt.mockReturnValue('attempt-1')
   mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
-  mocks.pendingGoogleSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
   mocks.rawCallbackUrl = 'https://app.useorbit.org/auth-callback?code=old'
+  mocks.pendingGoogleSession = { callbackUrl: mocks.rawCallbackUrl, isPending: false,
+    returnUrlAttemptId: 'attempt-1' }
 })
 
 function trackLoginEpoch() {
@@ -113,9 +115,9 @@ it('stops Google callback effects when a replacement login lands during referral
 
 it('keeps a newer flow return URL while the older callback waits for login', async () => {
   mocks.pendingGoogleSession = { callbackUrl: 'https://app.useorbit.org/auth-callback?code=old',
-    isPending: false, returnUrlAttemptId: 1 }
-  let currentAttemptId = 1
-  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: number) => id === currentAttemptId)
+    isPending: false, returnUrlAttemptId: 'attempt-1' }
+  let currentAttemptId = 'attempt-1'
+  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: string) => id === currentAttemptId)
   let releaseLogin!: () => void
   mocks.login.mockImplementation(() => new Promise<() => boolean>((resolve) => {
     releaseLogin = () => resolve(() => true)
@@ -126,7 +128,7 @@ it('keeps a newer flow return URL while the older callback waits for login', asy
 
   await mountCallback()
   await vi.waitFor(() => expect(mocks.login).toHaveBeenCalledTimes(1))
-  currentAttemptId = 2
+  currentAttemptId = 'attempt-2'
   storedUrl = '/newer'
   await TestRenderer.act(async () => { releaseLogin(); await Promise.resolve() })
 
@@ -137,8 +139,8 @@ it('keeps a newer flow return URL while the older callback waits for login', asy
 })
 
 it('waits for the pending Google session before claiming a raw callback', async () => {
-  mocks.pendingGoogleSession = { callbackUrl: null, isPending: true, returnUrlAttemptId: 2 }
-  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: number) => id === 2)
+  mocks.pendingGoogleSession = { callbackUrl: null, isPending: true, returnUrlAttemptId: 'attempt-2' }
+  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: string) => id === 'attempt-2')
   mocks.login.mockResolvedValue(() => true)
   let renderer!: { update: (element: React.ReactElement) => void }
   await TestRenderer.act(async () => {
@@ -148,7 +150,7 @@ it('waits for the pending Google session before claiming a raw callback', async 
   expect(mocks.completeGoogleAuthFromUrl).not.toHaveBeenCalled()
 
   const newCallbackUrl = 'https://app.useorbit.org/auth-callback?code=new'
-  mocks.pendingGoogleSession = { callbackUrl: newCallbackUrl, isPending: false, returnUrlAttemptId: 2 }
+  mocks.pendingGoogleSession = { callbackUrl: newCallbackUrl, isPending: false, returnUrlAttemptId: 'attempt-2' }
   await TestRenderer.act(async () => { renderer.update(<AuthCallbackScreen />); await Promise.resolve() })
   await vi.waitFor(() => expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledWith(newCallbackUrl, 'en', undefined))
   await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/home'))

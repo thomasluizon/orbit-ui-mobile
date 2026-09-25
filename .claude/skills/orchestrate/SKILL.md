@@ -548,6 +548,8 @@ node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <c
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
 ```
 
+The submitter applies the same admission gate before any Cloud reservation. An open pull request
+on the branch exempts review and salvage work. `ADMISSION_REFUSED` starts no Cloud task.
 The submitter verifies that the remote branch SHA exactly matches the worktree HEAD. The receipt
 records the exact pushed branch SHA that the container starts from, the order hashes, target
 worktree, submission time, and the deadline at `timeouts.cloudCeilingMinutes`. Its stable mirror
@@ -719,6 +721,10 @@ Every local order names its tier. Use `--tier default` for an original implement
 reviewer-directed test strengthening whose order names the exact experiment. A review fix that
 still needs product, design, architecture, security or ambiguous judgement stays `--tier default`.
 The mechanical tier means the answer is fully specified; it is never a synonym for small.
+
+New ticket work first passes the GitHub admission gate in `caps.maxOpenPullRequests` and
+`caps.maxQueuedRuns`. A branch with an open pull request is exempt. `ADMISSION_REFUSED` starts no
+worker and consumes no branch launch. Work on an existing pull request or wait on CI instead.
 
 `launch-worker.mjs` records launches per branch and enforces `caps.workerLaunchesPerBranch`. A
 deliberate launch beyond that cap passes `--relaunch-reason "<concrete reason this additional order
@@ -1460,11 +1466,11 @@ live task ends the night silently, and what it leaves behind is indistinguishabl
 finished, so nobody goes looking. That is exactly how 2026-08-06 ended: the orchestrator said "CI
 will wake me" with nothing scheduled.
 
-**When there is genuinely nothing to wait on and work remains, LAUNCH THE NEXT TICKET.** All slots
-free plus a non-empty queue is not a reason to end the turn; it is the definition of the next
-action. `launch-worker.mjs` registers itself as a local wake source, and
-`submit-cloud-worker.mjs --watch <receiptPath>` does the same for a Cloud task. Starting the next
-worker or watcher satisfies the invariant by construction.
+**Launch a new ticket only when a slot is free and admission allows it.** `launch-worker.mjs` and
+`submit-cloud-worker.mjs` enforce the GitHub counts. Existing pull request work can proceed.
+When CI or review is the remaining work, start
+`node tools/wait-ci.mjs --repo <key> --pr <n> [--require-check pullfrog-approval]` in the background.
+The worker launcher, Cloud receipt watcher, and CI waiter each register a live wake source.
 
 **The gate:** `.claude/hooks/require-wake-source.mjs` runs on `Stop` and refuses the stop when the
 run record says `--sleep` with tickets remaining and no registered wake source is a live process. So

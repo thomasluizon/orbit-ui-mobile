@@ -18,6 +18,10 @@ import {
   completeOnboarding,
   updateWeekStartDay as updateWeekStartDayAction,
 } from '@/lib/actions/profile'
+import { getHeldAccountId } from '@/stores/auth-store'
+import { reportsAccountChanged } from '@/app/actions/action-result'
+import { useAppToast } from '@/hooks/use-app-toast'
+
 import { getAccountGeneration } from '@/lib/session-epoch'
 
 /** Canonical mode-blind action surface consumed by every onboarding step. */
@@ -126,6 +130,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
   const router = useRouter()
   const queryClient = useQueryClient()
   const t = useTranslations()
+  const { showPersistentError } = useAppToast()
   const createHabit = useCreateHabit()
   const updateHabit = useUpdateHabit()
   const bulkCreateHabits = useBulkCreateHabits()
@@ -148,20 +153,39 @@ export function useLiveOnboardingActions(): OnboardingActions {
       logHabit: async (habitId) => { await logHabit.mutateAsync({ habitId, intent: 'log' }) },
       createGoal: async (input) => { await createGoal.mutateAsync(input) },
       setWeekStartDay: async (day) => {
+        const intendedAccountId = getHeldAccountId()
         const accountGeneration = getAccountGeneration()
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) => old ? { ...old, weekStartDay: day } : old)
-        await updateWeekStartDayAction({ weekStartDay: day })
-        if (getAccountGeneration() === accountGeneration) {
-          void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+        try {
+          await updateWeekStartDayAction({ weekStartDay: day }, intendedAccountId)
+          if (getHeldAccountId() === intendedAccountId && getAccountGeneration() === accountGeneration) {
+            void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+          }
+        } catch (error) {
+          if (reportsAccountChanged(error)) {
+            if (getHeldAccountId() === intendedAccountId && getAccountGeneration() === accountGeneration) queryClient.clear()
+            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+          }
+          throw error
+
         }
       },
       deferPushRegistration: () => undefined,
       finishOnboarding: async () => {
+        const intendedAccountId = getHeldAccountId()
+
         const accountGeneration = getAccountGeneration()
         try {
-          await completeOnboarding()
-        } catch {
-          void 0
+          await completeOnboarding(intendedAccountId)
+        } catch (error) {
+          if (reportsAccountChanged(error)) {
+            showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+            throw error
+          }
+        }
+        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+          showPersistentError(t('errors.api.accountChanged'), t('common.dismiss'), t('errorScreen.reload'))
+          throw Object.assign(new Error('Account changed'), { code: 'ACCOUNT_CHANGED', status: 409 })
         }
         if (getAccountGeneration() !== accountGeneration) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
@@ -179,6 +203,6 @@ export function useLiveOnboardingActions(): OnboardingActions {
         router.push('/?astra=open')
       },
     }),
-    [bulkCreateHabits, createGoal, createHabit, logHabit, queryClient, router, t, updateHabit],
+    [bulkCreateHabits, createGoal, createHabit, logHabit, queryClient, router, showPersistentError, t, updateHabit],
   )
 }

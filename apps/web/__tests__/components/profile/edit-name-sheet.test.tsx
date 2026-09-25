@@ -1,4 +1,6 @@
+import { useAuthStore } from '@/stores/auth-store'
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -46,6 +48,10 @@ function renderSheet(onOpenChange = vi.fn()) {
   return onOpenChange
 }
 
+beforeEach(() => {
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+})
+
 describe('EditNameSheet', () => {
   beforeEach(() => {
     mockUpdateName.mockReset()
@@ -92,7 +98,7 @@ describe('EditNameSheet', () => {
     fireEvent.click(screen.getByText('common.save'))
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
-    expect(mockUpdateName).toHaveBeenCalledWith({ name: 'Ana Clara' })
+    expect(mockUpdateName).toHaveBeenCalledWith({ name: 'Ana Clara' }, 'account-a')
     expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Ana Clara' })
     expect(mockInvalidate).toHaveBeenCalled()
   })
