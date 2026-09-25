@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { ChatResponse } from '@orbit/shared/types/chat'
+import type { ChatClientContext, ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
@@ -43,6 +43,7 @@ import {
 } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
 import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
@@ -177,7 +178,10 @@ export function useChatComposer() {
    * attempted send would otherwise stay armed behind Retry and post its text under the next
    * account's cookie. The store reset cannot reach React state, so it follows the session itself.
    */
-  useResetOnAccountChange(() => setLastFailedSend(null))
+  useResetOnAccountChange(() => {
+    setLastFailedSend(null)
+    useUIStore.getState().setAstraConversationOpen(false)
+  })
 
   const isOnline = useSyncExternalStore(
     subscribeToNetworkStatus,
@@ -401,14 +405,17 @@ export function useChatComposer() {
 
     const recentHistory = buildRecentChatHistory(useChatStore.getState().messages)
     formData.append('history', JSON.stringify(recentHistory))
-    formData.append('clientContext', JSON.stringify({
+    const entryPointIntent = useUIStore.getState().astraEntryPointIntent
+    const clientContext = {
       platform: 'web',
       locale,
       timeFormat: detectDefaultTimeFormat(locale),
       currentAppArea: 'chat',
       supportsHabitListCard: true,
       supportsGoalListCard: true,
-    }))
+      ...(entryPointIntent ? { entryPointIntent } : {}),
+    } satisfies ChatClientContext
+    formData.append('clientContext', JSON.stringify(clientContext))
     return formData
   }, [locale])
 

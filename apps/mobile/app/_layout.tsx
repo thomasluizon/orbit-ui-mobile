@@ -331,8 +331,14 @@ function RootLayoutNav() {
             composer={pathname === '/notifications' ? undefined : (
               <Composer
                 {...chat.composerProps}
-                onOpenConversation={() => setAstraConversationOpen(true)}
+                onOpenConversation={() => setAstraConversationOpen(true, pathname === '/support' ? 'support' : undefined)}
                 conversationLabel={t('todayAstra.openConversation')}
+                onSend={() => {
+                  if (pathname === '/support' && !astraConversationOpen) {
+                    setAstraConversationOpen(true, 'support')
+                  }
+                  chat.composerProps.onSend()
+                }}
               />
             )}
             notice={<>

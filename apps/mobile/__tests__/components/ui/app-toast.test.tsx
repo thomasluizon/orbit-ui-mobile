@@ -5,8 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppToast, Toast } from '@/components/ui/app-toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
 
 const TestRenderer = require('react-test-renderer')
+const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
+
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: theme.mode }),
+}))
 
 function render(element: React.ReactNode) {
   let tree: any
@@ -25,6 +31,70 @@ describe('mobile Toast', () => {
   afterEach(() => {
     TestRenderer.act(() => vi.runOnlyPendingTimers())
     vi.useRealTimers()
+    theme.mode = 'dark'
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the lost action readable at rest and press in %s', (mode) => {
+    theme.mode = mode
+    const tree = render(
+      <Toast kind="lost" message="Lost" detail="Try again" actionLabel="Retry" onAction={() => {}} />,
+    )
+    const action = tree.root.findByProps({ testID: 'toast-action' })
+    const tokens = createTokensV2('purple', mode)
+
+    for (const pressed of [false, true]) {
+      if (pressed) TestRenderer.act(() => action.props.onPressIn?.())
+      const foreground = StyleSheet.flatten(action.findByType('Text').props.style).color as string
+      const actionStyle = typeof action.props.style === 'function'
+        ? action.props.style({ pressed })
+        : action.props.style
+      const opacity = StyleSheet.flatten(actionStyle).opacity ?? 1
+      expect(contrastOnSurface(withAlpha(foreground, opacity), [tokens.bg]))
+        .toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the neutral action readable at rest and press in %s', (mode) => {
+    theme.mode = mode
+    const tree = render(<Toast kind="neutral" message="Queued" actionLabel="Undo" onAction={() => {}} />)
+    const action = tree.root.findByProps({ testID: 'toast-action' })
+    const tokens = createTokensV2('purple', mode)
+
+    for (const pressed of [false, true]) {
+      if (pressed) TestRenderer.act(() => action.props.onPressIn())
+      const foreground = StyleSheet.flatten(action.findByType('Text').props.style).color as string
+      expect(contrastOnSurface(foreground, [tokens.bgSheet])).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('shows a high-contrast action focus ring in %s', (mode) => {
+    theme.mode = mode
+    const tree = render(
+      <Toast kind="lost" message="Lost" detail="Try again" actionLabel="Retry" onAction={() => {}} />,
+    )
+    const action = tree.root.findByProps({ testID: 'toast-action' })
+    const tokens = createTokensV2('purple', mode)
+
+    TestRenderer.act(() => action.props.onFocus())
+    const focusedStyle = StyleSheet.flatten(action.props.style)
+    expect(focusedStyle.outlineWidth).toBeGreaterThanOrEqual(2)
+    expect(contrastOnSurface(focusedStyle.outlineColor, [tokens.bg])).toBeGreaterThanOrEqual(3)
+  })
+
+  it('expands even a one-character action to a 44px target without reaching the copy', () => {
+    const tree = render(
+      <Toast kind="lost" message="Lost" detail="Try again" actionLabel="i" onAction={() => {}} />,
+    )
+    const action = tree.root.findByProps({ testID: 'toast-action' })
+    const actionStyle = StyleSheet.flatten(
+      typeof action.props.style === 'function' ? action.props.style({ pressed: false }) : action.props.style,
+    )
+    const toastStyle = StyleSheet.flatten(tree.root.findByProps({ testID: 'toast-lost' }).props.style)
+
+    expect(actionStyle.minWidth + action.props.hitSlop * 2).toBeGreaterThanOrEqual(44)
+    expect(actionStyle.minHeight + action.props.hitSlop * 2).toBeGreaterThanOrEqual(44)
+    expect(toastStyle.gap).toBeGreaterThanOrEqual(action.props.hitSlop)
+    expect(toastStyle.padding).toBeGreaterThanOrEqual(action.props.hitSlop)
   })
 
   it.each([48, 112, 200])('keeps the public route height unchanged with a %ipx toast', (toastHeight) => {
