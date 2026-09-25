@@ -17,7 +17,9 @@ export const cases = async () => {
     observed.endpoints["pulls?state=open"].pull.number === "number" &&
     observed.endpoints["pulls/{number}"].head.sha === "string" &&
     observed.endpoints["commits/{sha}/check-runs"].response.total_count === "number" &&
-    observed.endpoints["commits/{sha}/status"].response.statuses === "array")
+    observed.endpoints["commits/{sha}/status"].response.statuses === "array" &&
+    observed.endpoints["actions/runs?head_sha"].response.total_count === "number" &&
+    observed.endpoints["actions/runs?head_sha"].workflowRun.status === "string")
   const config = {
     repos: { ui: repository("ui"), api: repository("api"), landing: repository("landing") },
     caps: { maxOpenPullRequests: 10, maxQueuedRuns: 30 },

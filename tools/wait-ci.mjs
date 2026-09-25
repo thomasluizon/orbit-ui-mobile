@@ -92,6 +92,27 @@ try {
     }
     return checks
   }
+  const runsForHead = async (sha) => {
+    const runs = []
+    for (let page = 1; ; page += 1) {
+      const response = await read(`actions/runs?head_sha=${sha}&per_page=100&page=${page}`)
+      if (!Number.isInteger(response?.total_count) || !Array.isArray(response.workflow_runs) ||
+          response.workflow_runs.some((run) => typeof run?.status !== "string")) {
+        throw new Error("GitHub workflow runs had an unexpected shape")
+      }
+      runs.push(...response.workflow_runs)
+      if (runs.length >= response.total_count) break
+      if (response.workflow_runs.length === 0) throw new Error("GitHub workflow runs pagination stopped early")
+    }
+    return runs
+  }
+  /**
+   * A head is settled only when the same completed set is seen on two consecutive quiet polls, with no
+   * workflow run for that head still queued or running. A fast check can finish before a slower
+   * workflow has registered its checks (Pullfrog on PR 1091, twice), and a workflow run exists from
+   * dispatch, before any of its check runs does.
+   */
+  const lastQuietSet = new Map()
   while (!finished) {
     for (const entry of result.pullRequests) {
       const pull = await read(`pulls/${entry.number}`)
@@ -124,9 +145,13 @@ try {
         ...checks.filter((check) => check.status === "completed" && !["success", "neutral", "skipped"].includes(check.conclusion)).map((check) => check.name),
         ...status.statuses.filter((item) => ["failure", "error"].includes(item.state)).map((item) => item.context),
       ]
+      const runsPending = (await runsForHead(entry.head)).some((run) => run.status !== "completed")
       // A head that has registered no check yet is not settled: the workflows it will start are still
       // being dispatched, and an empty set would pass `every` vacuously (Pullfrog on PR 1091).
-      entry.settled = completedNames.size > 0 && !pending && requiredChecks.every((name) => completedNames.has(name))
+      const quiet = completedNames.size > 0 && !pending && !runsPending && requiredChecks.every((name) => completedNames.has(name))
+      const observed = [...completedNames].sort().join("\n")
+      entry.settled = quiet && lastQuietSet.get(entry.number) === observed
+      lastQuietSet.set(entry.number, quiet ? observed : null)
     }
     if (result.pullRequests.every((entry) => entry.settled)) finish("SETTLED", 0)
     if (Date.now() >= deadline) finish("CEILING", 3)

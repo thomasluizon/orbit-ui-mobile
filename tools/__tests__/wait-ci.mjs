@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process"
+import { readFileSync } from "node:fs"
 import { T, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 import { readWakeSources } from "../lib/run-state.mjs"
 
@@ -9,6 +10,7 @@ const pull = (sha = SHA_A, state = "open") => JSON.stringify({ state, head: { sh
 const checks = (rows) => JSON.stringify({ total_count: rows.length, check_runs: rows })
 const completed = (name, conclusion = "success") => ({ name, status: "completed", conclusion })
 const queued = (name) => ({ name, status: "queued", conclusion: null })
+const runs = (rows) => JSON.stringify({ total_count: rows.length, workflow_runs: rows })
 
 const fixture = (label, overrides = []) => {
   const repo = stageRepo(`wait-ci-${label}`)
@@ -21,6 +23,7 @@ const fixture = (label, overrides = []) => {
     { match: "/pulls/12", stdout: pull(), ...overrides.find((entry) => entry.kind === "pull") },
     { match: "/check-runs?", stdout: checks([completed("Lint")]), ...overrides.find((entry) => entry.kind === "checks") },
     { match: "/status", stdout: JSON.stringify({ state: "success", statuses: [] }) },
+    { match: "actions/runs?head_sha=", stdout: runs([{ name: "CI", status: "completed" }]), ...overrides.find((entry) => entry.kind === "runs") },
   ])
   return { ...staged, env }
 }
@@ -52,6 +55,22 @@ export const cases = async () => {
   const empty = fixture("empty", [{ kind: "checks", stdout: checks([]) }])
   const emptyResult = run(TOOL, argumentsFor("--ceiling-minutes", "0.0001"), { path: empty.path, env: empty.env })
   T("wait-ci: a head with no registered check never settles", emptyResult.status === 3 && JSON.parse(emptyResult.stdout).reason === "CEILING" && !JSON.parse(emptyResult.stdout).pullRequests[0].settled, emptyResult.stderr)
+
+  const lateSequence = stage("wait-ci/late-sequence", "")
+  const late = fixture("late", [{ kind: "checks", sequenceFile: lateSequence, stdoutSequence: [
+    checks([completed("Fast")]), checks([completed("Fast"), queued("Slow")]), checks([completed("Fast"), completed("Slow")]),
+  ] }])
+  const lateResult = run(TOOL, argumentsFor(), { path: late.path, env: late.env })
+  T("wait-ci: a check that registers after a fast one keeps the head unsettled until it completes",
+    lateResult.status === 0 && JSON.parse(lateResult.stdout).reason === "SETTLED" && Number(readFileSync(lateSequence, "utf8")) >= 4, lateResult.stderr)
+
+  const runSequence = stage("wait-ci/run-sequence", "")
+  const pendingRun = fixture("pending-run", [{ kind: "runs", sequenceFile: runSequence, stdoutSequence: [
+    runs([{ name: "Guards", status: "queued" }]), runs([{ name: "Guards", status: "completed" }]),
+  ] }])
+  const pendingRunResult = run(TOOL, argumentsFor(), { path: pendingRun.path, env: pendingRun.env })
+  T("wait-ci: a queued workflow run with no check yet keeps the head unsettled",
+    pendingRunResult.status === 0 && JSON.parse(pendingRunResult.stdout).reason === "SETTLED" && Number(readFileSync(runSequence, "utf8")) >= 3, pendingRunResult.stderr)
 
   const failing = fixture("failing", [{ kind: "checks", stdout: checks([completed("Lint", "failure")]) }])
   const failingResult = run(TOOL, argumentsFor(), { path: failing.path, env: failing.env })

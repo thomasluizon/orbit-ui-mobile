@@ -196,6 +196,49 @@
         "created_at": "string",
         "updated_at": "string"
       }
+    },
+    "actions/runs?head_sha": {
+      "response": {
+        "total_count": "number",
+        "workflow_runs": "array"
+      },
+      "workflowRun": {
+        "actor": "object",
+        "artifacts_url": "string",
+        "cancel_url": "string",
+        "check_suite_id": "number",
+        "check_suite_node_id": "string",
+        "check_suite_url": "string",
+        "conclusion": "string",
+        "created_at": "string",
+        "display_title": "string",
+        "event": "string",
+        "head_branch": "string",
+        "head_commit": "object",
+        "head_repository": "object",
+        "head_sha": "string",
+        "html_url": "string",
+        "id": "number",
+        "jobs_url": "string",
+        "logs_url": "string",
+        "name": "string",
+        "node_id": "string",
+        "path": "string",
+        "previous_attempt_url": "null",
+        "pull_requests": "array",
+        "referenced_workflows": "array",
+        "repository": "object",
+        "rerun_url": "string",
+        "run_attempt": "number",
+        "run_number": "number",
+        "run_started_at": "string",
+        "status": "string",
+        "triggering_actor": "object",
+        "updated_at": "string",
+        "url": "string",
+        "workflow_id": "number",
+        "workflow_url": "string"
+      }
     }
   }
 }
