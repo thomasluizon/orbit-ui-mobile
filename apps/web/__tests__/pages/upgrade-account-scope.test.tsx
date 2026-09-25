@@ -28,6 +28,7 @@ vi.mock('@/lib/actions/subscription', () => ({
 }))
 
 let status: Record<string, unknown> | null = null
+let billing: Record<string, unknown> = {}
 
 vi.mock('@/hooks/use-subscription-status', () => ({
   useSubscriptionStatus: () => ({
@@ -58,7 +59,7 @@ vi.mock('@/hooks/use-subscription-plans', () => ({
 
 vi.mock('@/hooks/use-billing', () => ({
   useBilling: () => ({
-    billing: { status: 'active', cancelAtPeriodEnd: false },
+    billing,
     isLoading: false,
     isError: false,
     refetch: mocks.refetchBilling,
@@ -122,6 +123,7 @@ describe('UpgradePage across an account change', () => {
     })
     vi.stubGlobal('fetch', vi.fn())
     status = LAPSED_STATUS
+    billing = { status: 'active', cancelAtPeriodEnd: false }
     mocks.openCustomerPortal.mockReset()
     mocks.refetchStatus.mockReset().mockResolvedValue(undefined)
     mocks.refetchBilling.mockReset().mockResolvedValue(undefined)
@@ -149,11 +151,10 @@ describe('UpgradePage across an account change', () => {
       mocks.openCustomerPortal.mockResolvedValue({ url: 'https://billing.example.test/user-1' })
       vi.stubGlobal('location', { href: '' })
       render(<UpgradePage />)
-      const manage = screen.getByRole('button', {
-        name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage',
-      })
-      expect(manage).toBeDisabled()
-      fireEvent.click(manage)
+      const manageName = source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage'
+      expect(screen.getByRole('main')).toHaveAttribute('data-state', 'loading')
+      expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true')
+      expect(screen.queryByRole('button', { name: manageName })).not.toBeInTheDocument()
       expect(mocks.openCustomerPortal).not.toHaveBeenCalled()
       expect(globalThis.location.href).toBe('')
 
@@ -163,6 +164,7 @@ describe('UpgradePage across an account change', () => {
         finishSession(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
         await sessionCheck
       })
+      const manage = screen.getByRole('button', { name: manageName })
       expect(manage).toBeEnabled()
       fireEvent.click(manage)
       await waitFor(() => expect(globalThis.location.href).not.toBe(''))
@@ -176,9 +178,8 @@ describe('UpgradePage across an account change', () => {
       finishSession = resolve
     }))
     render(<UpgradePage />)
-    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
-    expect(checkoutButton()).toBeDisabled()
-    fireEvent.click(checkoutButton())
+    expect(screen.getByRole('main')).toHaveAttribute('data-state', 'loading')
+    expect(screen.queryByRole('button', { name: 'upgrade.billing.lapsed.action' })).not.toBeInTheDocument()
     expect(globalThis.fetch).not.toHaveBeenCalled()
 
     let sessionCheck!: Promise<void>
@@ -192,6 +193,30 @@ describe('UpgradePage across an account change', () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(Response.json({}))
     fireEvent.click(checkoutButton())
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2))
+  })
+
+  it('hides cached invoice details until the first session owner arrives', async () => {
+    status = STRIPE_PRO_STATUS
+    billing = {
+      status: 'active',
+      cancelAtPeriodEnd: false,
+      recentInvoices: [{
+        id: 'invoice-from-previous-session',
+        date: '2026-08-01T00:00:00Z',
+        amountPaid: 999,
+        currency: 'usd',
+        billingReason: 'subscription_cycle',
+        status: 'paid',
+        invoicePdf: 'https://billing.example.test/invoice-from-previous-session',
+        hostedInvoiceUrl: null,
+      }],
+    }
+    act(() => { useAuthStore.getState().adoptAccountFromSignal(null) })
+    render(<UpgradePage />)
+
+    expect(screen.queryByText('upgrade.billing.invoices.title')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^upgrade.billing.invoices.downloadDated/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveAttribute('data-state', 'loading')
   })
 
   it('shows the next account their own lapse notice rather than the previous pitch', async () => {

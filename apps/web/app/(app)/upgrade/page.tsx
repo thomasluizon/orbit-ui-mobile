@@ -84,6 +84,7 @@ export default function UpgradePage() {
     isOnline,
     portalState,
   })
+  const screenState = heldAccountId === null ? 'loading' : model.state
 
   const usagePercent = useMemo(() => {
     if (!status || status.aiMessagesLimit === 0) return 0
@@ -193,7 +194,7 @@ export default function UpgradePage() {
   }
 
   let content
-  if (model.state === 'loading') {
+  if (screenState === 'loading') {
     content = (
       <div className="flex flex-col gap-3">
         <Skeleton variant="settings" label={t('common.loading')} />
@@ -224,7 +225,6 @@ export default function UpgradePage() {
           isLoadingPlans={isLoadingPlans}
           isPlansError={isPlansError}
           isOnline={isOnline}
-          accountReady={heldAccountId !== null}
           trialDaysLeft={trialDaysLeft}
           checkoutLoading={checkoutLoading}
           checkoutError={checkoutError}
@@ -243,7 +243,6 @@ export default function UpgradePage() {
         <PlayBillingDashboard
           state={model.state}
           onManagePlay={() => void handleOpenPortal()}
-          accountReady={heldAccountId !== null}
           status={status}
           locale={locale}
           usagePercent={usagePercent}
@@ -264,7 +263,6 @@ export default function UpgradePage() {
           usageUrgent={usagePercent >= 80}
           onOpenPortal={() => void handleOpenPortal()}
           onRetryPortal={() => void handleOpenPortal()}
-          accountReady={heldAccountId !== null}
           t={t}
         />
       </div>
@@ -278,8 +276,8 @@ export default function UpgradePage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('upgrade.title')}
       />
-      <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-4" data-state={model.state}>
-        {model.state === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
+      <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-4" data-state={screenState} aria-busy={screenState === 'loading'}>
+        {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </main>
     </div>

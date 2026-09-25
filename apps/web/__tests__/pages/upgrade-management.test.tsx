@@ -164,7 +164,7 @@ describe('UpgradePage subscription management', () => {
   it('updates one mounted portal alert through failure and retry', () => {
     function Handoff({ state }: { state: 'stripe' | 'portal-failed' }) {
       const t = useTranslations()
-      return <ProviderHandoff provider="stripe" state={state} accountReady onManage={() => {}} t={t} />
+      return <ProviderHandoff provider="stripe" state={state} onManage={() => {}} t={t} />
     }
     const { rerender } = render(<Handoff state="stripe" />)
     const alert = screen.getByRole('alert')

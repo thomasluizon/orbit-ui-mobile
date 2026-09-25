@@ -16,7 +16,6 @@ export function PlayBillingDashboard({
   usagePercent,
   usageUrgent,
   onManagePlay,
-  accountReady,
   t,
 }: Readonly<{
   state: SubscriptionScreenState
@@ -25,7 +24,6 @@ export function PlayBillingDashboard({
   usagePercent: number
   usageUrgent: boolean
   onManagePlay: () => void
-  accountReady: boolean
   t: UpgradeTranslations
 }>) {
   if (!status) return null
@@ -41,7 +39,7 @@ export function PlayBillingDashboard({
         <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
         {summary.renewal ? <p className="font-mono text-xs text-[var(--fg-2)]">{t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) })}</p> : null}
       </section>
-      <ProviderHandoff provider="play" state={state} accountReady={accountReady} onManage={onManagePlay} t={t} />
+      <ProviderHandoff provider="play" state={state} onManage={onManagePlay} t={t} />
       <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
       <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p>
     </div>

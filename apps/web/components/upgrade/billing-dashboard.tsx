@@ -73,15 +73,14 @@ function PlanSummary({ status, billing, locale, t }: Readonly<{
   )
 }
 
-function PaymentMethodSection({ method, state, accountReady, onOpenPortal, t }: Readonly<{
+function PaymentMethodSection({ method, state, onOpenPortal, t }: Readonly<{
   method: BillingPaymentMethod | null | undefined
   state: SubscriptionScreenState
-  accountReady: boolean
   onOpenPortal: () => void
   t: UpgradeTranslations
 }>) {
   if (!method) return null
-  const handoffUnavailable = !accountReady || ['portal-failed', 'portal-opening', 'offline'].includes(state)
+  const handoffUnavailable = ['portal-failed', 'portal-opening', 'offline'].includes(state)
   return (
     <section className="flex flex-col gap-2">
       <h2 className="text-sm font-medium text-[var(--fg-2)]">{t('upgrade.billing.payment.title')}</h2>
@@ -156,7 +155,6 @@ export function BillingDashboard({
   usageUrgent,
   onOpenPortal,
   onRetryPortal,
-  accountReady,
   t,
 }: Readonly<{
   state: SubscriptionScreenState
@@ -167,15 +165,14 @@ export function BillingDashboard({
   usageUrgent: boolean
   onOpenPortal: () => void
   onRetryPortal: () => void
-  accountReady: boolean
   t: UpgradeTranslations
 }>) {
   if (!status) return null
   return (
     <div className="flex flex-col gap-6">
       <PlanSummary state={state} status={status} billing={billing} locale={locale} t={t} />
-      {!status.isLifetimePro ? <ProviderHandoff provider="stripe" state={state} accountReady={accountReady} onManage={state === 'portal-failed' ? onRetryPortal : onOpenPortal} t={t} /> : null}
-      <PaymentMethodSection method={status.isLifetimePro ? null : billing?.paymentMethod} state={state} accountReady={accountReady} onOpenPortal={onOpenPortal} t={t} />
+      {!status.isLifetimePro ? <ProviderHandoff provider="stripe" state={state} onManage={state === 'portal-failed' ? onRetryPortal : onOpenPortal} t={t} /> : null}
+      <PaymentMethodSection method={status.isLifetimePro ? null : billing?.paymentMethod} state={state} onOpenPortal={onOpenPortal} t={t} />
       <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
       <InvoiceHistory invoices={status.isLifetimePro ? undefined : billing?.recentInvoices} locale={locale} state={state} t={t} />
       {!status.isLifetimePro ? <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p> : null}

@@ -5,10 +5,9 @@ import type { SubscriptionScreenState } from '@orbit/shared/utils'
 import { Icon } from '@/components/ui/icon'
 import { PillButton } from '@/components/ui/pill-button'
 
-export function ProviderHandoff({ provider, state, accountReady, onManage, t }: Readonly<{
+export function ProviderHandoff({ provider, state, onManage, t }: Readonly<{
   provider: 'stripe' | 'play'
   state: SubscriptionScreenState
-  accountReady: boolean
   onManage: () => void
   t: ReturnType<typeof useTranslations>
 }>) {
@@ -34,7 +33,7 @@ export function ProviderHandoff({ provider, state, accountReady, onManage, t }: 
         </> : null}
       </div>
       <div className="flex">
-        <PillButton variant="primary" loading={opening} disabled={!accountReady || state === 'offline'} onClick={onManage}>
+        <PillButton variant="primary" loading={opening} disabled={state === 'offline'} onClick={onManage}>
           {t(failed ? 'upgrade.billing.retry' : manageLabel)}
         </PillButton>
       </div>
