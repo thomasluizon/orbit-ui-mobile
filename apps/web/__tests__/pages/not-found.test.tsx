@@ -1,12 +1,18 @@
 import { expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import NotFound from '@/app/not-found'
-const { push } = vi.hoisted(() => ({ push: vi.fn() }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-it('returns a missing page to Today', () => {
+it('exposes the Today destination as a keyboard accessible link', async () => {
+  const user = userEvent.setup()
   render(<NotFound />)
   expect(screen.getByRole('heading')).toHaveTextContent('notFoundPage.title')
-  fireEvent.click(screen.getByRole('button', { name: 'notFoundPage.action' }))
-  expect(push).toHaveBeenCalledWith('/')
+  const link = screen.getByRole('link', { name: 'notFoundPage.action' })
+  expect(link).toHaveAttribute('href', '/')
+  const activate = vi.fn((event: Event) => event.preventDefault())
+  link.addEventListener('click', activate)
+  await user.tab()
+  expect(link).toHaveFocus()
+  await user.keyboard('{Enter}')
+  expect(activate).toHaveBeenCalledOnce()
 })

@@ -10,6 +10,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
+import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { createTokensV2 } from '@/lib/theme'
 import { GoalLinkingField } from './goal-linking-field'
@@ -49,9 +50,14 @@ function TimeEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: Norma
   return <FieldWell tokens={tokens}><TimeField label={t('habits.detail.time')} value={dueTime} onChange={setDueTime} onClear={() => setDueTime('')} /><FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailTimePatch(dueTime, habit); if (patch) onSave(patch) }} /></FieldWell>
 }
 
+function FrequencyUnitOption({ label, selected, tokens, onSelect }: Readonly<{ label: string; selected: boolean; tokens: Tokens; onSelect: () => void }>) {
+  const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled: false, onSelect, selected })
+  return <Pressable {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} style={[styles.chip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: selected ? tokens.selectionBg : tokens.bg }]} onPress={onActivate}><Text numberOfLines={1} style={[styles.chipText, { color: tokens.fg1 }]}>{label}</Text></Pressable>
+}
+
 function FrequencyUnitChips({ unit, tokens, onChange }: Readonly<{ unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]; tokens: Tokens; onChange: (unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]) => void }>) {
   const { t } = useTranslation()
-  return <View style={styles.chips}>{HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: unit === value }} style={[styles.chip, { borderColor: unit === value ? tokens.primary : tokens.hairline, backgroundColor: unit === value ? tokens.selectionBg : tokens.bg }]} onPress={() => onChange(value)}><Text numberOfLines={1} style={[styles.chipText, { color: tokens.fg1 }]}>{t(`habits.form.unit${value}`)}</Text></Pressable>)}</View>
+  return <RadioGroup accessibilityLabel={t('habits.detail.schedule')} style={styles.chips}>{HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <FrequencyUnitOption key={value} label={t(`habits.form.unit${value}`)} selected={unit === value} tokens={tokens} onSelect={() => onChange(value)} />)}</RadioGroup>
 }
 
 function WeekdayChips({ days, tokens, onChange }: Readonly<{ days: string[]; tokens: Tokens; onChange: (days: string[]) => void }>) {
@@ -121,7 +127,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 8 },
   input: { borderRadius: 12, borderWidth: 1, fontFamily: 'Geist_400Regular', fontSize: 16, minHeight: 48, paddingHorizontal: 12, paddingVertical: 12 },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
-  quantity: { borderRadius: 12, borderWidth: 1, fontFamily: 'Roboto_400Regular', fontSize: 16, minHeight: 48, paddingHorizontal: 12, width: 72 },
+  quantity: { borderRadius: 12, borderWidth: 1, fontFamily: 'Geist_400Regular', fontSize: 16, minHeight: 48, paddingHorizontal: 12, width: 72 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderRadius: 8, borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },
   dayChip: { alignItems: 'center', borderRadius: 8, borderWidth: 1, height: 44, justifyContent: 'center', width: 44 },
