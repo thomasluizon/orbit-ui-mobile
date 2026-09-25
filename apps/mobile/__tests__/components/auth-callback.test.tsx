@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   clearStoredAuthReturnUrl: vi.fn(),
   getSafeReturnUrl: vi.fn(),
   clearPendingGoogleAuthSession: vi.fn(),
+  setPendingGoogleAuthCallbackUrl: vi.fn(),
   pendingGoogleSession: {
     callbackUrl: null as string | null,
     isPending: false,
@@ -41,6 +42,7 @@ vi.mock('lucide-react-native', () => ({ TriangleAlert: () => null }))
 vi.mock('@/lib/google-auth-callback', () => ({
   AUTH_CALLBACK_URL: 'orbit://auth-callback',
   clearPendingGoogleAuthSession: mocks.clearPendingGoogleAuthSession,
+  setPendingGoogleAuthCallbackUrl: mocks.setPendingGoogleAuthCallbackUrl,
   extractGoogleAuthParams: () => ({}),
   resolveGoogleAuthCallbackUrl: ({ sessionCallbackUrl }: { sessionCallbackUrl: string | null }) =>
     sessionCallbackUrl ?? mocks.rawUrl ?? 'orbit://auth-callback?code=old',
@@ -81,10 +83,24 @@ beforeEach(() => {
   mocks.getStoredAuthReturnUrl.mockResolvedValue('/home')
   mocks.getSafeReturnUrl.mockReturnValue('/home')
   mocks.markReferralApplied.mockResolvedValue(undefined)
-  mocks.pendingGoogleSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
+  mocks.pendingGoogleSession = { callbackUrl: 'orbit://auth-callback?code=old', isPending: false, returnUrlAttemptId: 0 }
   mocks.rawUrl = null
   mocks.createAuthReturnUrlAttempt.mockReturnValue(0)
   mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
+})
+
+it('ignores a saved callback without a pending Google attempt', async () => {
+  mocks.rawUrl = 'orbit://auth-callback#access_token=old&refresh_token=old-refresh'
+  mocks.pendingGoogleSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
+  mocks.setPendingGoogleAuthCallbackUrl.mockResolvedValue(false)
+
+  await TestRenderer.act(async () => {
+    TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
+    await Promise.resolve()
+  })
+
+  expect(mocks.completeGoogleAuthFromUrl).not.toHaveBeenCalled()
+  expect(mocks.login).not.toHaveBeenCalled()
 })
 
 it('leaves referral and navigation untouched when callback login loses ownership', async () => {

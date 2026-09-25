@@ -2,7 +2,8 @@ import React from 'react'
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as SecureStore from 'expo-secure-store'
 import {
   AUTH_CALLBACK_URL,
   buildGoogleAuthFallbackUrl,
@@ -210,8 +211,8 @@ describe('google auth callback helpers', () => {
 })
 
 describe('pending google auth session store', () => {
-  beforeEach(() => {
-    clearPendingGoogleAuthSession()
+  beforeEach(async () => {
+    await clearPendingGoogleAuthSession()
   })
 
   it('starts idle with no callback url', () => {
@@ -219,39 +220,71 @@ describe('pending google auth session store', () => {
     expect(session.current).toEqual({ callbackUrl: null, isPending: false, returnUrlAttemptId: null })
   })
 
-  it('marks the session pending then resolves it with the callback url', () => {
+  it('marks the session pending then resolves only its callback url', async () => {
     const session = renderPendingSession()
 
-    TestRenderer.act(() => markPendingGoogleAuthSession(1))
+    let attemptId = ''
+    await TestRenderer.act(async () => { attemptId = await markPendingGoogleAuthSession(1) })
     expect(session.current).toEqual({ callbackUrl: null, isPending: true, returnUrlAttemptId: 1 })
 
-    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl('orbit://cb#token=1', 1))
-    expect(session.current).toEqual({ callbackUrl: 'orbit://cb#token=1', isPending: false, returnUrlAttemptId: 1 })
+    const callbackUrl = `${AUTH_CALLBACK_URL}?authAttempt=${attemptId}#access_token=fresh`
+    await TestRenderer.act(async () => {
+      expect(await setPendingGoogleAuthCallbackUrl(callbackUrl, 1)).toBe(true)
+    })
+    expect(session.current).toEqual({ callbackUrl, isPending: false, returnUrlAttemptId: 1 })
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
   })
 
-  it('clears an active session and no-ops when already idle', () => {
+  it('clears an active session and no-ops when already idle', async () => {
     const session = renderPendingSession()
 
-    TestRenderer.act(() => markPendingGoogleAuthSession(1))
-    TestRenderer.act(() => clearPendingGoogleAuthSession())
+    await TestRenderer.act(async () => { await markPendingGoogleAuthSession(1) })
+    await TestRenderer.act(async () => { await clearPendingGoogleAuthSession() })
     expect(session.current).toEqual({ callbackUrl: null, isPending: false, returnUrlAttemptId: null })
 
     const snapshotBefore = session.current
-    TestRenderer.act(() => clearPendingGoogleAuthSession())
+    await TestRenderer.act(async () => { await clearPendingGoogleAuthSession() })
     expect(session.current).toBe(snapshotBefore)
   })
 
-  it('keeps the newer Google attempt when an older browser result settles', () => {
+  it('rejects replayed, foreign, and expired callbacks', async () => {
+    const attemptId = await markPendingGoogleAuthSession(1)
+    const callbackUrl = `${AUTH_CALLBACK_URL}?authAttempt=${attemptId}#access_token=fresh`
+    expect(await setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?authAttempt=foreign#access_token=old`)).toBe(false)
+    expect(await setPendingGoogleAuthCallbackUrl(callbackUrl)).toBe(true)
+    expect(await setPendingGoogleAuthCallbackUrl(callbackUrl)).toBe(false)
+
+    const expiredAttempt = await markPendingGoogleAuthSession(2)
+    await SecureStore.setItemAsync('google_auth_attempt', `${Date.now() - 11 * 60 * 1000}:${expiredAttempt}`)
+    expect(await setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?authAttempt=${expiredAttempt}#access_token=old`)).toBe(false)
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
+  })
+
+  it('recovers one matching callback after process recreation', async () => {
+    const attemptId = await markPendingGoogleAuthSession(1)
+    const callbackUrl = `${AUTH_CALLBACK_URL}?authAttempt=${attemptId}#access_token=fresh`
+    vi.resetModules()
+    const recreated = await import('@/lib/google-auth-callback')
+
+    expect(await recreated.setPendingGoogleAuthCallbackUrl(callbackUrl)).toBe(true)
+    expect(await recreated.setPendingGoogleAuthCallbackUrl(callbackUrl)).toBe(false)
+    expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
+  })
+
+  it('keeps the newer Google attempt when an older browser result settles', async () => {
     const session = renderPendingSession()
-    TestRenderer.act(() => markPendingGoogleAuthSession(1))
-    TestRenderer.act(() => markPendingGoogleAuthSession(2))
-    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl('orbit://cb#old', 1))
-    TestRenderer.act(() => clearPendingGoogleAuthSession(1))
+    const oldAttempt = await markPendingGoogleAuthSession(1)
+    const newAttempt = await markPendingGoogleAuthSession(2)
+    await TestRenderer.act(async () => {
+      expect(await setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?authAttempt=${oldAttempt}#access_token=old`, 1)).toBe(false)
+      await clearPendingGoogleAuthSession(1)
+    })
 
     expect(session.current).toEqual({ callbackUrl: null, isPending: true, returnUrlAttemptId: 2 })
-    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl('orbit://cb#new', 2))
+    const callbackUrl = `${AUTH_CALLBACK_URL}?authAttempt=${newAttempt}#access_token=new`
+    await TestRenderer.act(async () => { await setPendingGoogleAuthCallbackUrl(callbackUrl, 2) })
     expect(session.current).toEqual({
-      callbackUrl: 'orbit://cb#new', isPending: false, returnUrlAttemptId: 2,
+      callbackUrl, isPending: false, returnUrlAttemptId: 2,
     })
   })
 })

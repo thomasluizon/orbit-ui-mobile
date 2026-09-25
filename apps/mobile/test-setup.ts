@@ -3,6 +3,19 @@ import React from 'react'
 
 ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
 
+vi.mock('expo-secure-store', () => {
+  const entries = new Map<string, string>()
+  return {
+    getItemAsync: (key: string) => Promise.resolve(entries.get(key) ?? null),
+    setItemAsync: (key: string, value: string) => { entries.set(key, value); return Promise.resolve() },
+    deleteItemAsync: (key: string) => { entries.delete(key); return Promise.resolve() },
+  }
+})
+
+vi.mock('expo-modules-core/src/uuid', () => ({
+  default: { v4: () => crypto.randomUUID() },
+}))
+
 vi.mock('react-native', async () => {
   const reactNative = await import('./test-mocks/react-native')
   return reactNative
@@ -173,7 +186,7 @@ vi.mock('@/hooks/use-ad-mob', () => ({
     shouldShowAds: () => true,
     initialize: async () => {},
     showInterstitialIfDue: async () => {},
-    showRewardedAd: async () => false,
+    showRewardedAd: () => Promise.resolve(false),
     markRewardClaimed: () => {},
   }),
 }))
