@@ -342,6 +342,19 @@ describe('HabitDetailScreen', () => {
     vi.useRealTimers()
   })
 
+  it('announces the habit name once on the rename control', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />)
+    })
+
+    const title = mocks.detail!.title
+    const renameControls = tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === title)
+    expect(renameControls).toHaveLength(1)
+    expect(renameControls[0]!.props.accessibilityHint).toBe('habits.detail.rename')
+  })
+
   it('shows loading feedback and a retry action after a load failure', () => {
     mocks.detailLoading = true
     let tree: ReturnType<typeof TestRenderer.create>
@@ -409,7 +422,7 @@ describe('HabitDetailScreen', () => {
     })
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onPress()
+      tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress()
     })
     const input = tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' })
     TestRenderer.act(() => {
@@ -420,7 +433,7 @@ describe('HabitDetailScreen', () => {
       await Promise.resolve()
     })
 
-    expect(tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.value).toBeUndefined()
+    expect(tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.value).toBeUndefined()
     expect(mocks.update).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
@@ -650,7 +663,7 @@ describe('HabitDetailScreen', () => {
     })
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onPress()
+      tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress()
     })
     const input = tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' })
     TestRenderer.act(() => {
@@ -925,7 +938,7 @@ describe('HabitDetailScreen', () => {
     })
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onPress()
+      tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress()
     })
     TestRenderer.act(() => {
       tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onChangeText('Read daily')
