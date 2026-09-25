@@ -371,7 +371,6 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
     onMove(goal.id, index + (event.key === 'ArrowUp' ? -1 : 1))
   }
   return (
-    // eslint-disable-next-line local/max-button-words -- ORB-480 requires the control name to expose goal state, progress, and position.
     <button type="button" aria-label={accessibilityLabel} data-goal-id={goal.id} data-dragging={isDragging}
       ref={setNodeRef} {...listeners}
       style={{
