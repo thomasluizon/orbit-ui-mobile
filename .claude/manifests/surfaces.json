@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "711cb0068e6a433e3733c755981ca547ae564f60",
+  "generatedFrom": "c38e373032514a18c577ff061fa446180f9def95",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -4326,7 +4326,7 @@
       "ownedFiles": [
         "apps/web/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 241,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4340,7 +4340,7 @@
       "ownedFiles": [
         "apps/web/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 241,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4354,7 +4354,7 @@
       "ownedFiles": [
         "apps/web/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 241,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4368,7 +4368,7 @@
       "ownedFiles": [
         "apps/web/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 241,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -4382,7 +4382,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 255,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4396,7 +4396,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 255,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4410,7 +4410,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 255,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4424,7 +4424,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 248,
+      "closureSize": 255,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -4606,7 +4606,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 217,
+      "closureSize": 210,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4620,7 +4620,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 217,
+      "closureSize": 210,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4634,7 +4634,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 217,
+      "closureSize": 210,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4648,7 +4648,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 217,
+      "closureSize": 210,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -4774,7 +4774,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 156,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4788,7 +4788,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 156,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4802,7 +4802,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 156,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4816,7 +4816,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-list/move-parent-overlay.tsx"
       ],
-      "closureSize": 155,
+      "closureSize": 156,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -5222,7 +5222,7 @@
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 242,
+      "closureSize": 235,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -5236,7 +5236,7 @@
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 242,
+      "closureSize": 235,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -5250,7 +5250,7 @@
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 242,
+      "closureSize": 235,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -5264,7 +5264,7 @@
       "ownedFiles": [
         "apps/web/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 242,
+      "closureSize": 235,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -5782,7 +5782,7 @@
       "ownedFiles": [
         "apps/web/components/ui/time-field.tsx"
       ],
-      "closureSize": 215,
+      "closureSize": 208,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -5796,7 +5796,7 @@
       "ownedFiles": [
         "apps/web/components/ui/time-field.tsx"
       ],
-      "closureSize": 215,
+      "closureSize": 208,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -5810,7 +5810,7 @@
       "ownedFiles": [
         "apps/web/components/ui/time-field.tsx"
       ],
-      "closureSize": 215,
+      "closureSize": 208,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -5824,7 +5824,7 @@
       "ownedFiles": [
         "apps/web/components/ui/time-field.tsx"
       ],
-      "closureSize": 215,
+      "closureSize": 208,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -9382,7 +9382,7 @@
       "ownedFiles": [
         "apps/mobile/components/habit-list/move-parent-dialog.tsx"
       ],
-      "closureSize": 235,
+      "closureSize": 236,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -9396,7 +9396,7 @@
       "ownedFiles": [
         "apps/mobile/components/habit-list/move-parent-dialog.tsx"
       ],
-      "closureSize": 235,
+      "closureSize": 236,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -9410,7 +9410,7 @@
       "ownedFiles": [
         "apps/mobile/components/habit-list/move-parent-dialog.tsx"
       ],
-      "closureSize": 235,
+      "closureSize": 236,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -9424,7 +9424,7 @@
       "ownedFiles": [
         "apps/mobile/components/habit-list/move-parent-dialog.tsx"
       ],
-      "closureSize": 235,
+      "closureSize": 236,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -9774,7 +9774,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 260,
+      "closureSize": 267,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -9788,7 +9788,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 260,
+      "closureSize": 267,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -9802,7 +9802,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 260,
+      "closureSize": 267,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -9816,7 +9816,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 260,
+      "closureSize": 267,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -9830,7 +9830,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 274,
+      "closureSize": 281,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -9844,7 +9844,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 274,
+      "closureSize": 281,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -9858,7 +9858,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 274,
+      "closureSize": 281,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -9872,7 +9872,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 274,
+      "closureSize": 281,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -10054,7 +10054,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 237,
+      "closureSize": 230,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10068,7 +10068,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 237,
+      "closureSize": 230,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10082,7 +10082,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 237,
+      "closureSize": 230,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10096,7 +10096,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-form-fields/scheduled-reminder-section.tsx"
       ],
-      "closureSize": 237,
+      "closureSize": 230,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -10730,7 +10730,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 261,
+      "closureSize": 254,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10744,7 +10744,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 261,
+      "closureSize": 254,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10758,7 +10758,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 261,
+      "closureSize": 254,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10772,7 +10772,7 @@
       "ownedFiles": [
         "apps/mobile/components/onboarding/onboarding-create-habit.tsx"
       ],
-      "closureSize": 261,
+      "closureSize": 254,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -11854,7 +11854,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/time-field.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 227,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -11868,7 +11868,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/time-field.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 227,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -11882,7 +11882,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/time-field.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 227,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -11896,7 +11896,7 @@
       "ownedFiles": [
         "apps/mobile/components/ui/time-field.tsx"
       ],
-      "closureSize": 234,
+      "closureSize": 227,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"

@@ -114,6 +114,8 @@ describe('SupportPage', () => {
     render(<SupportPage />)
 
     const radios = screen.getAllByRole('radio')
+    expect(Array.from(screen.getByRole('radiogroup', { name: 'profile.support.subject' }).children))
+      .toEqual(radios)
     expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1, -1, -1])
 
     radios[0]!.focus()
