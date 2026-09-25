@@ -2,6 +2,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
+import { readWakeSources } from "../lib/run-state.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -38,11 +39,16 @@ const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
   if (!repo) return null
   repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
-  const staged = stageWithConfig(`launch-worker-${label}`, TOOL, config)
+  const staged = stageWithConfig(`launch-worker-${label}`, TOOL, { ...config, repos: { ui: repo.path } })
   return { ...staged, worktree: repo.path, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
 }
 
-const githubAuthEnv = () => orcaEnv([{ match: "auth token --user test-owner", stdout: "test-github-token" }])
+const githubAuthEnv = (pulls = [], existing = [], readError = false) => orcaEnv([
+  { match: "auth token --user test-owner", stdout: "test-github-token" },
+  { match: "pulls?head=", stdout: JSON.stringify(existing.map((number) => ({ number }))) },
+  { match: "pulls?state=open", stdout: JSON.stringify(pulls.map((number) => ({ number }))), exit: readError ? 1 : 0, stderr: readError ? "GitHub unavailable" : "" },
+  { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
+])
 
 /** The launcher writes its worker log outside every repository, so the fixture root cannot hold it. */
 const discardLog = (stdout) => {
@@ -137,6 +143,17 @@ export const cases = () => {
   )
 
   const dryRun = check(TOOL, "--dry-run resolves the plan and exits 0", [...argv, "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, options)
+  const admissionRefusal = check(TOOL, "new work above the pull request cap refuses before spawn", argv,
+    { status: 8, stdout: /"reason":"ADMISSION_REFUSED"/ }, { path: fixture.path, env: githubAuthEnv(Array.from({ length: 11 }, (_, index) => index + 1)) })
+  T("launch-worker: refusal reports both counts and limits", JSON.parse(admissionRefusal.stdout).counts.openPullRequests === 11 && JSON.parse(admissionRefusal.stdout).limits.maxOpenPullRequests === 10)
+  T("launch-worker: refusal leaves no wake source", readWakeSources(fixture.base).length === 0)
+  const readRefusal = check(TOOL, "GitHub read failure refuses before spawn", argv,
+    { status: 8, stdout: /"reason":"ADMISSION_REFUSED"/ }, { path: fixture.path, env: githubAuthEnv([], [], true) })
+  T("launch-worker: GitHub error is reported", JSON.parse(readRefusal.stdout).error.includes("GitHub unavailable"))
+  const exempt = launch("existing-pr", launchConfig(stubEngine(IMMEDIATE)))
+  check(TOOL, "existing pull request branch launches above the cap",
+    ["--issue", "ORB-201", "--worktree", exempt.worktree, "--prompt", exempt.prompt],
+    { status: 0, stdout: /"outcome": "EXITED"/ }, { path: exempt.path, env: githubAuthEnv(Array.from({ length: 11 }, (_, index) => index + 1), [99]) })
   const real = realOrchestratorConfig()
   const engine = real.workers[real.worker]
   let plan = null

@@ -500,6 +500,11 @@ Write it to the scratchpad. A prompt file inside the worktree gets committed by 
 
 ## Steps 5 and 6. Spawn the worker
 
+New ticket work passes the admission gate in `launch-worker.mjs` before spawn. It refuses when
+open pull requests exceed 10 or queued Actions runs from the last 24 hours exceed 30 across
+configured repositories. A branch with an open pull request is exempt. A GitHub read error
+refuses admission with exit 8 and `ADMISSION_REFUSED` JSON. Do not retry by changing flags.
+
 ```bash
 node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
 ```
@@ -958,10 +963,10 @@ live task ends the night silently, and what it leaves behind is indistinguishabl
 finished, so nobody goes looking. That is exactly how 2026-08-06 ended: the orchestrator said "CI
 will wake me" with nothing scheduled.
 
-**When there is genuinely nothing to wait on and work remains, LAUNCH THE NEXT TICKET.** All slots
-free plus a non-empty queue is not a reason to end the turn; it is the definition of the next
-action. `launch-worker.mjs` registers itself as a wake source, so starting the next worker satisfies
-the invariant by construction.
+**When work remains, launch the next ticket only if a slot is free and admission allows it.**
+`launch-worker.mjs` registers itself as a wake source when it starts. When the remaining work
+waits on CI or review, run `node tools/wait-ci.mjs --repo <key> --pr <n>` in a background task.
+It registers a wake source until checks settle, the head moves, the PR closes, or its ceiling ends.
 
 **The gate:** `.claude/hooks/require-wake-source.mjs` runs on `Stop` and refuses the stop when the
 run record says `--sleep` with tickets remaining and no registered wake source is a live process. So

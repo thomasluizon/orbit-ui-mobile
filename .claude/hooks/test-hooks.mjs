@@ -306,7 +306,7 @@ const dead = () => false
 const sleeping = { sessionId: "s1", sleep: true, remaining: ["ORB-2", "ORB-3"] }
 const stop = (options) => checkSleepStop({ sessionId: "s1", isAlive: dead, ...options })
 T("sleep-stop: work remaining and no live wake source blocks", blocks(stop({ state: sleeping })), true)
-T("sleep-stop: the refusal names the tickets and the action", stop({ state: sleeping })?.message.includes("LAUNCH THE NEXT TICKET"), true)
+T("sleep-stop: the refusal names admission and CI waiting", stop({ state: sleeping })?.message.includes("admission gate") && stop({ state: sleeping })?.message.includes("tools/wait-ci.mjs"), true)
 T("sleep-stop: a live wake source allows", checkSleepStop({ state: sleeping, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
 // A leaked file from a crashed launcher is not a wake source, which is why liveness is checked at
 // all rather than the file's existence being trusted.

@@ -133,8 +133,10 @@ export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {
     mkdirSync(wakeSourceDirectory(repoRoot), { recursive: true })
     writeFileSync(join(wakeSourceDirectory(repoRoot), `${source.pid}.json`), `${JSON.stringify(source, null, 2)}\n`)
+    return true
   } catch {
     /* a status file is never worth failing a launch over */
+    return false
   }
 }
 

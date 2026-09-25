@@ -202,6 +202,10 @@ export const cases = async () => {
     /caps\.reviewFixAttempts must be a positive number/.test(readAndFail("zero-review-fixes", { ...real, caps: { ...real.caps, reviewFixAttempts: 0 } }) ?? ""),
     "a zero review fixer bound was accepted",
   )
+  for (const name of ["maxOpenPullRequests", "maxQueuedRuns"]) {
+    T(`${NAME}: ${name} requires a positive integer`,
+      new RegExp(`caps\\.${name} must be a positive integer`).test(readAndFail(`zero-${name}`, { ...real, caps: { ...real.caps, [name]: 0 } }) ?? ""))
+  }
   T(
     `${NAME}: an unreadable file is refused as unreadable, not as invalid JSON`,
     /could not be read: /.test(thrown(() => readOrchestratorConfig(pathToFileURL(join(root, "orchestrator-config", "absent.json")))) ?? ""),

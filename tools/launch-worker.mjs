@@ -17,7 +17,8 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, 
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 
-import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { ADMISSION_REFUSED_EXIT, checkAdmission, configuredRepositorySlug } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
@@ -45,7 +46,8 @@ outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY o
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, 3 the worker executable could not be resolved,
-            4 this launcher killed it but the tree holds commits it made, so the work may be salvageable`
+            4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
+            8 admission refused new ticket work before spawn`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -225,6 +227,28 @@ if (dryRun) {
   process.exit(0)
 }
 
+let githubAuth
+try {
+  githubAuth = await githubEnvironment(runDirectory)
+} catch (error) {
+  console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", counts: { openPullRequests: null, queuedRuns: null }, limits: { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }, error: redactSecrets(error.message) }))
+  process.exit(ADMISSION_REFUSED_EXIT)
+}
+const targetSlug = repositorySlug(runDirectory)
+let repositoryKey
+try {
+  repositoryKey = Object.entries(config.repos).find(([, path]) => configuredRepositorySlug(path, githubAuth.owner).toLowerCase() === targetSlug.toLowerCase())?.[0]
+} catch (error) {
+  console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", counts: { openPullRequests: null, queuedRuns: null }, limits: { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }, error: redactSecrets(error.message, githubAuth.secrets) }))
+  process.exit(ADMISSION_REFUSED_EXIT)
+}
+if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
+const admission = await checkAdmission({ config, repositoryKey, branch, environment: githubAuth.environment, worktree: runDirectory })
+if (!admission.admitted) {
+  console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
+  process.exit(ADMISSION_REFUSED_EXIT)
+}
+
 console.error(`starting the ${engineName} worker for ${issue} in ${runDirectory}; log: ${logFile}`)
 const startedAt = new Date().toISOString()
 const logFd = openSync(logFile, "a")
@@ -238,12 +262,6 @@ const logFd = openSync(logFile, "a")
  * on ORB-87, where the worker resolved bare `orca`, hit "not recognized as a name of a cmdlet", and
  * correctly stopped rather than falling through to another executable. It delivered nothing in 54s.
  */
-let githubAuth
-try {
-  githubAuth = await githubEnvironment(runDirectory)
-} catch (error) {
-  fail(3, redactSecrets(error.message))
-}
 const child = spawn(executable, workerArgs, {
   cwd: runDirectory,
   stdio: ["ignore", logFd, logFd],
