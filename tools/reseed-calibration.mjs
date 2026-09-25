@@ -37,8 +37,8 @@ const USAGE = `usage: reseed-calibration.mjs [--root <path>]
 
   A verdict keeps its OWN calibratedAt and this pass renews that date only when the file's content,
   model, effort or verdict moved, or when the worker launch vector moved and decayed all of them at
-  once. Renewing every date on every run is what let ordinary prompt churn hold the whole stamp
-  permanently under the 90-day alias backstop.
+  once. An expired classifier stamp also renews from a fresh matching recorder record. Renewing every
+  date on every run is what let ordinary prompt churn hold the stamp under the 90-day backstop.
 
 exit codes: 0 the stamp was written, 1 a file has no verdict or a verdict names no file, 2 usage error`
 
@@ -224,8 +224,35 @@ for (const file of files) {
   }
 }
 
+const digest = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
+const classifierDigest = digest(readFileSync(join(root, "tools/lib/ticket-classifier-prompt.md"), "utf8"))
+const oldestValidClassifierDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 90)).toISOString().slice(0, 10)
+const validClassifierDate = (date) => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+  !Number.isNaN(Date.parse(`${date}T00:00:00Z`)) && new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date &&
+  date >= oldestValidClassifierDate && date <= calibratedAt
+const classifierUnchanged = previous.classifier?.model === config.classifier.model &&
+  previous.classifier.promptDigest === classifierDigest &&
+  validClassifierDate(previous.classifier.calibratedAt) &&
+  typeof previous.classifier.verdict === "string" && previous.classifier.verdict.trim()
+let classifierCalibration = previous.classifier
+if (!classifierUnchanged) {
+  const recordPath = join(root, "tools/__fixtures__/ticket-classifier-calibration.json")
+  if (!existsSync(recordPath)) throw new Error("classifier calibration needs a live recorder record; run node tools/record-classifier-fixtures.mjs")
+  const record = JSON.parse(readFileSync(recordPath, "utf8"))
+  const casesText = readFileSync(join(root, "tools/__fixtures__/ticket-classifier-cases.json"), "utf8")
+  const responsesText = readFileSync(join(root, "tools/__fixtures__/ticket-classifier-responses.json"), "utf8")
+  const count = JSON.parse(casesText).length
+  const date = record.calibratedAt
+  if (record.model !== config.classifier.model || record.promptDigest !== classifierDigest ||
+    record.casesDigest !== digest(casesText) || record.responsesDigest !== digest(responsesText) ||
+    record.agreement !== `${count}/${count}` || record.verdict !== `classifier matched all ${count} recorded ticket cases` || !validClassifierDate(date)) {
+    throw new Error("classifier recorder record does not match the configured model, prompt, cases, responses and complete agreement")
+  }
+  classifierCalibration = { model: record.model, promptDigest: record.promptDigest, calibratedAt: date, verdict: record.verdict }
+}
 const stamp = {
   calibratedAt,
+  classifier: classifierCalibration,
   workerEngine,
   workerCommand,
   workerTiers,

@@ -372,6 +372,7 @@ worker that will fail.
 `conversation: {source, signals, questions}` on the admitted entry, plus a `CONVERSATION FIRST`
 warning. Pass `--sleep` to the planner when the run has it, and those tickets defer as
 `NEEDS_CONVERSATION` with their questions printed instead.
+These signals come from a Codex model call that fails closed with `CLASSIFIER_ERROR` when it cannot read the ticket.
 
 The label `needs:conversation` forces it on and `needs:no-conversation` forces it off; either
 overrides the body. Use `needs:no-conversation` once the questions are already answered in a comment,
@@ -401,6 +402,7 @@ run at all" and wrong for "design this with me". So for a conversation-first tic
 
 `plan-queue.mjs`'s signals and the `needs:conversation` label are detection aids, not the boundary
 of asking. Attended, ask Thomas ANY question the run raises, at any step, at the moment it appears:
+The model call fails closed, so a `CLASSIFIER_ERROR` signal is itself a question to resolve before a worker starts.
 a contradiction found while reading, a tool the ticket names that is not wired, a dependency that
 does not exist. One topic at a time, your recommended answer first (core rule 7). A decision that
 belongs to Thomas (product, brand, copy, price, design direction, or which of two contradictory

@@ -45,6 +45,9 @@
       }
     }
   },
+  "classifier": {
+    "model": "gpt-6-luna"
+  },
   "timeouts": {
     "hardCeilingMinutes": 45,
     "cloudCeilingMinutes": 45,
