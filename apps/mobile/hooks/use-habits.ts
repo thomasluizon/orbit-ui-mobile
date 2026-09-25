@@ -93,7 +93,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 
-type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
+type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string; __offlineDependsOn?: string[] }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
 type LogHabitMutationInput = {
   habitId: string
@@ -484,7 +484,7 @@ export function useCreateHabit() {
     { previousLists: HabitListSnapshots; tempId: string }
   >({
     mutationFn: async (input) => {
-      const { __offlineTempId, ...data } = input
+      const { __offlineTempId, __offlineDependsOn, ...data } = input
       const tempId = __offlineTempId ?? createTempEntityId('habit')
 
       return performQueuedApiMutation<{ id: string }, { id: string } & QueuedMarker>({
@@ -495,6 +495,7 @@ export function useCreateHabit() {
         payload: data,
         entityType: 'habit',
         clientEntityId: tempId,
+        dependsOn: __offlineDependsOn,
         queuedResultFactory: (mutationId) => ({
           id: tempId,
           queued: true,
@@ -538,10 +539,10 @@ export function useUpdateHabit() {
   return useMutation<
     void | QueuedMarker,
     Error,
-    { habitId: string; data: UpdateHabitRequest },
+    { habitId: string; data: UpdateHabitRequest; dependsOn?: string[] },
     { previousLists: HabitListSnapshots; previousDetail: HabitDetail | undefined }
   >({
-    mutationFn: ({ habitId, data }) =>
+    mutationFn: ({ habitId, data, dependsOn }) =>
       performQueuedApiMutation<void>({
         type: 'updateHabit',
         scope: 'habits',
@@ -550,6 +551,7 @@ export function useUpdateHabit() {
         payload: data,
         entityType: 'habit',
         targetEntityId: habitId,
+        dependsOn,
       }),
 
     onMutate: async ({ habitId, data }) => {

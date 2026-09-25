@@ -46,7 +46,10 @@ vi.mock('@/lib/secure-store', () => ({
 vi.mock('@/lib/orbit-widget', () => ({ clearWidgetToken: async () => {}, saveWidgetToken: async () => {} }))
 vi.mock('@/lib/persistent-reminder', () => ({ cancelPersistentReminder: async () => {} }))
 vi.mock('@/hooks/use-push-notifications', () => ({ unsubscribePushToken: async () => {} }))
-vi.mock('@/lib/auth-flow', () => ({ clearStoredAuthReturnUrl: async () => {} }))
+vi.mock('@/lib/auth-flow', () => ({
+  clearStoredAuthReturnUrl: async () => {},
+  getAuthReturnUrlAttempt: () => 0,
+}))
 vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
 vi.mock('@/lib/query-client', () => ({
   queryClient: { clear: vi.fn(), setQueryData: vi.fn(), invalidateQueries: vi.fn(), getQueriesData: () => [] },

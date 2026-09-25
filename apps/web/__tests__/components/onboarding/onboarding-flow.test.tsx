@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
@@ -8,18 +8,26 @@ import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onbo
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
-const mocks = vi.hoisted(() => ({
-  createHabit: vi.fn(),
-  updateHabit: vi.fn(),
-  finishOnboarding: vi.fn(),
-  suggest: vi.fn(),
-  subscribe: vi.fn(),
-  requestPermissionOnly: vi.fn(),
-  navigate: vi.fn(),
-  profile: { aiMessagesLimit: 5, aiMessagesUsed: 0 },
-  push: { supported: true, permission: 'default', status: 'not-registered' },
-  liveActions: vi.fn(),
-}))
+const mocks = vi.hoisted(() => {
+  const profile: { aiMessagesLimit: number; aiMessagesUsed: number; timeZone: string | null } = {
+    aiMessagesLimit: 5, aiMessagesUsed: 0, timeZone: 'UTC',
+  }
+  return {
+    createHabit: vi.fn(),
+    updateHabit: vi.fn(),
+    finishOnboarding: vi.fn(),
+    suggest: vi.fn(),
+    subscribe: vi.fn(),
+    requestPermissionOnly: vi.fn(),
+    navigate: vi.fn(),
+    refetchProfile: vi.fn(),
+    updateTimezone: vi.fn(),
+    profileAvailable: true,
+    profile,
+    push: { supported: true, permission: 'default', status: 'not-registered' },
+    liveActions: vi.fn(),
+  }
+})
 
 vi.mock('@/components/onboarding/onboarding-actions-context', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/onboarding/onboarding-actions-context')>()),
@@ -32,7 +40,8 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.navigate }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => false }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profileAvailable ? mocks.profile : undefined, refetch: mocks.refetchProfile }) }))
+vi.mock('@/lib/actions/profile', () => ({ updateTimezone: mocks.updateTimezone }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ mutateAsync: mocks.suggest, isPending: false }),
 }))
@@ -88,6 +97,7 @@ async function reachReminder(isLive: boolean) {
 }
 
 const COUNTER_PATTERN = /^Orbit \d{2} \/ \d{2}$/
+const originalTimeZone = process.env.TZ
 
 function isCounter(element: Element | null): boolean {
   return element?.tagName === 'SPAN' && COUNTER_PATTERN.test(String(element.textContent))
@@ -104,10 +114,19 @@ async function reachDone(isLive: boolean) {
 }
 
 describe('OnboardingFlow state model', () => {
+  afterEach(() => {
+    if (originalTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalTimeZone
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
     mocks.profile.aiMessagesUsed = 0
+    mocks.profile.timeZone = 'UTC'
+    mocks.profileAvailable = true
+    mocks.refetchProfile.mockResolvedValue({ data: mocks.profile })
+    mocks.updateTimezone.mockResolvedValue(undefined)
     mocks.push.supported = true
     mocks.push.permission = 'default'
     mocks.push.status = 'not-registered'
@@ -173,6 +192,37 @@ describe('OnboardingFlow state model', () => {
     fireEvent.click(screen.getByRole('button', { name: 'remind.deny' }))
     await waitFor(() => expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', 'false'))
     expect(screen.getByTestId('done')).toHaveAttribute('data-general', 'false')
+  })
+
+  it.each([
+    ['UTC', '2026-09-14T02:00:00.000Z', 'America/Sao_Paulo', false],
+    ['America/Sao_Paulo', '2026-09-14T00:30:00.000Z', 'UTC', true],
+  ])('uses the %s device at %s with the %s profile weekday', async (deviceTimeZone, instant, profileTimeZone, dueToday) => {
+    process.env.TZ = deviceTimeZone
+    vi.setSystemTime(new Date(instant))
+    mocks.profile.timeZone = profileTimeZone
+    await reachDone(true)
+    expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', String(dueToday))
+  })
+
+  it('waits for the profile timezone before saving a signed-in habit', async () => {
+    process.env.TZ = 'UTC'
+    vi.setSystemTime(new Date('2026-09-14T02:00:00.000Z'))
+    mocks.profile.timeZone = 'America/Sao_Paulo'
+    mocks.profileAvailable = false
+    await reachDone(true)
+    expect(mocks.refetchProfile).toHaveBeenCalledOnce()
+    expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', 'false')
+  })
+
+  it('sets a loaded null timezone before creating in the device account day', async () => {
+    process.env.TZ = 'America/Sao_Paulo'
+    vi.setSystemTime(new Date('2026-09-14T00:30:00.000Z'))
+    mocks.profile.timeZone = null
+    await reachDone(true)
+    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(mocks.updateTimezone.mock.invocationCallOrder[0]).toBeLessThan(mocks.createHabit.mock.invocationCallOrder[0]!)
+    expect(screen.getByTestId('done')).toHaveAttribute('data-due-today', 'false')
   })
 
   it('never tells the done screen a habit with no day is in the day', async () => {

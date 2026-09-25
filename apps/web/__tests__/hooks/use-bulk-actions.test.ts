@@ -190,7 +190,7 @@ describe('useBulkActions reversibility boundary', () => {
     const { result, rerender } = renderHook(() => useBulkActions({
       selectedHabitIds: new Set(['h-1']),
       selectedDateStr: viewedDate,
-      readOnly: false,
+      completionReadOnly: false,
       habitsById: new Map(),
       habitListRef,
       onSuccess: vi.fn(),

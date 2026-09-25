@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiClientError } from '@orbit/shared/utils'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const {
   apiClientMock,
@@ -155,6 +156,16 @@ describe('startMobileGoogleAuth', () => {
     expect(oauthArgs.options.redirectTo).toBe(CALLBACK)
     expect(oauthArgs.options.skipBrowserRedirect).toBe(true)
     expect(openAuthSessionAsyncMock).toHaveBeenCalledWith('https://accounts.google.com/o', CALLBACK)
+  })
+
+  it('clears an older return URL before a Google flow without one starts', async () => {
+    const removal = vi.spyOn(AsyncStorage, 'removeItem')
+    try {
+      signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+      openAuthSessionAsyncMock.mockResolvedValue({ type: 'dismiss' })
+      await startMobileGoogleAuth({})
+      expect(removal).toHaveBeenCalledWith('auth_return_url')
+    } finally { removal.mockRestore() }
   })
 
   it('returns the browser result type when the session is dismissed', async () => {

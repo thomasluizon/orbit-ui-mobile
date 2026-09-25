@@ -978,6 +978,23 @@ describe('mobile habit hooks', () => {
     }))
   })
 
+  it('keeps the onboarding timezone dependency out of the habit request payload', async () => {
+    const mutation = useCreateHabit() as unknown as MutationConfig<
+      { id: string }, CreateHabitRequest & { __offlineDependsOn?: string[] }, unknown
+    >
+
+    await mutation.mutationFn({
+      title: 'Walk', __offlineDependsOn: ['offline-account-timezone:timezone-1'],
+    })
+
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({
+        dependsOn: ['offline-account-timezone:timezone-1'],
+        payload: { title: 'Walk' },
+      }),
+    }))
+  })
+
   it('falls back to today for optimistic offline creates when the payload dueDate is an empty string', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-02-14T09:00:00Z'))
