@@ -588,6 +588,16 @@ ruleTester.run('spacing-scale', rule('spacing-scale'), {
       errors: [{ messageId: 'offScaleStyle' }],
     },
     {
+      code: 'type Object = { gap: number }; const style = Object.assign({}, { gap: 14 }); <div style={style} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'interface Object { gap: number } const style = Object.assign({}, { gap: 14 }); <div style={style} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
       code: '<div style={Object.assign({}, { gap: 14 })} />',
       output: null,
       errors: [{ messageId: 'offScaleStyle' }],

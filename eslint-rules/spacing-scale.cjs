@@ -276,7 +276,8 @@ module.exports = {
       let scope = context.sourceCode.getScope(node)
       while (scope) {
         const variable = scope.set.get(node.name)
-        if (variable) return variable
+        // A type alias or interface lives only in TypeScript's type namespace, so it never shadows a value.
+        if (variable && variable.isValueVariable !== false) return variable
         scope = scope.upper
       }
       return null
@@ -287,7 +288,7 @@ module.exports = {
         node.callee.object.type !== 'Identifier' || node.callee.object.name !== 'Object' ||
         node.callee.property.type !== 'Identifier' || node.callee.property.name !== 'assign') return false
       const variable = findBinding(node.callee.object)
-      return variable?.scope.type === 'global' && variable.defs.length === 0
+      return variable?.scope.type === 'global' && variable.defs.every((definition) => definition.isVariableDefinition === false)
     }
 
     const ABSENT = Symbol('absent')
