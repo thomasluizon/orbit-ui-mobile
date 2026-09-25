@@ -9,7 +9,7 @@ import { ChevronUp, ChevronDown, X, Copy, Plus, RotateCcw } from '@/components/u
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
-import { useChecklistItemKeys } from '@orbit/shared/hooks'
+import { useChecklistItemKeys } from '@/hooks/use-checklist-item-keys'
 import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'

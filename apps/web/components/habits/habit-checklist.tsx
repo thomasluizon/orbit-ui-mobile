@@ -23,7 +23,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
-import { useChecklistItemKeys } from '@orbit/shared/hooks'
+import { useChecklistItemKeys } from '@/hooks/use-checklist-item-keys'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { CheckRow } from '@/components/ui/check-row'
 import { Proposed } from '@/components/ui/proposed'

@@ -1,15 +1,30 @@
-import { useLayoutEffect, useRef, useState } from 'react'
 import type { ChecklistItem } from '../types/habit'
 
-interface KeyState {
+export interface ChecklistItemKeyState {
   items: ChecklistItem[]
   keys: string[]
   nextKey: number
 }
 
+interface KnownItemKeys {
+  get(item: ChecklistItem): string | undefined
+}
+
 const itemKey = (sequence: number) => `checklist-item-${sequence}`
 
-function matchingKey(state: KeyState, item: ChecklistItem, used: Set<string | undefined>) {
+export function createChecklistItemKeyState(items: ChecklistItem[]): ChecklistItemKeyState {
+  return {
+    items,
+    keys: items.map((_, index) => itemKey(index)),
+    nextKey: items.length,
+  }
+}
+
+function matchingKey(
+  state: ChecklistItemKeyState,
+  item: ChecklistItem,
+  used: Set<string | undefined>,
+) {
   const match = state.items.findIndex((previous, index) =>
     !used.has(state.keys[index]) &&
     previous.text === item.text &&
@@ -18,11 +33,11 @@ function matchingKey(state: KeyState, item: ChecklistItem, used: Set<string | un
   return state.keys[match]
 }
 
-function reconcileKeys(
-  state: KeyState,
+export function reconcileChecklistItemKeys(
+  state: ChecklistItemKeyState,
   items: ChecklistItem[],
-  knownKeys: WeakMap<ChecklistItem, string>,
-): KeyState {
+  knownKeys: KnownItemKeys,
+): ChecklistItemKeyState {
   const keys: (string | undefined)[] = items.map((item) => knownKeys.get(item))
   const used = new Set(keys)
 
@@ -50,25 +65,4 @@ function reconcileKeys(
     keys: keys.map((key) => key ?? itemKey(nextKey++)),
     nextKey,
   }
-}
-
-export function useChecklistItemKeys(items: ChecklistItem[]): string[] {
-  const knownKeys = useRef(new WeakMap<ChecklistItem, string>())
-  const [state, setState] = useState<KeyState>(() => ({
-    items,
-    keys: items.map((_, index) => itemKey(index)),
-    nextKey: items.length,
-  }))
-
-  let current = state
-  if (state.items !== items) {
-    current = reconcileKeys(state, items, knownKeys.current)
-    setState(current)
-  }
-
-  useLayoutEffect(() => {
-    items.forEach((item, index) => knownKeys.current.set(item, current.keys[index]!))
-  }, [items, current.keys])
-
-  return current.keys
 }
