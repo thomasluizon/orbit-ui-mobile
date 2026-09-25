@@ -19,7 +19,6 @@ function Selector({ onChange }: Readonly<{ onChange: (value: GoalType) => void }
   const [value, setValue] = useState<GoalType>('Standard')
   return withFocusProvenance(
     <GoalTypeSelector
-      tokens={tokens}
       styles={styles}
       goalType={value}
       onTypeChange={(nextValue) => {
@@ -31,6 +30,16 @@ function Selector({ onChange }: Readonly<{ onChange: (value: GoalType) => void }
 }
 
 describe('GoalTypeSelector', () => {
+  it('uses the shared segmented control', () => {
+    let tree: any
+    void act(() => {
+      tree = create(<Selector onChange={vi.fn()} />)
+    })
+    expect(tree.root.findAll(
+      (node: any) => typeof node.type === 'string' && node.props.testID === 'segmented-control-enabled',
+    )).toHaveLength(1)
+  })
+
   beforeEach(() => {
     __resetTestHostConfig()
   })
