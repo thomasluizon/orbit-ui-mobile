@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
 import { Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { ListRow } from '@/components/ui/list-row'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { ShareCardPanel } from './share-card-panel'
 
 /** Opens the recap share sheet from the profile action row. */
 export function ShareCardEntryButton() {
   const t = useTranslations()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useAccountScopedState(false)
 
   return (
     <>

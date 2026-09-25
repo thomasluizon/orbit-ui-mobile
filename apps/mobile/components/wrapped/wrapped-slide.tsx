@@ -130,7 +130,7 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
           <Animated.Text nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} style={[styles.eyebrow, motionFinalStyle, { color: tokens.fg3 }]}>
             {t('wrapped.slides.topHabit.eyebrow')}
           </Animated.Text>
-          <Animated.Text testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} style={[styles.bigEmoji, motionFinalStyle]}>
+          <Animated.Text testID="wrapped-figure" nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} style={[styles.bigEmoji, motionFinalStyle]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             {slide.habit.emoji ?? '⭐'}
           </Animated.Text>
           <Animated.Text

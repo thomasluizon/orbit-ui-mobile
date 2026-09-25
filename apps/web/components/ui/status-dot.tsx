@@ -23,13 +23,13 @@ interface StatusDotProps {
 
 const FILLED_STATES: ReadonlySet<StatusDotState> = new Set(['done', 'skip', 'frozen'])
 
-const COLOR_VAR: Record<StatusDotState, string> = {
-  done: 'var(--status-done)',
-  empty: 'var(--status-empty)',
-  skip: 'var(--fg-3)',
-  overdue: 'var(--status-overdue)',
-  bad: 'var(--status-bad)',
-  frozen: 'var(--fg-2)',
+const COLOR_VAR: Record<StatusDotState, { graphic: string }> = {
+  done: { graphic: 'var(--status-done)' },
+  empty: { graphic: 'var(--status-empty)' },
+  skip: { graphic: 'var(--fg-3)' },
+  overdue: { graphic: 'var(--status-overdue)' },
+  bad: { graphic: 'var(--status-bad)' },
+  frozen: { graphic: 'var(--fg-2)' },
 }
 
 /** Tappable status dot. Completion remains a neutral, static status cue. */
@@ -41,7 +41,7 @@ export function StatusDot({
   disabled = false,
 }: Readonly<StatusDotProps>) {
   const isFilled = FILLED_STATES.has(state)
-  const color = COLOR_VAR[state]
+  const color = COLOR_VAR[state].graphic
   const fill = resolveStatusDotFill(isFilled, color)
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation()

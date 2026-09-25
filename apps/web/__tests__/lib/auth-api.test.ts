@@ -58,6 +58,13 @@ describe('auth-api session helpers', () => {
     vi.spyOn(Date, 'now').mockReturnValue(FIXED_NOW)
   })
 
+  it('reads the account from the hermetic session token used by layout fixtures', async () => {
+    const { mintHermeticJwt } = await import('@/test-support/hermetic/hermetic-session')
+    const { getAccountIdFromToken } = await import('@/lib/auth-api')
+
+    expect(getAccountIdFromToken(mintHermeticJwt())).toBe('hermetic-perf-user')
+  })
+
   it('uses the current access token when it is still valid', async () => {
     const token = makeJwt(Math.floor(FIXED_NOW / 1000) + 3600)
     mockCookieStore.get.mockImplementation((name: string) => {

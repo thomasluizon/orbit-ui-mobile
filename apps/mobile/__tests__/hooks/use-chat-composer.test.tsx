@@ -1371,6 +1371,102 @@ describe('mobile useChatComposer', () => {
     expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined()
   })
 
+  it.each([
+    ['final', finalFrame(makeChatResponse({ aiMessage: 'Account A answer' }))],
+    ['failure', frame('{"type":"error","error":"Account A failed","status":500}')],
+  ])('discards a late %s stream after account replacement', async (_, outcome) => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('Account A prompt') })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+
+    await TestRenderer.act(async () => {
+      await useChatStore.getState().resetAccountScopedChat()
+      advanceAccountGeneration()
+      useChatStore.getState().setDraft('Account B draft')
+    })
+    await TestRenderer.act(async () => {
+      stream.enqueue(frame('{"type":"delta","text":"Account A partial"}'))
+      stream.enqueue(outcome)
+      stream.close()
+      await send
+    })
+
+    expect(useChatStore.getState().messages).toEqual([])
+    expect(useChatStore.getState().draft).toBe('Account B draft')
+    expect(useChatStore.getState().isTyping).toBe(false)
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(composer.current.canRetryLastSend).toBe(false)
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it('finishes a live stream when only the session epoch changes', async () => {
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('Keep this send') })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    TestRenderer.act(() => advanceSessionEpoch())
+    await TestRenderer.act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse({ aiMessage: 'Still yours' })))
+      stream.close()
+      await send
+    })
+
+    expect(useChatStore.getState().messages.at(-1)?.content).toBe('Still yours')
+    expect(mocks.queryClient.setQueryData).toHaveBeenCalledOnce()
+  })
+
+  it('discards a text file read after account replacement', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [documentPickerAsset()] })
+    let finishRead!: (content: string) => void
+    mocks.readFileText.mockReturnValueOnce(new Promise<string>((resolve) => { finishRead = resolve }))
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => composer.current.composerProps.onAttachFile?.())
+    await vi.waitFor(() => expect(mocks.readFileText).toHaveBeenCalledOnce())
+    TestRenderer.act(() => advanceAccountGeneration())
+    await TestRenderer.act(async () => {
+      finishRead('Account A secret')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(composer.current.selectedTextFile).toBeNull()
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it('discards an image picker result after account replacement', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    let finishPicker!: (result: unknown) => void
+    mocks.launchImageLibraryAsync.mockReturnValueOnce(new Promise((resolve) => {
+      finishPicker = resolve
+    }))
+    const composer = await renderComposer()
+
+    let pick!: Promise<void>
+    TestRenderer.act(() => { pick = composer.current.openFilePicker() })
+    await vi.waitFor(() => expect(mocks.launchImageLibraryAsync).toHaveBeenCalledOnce())
+    TestRenderer.act(() => advanceAccountGeneration())
+    await TestRenderer.act(async () => {
+      finishPicker({
+        canceled: false,
+        assets: [{ uri: 'file:///account-a.jpg', mimeType: 'image/jpeg', fileName: 'account-a.jpg', fileSize: 2048 }],
+      })
+      await pick
+    })
+
+    expect(composer.current.selectedImage).toBeNull()
+    expect(composer.current.imagePreview).toBeNull()
+    expect(composer.current.sendError).toBeNull()
+  })
+
   it('keeps the retry and the attachment when only the session epoch moves', async () => {
     mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
     mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })

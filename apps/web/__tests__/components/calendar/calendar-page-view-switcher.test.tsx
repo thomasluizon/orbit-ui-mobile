@@ -1,6 +1,8 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
+import { toast } from 'sonner'
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import {
   buildCalendarMonthModel,
   CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
@@ -336,6 +338,11 @@ vi.mock('@/components/calendar/calendar-agenda-view', () => ({
 }))
 
 import CalendarPage from '@/app/(app)/calendar/page'
+import {
+  holdAccount,
+  recoverSameAccount,
+  replaceAccountWith,
+} from '@/__tests__/support/account-change'
 
 function monthEntry(habitId: string, status: CalendarDayEntry['status']): CalendarDayEntry {
   return {
@@ -824,6 +831,22 @@ describe('CalendarPage view switcher', () => {
       .toHaveAttribute('aria-checked', 'false')
   })
 
+  it('drops the previous account day-detail toggle error after replacement', async () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    let failFirst!: (error: Error) => void
+    setAutoSync.mockImplementationOnce(() => new Promise((_resolve, reject) => { failFirst = reject }))
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByTestId('month-view'))
+    let first!: Promise<void>
+    act(() => { first = calendarDayDetailProps.onCalendarAutoSyncChange!(false) })
+    await waitFor(() => expect(setAutoSync).toHaveBeenCalledTimes(1))
+    act(() => advanceAccountGeneration())
+    await act(async () => { await calendarDayDetailProps.onCalendarAutoSyncChange!(true) })
+    expect(setAutoSync).toHaveBeenCalledTimes(2)
+    await act(async () => { failFirst(new Error('old failure')); await first })
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it('keeps the calendar usable and offers habit creation for an empty current month', () => {
     render(<CalendarPage />)
 
@@ -946,5 +969,41 @@ describe('CalendarPage view switcher', () => {
     drag(61)
     expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
       .toBe(initialMonth.getMonth())
+  })
+
+  /**
+   * The day panel's entries re-derive from the month query, which the account replacement empties,
+   * so those are the next account's already. The open flag and the chosen day were copies, and a
+   * replacement left the next account looking at a sheet the previous one opened.
+   */
+  describe('account replacement', () => {
+    beforeEach(() => {
+      vi.stubGlobal('fetch', vi.fn())
+      holdAccount('user-1')
+    })
+
+    afterEach(() => vi.unstubAllGlobals())
+
+    it('closes the day panel the previous account opened and returns to today', async () => {
+      render(<CalendarPage />)
+      fireEvent.click(screen.getByTestId('month-view'))
+      expect(screen.getByTestId('day-detail')).toBeInTheDocument()
+      expect(calendarGridProps.selectedDateStr).toBe('2026-01-05')
+
+      await replaceAccountWith('user-2')
+
+      expect(screen.queryByTestId('day-detail')).not.toBeInTheDocument()
+      expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
+    })
+
+    it('keeps the day panel when the same account recovers from a rejected refresh', async () => {
+      render(<CalendarPage />)
+      fireEvent.click(screen.getByTestId('month-view'))
+
+      await recoverSameAccount('user-1')
+
+      expect(screen.getByTestId('day-detail')).toBeInTheDocument()
+      expect(calendarGridProps.selectedDateStr).toBe('2026-01-05')
+    })
   })
 })

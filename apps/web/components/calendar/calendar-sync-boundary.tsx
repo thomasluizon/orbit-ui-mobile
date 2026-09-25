@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import {
@@ -9,6 +8,7 @@ import {
 } from '@orbit/shared/utils'
 import { RefreshCw } from '@/components/ui/icons'
 import { Switch } from '@/components/ui/switch'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface CalendarSyncBoundaryProps {
   autoSyncState: CalendarAutoSyncState | undefined
@@ -22,7 +22,7 @@ export function CalendarSyncBoundary({
   onAutoSyncChange,
 }: Readonly<CalendarSyncBoundaryProps>) {
   const t = useTranslations()
-  const [isSaving, setIsSaving] = useState(false)
+  const [isSaving, setIsSaving] = useAccountScopedState(false)
 
   const connected = isCalendarSyncConnectionActive(
     autoSyncState?.hasGoogleConnection ?? false,

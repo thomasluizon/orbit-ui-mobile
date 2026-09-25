@@ -4,14 +4,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { gamificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { recapResponseSchema, ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
 import {
+  buildAccountScopedStorageKey,
   buildRecapRequestUrl,
   buildWrappedSlides,
   isRecapShareEmpty,
+  readAccountScopedFlag,
   type RecapSharePeriod,
   type ClosedRecapMonth,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { useReportEvent } from '@/hooks/use-gamification'
+import { useAuthStore } from '@/stores/auth-store'
 
 const WRAPPED_YEAR_SEEN_STORAGE_KEY = 'orbit_wrapped_year_seen'
 
@@ -25,6 +28,7 @@ interface UseWrappedOptions {
 export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions = {}) {
   const { enabled = true, active = false, closedMonth } = options
   const { mutate: reportEvent } = useReportEvent()
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
 
   const query = useQuery({
     queryKey: gamificationKeys.recap(period, closedMonth?.year, closedMonth?.month),
@@ -47,16 +51,26 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
     ) {
       return
     }
+    if (accountId === null) return
     let cancelled = false
-    void AsyncStorage.getItem(WRAPPED_YEAR_SEEN_STORAGE_KEY).then((seen) => {
-      if (cancelled || seen) return
-      void AsyncStorage.setItem(WRAPPED_YEAR_SEEN_STORAGE_KEY, '1')
+    const scopedKey = buildAccountScopedStorageKey(WRAPPED_YEAR_SEEN_STORAGE_KEY, accountId)
+    void AsyncStorage.multiGet([scopedKey, WRAPPED_YEAR_SEEN_STORAGE_KEY]).then(([scoped, legacy]) => {
+      if (cancelled) return
+      const flag = readAccountScopedFlag(scoped?.[1] ?? null, legacy?.[1] ?? null)
+      if (flag.seen) {
+        if (flag.adoptsLegacy) {
+          void AsyncStorage.setItem(scopedKey, '1')
+          void AsyncStorage.removeItem(WRAPPED_YEAR_SEEN_STORAGE_KEY)
+        }
+        return
+      }
+      void AsyncStorage.setItem(scopedKey, '1')
       reportEvent(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
     })
     return () => {
       cancelled = true
     }
-  }, [active, period, query.data, reportEvent])
+  }, [accountId, active, period, query.data, reportEvent])
 
   return {
     recap,

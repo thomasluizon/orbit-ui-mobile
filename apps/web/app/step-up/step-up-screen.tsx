@@ -15,7 +15,9 @@ import {
 } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { useAuthStore } from '@/stores/auth-store'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getHeldAccountId, useAuthStore, useHeldAccountId } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   confirmApiKeyCreationChallenge,
   requestApiKeyCreationChallenge,
@@ -39,7 +41,54 @@ const subscribeClientReady = () => () => {}
 const getClientReady = () => true
 const getServerNotReady = () => false
 
-export function StepUpScreen() {
+/**
+ * Runs the emailed-code challenge that guards deleting an account and creating an API key.
+ *
+ * The screen belongs to one account twice over. It reads a timing record stored under that account,
+ * and it holds the code the person typed, which is that account's credential. Both need the account
+ * this tab holds, and this route is the one place that cannot simply ask for it.
+ *
+ * `/step-up` sits outside `(app)`, so nothing here starts the session monitor: `useHeldAccountId`
+ * reports null for the whole life of a cold load, the record read comes back empty, and the person
+ * lands back on Profile mid-challenge. `serverAccountId` is the proxy's answer, resolved from the
+ * cookie it already validated to let this render happen at all, so the first paint names the
+ * account. The held id takes precedence once it exists, because it is the one that moves.
+ *
+ * Starting the monitor here is what makes it move. It gives the route the cross-tab signal and the
+ * poll every other route has, so a replacement reaches this screen as an account generation rise,
+ * every field drops with it, and the record read returns the next account's answer, which is
+ * nothing. That sends them to Profile rather than leaving a stranger's code and scheduled deletion
+ * date on screen.
+ */
+export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: string | null }>) {
+  const heldAccountId = useHeldAccountId()
+  const sessionInactive = useAuthStore((state) => state.sessionInactive)
+  const accountId = sessionInactive ? null : heldAccountId ?? serverAccountId
+
+  useEffect(() => {
+    const stopMonitor = useAuthStore.getState().startExpiryMonitor()
+    return stopMonitor
+  }, [])
+
+  return (
+    <StepUpScreenContent
+      key={accountId ?? 'inactive'}
+      accountId={accountId}
+      serverAccountId={serverAccountId}
+      sessionInactive={sessionInactive}
+    />
+  )
+}
+
+function StepUpScreenContent({
+  accountId,
+  serverAccountId,
+  sessionInactive,
+}: Readonly<{
+  accountId: string | null
+  serverAccountId: string | null
+  sessionInactive: boolean
+}>) {
   const t = useTranslations('stepUp')
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -50,29 +99,33 @@ export function StepUpScreen() {
   const logout = useAuthStore((state) => state.logout)
   const { displayDate } = useDateFormat()
 
-  const [recordOverride, setRecord] = useState<StepUpTimingRecord | null>(null)
+  const [recordOverride, setRecord] = useAccountScopedState<StepUpTimingRecord | null>(null)
   const clientReady = useSyncExternalStore(
     subscribeClientReady,
     getClientReady,
     getServerNotReady,
   )
-  const storedRecord = clientReady && operation ? readStepUpTiming(operation) : null
+  const storedRecord = clientReady && operation ? readStepUpTiming(operation, accountId) : null
   const record = recordOverride ?? storedRecord
   const [now, setNow] = useState(() => Date.now())
-  const [phase, setPhase] = useState<StepUpPhase>('challenge')
-  const [code, setCode] = useState('')
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null)
-  const [fieldError, setFieldError] = useState<string | null>(null)
-  const [requestError, setRequestError] = useState<string | null>(null)
-  const [requesting, setRequesting] = useState(false)
-  const [scheduledDeletionAt, setScheduledDeletionAt] = useState<string | null>(null)
+  const [phase, setPhase] = useAccountScopedState<StepUpPhase>('challenge')
+  const [code, setCode] = useAccountScopedState('')
+  const [attemptsRemaining, setAttemptsRemaining] = useAccountScopedState<number | null>(null)
+  const [fieldError, setFieldError] = useAccountScopedState<string | null>(null)
+  const [requestError, setRequestError] = useAccountScopedState<string | null>(null)
+  const [requesting, setRequesting] = useAccountScopedState(false)
+  const [scheduledDeletionAt, setScheduledDeletionAt] = useAccountScopedState<string | null>(null)
 
   useEffect(() => {
     if (!clientReady) return
+    if (sessionInactive) {
+      router.replace('/login')
+      return
+    }
     if (!operation || !record) {
       router.replace('/profile')
     }
-  }, [clientReady, operation, record, router])
+  }, [clientReady, operation, record, router, sessionInactive])
 
   useEffect(() => {
     const timer = globalThis.setInterval(() => setNow(Date.now()), 1000)
@@ -97,14 +150,23 @@ export function StepUpScreen() {
     ? displayDate(scheduledDeletionAt)
     : ''
 
+  function isCurrentRequest(generation: number, initiatingAccountId: string | null): boolean {
+    return getAccountGeneration() === generation
+      && !useAuthStore.getState().sessionInactive
+      && (getHeldAccountId() ?? serverAccountId) === initiatingAccountId
+  }
+
   async function handleResend() {
     if (!operation || exhausted || requesting) return
+    const generation = getAccountGeneration()
+    const initiatingAccountId = accountId
     setRequesting(true)
     setRequestError(null)
     try {
       if (operation === 'delete') await requestDeletion()
       else await requestApiKeyCreationChallenge()
-      const next = beginStepUpChallenge(operation)
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
+      const next = beginStepUpChallenge(operation, accountId)
       setRecord(next)
       setCode('')
       setAttemptsRemaining(null)
@@ -112,38 +174,44 @@ export function StepUpScreen() {
       setPhase(getStepUpPhaseFromTiming(next, Date.now()))
       setNow(Date.now())
     } catch {
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       setRequestError(t('requestError'))
     } finally {
-      setRequesting(false)
+      if (isCurrentRequest(generation, initiatingAccountId)) setRequesting(false)
     }
   }
 
   async function handleConfirm() {
     if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking) return
+    const generation = getAccountGeneration()
+    const initiatingAccountId = accountId
     setPhase('checking')
     setFieldError(null)
     setRequestError(null)
     try {
       if (operation === 'keys') {
         const result = await confirmApiKeyCreationChallenge(code)
+        if (!isCurrentRequest(generation, initiatingAccountId)) return
         if (!result.success) {
           handleConfirmationFailure(result.errorCode, result.remaining)
           return
         }
-        clearStepUpTiming(operation)
+        clearStepUpTiming(operation, accountId)
         markStepUpVerified(operation)
         router.replace('/profile')
         return
       }
       const result = await confirmDeletion(code)
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       if (!result.success) {
         handleConfirmationFailure(result.errorCode, result.remaining)
         return
       }
-      clearStepUpTiming(operation)
+      clearStepUpTiming(operation, accountId)
       setScheduledDeletionAt(result.response.scheduledDeletionAt)
       setPhase('deactivated')
     } catch {
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       setFieldError(t('genericError'))
       setPhase('challenge')
     }
@@ -161,7 +229,7 @@ export function StepUpScreen() {
     }
     if (errorCode === 'INVALID_VERIFICATION_CODE') {
       const next = operation === 'delete' && remaining === null
-        ? markStepUpAttemptFailed(record)
+        ? markStepUpAttemptFailed(record, accountId)
         : record
       if (remaining === 0 || (operation === 'delete' && (next.failedAttempts ?? 0) >= 3)) {
         setExhausted(next)
@@ -178,7 +246,7 @@ export function StepUpScreen() {
   }
 
   function setExhausted(currentRecord: StepUpTimingRecord) {
-    const next = markStepUpExhausted(currentRecord)
+    const next = markStepUpExhausted(currentRecord, accountId)
     setRecord(next)
     setPhase('exhausted')
     setNow(Date.now())
@@ -193,7 +261,7 @@ export function StepUpScreen() {
 
   const otpError = getOtpError(t, fieldError, attemptsRemaining)
 
-  if (!clientReady || !operation || !record) return null
+  if (!clientReady || sessionInactive || !operation || !record) return null
 
   const sharedView = { operationLabel, t }
   if (success) {
