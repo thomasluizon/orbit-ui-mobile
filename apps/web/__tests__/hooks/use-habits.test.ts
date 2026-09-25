@@ -1,12 +1,12 @@
 import { useAuthStore } from '@/stores/auth-store'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import React from 'react'
-import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useRestoreHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
-import { buildCalendarDayMap } from '@orbit/shared/utils'
+import { buildCalendarDayMap, getReturningInterval } from '@orbit/shared/utils'
 import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
@@ -408,7 +408,7 @@ describe('useLogHabit', () => {
     })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('passes date to logHabit action', async () => {
@@ -1533,6 +1533,50 @@ describe('useBulkLogHabits', () => {
     mockFetch.mockReset()
   })
 
+  it('refreshes a returning profile after a successful bulk log', async () => {
+    const { bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [
+      { index: 0, status: 'Success', habitId: 'h-1', logId: 'log-1', error: null },
+    ] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(profileKeys.detail(), { lastCompletionDate: '2026-08-20' })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useBulkLogHabits(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => { await result.current.mutateAsync([{ habitId: 'h-1' }]) })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it.each(['unlog', 'bulk log'])('refreshes the mounted returning interval after %s', async (action) => {
+    const { logHabit, bulkLogHabits } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 0 })
+    vi.mocked(bulkLogHabits).mockResolvedValue({ results: [
+      { index: 0, status: 'Success', habitId: 'h-1', logId: 'log-2', error: null },
+    ] })
+    const today = new Date()
+    const dateBefore = new Date(today.getTime() - 5 * 86_400_000).toISOString().slice(0, 10)
+    const dateAfter = action === 'unlog' ? null : new Date(today.getTime() - 3 * 86_400_000).toISOString().slice(0, 10)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(profileKeys.detail(), { lastCompletionDate: dateBefore, timeZone: 'UTC' })
+    const fetchProfile = vi.fn(async () => ({ lastCompletionDate: dateAfter, timeZone: 'UTC' }))
+    const { result } = renderHook(() => ({
+      profile: useQuery({ queryKey: profileKeys.detail(), queryFn: fetchProfile, staleTime: 300_000 }),
+      log: useLogHabit(),
+      bulkLog: useBulkLogHabits(),
+    }), { wrapper: createWrapper(queryClient) })
+
+    expect(getReturningInterval(result.current.profile.data?.lastCompletionDate, 'UTC')).not.toBeNull()
+    await act(async () => {
+      if (action === 'unlog') await result.current.log.mutateAsync({ habitId: 'h-1', intent: 'unlog' })
+      else await result.current.bulkLog.mutateAsync([{ habitId: 'h-1' }])
+    })
+
+    await waitFor(() => expect(result.current.profile.data?.lastCompletionDate).toBe(dateAfter))
+    expect(getReturningInterval(result.current.profile.data?.lastCompletionDate, 'UTC'))
+      .toEqual(action === 'unlog' ? null : expect.objectContaining({ kind: 'elapsed' }))
+  })
+
   it('calls bulkLogHabits action', async () => {
     const { useBulkLogHabits } = await import('@/hooks/use-habits')
     const { bulkLogHabits } = await import('@/lib/actions/habits')
@@ -1627,6 +1671,38 @@ describe('useBulkLogHabits', () => {
       .getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.children
     expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
     expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
+  })
+})
+
+describe('returning profile after other completion writes', () => {
+  it.each([
+    ['skip', () => useSkipHabit(), { habitId: 'h-1' }],
+    ['edit bad-habit flag', () => useUpdateHabit(), { habitId: 'h-1', data: { isBadHabit: true } }],
+    ['delete', () => useDeleteHabit(), 'h-1'],
+    ['restore', () => useRestoreHabit(), 'h-1'],
+    ['checklist', () => useUpdateChecklist(), { habitId: 'h-1', items: [] }],
+    ['bulk delete', () => useBulkDeleteHabits(), ['h-1']],
+    ['bulk skip', () => useBulkSkipHabits(), [{ habitId: 'h-1' }]],
+  ] as const)('refreshes profile after %s', async (_name, useWrite, variables) => {
+    const actions = await import('@/lib/actions/habits')
+    vi.mocked(actions.skipHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.updateHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.deleteHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.restoreHabit).mockResolvedValue(undefined)
+    vi.mocked(actions.updateChecklist).mockResolvedValue(undefined)
+    vi.mocked(actions.bulkSkipHabits).mockResolvedValue({ results: [{ index: 0, status: 'Success', habitId: 'h-1', error: null }] })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(profileKeys.detail(), { lastCompletionDate: '2026-08-20' })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(
+      () => useWrite() as unknown as { mutateAsync: (input: never) => Promise<unknown> },
+      { wrapper: createWrapper(queryClient) },
+    )
+
+    await act(async () => { await result.current.mutateAsync(variables as never) })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    queryClient.clear()
   })
 })
 

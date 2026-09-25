@@ -264,8 +264,9 @@ export function useLogHabit() {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
-        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       }
+
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
 
       if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -401,6 +402,7 @@ export function useUpdateHabit() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }
@@ -412,6 +414,7 @@ function invalidateHabitDeleteQueries(queryClient: ReturnType<typeof useQueryCli
   void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
   void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+  void queryClient.invalidateQueries({ queryKey: profileKeys.all })
 }
 
 export function useRestoreHabit() {
@@ -585,6 +588,7 @@ export function useUpdateChecklist() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }
@@ -710,6 +714,7 @@ export function useBulkDeleteHabits() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }
@@ -766,6 +771,9 @@ export function useBulkLogHabits() {
 
     onSuccess: (result, _items, context) => {
       restoreRejectedBulkItems(queryClient, context.previousLists, result.results)
+      if (result.results.some((item) => item.status === 'Success')) {
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      }
     },
 
     onSettled: () => {
@@ -828,6 +836,7 @@ export function useBulkSkipHabits() {
       void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }

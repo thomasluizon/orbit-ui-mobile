@@ -411,6 +411,7 @@ export {
   snapshotNotificationList,
 } from './notification-cache'
 export { formatNotificationRelativeTime } from './notification-time'
+export { getReturningInterval, type ReturningInterval } from './returning-interval'
 export {
   getNotificationDetailActionVisibility,
   getNotificationDestination,
@@ -420,6 +421,7 @@ export {
   resolveNotificationUrl,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
+  shouldShowTodayAstraSurface,
 } from './notification-actions'
 export {
   buildTempGoal,

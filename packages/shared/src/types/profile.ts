@@ -97,6 +97,7 @@ export const profileSchema = z.object({
   marketingEmailConsent: z.boolean().nullable().optional(),
   lapseReason: subscriptionLapseReasonSchema.nullable().optional(),
   subscriptionEndedAt: z.string().nullable().optional(),
+  lastCompletionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>

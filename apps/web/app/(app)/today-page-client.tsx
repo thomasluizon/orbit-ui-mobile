@@ -78,7 +78,7 @@ export function TodayPageClient({
       <TodayDayTransition date={view.nav.dateStr}>
         <TodayAstra
           isTodaySelected={view.nav.dateStr === view.nav.today}
-          suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || view.data.isFetching || view.data.showLoadError || view.data.habitsCount === 0}
+          suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || view.data.isFetching || view.data.showLoadError}
         />
 
         <TodayHeaderRegion view={view} />
