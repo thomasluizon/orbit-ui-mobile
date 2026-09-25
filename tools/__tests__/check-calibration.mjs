@@ -10,6 +10,7 @@ const AGENT = ["---", "name: design-reviewer", "tools: Glob, Grep, Read", "model
 const SKILL = ["---", "name: ticket", "effort: high", "---", "", "body", ""].join("\n")
 /** A skill that declares no tuning at all, which eleven of the eighteen live ones do not. */
 const UNTUNED_SKILL = ["---", "name: lesson", "---", "", "body", ""].join("\n")
+const CLASSIFIER_PROMPT = "Classify the ticket.\n"
 
 const digestOf = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
 
@@ -29,17 +30,18 @@ const daysAgo = (days) => new Date(Date.now() - days * 86400000).toISOString().s
  * A fixture harness: two agents' worth of shape in three files, plus whatever stamp the case wants.
  * `stamp === null` writes no stamp at all, which is the unreadable case.
  */
-const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", command = "codex", args = ['-c', 'model_reasoning_effort="high"'], engineArgs = ["exec"], extraFiles = {} } = {}) => {
+const stageHarness = (label, { stamp, model = "gpt-5.6-sol", classifierModel = "gpt-6-luna", engine = "codex", command = "codex", args = ['-c', 'model_reasoning_effort="high"'], engineArgs = ["exec"], extraFiles = {} } = {}) => {
   const fixture = join(root, "check-calibration", label)
   write(join(fixture, ".claude", "agents", "design-reviewer.md"), AGENT)
   write(join(fixture, ".claude", "skills", "ticket", "SKILL.md"), SKILL)
   write(join(fixture, ".claude", "skills", "lesson", "SKILL.md"), UNTUNED_SKILL)
+  write(join(fixture, "tools", "lib", "ticket-classifier-prompt.md"), CLASSIFIER_PROMPT)
   // A directory with no SKILL.md is not a calibrated file, exactly like the live `_shared` directory.
   mkdirSync(join(fixture, ".claude", "skills", "_shared"), { recursive: true })
   for (const [relativePath, body] of Object.entries(extraFiles)) write(join(fixture, relativePath), body)
   write(
     join(fixture, ".claude", "orchestrator.json"),
-    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, workers: { [engine]: { command, args: engineArgs, models: { default: { model, args }, mechanical: { model, args: ["-c", 'model_reasoning_effort="medium"'] } } } } }, null, 2)}\n`,
+    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, classifier: { model: classifierModel }, workers: { [engine]: { command, args: engineArgs, models: { default: { model, args }, mechanical: { model, args: ["-c", 'model_reasoning_effort="medium"'] } } } } }, null, 2)}\n`,
   )
   if (stamp !== null) write(join(fixture, ".claude", "calibration.json"), `${JSON.stringify(stamp, null, 2)}\n`)
   return fixture
@@ -51,6 +53,7 @@ const currentStamp = (overrides = {}) => {
   const calibratedAt = overrides.calibratedAt ?? today()
   return {
     calibratedAt,
+    classifier: { model: "gpt-6-luna", promptDigest: digestOf(CLASSIFIER_PROMPT), calibratedAt, verdict: "recorded replay agrees" },
     workerEngine: "codex",
     workerCommand: "codex",
     workerTiers: {
@@ -79,6 +82,11 @@ export const cases = () => {
     status: 0,
     stdout: /3 calibrated file\(s\) stamped .* against codex tiers default, mechanical/,
   })
+  check(TOOL, "classifier model drift is named", ["--root", stageHarness("classifier-model", { stamp: currentStamp(), classifierModel: "x" })], { status: 1, stderr: /classifier model/ })
+  check(TOOL, "classifier prompt drift is named", ["--root", stageHarness("classifier-prompt", { stamp: currentStamp(), extraFiles: { "tools/lib/ticket-classifier-prompt.md": `${CLASSIFIER_PROMPT}x` } })], { status: 1, stderr: /classifier prompt changed/ })
+  check(TOOL, "missing classifier stamp is named", ["--root", stageHarness("classifier-missing", { stamp: currentStamp({ classifier: undefined }) })], { status: 1, stderr: /classifier has no calibration block/ })
+  check(TOOL, "stale classifier stamp is named", ["--root", stageHarness("classifier-stale", { stamp: currentStamp({ classifier: { model: "gpt-6-luna", promptDigest: digestOf(CLASSIFIER_PROMPT), calibratedAt: daysAgo(91), verdict: "old" } }) })], { status: 1, stderr: /classifier was calibrated 91 days ago/ })
+  check(TOOL, "future classifier stamp is named", ["--root", stageHarness("classifier-future", { stamp: currentStamp({ classifier: { model: "gpt-6-luna", promptDigest: digestOf(CLASSIFIER_PROMPT), calibratedAt: "9999-12-31", verdict: "future" } }) })], { status: 1, stderr: /classifier calibratedAt is .*FUTURE/ })
 
   // The denominator is a glob, so a file added without a verdict is the case that catches the failure
   // ORB-120 actually had: the `quota` skill arrived and was never added to the calibration.

@@ -116,7 +116,8 @@ export interface UIStoreState {
   todayFabHidden: boolean;
   setTodayFabHidden: (hidden: boolean) => void;
   astraConversationOpen: boolean;
-  setAstraConversationOpen: (open: boolean) => void;
+  astraEntryPointIntent: 'support' | undefined;
+  setAstraConversationOpen: (open: boolean, entryPointIntent?: 'support') => void;
 
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -342,7 +343,11 @@ export function createUIStoreState(
     todayFabHidden: false,
     setTodayFabHidden: (hidden) => set({ todayFabHidden: hidden }),
     astraConversationOpen: false,
-    setAstraConversationOpen: (open) => set({ astraConversationOpen: open }),
+    astraEntryPointIntent: undefined,
+    setAstraConversationOpen: (open, entryPointIntent) => set({
+      astraConversationOpen: open,
+      astraEntryPointIntent: open ? entryPointIntent : undefined,
+    }),
 
     searchQuery: "",
     setSearchQuery: (query) => set({ searchQuery: query }),

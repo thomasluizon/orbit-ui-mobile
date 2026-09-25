@@ -1,10 +1,31 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import { setI18n } from 'react-i18next'
 import { API } from '@orbit/shared/api'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError } from '@orbit/shared/utils'
 
 import { useLoginFlow } from '@/app/use-login-flow'
 import { LoginContent } from '@/components/auth/login-content'
+
+vi.mock('react-i18next', async (importActual) => ({
+  ...(await importActual<typeof import('react-i18next')>()),
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: 'en' },
+  }),
+}))
+
+const testI18n = createInstance()
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+void testI18n.use(ICU).init({
+  resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } },
+  lng: 'en', fallbackLng: 'en', initAsync: false,
+})
+setI18n(testI18n)
 
 const TestRenderer = require('react-test-renderer')
 

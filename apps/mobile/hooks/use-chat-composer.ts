@@ -24,6 +24,7 @@ import {
 import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
+  ChatClientContext,
   ChatMessage,
   ChatResponse,
 } from "@orbit/shared/types";
@@ -45,6 +46,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { usePendingOperationExecution } from "@/hooks/use-pending-operation-execution";
 import { useChatStore } from "@/stores/chat-store";
+import { useUIStore } from "@/stores/ui-store";
 import { useResetOnAccountChange } from "@/hooks/use-session-reset";
 import { getAccountGeneration } from "@/lib/session-epoch";
 
@@ -176,6 +178,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     setSelectedImage(null);
     setImagePreview(null);
     setSelectedTextFile(null);
+    useUIStore.getState().setAstraConversationOpen(false);
   });
 
   const hasProAccess = profile?.hasProAccess ?? false;
@@ -526,17 +529,17 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
       const recentHistory = buildRecentChatHistory(useChatStore.getState().messages);
       formData.append("history", JSON.stringify(recentHistory));
-      formData.append(
-        "clientContext",
-        JSON.stringify({
-          platform: "mobile",
-          locale: i18n.language,
-          timeFormat: detectDefaultTimeFormat(i18n.language),
-          currentAppArea: "chat",
-          supportsHabitListCard: true,
-          supportsGoalListCard: true,
-        }),
-      );
+      const entryPointIntent = useUIStore.getState().astraEntryPointIntent;
+      const clientContext = {
+        platform: "mobile",
+        locale: i18n.language,
+        timeFormat: detectDefaultTimeFormat(i18n.language),
+        currentAppArea: "chat",
+        supportsHabitListCard: true,
+        supportsGoalListCard: true,
+        ...(entryPointIntent ? { entryPointIntent } : {}),
+      } satisfies ChatClientContext;
+      formData.append("clientContext", JSON.stringify(clientContext));
       return formData;
     },
     [i18n.language],

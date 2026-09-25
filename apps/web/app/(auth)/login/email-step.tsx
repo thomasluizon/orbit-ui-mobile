@@ -51,10 +51,10 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         {googleError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{googleError}</p>}
       </div>
       <p className="text-xs leading-[1.6] text-[var(--fg-3)]">
-        {t('auth.legalPrefix')}{' '}
-        <Link href="/about" className="text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{t('auth.terms')}</Link>{' '}
-        {t('auth.legalConjunction')}{' '}
-        <Link href="/about" className="text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{t('auth.privacy')}</Link>.
+        {t.rich('auth.legalConsent', {
+          terms: (chunks) => <Link href="/about" className="text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
+          privacy: (chunks) => <Link href="/about" className="text-[var(--fg-2)] underline hover:text-[var(--fg-1)]">{chunks}</Link>,
+        })}
       </p>
     </div>
   )
