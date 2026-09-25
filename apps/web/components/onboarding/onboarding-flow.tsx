@@ -140,7 +140,7 @@ export function OnboardingFlow() {
   const deferredPushFailure = useOnboardingDraftStore((state) => isLive && state.pushRegistrationFailed)
   const deferredHabit = useOnboardingDraftStore((state) => deferredPushFailure ? state.habits[0] : undefined)
   const [resolvingDeferredPush] = useState(deferredPushFailure)
-  const { profile } = useProfile({ enabled: isLive })
+  const { profile, refetch: refetchProfile } = useProfile({ enabled: isLive })
   const suggestion = useHabitSuggestion()
   const push = usePushNotificationPreferences()
   const [step, setStep] = useState(resolvingDeferredPush ? ONBOARDING_REMIND_STEP : ONBOARDING_WHAT_STEP)
@@ -212,13 +212,15 @@ export function OnboardingFlow() {
     setCreateFailed(false)
     const input = buildOnboardingHabitInput({ sentence, locale, emoji, reminderEnabled: false, schedule })
     try {
+      const accountProfile = isLive ? profile ?? (await refetchProfile()).data : undefined
+      if (isLive && !accountProfile) throw new Error('Profile unavailable')
       if (createdId) await actions.updateHabit(createdId, { ...input, isGeneral: schedule.isGeneral, isFlexible: schedule.isFlexible })
       else {
         const result = await actions.createHabit(input)
         setCreatedId(result.id)
       }
       setCreatedTitle(input.title)
-      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), profile ? profile.timeZone : getClientTimeZone()))
+      setCreatedDueToday(isOnboardingHabitDueToday(schedule, new Date(), accountProfile ? accountProfile.timeZone : getClientTimeZone()))
       setCreatedGeneral(schedule.isGeneral)
       setReminderState(resolveReminderState())
       setStep(ONBOARDING_REMIND_STEP)
