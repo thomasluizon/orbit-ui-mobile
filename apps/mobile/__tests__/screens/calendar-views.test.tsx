@@ -11,6 +11,7 @@ import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { Text, View } from "react-native";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
+import { advanceAccountGeneration } from '@/lib/session-epoch';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ListRow } from '@/components/ui/list-row'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -382,6 +383,25 @@ describe("CalendarScreen views (mobile)", () => {
         ],
       ],
     ]);
+  });
+
+  it('drops the previous account day-detail toggle error after replacement', async () => {
+    state.profile = { weekStartDay: 1, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: true };
+    let failFirst!: (error: Error) => void;
+    state.setAutoSync.mockImplementationOnce(() => new Promise((_resolve, reject) => { failFirst = reject; }));
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const headerTree = openSelectedDay(tree, getMockAccountDateKey());
+    let first!: Promise<void>;
+    TestRenderer.act(() => { first = calendarDayDetailProps.current!.onCalendarAutoSyncChange(false); });
+    expect(state.setAutoSync).toHaveBeenCalledTimes(1);
+    TestRenderer.act(() => { advanceAccountGeneration(); });
+    await TestRenderer.act(async () => { await calendarDayDetailProps.current!.onCalendarAutoSyncChange(true); });
+    expect(state.setAutoSync).toHaveBeenCalledTimes(2);
+    await TestRenderer.act(async () => { failFirst(new Error('old failure')); await first; });
+    expect(state.showError).not.toHaveBeenCalled();
+    TestRenderer.act(() => headerTree.update(<></>));
+    TestRenderer.act(() => tree.update(<></>));
   });
 
   afterEach(() => {

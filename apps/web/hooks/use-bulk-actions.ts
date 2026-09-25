@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useCallback, useLayoutEffect, useRef } from 'react'
+import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface UseBulkActionsOptions {
@@ -48,7 +50,12 @@ export function useBulkActions({
     currentPermission.current = { selectedDateStr, completionReadOnly }
   }, [selectedDateStr, completionReadOnly])
 
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+  /**
+   * The confirmation asks the person to delete the habits they selected. Its owner clears it on a
+   * date change and on a read-only day, and neither of those is an account change, so an armed
+   * delete used to sit over the next account's Today with the previous account's count on it.
+   */
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useAccountScopedState(false)
 
   const applyBulkMutationSuccesses = useCallback((
     results: readonly { status: string; habitId: string }[],
@@ -77,9 +84,13 @@ export function useBulkActions({
 
   async function executeDelete(ids: string[]) {
     if (ids.length === 0) return
+    const accountGeneration = getAccountGeneration()
     try {
       const result = await bulkDelete.mutateAsync(ids)
-      finish(result, (failedIds) => void executeDelete(failedIds))
+      if (getAccountGeneration() !== accountGeneration) return
+      finish(result, (failedIds) => {
+        if (getAccountGeneration() === accountGeneration) void executeDelete(failedIds)
+      })
     } finally {
       setShowBulkDeleteConfirm(false)
     }
@@ -88,21 +99,29 @@ export function useBulkActions({
   async function executeLog(ids: string[]) {
     if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
     if (ids.length === 0) return
+    const accountGeneration = getAccountGeneration()
     const result = await bulkLog.mutateAsync(
       ids.map((id) => ({ habitId: id, date: selectedDateStr })),
     )
+    if (getAccountGeneration() !== accountGeneration) return
     applyBulkMutationSuccesses(result.results, 'log')
-    finish(result, (failedIds) => void executeLog(failedIds))
+    finish(result, (failedIds) => {
+      if (getAccountGeneration() === accountGeneration) void executeLog(failedIds)
+    })
   }
 
   async function executeSkip(ids: string[]) {
     if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
     if (ids.length === 0) return
+    const accountGeneration = getAccountGeneration()
     const result = await bulkSkip.mutateAsync(
       ids.map((id) => ({ habitId: id, date: selectedDateStr })),
     )
+    if (getAccountGeneration() !== accountGeneration) return
     applyBulkMutationSuccesses(result.results, 'skip')
-    finish(result, (failedIds) => void executeSkip(failedIds))
+    finish(result, (failedIds) => {
+      if (getAccountGeneration() === accountGeneration) void executeSkip(failedIds)
+    })
   }
 
   const confirmBulkDelete = () => executeDelete(

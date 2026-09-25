@@ -52,6 +52,8 @@ import { useDeleteHabit, useLogHabit, useUpdateChecklist, useUpdateHabit } from 
 import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
 import { useToday } from '@/app/(app)/today-provider'
 
@@ -95,8 +97,8 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
   completionReason?: string
 }>) {
   const t = useTranslations('habits.detail')
-  const [editing, setEditing] = useState(false)
-  const [title, setTitle] = useState(habit.title)
+  const [editing, setEditing] = useAccountScopedState(false)
+  const [title, setTitle] = useAccountScopedState(habit.title)
   const save = async () => {
     const next = title.trim()
     if (!next || next === habit.title) {
@@ -256,11 +258,12 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const updateChecklist = useUpdateChecklist()
   const deleteHabit = useDeleteHabit()
   const { showError } = useAppToast()
-  const [detailsOpen, setDetailsOpen] = useState(false)
-  const [createOpen, setCreateOpen] = useState(false)
-  const [confirm, setConfirm] = useState<ConfirmAction>(null)
-  const [childToDelete, setChildToDelete] = useState<string | null>(null)
+  const [detailsOpen, setDetailsOpen] = useAccountScopedState(false)
+  const [createOpen, setCreateOpen] = useAccountScopedState(false)
+  const [confirm, setConfirm] = useAccountScopedState<ConfirmAction>(null)
+  const [childToDelete, setChildToDelete] = useAccountScopedState<string | null>(null)
   const pendingToggleKeysRef = useRef(new Set<string>())
+  useResetOnAccountChange(() => pendingToggleKeysRef.current.clear())
 
   const habit = useMemo(() => detailQuery.data ? mergeHabitDetailWithScopedHabit(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), dateStr, habitsQuery.data?.habitsById.get(habitId)) : null, [allHabitsQuery.data, detailQuery.data, habitId, dateStr, habitsQuery.data])
   const relationshipControlsAvailable = detailQuery.data ? hasAuthoritativeHabitRelationshipState(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), habitsQuery.data?.habitsById.get(habitId)) : false
@@ -296,11 +299,12 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     else router.push(`/?date=${dateStr}`)
   }, [dateStr, fromToday, parentId, router])
   const runWrite = useCallback(async (write: () => Promise<unknown>, errorMessage: string): Promise<boolean> => {
+    const accountGeneration = getAccountGeneration()
     try {
       await write()
-      return true
+      return getAccountGeneration() === accountGeneration
     } catch {
-      showError(errorMessage)
+      if (getAccountGeneration() === accountGeneration) showError(errorMessage)
       return false
     }
   }, [showError])

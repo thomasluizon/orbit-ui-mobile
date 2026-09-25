@@ -115,6 +115,25 @@ describe('mobile apiClient', () => {
     )
   })
 
+  it('does not post an old account reset when token loading finishes after replacement', async () => {
+    let finishToken!: (value: string) => void
+    fetchMock.mockResolvedValue({ ok: true, status: 204, headers: { get: () => null } })
+    let current = true
+    getTokenMock.mockImplementationOnce(() => new Promise((resolve) => {
+      finishToken = resolve
+    }))
+    const pending = apiClient(API.profile.reset, {
+      method: 'POST',
+      isCurrent: () => current,
+    })
+
+    await vi.waitFor(() => expect(getTokenMock).toHaveBeenCalledTimes(1))
+    current = false
+    finishToken('next-account-token')
+    await expect(pending).rejects.toThrow('Account changed')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('flags upgrade required and throws on a 426 without retrying', async () => {
     getTokenMock.mockResolvedValue('token-123')
     fetchMock.mockResolvedValue({

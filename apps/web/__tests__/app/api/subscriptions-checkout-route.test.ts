@@ -3,12 +3,30 @@ import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/subscriptions/checkout/route'
 import { resolveServerSession } from '@/lib/auth-api'
 
+const ACCOUNT_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'
+function tokenFor(accountId: string, signature = 'signature'): string {
+  const issuedAtSeconds = Math.floor(PINNED_TEST_TIME.getTime() / 1000)
+  const payload = {
+    aud: 'orbit-client',
+    iss: 'orbit-api',
+    exp: issuedAtSeconds + 3600,
+    [ACCOUNT_CLAIM]: accountId,
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress': 'account@example.com',
+    jti: '8c7d6e5f-4a3b-2c1d-0e9f-8a7b6c5d4e3f',
+    iat: issuedAtSeconds,
+    nbf: issuedAtSeconds,
+  }
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
+  return `${header}.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.${signature}`
+}
+
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-vi.mock('@/lib/auth-api', () => ({
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-api')>(),
   resolveServerSession: vi.fn(),
 }))
 
@@ -23,7 +41,7 @@ describe('subscriptions checkout route', () => {
 
   it('forwards geo country headers and a sanitized client ip', async () => {
     vi.mocked(resolveServerSession).mockResolvedValue({
-      token: 'token',
+      token: tokenFor('user-1'),
       expiresAt: Date.now() + 3600000,
       refreshed: false,
       refreshFailed: false,
@@ -39,6 +57,7 @@ describe('subscriptions checkout route', () => {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
+        'x-orbit-held-account-id': 'user-1',
         'cf-connecting-ip': '177.10.20.31',
         'x-forwarded-for': '203.0.113.21, 10.0.0.1',
         'x-vercel-ip-country': 'BR',
@@ -60,7 +79,7 @@ describe('subscriptions checkout route', () => {
         body: JSON.stringify({ priceId: 'price_123' }),
         cache: 'no-store',
         headers: {
-          Authorization: 'Bearer token',
+          Authorization: `Bearer ${tokenFor('user-1')}`,
           'Content-Type': 'application/json',
           'X-Orbit-Country-Code': 'BR',
           'CF-Connecting-IP': '177.10.20.31',
@@ -85,7 +104,7 @@ describe('subscriptions checkout route', () => {
 
     const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-orbit-held-account-id': 'user-1' },
       body: JSON.stringify({ priceId: 'price_123' }),
     })
 
@@ -107,7 +126,7 @@ describe('subscriptions checkout route', () => {
 
     const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-orbit-held-account-id': 'user-1' },
       body: JSON.stringify({ priceId: 'price_123' }),
     })
 
@@ -120,7 +139,7 @@ describe('subscriptions checkout route', () => {
 
   it('propagates a backend 400 for an invalid checkout payload without coercing the status', async () => {
     vi.mocked(resolveServerSession).mockResolvedValue({
-      token: 'token',
+      token: tokenFor('user-1'),
       expiresAt: Date.now() + 3600000,
       refreshed: false,
       refreshFailed: false,
@@ -134,7 +153,7 @@ describe('subscriptions checkout route', () => {
 
     const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-orbit-held-account-id': 'user-1' },
       body: JSON.stringify({ priceId: '' }),
     })
 
@@ -147,7 +166,7 @@ describe('subscriptions checkout route', () => {
 
   it('propagates an upstream 5xx failure as an error status, not a 200', async () => {
     vi.mocked(resolveServerSession).mockResolvedValue({
-      token: 'token',
+      token: tokenFor('user-1'),
       expiresAt: Date.now() + 3600000,
       refreshed: false,
       refreshFailed: false,
@@ -161,7 +180,7 @@ describe('subscriptions checkout route', () => {
 
     const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-orbit-held-account-id': 'user-1' },
       body: JSON.stringify({ priceId: 'price_123' }),
     })
 
@@ -175,13 +194,13 @@ describe('subscriptions checkout route', () => {
   it('force-refreshes the session and retries once when the upstream returns 401', async () => {
     vi.mocked(resolveServerSession)
       .mockResolvedValueOnce({
-        token: 'stale-token',
+        token: tokenFor('user-1', 'stale'),
         expiresAt: Date.now() + 3600000,
         refreshed: false,
         refreshFailed: false,
       })
       .mockResolvedValueOnce({
-        token: 'fresh-token',
+        token: tokenFor('user-1', 'fresh'),
         expiresAt: Date.now() + 3600000,
         refreshed: true,
         refreshFailed: false,
@@ -202,7 +221,7 @@ describe('subscriptions checkout route', () => {
 
     const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-orbit-held-account-id': 'user-1' },
       body: JSON.stringify({ priceId: 'price_123' }),
     })
 
@@ -215,7 +234,7 @@ describe('subscriptions checkout route', () => {
     expect(mockFetch).toHaveBeenLastCalledWith(
       'http://localhost:5000/api/subscriptions/checkout',
       expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer fresh-token' }),
+        headers: expect.objectContaining({ Authorization: `Bearer ${tokenFor('user-1', 'fresh')}` }),
       }),
     )
   })
@@ -223,7 +242,7 @@ describe('subscriptions checkout route', () => {
   it('returns the upstream 401 when the refresh yields no token and does not retry', async () => {
     vi.mocked(resolveServerSession)
       .mockResolvedValueOnce({
-        token: 'stale-token',
+        token: tokenFor('user-1'),
         expiresAt: Date.now() + 3600000,
         refreshed: false,
         refreshFailed: false,
@@ -243,7 +262,7 @@ describe('subscriptions checkout route', () => {
 
     const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-orbit-held-account-id': 'user-1' },
       body: JSON.stringify({ priceId: 'price_123' }),
     })
 
@@ -259,13 +278,13 @@ describe('subscriptions checkout route', () => {
   it('does not report refresh failure when the refreshed endpoint still returns 401', async () => {
     vi.mocked(resolveServerSession)
       .mockResolvedValueOnce({
-        token: 'stale-token',
+        token: tokenFor('user-1'),
         expiresAt: Date.now() + 3600000,
         refreshed: false,
         refreshFailed: false,
       })
       .mockResolvedValueOnce({
-        token: 'fresh-token',
+        token: tokenFor('user-1'),
         expiresAt: Date.now() + 3600000,
         refreshed: true,
         refreshFailed: false,
@@ -279,7 +298,7 @@ describe('subscriptions checkout route', () => {
 
     const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-orbit-held-account-id': 'user-1' },
       body: JSON.stringify({ priceId: 'price_123' }),
     })
 
@@ -288,5 +307,80 @@ describe('subscriptions checkout route', () => {
     expect(response.status).toBe(401)
     expect(response.headers.get('x-orbit-session-refresh')).toBeNull()
     expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects checkout when the cookie belongs to another account before the tab receives its signal', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: tokenFor('user-2'),
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    mockFetch.mockResolvedValue(new Response('{"url":"https://checkout.example.com"}', { status: 200 }))
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-orbit-held-account-id': 'user-1',
+      },
+      body: JSON.stringify({ interval: 'monthly' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(409)
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('rejects checkout without an initiating account', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: tokenFor('user-1'),
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ interval: 'monthly' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(409)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('does not retry checkout when refresh changes the account behind the cookie', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: tokenFor('user-1'),
+        expiresAt: Date.now() + 3600000,
+        refreshed: false,
+        refreshFailed: false,
+      })
+      .mockResolvedValueOnce({
+        token: tokenFor('user-2'),
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+        refreshFailed: false,
+      })
+    mockFetch
+      .mockResolvedValueOnce(new Response('{"error":"unauthorized"}', { status: 401 }))
+      .mockResolvedValueOnce(new Response('{"url":"https://checkout.example.com"}', { status: 200 }))
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-orbit-held-account-id': 'user-1',
+      },
+      body: JSON.stringify({ interval: 'monthly' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(409)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
