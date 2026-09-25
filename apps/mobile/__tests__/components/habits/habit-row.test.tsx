@@ -105,12 +105,20 @@ describe('HabitRow status control names (mobile)', () => {
     )[0]
     expect(ring.props.accessibilityState).toEqual({ disabled: true })
     expect(ring.props.accessibilityLabel).toBe('habits.logHabit: Read')
+    const unavailableDot = renderer!.root.findByProps({ testID: 'unavailable-status-dot' })
+    expect(StyleSheet.flatten(unavailableDot.props.style)).toMatchObject({ width: 8, height: 8 })
+    expect(renderer!.root.findAllByProps({ testID: 'status-ring' })).toHaveLength(0)
     const body = renderer!.root.findAll(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
     )[0]
     expect(body.props.accessibilityLabel).toBe('Read')
     TestRenderer.act(() => body.props.onPress())
     expect(onDetail).toHaveBeenCalledOnce()
+    TestRenderer.act(() => {
+      renderer!.update(<HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onDetail }} />)
+    })
+    expect(renderer!.root.findAllByProps({ testID: 'status-ring' }).length).toBeGreaterThan(0)
+    expect(renderer!.root.findAllByProps({ testID: 'unavailable-status-dot' })).toHaveLength(0)
   })
 
   it('presses the whole card from the body and only the ring from the ring control', () => {

@@ -240,7 +240,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     dateTo: dateStr,
     includeOverdue: dateStr === todayStr,
     includeGeneral: true,
-  })
+  }, { completeDay: true })
   const allHabitsQuery = useHabits({})
   const logHabit = useLogHabit()
   const updateHabit = useUpdateHabit()

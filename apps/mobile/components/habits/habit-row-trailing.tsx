@@ -49,6 +49,10 @@ function completionRingLabel(unavailable: boolean, status: string, action: strin
   return unavailable ? `${action}: ${title}` : `${status}, ${action}: ${title}`
 }
 
+function showParentRing(hasChildren: boolean, childrenTotal: number, unavailable: boolean): boolean {
+  return hasChildren && childrenTotal > 0 && !unavailable
+}
+
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal cluster; the flags are independent render inputs from the parent row, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowTrailing({
   habit,
@@ -80,7 +84,7 @@ export function HabitRowTrailing({
   return (
     <View style={styles.trailing}>
       {!isSelectMode &&
-        (hasChildren && childrenTotal > 0 ? (
+        (showParentRing(hasChildren, childrenTotal, completionStatusUnavailable) ? (
           <>
             <Pressable
               onPress={() => {
@@ -114,6 +118,7 @@ export function HabitRowTrailing({
         ) : (
           <CheckCircle
             state={dotState}
+            unavailable={completionStatusUnavailable}
             onToggle={onToggleStatus}
             disabled={completionReadOnly || (!canLog && !isDoneForRange)}
             accessibilityLabel={completionLabel}

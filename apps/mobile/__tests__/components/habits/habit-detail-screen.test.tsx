@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   scopedLoading: false,
   scopedError: false,
   scopedRefetch: vi.fn(),
+  scopedCompleteDay: false,
   allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
@@ -80,7 +81,10 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: (filters: { dateFrom?: string }) => ({ data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }),
+  useHabits: (filters: { dateFrom?: string }, options?: { completeDay?: boolean }) => {
+    if (filters.dateFrom) mocks.scopedCompleteDay = options?.completeDay ?? false
+    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+  },
 }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
@@ -393,6 +397,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
+    expect(mocks.scopedCompleteDay).toBe(true)
     const child = () => tree!.root.findByProps({ testID: 'child-child-1' })
     expect(child().props.completionReadOnly).toBe(true)
     expect(child().props.completionReason).toBe('calendar.dayCell.notScheduled')

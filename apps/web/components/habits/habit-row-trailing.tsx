@@ -15,6 +15,14 @@ function completionIsDisabled(completionReadOnly: boolean, canLog: boolean, isDo
   return completionReadOnly || (!canLog && !isDone)
 }
 
+function availableStatusLabel(unavailable: boolean, label: string): string | undefined {
+  return unavailable ? undefined : label
+}
+
+function showParentRing(hasChildren: boolean, unavailable: boolean): boolean {
+  return hasChildren && !unavailable
+}
+
 function completionReasonId(disabled: boolean, reason: string | undefined, id: string): string | undefined {
   return disabled && reason ? id : undefined
 }
@@ -131,14 +139,14 @@ export function HabitRowTrailing({
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   const reasonId = useId()
   const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly)
-  const statusLabel = completionStatusUnavailable ? undefined : t(statusDotLabelKey)
+  const statusLabel = availableStatusLabel(completionStatusUnavailable, t(statusDotLabelKey))
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
   const completionDisabled = completionIsDisabled(completionReadOnly, canLog, isDone)
 
   return (
     <div className="flex items-center shrink-0" style={{ gap: 8 }}>
       {!selectMode &&
-        (hasChildren ? (
+        (showParentRing(hasChildren, completionStatusUnavailable) ? (
           <>
             <button
               type="button"
@@ -163,6 +171,7 @@ export function HabitRowTrailing({
         ) : (
           <CheckCircle
             state={state}
+            unavailable={completionStatusUnavailable}
             onToggle={onToggleStatus}
             disabled={completionDisabled}
             disabledReason={completionReason}
