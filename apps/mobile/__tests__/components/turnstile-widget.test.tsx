@@ -24,6 +24,8 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
 
   const first = renderer!.root.findByType('WebView')
   expect(first.props.source.uri).toContain('/turnstile-bridge?siteKey=site-key')
+  expect(first.props.containerStyle).toMatchObject({ width: 256, height: 160, flex: 0 })
+  expect(first.props.style).toMatchObject({ width: 256, height: 160, flex: 0 })
   await TestRenderer.act(async () => {
     first.props.onMessage({ nativeEvent: { data: JSON.stringify({ token: 'fresh-token' }) } })
     await Promise.resolve()
@@ -37,4 +39,31 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
     await Promise.resolve()
   })
   expect(renderer!.root.findByType('WebView')).not.toBe(first)
+
+  const second = renderer!.root.findByType('WebView')
+  await TestRenderer.act(async () => {
+    second.props.onMessage({ nativeEvent: { data: JSON.stringify({ state: 'expired', token: null }) } })
+    await Promise.resolve()
+  })
+  expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(renderer!.root.findAllByProps({ accessibilityRole: 'alert' }).length).toBeGreaterThan(0)
+  await TestRenderer.act(async () => {
+    renderer!.root.findAllByProps({ accessibilityRole: 'button' })[0]!.props.onPress()
+    await Promise.resolve()
+  })
+  expect(renderer!.root.findByType('WebView')).not.toBe(second)
+
+  const third = renderer!.root.findByType('WebView')
+  await TestRenderer.act(async () => {
+    third.props.onMessage({ nativeEvent: { data: 'malformed-message' } })
+    await Promise.resolve()
+  })
+  expect(onToken).toHaveBeenLastCalledWith(null)
+  expect(renderer!.root.findAllByProps({ accessibilityRole: 'alert' }).length).toBeGreaterThan(0)
+
+  await TestRenderer.act(async () => {
+    third.props.onHttpError()
+    await Promise.resolve()
+  })
+  expect(onToken).toHaveBeenLastCalledWith(null)
 })

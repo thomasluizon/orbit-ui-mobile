@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
@@ -9,6 +9,7 @@ import {
   isValidVerificationCode,
 } from '@orbit/shared/utils'
 import { resolveMotionPreset } from '@orbit/shared/theme'
+import { useTurnstileToken } from '@orbit/shared/hooks'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'
@@ -42,27 +43,12 @@ export function useLoginFlow() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
-  const turnstileTokenRef = useRef<string | null>(null)
-  const [turnstileResetKey, setTurnstileResetKey] = useState(0)
-  const onTurnstileToken = useCallback((token: string | null) => {
-    turnstileTokenRef.current = token
-    setTurnstileToken(token)
-  }, [])
-
-  useEffect(() => {
-    if (!isOnline) void Promise.resolve().then(() => onTurnstileToken(null))
-  }, [isOnline, onTurnstileToken])
-
-  function takeTurnstileToken() {
-    if (!turnstileSiteKey) return {}
-    const token = turnstileTokenRef.current
-    if (!token) return null
-    turnstileTokenRef.current = null
-    setTurnstileToken(null)
-    setTurnstileResetKey((value) => value + 1)
-    return { turnstileToken: token }
-  }
+  const {
+    token: turnstileToken,
+    resetKey: turnstileResetKey,
+    onToken: onTurnstileToken,
+    takeToken: takeTurnstileToken,
+  } = useTurnstileToken(turnstileSiteKey, isOnline)
   const {
     codeDigits,
     setCodeDigits,

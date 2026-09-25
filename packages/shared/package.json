@@ -33,6 +33,9 @@
     "date-fns": "^4.4.0",
     "zod": "^4.4.3"
   },
+  "peerDependencies": {
+    "react": "^19.2.0"
+  },
   "devDependencies": {
     "@fast-check/vitest": "^0.4.1",
     "@orval/zod": "^8.37.0",

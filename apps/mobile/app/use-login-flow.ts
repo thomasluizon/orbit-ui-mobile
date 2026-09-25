@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Keyboard, Platform } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -11,6 +11,7 @@ import {
   isVerificationCodeComplete,
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
+import { useTurnstileToken } from '@orbit/shared/hooks'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
@@ -85,27 +86,12 @@ export function useLoginFlow() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const turnstileSiteKey = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
-  const turnstileTokenRef = useRef<string | null>(null)
-  const [turnstileResetKey, setTurnstileResetKey] = useState(0)
-  const onTurnstileToken = useCallback((token: string | null) => {
-    turnstileTokenRef.current = token
-    setTurnstileToken(token)
-  }, [])
-
-  useEffect(() => {
-    if (!isOnline) void Promise.resolve().then(() => onTurnstileToken(null))
-  }, [isOnline, onTurnstileToken])
-
-  function takeTurnstileToken() {
-    if (!turnstileSiteKey) return {}
-    const token = turnstileTokenRef.current
-    if (!token) return null
-    turnstileTokenRef.current = null
-    setTurnstileToken(null)
-    setTurnstileResetKey((value) => value + 1)
-    return { turnstileToken: token }
-  }
+  const {
+    token: turnstileToken,
+    resetKey: turnstileResetKey,
+    onToken: onTurnstileToken,
+    takeToken: takeTurnstileToken,
+  } = useTurnstileToken(turnstileSiteKey, isOnline)
   const [showReferralBanner, setShowReferralBanner] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const isCodeStep = step === 'code'

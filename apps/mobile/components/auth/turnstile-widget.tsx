@@ -55,7 +55,8 @@ export function TurnstileWidget({
       <WebView
         key={`${resetKey}-${attempt}`}
         source={{ uri: bridgeUrl }}
-        style={{ width: '100%', maxWidth: 320, height: 160, backgroundColor: 'transparent' }}
+        containerStyle={{ width: 256, height: 160, flex: 0 }}
+        style={{ width: 256, height: 160, flex: 0, backgroundColor: 'transparent' }}
         javaScriptEnabled
         domStorageEnabled
         thirdPartyCookiesEnabled
