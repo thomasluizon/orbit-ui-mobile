@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import en from '@orbit/shared/i18n/en.json'
 
 const { mockResolveMotionPreset, mockUseReducedMotion } = vi.hoisted(() => ({
   mockUseReducedMotion: vi.fn(() => true),
@@ -19,11 +20,17 @@ const { mockResolveMotionPreset, mockUseReducedMotion } = vi.hoisted(() => ({
   ),
 }))
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
-  useLocale: () => 'en',
-}))
+vi.mock('next-intl', async (importActual) => {
+  const actual = await importActual<typeof import('next-intl')>()
+  return {
+    ...actual,
+    useTranslations: () => Object.assign(
+      (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
+      { rich: actual.createTranslator({ locale: 'en', messages: en }).rich },
+    ),
+    useLocale: () => 'en',
+  }
+})
 
 vi.mock('motion/react', () => {
   const React = require('react')
