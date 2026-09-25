@@ -11,6 +11,7 @@ export interface HabitVisibilityOptions {
   searchQuery: string
   showCompleted: boolean
   recentlyCompletedIds: Set<string>
+  recentlyCompletedDates?: ReadonlyMap<string, ReadonlySet<string>>
 }
 
 export interface HabitVisibilityHelpers {
@@ -116,6 +117,13 @@ export function getChildrenFromIndex(
     })
 }
 
+export function isHabitLoggedOnDate(habit: NormalizedHabit, date: string): boolean {
+  if (habit.isLoggedInRange) return true
+  return habit.instances.some(
+    (instance) => instance.date === date && instance.status === 'Completed',
+  )
+}
+
 export function createHabitVisibilityHelpers({
   habitsById,
   childrenByParent,
@@ -125,13 +133,6 @@ export function createHabitVisibilityHelpers({
   recentlyCompletedIds,
 }: HabitVisibilityOptions): HabitVisibilityHelpers {
   const selectedDateStr = selectedDate || formatAPIDate(new Date())
-
-  const isLoggedOnSelectedDate = (habit: NormalizedHabit): boolean => {
-    if (habit.isLoggedInRange) return true
-    return habit.instances.some(
-      (instance) => instance.date === selectedDateStr && instance.status === 'Completed',
-    )
-  }
 
   const isDueOnSelectedDate = (habit: NormalizedHabit): boolean => {
     return hasHabitScheduleOnDate(habit, selectedDateStr)
@@ -146,7 +147,7 @@ export function createHabitVisibilityHelpers({
 
   const hasVisibleContent = (habit: NormalizedHabit): boolean => {
     if (recentlyCompletedIds.has(habit.id)) return true
-    const loggedOnSelectedDate = isLoggedOnSelectedDate(habit)
+    const loggedOnSelectedDate = isHabitLoggedOnDate(habit, selectedDateStr)
     if (showCompleted && (loggedOnSelectedDate || (habit.isGeneral && habit.isCompleted))) {
       return true
     }

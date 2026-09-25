@@ -131,6 +131,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
     selection,
     setHabitListAllCollapsed,
     setShowCreateModal,
+    setShowCompleted,
     showCompleted,
     toggleSelectMode,
   } = view
@@ -146,6 +147,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
         view="today"
         selectedDate={nav.selectedDate}
         showCompleted={showCompleted}
+        onShowCompleted={() => setShowCompleted(true)}
         isSelectMode={isSelectMode}
         selectedHabitIds={selectedHabitIds}
         filters={data.filters}
