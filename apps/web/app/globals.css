@@ -254,7 +254,8 @@
 .orbit-menu-item[data-destructive] {
   border-top: 1px solid var(--hairline);
   border-radius: 0 0 12px 12px;
-  color: var(--status-bad);
+  --icon-color: var(--status-bad);
+  color: var(--icon-color);
 }
 
 .orbit-menu-item[data-destructive] .orbit-menu-label {
@@ -1697,11 +1698,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 [data-sonner-toast][data-type='error'] [data-icon] {
-  color: color-mix(in srgb, var(--status-bad) 65%, white);
+  --icon-color: color-mix(in srgb, var(--status-bad) 65%, white);
+  color: var(--icon-color);
   background: color-mix(in srgb, var(--status-bad) 16%, transparent);
 }
 .light [data-sonner-toast][data-type='error'] [data-icon] {
-  color: var(--status-bad);
+  --icon-color: var(--status-bad);
 }
 
 [data-sonner-toast][data-type='info'] [data-icon] {
