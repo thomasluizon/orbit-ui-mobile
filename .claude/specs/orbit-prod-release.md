@@ -202,6 +202,27 @@ These stay until he changes them. Keep his words.
   non-redesign fix depends on redesign-only code, it lands on `redesign/main` AND gets a `main`
   backport PR (the `ui#1057` / `ui#1052` pattern). Brain ADR D80 carries the amendment.
 
+- **2026-09-25** **The Mac never sleeps mid-session.** "fix this problem now and continue the work. my
+  computer cant go to sleep mid-response." A run died when macOS idle-slept (`pmset` sleep is 1
+  minute). Fixed by a user-scope hook, `~/.claude/hooks/keep-awake.mjs` on SessionStart and
+  UserPromptSubmit, which holds `/usr/bin/caffeinate -ims -w <claude pid>`. Closing the lid still
+  sleeps the Mac; only `sudo pmset -a disablesleep 1` stops that.
+- **2026-09-25** **The CI multipliers are the priority.** Asked whether the admission cap was a real fix:
+  "prioritize this work now", then "just go with your recommended" (raise the cap for this run only to
+  launch `#667` and `#668`, then revert; done and reverted).
+- **2026-09-25** **Turn off "require branches to be up to date" on `main` in both code repositories.**
+  Answered at `/wrap-up` ("Turn it off"). Merge queue is impossible here: GitHub's docs source
+  (`data/reusables/gated-features/merge-queue.md`) says merge queues are "available in any public
+  repository owned by an organization", and both repositories are User-owned. Not yet done; it is the
+  first task of the next session. Record it as a brain ADR.
+- **2026-09-25** **Turnstile goes live only after sign-in sends a token.** "Add it to sign-in, then turn
+  on." Recorded on `#107`. The landing waitlist already renders the widget; web and Android sign-in do
+  not, so the API check stays off until they do.
+- **2026-09-25** **Never put the locale in an auth or deep-link URL.** Asked whether every redirect URL
+  needs a `pt-BR` twin: no route or callback has ever carried the locale (`[locale]` route dirs: 0 on
+  both branches), so one callback URL serves every language. The two `/pt-BR/auth-callback` entries in
+  Supabase are dead and can be deleted.
+
 ## The order: the batches to a production release
 
 **Re-read live on 2026-09-19 and rebuilt from the board, not from the previous ordering.** 103 open
@@ -1902,3 +1923,56 @@ and is gone; everything durable from it is here.
 - **Supabase redirect allowlist** for `ui#1066`: unchanged from the previous section.
 - **Live check of the crisis reply**: send a crisis message to Astra in production and confirm
   988 / 188 shows.
+
+## What the 2026-09-25 day run added (session `77ddefe6`)
+
+**Durable because** it records the CI-multiplier fixes Thomas made the priority, 17 merges, a live
+security fix, Thomas's four answers at `/wrap-up`, and the rules this run paid for.
+
+### Merged this session, 17
+
+- **`orbit-api` `main`, all deployed** (Render, read back: `dep-dar8da2vcj2c73a5pvbg` live at `1e6f85f8`
+  at 14:36 UTC, each earlier merge went live then was superseded): `api#544` (`#591`, recurrence time
+  zone), `#545` (`#569`, BYDAY projection), `#548` (`#369`, closed week and year recaps), `#551`
+  (`#324`, Google sign-in retry), `#557` (`#671`, **security**: a confirmed MCP call could run twice on
+  one token; now claimed atomically), `#549` (`#391`, `lastCompletionDate`, durable across habit cleanup
+  and parent cascades) as `7d13802b`.
+- **`orbit-ui-mobile` `main`:** `ui#1097` (`#668`, Contract Drift pinned to one orbit-api commit plus a
+  scheduled rebaseline job) as `6d2468ca`.
+- **`orbit-ui-mobile` `redesign/main` (built, not shipped):** `ui#1089` (`#608`), `#1088` (`#593`),
+  `#1086` (`#603`), `#1066` (`#631`, shared-browser Google session replay), `#1091` (`#658`, the
+  admission gate and `tools/wait-ci.mjs`), `#1030` (`#615`), `#1095` (`#663`, manifest churn removed),
+  `#1084` (`#572`).
+
+### The CI congestion multipliers, where each stands
+
+1. `orbit-api` concurrency groups: merged earlier (`api#555`).
+2. Surface manifest churn: FIXED (`ui#1095`). Merges changed only `closureSize` and `generatedFrom`
+   (96 and 520 lines per merge); both are gone, so one UI merge no longer conflicts every other.
+3. `next/font` Google fetch flake: `ui#1096` (`#667`) open, local Latin fonts, build passes with Google
+   blocked. `main` backport owed (main loads Rubik, Inter, Roboto).
+4. Contract Drift: FIXED on `main` (`ui#1097`). A port to `redesign/main` is owed.
+5. Strict up-to-date `main`: Thomas said turn it off; not yet done.
+
+### Rules this run paid for
+
+- **After a merge-only push, request the review; after a real commit, never.** A manifest-only or
+  map-only merge got NO Pullfrog review (`ui#1066`, `#1095`, `api#548`, `api#557`); a duplicate request
+  after a real commit bought a second review (`api#549`, which then found a real P1).
+- **Match the build's error COUNT.** A grep for `Error(s)` pushed a non-compiling `api#549` merge; the
+  fix was `StreakFreeze.Create`'s new `origin` parameter from `#540`.
+- **Every orbit-api merge-forward conflicts on `architecture.html`.** Regenerate with
+  `node tools/arch-map.mjs`, run it twice to prove stability, and run
+  `dotnet ef migrations has-pending-model-changes` when two branches add migrations.
+- **A branch that edits `.claude/orchestrator.json` must contain `origin/redesign/main` to run the
+  harness.** Otherwise 58 cases fail on `assertNotStale`; merge the base first.
+- **`main`'s harness is 157 files behind and fails in a macOS worktree** (`#672`). The redesign harness
+  reaches `main` when the redesign merges; per-fix backports carry the urgent parts.
+- **Never pass a hand-typed sha.** A merge call with a reconstructed sha was refused by the head check.
+
+### Items that need a person
+
+- Supabase callback allowlist: DONE by Thomas (`#631` comment). Optional: add
+  `http://localhost:3000/auth-callback\?authAttempt=*`, delete the two dead `/pt-BR/auth-callback` rows.
+- Turnstile: needs the sign-in widget first (a ticket to file), then Thomas pastes the Cloudflare secret.
+- Crisis reply live check: unchanged.

@@ -1,81 +1,80 @@
 # NEXT
 
-**Read `.claude/specs/orbit-prod-release.md` first**, and its last section, "What the 2026-09-25
-sleep run added (session `707e6949`)", before anything else.
+**Read `.claude/specs/orbit-prod-release.md` first**, including its standing instructions dated
+2026-09-25 and its last section, "What the 2026-09-25 day run added (session `77ddefe6`)".
 
 ## Entry point
 
-`/sleep`. It enters `/orchestrate` itself.
+`/orchestrate`, attended. Thomas is present.
 
 ## The goal: finish the spec
 
-The goal is an empty board and a production release, exactly as the spec defines it. Re-derive what
-is left rather than trusting this file:
+An empty board and a production release, exactly as the spec defines it. Re-derive what is left:
 
     gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400
 
-199 tickets were open at this handoff. A blocker is the next piece of work. Only an exhausted
-allowance, the machine stopping, or Thomas saying stop ends the run. Never ask him anything during
-the run: take the recommended option and log it. Conversation tickets (`#217`, `#318`, `#320`) are
-skipped unattended.
+193 tickets were open at this handoff. A blocker is the next piece of work.
 
-## Thomas's rule from this wrap-up, in his words
+## This session is attended, so the conversation tickets come first
 
-"anything related to the redesign stays on redesign/main anything NOT RELATED to the redesign goes
-to main, as simple as that". And: "stop asking me about this". This holds in `orbit-ui-mobile` AND
-`orbit-api`. Never ask about a branch. The spec's standing instructions carry the full rule.
+Thomas: "next session is not sleep, so we can prioritize the needs:conversation tickets".
+Converse one topic at a time (orchestrate step 2b, attended), write each decision to its ticket with
+`comment-ticket.mjs`, then run the work. Order, decided at `/wrap-up`:
+
+1. `#320`, competitor onboarding study. It feeds `#217`.
+2. `#217`, the first experience: what Orbit teaches, and how.
+3. `#318`, Astra's capabilities and how each answer renders (`beautifului.dev`, see the spec).
+4. `#666` and `#620`, both labelled `needs:conversation`, both small.
+
+Run the pull-request work below between conversations, while Thomas thinks.
 
 ## What to do, in order
 
-1. **Land the CI admission gate on `main`.** `ui#1091` (`#658`) targets `redesign/main`, but it is
-   harness work, so it belongs on `main`. Rebuild it on a new branch from `main`, run both
-   harnesses, open the PR to `main`, close `ui#1091` with a pointer. Until it merges, open no new
-   ticket work: only review rounds, merge-forwards and merges run.
-2. **Finish `ui#1066` (`#631`).** A Claude-engine worker was merging `redesign/main` into it at
-   handoff (details below). Read the worktree first. Then re-review, D115 check, merge. `#631` is a
-   fix to shipped sign-in, so open its `main` backport PR too.
-3. **Merge the approved `ui` set** once each is at an approval on its exact head: `ui#1090`,
-   `#1089`, `#1088`, `#1086`, `#1084`. Each was forwarded after its approval, so each needs a
-   same-head re-review. Run the D115 merge type-check before each merge.
-4. **`ui#1030` (`#615`)**: CHANGES_REQUESTED at `4de8a6c7`; fix round, then merge. It is a fix to
-   shipped behaviour that depends on redesign-only `ui#1029`: land it on `redesign/main`, then a
-   `main` backport. `ui#1049` (`#559`): fix round.
-5. **`orbit-api` strict `main` chain, one at a time**, merge-forward just before each turn and a
-   FULL re-review after each: `api#544`, `#545`, `#548`, `#549`, `#551`, `#552`, `#554`, `#550`
-   (merges inert, see the spec), `#530`, `#535`.
-6. **Retarget redesign work in `orbit-api`** to its `redesign/main` (`827b99bd`): `api#531` (`#367`,
-   colour schemes) and `api#532` (`#75`, emails). Rebuild each branch on `redesign/main`, re-review,
-   merge there.
-7. **`#556`**: merge `main` into `redesign/main` in `orbit-ui-mobile`, after step 1.
-8. Then the spec's batch order, only while the admission gate allows it.
-9. When Pullfrog publishes 0.1.83 (`npm view pullfrog version` was 0.1.82 on 2026-09-25),
-   re-review the pins `ui#1046`, `api#537`, `landing#80`.
+1. **Turn off "require branches to be up to date" on `main`** in `orbit-ui-mobile` and `orbit-api`
+   (Thomas: "Turn it off"). Read the current protection first, change only `strict`, and read it back.
+   Write the brain ADR under `2 Areas/20-29 Orbit Engineering/Decisions/`.
+2. **Deliver the two finished review workers** (committed, NOT pushed, trees clean): read each worker
+   log, merge its report into the PR body with `merge-review-batch-body.mjs --ui-scope`, resolve the
+   thread, push once.
+   - `ui#1090` (`#392`): `ticket-392-returning-guidance`, head `59a1832e`, 3 unpushed, fixes thread
+     `PRRT_kwDOR5Siws6mCatk` (next/link).
+   - `ui#1049` (`#559`): `ticket-559-spacing-web-constants`, head `b6e3d68a`, 3 unpushed, fixes thread
+     `PRRT_kwDOR5Siws6mCX1w` (destructuring targets).
+3. **`ui#1096`** (`#667`, fonts): forwarded to `9f45242b`, no review at that head yet. Wait, then
+   request if none lands; merge when approved. It carries `parity:exempt`.
+4. **`api#556`** (`#670`, orbit-api `main` into `redesign/main`): new High finding at `bb086b30`,
+   "Resolve stored week anchors independently of the current preference". Fix round, then merge; then
+   retarget `api#531` (`#367`) and `api#532` (`#75`) onto `redesign/main`.
+5. **orbit-api `main` chain**: `api#552` (`#325`) is forwarded locally in
+   `ticket-325-habit-log-duplicate-recovery` (15 unpushed, stale now that `#549` and `#557` merged):
+   merge `origin/main` again, regenerate the map, build, test, push, request review, merge. Then
+   `#554`, `#550` (inert until Turnstile), `#530`, `#535`.
+6. **Backports and ports owed** (queued in the run record): `main` backports of `#631`, `#658`, `#615`
+   and `#667`; the `redesign/main` port of `#668`. The admission gate allows a new branch only at 10
+   or fewer open PRs.
+7. **Turnstile** (Thomas: "Add it to sign-in, then turn on", on `#107`): file the web and Android
+   sign-in widget ticket, build it, then ask Thomas for the Cloudflare secret.
+8. **`#673`** (flaky tampered-token test) and **`#672`** (`main` harness on macOS): both need no
+   conversation.
+9. When Pullfrog publishes 0.1.83 (`npm view pullfrog version` was 0.1.82), re-review the pins
+   `ui#1046`, `api#537`, `landing#80`.
 
 ## In flight, each with a disposition
 
 | item | state | disposition |
 |---|---|---|
-| Claude worker for `ui#1066` merge | launcher pid 54523, claude pid 54651, worktree `/Users/thomaslrgregoriogmail.com/orca/workspaces/orbit-ui-mobile/ticket-631-supabase-session`, branch `fix/ticket-631-supabase-session`, 53 files dirty mid-merge, log `/var/folders/x_/m8324t4j1wv_m7y0r8839js00000gn/T/orbit-workers/#631-1790330478781.log`, prompt: resolve 9 auth files so `ui#1072`'s and `#1066`'s guarantees both hold, test, commit, do not push | outcome unknown; read the worktree and log first, step 2 |
-| `ui#1091` | COMMENTED at `15a0747d`, head `cabb4ba9`, Contract Drift red | step 1 |
-| `ui#1090`, `#1089`, `#1088`, `#1086`, `#1084` | APPROVED at older commits, only Contract Drift red (advisory, D98); `#1084` also red `Build` (the `next/font` flake, `#667`) | step 3 |
-| `ui#1030`, `ui#1049` | CHANGES_REQUESTED | step 4 |
-| `api#544`, `#545`, `#551`, `#552`, `#554`, `#530` | APPROVED, BEHIND (`#551`/`#552`/`#554` checks cancelled while behind) | step 5 |
-| `api#548`, `#549`, `#550`, `#535` | APPROVED, DIRTY (conflicts with tonight's merges) | step 5, merge-forward first |
-| `api#531`, `api#532` | DIRTY, on `main` | step 6 |
+| `ui#1090`, `ui#1049` worker commits | unpushed, trees clean | step 2 |
+| `ui#1096` | approved earlier, forwarded to `9f45242b`, awaiting review | step 3 |
+| `api#556` | CHANGES_REQUESTED at `bb086b30`, 1 High thread | step 4 |
+| `api#552` local forward | 15 unpushed commits, stale base | step 5 |
+| `api#554`, `#550`, `#530`, `#535`, `#531`, `#532` | open on `main`, not current | steps 4 and 5 |
 | pins `ui#1046`, `api#537`, `landing#80` | wait for Pullfrog 0.1.83 | step 9 |
-| Turnstile, Supabase allowlist, crisis live check | Thomas's, see the spec | not run work |
-| `#660` | due 168 hours after 2026-09-25 03:41 UTC | do on 2026-10-02 or later |
-| scratch worktree `menu-probe` (detached `959381da`, 4 debug edits, session `f5910aea`) | commit is on `origin/main` | leave |
-| worktrees of merged PRs | 46 `ui` worktrees listed | `node tools/teardown-worktree.mjs` each whose PR merged, after a clean-tree check |
-| other dirty trees, unpushed commits, stashes | none in `orbit-ui-mobile`, `orbit-api`, `orbit-landing-page` except the `#631` worker tree | none |
-| Dependabot alerts on `orbit-ui-mobile` | 0 open | none |
-| CI queue | 8 queued `ui`, 0 `api` | none |
-| decision log `sleep-decisions.md` (D1 to D126) | session `707e6949` scratchpad | durable content copied into the spec section |
+| running workers | none (all exited) | none |
+| stashes | 0 in all three repositories | none |
+| `menu-probe` worktree (4 debug edits, detached `959381da`) | commit is on `origin/main` | leave |
+| run record `.git/orbit-orchestrate-run.json` | session `77ddefe6`, `sleep: false`, 25 remaining, 94 ledger rows | a new session writes its own; carry the ledger rows it owns |
+| decision log (D1 to D48) | session scratchpad | durable content copied into the spec section |
+| `.claude/orchestrator.json` cap edit | reverted (10) | none |
+| keep-awake hook | `~/.claude/hooks/keep-awake.mjs`, user settings | confirm `ps -axo args | grep "caffeinate -ims -w"` shows the new claude pid |
 
 Every identifier here came from a previous session. Treat each as a lead to verify.
-
-## --sleep
-
-This file is written for an unattended run. Start with `/sleep`, write the run state under the new
-session id, keep the Mac awake with `caffeinate -i -w <claude pid>`, and work the order above
-without waiting for anyone.
