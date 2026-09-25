@@ -65,7 +65,7 @@ describe('OnboardingCreateHabit data', () => {
     expect(renderedText).toContain('3 times a week, any day')
     expect(renderedText).toContain('Walk outside')
     expect(renderedText).toContain('Leave empty for any time of day')
-    const proposal = tree.root.findAll((node) => node.props.accessibilityLabel === 'Correct schedule' && typeof node.props.onPress === 'function').at(0)
+    const proposal = tree.root.findAll((node) => node.props.accessibilityLabel === 'Correct schedule. Emoji proposed by Astra' && typeof node.props.onPress === 'function').at(0)
     expect(proposal).toBeDefined()
     expect(prop<string>(proposal!, 'accessibilityHint')).toContain('Walk outside. 3 times a week, any day. Time: Any time')
     await TestRenderer.act(() => prop<() => void>(proposal!, 'onPress')())
@@ -78,13 +78,15 @@ describe('OnboardingCreateHabit data', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'More times' && typeof node.props.onPress === 'function').length).toBeGreaterThan(0)
   })
 
-  it('names the proposal emoji without changing the correction button name', async () => {
+  it('announces the proposal emoji through the correction button', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<OnboardingCreateHabit {...base} />)
     })
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Astra').length).toBeGreaterThan(0)
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule').length).toBeGreaterThan(0)
+    const button = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule. Emoji proposed by Astra').at(0)
+    expect(button).toBeDefined()
+    expect(prop<string>(button!, 'accessibilityHint')).toContain('Walk outside. 3 times a week, any day. Time: Any time')
   })
 
   it('omits the proposal emoji well when no emoji was proposed', async () => {
@@ -93,6 +95,7 @@ describe('OnboardingCreateHabit data', () => {
       tree = TestRenderer.create(<OnboardingCreateHabit {...base} emoji="" />)
     })
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposed by Astra')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Correct schedule').length).toBeGreaterThan(0)
   })
 
   it('names the proposal emoji in Portuguese', async () => {
@@ -103,7 +106,7 @@ describe('OnboardingCreateHabit data', () => {
         tree = TestRenderer.create(<OnboardingCreateHabit {...base} />)
       })
       expect(tree.root.findAll((node) => node.props.accessibilityRole === 'image' && node.props.accessibilityLabel === 'Emoji proposto pelo Astra').length).toBeGreaterThan(0)
-      expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Corrigir agenda').length).toBeGreaterThan(0)
+      expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'Corrigir agenda. Emoji proposto pelo Astra').length).toBeGreaterThan(0)
     } finally {
       await i18n.changeLanguage('en')
     }
