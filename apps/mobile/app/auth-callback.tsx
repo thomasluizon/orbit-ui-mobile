@@ -131,11 +131,12 @@ export default function AuthCallbackScreen() {
           referralCode ?? undefined,
         )
 
-        await login(response.token, response.refreshToken, {
+        const ownsSession = await login(response.token, response.refreshToken, {
           userId: response.userId,
           name: response.name,
           email: response.email,
         })
+        if (!ownsSession) return
 
         if (referralCode) {
           await markReferralApplied()

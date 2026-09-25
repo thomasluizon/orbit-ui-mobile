@@ -248,11 +248,12 @@ export function useLoginFlow() {
           ...(referralCode ? { referralCode } : {}),
         }),
       })
-      await login(res.token, res.refreshToken, {
+      const ownsSession = await login(res.token, res.refreshToken, {
         userId: res.userId,
         name: res.name,
         email: res.email,
       })
+      if (!ownsSession) return
       if (res.wasReactivated) {
         setSuccessMessage(t('profile.deleteAccount.reactivated'))
       }

@@ -109,7 +109,7 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   expiresAt: number | null
-  login: (token: string, refreshToken: string | null, user: User) => Promise<void>
+  login: (token: string, refreshToken: string | null, user: User) => Promise<boolean>
   logout: () => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
@@ -471,23 +471,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return getSessionGeneration()
       })
       ownership = loginSession
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return false
       queryClient.clear()
       await clearPersistedQueryCache()
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return false
       await setQueryCacheScope(user.userId)
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return false
       cancelScheduledFlush()
       offlineQueue.clear()
       await clearOfflineState()
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return false
       useChatStore.getState().clearMessages()
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
 
       try {
         const profile = await apiClient<Profile>(API.profile.get)
-        if (!isCurrentSessionEpoch(ownership.epoch)) return
+        if (!isCurrentSessionEpoch(ownership.epoch)) return false
         queryClient.setQueryData(profileKeys.detail(), profile)
 
         if (profile.language && i18n.language !== profile.language) {
@@ -509,7 +509,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       } catch {}
 
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return false
       set({
         ...deriveSessionPhase('signed-in'),
         user: hydratedUser,
@@ -517,6 +517,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt:
           credentialVersion === ownership.credentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
+      return true
     } catch (error: unknown) {
       await runSessionTeardown({
         authority: 'session-owner',

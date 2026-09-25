@@ -138,7 +138,7 @@ beforeEach(() => {
   mocks.onboardingState = { onboardingLocallyDone: false, habits: [] }
   mocks.codeDigits = ['', '', '', '', '', '']
   mocks.apiClient.mockResolvedValue({})
-  mocks.login.mockResolvedValue(undefined)
+  mocks.login.mockResolvedValue(true)
   mocks.getStoredReferralCode.mockResolvedValue(undefined)
   mocks.consumeStoredAuthReturnUrl.mockResolvedValue(undefined)
   mocks.getSafeReturnUrl.mockImplementation((url?: string) => url ?? '/')
@@ -231,6 +231,24 @@ describe('useLoginFlow (mobile)', () => {
       email: 'user@test.com',
     })
     expect(mocks.replace).toHaveBeenCalledWith('/home')
+  })
+
+  it('leaves referral and return navigation untouched when login loses ownership', async () => {
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.apiClient.mockResolvedValue({
+      token: 'old-access', refreshToken: 'old-refresh', userId: 'old-user',
+      name: 'Old', email: 'old@example.com', wasReactivated: false,
+    })
+    mocks.getStoredReferralCode.mockResolvedValue('REF123')
+    mocks.login.mockResolvedValue(false)
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.verifyCode())
+
+    expect(mocks.markReferralApplied).not.toHaveBeenCalled()
+    expect(mocks.clearStoredReferralCode).not.toHaveBeenCalled()
+    expect(mocks.consumeStoredAuthReturnUrl).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
   })
 
   it('reports the error and resets the code entry when verification fails', async () => {

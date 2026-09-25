@@ -116,6 +116,32 @@ describe('auth store', () => {
     })
   })
 
+  it('does not adopt a session response that completes after logout', async () => {
+    let releaseSession!: () => void
+    mockFetch.mockImplementation((url: string) => {
+      if (url === '/api/auth/session') {
+        return new Promise((resolve) => {
+          releaseSession = () => resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ expiresAt: Date.now() + 60000 }),
+          })
+        })
+      }
+      if (url === '/api/auth/logout') return Promise.resolve({ ok: true })
+      throw new Error(`Unexpected auth endpoint: ${url}`)
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    const staleSession = useAuthStore.getState().checkSession()
+    await vi.waitFor(() => expect(releaseSession).toBeTypeOf('function'))
+    await useAuthStore.getState().logout()
+    releaseSession()
+    await staleSession
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  })
+
   it('preserves replacement login cookies when an older logout response arrives', async () => {
     const browserCookies = new Map<string, string>([
       ['auth_token', 'old-access'],

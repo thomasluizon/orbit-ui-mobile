@@ -90,7 +90,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
+    if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
       const user = get().user ?? sessionRecoveryUser
       sessionRecoveryUser = null
@@ -126,7 +128,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   recoverSessionRefreshFailure: () => queueSessionRevalidation(async () => {
     if (!get().sessionRefreshFailed) return
 
+    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
+    if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'active') {
       const user = get().user ?? sessionRecoveryUser
       sessionRecoveryUser = null
@@ -148,7 +152,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }),
 
   checkSession: async () => {
+    const checkEpoch = sessionOwnershipEpoch
     const session = await readCurrentSession()
+    if (checkEpoch !== sessionOwnershipEpoch) return
     if (session.kind === 'rejected') {
       await get().confirmSessionRefreshFailure()
       return
@@ -204,6 +210,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (logoutEpoch !== sessionOwnershipEpoch) return
 
+    sessionOwnershipEpoch += 1
     sessionRecoveryUser = null
     set({
       isAuthenticated: false,

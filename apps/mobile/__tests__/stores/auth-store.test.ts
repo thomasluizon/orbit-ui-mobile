@@ -498,10 +498,12 @@ describe('mobile auth store security paths', () => {
 
     const oldLogin = useAuthStore.getState().login('old-token', 'old-refresh', oldUser)
     await vi.waitFor(() => expect(releaseOldProfile).toBeTypeOf('function'))
-    await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
+    const replacementLogin = await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
     releaseOldProfile(oldProfile)
-    await oldLogin
+    const supersededLogin = await oldLogin
 
+    expect(replacementLogin).toBe(true)
+    expect(supersededLogin).toBe(false)
     expect(setQueryDataMock).toHaveBeenCalledTimes(1)
     expect(setQueryDataMock).toHaveBeenCalledWith(profileKeys.detail(), newProfile)
     expect(i18n.language).toBe('en')
