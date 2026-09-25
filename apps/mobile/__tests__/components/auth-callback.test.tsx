@@ -17,9 +17,17 @@ const mocks = vi.hoisted(() => ({
   clearStoredReferralCode: vi.fn(),
   consumeStoredAuthReturnUrl: vi.fn(),
   getStoredAuthReturnUrl: vi.fn(),
+  storeAuthReturnUrl: vi.fn(),
+  createAuthReturnUrlAttempt: vi.fn(),
+  isAuthReturnUrlAttemptCurrent: vi.fn(),
   clearStoredAuthReturnUrl: vi.fn(),
   getSafeReturnUrl: vi.fn(),
   clearPendingGoogleAuthSession: vi.fn(),
+  pendingGoogleSession: {
+    callbackUrl: null as string | null,
+    isPending: false,
+    returnUrlAttemptId: null as number | null,
+  },
 }))
 
 vi.mock('expo-router', () => ({
@@ -34,7 +42,7 @@ vi.mock('@/lib/google-auth-callback', () => ({
   clearPendingGoogleAuthSession: mocks.clearPendingGoogleAuthSession,
   extractGoogleAuthParams: () => ({}),
   resolveGoogleAuthCallbackUrl: () => 'orbit://auth-callback?code=old',
-  usePendingGoogleAuthSession: () => ({ callbackUrl: null, isPending: false }),
+  usePendingGoogleAuthSession: () => mocks.pendingGoogleSession,
 }))
 vi.mock('@/lib/google-auth', () => ({
   completeGoogleAuthFromUrl: mocks.completeGoogleAuthFromUrl,
@@ -47,6 +55,9 @@ vi.mock('@/lib/auth-flow', () => ({
   clearStoredReferralCode: mocks.clearStoredReferralCode,
   consumeStoredAuthReturnUrl: mocks.consumeStoredAuthReturnUrl,
   getStoredAuthReturnUrl: mocks.getStoredAuthReturnUrl,
+  storeAuthReturnUrl: mocks.storeAuthReturnUrl,
+  createAuthReturnUrlAttempt: mocks.createAuthReturnUrlAttempt,
+  isAuthReturnUrlAttemptCurrent: mocks.isAuthReturnUrlAttemptCurrent,
   clearStoredAuthReturnUrl: mocks.clearStoredAuthReturnUrl,
   getSafeReturnUrl: mocks.getSafeReturnUrl,
   getStoredReferralCode: mocks.getStoredReferralCode,
@@ -68,6 +79,9 @@ beforeEach(() => {
   mocks.getStoredAuthReturnUrl.mockResolvedValue('/home')
   mocks.getSafeReturnUrl.mockReturnValue('/home')
   mocks.markReferralApplied.mockResolvedValue(undefined)
+  mocks.pendingGoogleSession = { callbackUrl: null, isPending: false, returnUrlAttemptId: null }
+  mocks.createAuthReturnUrlAttempt.mockReturnValue(0)
+  mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
 })
 
 it('leaves referral and navigation untouched when callback login loses ownership', async () => {
@@ -141,6 +155,59 @@ it('keeps the return URL when another login takes ownership during its storage r
   })
 
   expect(mocks.consumeStoredAuthReturnUrl).not.toHaveBeenCalled()
+  expect(mocks.clearStoredAuthReturnUrl).not.toHaveBeenCalled()
+  expect(mocks.replace).not.toHaveBeenCalled()
+})
+
+it('does not consume a newer flow return URL before that flow logs in', async () => {
+  mocks.getStoredReferralCode.mockResolvedValue(null)
+  mocks.pendingGoogleSession = {
+    callbackUrl: 'orbit://auth-callback?code=old', isPending: false, returnUrlAttemptId: 1,
+  }
+  let releaseLogin!: () => void
+  mocks.login.mockImplementation(() => new Promise<() => boolean>((resolve) => {
+    releaseLogin = () => resolve(() => true)
+  }))
+  let returnUrl = '/older'
+  let attemptId = 1
+  mocks.createAuthReturnUrlAttempt.mockImplementation(() => ++attemptId)
+  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: number) => id === attemptId)
+  mocks.getStoredAuthReturnUrl.mockImplementation(() => Promise.resolve(returnUrl))
+  mocks.storeAuthReturnUrl.mockImplementation((url: string) => {
+    returnUrl = url
+    return Promise.resolve()
+  })
+
+  await TestRenderer.act(async () => {
+    TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
+    await Promise.resolve()
+  })
+  await vi.waitFor(() => expect(mocks.login).toHaveBeenCalledTimes(1))
+  await mocks.storeAuthReturnUrl('/newer', mocks.createAuthReturnUrlAttempt())
+  await TestRenderer.act(async () => { releaseLogin(); await Promise.resolve() })
+
+  expect(mocks.getStoredAuthReturnUrl).not.toHaveBeenCalled()
+  expect(mocks.clearStoredAuthReturnUrl).not.toHaveBeenCalled()
+  expect(mocks.replace).not.toHaveBeenCalledWith('/newer')
+  await expect(mocks.getStoredAuthReturnUrl(attemptId)).resolves.toBe('/newer')
+})
+
+it('does not claim a newer pending Google flow when the older callback starts late', async () => {
+  mocks.getStoredReferralCode.mockResolvedValue(null)
+  mocks.pendingGoogleSession = {
+    callbackUrl: null, isPending: true, returnUrlAttemptId: 2,
+  }
+  mocks.isAuthReturnUrlAttemptCurrent.mockImplementation((id: number) => id === 2)
+  mocks.login.mockResolvedValue(() => true)
+
+  await TestRenderer.act(async () => {
+    TestRenderer.create(<I18nextProvider i18n={i18n}><AuthCallbackScreen /></I18nextProvider>)
+    await Promise.resolve()
+  })
+  await vi.waitFor(() => expect(mocks.login).toHaveBeenCalledTimes(1))
+
+  expect(mocks.createAuthReturnUrlAttempt).not.toHaveBeenCalled()
+  expect(mocks.getStoredAuthReturnUrl).not.toHaveBeenCalled()
   expect(mocks.clearStoredAuthReturnUrl).not.toHaveBeenCalled()
   expect(mocks.replace).not.toHaveBeenCalled()
 })

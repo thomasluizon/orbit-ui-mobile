@@ -15,6 +15,8 @@ import {
   clearStoredAuthReturnUrl,
   consumeStoredAuthReturnUrl,
   getSafeReturnUrl,
+  createAuthReturnUrlAttempt,
+  isAuthReturnUrlAttemptCurrent,
   getStoredReferralCode,
   getStoredAuthReturnUrl,
   markReferralApplied,
@@ -36,6 +38,23 @@ type AppTokens = ReturnType<typeof createTokensV2>
 
 interface AuthCallbackErrorState {
   message: string
+}
+
+function ownsReturnUrl(isCurrentLoginSession: () => boolean, attemptId: number): boolean {
+  return isCurrentLoginSession() && isAuthReturnUrlAttemptCurrent(attemptId)
+}
+
+function resolveReturnUrlAttemptId(
+  callbackUrl: string,
+  sessionCallbackUrl: string | null,
+  sessionReturnUrlAttemptId: number | null,
+  isPendingGoogleAuthSession: boolean,
+): number {
+  if (sessionCallbackUrl === callbackUrl && sessionReturnUrlAttemptId !== null) {
+    return sessionReturnUrlAttemptId
+  }
+  if (sessionCallbackUrl || isPendingGoogleAuthSession) return -1
+  return createAuthReturnUrlAttempt()
 }
 
 export default function AuthCallbackScreen() {
@@ -63,6 +82,7 @@ export default function AuthCallbackScreen() {
   const {
     callbackUrl: sessionCallbackUrl,
     isPending: isPendingGoogleAuthSession,
+    returnUrlAttemptId: sessionReturnUrlAttemptId,
   } = usePendingGoogleAuthSession()
   const processedRef = useRef(false)
   const [errorState, setErrorState] = useState<AuthCallbackErrorState | null>(null)
@@ -115,13 +135,18 @@ export default function AuthCallbackScreen() {
     if (!callbackUrl) return
     processedRef.current = true
     const resolvedCallbackUrl = callbackUrl
-    clearPendingGoogleAuthSession()
+    const returnUrlAttemptId = resolveReturnUrlAttemptId(
+      callbackUrl, sessionCallbackUrl, sessionReturnUrlAttemptId,
+      isPendingGoogleAuthSession,
+    )
+    clearPendingGoogleAuthSession(returnUrlAttemptId)
 
     async function handleCallback() {
       try {
         const callbackParams = extractGoogleAuthParams(resolvedCallbackUrl)
         if (callbackParams.error === 'access_denied') {
-          const storedReturnUrl = await consumeStoredAuthReturnUrl()
+          const storedReturnUrl = await consumeStoredAuthReturnUrl(returnUrlAttemptId)
+          if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
           router.replace(storedReturnUrl ? getSafeReturnUrl(storedReturnUrl) : '/login')
           return
         }
@@ -147,11 +172,11 @@ export default function AuthCallbackScreen() {
           if (!isCurrentLoginSession()) return
         }
 
-        if (!isCurrentLoginSession()) return
-        const storedReturnUrl = await getStoredAuthReturnUrl()
-        if (!isCurrentLoginSession()) return
-        await clearStoredAuthReturnUrl()
-        if (!isCurrentLoginSession()) return
+        if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
+        const storedReturnUrl = await getStoredAuthReturnUrl(returnUrlAttemptId)
+        if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
+        await clearStoredAuthReturnUrl(returnUrlAttemptId)
+        if (!ownsReturnUrl(isCurrentLoginSession, returnUrlAttemptId)) return
         const returnUrl = getSafeReturnUrl(storedReturnUrl)
         router.replace(returnUrl)
       } catch (error: unknown) {
@@ -164,7 +189,8 @@ export default function AuthCallbackScreen() {
       const nextErrorState = resolveCallbackError(error)
       setErrorState(nextErrorState)
     })
-  }, [callbackUrl, i18n.language, login, resolveCallbackError, router, t])
+  }, [callbackUrl, i18n.language, isPendingGoogleAuthSession, login,
+    resolveCallbackError, router, sessionCallbackUrl, sessionReturnUrlAttemptId, t])
 
   useEffect(() => {
     if (processedRef.current || errorState || callbackUrl || isPendingGoogleAuthSession) return

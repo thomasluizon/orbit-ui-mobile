@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Keyboard, Platform } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -22,6 +22,8 @@ import {
   clearStoredReferralCode,
   clearStoredAuthReturnUrl,
   getSafeReturnUrl,
+  createAuthReturnUrlAttempt,
+  isAuthReturnUrlAttemptCurrent,
   getStoredReferralCode,
   getStoredAuthReturnUrl,
   isSafeReturnUrl,
@@ -39,6 +41,21 @@ interface AuthErrorState {
   message: string
 }
 
+interface ReturnUrlAttempt {
+  returnUrl?: string
+  id: number
+}
+
+function getOrCreateReturnUrlAttempt(
+  attemptRef: { current: ReturnUrlAttempt | null },
+  returnUrl?: string,
+): number {
+  if (!attemptRef.current || attemptRef.current.returnUrl !== returnUrl) {
+    attemptRef.current = { returnUrl, id: createAuthReturnUrlAttempt() }
+  }
+  return attemptRef.current.id
+}
+
 export function useLoginFlow() {
   const { t, i18n } = useTranslation()
   const params = useLocalSearchParams<{
@@ -49,6 +66,7 @@ export function useLoginFlow() {
     from?: string
   }>()
   const router = useRouter()
+  const returnUrlAttemptRef = useRef<ReturnUrlAttempt | null>(null)
   const login = useAuthStore((s) => s.login)
   const { isOnline } = useOffline()
   const { showError } = useAppToast()
@@ -128,6 +146,7 @@ export function useLoginFlow() {
     async function hydrateAuthFlowState() {
       const refCode = typeof params.ref === 'string' ? params.ref : undefined
       const returnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
+      const returnUrlAttemptId = getOrCreateReturnUrlAttempt(returnUrlAttemptRef, returnUrl)
       const deepLinkEmail = typeof params.email === 'string' ? params.email : undefined
       const deepLinkCode = typeof params.code === 'string' ? params.code : undefined
 
@@ -139,7 +158,7 @@ export function useLoginFlow() {
       }
 
       if (returnUrl && isSafeReturnUrl(returnUrl)) {
-        await storeAuthReturnUrl(returnUrl)
+        await storeAuthReturnUrl(returnUrl, returnUrlAttemptId)
       }
 
       if (deepLinkEmail) {
@@ -227,6 +246,9 @@ export function useLoginFlow() {
   }
 
   async function verifyCode() {
+    const returnUrlAttemptId = getOrCreateReturnUrlAttempt(
+      returnUrlAttemptRef, returnUrlAttemptRef.current?.returnUrl,
+    )
     if (!isOnline) {
       reportError(t('auth.errors.offline'))
       return
@@ -266,10 +288,11 @@ export function useLoginFlow() {
         setShowReferralBanner(false)
       }
       if (!isCurrentLoginSession()) return
-      const storedReturnUrl = await getStoredAuthReturnUrl()
-      if (!isCurrentLoginSession()) return
-      await clearStoredAuthReturnUrl()
-      if (!isCurrentLoginSession()) return
+      if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
+      const storedReturnUrl = await getStoredAuthReturnUrl(returnUrlAttemptId)
+      if (!isCurrentLoginSession() || !isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
+      await clearStoredAuthReturnUrl(returnUrlAttemptId)
+      if (!isCurrentLoginSession() || !isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
       const returnUrl = getSafeReturnUrl(storedReturnUrl)
       router.replace(returnUrl)
     } catch (err: unknown) {
