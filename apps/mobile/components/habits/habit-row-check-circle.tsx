@@ -75,7 +75,7 @@ export function CheckCircle({
     >
       <Animated.View style={popStyle} accessible={false}>
         {unavailable
-          ? <View testID="unavailable-status-dot" style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: tokens.fg3 }} />
+          ? <View testID="unavailable-status-dot" style={{ width: size, height: size, borderRadius: 999, backgroundColor: tokens.bgWell }} />
           : <StatusRing status={state} size={size} label={accessibilityLabel} />}
       </Animated.View>
     </Pressable>

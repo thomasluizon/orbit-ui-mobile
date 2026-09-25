@@ -132,11 +132,16 @@ describe('HabitRow check circle accessible name', () => {
     expect(ring).toHaveAttribute('aria-disabled', 'true')
     expect(ring).toHaveAccessibleName('habits.logHabit: Read')
     expect(ring).toHaveAccessibleDescription("We could not load this day's habits.")
-    expect(ring.querySelector('[data-status="unavailable"]')).toBeInTheDocument()
+    const unavailable = ring.querySelector<HTMLElement>('[data-status="unavailable"]')
+    expect(unavailable).toBeInTheDocument()
+    expect(unavailable).toHaveClass('bg-[var(--bg-well)]')
     fireEvent.click(ring)
     expect(onLog).not.toHaveBeenCalled()
     rerender(<HabitRow habit={createMockHabit({ title: 'Read' })} child depth={1} actions={{ onLog }} />)
-    expect(ring.querySelector('[data-status="empty"]')).toBeInTheDocument()
+    const emptyRing = ring.querySelector<HTMLElement>('[data-status="empty"]')
+    expect(emptyRing).toBeInTheDocument()
+    expect(unavailable?.style.width).toBe(emptyRing?.style.width)
+    expect(unavailable?.style.height).toBe(emptyRing?.style.height)
   })
   it('lights the panel only while the enabled body is hovered', () => {
     const panel = renderRowInPanel(

@@ -1,4 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { neutralColors } from '@orbit/shared/theme'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
@@ -106,7 +107,11 @@ describe('HabitRow status control names (mobile)', () => {
     expect(ring.props.accessibilityState).toEqual({ disabled: true })
     expect(ring.props.accessibilityLabel).toBe('habits.logHabit: Read')
     const unavailableDot = renderer!.root.findByProps({ testID: 'unavailable-status-dot' })
-    expect(StyleSheet.flatten(unavailableDot.props.style)).toMatchObject({ width: 8, height: 8 })
+    expect(StyleSheet.flatten(unavailableDot.props.style)).toMatchObject({
+      width: 30,
+      height: 30,
+      backgroundColor: neutralColors.dark.bgWell,
+    })
     expect(renderer!.root.findAllByProps({ testID: 'status-ring' })).toHaveLength(0)
     const body = renderer!.root.findAll(
       (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,

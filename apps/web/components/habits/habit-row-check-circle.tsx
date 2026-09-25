@@ -48,7 +48,7 @@ export function CheckCircle({ state, unavailable = false, onToggle, disabled, ar
     >
       <span aria-hidden="true" className={justCompleted ? 'animate-check-pop' : undefined}>
         {unavailable
-          ? <span data-status="unavailable" className="block shrink-0 rounded-full bg-[var(--fg-3)]" style={{ width: 8, height: 8 }} />
+          ? <span data-status="unavailable" className="block shrink-0 rounded-full bg-[var(--bg-well)]" style={{ width: size, height: size }} />
           : <StatusRing status={state} size={size} label={ariaLabel} />}
       </span>
       {disabled && disabledReason ? <span id={reasonId} className="sr-only">{disabledReason}</span> : null}
