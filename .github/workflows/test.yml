@@ -257,7 +257,7 @@ jobs:
             exit 1
           fi
           curl -fsSL "https://raw.githubusercontent.com/thomasluizon/orbit-api/$pin/src/Orbit.Api/openapi.json" -o "$RUNNER_TEMP/orbit-openapi.json"
-          ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npm run generate:zod
+          ORBIT_OPENAPI_SPEC="$RUNNER_TEMP/orbit-openapi.json" npx --yes orval@8.37.0 --config ./orval.config.ts
 
       - name: Fail if the snapshot does not match the pinned API commit
         run: |

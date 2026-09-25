@@ -51,6 +51,7 @@ concurrency:
 
 jobs:
   merge-main-into-redesign:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       DRIFT_TOKEN: ${{ secrets.REDESIGN_DRIFT_TOKEN }}
@@ -214,3 +215,10 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           exit 1
+
+  rebaseline-redesign-contract:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/redesign/main'
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/contract-rebaseline.yml
