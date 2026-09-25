@@ -131,6 +131,11 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   positive(config.timeouts?.noProgressMinutes, "timeouts.noProgressMinutes")
   positive(config.timeouts?.pollSeconds, "timeouts.pollSeconds")
   positive(config.caps?.reviewFixAttempts, "caps.reviewFixAttempts")
+  for (const name of ["maxOpenPullRequests", "maxQueuedRuns"]) {
+    if (!Number.isInteger(config.caps?.[name]) || config.caps[name] <= 0) {
+      throw new Error(`.claude/orchestrator.json caps.${name} must be a positive integer`)
+    }
+  }
   if (!Number.isInteger(config.caps?.workerLaunchesPerBranch) || config.caps.workerLaunchesPerBranch <= 0) {
     throw new Error(".claude/orchestrator.json caps.workerLaunchesPerBranch must be a positive integer")
   }

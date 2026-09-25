@@ -85,6 +85,11 @@ export const cases = async () => {
 
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
+  for (const name of ["maxOpenPullRequests", "maxQueuedRuns"]) {
+    const invalid = { ...real, caps: { ...real.caps, [name]: 0 } }
+    const message = thrown(() => readOrchestratorConfig(configUrl(`invalid-${name}`, JSON.stringify(invalid))))
+    T(`${NAME}: ${name} must be a positive integer`, message?.includes(`caps.${name} must be a positive integer`), message ?? "config was accepted")
+  }
   const engineName = real.worker
   const engine = real.workers[engineName]
   const invocation = resolveWorkerInvocation(engineName, engine, "default")

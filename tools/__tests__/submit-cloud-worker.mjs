@@ -9,6 +9,7 @@ import {
   T,
   REPO_ROOT,
   check,
+  orcaEnv,
   realOrchestratorConfig,
   run,
   stage,
@@ -139,6 +140,14 @@ const replacementOwnerSurvives = (interleave, duringRelease = false) => {
 }
 
 export const cases = async () => {
+  const originalEnvironment = Object.fromEntries(["GIT_BIN", "GH_BIN", "NODE_OPTIONS", "ORBIT_ORCA_STUB"].map((key) => [key, process.env[key]]))
+  Object.assign(process.env, orcaEnv([
+    { match: "remote get-url origin", stdout: "https://github.com/test-owner/cloud.git" },
+    { match: "auth token --user test-owner", stdout: "test-github-token" },
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: "[]" },
+    { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
+  ]), { GIT_BIN: process.execPath })
   const disabled = fixture("disabled")
   disabled.config.cloud.enabled = false
   writeFileSync(disabled.configPath, `${JSON.stringify(disabled.config, null, 2)}\n`)
@@ -172,6 +181,17 @@ export const cases = async () => {
       enabledCodexArgs[0] === "cloud" && enabledCodexArgs[1] === "exec",
     enabled.stdout || enabled.stderr,
   )
+  const admissionFixture = fixture("admission-refusal")
+  const admissionEnvironment = orcaEnv([
+    { match: "remote get-url origin", stdout: "https://github.com/test-owner/cloud.git" },
+    { match: "auth token --user test-owner", stdout: "test-github-token" },
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: JSON.stringify([1, 2, 3, 4].map((number) => ({ number }))) },
+    { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
+  ])
+  const admissionRefusal = run(TOOL, argvOf(admissionFixture), { path: admissionFixture.path, env: { ...admissionEnvironment, ORBIT_FAKE_CODEX_LOG: admissionFixture.log } })
+  const admissionResult = JSON.parse(admissionRefusal.stdout)
+  T(`${TOOL}: admission refuses before Cloud reservation or submission`, admissionRefusal.status === 8 && admissionResult.reason === "ADMISSION_REFUSED" && admissionResult.counts.openPullRequests === 12 && !existsSync(join(cloudStateRoot(admissionFixture.repo.path), "reservations")) && readFileSync(admissionFixture.log, "utf8") === "", JSON.stringify(admissionResult))
 
   const legacyRoot = join(stage("submit-cloud/legacy-replacement/fixture", ""), "..")
   const legacyDirectory = join(legacyRoot, "submit.lock")
@@ -1458,4 +1478,8 @@ if (args[1] === "list") {
     staleOwnerResult.status === 0 && !existsSync(staleLock),
     `exit ${staleOwnerResult.status}: ${staleOwnerResult.stdout || staleOwnerResult.stderr}`,
   )
+  for (const [key, value] of Object.entries(originalEnvironment)) {
+    if (value === undefined) delete process.env[key]
+    else process.env[key] = value
+  }
 }

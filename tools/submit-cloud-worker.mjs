@@ -8,6 +8,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } 
 import { setTimeout as wait } from "node:timers/promises"
 
 import { dashFindings } from "./check-dashes.mjs"
+import { ADMISSION_REFUSED_EXIT, checkAdmission } from "./lib/admission.mjs"
 import {
   CodexTimeoutError,
   ReceiptLockTimeoutError,
@@ -34,6 +35,7 @@ import {
 } from "./lib/cloud-worker.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
+import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
 
@@ -69,7 +71,8 @@ exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
             3 cloud capacity is full or recovery safety blocks clearing,
             4 a Codex cloud command timed out, 5 receipt lock acquisition timed out,
             6 the session Cloud circuit breaker routed the ticket to the local lane,
-            7 Cloud submission is disabled by cloud.enabled in .claude/orchestrator.json
+            7 Cloud submission is disabled by cloud.enabled in .claude/orchestrator.json,
+            8 admission refused new ticket work before reservation
 
   --clear-unknown <file>      select an unknown reservation for explicit human release
   --assert-no-task-exists     assert that the Codex UI shows no task for that reservation
@@ -484,6 +487,22 @@ try {
   stateRoot = cloudStateRoot(worktree)
 } catch (error) {
   fail(2, error.message)
+}
+
+const currentBranch = spawnSync("git", ["-C", worktree, "branch", "--show-current"], { encoding: "utf8", windowsHide: true })
+if (currentBranch.error || currentBranch.status !== 0) fail(2, "could not resolve the worktree's current branch")
+const admissionBranch = currentBranch.stdout.trim() || branch
+let githubAuth
+try {
+  githubAuth = await githubEnvironment(worktree)
+} catch (error) {
+  console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", counts: { openPullRequests: null, queuedRuns: null }, limits: { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }, error: redactSecrets(error.message) }))
+  process.exit(ADMISSION_REFUSED_EXIT)
+}
+const admission = await checkAdmission({ config, repositoryKey, branch: admissionBranch, environment: githubAuth.environment })
+if (!admission.admitted) {
+  console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
+  process.exit(ADMISSION_REFUSED_EXIT)
 }
 
 const remoteTimeoutMs = config.timeouts.gitRemoteSeconds * 1000

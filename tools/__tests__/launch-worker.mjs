@@ -54,7 +54,12 @@ const launch = (label, config) => {
   return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
 }
 
-const githubAuthEnv = () => orcaEnv([{ match: "auth token --user test-owner", stdout: "test-github-token" }])
+const githubAuthEnv = ({ branchPulls = [], pulls = [], queuedRuns = 0, readError = false } = {}) => orcaEnv([
+  { match: "auth token --user test-owner", stdout: "test-github-token" },
+  { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: queuedRuns, workflow_runs: [] }), exit: readError ? 1 : 0, stderr: readError ? "GitHub unavailable" : "" },
+  { match: "pulls?head=", stdout: JSON.stringify(branchPulls) },
+  { match: "pulls?state=open", stdout: JSON.stringify(pulls) },
+])
 
 /** The launcher writes its worker log outside every repository, so the fixture root cannot hold it. */
 const discardLog = (stdout) => {
@@ -175,6 +180,14 @@ export const cases = async () => {
     T(`${TOOL}: a real git worktree fixture is available`, false, "could not stage a git repository")
     return
   }
+  const admissionFixture = launch("admission-refusal", launchConfig(stubEngine(IMMEDIATE)))
+  const refusedArgs = ["--issue", "ORB-201", "--worktree", admissionFixture.worktree, "--prompt", admissionFixture.prompt]
+  const refusedResult = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ pulls: [1, 2, 3, 4].map((number) => ({ number })) }) })
+  const refusedBody = JSON.parse(refusedResult.stdout)
+  T(`${TOOL}: admission refuses before reservation and wake source`, refusedResult.status === 8 && refusedBody.reason === "ADMISSION_REFUSED" && refusedBody.counts.openPullRequests === 12 && !existsSync(join(admissionFixture.worktree, ".git", "orbit-worker-launches")) && readWakeSourceStates(admissionFixture.base).live.length === 0, JSON.stringify(refusedBody))
+  const admittedExisting = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ branchPulls: [{ number: 99 }], pulls: [1, 2, 3, 4].map((number) => ({ number })), queuedRuns: 100 }) })
+  T(`${TOOL}: existing pull request proceeds above both caps`, admittedExisting.status === 0, admittedExisting.stderr)
+  discardLog(admittedExisting.stdout)
   const argv = ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt]
   const options = { path: fixture.path }
 
@@ -404,7 +417,7 @@ syncBuiltinESMExports()
     "a third launch exits 2 and names both earlier launches",
     cappedArgs,
     { status: 2, stderr: /worker launch cap 2 reached[\s\S]*Earlier launches:[\s\S]*1\.[\s\S]*tier=default[\s\S]*2\.[\s\S]*tier=mechanical/ },
-    { path: capped.path },
+    { path: capped.path, env: githubAuthEnv() },
   )
   const allowedLaunch = check(
     TOOL,
@@ -689,7 +702,10 @@ setInterval(() => {}, 60000)
   writeFileSync(wakeAuthGate, `const { existsSync, renameSync, writeFileSync } = require("node:fs")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
-if (!argv.join(" ").includes("auth token --user test-owner")) process.exit(9)
+const line = argv.join(" ")
+if (line.includes("actions/runs?status=queued")) { process.stdout.write(JSON.stringify({ total_count: 0, workflow_runs: [] })); process.exit(0) }
+if (line.includes("pulls?")) { process.stdout.write("[]"); process.exit(0) }
+if (!line.includes("auth token --user test-owner")) process.exit(9)
 const unpublishedPath = ${JSON.stringify(wakeAuthEntered)} + "." + process.pid + ".unpublished"
 writeFileSync(unpublishedPath, "authentication unresolved")
 renameSync(unpublishedPath, ${JSON.stringify(wakeAuthEntered)})
@@ -749,16 +765,13 @@ const poll = setInterval(() => {
       windowsHide: true,
     })
     T(
-      `${TOOL}: while authentication is unresolved the launcher has a fresh pending wake source`,
-      pendingSource?.pending === true &&
-        pendingSource.workerPid === null &&
-        pendingSource.pid === observedProcess.child.pid &&
-        typeof pendingSource.processStartIdentity === "string",
+      `${TOOL}: unresolved admission has no wake source`,
+      pendingSource === null,
       JSON.stringify(pendingSource),
     )
     T(
-      `${TOOL}: the pending launcher record lets the Stop adapter allow before child spawn`,
-      pendingStop.status === 0,
+      `${TOOL}: Stop remains blocked before admission`,
+      pendingStop.status === 2,
       `exit ${pendingStop.status}: ${pendingStop.stderr || pendingStop.stdout}`,
     )
   } finally {
