@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { headers } from 'next/headers'
 import { Suspense } from 'react'
-import { Rubik, Inter, Roboto } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Bell, Check, X } from 'lucide-react'
@@ -10,28 +9,8 @@ import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { colorSchemeOptions, resolveDarkNeutrals, resolveLightNeutrals } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
+import { rubik, inter, roboto } from './fonts'
 import './globals.css'
-
-const rubik = Rubik({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-rubik',
-  display: 'swap',
-})
-
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-inter',
-  display: 'swap',
-})
-
-const roboto = Roboto({
-  subsets: ['latin'],
-  weight: ['400', '500', '700'],
-  variable: '--font-roboto',
-  display: 'swap',
-})
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')
