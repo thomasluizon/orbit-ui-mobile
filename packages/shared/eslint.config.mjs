@@ -51,6 +51,21 @@ export default [
       },
     },
     rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: ["react", "react-dom", "react-native", "next"].map((name) => ({
+            name,
+            message: "packages/shared/CLAUDE.md: put pure logic in a *-core module like tag-selection-core.ts and hooks in each app.",
+          })),
+          patterns: [
+            {
+              group: ["react/*", "react-dom/*", "next/*", "react-native/*"],
+              message: "packages/shared/CLAUDE.md: put pure logic in a *-core module like tag-selection-core.ts and hooks in each app.",
+            },
+          ],
+        },
+      ],
       "local/no-comments": "error",
       "local/no-double-assertion": "error",
       // `theme/button.ts` owns the pill-button geometry, which is a component
@@ -93,8 +108,9 @@ export default [
     },
   },
   {
-    files: ["src/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
+    files: ["src/__tests__/**/*.{ts,tsx}", "**/*.{test,spec}.{ts,tsx}"],
     rules: {
+      "no-restricted-imports": "off",
       "local/no-double-assertion": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
