@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { RouterContext } from 'next/dist/shared/lib/router-context.shared-runtime'
+import type { NextRouter } from 'next/router'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { TodayAstra } from '@/components/today/today-astra'
 import { useUIStore } from '@/stores/ui-store'
@@ -97,6 +99,29 @@ describe('web Today Astra', () => {
 
     expect(mocks.markRead).not.toHaveBeenCalled()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
+  })
+
+  it('routes the returning Progress action in-app without document navigation', () => {
+    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
+    const push = vi.fn()
+    const router = {
+      pathname: '/', asPath: '/', push, prefetch: vi.fn(), beforePopState: vi.fn(),
+    } as unknown as NextRouter
+
+    render(
+      <RouterContext.Provider value={router}>
+        <TodayAstra isTodaySelected suppressed={false} />
+      </RouterContext.Provider>,
+    )
+
+    const action = screen.getByRole('link', { name: 'todayAstra.viewProgress' })
+    expect(action).toHaveAttribute('href', '/progress')
+    const click = fireEvent.click(action)
+
+    expect(click).toBe(false)
+    expect(push).toHaveBeenCalledWith('/progress', '/progress', {
+      shallow: undefined, locale: undefined, scroll: true,
+    })
   })
 
   it.each(['offline', 'quota exhausted'])('keeps Progress available when %s', (state) => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   getReturningInterval,
@@ -76,9 +77,9 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
                 {line.action}
               </button>
             ) : (
-              <a className="orbit-link-action orbit-link-action-persistent today-astra-action text-inherit" href="/progress">
+              <Link className="orbit-link-action orbit-link-action-persistent today-astra-action text-inherit" href="/progress">
                 {line.action}
-              </a>
+              </Link>
             )}
           </p>
         </div>
