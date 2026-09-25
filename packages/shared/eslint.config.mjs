@@ -75,6 +75,10 @@ export default [
           selector: "ImportExpression[source.value=/^(react|react-dom|react-native|next)(\\u002F|$)/]",
           message: SHARED_IMPORT_BOUNDARY,
         },
+        {
+          selector: "ImportExpression[source.type!='Literal']",
+          message: `${SHARED_IMPORT_BOUNDARY} A dynamic import specifier must be a plain string literal so this boundary can read it.`,
+        },
       ],
       "local/no-comments": "error",
       "local/no-double-assertion": "error",

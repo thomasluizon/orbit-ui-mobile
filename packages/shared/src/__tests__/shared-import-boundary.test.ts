@@ -58,6 +58,43 @@ describe('shared source import boundary', () => {
     )
   })
 
+  it.each([
+    'import(`react`)',
+    'import(`react-dom/client`)',
+    'import(`next/navigation`)',
+    "import('re' + 'act')",
+    "import(['react', 'native'].join('-'))",
+  ])(
+    'rejects the non-literal dynamic import %s at error severity',
+    async (expression) => {
+      const eslint = new ESLint({ cwd: packageRoot })
+      const [result] = await eslint.lintText(`export const load = () => ${expression}\n`, {
+        filePath: sourcePath,
+      })
+      if (!result) throw new Error('ESLint returned no result for shared source')
+
+      expect(result.messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            severity: 2,
+            message: expect.stringContaining('packages/shared/CLAUDE.md'),
+          }),
+        ]),
+      )
+    },
+  )
+
+  it('allows a relative string-literal dynamic import, as the locale loader uses', async () => {
+    const eslint = new ESLint({ cwd: packageRoot })
+    const [result] = await eslint.lintText("export const load = () => import('./en.json')\n", {
+      filePath: sourcePath,
+    })
+    if (!result) throw new Error('ESLint returned no result for shared source')
+
+    expect(result.messages.some((message) => message.ruleId === 'no-restricted-syntax')).toBe(false)
+  })
+
   it.each(['react-i18next', 'next-intl', 'reactive'])(
     'allows a dynamic import of %s, which only shares a prefix',
     async (moduleName) => {
