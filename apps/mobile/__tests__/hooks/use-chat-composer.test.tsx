@@ -13,6 +13,8 @@ import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
+import RootLayout from '@/app/_layout'
 
 const TestRenderer = require('react-test-renderer')
 const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
@@ -35,6 +37,8 @@ const mocks = vi.hoisted(() => {
 
   return {
     state,
+    pathname: '/support',
+    composerProps: null as { onOpenConversation?: () => void; onChangeValue: (value: string) => void; onSend: () => void } | null,
     queryClient,
     apiClient: vi.fn(),
     openChatStream: vi.fn(),
@@ -62,8 +66,58 @@ vi.mock('@/lib/chat-stream', () => ({
 }))
 
 vi.mock('expo-router', () => ({
-  useRouter: () => ({ push: mocks.routerPush }),
+  DarkTheme: { colors: {} },
+  DefaultTheme: { colors: {} },
+  Stack: Object.assign(({ children }: { children?: React.ReactNode }) => children, {
+    Protected: ({ children }: { children?: React.ReactNode }) => children,
+    Screen: () => null,
+  }),
+  ThemeProvider: ({ children }: { children?: React.ReactNode }) => children,
+  useGlobalSearchParams: () => ({}),
+  usePathname: () => mocks.pathname,
+  useSegments: () => ['support'],
+  useRouter: () => ({ push: mocks.routerPush, replace: vi.fn() }),
 }))
+
+vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
+vi.mock('expo-status-bar', () => ({ StatusBar: () => null }))
+vi.mock('expo-router/react-navigation', () => ({}))
+vi.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: ({ children }: { children?: React.ReactNode }) => children }))
+vi.mock('@sentry/react-native', () => ({ wrap: (component: unknown) => component }))
+vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children?: React.ReactNode }) => children, useCaptureReady: () => false }))
+vi.mock('@/stores/auth-store', () => ({ useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }) }))
+vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ clearLevelUp: vi.fn(), crossedStreakMilestones: [], leveledUp: false, newAchievements: [], newLevel: null }) }))
+vi.mock('@/hooks/use-ad-mob', () => ({ useAdMob: () => ({ initialize: vi.fn() }) }))
+vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
+vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: { elevated: { backgroundColor: '#18181b' }, screen: { backgroundColor: '#111111' } } }) }))
+vi.mock('@/lib/orbit-widget', () => ({ syncWidgetTheme: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/back-navigation', () => ({ dismissOrFallback: vi.fn(), getAndroidBackFallbackRoute: () => null }))
+vi.mock('@/lib/overlay-stack', () => ({ dismissTopOverlay: () => false }))
+vi.mock('@/lib/upgrade-route', () => ({ buildUpgradeHref: () => '/upgrade' }))
+vi.mock('@/stores/referral-prompt-store', () => ({ useReferralPromptStore: (selector: (state: Record<string, unknown>) => unknown) => selector({ armConsentPrompt: vi.fn(), armMilestoneSharePrompt: vi.fn(), armReferralPrompt: vi.fn(), armReviewPrompt: vi.fn() }) }))
+vi.mock('@/stores/review-reminder-store', () => ({ isReviewMomentEligible: () => false, useReviewReminderStore: { getState: () => ({}) } }))
+vi.mock('@/components/onboarding/onboarding-actions-context', () => ({ useLiveOnboardingActions: () => ({}) }))
+vi.mock('@/stores/onboarding-draft-store', () => ({ useOnboardingDraftStore: (selector: (state: Record<string, unknown>) => unknown) => selector({ hasPendingAnswers: () => false, onboardingLocallyDone: true }) }))
+vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: vi.fn() }))
+vi.mock('@/hooks/use-retained-onboarding-guard', () => ({ useRetainedOnboardingGuard: () => false }))
+vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
+vi.mock('@/components/navigation/destination-tab-bar', () => ({ DestinationTabBar: () => null }))
+vi.mock('@/components/search/search-header-action', () => ({ SearchHeader: () => null }))
+vi.mock('@/components/ui/fab', () => ({ Fab: () => null }))
+vi.mock('@/components/global-overlays', () => ({ OverlayLayer: () => null }))
+vi.mock('@/components/offline-notice', () => ({ OfflineNotice: () => null }))
+vi.mock('@/components/gamification/celebration-panel', () => ({ CelebrationPanel: () => null }))
+vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
+vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
+vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
+vi.mock('@/components/shell/composer', () => ({ Composer: (props: typeof mocks.composerProps) => { mocks.composerProps = props; return null } }))
+vi.mock('@/components/shell/shell-412', () => ({ Shell412: ({ composer }: { composer?: React.ReactNode }) => composer ?? null }))
+vi.mock('@/components/throttle-screen', () => ({ ThrottleScreen: () => null }))
+vi.mock('@/components/upgrade-required-screen', () => ({ UpgradeRequiredScreen: () => null }))
+vi.mock('@/lib/capture-mode', () => ({ captureBuildEnabled: false, captureRequestProbeIdFromUrl: () => null, captureRouteProbeId: () => 'capture-probe', shouldExposeOnboardingRoute: () => false }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/hooks/use-push-notifications', () => ({ PushNotificationsProvider: ({ children }: { children?: React.ReactNode }) => children }))
 
 vi.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: mocks.requestMediaLibraryPermissionsAsync,
@@ -87,6 +141,7 @@ vi.mock('expo-file-system', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
+  useHasProAccess: () => false,
   useProfile: () => ({ profile: mocks.state.profile }),
 }))
 
@@ -238,10 +293,66 @@ describe('mobile useChatComposer', () => {
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: true, contextualSuggestion: null })
+    useUIStore.getState().setAstraConversationOpen(false)
   })
 
   afterEach(() => {
     for (const tree of mountedTrees.splice(0)) tree.unmount()
+  })
+
+  it('sends Support entry intent on the first and later requests of that conversation', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    useUIStore.getState().setAstraConversationOpen(true, 'support')
+
+    await TestRenderer.act(async () => { await composer.current.sendMessage('my streak reset') })
+    await TestRenderer.act(async () => { await composer.current.sendMessage('can you help?') })
+
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    for (const [formData] of mocks.openChatStream.mock.calls) {
+      const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
+      expect(context.entryPointIntent).toBe('support')
+    }
+  })
+
+  it.each([
+    ['/support', 'open', 'support'],
+    ['/support', 'direct-send', 'support'],
+    ['/profile', 'open', undefined],
+    ['/profile', 'direct-send', undefined],
+  ])('captures route intent through the layout %s %s callback before the first request', async (pathname, action, expectedIntent) => {
+    mocks.pathname = pathname
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    await TestRenderer.act(async () => {
+      const tree = TestRenderer.create(<RootLayout />)
+      mountedTrees.push(tree)
+      await Promise.resolve()
+    })
+    const composer = mocks.composerProps
+    if (!composer) throw new Error('Support composer did not render')
+    await TestRenderer.act(() => { composer.onChangeValue('my streak reset') })
+    await TestRenderer.act(async () => {
+      if (action === 'open') mocks.composerProps?.onOpenConversation?.()
+      mocks.composerProps?.onSend()
+      await Promise.resolve()
+    })
+
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledTimes(1))
+    const [formData] = mocks.openChatStream.mock.calls[0]!
+    const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
+    expect(context.entryPointIntent).toBe(expectedIntent)
+  })
+
+  it('omits Support entry intent from a normal conversation', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    useUIStore.getState().setAstraConversationOpen(true)
+
+    await TestRenderer.act(async () => { await composer.current.sendMessage('log water') })
+
+    const [formData] = mocks.openChatStream.mock.calls[0]!
+    const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
+    expect(context).not.toHaveProperty('entryPointIntent')
   })
 
   it('streams deltas into a single ai bubble and the final response wins', async () => {
@@ -1240,6 +1351,7 @@ describe('mobile useChatComposer', () => {
       ],
     })
     const composer = await renderComposer()
+    useUIStore.getState().setAstraConversationOpen(true, 'support')
 
     await TestRenderer.act(async () => {
       await composer.current.sendMessage('cancel my 9pm meds reminder')
@@ -1256,6 +1368,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.canRetryLastSend).toBe(false)
     expect(composer.current.selectedImage).toBeNull()
     expect(composer.current.imagePreview).toBeNull()
+    expect(useUIStore.getState().astraEntryPointIntent).toBeUndefined()
   })
 
   it('keeps the retry and the attachment when only the session epoch moves', async () => {
