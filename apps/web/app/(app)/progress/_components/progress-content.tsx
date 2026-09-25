@@ -34,10 +34,12 @@ import {
   isPayGateError,
   deriveProgressViewState,
   visibleProgressAchievements,
+  mapCompletionSeries,
   type ProgressGoalFilter,
   type StreakRepairState,
 } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
+import { BarChart } from '@/components/ui/bar-chart'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useGoalDrag } from './use-goal-drag'
@@ -97,7 +99,8 @@ function WindowFigureGrid({ children }: Readonly<{ children: ReactNode }>) {
 /** Four tile-shaped placeholders, ONE busy region: the four stand for one wait, not four. */
 function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   return (
-    <div role="progressbar" aria-busy="true" aria-label={label}>
+    <div role="progressbar" aria-busy="true" aria-label={label} className="flex flex-col gap-3">
+      <Skeleton variant="bar-chart" grouped />
       <WindowFigureGrid>
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
       </WindowFigureGrid>
@@ -456,6 +459,7 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
 
 function WindowSection() {
   const t = useTranslations()
+  const locale = useLocale()
   const retrospective = useProgressRetrospective()
   if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')}><div className="max-w-[560px]"><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></div></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
@@ -474,8 +478,10 @@ function WindowSection() {
   const metrics = retrospective.data?.metrics
   const bestWeekday = getBestRetrospectiveWeekdayKey(metrics?.weeklyConsistency ?? [])
   const topHabit = metrics?.topHabits[0]
+  const points = metrics?.completionSeries ? mapCompletionSeries(metrics.completionSeries, locale) : []
   return (
     <WindowFrame title={t('progressScreen.sections.window')}>
+      {points.some((point) => point.scheduled > 0) ? <BarChart points={points} label={t('progressScreen.window.chartLabel')} /> : null}
       <WindowFigureGrid>
         <StatTile value={`${Math.round(metrics?.completionRate ?? 0)}%`} label={t('progressScreen.window.completionRate')} />
         <StatTile value={metrics?.activeDays ?? 0} label={t('progressScreen.window.activeDays')} />

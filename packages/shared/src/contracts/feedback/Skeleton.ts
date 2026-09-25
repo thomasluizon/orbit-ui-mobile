@@ -8,7 +8,7 @@ export type SkeletonGap = 0 | 4 | 8 | 12 | 16 | 24 | 32 | 48 | 64 | 96
  */
 export type SkeletonProps =
   | {
-      variant: 'habit-row' | 'stat-tile'
+      variant: 'habit-row' | 'stat-tile' | 'bar-chart'
       label: string
       grouped?: never
       rows?: never
@@ -17,7 +17,7 @@ export type SkeletonProps =
       gap?: never
     }
   | {
-      variant: 'habit-row' | 'stat-tile'
+      variant: 'habit-row' | 'stat-tile' | 'bar-chart'
       grouped: true
       label?: never
       rows?: never

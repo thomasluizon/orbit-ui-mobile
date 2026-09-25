@@ -271,7 +271,9 @@ a moving cursor wearing a fixed label, and it is a structural defect rather than
 
 Designing any of these is the defect, not the omission.
 
-- **The `/insights` route.** Its figures fold into **Progresso**, at most four of them, each answering one question and built only from `StatTile`, `ProgressBar` and `ProgressRing`. The streak surface is itself no longer a destination, so it cannot receive them.
+- **The `/insights` route.** Its figures fold into **Progresso**, at most four of them, each answering one question and built from `StatTile`, `ProgressBar` and `ProgressRing`. One granted bar chart shows the shape of the month window above those figures. The streak surface is itself no longer a destination, so it cannot receive them.
+
+**One chart, granted 2026-09-25.** Neutral bars per day show completion in Progresso and Astra. This grants one `BarChart`, not a chart gallery.
 - **The retrospective's empty, locked and no-data screens.** It is an event now, so they are
   unreachable.
 - **Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal
@@ -797,6 +799,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | CapacityNotice | neutral limit message, optional explanatory body and one action; never `--status-bad` | `ui/capacity-notice.tsx` | same |
 | ProgressBar | 8px pill track `--track-empty`, primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, primary sweep on a `--track-empty` track | right rail / Today | same |
+| BarChart | 96px neutral bars, one adjustable control, readout and first/last dates | `ui/bar-chart.tsx` | `ui/bar-chart.tsx` |
 | DayStrip | compact horizontal history, habit and account scopes, caller-owned labels and words; done and active are neutral, frozen uses a neutral snowflake, missed is outlined, not scheduled is a well, and only today uses primary | `dates/day-strip.tsx` | `dates/day-strip.tsx` |
 | DayCell | 44px default target, tabular day number, read-only by default; `scheduled={0}` derives not scheduled, counts derive none, partial, or full, partial uses the exact fraction, full is neutral, and only today or selected uses primary position treatment | `dates/day-cell.tsx` | `dates/day-cell.tsx` |
 | MonthGrid | semantic month group with caller-owned weekday labels, column count derived from those labels, and no header when the label list is empty | `dates/month-grid.tsx` | `dates/month-grid.tsx` |

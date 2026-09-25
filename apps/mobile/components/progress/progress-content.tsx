@@ -29,10 +29,12 @@ import {
   isPayGateError,
   deriveProgressViewState,
   visibleProgressAchievements,
+  mapCompletionSeries,
   type ProgressGoalFilter,
   type StreakRepairState,
 } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
+import { BarChart } from '@/components/ui/bar-chart'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { MotionPressable } from '@/components/ui/motion-pressable'
@@ -101,7 +103,8 @@ function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
 /** Four tile-shaped placeholders, ONE busy region: the four stand for one wait, not four. */
 function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   return (
-    <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }} style={styles.windowSection}>
+      <Skeleton variant="bar-chart" grouped />
       <WindowFigureGrid>
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
       </WindowFigureGrid>
@@ -379,7 +382,7 @@ function GoalSeparator() {
 }
 
 function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const retrospective = useProgressRetrospective()
   if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
@@ -389,8 +392,10 @@ function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
   const metrics = retrospective.data?.metrics
   const bestWeekday = getBestRetrospectiveWeekdayKey(metrics?.weeklyConsistency ?? [])
   const topHabit = metrics?.topHabits[0]
+  const points = metrics?.completionSeries ? mapCompletionSeries(metrics.completionSeries, i18n.language) : []
   return (
     <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}>
+      {points.some((point) => point.scheduled > 0) ? <BarChart points={points} label={t('progressScreen.window.chartLabel')} /> : null}
       <WindowFigureGrid>
         <StatTile value={`${Math.round(metrics?.completionRate ?? 0)}%`} label={t('progressScreen.window.completionRate')} />
         <StatTile value={metrics?.activeDays ?? 0} label={t('progressScreen.window.activeDays')} />

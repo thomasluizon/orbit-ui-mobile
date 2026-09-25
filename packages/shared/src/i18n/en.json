@@ -1039,6 +1039,15 @@
       "more": "More"
     }
   },
+  "charts": {
+    "bar": {
+      "date": "Date",
+      "rate": "Rate",
+      "completed": "Completed",
+      "readout": "{done} of {scheduled}",
+      "nothingScheduled": "Nothing scheduled"
+    }
+  },
   "chat": {
     "title": "Astra",
     "offline": {
@@ -2479,6 +2488,7 @@
       "reorderHint": "Hold and drag to reorder, or use the move actions"
     },
     "window": {
+      "chartLabel": "Last 30 days",
       "completionRate": "Completion rate",
       "activeDays": "Days logged",
       "bestWeekday": "Best day of the week",

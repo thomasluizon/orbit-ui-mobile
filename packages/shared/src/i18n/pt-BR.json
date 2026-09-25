@@ -1039,6 +1039,15 @@
       "more": "Mais"
     }
   },
+  "charts": {
+    "bar": {
+      "date": "Data",
+      "rate": "Taxa",
+      "completed": "Concluídos",
+      "readout": "{done} de {scheduled}",
+      "nothingScheduled": "Nada programado"
+    }
+  },
   "chat": {
     "title": "Astra",
     "offline": {
@@ -2479,6 +2488,7 @@
       "reorderHint": "Segure e arraste para reordenar, ou use as ações de mover"
     },
     "window": {
+      "chartLabel": "Últimos 30 dias",
       "completionRate": "Taxa de conclusão",
       "activeDays": "Dias com registro",
       "bestWeekday": "Melhor dia da semana",
