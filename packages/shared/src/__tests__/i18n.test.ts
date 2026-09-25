@@ -81,7 +81,7 @@ describe('i18n locale parity', () => {
   it.each([en, ptBR])('keeps both consent links in a valid complete template', (catalog) => {
     const template = catalog.auth.legalConsent
     const links = [...template.matchAll(/<([a-z]+)>([^<>]+)<\/\1>/g)]
-    expect(links.map((match) => match[1]).sort(compareStrings)).toEqual(['privacy', 'terms'])
+    expect(links.map((match) => match[1] ?? '').sort(compareStrings)).toEqual(['privacy', 'terms'])
     expect(template.replace(/<([a-z]+)>([^<>]+)<\/\1>/g, '')).not.toMatch(/[<>]/)
   })
 
