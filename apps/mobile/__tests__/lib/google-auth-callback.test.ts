@@ -1,4 +1,7 @@
 import React from 'react'
+import { execFileSync } from 'node:child_process'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   AUTH_CALLBACK_URL,
@@ -13,6 +16,28 @@ import {
 } from '@/lib/google-auth-callback'
 
 const TestRenderer = require('react-test-renderer')
+const decoderPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../packages/decode-uri-component/index.js')
+const expoParserPath = require.resolve('expo-router/build/react-navigation/core/getStateFromPath')
+
+function parseWithExpoRouter(query: string): { error_description: string } {
+  const source = [
+    'const decoder = require(process.argv[1]);',
+    'const Module = require("node:module");',
+    'const originalLoad = Module._load;',
+    'Module._load = function (request, parent, isMain) {',
+    '  if (request === "decode-uri-component") return decoder;',
+    '  return originalLoad.call(this, request, parent, isMain);',
+    '};',
+    'const { getStateFromPath } = require(process.argv[2]);',
+    'const state = getStateFromPath("/auth-callback?error_description=" + process.argv[3]);',
+    'process.stdout.write(JSON.stringify(state.routes[0].params));',
+  ].join('\n')
+  const output = execFileSync(process.execPath, ['-e', source, decoderPath, expoParserPath, query], {
+    encoding: 'utf8',
+    timeout: 1500,
+  })
+  return JSON.parse(output) as { error_description: string }
+}
 
 type PendingSession = ReturnType<typeof usePendingGoogleAuthSession>
 
@@ -41,6 +66,17 @@ describe('google auth callback helpers', () => {
     expect(queryString.parse('error_description=User%20cancelled')).toEqual({
       error_description: 'User cancelled',
     })
+  })
+
+  it('decodes ordinary callback params through the CommonJS decoder and Expo Router', () => {
+    expect(parseWithExpoRouter('User%20cancelled%20%26%20retry')).toEqual({
+      error_description: 'User cancelled & retry',
+    })
+  })
+
+  it('bounds malformed callback query decoding through Expo Router', () => {
+    const malformedValue = '%C3'.repeat(400)
+    expect(parseWithExpoRouter(malformedValue)).toEqual({ error_description: malformedValue })
   })
 
   it('treats a bare callback route as having no payload', () => {
