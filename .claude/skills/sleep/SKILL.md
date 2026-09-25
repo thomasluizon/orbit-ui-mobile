@@ -109,14 +109,14 @@ Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source
   receipt paths. Update state at step 9 as work lands. Never clear the ledger to claim completion.
 - While actionable work or readiness debt remains, always leave a live background wake source
   that will re-invoke this session and name it on the turn's last line. Only
-  `tools/launch-worker.mjs:268` and `tools/submit-cloud-worker.mjs:201` call `registerWakeSource`.
-  The Cloud command reaches that call only through
-  `submit-cloud-worker.mjs --watch <receiptPath>`. These calls write
+  `tools/launch-worker.mjs`, `tools/submit-cloud-worker.mjs --watch <receiptPath>`, and
+  `tools/wait-ci.mjs --repo <key> --pr <n>` call `registerWakeSource`. These calls write
   `.git/orbit-wake-sources/<pid>.json`. A background shell command does not register a wake source,
   however long it runs. A 2026-09-11 session treated a background `npm install` as a wake source.
   It was not one, and the Stop hook caught it. A remote Cloud task or a GitHub check by itself cannot
   wake this session.
-- If all slots are free and work remains, launch the next worker or readiness task before yielding.
+- If a slot is free and admission permits new ticket work, launch the next worker.
+  When work waits on CI or review, start `tools/wait-ci.mjs` in the background for those pull requests.
   Verify the wake source is live; a stale pid file or an unscheduled promise to watch CI is not one.
 - When Thomas says stop, clear `sleep` for this session and report. On queue exhaustion write
   `remaining: []` and retain the ledger. Finish only with READY receipts or recorded named blockers,
@@ -193,9 +193,9 @@ the PR ready for Thomas; do not invent authorization from green checks.
 
 **Never invent work to look busy, and never widen a pull request to fill time.**
 
-**Stop opening new fronts once the open set is large.** Every pull request costs Thomas a review when
-he wakes. A night that opens seven and lands two hands him a bigger queue than it clears, which looks
-productive and is not. Prefer driving what is open to mergeable.
+**The admission gate stops new fronts.** `launch-worker.mjs` and `submit-cloud-worker.mjs` refuse
+new ticket work above either configured open pull request or queued run cap. Existing pull request
+branches remain eligible for review and salvage. Prefer driving what is open to mergeable.
 
 ## 8b. Generate one completion contract for the worker's mode
 

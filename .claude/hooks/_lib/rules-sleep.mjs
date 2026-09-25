@@ -196,9 +196,9 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
       `This is a --sleep run with ${outstanding} and NO live background task to wake it. Ending the\n` +
       "turn here ends the night silently: the queue simply stops, and what it leaves behind looks\n" +
       "exactly like a run that finished.\n\n" +
-      "When every slot is free and work remains, the action is to LAUNCH THE NEXT TICKET, not to end\n" +
-      "the turn. `node tools/launch-worker.mjs` registers itself as a wake source, so the launch of\n" +
-      "the next worker clears this by construction.\n\n" +
+      "Launch the next ticket only when a slot is free AND the admission gate allows it.\n" +
+      "When work waits on CI or review, start `node tools/wait-ci.mjs --repo <key> --pr <n>`\n" +
+      "as a background task. It registers a live wake source until checks settle.\n\n" +
       "A pull request listed in pullRequests has not reached simultaneous final-head readiness. Run\n" +
       "the readiness loop, then drop it only after its receipt says READY. A salvaged pull request\n" +
       "is not an exception: opening it is the middle of salvage, never the end.\n\n" +
