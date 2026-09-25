@@ -25,6 +25,7 @@ import {
 import { toast } from 'sonner'
 import { QuietActionButton } from './quiet-action-button'
 import { connectGoogle } from './connect-google'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 export function AutoSyncSettingsCard() {
   const t = useTranslations()
@@ -55,10 +56,13 @@ export function AutoSyncSettingsCard() {
     }
     if (toggleDisabled) return
     const next = !enabled
+    const requestAccount = getAccountGeneration()
     try {
       await setAutoSync.mutateAsync({ enabled: next })
+      if (getAccountGeneration() !== requestAccount) return
       toast.success(next ? t('calendar.autoSync.enableSuccess') : t('calendar.autoSync.disableSuccess'))
     } catch (err: unknown) {
+      if (getAccountGeneration() !== requestAccount) return
       toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
     }
   }
@@ -68,9 +72,11 @@ export function AutoSyncSettingsCard() {
       toast.error(t('errors.offline'))
       return
     }
+    const requestAccount = getAccountGeneration()
     try {
       await runSyncNow.mutateAsync()
     } catch (err: unknown) {
+      if (getAccountGeneration() !== requestAccount) return
       toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
     }
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useId } from 'react'
+import { useCallback, useId } from 'react'
 import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
@@ -26,6 +26,7 @@ import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { CheckRow } from '@/components/ui/check-row'
 import { Proposed } from '@/components/ui/proposed'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -53,7 +54,7 @@ export function HabitChecklist({
   const t = useTranslations()
   const newItemInputId = useId()
   const dndContextId = useId()
-  const [newItemText, setNewItemText] = useState('')
+  const [newItemText, setNewItemText] = useAccountScopedState('')
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
@@ -84,7 +85,7 @@ export function HabitChecklist({
     const next = [...items, { text, isChecked: false }]
     onItemsChange?.(next)
     setNewItemText('')
-  }, [atItemLimit, items, newItemText, onItemsChange])
+  }, [atItemLimit, items, newItemText, onItemsChange, setNewItemText])
 
   const removeItem = useCallback(
     (index: number) => {
@@ -160,11 +161,11 @@ export function HabitChecklist({
             <button
               type="button"
               aria-label={t('habits.form.clearChecklist')}
-              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--status-bad)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
+              className="touch-target shrink-0 inline-flex items-center justify-center rounded-full hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
               style={{ width: 36, height: 36 }}
               onClick={onClear}
             >
-              <X size={16} strokeWidth={1.8} aria-hidden="true" />
+              <X size={16} strokeWidth={1.8} aria-hidden="true" className="text-[var(--status-bad)]" />
             </button>
           )}
         </div>
@@ -348,11 +349,11 @@ function SortableChecklistItem({
       <button
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
-        className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--bg-elev)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        className="touch-target group/remove shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-elev)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
         style={{ width: 36, height: 36 }}
         onClick={() => onRemove(index)}
       >
-        <X size={16} strokeWidth={1.8} aria-hidden="true" />
+        <X size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-fast)] group-hover/remove:text-[var(--status-bad)]" />
       </button>
     </div>
   )

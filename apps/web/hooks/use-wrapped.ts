@@ -5,14 +5,17 @@ import { useQuery } from '@tanstack/react-query'
 import { gamificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { recapResponseSchema, ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
 import {
+  buildAccountScopedStorageKey,
   buildRecapRequestUrl,
   buildWrappedSlides,
   isRecapShareEmpty,
+  readAccountScopedFlag,
   type RecapSharePeriod,
   type ClosedRecapMonth,
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { useReportEvent } from '@/hooks/use-gamification'
+import { useHeldAccountId } from '@/stores/auth-store'
 
 const WRAPPED_YEAR_SEEN_STORAGE_KEY = 'orbit_wrapped_year_seen'
 
@@ -26,6 +29,7 @@ interface UseWrappedOptions {
 export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions = {}) {
   const { enabled = true, active = false, closedMonth } = options
   const { mutate: reportEvent } = useReportEvent()
+  const accountId = useHeldAccountId()
 
   const query = useQuery({
     queryKey: gamificationKeys.recap(period, closedMonth?.year, closedMonth?.month),
@@ -41,12 +45,24 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
 
   useEffect(() => {
     if (!active || period !== 'year' || !recap || isEmpty) return
+    if (accountId === null) return
     const storage = globalThis.localStorage
-    if (storage.getItem(WRAPPED_YEAR_SEEN_STORAGE_KEY)) return
-    storage.setItem(WRAPPED_YEAR_SEEN_STORAGE_KEY, '1')
+    const scopedKey = buildAccountScopedStorageKey(WRAPPED_YEAR_SEEN_STORAGE_KEY, accountId)
+    const flag = readAccountScopedFlag(
+      storage.getItem(scopedKey),
+      storage.getItem(WRAPPED_YEAR_SEEN_STORAGE_KEY),
+    )
+    if (flag.seen) {
+      if (flag.adoptsLegacy) {
+        storage.setItem(scopedKey, '1')
+        storage.removeItem(WRAPPED_YEAR_SEEN_STORAGE_KEY)
+      }
+      return
+    }
+    storage.setItem(scopedKey, '1')
     reportEvent(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
     // react-doctor-disable-next-line exhaustive-deps -- recap aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [active, period, recap, isEmpty, reportEvent])
+  }, [accountId, active, period, recap, isEmpty, reportEvent])
 
   return {
     recap,

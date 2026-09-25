@@ -78,7 +78,7 @@ function MoveTargetRow({
       tag={isCurrentParent ? currentLabel : undefined}
       leading={option.id === null
         ? <Home size={20} strokeWidth={1.8} color={tokens.fg2} />
-        : <Text style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>}
+        : <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>}
       onSelect={() => onSelect(option.id)}
     />
   )

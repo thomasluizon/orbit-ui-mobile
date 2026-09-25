@@ -43,14 +43,44 @@ export function clearApiKeyCreationGrant(): void {
   apiKeyCreationGrantAvailable = false
 }
 
-export function readStepUpTiming(operation: StepUpOperation): StepUpTimingRecord | null {
+/**
+ * Persists a timing record under the account that owns it.
+ *
+ * `localStorage` survives somebody else signing in to this tab, so the entry has to name its
+ * account. A tab holding no account cannot attribute the record to anybody, so it writes nothing
+ * and the returned record still describes the challenge this tab just started.
+ */
+function persistStepUpTiming(
+  record: StepUpTimingRecord,
+  accountId: string | null,
+): StepUpTimingRecord {
+  if (accountId !== null && 'localStorage' in globalThis) {
+    globalThis.localStorage.setItem(
+      getStepUpStorageKey(record.operation, accountId),
+      JSON.stringify(record),
+    )
+  }
+  return record
+}
+
+export function readStepUpTiming(
+  operation: StepUpOperation,
+  accountId: string | null,
+): StepUpTimingRecord | null {
+  if (accountId === null) return null
   if (!('localStorage' in globalThis)) return null
-  const record = parseStepUpTimingRecord(globalThis.localStorage.getItem(getStepUpStorageKey(operation)))
+  const record = parseStepUpTimingRecord(
+    globalThis.localStorage.getItem(getStepUpStorageKey(operation, accountId)),
+  )
   return record?.operation === operation ? record : null
 }
 
-export function beginStepUpChallenge(operation: StepUpOperation, sentAt = Date.now()): StepUpTimingRecord {
-  const previous = readStepUpTiming(operation)
+export function beginStepUpChallenge(
+  operation: StepUpOperation,
+  accountId: string | null,
+  sentAt = Date.now(),
+): StepUpTimingRecord {
+  const previous = readStepUpTiming(operation, accountId)
   const exhaustedAt =
     previous?.exhaustedAt !== undefined &&
     sentAt < previous.exhaustedAt + STEP_UP_ATTEMPT_WINDOW_MS
@@ -61,27 +91,29 @@ export function beginStepUpChallenge(operation: StepUpOperation, sentAt = Date.n
     sentAt,
     ...(exhaustedAt !== undefined ? { exhaustedAt } : {}),
   }
-  globalThis.localStorage.setItem(getStepUpStorageKey(operation), JSON.stringify(record))
-  return record
+  return persistStepUpTiming(record, accountId)
 }
 
 export function markStepUpExhausted(
   record: StepUpTimingRecord,
+  accountId: string | null,
   exhaustedAt = Date.now(),
 ): StepUpTimingRecord {
-  const next = { ...record, exhaustedAt }
-  globalThis.localStorage.setItem(getStepUpStorageKey(record.operation), JSON.stringify(next))
-  return next
+  return persistStepUpTiming({ ...record, exhaustedAt }, accountId)
 }
 
-export function markStepUpAttemptFailed(record: StepUpTimingRecord): StepUpTimingRecord {
-  const next = { ...record, failedAttempts: (record.failedAttempts ?? 0) + 1 }
-  globalThis.localStorage.setItem(getStepUpStorageKey(record.operation), JSON.stringify(next))
-  return next
+export function markStepUpAttemptFailed(
+  record: StepUpTimingRecord,
+  accountId: string | null,
+): StepUpTimingRecord {
+  return persistStepUpTiming(
+    { ...record, failedAttempts: (record.failedAttempts ?? 0) + 1 },
+    accountId,
+  )
 }
 
-export function clearStepUpTiming(operation: StepUpOperation): void {
-  if ('localStorage' in globalThis) {
-    globalThis.localStorage.removeItem(getStepUpStorageKey(operation))
+export function clearStepUpTiming(operation: StepUpOperation, accountId: string | null): void {
+  if (accountId !== null && 'localStorage' in globalThis) {
+    globalThis.localStorage.removeItem(getStepUpStorageKey(operation, accountId))
   }
 }

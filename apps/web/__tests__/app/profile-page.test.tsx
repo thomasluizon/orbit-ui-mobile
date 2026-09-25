@@ -120,6 +120,7 @@ vi.mock('@/hooks/use-gamification', () => ({
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
     selector({ logout: vi.fn() }),
+  useHeldAccountId: () => 'user-1',
 }))
 
 vi.mock('@/components/ui/theme-toggle', () => ({
