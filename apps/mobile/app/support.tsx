@@ -40,7 +40,6 @@ import {
 import { AppBar } from '@/components/ui/app-bar'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
-import { RowList } from '@/components/ui/row-list'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
@@ -186,29 +185,28 @@ function SupportForm({
         <RadioGroup
           accessibilityLabel={t('profile.support.subject')}
           onBlur={onSubjectBlur}
+          style={{ gap: 4 }}
         >
-          <RowList>
-            {SUPPORT_SUBJECT_OPTIONS.map((option) => (
-              sending ? (
-                <RadioRow
-                  key={option.id}
-                  label={t(option.labelKey)}
-                  description={t(option.descriptionKey)}
-                  selected={subject === option.id}
-                  disabled
-                  reason={t('profile.support.subjectSendingReason')}
-                />
-              ) : (
-                <RadioRow
-                  key={option.id}
-                  label={t(option.labelKey)}
-                  description={t(option.descriptionKey)}
-                  selected={subject === option.id}
-                  onSelect={() => onChangeSubject(option.id)}
-                />
-              )
-            ))}
-          </RowList>
+          {SUPPORT_SUBJECT_OPTIONS.map((option) => (
+            sending ? (
+              <RadioRow
+                key={option.id}
+                label={t(option.labelKey)}
+                description={t(option.descriptionKey)}
+                selected={subject === option.id}
+                disabled
+                reason={t('profile.support.subjectSendingReason')}
+              />
+            ) : (
+              <RadioRow
+                key={option.id}
+                label={t(option.labelKey)}
+                description={t(option.descriptionKey)}
+                selected={subject === option.id}
+                onSelect={() => onChangeSubject(option.id)}
+              />
+            )
+          ))}
         </RadioGroup>
         {subjectError ? (
           <Text accessibilityRole="alert" style={[styles.subjectError, { color: tokens.statusBadText }]}>
