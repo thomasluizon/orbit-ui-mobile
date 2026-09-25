@@ -150,16 +150,22 @@ describe('auth store', () => {
 
   it('keeps a replacement login when an older logout response arrives', async () => {
     let releaseLogout!: () => void
-    mockFetch.mockImplementation(() => new Promise<Response>((resolve) => {
-      releaseLogout = () => resolve(Response.json({ success: true }))
-    }))
+    mockFetch.mockImplementation((url: string) => url === '/api/auth/logout'
+      ? new Promise<Response>((resolve) => {
+        releaseLogout = () => resolve(Response.json({ success: true }))
+      })
+      : Promise.resolve(Response.json(makeLoginResponse({ userId: 'user-2', email: 'new@example.com' }))))
     useAuthStore.getState().setAuth(makeLoginResponse())
 
     const oldLogout = useAuthStore.getState().logout()
     await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
-    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'user-2', email: 'new@example.com' }))
+    const replacementLogin = fetchAuthEndpoint('/api/auth/verify-code', {
+      email: 'new@example.com', code: '123456',
+    }).then((response) => useAuthStore.getState().setAuth(response as LoginResponse))
+    await Promise.resolve()
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/auth/verify-code', expect.anything())
     releaseLogout()
-    await oldLogout
+    await Promise.all([oldLogout, replacementLogin])
 
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
@@ -204,13 +210,19 @@ describe('auth store', () => {
     expect(browserCookies.get('refresh_token')).toBe('new-refresh')
   })
 
-  it('keeps a replacement account signaled by another tab during logout', async () => {
+  it('reconciles a delayed cross-tab signal with cookies cleared by logout', async () => {
+    const browserCookies = new Map([['auth_token', 'old-access']])
     let releaseLogout!: () => void
     mockFetch.mockImplementation((url: string) => url === '/api/auth/logout'
       ? new Promise<Response>((resolve) => {
-        releaseLogout = () => resolve(Response.json({ success: true }))
+        releaseLogout = () => {
+          browserCookies.clear()
+          resolve(Response.json({ success: true }))
+        }
       })
-      : Promise.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-2' })))
+      : Promise.resolve(Response.json(browserCookies.has('auth_token')
+        ? { expiresAt: Date.now() + 3600000, userId: 'user-2' }
+        : { expiresAt: null })))
     useAuthStore.getState().setAuth(makeLoginResponse())
 
     const oldLogout = useAuthStore.getState().logout()
@@ -224,10 +236,11 @@ describe('auth store', () => {
     releaseLogout()
     await oldLogout
 
+    expect(browserCookies.size).toBe(0)
     expect(useAuthStore.getState()).toMatchObject({
-      isAuthenticated: true,
-      expiresAt: Date.now() + 3600000,
-      sessionRefreshFailed: false,
+      isAuthenticated: false,
+      user: null,
+      sessionInactive: true,
     })
   })
 

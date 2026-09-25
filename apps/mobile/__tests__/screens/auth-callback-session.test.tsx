@@ -14,9 +14,17 @@ const mocks = vi.hoisted(() => ({
   consumeStoredAuthReturnUrl: vi.fn(),
   getStoredAuthReturnUrl: vi.fn(),
   clearStoredAuthReturnUrl: vi.fn(),
+  continueAccount: null as null | (() => void),
+  callbackState: 'pending',
 }))
 
-vi.mock('@/components/auth/login-content', () => ({ LoginContent: () => null }))
+vi.mock('@/components/auth/login-content', () => ({
+  LoginContent: ({ callback }: { callback: { state: string; onContinue: () => void } }) => {
+    mocks.continueAccount = callback.onContinue
+    mocks.callbackState = callback.state
+    return null
+  },
+}))
 vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
@@ -49,6 +57,8 @@ vi.mock('@/lib/capture-mode', () => ({
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mocks.continueAccount = null
+  mocks.callbackState = 'pending'
   mocks.completeGoogleAuthFromUrl.mockResolvedValue({ token: 'old-access', refreshToken: 'old-refresh',
     userId: 'old-user', name: 'Old', email: 'old@example.com' })
   mocks.getStoredReferralCode.mockResolvedValue(null)
@@ -107,5 +117,43 @@ it('keeps the return URL when a replacement login lands during its storage read'
 
   expect(mocks.consumeStoredAuthReturnUrl).not.toHaveBeenCalled()
   expect(mocks.clearStoredAuthReturnUrl).not.toHaveBeenCalled()
+  expect(mocks.replace).not.toHaveBeenCalled()
+})
+
+it('passes login ownership through pending Google return URL removal', async () => {
+  trackLoginEpoch()
+  let releaseRemoval!: () => void
+  mocks.clearStoredAuthReturnUrl.mockImplementation(() => new Promise<void>((resolve) => { releaseRemoval = resolve }))
+
+  await mountCallback()
+  await vi.waitFor(() => expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledTimes(1))
+  expect(typeof mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]).toBe('function')
+  await TestRenderer.act(async () => {
+    await mocks.login('new-access', 'new-refresh', { userId: 'new-user' })
+    releaseRemoval()
+  })
+
+  expect(mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]()).toBe(false)
+  expect(mocks.replace).not.toHaveBeenCalled()
+})
+
+it('keeps the replacement return URL during reactivated Google continuation cleanup', async () => {
+  trackLoginEpoch()
+  mocks.completeGoogleAuthFromUrl.mockResolvedValue({ token: 'old-access', refreshToken: 'old-refresh',
+    userId: 'old-user', name: 'Old', email: 'old@example.com', wasReactivated: true })
+  let releaseRemoval!: () => void
+  mocks.clearStoredAuthReturnUrl.mockImplementation(() => new Promise<void>((resolve) => { releaseRemoval = resolve }))
+
+  await mountCallback()
+  await vi.waitFor(() => expect(mocks.callbackState).toBe('account'))
+  await TestRenderer.act(() => { mocks.continueAccount?.() })
+  await vi.waitFor(() => expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledTimes(1))
+  expect(typeof mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]).toBe('function')
+  await TestRenderer.act(async () => {
+    await mocks.login('new-access', 'new-refresh', { userId: 'new-user' })
+    releaseRemoval()
+  })
+
+  expect(mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]()).toBe(false)
   expect(mocks.replace).not.toHaveBeenCalled()
 })

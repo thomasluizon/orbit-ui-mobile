@@ -52,7 +52,7 @@ export default function AuthCallbackScreen() {
         }
         const storedReturnUrl = await getStoredAuthReturnUrl()
         if (!isCurrentLoginSession()) return
-        await clearStoredAuthReturnUrl()
+        await clearStoredAuthReturnUrl(isCurrentLoginSession)
         if (!isCurrentLoginSession()) return
         router.replace(getSafeReturnUrl(storedReturnUrl))
       } catch { setState('failed') }
@@ -82,7 +82,7 @@ export default function AuthCallbackScreen() {
       }
       await getStoredAuthReturnUrl()
       if (!isCurrentLoginSession()) return
-      await clearStoredAuthReturnUrl()
+      await clearStoredAuthReturnUrl(isCurrentLoginSession)
       if (!isCurrentLoginSession()) return
       router.replace('/')
     } catch { setState('failed') }

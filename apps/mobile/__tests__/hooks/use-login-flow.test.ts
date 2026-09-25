@@ -306,6 +306,31 @@ describe('useLoginFlow (mobile)', () => {
     expect(mocks.replace).not.toHaveBeenCalled()
   })
 
+  it('passes login ownership through pending return URL removal', async () => {
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.apiClient.mockResolvedValue({ token: 'old-access', refreshToken: 'old-refresh',
+      userId: 'old-user', name: 'Old', email: 'old@example.com' })
+    mocks.getStoredAuthReturnUrl.mockResolvedValue('/old')
+    let epoch = 0
+    mocks.login.mockImplementation(() => {
+      const ownedEpoch = ++epoch
+      return Promise.resolve(() => epoch === ownedEpoch)
+    })
+    let releaseRemoval!: () => void
+    mocks.clearStoredAuthReturnUrl.mockImplementation(() => new Promise<void>((resolve) => { releaseRemoval = resolve }))
+    const harness = await renderLoginFlow()
+
+    const verification = act(() => harness.current.verifyCode())
+    await vi.waitFor(() => expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledTimes(1))
+    expect(typeof mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]).toBe('function')
+    await mocks.login('new-access', 'new-refresh', { userId: 'new-user' })
+    releaseRemoval()
+    await verification
+
+    expect(mocks.clearStoredAuthReturnUrl.mock.calls[0]?.[0]()).toBe(false)
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
   it('reports the error and resets the code entry when verification fails', async () => {
     mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
     mocks.apiClient.mockRejectedValue(new Error('invalid code'))

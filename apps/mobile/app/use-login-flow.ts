@@ -122,7 +122,7 @@ export function useLoginFlow() {
     if (!isCurrentLoginSession()) return
     const storedReturnUrl = await getStoredAuthReturnUrl()
     if (!isCurrentLoginSession()) return
-    await clearStoredAuthReturnUrl()
+    await clearStoredAuthReturnUrl(isCurrentLoginSession)
     if (!isCurrentLoginSession()) return
     const returnUrl = getSafeReturnUrl(storedReturnUrl)
     router.replace(today ? '/' : returnUrl)

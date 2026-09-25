@@ -77,6 +77,60 @@ describe('mobile auth flow helpers', () => {
     expect(removeItemMock).toHaveBeenCalledWith('auth_return_url')
   })
 
+  it('keeps a replacement return URL when the old removal is pending', async () => {
+    let storedUrl: string | null = '/old'
+    let releaseRemoval!: () => void
+    let currentLogin = true
+    getItemMock.mockImplementation(() => Promise.resolve(storedUrl))
+    setItemMock.mockImplementation((_key: string, value: string) => {
+      storedUrl = value
+      return Promise.resolve()
+    })
+    removeItemMock.mockImplementation(() => new Promise<void>((resolve) => {
+      releaseRemoval = () => { storedUrl = null; resolve() }
+    }))
+
+    const oldCleanup = clearStoredAuthReturnUrl(() => currentLogin)
+    await vi.waitFor(() => expect(removeItemMock).toHaveBeenCalledTimes(1))
+    currentLogin = false
+    const replacementStorage = storeAuthReturnUrl('/replacement')
+    releaseRemoval()
+    await Promise.all([oldCleanup, replacementStorage])
+
+    expect(storedUrl).toBe('/replacement')
+  })
+
+  it('reads the replacement URL after a pending old removal', async () => {
+    let storedUrl: string | null = '/old'
+    let releaseRemoval!: () => void
+    let currentLogin = true
+    getItemMock.mockImplementation(() => Promise.resolve(storedUrl))
+    setItemMock.mockImplementation((_key: string, value: string) => {
+      storedUrl = value
+      return Promise.resolve()
+    })
+    removeItemMock.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      releaseRemoval = () => { storedUrl = null; resolve() }
+    })).mockImplementation(() => {
+      storedUrl = null
+      return Promise.resolve()
+    })
+
+    const oldCleanup = clearStoredAuthReturnUrl(() => currentLogin)
+    await vi.waitFor(() => expect(removeItemMock).toHaveBeenCalledTimes(1))
+    currentLogin = false
+    const replacementStorage = storeAuthReturnUrl('/replacement')
+    const replacementRead = getStoredAuthReturnUrl()
+    releaseRemoval()
+    const destination = await replacementRead
+    await replacementStorage
+    await clearStoredAuthReturnUrl(() => true)
+    await oldCleanup
+
+    expect(getSafeReturnUrl(destination)).toBe('/replacement')
+    expect(storedUrl).toBeNull()
+  })
+
   it('clears the stored referral code', async () => {
     await clearStoredReferralCode()
 
