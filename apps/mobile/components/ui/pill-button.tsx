@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { BUTTON_SIZES, type ButtonVariant } from '@orbit/shared/theme'
-import { createTokensV2, darkenHex, radius } from '@/lib/theme'
+import { createTokensV2, mixHex, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 /** The canonical five-variant pill action in the shared two-size geometry. */
@@ -50,12 +50,12 @@ export function Button({
     }
     if (variant === 'destructive') {
       return {
-        backgroundColor: pressed ? darkenHex(tokens.statusBad, 0.15) : tokens.statusBad,
+        backgroundColor: pressed ? mixHex(tokens.statusBad, tokens.fg1, 0.15) : tokens.statusBad,
       }
     }
     if (variant === 'caution') {
       return {
-        backgroundColor: pressed ? darkenHex(tokens.statusOverdue, 0.15) : tokens.statusOverdue,
+        backgroundColor: pressed ? mixHex(tokens.statusOverdue, '#000000', 0.15) : tokens.statusOverdue,
       }
     }
     return {
@@ -95,7 +95,6 @@ export function Button({
           style={[
             styles.label,
             { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
-            loading ? styles.labelBusy : null,
           ]}
         >
           {children}
@@ -123,9 +122,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: 'Geist_500Medium',
-  },
-  labelBusy: {
-    opacity: 0.6,
   },
 })
 

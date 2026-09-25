@@ -385,11 +385,12 @@ export function createSurfaces(
 
 
 /**
- * Simulates `color-mix(in srgb, hex, black amount%)` — the web destructive
- * pressed fill. amount is 0-1 (0 = original, 1 = black).
+ * Mixes two opaque hex colors in sRGB to match the web pressed fills.
+ * amount is 0-1 (0 = original, 1 = target).
  */
-export function darkenHex(hex: string, amount: number): string {
-  const [r, g, b] = hexChannels(hex)
-  const blend = (channel: number) => Math.round(channel * (1 - amount))
-  return `rgb(${blend(r)},${blend(g)},${blend(b)})`
+export function mixHex(hex: string, targetHex: string, amount: number): string {
+  const channels = hexChannels(hex)
+  const target = hexChannels(targetHex)
+  const blended = channels.map((channel, index) => Math.round(channel * (1 - amount) + target[index]! * amount))
+  return `rgb(${blended.join(',')})`
 }

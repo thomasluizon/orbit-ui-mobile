@@ -18,7 +18,7 @@ const buttonInteractionClasses: Record<ButtonVariant, string> = {
   primary: 'enabled:active:scale-[0.96]',
   secondary: 'enabled:hover:opacity-90 enabled:active:scale-[0.96] enabled:active:opacity-85',
   ghost: 'enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.96]',
-  destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:active:scale-[0.96]',
+  destructive: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] enabled:active:scale-[0.96]',
   caution: 'enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:active:scale-[0.96]',
 }
 
@@ -26,7 +26,7 @@ const linkInteractionClasses: Record<ButtonVariant, string> = {
   primary: 'hover:bg-[var(--primary-hover)] active:scale-[0.96]',
   secondary: 'hover:opacity-90 active:scale-[0.96] active:opacity-85',
   ghost: 'hover:bg-[var(--bg-card)] active:scale-[0.96]',
-  destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] active:scale-[0.96]',
+  destructive: 'hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,var(--fg-1))] active:scale-[0.96]',
   caution: 'hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] active:scale-[0.96]',
 }
 
@@ -87,7 +87,7 @@ export function Button({
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
       ) : iconOnly ? children : null}
-      {iconOnly ? null : <span className={loading ? 'opacity-60' : undefined}>{children}</span>}
+      {iconOnly ? null : <span>{children}</span>}
     </button>
   )
 }

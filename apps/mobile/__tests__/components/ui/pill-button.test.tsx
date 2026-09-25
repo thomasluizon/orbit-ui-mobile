@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { PillButton } from '@/components/ui/pill-button'
+import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
+import { createTokensV2 } from '@/lib/theme'
+
+const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
+
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: theme.mode }),
+}))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -145,7 +153,7 @@ describe('PillButton (mobile)', () => {
     expect(pressableHeight(renderPill(<PillButton onClick={() => {}}>Medium</PillButton>))).toBe(50)
   })
 
-  it('darkens the destructive fill on press instead of dimming opacity (web parity)', () => {
+  it('changes the destructive fill on press instead of dimming opacity (web parity)', () => {
     const tree = renderPill(
       <PillButton variant="destructive" onClick={() => {}}>
         Delete
@@ -157,5 +165,32 @@ describe('PillButton (mobile)', () => {
 
     expect(pressed.backgroundColor).not.toBe(rest.backgroundColor)
     expect(pressed.opacity).toBeUndefined()
+  })
+
+  it('scales on press and restores its size on release while disabled states block presses', () => {
+    const tree = renderPill(<PillButton>Continue</PillButton>)
+    const button = tree.root.findByType('Pressable')
+    expect(flattenStyle(button.props.style({ pressed: true })).transform).toEqual([{ scale: 0.96 }])
+    expect(flattenStyle(button.props.style({ pressed: false })).transform).toBeUndefined()
+
+    const disabled = renderPill(<PillButton disabled>Continue</PillButton>).root.findByType('Pressable')
+    const loading = renderPill(<PillButton loading>Saving</PillButton>).root.findByType('Pressable')
+    expect(disabled.props.disabled).toBe(true)
+    expect(loading.props.disabled).toBe(true)
+    expect(loading.props.accessibilityState.busy).toBe(true)
+  })
+
+  it.each(['dark', 'light'] as const)('keeps loading and destructive pressed text legible in %s', (mode) => {
+    theme.mode = mode
+    const tokens = createTokensV2('purple', mode)
+    const busyTree = renderPill(<PillButton loading>Saving</PillButton>)
+    const label = flattenStyle(busyTree.root.findByType('Text').props.style)
+    const busyForeground = label.opacity ? withAlpha(label.color, label.opacity) : label.color
+    expect(contrastOnSurface(busyForeground, [tokens.primary])).toBeGreaterThanOrEqual(4.5)
+    expect(busyTree.root.findAllByType('ActivityIndicator')).toHaveLength(1)
+
+    const destructive = renderPill(<PillButton variant="destructive">Delete</PillButton>)
+    const pressed = flattenStyle(destructive.root.findByType('Pressable').props.style({ pressed: true }))
+    expect(contrastOnSurface(tokens.fgOnBad, [pressed.backgroundColor])).toBeGreaterThanOrEqual(4.5)
   })
 })
