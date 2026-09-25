@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react'
+import { useEffect, type ReactNode, type RefObject } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, BackHandler, Pressable, Text, View } from 'react-native'
 import type { TextInput, TextInputKeyPressEvent } from 'react-native'
@@ -21,6 +21,8 @@ interface CodeStepProps {
   canResend: boolean
   resendCountdown: number
   isOnline: boolean
+  turnstileWidget: ReactNode
+  canSubmitTurnstile: boolean
   onVerifyCode: () => void
   onResendCode: () => void
   onBackToEmail: () => void
@@ -42,6 +44,8 @@ export function CodeStep({
   canResend,
   resendCountdown,
   isOnline,
+  turnstileWidget,
+  canSubmitTurnstile,
   onVerifyCode,
   onResendCode,
   onBackToEmail,
@@ -58,7 +62,7 @@ export function CodeStep({
     return () => subscription.remove()
   }, [onBackToEmail])
 
-  const resendDisabled = !isOnline || isSubmitting
+  const resendDisabled = !isOnline || isSubmitting || !canSubmitTurnstile
 
   return (
     <>
@@ -78,6 +82,8 @@ export function CodeStep({
           autoFocusFirst
         />
       </Animated.View>
+
+      {turnstileWidget}
 
       <PillButton
         fullWidth

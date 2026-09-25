@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 
 import { useLoginFlow } from '@/app/use-login-flow'
@@ -156,6 +156,36 @@ beforeEach(() => {
   mocks.getSafeReturnUrl.mockImplementation((url?: string) => url ?? '/')
   mocks.markReferralApplied.mockResolvedValue(undefined)
   mocks.startMobileGoogleAuth.mockResolvedValue({ type: 'cancel' })
+})
+
+afterEach(() => vi.unstubAllEnvs())
+
+it('requires a fresh bridge token for each mobile auth request', async () => {
+  vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+  mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+  const harness = await renderLoginFlow()
+  await act(() => harness.current.setEmail('user@test.com'))
+
+  expect(harness.current.canSubmitEmail).toBe(false)
+  expect(harness.current.canSubmitCode).toBe(false)
+  await act(() => harness.current.sendCode())
+  expect(mocks.apiClient).not.toHaveBeenCalled()
+
+  await act(() => harness.current.onTurnstileToken('send-token'))
+  expect(harness.current.canSubmitEmail).toBe(true)
+  await act(() => harness.current.sendCode())
+  expect(bodyOf(mocks.apiClient.mock.calls[0]![1])).toMatchObject({ turnstileToken: 'send-token' })
+  expect(harness.current.canSubmitCode).toBe(false)
+  expect(harness.current.turnstileResetKey).toBe(1)
+
+  await act(() => harness.current.onTurnstileToken('resend-token'))
+  await act(() => harness.current.resendCode())
+  expect(bodyOf(mocks.apiClient.mock.calls[1]![1])).toMatchObject({ turnstileToken: 'resend-token' })
+
+  await act(() => harness.current.onTurnstileToken('verify-token'))
+  await act(() => harness.current.verifyCode())
+  expect(bodyOf(mocks.apiClient.mock.calls[2]![1])).toMatchObject({ turnstileToken: 'verify-token' })
+  expect(harness.current.turnstileResetKey).toBe(3)
 })
 
 describe('useLoginFlow (mobile)', () => {

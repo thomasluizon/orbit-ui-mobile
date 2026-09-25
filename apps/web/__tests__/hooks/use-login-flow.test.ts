@@ -142,6 +142,39 @@ it('binds Google sign in to an attempt in this tab', async () => {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllEnvs()
+})
+
+it('requires a new Turnstile token for send, resend, and verify', async () => {
+  vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+  vi.useFakeTimers()
+  const { result } = renderHook(() => useLoginFlow())
+  act(() => result.current.setEmail('user@test.com'))
+
+  expect(result.current.turnstileToken).toBeNull()
+  await act(async () => { await result.current.sendCode() })
+  expect(fetchMock).not.toHaveBeenCalled()
+
+  act(() => result.current.onTurnstileToken('send-token'))
+  await act(async () => { await result.current.sendCode() })
+  expect(requestBodyFor('/api/auth/send-code')).toMatchObject({ turnstileToken: 'send-token' })
+  expect(result.current.turnstileToken).toBeNull()
+  expect(result.current.turnstileResetKey).toBe(1)
+
+  await act(async () => { await result.current.verifyCode('123456') })
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+  act(() => { vi.advanceTimersByTime(60_000) })
+  act(() => result.current.onTurnstileToken('resend-token'))
+  await act(async () => { await result.current.resendCode() })
+  const sendBodies = fetchMock.mock.calls
+    .filter(([url]) => toUrlString(url).includes('/api/auth/send-code'))
+    .map(([, options]) => JSON.parse(typeof options?.body === 'string' ? options.body : '{}') as Record<string, unknown>)
+  expect(sendBodies.map((body) => body.turnstileToken)).toEqual(['send-token', 'resend-token'])
+
+  act(() => result.current.onTurnstileToken('verify-token'))
+  await act(async () => { await result.current.verifyCode('123456') })
+  expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({ turnstileToken: 'verify-token' })
+  expect(result.current.turnstileResetKey).toBe(3)
 })
 
 describe('useLoginFlow send-code step', () => {

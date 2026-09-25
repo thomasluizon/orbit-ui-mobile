@@ -27,6 +27,7 @@ describe('verify-code BFF route', () => {
   })
 
   it('sets httpOnly session cookies and returns the user without the token', async () => {
+    const protectedBody = { ...validBody, turnstileToken: 'verify-token' }
     mockFetch.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -40,10 +41,14 @@ describe('verify-code BFF route', () => {
       ),
     )
 
-    const response = await POST(makeRequest(validBody))
+    const response = await POST(makeRequest(protectedBody))
     const json = await response.json()
 
     expect(response.status).toBe(200)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:5000/api/auth/verify-code',
+      expect.objectContaining({ body: JSON.stringify(protectedBody) }),
+    )
     expect(vi.mocked(setSessionCookies)).toHaveBeenCalledWith('jwt-token', 'refresh-token')
     expect(json).toMatchObject({ userId: 'user-1', name: 'Thomas', email: 'thomas@example.com' })
     expect(json).not.toHaveProperty('token')

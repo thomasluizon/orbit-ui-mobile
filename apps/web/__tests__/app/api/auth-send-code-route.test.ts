@@ -21,6 +21,7 @@ describe('send-code BFF route', () => {
   })
 
   it('forwards a valid body to the backend and returns its payload', async () => {
+    const protectedBody = { ...validBody, turnstileToken: 'send-token' }
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ success: true }), {
         status: 200,
@@ -28,14 +29,14 @@ describe('send-code BFF route', () => {
       }),
     )
 
-    const response = await POST(makeRequest(validBody))
+    const response = await POST(makeRequest(protectedBody))
 
     expect(response.status).toBe(200)
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:5000/api/auth/send-code',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify(validBody),
+        body: JSON.stringify(protectedBody),
       }),
     )
   })

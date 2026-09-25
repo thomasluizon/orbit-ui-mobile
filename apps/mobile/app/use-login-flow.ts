@@ -11,6 +11,7 @@ import {
   isVerificationCodeComplete,
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
+import { useTurnstileToken } from '@/hooks/use-turnstile-token'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
@@ -84,6 +85,13 @@ export function useLoginFlow() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const turnstileSiteKey = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY
+  const {
+    token: turnstileToken,
+    resetKey: turnstileResetKey,
+    onToken: onTurnstileToken,
+    takeToken: takeTurnstileToken,
+  } = useTurnstileToken(turnstileSiteKey, isOnline)
   const [showReferralBanner, setShowReferralBanner] = useState(false)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const isCodeStep = step === 'code'
@@ -229,13 +237,15 @@ export function useLoginFlow() {
       reportError(t('auth.errors.invalidEmail'))
       return
     }
+    const protection = takeTurnstileToken()
+    if (!protection) return
     setIsSubmitting(true)
     setErrorMessage(null)
 
     try {
       await apiClient(API.auth.sendCode, {
         method: 'POST',
-        body: JSON.stringify({ email: trimmed, language: i18n.language }),
+        body: JSON.stringify({ email: trimmed, language: i18n.language, ...protection }),
       })
       setStep('code')
       setSuccessMessage(t('auth.codeSent'))
@@ -245,6 +255,17 @@ export function useLoginFlow() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  async function finishReferral(
+    referralCode: string,
+    isCurrentLoginSession: () => boolean,
+  ) {
+    await markReferralApplied()
+    if (!isCurrentLoginSession()) return
+    await clearStoredReferralCode()
+    if (!isCurrentLoginSession()) return
+    setShowReferralBanner(false)
   }
 
   async function verifyCode() {
@@ -258,6 +279,8 @@ export function useLoginFlow() {
 
     const code = codeDigits.join('')
     if (code.length !== 6) return
+    const protection = takeTurnstileToken()
+    if (!protection) return
     setIsSubmitting(true)
     setSuccessMessage(null)
     setErrorMessage(null)
@@ -270,6 +293,7 @@ export function useLoginFlow() {
           email: email.trim(),
           code,
           language: i18n.language,
+          ...protection,
           ...(referralCode ? { referralCode } : {}),
         }),
       })
@@ -283,11 +307,7 @@ export function useLoginFlow() {
         setSuccessMessage(t('profile.deleteAccount.reactivated'))
       }
       if (referralCode) {
-        await markReferralApplied()
-        if (!isCurrentLoginSession()) return
-        await clearStoredReferralCode()
-        if (!isCurrentLoginSession()) return
-        setShowReferralBanner(false)
+        await finishReferral(referralCode, isCurrentLoginSession)
       }
       if (!isCurrentLoginSession()) return
       if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) return
@@ -313,6 +333,8 @@ export function useLoginFlow() {
     }
 
     if (!canResend) return
+    const protection = takeTurnstileToken()
+    if (!protection) return
     setIsSubmitting(true)
     setSuccessMessage(null)
     setErrorMessage(null)
@@ -320,7 +342,7 @@ export function useLoginFlow() {
     try {
       await apiClient(API.auth.sendCode, {
         method: 'POST',
-        body: JSON.stringify({ email: email.trim(), language: i18n.language }),
+        body: JSON.stringify({ email: email.trim(), language: i18n.language, ...protection }),
       })
       setSuccessMessage(t('auth.codeSent'))
       startResendCountdown()
@@ -371,9 +393,10 @@ export function useLoginFlow() {
     router.push('/terms')
   }
 
-  const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline
+  const hasTurnstileToken = !turnstileSiteKey || Boolean(turnstileToken)
+  const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline && hasTurnstileToken
   const canSubmitCode =
-    isVerificationCodeComplete(codeDigits) && !isSubmitting && isOnline
+    isVerificationCodeComplete(codeDigits) && !isSubmitting && isOnline && hasTurnstileToken
 
   return {
     t,
@@ -383,6 +406,10 @@ export function useLoginFlow() {
     isSubmitting,
     isGoogleLoading,
     successMessage,
+    turnstileSiteKey,
+    turnstileToken,
+    turnstileResetKey,
+    onTurnstileToken,
     showReferralBanner,
     fromOnboarding,
     plannedHabitCount,
