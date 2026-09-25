@@ -79,6 +79,19 @@ function getTokenExpiry(token: string): number | null {
   }
 }
 
+export function getAccountIdFromToken(token: string): string | null {
+  try {
+    const payloadSegment = token.split('.')[1]
+    if (!payloadSegment) return null
+    const payload = JSON.parse(decodeBase64Url(payloadSegment)) as {
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'?: string
+    }
+    return payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ?? null
+  } catch {
+    return null
+  }
+}
+
 function getAccessCookieMaxAge(token: string): number {
   const expiresAt = getTokenExpiry(token)
   if (!expiresAt) return DEFAULT_ACCESS_COOKIE_MAX_AGE

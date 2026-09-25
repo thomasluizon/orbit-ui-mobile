@@ -1,6 +1,6 @@
 'use client'
 
 import * as serverActions from '@/app/actions/uploads'
-import { bindServerAction } from '@/lib/client-action'
+import { bindAccountServerAction } from '@/lib/client-action'
 
-export const signUpload = bindServerAction(serverActions.signUpload)
+export const signUpload = bindAccountServerAction(serverActions.signUpload)

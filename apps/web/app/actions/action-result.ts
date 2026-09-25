@@ -8,6 +8,8 @@ export type ServerActionResult<T> =
       sessionRefreshFailed: boolean
     }
 
+export const ACCOUNT_CHANGED_ERROR_CODE = 'ACCOUNT_CHANGED'
+
 function readNumber(error: unknown, key: string): number | undefined {
   if (typeof error !== 'object' || error === null || !(key in error)) return undefined
   const value = (error as Record<string, unknown>)[key]

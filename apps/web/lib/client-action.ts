@@ -2,7 +2,7 @@
 
 import { createApiClientError } from '@orbit/shared'
 import type { ServerActionResult } from '@/app/actions/action-result'
-import { useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 
 export async function applyServerActionFailure<T>(result: ServerActionResult<T>): Promise<void> {
   if (!result.ok && result.sessionRefreshFailed) {
@@ -31,4 +31,10 @@ export function bindServerAction<Arguments extends unknown[], T>(
   action: (...arguments_: Arguments) => Promise<ServerActionResult<T>>,
 ): (...arguments_: Arguments) => Promise<T> {
   return (...arguments_) => runServerAction(action(...arguments_))
+}
+
+export function bindAccountServerAction<Arguments extends unknown[], T>(
+  action: (...arguments_: [...Arguments, string | null]) => Promise<ServerActionResult<T>>,
+): (...arguments_: Arguments) => Promise<T> {
+  return (...arguments_) => runServerAction(action(...arguments_, getHeldAccountId()))
 }
