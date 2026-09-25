@@ -225,8 +225,14 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         composer={
           <Composer
             {...chat.composerProps}
-            onOpenConversation={() => setAstraConversationOpen(true)}
+            onOpenConversation={() => setAstraConversationOpen(true, pathname === '/support' ? 'support' : undefined)}
             conversationLabel={t('todayAstra.openConversation')}
+            onSend={() => {
+              if (pathname === '/support' && !astraConversationOpen) {
+                setAstraConversationOpen(true, 'support')
+              }
+              chat.composerProps.onSend()
+            }}
           />
         }
         conversation={<AstraConversation chat={chat} />}

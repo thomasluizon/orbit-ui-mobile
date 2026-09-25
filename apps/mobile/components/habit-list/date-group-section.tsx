@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { isToday as isDateToday, isTomorrow, isYesterday } from 'date-fns'
 import { formatLocaleDate } from '@orbit/shared/utils'
@@ -49,7 +49,10 @@ export function HabitListDateGroupSection({
   renderHabit,
 }: Readonly<HabitListDateGroupSectionProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
 
   return (
     <View>

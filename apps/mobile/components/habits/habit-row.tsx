@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
@@ -89,7 +89,7 @@ function runMenuAction(actions: HabitRowActions, id: string): void {
   handlers[id]?.()
 }
 
-interface HabitRowProps {
+export interface HabitRowProps {
   habit: NormalizedHabit
   selectedDate?: Date
   /** Two inline display levels. Deeper data descendants are clamped to level 1 by the list. */
@@ -233,7 +233,7 @@ function buildRowStyle({
  * Habit row: structural column · emoji well · title/meta · trailing status.
  */
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export function HabitRow({
+export const HabitRow = memo(function HabitRow({
   habit,
   selectedDate,
   depth = 0,
@@ -253,7 +253,10 @@ export function HabitRow({
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const { displayTime } = useTimeFormat()
 
   const isChild = depth === 1
@@ -443,4 +446,4 @@ export function HabitRow({
       ) : null}
     </View>
   )
-}
+})

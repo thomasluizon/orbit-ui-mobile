@@ -3,10 +3,11 @@ import { FlatList } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
+import { HabitListDateGroupSection } from '@/components/habit-list/date-group-section'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
@@ -25,6 +26,33 @@ const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const TestRenderer = require('react-test-renderer')
+const rowRenderCounts = vi.hoisted(() => new Map<string, number>())
+const tokenBuilds = vi.hoisted(() => ({ count: 0 }))
+
+vi.mock('@/components/habits/habit-row', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-row')>()
+  const React = await import('react')
+  type RowProps = React.ComponentProps<typeof actual.HabitRow>
+  const row = actual.HabitRow as unknown as
+    | ((props: RowProps) => React.ReactNode)
+    | { type: (props: RowProps) => React.ReactNode }
+  const renderRow = typeof row === 'function' ? row : row.type
+  const trackedRenderRow = function TrackedHabitRow(
+    props: RowProps,
+  ) {
+    const id = props.habit.id
+    rowRenderCounts.set(id, (rowRenderCounts.get(id) ?? 0) + 1)
+    return renderRow(props)
+  }
+  const trackedRow = typeof row === 'function' ? trackedRenderRow : row
+  if (typeof row !== 'function') row.type = trackedRenderRow
+  return {
+    ...actual,
+    HabitRow: function ObservedHabitRow(props: RowProps) {
+      return React.createElement(trackedRow as React.ElementType, props)
+    },
+  }
+})
 
 function flattenText(node: unknown): string {
   if (node == null) return ''
@@ -209,7 +237,7 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
-  useHabits: () => ({
+  useHabits: (_filters: HabitsFilter) => ({
     data: mockHabitsData,
     isLoading: false,
     isFetching: false,
@@ -311,7 +339,8 @@ vi.mock('@/components/habits/create-habit-modal', () => ({
 }))
 
 vi.mock('@/components/habits/reschedule-sheet', () => ({
-  RescheduleSheet: () => null,
+  RescheduleSheet: (props: Record<string, unknown>) =>
+    React.createElement('RescheduleSheet', props),
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -327,7 +356,10 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   return {
     ...actual,
     createColors: () => colorProxy,
-    createTokensV2: () => colorProxy,
+    createTokensV2: () => {
+      tokenBuilds.count += 1
+      return colorProxy
+    },
   }
 })
 
@@ -481,6 +513,181 @@ describe('HabitList', () => {
     mockDrillState.drillError = null
     mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('reuses row tokens when only habit content changes', () => {
+    const habit = createMockHabit({ id: 'token-row', title: 'Before' })
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} />) })
+    const previousBuilds = tokenBuilds.count
+    TestRenderer.act(() => {
+      tree.update(<HabitRow habit={{ ...habit, title: 'After' }} />)
+    })
+    expect(tokenBuilds.count).toBe(previousBuilds + 1)
+  })
+
+  it('reuses date group tokens when the group content changes', () => {
+    const group = { key: TODAY, label: 'Today', isOverdue: false, habits: [] }
+    const renderHabit = vi.fn()
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitListDateGroupSection group={group} overdueLabel="Overdue" renderHabit={renderHabit} />,
+      )
+    })
+    const previousBuilds = tokenBuilds.count
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitListDateGroupSection
+          group={{ ...group, label: 'New label' }}
+          overdueLabel="Overdue"
+          renderHabit={renderHabit}
+        />,
+      )
+    })
+    expect(tokenBuilds.count).toBe(previousBuilds)
+  })
+
+  it('renders only changed rows through a 60-habit Today log, completed toggle, and date change', async () => {
+    const habits = Array.from({ length: 60 }, (_, index) => createMockHabit({
+      id: `render-habit-${index}`,
+      title: `Habit ${index}`,
+      position: index,
+      dueDate: TODAY,
+      scheduledDates: [TODAY, TOMORROW],
+    }))
+    const onCreatePress = vi.fn()
+    const selectedDate = new Date(`${TODAY}T09:00:00Z`)
+    const nextDate = new Date(`${TOMORROW}T09:00:00Z`)
+    const todayFilters = {
+      dateFrom: TODAY,
+      dateTo: TODAY,
+      includeOverdue: true,
+      includeGeneral: undefined,
+    }
+    const nextDateFilters = {
+      dateFrom: TOMORROW,
+      dateTo: TOMORROW,
+      includeOverdue: false,
+      includeGeneral: undefined,
+    }
+    const renderList = (date = selectedDate, showCompleted = false) => (
+      <HabitList
+        view="today"
+        filters={date === selectedDate ? todayFilters : nextDateFilters}
+        selectedDate={date}
+        showCompleted={showCompleted}
+        onCreatePress={onCreatePress}
+      />
+    )
+    const totalSince = (before: Map<string, number>) =>
+      Array.from(rowRenderCounts, ([id, count]) => count - (before.get(id) ?? 0))
+        .reduce((sum, count) => sum + count, 0)
+
+    seedHabits(habits)
+    rowRenderCounts.clear()
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList()) })
+    const initial = totalSince(new Map())
+    expect(tree.root.findAllByType(HabitRow)).toHaveLength(60)
+    expect(tree.root.findByType(HabitList).props).toMatchObject({
+      view: 'today',
+      filters: todayFilters,
+      selectedDate,
+      showCompleted: false,
+    })
+
+    const beforeLog = new Map(rowRenderCounts)
+    const firstRow = tree.root.findAll((node: any) =>
+      node.props.habit?.id === habits[0]!.id && typeof node.props.actions?.onLog === 'function',
+    )[0]
+    await TestRenderer.act(async () => {
+      firstRow.props.actions.onLog()
+      await Promise.resolve()
+    })
+    const updatedHabit = { ...habits[0]!, isCompleted: true, isLoggedInRange: true }
+    seedHabits([updatedHabit, ...habits.slice(1)])
+    TestRenderer.act(() => { tree.update(renderList()) })
+    const logged = totalSince(beforeLog)
+
+    const beforeCompletedToggle = new Map(rowRenderCounts)
+    TestRenderer.act(() => { tree.update(renderList(selectedDate, true)) })
+    const completedToggle = totalSince(beforeCompletedToggle)
+
+    const beforeDateChange = new Map(rowRenderCounts)
+    TestRenderer.act(() => { tree.update(renderList(nextDate, true)) })
+    const dateChange = totalSince(beforeDateChange)
+
+    expect({ initial, logged, completedToggle, dateChange }).toEqual({
+      initial: 60,
+      logged: 1,
+      completedToggle: 0,
+      dateChange: 60,
+    })
+  })
+
+  it('keeps row actions stable while using the latest habit and list callbacks', () => {
+    const habit = createMockHabit({
+      id: 'action-parent',
+      title: 'Before',
+      isOverdue: true,
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({ id: 'action-child', parentId: habit.id })
+    const onDetailHabit = vi.fn()
+    const onEditHabit = vi.fn()
+    const onCreatePress = vi.fn()
+    const renderList = (editHabit: typeof onEditHabit) => (
+      <HabitList
+        view="today"
+        filters={{}}
+        showCompleted
+        onCreatePress={onCreatePress}
+        onDetailHabit={onDetailHabit}
+        onEditHabit={editHabit}
+      />
+    )
+
+    seedHabits([habit, child])
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList(onEditHabit)) })
+    const firstRow = tree.root.findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === habit.id)
+    expect(firstRow).toBeDefined()
+    const actions = firstRow!.props.actions
+
+    const updatedHabit = { ...habit, title: 'After' }
+    const onEditHabitAfterUpdate = vi.fn()
+    seedHabits([updatedHabit, child])
+    TestRenderer.act(() => { tree.update(renderList(onEditHabitAfterUpdate)) })
+    const updatedRow = tree.root.findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === habit.id)
+    expect(updatedRow!.props.actions).toBe(actions)
+
+    TestRenderer.act(() => {
+      actions.onDetail()
+      actions.onEdit()
+      actions.onReschedule()
+      actions.onDuplicate()
+      actions.onDrillInto()
+      actions.onEnterSelectMode()
+    })
+
+    expect(onDetailHabit).toHaveBeenCalledWith(updatedHabit)
+    expect(onEditHabitAfterUpdate).toHaveBeenCalledWith(updatedHabit, undefined)
+    expect(tree.root.findByType('RescheduleSheet').props).toMatchObject({
+      open: true,
+      habit: updatedHabit,
+    })
+    expect(flattenRenderedText(confirmationSheets(tree, 'habits.duplicateConfirmTitle')))
+      .toContain('After')
+    expect(mockDrillState.drillInto).toHaveBeenCalledWith(habit.id)
+    expect(toggleSelectMode).toHaveBeenCalledOnce()
+    expect(toggleSelectionCascade).toHaveBeenCalledWith(
+      habit.id,
+      expect.any(Function),
+      expect.any(Function),
+    )
   })
 
   it('hides one-time tasks completed before the selected day when completed items are shown', () => {
@@ -1523,6 +1730,7 @@ describe('HabitList', () => {
     })
 
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
+    expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
 
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent' })
@@ -1545,6 +1753,7 @@ describe('HabitList', () => {
 
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(1)
+    expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
   })
 
   it('retries loading drill children from the drill error state', () => {
