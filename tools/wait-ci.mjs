@@ -106,6 +106,20 @@ try {
     }
     return runs
   }
+  // The combined status endpoint pages at 30 by default, so one page can hide a pending context.
+  const statusesForHead = async (sha) => {
+    const statuses = []
+    for (let page = 1; ; page += 1) {
+      const response = await read(`commits/${sha}/status?per_page=100&page=${page}`)
+      if (!Number.isInteger(response?.total_count) || !Array.isArray(response.statuses)) {
+        throw new Error("GitHub commit statuses had an unexpected shape")
+      }
+      statuses.push(...response.statuses)
+      if (statuses.length >= response.total_count) break
+      if (response.statuses.length === 0) throw new Error("GitHub commit statuses pagination stopped early")
+    }
+    return statuses
+  }
   /**
    * A head is settled only when the same completed set is seen on two consecutive quiet polls, with no
    * workflow run for that head still queued or running. A fast check can finish before a slower
@@ -129,21 +143,20 @@ try {
         finish("HEAD_MOVED", 0)
       }
       const checks = await checksForHead(entry.head)
-      const status = await read(`commits/${entry.head}/status`)
-      if (!Array.isArray(status?.statuses)) throw new Error("GitHub commit statuses had an unexpected shape")
+      const statuses = await statusesForHead(entry.head)
       if (checks.some((check) => typeof check.name !== "string" || typeof check.status !== "string" || !("conclusion" in check)) ||
-          status.statuses.some((item) => typeof item.context !== "string" || !["pending", "success", "failure", "error"].includes(item.state))) {
+          statuses.some((item) => typeof item.context !== "string" || !["pending", "success", "failure", "error"].includes(item.state))) {
         throw new Error("GitHub checks or statuses had an unexpected shape")
       }
       const pending = checks.some((check) => check.status !== "completed" || check.conclusion === null) ||
-        status.statuses.some((item) => item.state === "pending")
+        statuses.some((item) => item.state === "pending")
       const completedNames = new Set([
         ...checks.filter((check) => check.status === "completed" && check.conclusion !== null).map((check) => check.name),
-        ...status.statuses.filter((item) => item.state !== "pending").map((item) => item.context),
+        ...statuses.filter((item) => item.state !== "pending").map((item) => item.context),
       ])
       entry.failingChecks = [
         ...checks.filter((check) => check.status === "completed" && !["success", "neutral", "skipped"].includes(check.conclusion)).map((check) => check.name),
-        ...status.statuses.filter((item) => ["failure", "error"].includes(item.state)).map((item) => item.context),
+        ...statuses.filter((item) => ["failure", "error"].includes(item.state)).map((item) => item.context),
       ]
       const runsPending = (await runsForHead(entry.head)).some((run) => run.status !== "completed")
       // A head that has registered no check yet is not settled: the workflows it will start are still

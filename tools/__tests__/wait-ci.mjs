@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { T, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 import { readWakeSources } from "../lib/run-state.mjs"
 
@@ -11,6 +11,7 @@ const checks = (rows) => JSON.stringify({ total_count: rows.length, check_runs: 
 const completed = (name, conclusion = "success") => ({ name, status: "completed", conclusion })
 const queued = (name) => ({ name, status: "queued", conclusion: null })
 const runs = (rows) => JSON.stringify({ total_count: rows.length, workflow_runs: rows })
+const statuses = (rows, total = rows.length) => JSON.stringify({ state: "success", total_count: total, statuses: rows })
 
 const fixture = (label, overrides = []) => {
   const repo = stageRepo(`wait-ci-${label}`)
@@ -19,10 +20,11 @@ const fixture = (label, overrides = []) => {
   const config = { ...real, repos: { ...real.repos, ui: repo.path }, timeouts: { ...real.timeouts, pollSeconds: 0.01 } }
   const staged = stageWithConfig(`wait-ci-${label}`, TOOL, config)
   const env = orcaEnv([
+    ...overrides.filter((entry) => entry.kind === "first"),
     { match: "auth token --user test-owner", stdout: "test-github-token" },
     { match: "/pulls/12", stdout: pull(), ...overrides.find((entry) => entry.kind === "pull") },
     { match: "/check-runs?", stdout: checks([completed("Lint")]), ...overrides.find((entry) => entry.kind === "checks") },
-    { match: "/status", stdout: JSON.stringify({ state: "success", statuses: [] }) },
+    { match: "/status?", stdout: statuses([]) },
     { match: "actions/runs?head_sha=", stdout: runs([{ name: "CI", status: "completed" }]), ...overrides.find((entry) => entry.kind === "runs") },
   ])
   return { ...staged, env }
@@ -71,6 +73,18 @@ export const cases = async () => {
   const pendingRunResult = run(TOOL, argumentsFor(), { path: pendingRun.path, env: pendingRun.env })
   T("wait-ci: a queued workflow run with no check yet keeps the head unsettled",
     pendingRunResult.status === 0 && JSON.parse(pendingRunResult.stdout).reason === "SETTLED" && Number(readFileSync(runSequence, "utf8")) >= 3, pendingRunResult.stderr)
+
+  const secondPageSequence = stage("wait-ci/second-page-sequence", "")
+  const secondPage = fixture("second-page", [
+    { kind: "first", match: "/status?per_page=100&page=2", sequenceFile: secondPageSequence, stdoutSequence: [
+      statuses([{ context: "Late", state: "pending" }], 2), statuses([{ context: "Late", state: "success" }], 2),
+    ] },
+    { kind: "first", match: "/status?per_page=100&page=1", stdout: statuses([{ context: "Vercel", state: "success" }], 2) },
+  ])
+  const secondPageResult = run(TOOL, argumentsFor(), { path: secondPage.path, env: secondPage.env })
+  T("wait-ci: a pending status on a later page keeps the head unsettled",
+    secondPageResult.status === 0 && JSON.parse(secondPageResult.stdout).reason === "SETTLED" &&
+      existsSync(secondPageSequence) && Number(readFileSync(secondPageSequence, "utf8")) >= 3, secondPageResult.stderr)
 
   const failing = fixture("failing", [{ kind: "checks", stdout: checks([completed("Lint", "failure")]) }])
   const failingResult = run(TOOL, argumentsFor(), { path: failing.path, env: failing.env })
