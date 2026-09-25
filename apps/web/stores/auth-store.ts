@@ -157,6 +157,7 @@ interface AuthState {
   sessionRefreshFailed: boolean
 
   setAuth: (loginResponse: LoginResponse) => void
+  adoptServerAccount: (accountId: string) => void
   adoptAccountFromSignal: (accountId: string | null) => void
   confirmSessionRefreshFailure: () => Promise<void>
   recoverSessionRefreshFailure: () => Promise<void>
@@ -218,6 +219,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       sessionRefreshFailed: false,
     })
     announceAccountToOtherTabs(loginResponse.userId)
+  },
+
+  adoptServerAccount: (accountId: string) => {
+    if (get().sessionInactive || lastObservedAccountId !== null) return
+    adoptSessionAccount(accountId)
+    set({ isAuthenticated: true, sessionInactive: false, user: null, sessionRefreshFailed: false })
   },
 
   /**

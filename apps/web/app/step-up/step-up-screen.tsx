@@ -54,7 +54,9 @@ const getServerNotReady = () => false
  * reports null for the whole life of a cold load, the record read comes back empty, and the person
  * lands back on Profile mid-challenge. `serverAccountId` is the proxy's answer, resolved from the
  * cookie it already validated to let this render happen at all, so the first paint names the
- * account. The held id takes precedence once it exists, because it is the one that moves.
+ * account. The held id takes precedence once it exists, because it is the one that moves. Seed it
+ * from that verified server answer before starting the monitor, so its first check cannot erase a
+ * completed challenge for the same account.
  *
  * Starting the monitor here is what makes it move. It gives the route the cross-tab signal and the
  * poll every other route has, so a replacement reaches this screen as an account generation rise,
@@ -68,9 +70,10 @@ export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: st
   const accountId = sessionInactive ? null : heldAccountId ?? serverAccountId
 
   useEffect(() => {
+    if (serverAccountId) useAuthStore.getState().adoptServerAccount(serverAccountId)
     const stopMonitor = useAuthStore.getState().startExpiryMonitor()
     return stopMonitor
-  }, [])
+  }, [serverAccountId])
 
   return (
     <StepUpScreenContent
@@ -125,10 +128,10 @@ function StepUpScreenContent({
       router.replace('/login')
       return
     }
-    if (!operation || !record) {
+    if (!operation || (!record && phase !== 'deactivated')) {
       router.replace('/profile')
     }
-  }, [clientReady, operation, record, router, sessionInactive])
+  }, [clientReady, operation, phase, record, router, sessionInactive])
 
   useEffect(() => {
     const timer = globalThis.setInterval(() => setNow(Date.now()), 1000)
@@ -168,7 +171,7 @@ function StepUpScreenContent({
     try {
       if (operation === 'delete') await requestDeletion(intendedAccountId)
       else await requestApiKeyCreationChallenge(intendedAccountId)
-      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+      if (!isCurrentRequest(accountGeneration, intendedAccountId)) {
         setRequestError(translate('errors.api.accountChanged'))
         return
       }
@@ -200,7 +203,7 @@ function StepUpScreenContent({
     try {
       if (operation === 'keys') {
         const result = await confirmApiKeyCreationChallenge(code, intendedAccountId)
-        if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+        if (!isCurrentRequest(accountGeneration, intendedAccountId)) {
           setFieldError(translate('errors.api.accountChanged'))
           setPhase('challenge')
           return
@@ -216,7 +219,7 @@ function StepUpScreenContent({
         return
       }
       const result = await confirmDeletion(code, intendedAccountId)
-      if (getHeldAccountId() !== intendedAccountId || getAccountGeneration() !== accountGeneration) {
+      if (!isCurrentRequest(accountGeneration, intendedAccountId)) {
         setFieldError(translate('errors.api.accountChanged'))
         setPhase('challenge')
         return
@@ -281,7 +284,7 @@ function StepUpScreenContent({
 
   const otpError = getOtpError(t, fieldError, attemptsRemaining)
 
-  if (!clientReady || sessionInactive || !operation || !record) return null
+  if (!clientReady || sessionInactive || !operation || (!record && !success)) return null
 
   const sharedView = { operationLabel, t }
   if (success) {
