@@ -9,6 +9,8 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { useOffline } from '@/hooks/use-offline'
+import { useAuthStore } from '@/stores/auth-store'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -30,6 +32,7 @@ export function DeleteAccountModal({
   const { t } = useTranslation()
   const router = useRouter()
   const { isOnline } = useOffline()
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { sheetRef, closeSheet } = useSheetHost()
@@ -56,6 +59,8 @@ export function DeleteAccountModal({
 
   async function handleRequestDeletion() {
     if (!isOnline) return
+    const startingAccountGeneration = getAccountGeneration()
+    const ownsAccount = () => getAccountGeneration() === startingAccountGeneration
     setLoading(true)
     setError('')
     try {
@@ -64,12 +69,16 @@ export function DeleteAccountModal({
         { method: 'POST' },
         stepUpMessageResponseSchema,
       )
-      await beginStepUpChallenge('delete')
+      if (!ownsAccount()) return
+      await beginStepUpChallenge('delete', accountId)
+      if (!ownsAccount()) return
       closeSheet(() => {
+        if (!ownsAccount()) return
         handleClose()
         router.push('/step-up?operation=delete')
       })
     } catch (caught: unknown) {
+      if (!ownsAccount()) return
       setError(
         getFriendlyErrorMessage(
           caught,

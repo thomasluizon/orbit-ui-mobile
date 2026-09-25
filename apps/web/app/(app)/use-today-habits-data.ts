@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useSyncExternalStore } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { hashKey } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
@@ -10,6 +10,7 @@ import {
   EMPTY_HABITS_BY_ID,
   useHabits,
 } from '@/hooks/use-habits'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { buildTodayFilters } from './today-model'
 import type { TodayInitialHabits } from './today-initial-data'
 
@@ -76,9 +77,20 @@ export function useTodayHabitsData({
   )
 
   const queryKey = habitKeys.list(filters)
+  /**
+   * `initialHabits` is an RSC prop, fetched under whichever account was signed in when the server
+   * rendered this page. An account replacement empties the query cache but navigates nowhere, so
+   * the payload is unchanged and TanStack rebuilds the query from it, stamped now and inside
+   * `QUERY_STALE_TIMES.habits`, which schedules no refetch. That serves the previous account's
+   * habit titles to the next one, so the payload stops counting the moment the account does.
+   */
+  const accountGeneration = useAccountGeneration()
+  const [renderedAccountGeneration] = useState(accountGeneration)
+  const accountHeldInitialHabits =
+    accountGeneration === renderedAccountGeneration ? initialHabits : null
   const initialItems =
-    initialHabits && hashKey(initialHabits.queryKey) === hashKey(queryKey)
-      ? initialHabits.items
+    accountHeldInitialHabits && hashKey(accountHeldInitialHabits.queryKey) === hashKey(queryKey)
+      ? accountHeldInitialHabits.items
       : undefined
   const habitsQuery = useHabits(filters, initialItems)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID

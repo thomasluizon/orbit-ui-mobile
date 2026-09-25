@@ -9,6 +9,7 @@ import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import {
   updateWeekStartDay,
   updateLanguage,
@@ -28,7 +29,7 @@ export function usePreferenceControls() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { currentTheme, applyTheme } = useColorScheme()
 
-  const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
+  const [activePicker, setActivePicker] = useAccountScopedState<PreferencePicker | null>(null)
 
   useEffect(() => {
     localStorage.removeItem('orbit_time_format')

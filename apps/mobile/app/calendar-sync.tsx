@@ -21,9 +21,9 @@ import {
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
   isCalendarSyncEventImportable,
+  getFriendlyErrorMessage,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils/error-utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
@@ -37,6 +37,7 @@ import {
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
@@ -271,10 +272,12 @@ export default function CalendarSyncScreen() {
         showError(t('errors.offline'))
         return
       }
+      const requestAccount = getAccountGeneration()
       setAutoSyncMutation.mutate(
         { enabled },
         {
           onError: (err: unknown) => {
+            if (getAccountGeneration() !== requestAccount) return
             showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
           },
         },
@@ -288,8 +291,10 @@ export default function CalendarSyncScreen() {
       showError(t('errors.offline'))
       return
     }
+    const requestAccount = getAccountGeneration()
     runSyncNowMutation.mutate(undefined, {
       onError: (err: unknown) => {
+        if (getAccountGeneration() !== requestAccount) return
         showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
       },
     })
@@ -390,9 +395,11 @@ export default function CalendarSyncScreen() {
 
   const handleDismissSuggestion = useCallback(
     async (suggestionId: string) => {
+      const requestAccount = getAccountGeneration()
       try {
         await dismissSuggestion.mutateAsync({ id: suggestionId })
       } catch (err: unknown) {
+        if (getAccountGeneration() !== requestAccount) return
         showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
       }
     },

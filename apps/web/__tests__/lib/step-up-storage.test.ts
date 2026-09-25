@@ -13,6 +13,8 @@ import {
   readStepUpTiming,
 } from '@/lib/step-up-storage'
 
+const ACCOUNT = 'user-1'
+
 describe('web step up timing storage', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -20,20 +22,20 @@ describe('web step up timing storage', () => {
   })
 
   it('does not let a new code reset an active exhausted window', () => {
-    const first = beginStepUpChallenge('delete', 1_000)
-    markStepUpExhausted(first, 2_000)
-    const resent = beginStepUpChallenge('delete', 2_000 + STEP_UP_ATTEMPT_WINDOW_MS - 1)
+    const first = beginStepUpChallenge('delete', ACCOUNT, 1_000)
+    markStepUpExhausted(first, ACCOUNT, 2_000)
+    const resent = beginStepUpChallenge('delete', ACCOUNT, 2_000 + STEP_UP_ATTEMPT_WINDOW_MS - 1)
 
     expect(resent.exhaustedAt).toBe(2_000)
-    expect(readStepUpTiming('delete')).toEqual(resent)
+    expect(readStepUpTiming('delete', ACCOUNT)).toEqual(resent)
   })
 
   it('persists failed deletion attempts and resets them for a new challenge', () => {
-    const first = beginStepUpChallenge('delete', 1_000)
-    const failed = markStepUpAttemptFailed(markStepUpAttemptFailed(first))
+    const first = beginStepUpChallenge('delete', ACCOUNT, 1_000)
+    const failed = markStepUpAttemptFailed(markStepUpAttemptFailed(first, ACCOUNT), ACCOUNT)
 
-    expect(readStepUpTiming('delete')).toEqual({ ...first, failedAttempts: 2 })
-    expect(beginStepUpChallenge('delete', 2_000)).toEqual({
+    expect(readStepUpTiming('delete', ACCOUNT)).toEqual({ ...first, failedAttempts: 2 })
+    expect(beginStepUpChallenge('delete', ACCOUNT, 2_000)).toEqual({
       operation: 'delete',
       sentAt: 2_000,
     })

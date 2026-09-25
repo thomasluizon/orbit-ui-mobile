@@ -15,6 +15,7 @@ import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { useChatStore } from '@/stores/chat-store'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => ({
   logs: [] as HabitLog[],
@@ -230,6 +231,7 @@ describe('HabitDetailScreen', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('shows loading feedback and a retry action after a load failure', () => {
@@ -836,6 +838,22 @@ describe('HabitDetailScreen', () => {
 
     expect(mocks.deleteHabit).toHaveBeenCalledWith('habit-1')
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
+  })
+
+  it('does not route the next account after an old delete completes', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    let finishDelete!: () => void
+    mocks.deleteHabit.mockImplementationOnce(() => new Promise<void>((resolve) => { finishDelete = resolve }))
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.delete' }))
+    fireEvent.click(screen.getByTestId('confirm-habits.deleteConfirmTitle'))
+    expect(mocks.deleteHabit).toHaveBeenCalledOnce()
+
+    await replaceAccountWith('user-2')
+    await act(async () => { finishDelete() })
+
+    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
   it('puts the grounded Astra seed in the persistent composer', () => {

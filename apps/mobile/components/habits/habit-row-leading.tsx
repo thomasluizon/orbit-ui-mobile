@@ -23,6 +23,8 @@ export function HabitRowLeading({
 }: Readonly<HabitRowLeadingProps>) {
   return (
     <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
         style={[
           styles.emojiWell,
           {

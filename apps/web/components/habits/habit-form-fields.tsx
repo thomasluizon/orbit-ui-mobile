@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { Time24 } from '@orbit/shared/contracts/forms'
@@ -31,6 +31,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
+import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
@@ -269,13 +270,16 @@ export function HabitFormFields({
   const slipAlertEnabled = watch('slipAlertEnabled') ?? false
   const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', habitFeaturePlan(hasProAccess))
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
-  const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
-  const [detailsPresented, setDetailsPresented] = useState(defaultExpanded)
-  const [proposal, setProposal] = useState(EMPTY_HABIT_FORM_PROPOSAL)
+  const [detailsOpen, setDetailsOpen] = useAccountScopedState(defaultExpanded)
+  const [detailsPresented, setDetailsPresented] = useAccountScopedState(defaultExpanded)
+  const [proposal, setProposal] = useAccountScopedState(EMPTY_HABIT_FORM_PROPOSAL)
   const rendersGranularSubHabits = typeof children === 'function'
   const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
-  const [phraseOwnership, setPhraseOwnership] = useState({ cadence: false, dueTime: false })
+  const [phraseOwnership, setPhraseOwnership] = useAccountScopedState({ cadence: false, dueTime: false })
   const lastLocallyReadTitleRef = useRef<string | null>(null)
+  useResetOnAccountChange(() => {
+    lastLocallyReadTitleRef.current = null
+  })
   useExpandAdvancedSignal(expandAdvancedSignal, () => {
     setDetailsPresented(true)
     setDetailsOpen(true)
@@ -329,7 +333,7 @@ export function HabitFormFields({
       ),
       toggleDay,
     },
-  }), [atMessageLimit, frequencyUnit, isFlexible, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay])
+  }), [atMessageLimit, frequencyUnit, isFlexible, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestionContextChange, onSuggestSetup, phraseOwnership, setFlexible, setGeneral, setOneTime, setPhraseOwnership, setProposal, setRecurring, setValue, toggleDay])
 
   useEffect(() => {
     if (lastLocallyReadTitleRef.current === title) return

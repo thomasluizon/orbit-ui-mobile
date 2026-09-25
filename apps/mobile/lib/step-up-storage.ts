@@ -44,20 +44,43 @@ export function clearApiKeyCreationGrant(): void {
   apiKeyCreationGrantAvailable = false
 }
 
+/**
+ * Persists a timing record under the account that owns it.
+ *
+ * `AsyncStorage` survives a sign out and the next sign in on the same device, so the entry has to
+ * name its account. An app holding no account cannot attribute the record to anybody, so it writes
+ * nothing and the returned record still describes the challenge this app just started.
+ */
+async function persistStepUpTiming(
+  record: StepUpTimingRecord,
+  accountId: string | null,
+): Promise<StepUpTimingRecord> {
+  if (accountId !== null) {
+    await AsyncStorage.setItem(
+      getStepUpStorageKey(record.operation, accountId),
+      JSON.stringify(record),
+    )
+  }
+  return record
+}
+
 export async function readStepUpTiming(
   operation: StepUpOperation,
+  accountId: string | null,
 ): Promise<StepUpTimingRecord | null> {
+  if (accountId === null) return null
   const record = parseStepUpTimingRecord(
-    await AsyncStorage.getItem(getStepUpStorageKey(operation)),
+    await AsyncStorage.getItem(getStepUpStorageKey(operation, accountId)),
   )
   return record?.operation === operation ? record : null
 }
 
 export async function beginStepUpChallenge(
   operation: StepUpOperation,
+  accountId: string | null,
   sentAt = Date.now(),
 ): Promise<StepUpTimingRecord> {
-  const previous = await readStepUpTiming(operation)
+  const previous = await readStepUpTiming(operation, accountId)
   const exhaustedAt =
     previous?.exhaustedAt !== undefined &&
     sentAt < previous.exhaustedAt + STEP_UP_ATTEMPT_WINDOW_MS
@@ -68,27 +91,31 @@ export async function beginStepUpChallenge(
     sentAt,
     ...(exhaustedAt !== undefined ? { exhaustedAt } : {}),
   }
-  await AsyncStorage.setItem(getStepUpStorageKey(operation), JSON.stringify(record))
-  return record
+  return persistStepUpTiming(record, accountId)
 }
 
 export async function markStepUpExhausted(
   record: StepUpTimingRecord,
+  accountId: string | null,
   exhaustedAt = Date.now(),
 ): Promise<StepUpTimingRecord> {
-  const next = { ...record, exhaustedAt }
-  await AsyncStorage.setItem(getStepUpStorageKey(record.operation), JSON.stringify(next))
-  return next
+  return persistStepUpTiming({ ...record, exhaustedAt }, accountId)
 }
 
 export async function markStepUpAttemptFailed(
   record: StepUpTimingRecord,
+  accountId: string | null,
 ): Promise<StepUpTimingRecord> {
-  const next = { ...record, failedAttempts: (record.failedAttempts ?? 0) + 1 }
-  await AsyncStorage.setItem(getStepUpStorageKey(record.operation), JSON.stringify(next))
-  return next
+  return persistStepUpTiming(
+    { ...record, failedAttempts: (record.failedAttempts ?? 0) + 1 },
+    accountId,
+  )
 }
 
-export async function clearStepUpTiming(operation: StepUpOperation): Promise<void> {
-  await AsyncStorage.removeItem(getStepUpStorageKey(operation))
+export async function clearStepUpTiming(
+  operation: StepUpOperation,
+  accountId: string | null,
+): Promise<void> {
+  if (accountId === null) return
+  await AsyncStorage.removeItem(getStepUpStorageKey(operation, accountId))
 }

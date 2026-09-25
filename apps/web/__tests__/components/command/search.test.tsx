@@ -9,6 +9,7 @@ import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/ty
 import { normalizeHabitQueryData } from '@orbit/shared/utils'
 import { CommandMenu } from '@/components/command/command-menu'
 import SearchPage from '@/app/(app)/search/page'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => ({ showError: vi.fn(), pending: false, back: vi.fn(), push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
@@ -54,6 +55,19 @@ beforeEach(() => {
 })
 
 describe('habit search', () => {
+  it('clears the search box when another account replaces the tab', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
+    render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
+    expect(screen.getByRole('combobox')).toHaveValue('walk')
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.getByRole('combobox')).toHaveValue('')
+  })
+
   it.each(['', 'walk'])('leaves the standalone search page on Escape with query "%s"', async (query) => {
     mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
     render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)

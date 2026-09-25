@@ -6,6 +6,9 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 
 const mockCreateMutateAsync = vi.fn()
@@ -280,6 +283,70 @@ describe('CreateHabitModal', () => {
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByTestId('sheet')).toBeDefined()
+  })
+
+  it('commits no previous-account form before the close effect runs', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    const committedOpen: boolean[] = []
+    function Host() {
+      const [open, setOpen] = React.useState(true)
+      const accountGeneration = useAccountGeneration()
+      React.useLayoutEffect(() => {
+        if (accountGeneration > initialGeneration) {
+          committedOpen.push(Boolean(screen.queryByTestId('sheet')))
+        }
+      }, [accountGeneration])
+      return <CreateHabitModal open={open} onOpenChange={setOpen} />
+    }
+    const initialGeneration = getAccountGeneration()
+    renderWithProviders(<Host />)
+
+    await replaceAccountWith('user-2')
+
+    expect(committedOpen).toContain(false)
+    expect(committedOpen).not.toContain(true)
+    vi.unstubAllGlobals()
+  })
+
+  it('opens for the new account after an account change while closed', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    const onOpenChange = vi.fn()
+    function Host() {
+      const [open, setOpen] = React.useState(false)
+      return <>
+        <button type="button" onClick={() => setOpen(true)}>open under B</button>
+        <CreateHabitModal open={open} onOpenChange={onOpenChange} />
+      </>
+    }
+    renderWithProviders(<Host />)
+
+    await replaceAccountWith('user-2')
+    fireEvent.click(screen.getByRole('button', { name: 'open under B' }))
+
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+
+  it('does not close the next account modal when an old create finishes', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
+    let releaseCreate!: (value: object) => void
+    mockCreateMutateAsync.mockImplementationOnce(() => new Promise((resolve) => {
+      releaseCreate = resolve
+    }))
+    const onOpenChange = vi.fn()
+    renderWithProviders(<CreateHabitModal open onOpenChange={onOpenChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+    await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalledOnce())
+
+    await replaceAccountWith('user-2')
+    onOpenChange.mockClear()
+    await act(async () => { releaseCreate({}); await Promise.resolve() })
+
+    expect(onOpenChange).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
   })
 
   it('shows create habit title', () => {

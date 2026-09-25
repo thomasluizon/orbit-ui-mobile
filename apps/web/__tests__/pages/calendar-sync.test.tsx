@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { toast } from 'sonner'
@@ -120,6 +120,7 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
   }),
   useDismissCalendarSuggestion: () => ({
     mutate: mockDismissSuggestion,
+    mutateAsync: mockDismissSuggestion,
     isPending: false,
   }),
 }))
@@ -229,6 +230,7 @@ const originalFetch = globalThis.fetch
 
 
 import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 function renderPage() {
   const queryClient = new QueryClient()
@@ -630,6 +632,90 @@ describe('CalendarSyncPage', () => {
     expect(screen.getByText('Morning Workout')).toBeInTheDocument()
     expect(screen.queryByText('Team Meeting')).not.toBeInTheDocument()
     expect(toast.error).toHaveBeenCalledWith('calendar.importPartialFailure:{"count":1}')
+  })
+
+  it('drops the import result when another account replaces the tab', async () => {
+    const events = [
+      { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(events),
+    }) as unknown as typeof fetch
+    holdAccount('user-1')
+    mockBulkMutate.mockImplementation(
+      (
+        _variables: unknown,
+        options: {
+          onSuccess: (result: {
+            results: { status: string; habitId: string | null; title: string | null; error: string | null }[]
+          }) => void
+        },
+      ) => {
+        options.onSuccess({
+          results: [{ status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null }],
+        })
+      },
+    )
+
+    renderPage()
+    await waitFor(() => {
+      expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText(/calendar\.importButton/))
+    await waitFor(() => {
+      expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
+    })
+
+    await replaceAccountWith('user-2')
+
+    expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
+  })
+
+  it('ignores an old import callback after account replacement', async () => {
+    const events = [
+      { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: () => Promise.resolve(events),
+    }) as unknown as typeof fetch
+    holdAccount('user-1')
+    let finishImport!: (result: { results: { status: string; habitId: string | null; title: string | null; error: string | null }[] }) => void
+    mockBulkMutate.mockImplementation((_variables: unknown, options: { onSuccess: typeof finishImport }) => {
+      finishImport = options.onSuccess
+    })
+    renderPage()
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
+
+    await replaceAccountWith('user-2')
+    finishImport({ results: [
+      { status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null },
+      { status: 'Failed', habitId: null, title: 'Account A event', error: 'failed' },
+    ] })
+
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(screen.queryByText('calendar.importDone')).not.toBeInTheDocument()
+  })
+
+  it('does not show a previous account suggestion error after replacement', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [{
+        id: 'sug-1',
+        event: { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+      }],
+      isLoading: false,
+    }
+    holdAccount('user-1')
+    let failDismiss!: (error: Error) => void
+    mockDismissSuggestion.mockImplementationOnce(() => new Promise((_resolve, reject) => { failDismiss = reject }))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'calendar.autoSync.dismissSuggestion' }))
+    await waitFor(() => expect(mockDismissSuggestion).toHaveBeenCalledWith({ id: 'sug-1' }))
+    await replaceAccountWith('user-2')
+    await act(async () => { failDismiss(new Error('old failure')); await Promise.resolve() })
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it('invalidates sync suggestions after a review-mode import', async () => {

@@ -17,7 +17,7 @@ function encodeSegment(value) {
 function mintHermeticJwt() {
   const header = encodeSegment({ alg: 'HS256', typ: 'JWT' })
   const payload = encodeSegment({
-    sub: 'hermetic-perf-user',
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier': 'hermetic-perf-user',
     exp: FAR_FUTURE_EXP_SECONDS,
     iat: 1750000000,
   })
