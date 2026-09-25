@@ -5,6 +5,7 @@ export const AUTH_CALLBACK_URL = 'https://app.useorbit.org/auth-callback'
 interface PendingGoogleAuthSessionState {
   callbackUrl: string | null
   isPending: boolean
+  returnUrlAttemptId: number | null
 }
 
 export interface GoogleAuthParams {
@@ -31,6 +32,7 @@ interface ResolveGoogleAuthCallbackUrlInput {
 let pendingGoogleAuthSession: PendingGoogleAuthSessionState = {
   callbackUrl: null,
   isPending: false,
+  returnUrlAttemptId: null,
 }
 
 const pendingGoogleAuthListeners = new Set<() => void>()
@@ -58,23 +60,27 @@ export function usePendingGoogleAuthSession() {
   )
 }
 
-export function markPendingGoogleAuthSession() {
+export function markPendingGoogleAuthSession(returnUrlAttemptId: number) {
   pendingGoogleAuthSession = {
     callbackUrl: null,
     isPending: true,
+    returnUrlAttemptId,
   }
   emitPendingGoogleAuthSession()
 }
 
-export function setPendingGoogleAuthCallbackUrl(callbackUrl: string) {
+export function setPendingGoogleAuthCallbackUrl(callbackUrl: string, returnUrlAttemptId: number) {
+  if (pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return
   pendingGoogleAuthSession = {
     callbackUrl,
     isPending: false,
+    returnUrlAttemptId,
   }
   emitPendingGoogleAuthSession()
 }
 
-export function clearPendingGoogleAuthSession() {
+export function clearPendingGoogleAuthSession(returnUrlAttemptId?: number) {
+  if (returnUrlAttemptId !== undefined && pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return
   if (!pendingGoogleAuthSession.callbackUrl && !pendingGoogleAuthSession.isPending) {
     return
   }
@@ -82,6 +88,7 @@ export function clearPendingGoogleAuthSession() {
   pendingGoogleAuthSession = {
     callbackUrl: null,
     isPending: false,
+    returnUrlAttemptId: null,
   }
   emitPendingGoogleAuthSession()
 }

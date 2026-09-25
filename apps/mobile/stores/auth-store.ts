@@ -3,7 +3,7 @@ import type { RefreshResponse, User } from '@orbit/shared/types/auth'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
-import { clearStoredAuthReturnUrl } from '@/lib/auth-flow'
+import { clearStoredAuthReturnUrl, getAuthReturnUrlAttempt } from '@/lib/auth-flow'
 import {
   getToken,
   setToken,
@@ -92,8 +92,8 @@ interface AuthState {
   user: User | null
   isLoading: boolean
   expiresAt: number | null
-  login: (token: string, refreshToken: string | null, user: User) => Promise<void>
-  logout: () => Promise<boolean>
+  login: (token: string, refreshToken: string | null, user: User) => Promise<(() => boolean) | null>
+  logout: (observedCredential?: SessionSnapshot) => Promise<boolean>
   checkAuth: () => Promise<boolean>
   initialize: () => Promise<void>
 }
@@ -487,23 +487,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return getSessionGeneration()
       })
       ownership = loginSession
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       queryClient.clear()
       await clearPersistedQueryCache()
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       await setQueryCacheScope(user.userId)
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       cancelScheduledFlush()
       offlineQueue.retainAccount(user.userId)
       await clearOfflineState()
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       await forgetPreviousAccountContent()
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
 
       try {
         const profile = await apiClient<Profile>(API.profile.get)
+        if (!isCurrentSessionEpoch(ownership.epoch)) return null
         queryClient.setQueryData(profileKeys.detail(), profile)
 
         if (profile.language && i18n.language !== profile.language) {
@@ -525,7 +526,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       } catch {}
 
-      if (!isCurrentSessionEpoch(ownership.epoch)) return
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
       bindStepUpStateToAccount(user.userId)
       set({
         ...deriveSessionPhase('signed-in'),
@@ -534,6 +535,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         expiresAt:
           credentialVersion === ownership.credentialVersion ? getExpiresAt(token) : get().expiresAt,
       })
+      return () => isCurrentSessionEpoch(ownership.epoch)
     } catch (error: unknown) {
       await runSessionTeardown({
         authority: 'session-owner',
@@ -543,15 +545,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: async () => {
-    const ownership = getSessionGeneration()
+  logout: async (observedCredential) => {
+    const ownership = observedCredential ?? getSessionGeneration()
+    if (observedCredential && !isCurrentCredentialObservation(observedCredential)) return false
+    const returnUrlAttempt = getAuthReturnUrlAttempt()
     await import('@/hooks/use-push-notifications')
       .then((module) => module.unsubscribePushToken())
       .catch(() => {})
 
     const teardown = await runSessionTeardown({
-      authority: 'session-owner',
-      epoch: ownership.epoch,
+      ...(observedCredential
+        ? { authority: 'observed-credential' as const, ...ownership }
+        : { authority: 'session-owner' as const, epoch: ownership.epoch }),
     }, true)
     const refreshToken = teardown?.refreshToken ?? null
     if (teardown && refreshToken && isCurrentSessionTeardown(teardown.epoch)) {
@@ -563,9 +568,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (!teardown) return false
-    if (!isCurrentSessionTeardown(teardown.epoch)) return true
-    await clearStoredAuthReturnUrl()
-    if (!isCurrentSessionTeardown(teardown.epoch)) return true
+    if (!isCurrentSessionTeardown(teardown.epoch)) return false
+    await clearStoredAuthReturnUrl(returnUrlAttempt, () => isCurrentSessionTeardown(teardown.epoch))
+    if (!isCurrentSessionTeardown(teardown.epoch)) return false
     offlineQueue.clear()
     return true
   },
