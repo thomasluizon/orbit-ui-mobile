@@ -72,9 +72,9 @@ export const cases = async () => {
   writeFileSync(deadPath, JSON.stringify({ pid: 999999999, startIdentity: "dead", repository: "test-owner/admission-reservations", branch: "feature/dead", timestamp: new Date().toISOString() }))
   const afterDead = await edge("feature/after-dead", plan([], 0))
   const deadClaim = existsSync(deadPath) ? JSON.parse(readFileSync(deadPath, "utf8")) : null
-  T("admission: a dead launcher's claim is released and holds only queued-run capacity",
+  T("admission: a dead launcher's claim is released and still holds both capacities in the window",
     afterDead.admitted && deadClaim?.releasedAt === Date.parse("2026-09-25T03:00:00Z") &&
-    afterDead.counts.reservations?.queuedRuns === 1 && afterDead.counts.reservations?.pullRequests === 0, JSON.stringify({ afterDead, deadClaim }))
+    afterDead.counts.reservations?.queuedRuns === 1 && afterDead.counts.reservations?.pullRequests === 1, JSON.stringify({ afterDead, deadClaim }))
   rmSync(reservationDirectory, { recursive: true, force: true })
 
   const released = await edge("feature/released", plan([], 0))
@@ -87,6 +87,14 @@ export const cases = async () => {
   const whileHeld = await edge("feature/while-held", heldEnvironment)
   T("admission: a claim released inside the hold window still counts toward queued runs",
     !whileHeld.admitted && whileHeld.counts.reservations?.queuedRuns === 1, JSON.stringify(whileHeld))
+  const pullsAtCapEnvironment = orcaEnv([
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: JSON.stringify(Array.from({ length: 10 }, (_, index) => ({ number: index + 1 }))) },
+    { match: "actions/runs?status=queued", stdout: '{"total_count":0,"workflow_runs":[]}' },
+  ])
+  const pullWhileHeld = await edge("feature/pull-while-held", pullsAtCapEnvironment)
+  T("admission: a claim released inside the hold window with no visible pull request still counts toward pull requests",
+    !pullWhileHeld.admitted && pullWhileHeld.counts.reservations?.pullRequests === 1, JSON.stringify(pullWhileHeld))
   rmSync(reservationDirectory, { recursive: true, force: true })
 
   const expired = await edge("feature/expired", plan([], 0))

@@ -24,9 +24,10 @@ const reservationDirectory = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit
 const lockPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-admission.lock")
 
 /**
- * GitHub can create a new pull request's Actions runs after the launcher that opened it has exited,
- * so a released claim keeps holding one queued run for this window instead of vanishing (review of
- * ui#1105). The window, not a guess about GitHub's timing, is where this guard's regress stops (D117).
+ * GitHub can show a new pull request, or create its Actions runs, after the launcher that opened it
+ * has exited. So a released claim keeps holding a queued run, and a pull request until its branch
+ * has one, for this window instead of vanishing (reviews of ui#1105). The window, not a guess about
+ * GitHub's timing, is where this guard's regress stops (D117).
  */
 export const RELEASE_HOLD_MS = 5 * 60 * 1000
 
@@ -158,9 +159,8 @@ const liveReservations = async (repoRoot, owner, environment, now) => {
       if (observedIdentity !== reservation.startIdentity) releaseAdmission(name.slice(0, -".json".length), repoRoot, now)
     }
     const released = readReservation(path)?.releasedAt
-    if (Number.isFinite(released)) {
-      if (now - released < RELEASE_HOLD_MS) counts.queuedRuns++
-      else rmSync(path, { force: true })
+    if (Number.isFinite(released) && now - released >= RELEASE_HOLD_MS) {
+      rmSync(path, { force: true })
       continue
     }
     counts.queuedRuns++
