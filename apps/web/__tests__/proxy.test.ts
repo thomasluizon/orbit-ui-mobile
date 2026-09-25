@@ -14,9 +14,8 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-vi.mock('@/lib/auth-api', () => ({
-  AUTH_COOKIE: 'auth_token',
-  REFRESH_COOKIE: 'refresh_token',
+vi.mock('@/lib/auth-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-api')>(),
   clearSessionCookies: vi.fn(),
   resolveSessionTokens: vi.fn(),
   setSessionCookies: vi.fn(),

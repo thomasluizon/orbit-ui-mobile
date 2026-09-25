@@ -84,7 +84,6 @@ function WrappedPageContent({ initialSelection }: Readonly<{
     <main className="relative flex min-h-dvh flex-col">
       {!isPlaying ? (
         <div className="absolute left-4 top-2 z-[1]">
-          {/* eslint-disable-next-line local/max-button-words -- ORB-57 requires the existing common.backToProfile copy. */}
           <Button
             variant="ghost"
             size="sm"

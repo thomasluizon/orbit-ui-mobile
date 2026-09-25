@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
@@ -10,6 +10,7 @@ import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
 import { RefreshCw } from '@/components/ui/icons'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
 import { ChatEmptyState } from './chat-empty-state'
 
@@ -44,9 +45,9 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     chatContainerRef.current = element
   }, [chatContainerRef])
 
-  const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)))
+  const [initialMessageIds] = useAccountScopedState(() => new Set(messages.map((message) => message.id)))
 
-  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
+  const [selectedGoalId, setSelectedGoalId] = useAccountScopedState<string | null>(null)
 
   const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
     if (CHAT_GOAL_ACTION_TYPES.has(actionType)) {
@@ -57,17 +58,17 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     setSelectedGoalId(null)
     close()
     router.push(`/habits/${entityId}`)
-  }, [close, router])
+  }, [close, router, setSelectedGoalId])
 
   const handleLinkedHabitNavigate = useCallback((habitId: string) => {
     setSelectedGoalId(null)
     close()
     router.push(`/habits/${habitId}`)
-  }, [close, router])
+  }, [close, router, setSelectedGoalId])
 
   const handleGoalDrawerOpenChange = useCallback((open: boolean) => {
     if (!open) setSelectedGoalId(null)
-  }, [])
+  }, [setSelectedGoalId])
 
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
