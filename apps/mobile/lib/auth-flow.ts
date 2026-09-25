@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { uuid } from 'expo-modules-core'
 import {
   isValidReferralCode as isValidReferralCodeShared,
   isValidVerificationCode as isValidVerificationCodeShared,
@@ -6,6 +7,33 @@ import {
 
 const REFERRAL_CODE_KEY = 'referral_code'
 const AUTH_RETURN_URL_KEY = 'auth_return_url'
+let returnUrlMutationTail: Promise<void> = Promise.resolve()
+/**
+ * One identifier owns a login attempt end to end: the return URL it stored, the pending Google
+ * session it opened, and the `authAttempt` its OAuth redirect carries back. It is a UUID and not a
+ * counter because the Google half of it outlives the process, and a counter restarts at the same
+ * value the next process hands out.
+ */
+let returnUrlAttempt = uuid.v4()
+
+function queueReturnUrlMutation<T>(mutation: () => Promise<T>): Promise<T> {
+  const result = returnUrlMutationTail.then(mutation, mutation)
+  returnUrlMutationTail = result.then(() => {}, () => {})
+  return result
+}
+
+export function createAuthReturnUrlAttempt(): string {
+  returnUrlAttempt = uuid.v4()
+  return returnUrlAttempt
+}
+
+export function getAuthReturnUrlAttempt(): string {
+  return returnUrlAttempt
+}
+
+export function isAuthReturnUrlAttemptCurrent(attemptId: string): boolean {
+  return returnUrlAttempt === attemptId
+}
 
 export function isValidReferralCode(value: string | null | undefined): value is string {
   return isValidReferralCodeShared(value)
@@ -37,22 +65,38 @@ export async function clearStoredReferralCode(): Promise<void> {
   await AsyncStorage.removeItem(REFERRAL_CODE_KEY)
 }
 
-export async function getStoredAuthReturnUrl(): Promise<string | null> {
-  const value = await AsyncStorage.getItem(AUTH_RETURN_URL_KEY)
-  return isSafeReturnUrl(value) ? value : null
+export async function getStoredAuthReturnUrl(attemptId: string): Promise<string | null> {
+  return queueReturnUrlMutation(async () => {
+    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return null
+    const value = await AsyncStorage.getItem(AUTH_RETURN_URL_KEY)
+    return isAuthReturnUrlAttemptCurrent(attemptId) && isSafeReturnUrl(value) ? value : null
+  })
 }
 
-export async function storeAuthReturnUrl(returnUrl: string): Promise<void> {
+export async function storeAuthReturnUrl(returnUrl: string, attemptId: string): Promise<void> {
   if (!isSafeReturnUrl(returnUrl)) return
-  await AsyncStorage.setItem(AUTH_RETURN_URL_KEY, returnUrl)
+  await queueReturnUrlMutation(async () => {
+    if (isAuthReturnUrlAttemptCurrent(attemptId)) await AsyncStorage.setItem(AUTH_RETURN_URL_KEY, returnUrl)
+  })
 }
 
-export async function consumeStoredAuthReturnUrl(): Promise<string | null> {
-  const value = await getStoredAuthReturnUrl()
-  await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
-  return value
+export async function consumeStoredAuthReturnUrl(attemptId: string): Promise<string | null> {
+  return queueReturnUrlMutation(async () => {
+    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return null
+    const storedUrl = await AsyncStorage.getItem(AUTH_RETURN_URL_KEY)
+    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return null
+    await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
+    return isAuthReturnUrlAttemptCurrent(attemptId) && isSafeReturnUrl(storedUrl) ? storedUrl : null
+  })
 }
 
-export async function clearStoredAuthReturnUrl(): Promise<void> {
-  await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
+export async function clearStoredAuthReturnUrl(
+  attemptId: string,
+  isCurrentLoginSession?: () => boolean,
+): Promise<void> {
+  await queueReturnUrlMutation(async () => {
+    if (!isAuthReturnUrlAttemptCurrent(attemptId)) return
+    if (isCurrentLoginSession && !isCurrentLoginSession()) return
+    await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
+  })
 }

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as SecureStore from 'expo-secure-store'
 import { ApiClientError } from '@orbit/shared/utils'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 
 const {
@@ -179,6 +180,16 @@ describe('startMobileGoogleAuth', () => {
       expect(signInWithOAuthMock.mock.calls[0]?.[0].options.queryParams.prompt).toBe('consent')
     }
     expect(openAuthSessionAsyncMock).toHaveBeenCalledWith('https://accounts.google.com/o', oauthArgs.options.redirectTo)
+  })
+
+  it('clears an older return URL before a Google flow without one starts', async () => {
+    const removal = vi.spyOn(AsyncStorage, 'removeItem')
+    try {
+      signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+      openAuthSessionAsyncMock.mockResolvedValue({ type: 'dismiss' })
+      await startMobileGoogleAuth({})
+      expect(removal).toHaveBeenCalledWith('auth_return_url')
+    } finally { removal.mockRestore() }
   })
 
   it('returns the browser result type when the session is dismissed', async () => {

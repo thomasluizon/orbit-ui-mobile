@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import type { Session } from '@supabase/supabase-js'
-import { useAuthStore } from '@/stores/auth-store'
+import { useAuthStore, withCookieSettingLogin } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
 import { consumeRecentGoogleAuthStart } from '@/lib/google-auth-session'
 import { LoginContent } from '../login/login-content'
@@ -42,7 +42,7 @@ function AuthCallbackContent() {
     async function exchange(session: Session) {
       try {
         const referralCode = getCookieValue('referral_code')
-        const response = await fetchWithThrottle('/api/auth/google', {
+        const response = await withCookieSettingLogin(() => fetchWithThrottle('/api/auth/google', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             accessToken: session.access_token, language: locale,
@@ -50,7 +50,7 @@ function AuthCallbackContent() {
             googleRefreshToken: hash.get('provider_refresh_token') ?? query.get('provider_refresh_token') ?? session.provider_refresh_token ?? undefined,
             ...(referralCode ? { referralCode } : {}),
           }),
-        })
+        }))
         if (!response.ok) { failed.current = true; setState('failed'); return }
         const loginResponse = await response.json() as LoginResponse
         completed.current = true

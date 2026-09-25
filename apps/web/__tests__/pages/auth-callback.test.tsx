@@ -17,7 +17,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
   useSearchParams: () => new URLSearchParams(),
 }))
-vi.mock('@/stores/auth-store', () => ({ useAuthStore: () => ({ setAuth: mocks.setAuth }) }))
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: () => ({ setAuth: mocks.setAuth }),
+  withCookieSettingLogin: (task: () => Promise<unknown>) => task(),
+}))
 vi.mock('@/lib/supabase', () => ({
   getSupabaseClient: () => ({
     auth: {

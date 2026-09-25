@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   login: vi.fn(),
   rawUrl: null as string | null,
   sessionCallbackUrl: null as string | null,
+  sessionReturnUrlAttemptId: null as string | null,
   isPending: false,
   useActualSession: false,
   coldStart: false,
@@ -54,13 +55,12 @@ vi.mock('@orbit/shared/utils', async (importActual) => ({
   resolveAuthLoginErrorKey: () => 'auth.callbackError',
 }))
 
-vi.mock('@/lib/auth-flow', () => ({
+vi.mock('@/lib/auth-flow', async (importActual) => ({
+  ...await importActual<typeof import('@/lib/auth-flow')>(),
   clearStoredReferralCode: vi.fn(),
   consumeStoredAuthReturnUrl: vi.fn(() => Promise.resolve(mocks.storedReturnUrl)),
-  getSafeReturnUrl: (url: string | null) => url ?? '/',
+  getStoredAuthReturnUrl: vi.fn(() => Promise.resolve(mocks.storedReturnUrl)),
   getStoredReferralCode: vi.fn(() => Promise.resolve(null)),
-  isSafeReturnUrl: () => true,
-  storeAuthReturnUrl: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/lib/google-auth-callback', async (importActual) => {
@@ -70,9 +70,14 @@ vi.mock('@/lib/google-auth-callback', async (importActual) => {
     clearPendingGoogleAuthSession: vi.fn(actual.clearPendingGoogleAuthSession),
     usePendingGoogleAuthSession: () => {
       const session = actual.usePendingGoogleAuthSession()
-      return mocks.useActualSession
-        ? (mocks.coldStart ? { callbackUrl: session.callbackUrl, isPending: false } : session)
-        : { callbackUrl: mocks.sessionCallbackUrl, isPending: mocks.isPending }
+      if (mocks.useActualSession) {
+        return mocks.coldStart
+          ? { callbackUrl: session.callbackUrl, isPending: false,
+            returnUrlAttemptId: session.returnUrlAttemptId }
+          : session
+      }
+      return { callbackUrl: mocks.sessionCallbackUrl, isPending: mocks.isPending,
+        returnUrlAttemptId: mocks.sessionReturnUrlAttemptId }
     },
   }
 })
@@ -121,13 +126,14 @@ describe('AuthCallbackScreen capture retention', () => {
     vi.useFakeTimers()
     mocks.retainEmptyCallback = true
     mocks.replace.mockClear()
-    mocks.login.mockReset().mockResolvedValue(undefined)
+    mocks.login.mockReset().mockResolvedValue(() => true)
     mocks.complete.mockReset().mockResolvedValue({ token: 'orbit-token', refreshToken: 'orbit-refresh',
       userId: 'account-a', name: 'A', email: 'a@example.com' })
     mocks.signInWithOAuth.mockReset().mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
     mocks.openAuthSessionAsync.mockReset()
     mocks.rawUrl = null
     mocks.sessionCallbackUrl = null
+    mocks.sessionReturnUrlAttemptId = null
     mocks.isPending = false
     mocks.useActualSession = false
     mocks.coldStart = false
@@ -184,6 +190,8 @@ describe('AuthCallbackScreen capture retention', () => {
   })
 
   it('accepts the callback returned by the pending Google auth session', async () => {
+    const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
+    mocks.sessionReturnUrlAttemptId = createAuthReturnUrlAttempt()
     mocks.sessionCallbackUrl = 'https://app.useorbit.org/auth-callback#access_token=fresh&refresh_token=fresh-refresh'
     await TestRenderer.act(async () => {
       renderScreen(<AuthCallbackScreen />)
@@ -211,7 +219,9 @@ describe('AuthCallbackScreen capture retention', () => {
     ['Google Calendar connection', '/calendar-sync', '/calendar-sync'],
   ])('exchanges a matching %s link after process recreation once', async (_flow, returnUrl, destination) => {
     const { markPendingGoogleAuthSession } = await import('@/lib/google-auth-callback')
-    const attemptId = await markPendingGoogleAuthSession()
+    const { createAuthReturnUrlAttempt } = await import('@/lib/auth-flow')
+    const attemptId = createAuthReturnUrlAttempt()
+    await markPendingGoogleAuthSession(attemptId)
     mocks.rawUrl = `https://app.useorbit.org/auth-callback?authAttempt=${attemptId}#access_token=fresh&refresh_token=fresh-refresh`
     mocks.useActualSession = true
     mocks.coldStart = true

@@ -24,8 +24,8 @@ import { useUIStore } from '@/stores/ui-store'
  * supplies live TanStack/profile mutations. `onImport` is omitted pre-auth.
  */
 export interface OnboardingActions {
-  createHabit: (input: CreateHabitRequest) => Promise<{ id: string; title: string }>
-  updateHabit: (habitId: string, input: CreateHabitRequest) => Promise<void>
+  createHabit: (input: CreateHabitRequest, accountTimezoneDependency?: string) => Promise<{ id: string; title: string }>
+  updateHabit: (habitId: string, input: CreateHabitRequest, accountTimezoneDependency?: string) => Promise<void>
   createHabitsBulk: (items: BulkHabitItem[]) => Promise<void>
   logHabit: (habitId: string) => Promise<void>
   createGoal: (input: CreateGoalRequest) => Promise<void>
@@ -134,14 +134,16 @@ export function useLiveOnboardingActions(): OnboardingActions {
 
   return useMemo<OnboardingActions>(
     () => ({
-      createHabit: async (input) => {
-        const created = await createHabit.mutateAsync(input)
+      createHabit: async (input, accountTimezoneDependency) => {
+        const created = await createHabit.mutateAsync(accountTimezoneDependency
+          ? { ...input, __offlineDependsOn: [accountTimezoneDependency] } : input)
         return { id: created.id, title: input.title }
       },
-      updateHabit: async (habitId, input) => {
+      updateHabit: async (habitId, input, accountTimezoneDependency) => {
         await updateHabit.mutateAsync({
           habitId,
           data: { ...input, isBadHabit: false, isGeneral: input.isGeneral ?? false, isFlexible: input.isFlexible ?? false, dueTime: input.dueTime ?? null },
+          ...(accountTimezoneDependency ? { dependsOn: [accountTimezoneDependency] } : {}),
         })
       },
       createHabitsBulk: async (items) => { await bulkCreateHabits.mutateAsync({ habits: items }) },

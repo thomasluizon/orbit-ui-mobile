@@ -1,6 +1,12 @@
+import React from 'react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import * as SecureStore from 'expo-secure-store'
+import { API } from '@orbit/shared/api'
+import { notificationKeys, profileKeys } from '@orbit/shared/query'
 import { markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { i18n } from '@/lib/i18n'
+import { getRuntimeTheme } from '@/lib/theme'
+import { useLogout } from '@/hooks/use-logout'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
 
@@ -17,7 +23,6 @@ import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/st
 import { shouldExposeOnboardingRoute } from '@/lib/capture-mode'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useDeleteNotification } from '@/hooks/use-notifications'
-import { notificationKeys } from '@orbit/shared/query'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import {
   getFailedNotificationDeleteIdsSnapshot,
@@ -28,6 +33,7 @@ import {
 } from '@/lib/pending-notification-deletes'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
+const TestRenderer = require('react-test-renderer')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
@@ -47,6 +53,7 @@ const {
   queryClientClearMock,
   setQueryDataMock,
   clearStoredAuthReturnUrlMock,
+  getAuthReturnUrlAttemptMock,
   resetAccountScopedChatMock,
   forgetStoredSupportDraftMock,
   offlineQueueClearMock,
@@ -77,6 +84,7 @@ const {
   queryClientClearMock: vi.fn(),
   setQueryDataMock: vi.fn(),
   clearStoredAuthReturnUrlMock: vi.fn(),
+  getAuthReturnUrlAttemptMock: vi.fn(() => 0),
   resetAccountScopedChatMock: vi.fn(async () => {}),
   forgetStoredSupportDraftMock: vi.fn(async () => {}),
   offlineQueueClearMock: vi.fn(),
@@ -98,6 +106,7 @@ vi.mock('expo-router', () => ({
   router: {
     replace: replaceMock,
   },
+  useRouter: () => ({ replace: replaceMock }),
 }))
 
 vi.mock('@/lib/secure-store', () => ({
@@ -178,6 +187,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
 
 vi.mock('@/lib/auth-flow', () => ({
   clearStoredAuthReturnUrl: clearStoredAuthReturnUrlMock,
+  getAuthReturnUrlAttempt: getAuthReturnUrlAttemptMock,
 }))
 
 vi.mock('@/lib/support-draft-storage', () => ({
@@ -213,6 +223,16 @@ function makeJwtWithClaims(expirySeconds: number, userId = 'jwt-user', email = '
   return `${header}.${payload}.`
 }
 
+function renderHookValue<T>(hook: () => T): T {
+  let value!: T
+  function Probe() {
+    value = hook()
+    return null
+  }
+  TestRenderer.act(() => TestRenderer.create(React.createElement(Probe)))
+  return value
+}
+
 describe('mobile auth store security paths', () => {
   beforeEach(() => {
     resetPendingNotificationDeletesForTests()
@@ -229,6 +249,7 @@ describe('mobile auth store security paths', () => {
     apiClientMock.mockReset()
     clearPersistedQueryCacheMock.mockReset()
     queryClientClearMock.mockReset()
+    setQueryDataMock.mockReset()
     clearStoredAuthReturnUrlMock.mockReset()
     resetAccountScopedChatMock.mockReset()
     resetAccountScopedChatMock.mockResolvedValue(undefined)
@@ -292,7 +313,7 @@ describe('mobile auth store security paths', () => {
   })
 
   it('deletes the pending OAuth attempt when another account signs in', async () => {
-    await markPendingGoogleAuthSession()
+    await markPendingGoogleAuthSession('attempt-1')
     expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
 
     await useAuthStore.getState().login('replacement-token', null, {
@@ -300,6 +321,21 @@ describe('mobile auth store security paths', () => {
     })
 
     expect(await SecureStore.getItemAsync('google_auth_attempt')).toBeNull()
+  })
+
+  it('revokes a completed login owner when a replacement login publishes', async () => {
+    const firstOwner = await useAuthStore.getState().login('first-token', 'first-refresh', {
+      userId: 'first-user', email: 'first@example.com', name: 'First',
+    })
+    expect(firstOwner?.()).toBe(true)
+
+    const replacementOwner = await useAuthStore.getState().login('new-token', 'new-refresh', {
+      userId: 'new-user', email: 'new@example.com', name: 'New',
+    })
+
+    expect(firstOwner?.()).toBe(false)
+    expect(replacementOwner?.()).toBe(true)
+    expect(useAuthStore.getState().user?.userId).toBe('new-user')
   })
 
   it('persists the new tokens before clearing cached query data on login', async () => {
@@ -965,7 +1001,7 @@ describe('mobile auth store security paths', () => {
   })
 
   it('deletes the pending OAuth attempt on logout', async () => {
-    await markPendingGoogleAuthSession()
+    await markPendingGoogleAuthSession('attempt-1')
     expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
     getRefreshTokenMock.mockResolvedValue(null)
 
@@ -1226,7 +1262,7 @@ describe('mobile auth store security paths', () => {
       expiresAt: Date.now() + 3600_000,
     })
 
-    const logout = useAuthStore.getState().logout()
+    const logout = renderHookValue(() => useLogout())()
     await vi.waitFor(() => expect(releaseRevoke).toBeTypeOf('function'))
 
     await useAuthStore.getState().login(
@@ -1253,6 +1289,57 @@ describe('mobile auth store security paths', () => {
       isAuthenticated: true,
       user: { userId: 'replacement-user' },
     })
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('does not navigate an old logout after replacement login during return URL cleanup', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    let releaseReturnUrlCleanup!: () => void
+    const returnUrlCleanup = new Promise<void>((resolve) => {
+      releaseReturnUrlCleanup = resolve
+    })
+    getRefreshTokenMock.mockResolvedValue(null)
+    await useAuthStore.getState().login('old-access-token', null, oldUser)
+    clearStoredAuthReturnUrlMock.mockReturnValue(returnUrlCleanup)
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    const oldLogout = logoutAndRedirect()
+    await vi.waitFor(() => expect(clearStoredAuthReturnUrlMock).toHaveBeenCalledTimes(1))
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+
+    await useAuthStore.getState().login('new-access-token', 'new-refresh-token', newUser)
+    releaseReturnUrlCleanup()
+    await oldLogout
+
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
+  it('limits delayed logout return URL cleanup to the attempt visible before sign-out', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    let currentAttempt = 41
+    let storedReturnUrl: string | null = '/old'
+    let releaseRevoke!: () => void
+    getAuthReturnUrlAttemptMock.mockImplementation(() => currentAttempt)
+    getRefreshTokenMock.mockResolvedValue('old-refresh')
+    clearStoredAuthReturnUrlMock.mockImplementation((attemptId: number) => {
+      if (attemptId === currentAttempt) storedReturnUrl = null
+      return Promise.resolve()
+    })
+    await useAuthStore.getState().login('old-access', 'old-refresh', oldUser)
+    apiClientMock.mockImplementationOnce(() => new Promise<void>((resolve) => { releaseRevoke = resolve }))
+
+    const logout = useAuthStore.getState().logout()
+    await vi.waitFor(() => expect(releaseRevoke).toBeTypeOf('function'))
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    currentAttempt = 42
+    storedReturnUrl = '/replacement'
+    releaseRevoke()
+    await logout
+
+    expect(clearStoredAuthReturnUrlMock).toHaveBeenCalledWith(41, expect.any(Function))
+    expect(storedReturnUrl).toBe('/replacement')
   })
 
   it('does not let a second logout waiting on push unsubscribe adopt a replacement session', async () => {
@@ -1930,5 +2017,44 @@ describe('mobile auth store security paths', () => {
       name: 'Login Name',
       email: 'login@example.com',
     })
+  })
+
+  it('does not publish an old profile after a replacement login scopes the cache', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    const oldProfile = { name: 'Old', email: oldUser.email, language: 'pt-BR', colorScheme: 'rose', themePreference: 'light' }
+    const newProfile = { name: 'New', email: newUser.email, language: 'en', colorScheme: 'blue', themePreference: 'dark' }
+    let releaseOldProfile!: (profile: typeof oldProfile) => void
+    apiClientMock
+      .mockImplementationOnce(() => new Promise<typeof oldProfile>((resolve) => { releaseOldProfile = resolve }))
+      .mockResolvedValueOnce(newProfile)
+
+    const oldLogin = useAuthStore.getState().login('old-token', 'old-refresh', oldUser)
+    await vi.waitFor(() => expect(releaseOldProfile).toBeTypeOf('function'))
+    await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
+    releaseOldProfile(oldProfile)
+    await oldLogin
+
+    expect(setQueryDataMock).toHaveBeenCalledTimes(1)
+    expect(setQueryDataMock).toHaveBeenCalledWith(profileKeys.detail(), newProfile)
+    expect(i18n.language).toBe('en')
+    expect(getRuntimeTheme()).toMatchObject({ scheme: 'blue', themeMode: 'dark' })
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
+  })
+
+  it('refuses a rejected refresh logout after a replacement login', async () => {
+    const oldUser = { userId: 'old-user', email: 'old@example.com', name: 'Old' }
+    const newUser = { userId: 'new-user', email: 'new@example.com', name: 'New' }
+    await useAuthStore.getState().login('old-token', 'old-refresh', oldUser)
+    const oldOwnership = getSessionGeneration()
+    await useAuthStore.getState().login('new-token', 'new-refresh', newUser)
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    await logoutAndRedirect(oldOwnership)
+
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, user: newUser })
+    expect(replaceMock).not.toHaveBeenCalled()
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+    expect(apiClientMock).not.toHaveBeenCalledWith(API.auth.logout, expect.anything())
   })
 })

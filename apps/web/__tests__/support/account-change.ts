@@ -14,6 +14,22 @@ export function respondWithAccount(userId: string): void {
   } as unknown as Response)
 }
 
+export function respondWithInactiveSession(): void {
+  vi.mocked(globalThis.fetch).mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ expiresAt: null }),
+  } as Response)
+}
+
+export async function retireHeldAccount(): Promise<void> {
+  respondWithInactiveSession()
+  await act(async () => {
+    await useAuthStore.getState().checkSession()
+  })
+  vi.mocked(globalThis.fetch).mockClear()
+}
+
 /** Signs the tab in as an account, which is where a later replacement is measured from. */
 export function holdAccount(userId: string): void {
   useAuthStore.getState().setAuth({
