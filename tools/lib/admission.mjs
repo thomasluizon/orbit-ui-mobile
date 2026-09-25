@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { runBounded } from "./bounded-process.mjs"
@@ -105,17 +105,34 @@ const branchPullRequests = async (slug, owner, branch, environment) => {
   return pulls
 }
 
+const readReservation = (path) => {
+  try {
+    const reservation = JSON.parse(readFileSync(path, "utf8"))
+    return Number.isInteger(reservation?.pid) && typeof reservation.startIdentity === "string" &&
+      typeof reservation.repository === "string" && typeof reservation.branch === "string" ? reservation : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A claim is published by rename, so a file that does not parse was never a live claim: it is the
+ * remains of a write interrupted before this change, and it is removed rather than refusing forever.
+ * A claim stops counting toward open pull requests once its branch has one, because GitHub then
+ * counts it, but it keeps counting toward queued runs while its launcher lives, because GitHub can
+ * show the pull request before its Actions runs exist (review of ui#1105).
+ */
 const liveReservations = async (repoRoot, owner, environment) => {
   const directory = reservationDirectory(repoRoot)
-  if (!existsSync(directory)) return 0
-  let count = 0
+  const counts = { pullRequests: 0, queuedRuns: 0 }
+  if (!existsSync(directory)) return counts
   for (const name of readdirSync(directory)) {
     if (!name.endsWith(".json")) continue
     const path = join(directory, name)
-    const reservation = JSON.parse(readFileSync(path, "utf8"))
-    if (!Number.isInteger(reservation.pid) || typeof reservation.startIdentity !== "string" ||
-        typeof reservation.repository !== "string" || typeof reservation.branch !== "string") {
-      throw new Error(`invalid admission reservation ${name}`)
+    const reservation = readReservation(path)
+    if (!reservation) {
+      rmSync(path, { force: true })
+      continue
     }
     const observedIdentity = processStartIdentity(reservation.pid)
     if (observedIdentity === null && processIsAlive(reservation.pid)) {
@@ -125,13 +142,10 @@ const liveReservations = async (repoRoot, owner, environment) => {
       rmSync(path, { force: true })
       continue
     }
-    if ((await branchPullRequests(reservation.repository, owner, reservation.branch, environment)).length > 0) {
-      rmSync(path, { force: true })
-      continue
-    }
-    count++
+    counts.queuedRuns++
+    if ((await branchPullRequests(reservation.repository, owner, reservation.branch, environment)).length === 0) counts.pullRequests++
   }
-  return count
+  return counts
 }
 
 export const checkAdmission = async ({ config, repositoryKey, branch, environment, worktree, now = Date.now(), repoRoot = REPO_ROOT, lockWaitMs = LOCK_WAIT_MS }) => {
@@ -161,14 +175,16 @@ export const checkAdmission = async ({ config, repositoryKey, branch, environmen
       }
       counts.queuedRuns += runs.total_count
     }
-    if (counts.openPullRequests + counts.reservations >= limits.maxOpenPullRequests ||
-        counts.queuedRuns + counts.reservations >= limits.maxQueuedRuns) {
+    if (counts.openPullRequests + counts.reservations.pullRequests > limits.maxOpenPullRequests ||
+        counts.queuedRuns + counts.reservations.queuedRuns > limits.maxQueuedRuns) {
       return { admitted: false, reason: "ADMISSION_REFUSED", counts, limits, error: null }
     }
     const reservationId = randomUUID()
     mkdirSync(reservationDirectory(repoRoot), { recursive: true })
-    writeFileSync(join(reservationDirectory(repoRoot), `${reservationId}.json`),
+    const unpublished = join(reservationDirectory(repoRoot), `${reservationId}.unpublished`)
+    writeFileSync(unpublished,
       JSON.stringify({ pid: process.pid, startIdentity, repository: target, branch, timestamp: new Date(now).toISOString() }), { flag: "wx" })
+    renameSync(unpublished, join(reservationDirectory(repoRoot), `${reservationId}.json`))
     return { admitted: true, reservationId, counts, limits }
   } catch (error) {
     return { admitted: false, reason: "ADMISSION_REFUSED", counts, limits, error: error.message }

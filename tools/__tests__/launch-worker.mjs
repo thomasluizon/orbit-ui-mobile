@@ -160,7 +160,7 @@ export const cases = async () => {
   const concurrentArgv = ["--issue", "ORB-201", "--worktree", concurrent.worktree, "--prompt", concurrent.prompt]
   const startConcurrent = () => new Promise((resolve) => {
     const child = spawn(process.execPath, [concurrent.path, ...concurrentArgv], {
-      cwd: concurrent.base, env: { ...process.env, ...githubAuthEnv(Array.from({ length: 9 }, (_, index) => index + 1)) },
+      cwd: concurrent.base, env: { ...process.env, ...githubAuthEnv(Array.from({ length: 10 }, (_, index) => index + 1)) },
     })
     let stdout = ""
     child.stdout.on("data", (chunk) => { stdout += chunk })
@@ -168,7 +168,7 @@ export const cases = async () => {
     child.on("exit", (status) => resolve({ status, stdout }))
   })
   const concurrentResults = await Promise.all([startConcurrent(), startConcurrent()])
-  T("launch-worker: two processes racing for one allowance launch exactly one worker",
+  T("launch-worker: two processes racing at the cap for one allowance launch exactly one worker",
     concurrentResults.map((result) => result.status).sort().join(",") === "0,8", JSON.stringify(concurrentResults))
   T("launch-worker: completed launch releases its admission reservation",
     !existsSync(join(concurrent.base, ".git", "orbit-admission-reservations")) ||

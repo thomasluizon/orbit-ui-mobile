@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join } from "node:path"
 
 import { T, TOOLS_DIR, orcaEnv, realOrchestratorConfig, stageRepo } from "./_harness.mjs"
-import { checkAdmission, configuredRepositorySlug, queuedRunsPath } from "../lib/admission.mjs"
+import { checkAdmission, configuredRepositorySlug, queuedRunsPath, releaseAdmission } from "../lib/admission.mjs"
 
 const repository = (name) => {
   const entry = stageRepo(`admission-${name}`)
@@ -32,7 +32,12 @@ export const cases = async () => {
     { match: `actions/runs?status=queued&created=${encodeURIComponent(">=2026-09-24T03:00:00Z")}&per_page=1`, stdout: JSON.stringify({ total_count: runs, workflow_runs: [] }), exit: fail ? 1 : 0, stderr: fail ? "GitHub unavailable" : "" },
     { match: "pulls?state=open", stdout: JSON.stringify(pulls.map((number) => ({ number }))) },
   ])
-  const check = (environment, caps = config.caps) => checkAdmission({ config: { ...config, caps }, repositoryKey: "ui", branch: "feature/new", environment, now: Date.parse("2026-09-25T03:00:00Z") })
+  const check = async (environment, caps = config.caps) => {
+    const result = await checkAdmission({ config: { ...config, caps }, repositoryKey: "ui", branch: "feature/new", environment,
+      now: Date.parse("2026-09-25T03:00:00Z"), repoRoot: config.repos.ui })
+    releaseAdmission(result.reservationId, config.repos.ui)
+    return result
+  }
   T("admission: the queued-run read counts only runs created in the last 24 hours",
     queuedRunsPath("o/r", Date.parse("2026-09-25T03:00:00Z")) === "repos/o/r/actions/runs?status=queued&created=%3E%3D2026-09-24T03%3A00%3A00Z&per_page=1")
   const below = await check(plan([1, 2], 3))
@@ -43,9 +48,9 @@ export const cases = async () => {
   T("admission: queued runs above cap refuse", !tooManyRuns.admitted && tooManyRuns.counts.queuedRuns === 33, JSON.stringify(tooManyRuns))
   // Each stubbed repository answers the same counts, so the fleet totals are multiples of three.
   const atPullCap = await check(plan(Array.from({ length: 4 }, (_, index) => index + 1), 0), { maxOpenPullRequests: 12, maxQueuedRuns: 30 })
-  T("admission: open pull requests exactly at the cap leave no new-work capacity", !atPullCap.admitted && atPullCap.counts.openPullRequests === 12, JSON.stringify(atPullCap))
+  T("admission: open pull requests exactly at the cap are admitted", atPullCap.admitted && atPullCap.counts.openPullRequests === 12, JSON.stringify(atPullCap))
   const atRunCap = await check(plan([], 11), { maxOpenPullRequests: 10, maxQueuedRuns: 33 })
-  T("admission: queued runs exactly at the cap leave no new-work capacity", !atRunCap.admitted && atRunCap.counts.queuedRuns === 33, JSON.stringify(atRunCap))
+  T("admission: queued runs exactly at the cap are admitted", atRunCap.admitted && atRunCap.counts.queuedRuns === 33, JSON.stringify(atRunCap))
   const existing = await check(plan(Array.from({ length: 4 }, (_, index) => index + 1), 11, [{ number: 99 }]))
   T("admission: existing pull request is exempt", existing.admitted && existing.existingPullRequest === 99, JSON.stringify(existing))
   const failure = await check(plan([], 0, [], true))
@@ -54,11 +59,11 @@ export const cases = async () => {
   const checkout = repository("admission-reservations")
   const reservationDirectory = join(checkout, ".git", "orbit-admission-reservations")
   const edgeConfig = { ...config, repos: { ui: checkout }, caps: { maxOpenPullRequests: 10, maxQueuedRuns: 30 } }
-  const edge = (branch, environment = plan(Array.from({ length: 9 }, (_, index) => index + 1), 0), extra = {}) =>
+  const edge = (branch, environment = plan(Array.from({ length: 10 }, (_, index) => index + 1), 0), extra = {}) =>
     checkAdmission({ config: edgeConfig, repositoryKey: "ui", branch, environment, worktree: checkout, repoRoot: checkout,
       now: Date.parse("2026-09-25T03:00:00Z"), ...extra })
   const raced = await Promise.all([edge("feature/one"), edge("feature/two")])
-  T("admission: two launchers racing for one allowance admit exactly one",
+  T("admission: two launchers racing at the cap for one allowance admit exactly one",
     raced.filter((result) => result.admitted).length === 1, JSON.stringify(raced))
   rmSync(reservationDirectory, { recursive: true, force: true })
 
@@ -79,6 +84,29 @@ export const cases = async () => {
   const counted = await edge("feature/after-pr", afterPrEnvironment)
   T("admission: a reservation whose branch has an open pull request is not counted twice",
     typeof prior.reservationId === "string" && counted.admitted, JSON.stringify({ prior, counted }))
+
+  rmSync(reservationDirectory, { recursive: true, force: true })
+
+  const openedPr = await edge("feature/runs-pending", plan([], 0))
+  const runsAtCapEnvironment = orcaEnv([
+    { match: "pulls?head=test-owner%3Afeature%2Fafter-runs", stdout: "[]" },
+    { match: "pulls?head=test-owner%3Afeature%2Fruns-pending", stdout: '[{"number":102}]' },
+    { match: "pulls?state=open", stdout: "[]" },
+    { match: "actions/runs?status=queued", stdout: '{"total_count":30,"workflow_runs":[]}' },
+  ])
+  const afterRuns = await edge("feature/after-runs", runsAtCapEnvironment)
+  T("admission: a reservation whose pull request is open still counts toward queued runs",
+    typeof openedPr.reservationId === "string" && !afterRuns.admitted && afterRuns.counts.reservations?.queuedRuns === 1,
+    JSON.stringify({ openedPr, afterRuns }))
+  rmSync(reservationDirectory, { recursive: true, force: true })
+
+  mkdirSync(reservationDirectory, { recursive: true })
+  const partialPath = join(reservationDirectory, "partial.json")
+  writeFileSync(partialPath, "")
+  const afterPartial = await edge("feature/after-partial", plan([], 0))
+  T("admission: an interrupted reservation write is removed instead of refusing forever",
+    afterPartial.admitted && !existsSync(partialPath), JSON.stringify(afterPartial))
+  rmSync(reservationDirectory, { recursive: true, force: true })
 
   const lockPath = join(checkout, ".git", "orbit-admission.lock")
   const startIdentity = spawnSync("ps", ["-p", String(process.pid), "-o", "lstart="], { encoding: "utf8" }).stdout.trim()
