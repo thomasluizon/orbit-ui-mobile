@@ -81,7 +81,7 @@ export function Button({
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
           : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed),
-        disabled ? styles.disabled : null,
+        disabled && !loading ? styles.disabled : null,
         pressed && quietsOnPress ? styles.pressedQuiet : null,
         pressed ? styles.pressedScale : null,
       ]}

@@ -192,5 +192,9 @@ describe('PillButton (mobile)', () => {
     const destructive = renderPill(<PillButton variant="destructive">Delete</PillButton>)
     const pressed = flattenStyle(destructive.root.findByType('Pressable').props.style({ pressed: true }))
     expect(contrastOnSurface(tokens.fgOnBad, [pressed.backgroundColor])).toBeGreaterThanOrEqual(4.5)
+
+    const disabledWhileLoading = renderPill(<PillButton disabled loading>Saving</PillButton>)
+    const loadingStyle = flattenStyle(disabledWhileLoading.root.findByType('Pressable').props.style({ pressed: false }))
+    expect(loadingStyle.opacity).toBeUndefined()
   })
 })

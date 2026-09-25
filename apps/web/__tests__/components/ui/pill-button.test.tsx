@@ -104,7 +104,7 @@ describe('PillButton', () => {
       'active:scale-[0.96]',
     )
     expect(screen.getByRole('link', { name: 'Secondary' })).toHaveClass(
-      'hover:opacity-90',
+      'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
       'active:scale-[0.96]',
       'active:opacity-85',
     )
@@ -174,6 +174,7 @@ describe('PillButton', () => {
   it('keeps its loading spinner perceivable under reduced motion', () => {
     render(<PillButton loading>Saving</PillButton>)
     const button = screen.getByRole('button', { name: 'Saving' })
+    expect(button.querySelector('svg')).toHaveClass('animate-spin')
     expect(button.querySelector('svg')).toHaveClass('orbit-essential-loading')
 
     const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
@@ -204,14 +205,18 @@ describe('PillButton', () => {
     })
     expect(transitions).toHaveLength(1)
     expect(transitions[0]).toContain('background-color var(--dur-hover-control) var(--ease-standard)')
+    expect(transitions[0]).toContain('opacity var(--dur-1) var(--ease-out)')
     expect(transitions[0]).toContain('transform var(--dur-1) var(--ease-out)')
     const activeDurations: string[] = []
     css.walkRules('.orbit-pill-action:active:not(:disabled)', (rule) => {
       rule.walkDecls('transition-duration', (declaration) => { activeDurations.push(declaration.value) })
     })
-    expect(activeDurations).toEqual([
-      'var(--dur-hover-control), var(--dur-hover-control), var(--dur-1), var(--dur-1)',
-    ])
+    expect(activeDurations).toHaveLength(0)
+
+    render(<PillButton variant="secondary">Secondary</PillButton>)
+    const secondary = screen.getByRole('button', { name: 'Secondary' })
+    expect(secondary).toHaveClass('enabled:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]')
+    expect(secondary).not.toHaveClass('enabled:hover:opacity-90')
   })
 
   it.each(['dark', 'light'] as const)('keeps loading text and focus visible in %s', (mode) => {
@@ -225,11 +230,19 @@ describe('PillButton', () => {
     expect(contrastOnSurface(tokens['--fg-on-primary']!, [tokens['--primary']!])).toBeGreaterThanOrEqual(4.5)
     expect(contrastOnSurface(tokens['--primary']!, [tokens['--bg']!])).toBeGreaterThanOrEqual(3)
     expect(button).toHaveAttribute('aria-busy', 'true')
+    const css = postcss.parse(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8'))
+    const focusOutlines: string[] = []
+    css.walkRules(':focus-visible', (rule) => {
+      rule.walkDecls('outline', (declaration) => { focusOutlines.push(declaration.value) })
+    })
+    expect(focusOutlines).toContain('2px solid var(--primary)')
   })
 
   it('dims explicitly disabled buttons without dimming a loading button', () => {
     render(<PillButton disabled>Continue</PillButton>)
     expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('disabled:opacity-40')
+    render(<PillButton disabled loading>Saving</PillButton>)
+    expect(screen.getByRole('button', { name: 'Saving' })).not.toHaveClass('disabled:opacity-40')
   })
 
   it.each(['dark', 'light'] as const)('keeps the destructive hover foreground legible in %s', (mode) => {
