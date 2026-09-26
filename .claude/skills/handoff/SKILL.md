@@ -113,6 +113,23 @@ Every run, read each existing instruction against everything he has said since. 
 with a pointer to what replaced it rather than deleting it silently, and fold two into one when the
 later narrows the earlier. An instruction nobody has contradicted stays, however old.
 
+### Keep the work order current, every run
+
+If the spec orders the work (batches, phases, a ranked list), that section is state, and every
+handoff reconciles it against the live board before writing anything else:
+
+1. List the open tickets: `gh issue list --repo <ticket repo> --state open --limit 400 --json number`.
+2. List every ticket the order section references.
+3. Remove each referenced ticket that is closed. Place each open ticket that is missing into exactly
+   one place, by the section's own rules, and say in one line why it goes there. A ticket in two
+   places is also a defect.
+4. Prove it with a script that compares the two lists, and put the counts in the prompt: open,
+   placed, unplaced (must be 0), placed twice (must be 0).
+
+**A session section is history, not state.** Writing one never replaces updating State and the work
+order in place. A spec whose order only grows session notes goes stale, and a prompt with no current
+order to point at falls back to a skill's default ordering.
+
 ### The spec is shared state
 
 Another session may be editing it. Re-read the file from disk immediately before you write, and
@@ -185,6 +202,22 @@ findings cleared before it can merge, and that is work the next session has to p
 When a list is long, the prompt carries what is next and the spec's state section carries the rest,
 with the count and the query that reproduces it. Summarising is allowed; omitting a category is not.
 
+## Carry the previous prompt forward
+
+Overwriting `NEXT.md` replaces the file, never its instructions. Before you write the new one, read the
+committed one (`git show HEAD:.claude/handoffs/NEXT.md`) and give EVERY instruction and step in it a
+disposition in the new prompt or the spec:
+
+| disposition | what it needs |
+|---|---|
+| carried | it still binds, so it appears in the new prompt, in its words |
+| done | the evidence: the merge, commit, ticket or reply that finished it |
+| superseded | what replaced it: a later instruction or a state change |
+
+**An instruction that is not stale is never dropped, and never replaced by a skill's default.** A
+ranking such as `/orchestrate --auto`'s leverage order is a default, not a decision, and it never fills
+the gap an instruction left.
+
 ## What belongs in the prompt
 
 Short. It points at the spec and says what to do next.
@@ -195,7 +228,9 @@ Short. It points at the spec and says what to do next.
    query that lists what is left. Never scope the goal to the open pull requests or to whatever this
    session was mid-way through.
 4. The in-flight inventory, one row per item with its disposition.
-5. What to do, in the order it has to happen.
+5. What to do, in the order it has to happen. After the in-flight items, the order comes from the
+   spec's own work order section, named by its heading, with the counts from its reconciliation.
+   The prompt never invents an order of its own.
 6. `$ARGUMENTS`, if any, as its own section.
 7. One line: every identifier here came from a previous session, treat each as a lead to verify.
 
