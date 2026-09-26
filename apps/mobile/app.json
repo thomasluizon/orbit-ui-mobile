@@ -70,6 +70,9 @@
         "com.android.vending.BILLING"
       ],
       "blockedPermissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
         "com.google.android.gms.permission.AD_ID",
         "android.permission.ACCESS_ADSERVICES_AD_ID",
         "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
@@ -107,7 +110,8 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to record voice input for AI chat."
+          "microphonePermission": "Allow $(PRODUCT_NAME) to record voice input for AI chat.",
+          "enableBackgroundPlayback": false
         }
       ],
       [
