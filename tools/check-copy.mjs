@@ -1,19 +1,4 @@
 #!/usr/bin/env node
-// The copy-register gate (D6): AI-cliche words, placeholder
-// content, and typed-in UPPERCASE in locale string VALUES, plus hardcoded
-// brand-accent colors in source. Replaces the added-text-only PostToolUse
-// hooks (forbid-ai-cliche-copy, forbid-placeholder-content,
-// forbid-typed-uppercase, forbid-hardcoded-brand-color), whose confirmed
-// defect was scanning only the text an edit introduced - a file arriving via
-// checkout, merge, or codegen was never scanned. This scans the FILES.
-//
-// Values-only is the soundness argument for the copy checks: a key like
-// `seamless.title` is not copy; flagging it would be the false positive that
-// makes a gate worse than no gate.
-//
-// Usage:
-//   node tools/check-copy.mjs --check             full scan vs tools/copy-baseline.json (exit 1 on growth)
-//   node tools/check-copy.mjs --write-baseline    regenerate tools/copy-baseline.json
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs"
 import { execFileSync } from "node:child_process"

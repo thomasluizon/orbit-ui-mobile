@@ -18,13 +18,6 @@ import { useUIStore } from '@/stores/ui-store'
 
 const SETTLE_DELAY_MS = 500
 
-/**
- * Astra-branded review moment: presents once the armed review prompt's
- * celebration has fully settled, with copy referencing the streak or level
- * that triggered it. Accepting hands off to the native Play in-app review;
- * every dismissal path (swipe, back, "Not now") snoozes via the shared
- * review-reminder guard.
- */
 export function ReviewMomentSheet() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()

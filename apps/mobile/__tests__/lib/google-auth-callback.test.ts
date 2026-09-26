@@ -125,12 +125,12 @@ describe('google auth callback helpers', () => {
       token: 'backend-token',
       refreshToken: 'refresh-token',
       userId: 'user-1',
-      name: 'Thomas',
+      name: 'Alex',
       email: 'thomas@example.com',
     })
 
     expect(fallbackUrl).toBe(
-      `${AUTH_CALLBACK_URL}?token=backend-token&refreshToken=refresh-token&userId=user-1&name=Thomas&email=thomas%40example.com`,
+      `${AUTH_CALLBACK_URL}?token=backend-token&refreshToken=refresh-token&userId=user-1&name=Alex&email=thomas%40example.com`,
     )
     expect(
       resolveGoogleAuthCallbackUrl({
@@ -139,7 +139,7 @@ describe('google auth callback helpers', () => {
         token: 'backend-token',
         refreshToken: 'refresh-token',
         userId: 'user-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
         },
       }),

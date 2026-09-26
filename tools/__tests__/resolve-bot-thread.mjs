@@ -79,14 +79,6 @@ export const cases = () => {
   const blank = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR)], { path: testedToolPath, env: plan(), input: "   \n\t  \n" })
   T(`${TOOL}: a whitespace-only reply body is refused too`, blank.status === 2 && /reply body on stdin is empty/.test(blank.stderr), `exit ${blank.status}: ${blank.stderr || blank.stdout}`)
 
-  /**
-   * THE incident, reproduced. On 2026-08-08 a typed `PRRT_` id resolved to a live CodeRabbit thread
-   * on benhook1013/FireMUD pull request #2594 and a reply landed there under Thomas's account.
-   * `--repo` chose only the token, so nothing compared the node's repository with the caller's.
-   *
-   * The reply and resolve stubs are BOTH present in this plan and both must go unused. That is what
-   * proves nothing was written, rather than proving only that the exit code was non-zero.
-   */
   const foreign = post("fixed in 4e6e4871", { target: threadNode({ nameWithOwner: THEIRS }) })
   T(
     `${TOOL}: a thread in ANOTHER repository is refused before the reply, naming both repositories`,
@@ -146,7 +138,6 @@ export const cases = () => {
 
   /**
    * The wrong DIAGNOSIS cost as much as the wrong id. GitHub answers a write it will not accept
-   * with a permissions error, and that exact message was filed as a transient glitch on 2026-08-08.
    */
   const denied = post("fixed in 4e6e4871", { reply: JSON.stringify({ errors: [{ message: "thomasluizon does not have the correct permissions to execute AddPullRequestReviewThreadReply" }] }) })
   const deniedPlan = parsed(denied)

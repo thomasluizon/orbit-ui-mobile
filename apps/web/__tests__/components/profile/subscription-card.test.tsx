@@ -24,7 +24,7 @@ import { SubscriptionCard } from '@/app/(app)/profile/_components/subscription-c
 
 
 const baseProfile = {
-  name: 'Thomas',
+  name: 'Alex',
   email: 'thomas@example.com',
   timeZone: 'America/Sao_Paulo',
   aiSummaryEnabled: true,

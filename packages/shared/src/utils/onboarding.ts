@@ -158,14 +158,6 @@ export function canSnapshotOnboardingEntry(input: {
   )
 }
 
-/**
- * Resolves what the post-auth retained onboarding overlay should do for an account that has not
- * completed onboarding, given a frozen snapshot of whether the account already had habits at app
- * entry. `hadHabitsAtEntry` must be captured once (see {@link canSnapshotOnboardingEntry}) and never
- * recomputed, because the overlay itself creates habits mid-flow. An account that already had habits
- * (a pre-migration user, or one that abandoned onboarding after creating habits) is auto-completed
- * instead of re-onboarded.
- */
 export function resolveRetainedOnboarding(input: {
   hasCompletedOnboarding: boolean | null | undefined
   hadHabitsAtEntry: boolean | null

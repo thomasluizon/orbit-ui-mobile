@@ -26,13 +26,6 @@ interface PillButtonProps {
   style?: StyleProp<ViewStyle>
 }
 
-/** Kit pill CTA in the canonical taxonomy: glowing `primary`, inverted
- *  `secondary`, hairline `ghost`, or status-bad `destructive`. `size` (`sm` /
- *  `md` / `lg`) drives a fixed height + horizontal padding + label/icon scale
- *  from the shared `BUTTON_SIZES` geometry so the web mirror cannot drift.
- *  While `busy`, a spinner fills the leading slot, the label dims, and presses
- *  no-op. With a `leading` icon and no label child it renders an icon-only
- *  square (width = the size's height); pass `accessibilityLabel` for its name. */
 export function PillButton({
   variant = 'primary',
   size = 'md',

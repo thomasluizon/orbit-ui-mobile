@@ -33,14 +33,6 @@ type RequestExecution = {
   tokenUsed: string | null
 }
 
-/**
- * A parsed response together with the token the API accepted for it.
- *
- * The caller's own `getToken()` does not answer this. `executeRequest` reads the store again at
- * request time, and the 401 path retries under a rotated or refreshed token, so the credential that
- * authorised the body can differ from the one the caller last saw. Anything that records WHOSE data
- * it received has to read it from here.
- */
 export interface AuthorizedApiResponse<T> {
   data: T
   authorizingToken: string | null
@@ -268,13 +260,6 @@ export async function apiClient<T = unknown>(
   return (await apiClientWithAuthorizingToken<T>(path, options, schema)).data
 }
 
-/**
- * `apiClient`, plus the token the API accepted for this response.
- *
- * Use it only where the ANSWER has to be attributed to an account: the Android widget cache tags
- * each payload with the account that produced it, and tagging with the caller's pre-request token
- * would mislabel a body the 401 path fetched under a different one.
- */
 export async function apiClientWithAuthorizingToken<T = unknown>(
   path: string,
   options: ApiRequestOptions = {},

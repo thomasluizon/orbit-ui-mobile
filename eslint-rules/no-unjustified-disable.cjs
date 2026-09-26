@@ -1,13 +1,5 @@
 "use strict"
 
-/**
- * Every `eslint-disable` comment must carry a ` -- reason`. An unexplained
- * disable is a gate bypass with no audit trail; the ESLint directive syntax
- * already supports a justification after ` -- ` and this rule makes it
- * mandatory. Replaces the "unjustified eslint-disable" arm of the old
- * forbid-ts-antipatterns hook so the rule holds for every tool.
- * https://github.com/thomasluizon/orbit-ui-mobile/blob/main/REBUILD.md
- */
 const DIRECTIVE = /^\s*eslint-disable(?:-next-line|-line)?\b/
 
 module.exports = {

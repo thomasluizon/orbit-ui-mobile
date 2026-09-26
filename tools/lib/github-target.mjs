@@ -1,20 +1,3 @@
-/**
- * Prove that a caller-supplied GitHub node id points at the repository the caller named, BEFORE
- * any write.
- *
- * WHY this module exists, measured 2026-08-08. The orchestrator passed
- * `--thread PRRT_kwDOR5Siws6XdcAt` to tools/resolve-bot-thread.mjs. That id was never read from
- * any output. It was typed, with a shell `||` fallback to "try listing fresh if it fails". GraphQL
- * node ids are GLOBALLY unique, and `--repo` selected only the token, so the id alone chose the
- * target. It resolved to a live CodeRabbit thread on a stranger's public repository and posted a
- * reply there under Thomas's account.
- *
- * The lesson is not "validate the prefix". The id was correctly shaped. The lesson is that a node
- * id names a target and a repository key names a different target, and nothing compared them.
- *
- * Pure on purpose: the caller owns the GraphQL call, this module owns the verdict, so the rule is
- * unit-testable without a network.
- */
 
 /** Two slugs name the same repository when they differ only in case. GitHub is case-insensitive
  * on owner and name, so a case difference is not a misdirection and must not read as one. */
@@ -51,13 +34,6 @@ export const nodeTargetVerdict = ({ nodeId, expectedSlug, resolvedSlug }) => {
   return { ok: true, slug: resolvedSlug }
 }
 
-/**
- * GitHub answers a write aimed at a repository you cannot write to with a permissions error, never
- * with "wrong repository". On 2026-08-08 that exact message,
- * "thomasluizon does not have the correct permissions to execute ResolveReviewThread", was logged
- * as a transient glitch and retried. The wrong diagnosis cost as much as the wrong id, so the tool
- * now names the resolved target in the error rather than leaving the reader to guess.
- */
 const PERMISSION_SHAPES = /permission|not authorized|resource not accessible|forbidden|must have (?:admin|write|push)/i
 
 export const misdirectedWriteNote = (detail, resolvedSlug) => {

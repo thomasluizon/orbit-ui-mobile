@@ -1,27 +1,3 @@
-/**
- * What an unattended run has left to do, and what will wake it.
- *
- * WHY it exists, measured 2026-08-06: the ONLY thing that continues a `--sleep` run is a background
- * task completing and re-invoking the session. Nothing verified one existed. The orchestrator ended a
- * turn saying "CI will wake me" with nothing scheduled, and the night simply stopped, leaving an
- * artifact trail identical to a run that finished. A queue that ends silently is worse than one that
- * fails loudly, because nobody looks for it.
- *
- * Two files, in `.git/`, because that directory is per-checkout, never committed, always writable,
- * and needs no gitignore entry:
- *
- *   .git/orbit-orchestrate-run.json     the ORCHESTRATOR is its only writer: which session, whether
- *                                       --sleep is on, and which tickets remain.
- *   .git/orbit-wake-sources/<pid>.json  one file per live wake source, written by launch-worker.mjs
- *                                       when it starts and removed when it exits.
- *
- * One file per wake source rather than an array in one file: under `--parallel` three launchers write
- * at once, and a read-modify-write on a shared array loses entries. A crashed launcher leaks its file
- * instead of removing it, which is exactly why the reader checks that the pid is still ALIVE rather
- * than trusting the file's existence.
- *
- * Every write fails soft. A launch must never die because a status file could not be written.
- */
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
@@ -87,16 +63,6 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
     ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
   ]
-  /**
-   * One row per repository and pull request, in the order each was FIRST seen, but carrying the
-   * LATEST value of every field.
-   *
-   * First-seen-wins on the whole row was wrong. `identities` lists the previous ledger before the
-   * current state, so a pull request registered before its blocker was discovered kept the old row,
-   * and the blocker recorded by the later call was discarded. The run then believed nothing was
-   * blocking it. Ordering still comes from the first sighting, because the ledger is append only
-   * and a row must not move.
-   */
   const rows = new Map()
   for (const entry of identities) {
     if (typeof entry?.repositoryKey !== "string" || !Number.isInteger(entry?.prNumber) || typeof entry?.receiptPath !== "string") continue
@@ -112,13 +78,6 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     existing.receiptPath = entry.receiptPath
     existing.blocker = blocker
   }
-  /**
-   * A ledger row whose receipt file does not exist is a promise nobody kept. Measured 2026-08-08:
-   * four rows were accepted for receipts that were never written, and the Stop hook then read
-   * them as unreadable rather than as absent, which is a different and much quieter failure.
-   * The path is recorded either way, so the row is never silently dropped: `receiptWritten` says
-   * which it is, and the hook can name it.
-   */
   const readinessLedger = [...rows.values()].map((row) => ({
     repositoryKey: row.repositoryKey,
     prNumber: row.prNumber,

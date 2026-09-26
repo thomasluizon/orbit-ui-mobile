@@ -1086,7 +1086,7 @@
     "ORB-122": {
       "number": 128,
       "url": "https://github.com/thomasluizon/orbit-tickets/issues/128",
-      "title": "Gate the rule that a tools/ script is never handed to Thomas as a command to run",
+      "title": "Gate the rule that a tools/ script is never handed to the owner as a command to run",
       "linearState": "Done",
       "linearProject": "Backlog",
       "milestone": null,

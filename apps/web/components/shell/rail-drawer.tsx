@@ -22,15 +22,6 @@ interface RailDrawerProps {
   children: ReactNode
 }
 
-/**
- * Right-side slide-in drawer that surfaces the contextual rail content behind a scrim
- * on the 768–1279 range, where the fixed `RightRail` (xl+) is not shown. The panel
- * slides on `transform` only and the scrim fades on `opacity`; reduced motion collapses
- * both to an instant cut. Dismissed by Escape (shared overlay stack) or a scrim click;
- * focus moves into the panel on open, Tab stays trapped inside, and focus returns to
- * the opener on close. The caller gates `open` to home + below-xl so it never overlaps
- * the fixed rail.
- */
 export function RailDrawer({ open, onClose, children }: Readonly<RailDrawerProps>) {
   const t = useTranslations()
   const mounted = useIsClient()

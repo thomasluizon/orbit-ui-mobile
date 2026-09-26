@@ -123,7 +123,6 @@ export const cases = () => {
   T(`${TOOL}: replacing the title edits the issue`, !existsSync(renamed.titleMarker))
   /**
    * Every argument is compared, not searched. The stub matches by substring, so pinning the title
-   * inside `match` cannot catch a value the tool appended to it: proven on 2026-08-25 by forwarding
    * `title + " WRONG"`, which left the whole gate green.
    */
   T(

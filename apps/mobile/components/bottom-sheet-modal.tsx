@@ -36,18 +36,6 @@ const CORNER_RADIUS = 26
 const MIN_DETENT = 0.1
 const MAX_CONTENT_WIDTH = 640
 
-/**
- * Shared bottom-sheet wrapper backed by a native sheet (react-native-true-sheet).
- * Drag-to-resize between snap points, scroll coordination, the dimmed backdrop,
- * the keyboard, and the Android back button are all handled natively — the JS
- * approaches (gorhom's portal mount and a hand-rolled PanResponder) both no-op or
- * mis-coordinate on the New Architecture. The public props are unchanged so every
- * caller keeps working: `snapPoints` map to detents, and the dirty guard blocks
- * interactive dismissal (drag/backdrop) and routes the close button + back press
- * to `onAttemptDismiss` so the caller can confirm before discarding. Children scroll by
- * default so content taller than the presented detent stays reachable; callers that render
- * their own scroll container opt out via `contentManagesScroll`.
- */
 export function BottomSheetModal({
   open,
   onClose,

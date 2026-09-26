@@ -1,10 +1,3 @@
-// ============================================================
-// Orbit — Sub-habit prominence additions
-// - Active Pro sub-habits in Create flow
-// - Habit-row action sheet
-// - 2-frame drill sequence
-// - Nested sub-habits (3 levels)
-// ============================================================
 
 // ─── Create Habit · Pro active sub-habits ───────────────────
 function CreateHabitSubHabitsActive({ scheme = "purple", dark = true }) {

@@ -9,7 +9,7 @@ Nothing here loads automatically. The handful of rules that genuinely apply to e
 `.claude/rules/*.md` is a native Claude Code auto-load: every file in it is prepended to every turn
 of every session, relevant or not. This tier had six files and 375 lines there, while its own README
 described them as "situational" and told you to read the themed file when you started that activity.
-Both things could not be true. The 2026-07-19 edit to that README admitted the contradiction and
+Both things could not be true. The  edit to that README admitted the contradiction and
 then left the files where they were, so the tier kept costing 375 lines a turn for another three
 days.
 
@@ -39,7 +39,7 @@ which is strictly better than hoping an agent chooses to read them:
 
 | file | rules | auto-loads on |
 |---|---|---|
-| `../rules/visual-delivery.md` | 8 | `apps/web/**`, `apps/mobile/**`, `packages/shared/src/theme/**`. Makes completeness structural: the surface inventory, the adversarial `completeness-critic` close gate, the seed fixture. Thomas looking at the surface grants completion; no artifact does, and there is no screenshot requirement. Written after #539 b5 shipped at 5% and was reported "done". |
+| `../rules/visual-delivery.md` | 8 | `apps/web/**`, `apps/mobile/**`, `packages/shared/src/theme/**`. Makes completeness structural: the surface inventory, the adversarial `completeness-critic` close gate, the seed fixture. the owner looking at the surface grants completion; no artifact does, and there is no screenshot requirement. Written after #539 b5 shipped at 5% and was reported "done". |
 | `../rules/product-and-content.md` | 9 | the i18n JSON, `apps/web/app/globals.css`, the theme, the landing page |
 
 **Activity-scoped, here** - no path predicts "I am now reviewing" or "I am now debugging", so these
@@ -71,7 +71,7 @@ reliably precedes it - that file is paid for on every turn of every session.
 
 ## Provenance
 
-Harvested 2026-07-17 from 193 external design/engineering skills, deduplicated and routed in the
+Harvested  from 193 external design/engineering skills, deduplicated and routed in the
 vault note `Orbit skill harvest - canonical rule set (#539)` (`brain/2 Areas/20-29 Orbit
 Engineering/`). The vault note is the source of truth for *why* each rule was kept and what
 corroborated it; this tier is the operational copy. Rules that contradicted a locked Orbit decision

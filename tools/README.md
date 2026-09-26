@@ -51,6 +51,7 @@ These back required CI checks. They fail a merge.
 | Tool | What it does | Usage |
 |---|---|---|
 | `check-dashes.mjs` | Fails on an em dash or en dash in a changed file, a PR title, or a PR body. Backs `Dash Ban`. Its baseline may only shrink. | `node tools/check-dashes.mjs --files <path>... \| --check-baseline \| --write-baseline \| --text "<string>"` |
+| `check-timeless.mjs` | Rejects machine paths, owner attributions, dated prose, and long code comments. Its allowlist only shrinks. | `node tools/check-timeless.mjs --all \| --base <ref> \| --staged \| --hook` |
 | `check-copy.mjs` | Enforces the copy register. Backs `Copy Register`. | `node tools/check-copy.mjs --check` |
 | `check-suppressions-ratchet.mjs` | Fails when the lint-suppression count grows. Backs `Suppressions Ratchet` (escape hatch: the `ratchet:reseed` label). | `node tools/check-suppressions-ratchet.mjs` |
 | `check-push-target.mjs` | Refuses a push whose target is a protected branch. | `node tools/check-push-target.mjs` |

@@ -1,17 +1,3 @@
-/**
- * Local ESLint rule: use the React 19 spellings (web only).
- *
- * apps/web is Next.js 16 / React 19, where:
- *  - `ref` is an ordinary prop, so `forwardRef` is a deprecated wrapper that adds
- *    an indirection and a display-name problem for nothing;
- *  - `use(Context)` replaces `useContext(Context)` and, unlike the hook, may be
- *    called conditionally.
- *
- * WEB ONLY, deliberately. The harvest table flags this explicitly: do not point
- * this rule at apps/mobile until its React version is confirmed — React Native's
- * renderer version is not the same lever as the React package version, and a
- * premature `forwardRef` removal there would break refs at runtime.
- */
 
 const REPLACEMENTS = new Map([
   ['forwardRef', 'forwardRefRemoved'],

@@ -1,5 +1,8 @@
 # AGENTS.md (orbit-ui-mobile)
 
+Write rules, docs, and comments timelessly: no dates except load-bearing data, names or attributions,
+incident stories, or machine paths. `tools/check-timeless.mjs` enforces this.
+
 Instructions for Codex workers in this repository. Claude Code reads `CLAUDE.md`; the two must
 not fork. This file DEFERS to `CLAUDE.md` (same directory) for every repo convention, so read it
 before you write code. Your launch prompt already carries the objective, scope, caps, output
@@ -56,32 +59,18 @@ Redact before you paste, always: never include a token, key, cookie, or credenti
 command you show, and replace any personal, customer, or account value with a placeholder.
 A pull request body is readable by everyone with repository access and is permanent.
 
-Measured cost of skipping this, both found on 2026-07-30:
-
-A worker parsed `result.issue.updatedAt` out of `orca linear status set --json`. That field
-does not exist. Every real post-merge Linear reassertion would have reported a false failure
-and halted the unattended run at the first regressed ticket, on a write that had actually
-succeeded. The harness stayed green through four review rounds because the same commit added
-a mock that invented the field. Four rounds were spent tuning logic that could never run.
-
-`tools/check-ticket.mjs` read `issue.parent` and matched a relation `relationship` of
-`"parent"`. Orca emits neither, so the parent always resolved to null, the fallback that
-could have answered was never reached, and the ledger-child gate merged by ORB-155 has never
-once run against a real ticket. It reports green. Same defect class, opposite symptom: the
-first fails loudly on work that succeeded, the second passes silently on work never checked.
-
-Both shapes above are documentation and age like documentation. Confirm them yourself before
-you rely on them; that is the whole point of this section.
+Existing reads and fixtures are not interface evidence. Confirm the live response shape before
+adding a field dependency.
 
 ## Guardrails you must not trip
 
 - Never push or force-push to `main`, never reuse a squash-merged branch, and never bypass the
   git hooks: no `--no-verify` (or its `-n` commit alias), no `--no-gpg-sign`, no
   `commit.gpgsign=false`. Fix what a hook flags, then commit.
-- Never perform an admin merge except while executing the canonical `/merge-prs` skill after Thomas
+- Never perform an admin merge except while executing the canonical `/merge-prs` skill after the owner
   explicitly invokes it for an already-approved frozen PR set. That skill may use only
   `gh pr merge --admin --squash --match-head-commit <sha>` and must follow its preflight and exact-head
-  rules. In every other context, STOP and ask Thomas to merge it himself. Direct merge APIs remain
+  rules. In every other context, STOP and ask the owner to merge it himself. Direct merge APIs remain
   forbidden without exception: no `PUT /repos/{owner}/{repo}/pulls/{number}/merge` and no GraphQL
   `mergePullRequest` mutation.
 - Never `git worktree remove --force`: on Windows it follows a junction and deletes the link

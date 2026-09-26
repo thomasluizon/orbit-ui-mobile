@@ -113,7 +113,6 @@ export const cases = () => {
   )
 
   /**
-   * The drift regression: recording live on 2026-08-13 flipped `$.stateReason` from null to string
    * because the one sampled ticket had been closed, and every stub of an open ticket then failed.
    * A second recording over the same manifest must union the observed types, never replace them.
    */

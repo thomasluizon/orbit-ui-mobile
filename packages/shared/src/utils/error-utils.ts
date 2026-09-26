@@ -54,13 +54,6 @@ export class ApiClientError extends Error {
   }
 }
 
-/**
- * Validates an already-parsed API response `body` against a Zod `schema` at the client
- * trust boundary. Returns the parsed data when it matches — unknown keys are stripped, so
- * additive API fields never break older clients (append-only contract) — or throws a typed
- * `ApiClientError` (502, `INVALID_RESPONSE_SCHEMA`) carrying the Zod issues when it does not.
- * When no `schema` is supplied the body is returned unchanged, making validation opt-in.
- */
 export function validateApiResponse<T>(
   body: unknown,
   schema: ZodType<T> | undefined,

@@ -110,7 +110,7 @@ describe('useProfile', () => {
   })
 
   it('fetches and returns profile data', async () => {
-    const profile = createMockProfile({ name: 'Thomas' })
+    const profile = createMockProfile({ name: 'Alex' })
     mockProfileResponse(profile)
 
     const { result } = renderHook(() => useProfile(), {
@@ -120,7 +120,7 @@ describe('useProfile', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.profile).toBeDefined()
-    expect(result.current.profile!.name).toBe('Thomas')
+    expect(result.current.profile!.name).toBe('Alex')
     expect(result.current.profile!.email).toBe('thomas@example.com')
   })
 
@@ -233,7 +233,7 @@ describe('useProfile', () => {
   })
 
   it('patchProfile updates the profile in query cache', async () => {
-    const profile = createMockProfile({ name: 'Thomas' })
+    const profile = createMockProfile({ name: 'Alex' })
     mockProfileResponse(profile)
 
     const queryClient = new QueryClient({

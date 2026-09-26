@@ -5,13 +5,6 @@ interface RightRailProps {
   ariaLabel: string
 }
 
-/**
- * Contextual right rail, fixed at ≥1280px (xl). Below xl the layout surfaces the
- * same content through a toggle drawer, so this panel stays presentational: it owns
- * width and the inset hairline seam. The outer column stretches to the full content
- * height so the seam runs the entire page, while an inner `sticky` viewport-tall
- * wrapper owns the internal scroll and keeps the rail content pinned in view.
- */
 export function RightRail({ children, ariaLabel }: Readonly<RightRailProps>) {
   return (
     <aside

@@ -127,13 +127,6 @@ export function useLogHabit() {
           .flatMap(([, items]) => items ?? []),
         variables.habitId,
       )
-      /**
-       * The CELEBRATION still needs a known good habit, and deliberately so: a bad habit's
-       * "streak" is consecutive abstinence, the opposite semantics, and an unresolvable habit
-       * cannot be shown to be either. Celebrating on a guess is user-visible harm.
-       *
-       * The RECONCILIATION below does not, which is the defect. See the comment there.
-       */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
       if (countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0) {
@@ -155,18 +148,6 @@ export function useLogHabit() {
         void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       }
 
-      /**
-       * Rewards the server already granted are reconciled from the RESPONSE, with no list-cache
-       * requirement. Gating these on `countsTowardStreak` dropped them entirely whenever the habit
-       * was not in cache, which is the ordinary state on a deep link or a cold navigation: XP
-       * silently unbanked and the achievement list never refreshed.
-       *
-       * The habit kind cannot change the answer here, so it is not consulted. A bad habit earns
-       * ZERO XP server-side (GamificationService.cs:170, `habit.IsBadHabit ? 0 : ...`), so adding
-       * `response.xpEarned` is a no-op for one; and a bad habit CAN still grant an achievement,
-       * because GamificationService.cs:175 grants BadHabitBreaker at a 30 day abstinence streak.
-       * The old gate therefore dropped a real achievement as well.
-       */
       if (response.xpEarned || response.newAchievementIds?.length) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
@@ -191,14 +172,6 @@ export function useLogHabit() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      /**
-       * The mounted summary MUST refetch, so this cannot narrow to `refetchType: 'none'`.
-       * `useSummary` sets `refetchOnWindowFocus: false` and a 5 minute `staleTime`, so marking the
-       * query stale without refetching leaves the Today Astra card describing the pre-completion
-       * state until its next time bucket. The summary is AI-generated text, so it cannot be
-       * reconciled locally from the mutation response. One small request per habit log is the
-       * correct trade against showing a user their own completion has not happened.
-       */
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })

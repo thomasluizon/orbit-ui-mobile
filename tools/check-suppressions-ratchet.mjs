@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-// The handle on the spacing ratchet: the two
-// eslint-suppressions.json baselines may only SHRINK. Before this job existed,
-// zero CI read the suppression files, so a baseline edit could absorb a new
-// violation silently. Compares each workspace's total suppressed-violation
-// count in the working tree against the same file on THE BRANCH THIS MERGES
-// INTO, taken from GITHUB_BASE_REF and falling back to origin/main; exits 1 on
-// growth. The base ref is load-bearing rather than tidiness: `redesign/main`
-// carries about 950 more suppressions than `main`, so a fixed origin/main
-// baseline would fail every redesign pull request against an unrelated total
-// and the ratchet would gate nothing on that branch. New-rule adoption that legitimately grows a baseline (a rule newly
-// registered, like spacing-scale landing) must regenerate on the SAME PR that
-// registers the rule, and gets reviewed as such.
 
 import { execFileSync } from "node:child_process"
 import { readFileSync, existsSync } from "node:fs"
@@ -51,14 +39,6 @@ const totalOf = (json) => {
   return total
 }
 
-// GITHUB_BASE_REF carries the base BRANCH NAME on a pull_request event and is empty everywhere
-// else, so a local run and a push build both keep the historical origin/main behaviour.
-//
-// The value is NOT normalised beyond trimming, deliberately. Stripping a `refs/heads/` prefix
-// "just in case" would be a defensive branch for a field this repository does not own, and it
-// would hide the very drift worth seeing. The run log below prints the raw field on every run
-// instead, so a shape that is not a bare branch name shows up as a named baseline miss rather
-// than as silent behaviour.
 export const baselineRefFrom = (env = process.env) => `origin/${env.GITHUB_BASE_REF?.trim() || "main"}`
 
 const BASE_REF = baselineRefFrom()

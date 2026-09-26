@@ -72,13 +72,6 @@ export const cases = async () => {
   const argv = ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt]
   const options = { path: fixture.path }
 
-  /**
-   * The no-progress clock once sampled only HEAD and file mtimes, so a ticket whose work IS
-   * measurement looked byte for byte like a hung worker. ORB-225 was killed mid-Lighthouse on
-   * 2026-08-08 with real measurements in its log and zero commits, and only succeeded once they
-   * were recovered by hand. The raised cap for measurement tickets predates the log and CPU
-   * signals (#358) and stays: it is the bound for work that is silent on every signal.
-   */
   const measured = check(TOOL, "--measurement resolves the longer no-progress cap", [...argv, "--measurement", "--dry-run"], { status: 0 }, options)
   const measuredPlan = JSON.parse(measured.stdout)
   discardLog(measured.stdout)
@@ -236,14 +229,6 @@ export const cases = async () => {
   )
   discardLog(stalled.stdout)
 
-  /**
-   * Six workers holding finished, committed work were killed as "stalled" in one night on
-   * 2026-08-22, because progress was defined as HEAD moving or a file changing and a worker inside
-   * one long child process (a full test suite, a CI wait) changes neither (#358). CPU burned by the
-   * process tree and growth of the worker's own log are both progress now. Each script below is
-   * silent on the OLD signals, so with the tiny no-progress cap it survives to the hard ceiling
-   * only if its one live signal is being counted.
-   */
   /** The CPU probe is deliberately Windows-only (its POSIX shape could never be confirmed against a
    * real system), so off Windows the burner is INVISIBLE to every signal and the correct outcome is
    * the no-progress kill. The branch here asserts that contract instead of skipping the case. */
@@ -288,16 +273,6 @@ export const cases = async () => {
   )
   discardLog(uncappedKill.stdout)
 
-  /**
-   * A worker that floods its own log is a runaway, and it used to die unexplained. Measured on the
-   * 2026-08-08 night: ORB-201 wrote 61.73 MB in 36.9 minutes, 28.6 KB/s, eight times the next
-   * fastest writer, and its log is one enormous git diff (5,928 hunk headers, 41,215 deleted
-   * lines). It is the only log in that batch carrying "code-mode host closed its stdout", and
-   * ORB-162 died 3 seconds later mid-write with no error line at all.
-   *
-   * The proximate failure is the vendor's code-mode host, not this harness. What IS the harness's is
-   * that nothing bounded the flood, so the outcome now names it with the byte count attached.
-   */
   const flood = launch("log-runaway", launchConfig({ ...stubEngine(FLOODER), timeouts: { hardCeilingMinutes: 5, noProgressMinutes: 5, pollSeconds: 0.2 }, caps: { workerLogMegabytes: 1 } }))
   const flooded = check(
     TOOL,
@@ -343,7 +318,6 @@ export const cases = async () => {
 
   /**
    * The other half of the #358 report: a kill that leaves committed work must not exit with the
-   * same code and shape as a kill that leaves nothing. On 2026-08-22 a killed worker whose three
    * commits later merged to main unchanged reported identically to one that produced nothing.
    */
   const COMMITTER = stage(
@@ -360,8 +334,7 @@ export const cases = async () => {
   )
   discardLog(salvageable.stdout)
 
-  /** Three of the six 2026-08-22 kills were the fleet-wide 45-minute cap on tickets that
-   * legitimately take longer, so the ceiling is per-launch overridable (#358). */
+  /** A per-launch ceiling overrides the configured default. */
   const ceilingOverride = check(TOOL, "--hard-ceiling-minutes overrides the configured ceiling for one launch", [...argv, "--hard-ceiling-minutes", "90", "--dry-run"], { status: 0, stdout: /"hardCeilingMinutes": 90/ }, options)
   discardLog(ceilingOverride.stdout)
   const ceilingDefault = check(TOOL, "without the flag the ceiling comes from .claude/orchestrator.json", [...argv, "--dry-run"], { status: 0, stdout: new RegExp(`"hardCeilingMinutes": ${realOrchestratorConfig().timeouts.hardCeilingMinutes}\\b`) }, options)

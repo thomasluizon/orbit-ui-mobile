@@ -18,18 +18,6 @@ export const CHAT_STARTER_CHIP_KEYS = [
  */
 export const CHAT_STREAM_IDLE_TIMEOUT_MS = 60_000
 
-/**
- * Voice-input auto-stop tuning shared by both platforms. Recording stops on its
- * own after {@link VOICE_SILENCE_TIMEOUT_MS} of continuous silence, but only
- * once speech has been heard, so an early pause before the user starts talking
- * never cuts the recording short. Levels are sampled every
- * {@link VOICE_LEVEL_POLL_MS}. Both platforms compare a linear time-domain RMS
- * amplitude (0..1): web via a Web Audio `AnalyserNode`, mobile via
- * `@siteed/audio-studio`'s `onAudioAnalysis` data points (expo-audio metering is
- * unusable on Android — it breaks `record()` — see
- * https://github.com/expo/expo/issues/37241). The thresholds are kept per-platform
- * so each can be tuned independently if the mic RMS scales differently.
- */
 export const VOICE_SILENCE_TIMEOUT_MS = 2000
 export const VOICE_LEVEL_POLL_MS = 150
 export const VOICE_WEB_SPEECH_RMS_THRESHOLD = 0.025
@@ -106,14 +94,6 @@ function hasAllowedChatTextFileExtension(value: string | null | undefined): bool
   return CHAT_TEXT_FILE_EXTENSIONS.some((extension) => normalized.endsWith(extension))
 }
 
-/**
- * Validates a chat text-file attachment by extension and size, mirroring
- * {@link getChatImageValidationError}. Returns `'type'` for an unsupported
- * extension, `'size'` for a file over {@link MAX_CHAT_TEXT_FILE_SIZE_BYTES}, or
- * `null` when valid. The gate is extension-based because picker/browser MIME
- * types are unreliable for `.csv`/`.md`, and the contents ride to Astra as plain
- * chat text (no upload, no backend change).
- */
 export function getChatTextFileValidationError(
   candidate: ChatTextFileCandidate,
 ): ChatTextFileValidationError | null {
@@ -132,13 +112,6 @@ export function getChatTextFileValidationError(
   return null
 }
 
-/**
- * Folds an attached text file's contents into the outgoing chat message so the
- * existing Astra pipeline parses it as plain text. `fileLabel` is the
- * already-localized "Attached file ..." heading; both platforms call this so the
- * framing Astra receives stays identical. Returns the file block alone when the
- * user typed no accompanying message.
- */
 export function buildChatMessageWithFileContent(params: {
   message: string
   fileLabel: string

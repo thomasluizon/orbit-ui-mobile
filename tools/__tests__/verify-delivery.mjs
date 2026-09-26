@@ -8,13 +8,6 @@ const BRANCH = "feature/orb-200-delivery"
 const ISSUE = "ORB-200"
 let testedToolPath = null
 
-/**
- * A real git repository is the whole point: this tool exists because a worker's own report is not
- * evidence, so every fixture below is an artifact on disk that git can be asked about. `commit`
- * false is openai/codex#19945's real shape and the reason the tool exists: the process exits 0, the
- * branch is pushed by setup, and nothing was ever committed. `dirty` takes the paths to leave
- * behind, because WHICH paths are dirty is now part of the verdict.
- */
 const stageDelivery = (label, { commit = true, push = true, dirty = [] } = {}) => {
   const repo = stageRepo(`verify-delivery-${label}`)
   if (!repo || repo.git(["switch", "-q", "-c", BRANCH]).status !== 0) return null
@@ -48,20 +41,12 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
 })
 
 /**
- * The two app ids are live, read on 2026-08-12 from
  * `gh api repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks`,
  * which pins every workflow check to 15368 (github-actions) and `pullfrog-approval` to 1768019.
  */
 const GITHUB_ACTIONS_APP = 15368
 const PULLFROG_APP = 1768019
 
-/**
- * A CheckRun reports `status` plus `conclusion` and carries its producing app under
- * `checkSuite.app.databaseId`; a StatusContext reports `state` alone and carries no app at all.
- * Both shapes appear here: a rollup fixture carrying only one kind would let a reader that ignores
- * the other pass. Every field NAME below was read off the live GraphQL response for pull request
- * 716 on 2026-08-12 before being written down, per CLAUDE.md standard 8.
- */
 const checkRun = (name, { status = "COMPLETED", conclusion = "SUCCESS", startedAt = "2026-08-06T10:00:00Z", detailsUrl = null, workflow = null, appId = GITHUB_ACTIONS_APP } = {}) => ({
   __typename: "CheckRun",
   name,
@@ -173,13 +158,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     noCommit.stdout || noCommit.stderr,
   )
 
-  /**
-   * The ORB-39 pair, and the reason DIRTY_TREE exists. Both worktrees are dirty; one carries the
-   * finished ticket as a commit and one carries nothing. They had the SAME verdict and the same
-   * one-key report, so a morning summary could not tell 221 lines of correct work from a worker that
-   * did nothing, and the recoveries have nothing in common: discard the residue and push, against
-   * re-run the whole ticket.
-   */
   const dirtyNoCommit = stageDelivery("dirty-no-commit", { commit: false, dirty: ["src/half-done.ts"] })
   verdictOf(dirtyNoCommit, JSON.stringify([pullRequest(dirtyNoCommit.head)]), "NO_COMMIT", 1, "no commits and a dirty tree is NO_COMMIT, which now means exactly that")
 

@@ -1,11 +1,3 @@
-// ============================================================
-// Orbit — Figma-native component kit
-// Built from scratch to match the attached Figma exactly:
-// navy canvas, violet accent, gradient headers, flat list rows
-// (icon · title · description · trailing), switches, radios,
-// plan cards, stat tiles, glowing pill CTAs, bottom sheets.
-// Portuguese copy, Android 412×892 frames.
-// ============================================================
 
 // ─── Lucide icon ─────────────────────────────────────────────
 function Icon({ name, size = 22, color = "currentColor", strokeWidth = 1.8, style }) {

@@ -8,13 +8,6 @@ export interface HabitPickerOption {
   parentTitle: string | null
 }
 
-/**
- * Flattens the habit tree into a picker list: every parent followed by its
- * sub-habits (recursively), each sub-habit carrying its parent's title for
- * context. Preserves the top-level sort order so the picker matches the list.
- * Completed one-time habits are skipped (they have no future occurrence to
- * link), while their still-active descendants remain selectable.
- */
 export function buildHabitPickerOptions(
   topLevelHabits: NormalizedHabit[],
   childrenByParent: Map<string, string[]>,

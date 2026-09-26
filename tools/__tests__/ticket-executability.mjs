@@ -51,7 +51,7 @@ export const cases = () => {
   )
   T(`${TOOL}: a later scope item mentioning a repro does not defer`, reasons("## Scope\n\n- Change the query\n- Add a repro test").length === 0)
 
-  T(`${TOOL}: HUMAN-ONLY defers as NOT_CODE_WORK`, reasons("## Scope\n\nHUMAN-ONLY: Thomas clicks the branch protection toggle.")[0] === "NOT_CODE_WORK")
+  T(`${TOOL}: HUMAN-ONLY defers as NOT_CODE_WORK`, reasons("## Scope\n\nHUMAN-ONLY: Alex clicks the branch protection toggle.")[0] === "NOT_CODE_WORK")
   T(`${TOOL}: no code in any repo defers as NOT_CODE_WORK`, reasons("## Scope\n\nThere is no code in any repo for this; it is a Stripe dashboard change.")[0] === "NOT_CODE_WORK")
   T(`${TOOL}: one PR per group defers as MULTI_PR`, reasons("## Scope\n\nShip one PR per group of surfaces.")[0] === "MULTI_PR")
   T(`${TOOL}: a codemod is admitted without an override`, reasons("## Technical details\n\nA codemod rewrites every icon import.").length === 0)
@@ -76,7 +76,7 @@ export const cases = () => {
    * Out of scope owns its DESCENDANTS. `## Out of scope` then `### Operations` is one excluded
    * region; filtering only the parent read the child as in-scope and deferred an executable ticket.
    */
-  const nested = "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Thomas flips the toggle.\n"
+  const nested = "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Alex flips the toggle.\n"
   T(`${TOOL}: a heading nested under Out of scope is excluded with its parent`, reasons(nested).length === 0, JSON.stringify(classifyExecutability(nested)))
   const resumed = `${nested}\n## Technical details\n\nNo code in any repo.\n`
   T(`${TOOL}: a sibling heading after the excluded region is scanned again`, reasons(resumed)[0] === "NOT_CODE_WORK", JSON.stringify(classifyExecutability(resumed)))
@@ -98,7 +98,7 @@ export const cases = () => {
   T(`${TOOL}: an ordinary code ticket is not conversation-first`, conversation("## Scope\n\n- Inject the recorder\n- Add one migration\n\n## Acceptance criteria\n\n- A chat round writes a row").conversationFirst === false)
   T(
     `${TOOL}: an acceptance criterion carrying a human grant is conversation-first`,
-    kinds("## Acceptance criteria\n\n* Thomas has opened the page and approved the direction. This is a human grant (D13); no gate and no agent may substitute for it.").includes("HUMAN_GRANT"),
+    kinds("## Acceptance criteria\n\n* Alex has opened the page and approved the direction. This is a human grant (D13); no gate and no agent may substitute for it.").includes("HUMAN_GRANT"),
   )
   T(
     `${TOOL}: a choice left to the implementer is conversation-first`,
@@ -126,7 +126,7 @@ export const cases = () => {
   )
   T(`${TOOL}: a question carries the evidence line it fired on`, /Pencil is retired/.test(conversation(pencil).questions.join(" ")), JSON.stringify(conversation(pencil).questions))
 
-  /** Thomas overrides the heuristic in both directions, and the label always wins over the body. */
+  /** Alex overrides the heuristic in both directions, and the label always wins over the body. */
   T(`${TOOL}: the label forces conversation-first onto an ordinary ticket`, conversation("## Scope\n\n- Fix the selector", [CONVERSATION_LABEL_ON]).conversationFirst === true)
   T(`${TOOL}: the label reports itself as the source, not the body`, conversation("## Scope\n\n- Fix the selector", [CONVERSATION_LABEL_ON]).source === "label")
   T(`${TOOL}: the off label forces it off even when the body trips every signal`, conversation(pencil, [CONVERSATION_LABEL_OFF]).conversationFirst === false)

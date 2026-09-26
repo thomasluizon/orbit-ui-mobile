@@ -1,18 +1,4 @@
 
-// DesignCanvas.jsx — Figma-ish design canvas wrapper
-// Warm gray grid bg + Sections + Artboards + PostIt notes.
-// Artboards are reorderable (grip-drag), deletable, labels/titles are
-// inline-editable, and any artboard can be opened in a fullscreen focus
-// overlay (←/→/Esc). State persists to a .design-canvas.state.json sidecar
-// via the host bridge. No assets, no deps.
-//
-// Usage:
-//   <DesignCanvas>
-//     <DCSection id="onboarding" title="Onboarding" subtitle="First-run variants">
-//       <DCArtboard id="a" label="A · Dusk" width={260} height={480}>…</DCArtboard>
-//       <DCArtboard id="b" label="B · Minimal" width={260} height={480}>…</DCArtboard>
-//     </DCSection>
-//   </DesignCanvas>
 
 const DC = {
   bg: '#f0eee9',
@@ -84,22 +70,6 @@ if (typeof document !== 'undefined' && !document.getElementById('dc-styles')) {
     '.dc-menu hr{border:0;border-top:1px solid rgba(0,0,0,.08);margin:4px 2px}',
     '.dc-menu .dc-danger{color:#c96442}',
     '.dc-menu .dc-danger:hover{background:rgba(201,100,66,.1)}',
-    // Chrome (titles / labels / buttons) counter-scales against the viewport
-    // zoom so it stays a constant on-screen size. --dc-inv-zoom is set by
-    // DCViewport on every transform update and inherits to all descendants —
-    // any overlay inside the world (e.g. a TweaksPanel on an artboard) can use
-    // it the same way.
-    //
-    // The header uses transform:scale (out-of-flow, so layout impact doesn't
-    // matter) with its world-space width set to card-width / inv-zoom so that
-    // after counter-scaling its on-screen width exactly matches the card's —
-    // that's what lets the container query + text-overflow behave against the
-    // card's visible edge at every zoom level.
-    //
-    // The section head uses CSS zoom instead of transform so its layout box
-    // grows with the counter-scale, pushing the card row down — otherwise the
-    // constant-screen-size title would overflow into the (shrinking) world-
-    // space gap and overlap the artboard headers at low zoom.
     '.dc-header{width:calc((100% + 4px) / var(--dc-inv-zoom,1));',
     '  transform:scale(var(--dc-inv-zoom,1));transform-origin:bottom left}',
     '.dc-sectionhead{zoom:var(--dc-inv-zoom,1)}',
@@ -120,17 +90,6 @@ function dcFlatten(children) {
   return out;
 }
 
-// ─────────────────────────────────────────────────────────────
-// DesignCanvas — stateful wrapper around the pan/zoom viewport.
-// Owns runtime state (per-section order, renamed titles/labels, hidden
-// artboards, focused artboard). Order/titles/labels/hidden persist to a
-// .design-canvas.state.json
-// sidecar next to the HTML. Reads go via plain fetch() so the saved
-// arrangement is visible anywhere the HTML + sidecar are served together
-// (omelette preview, direct link, downloaded zip). Writes go through the
-// host's window.omelette bridge — editing requires the omelette runtime.
-// Focus is ephemeral.
-// ─────────────────────────────────────────────────────────────
 const DC_STATE_FILE = '.design-canvas.state.json';
 
 function DesignCanvas({ children, minScale, maxScale, style }) {
@@ -239,19 +198,6 @@ function DesignCanvas({ children, minScale, maxScale, style }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// DCViewport — transform-based pan/zoom (internal)
-//
-// Input mapping (Figma-style):
-//   • trackpad pinch  → zoom   (ctrlKey wheel; Safari gesture* events)
-//   • trackpad scroll → pan    (two-finger)
-//   • mouse wheel     → zoom   (notched; distinguished from trackpad scroll)
-//   • middle-drag / primary-drag-on-bg → pan
-//
-// Transform state lives in a ref and is written straight to the DOM
-// (translate3d + will-change) so wheel ticks don't go through React —
-// keeps pans at 60fps on dense canvases.
-// ─────────────────────────────────────────────────────────────
 function DCViewport({ children, minScale = 0.1, maxScale = 8, style = {} }) {
   const vpRef = React.useRef(null);
   const worldRef = React.useRef(null);
@@ -310,13 +256,6 @@ function DCViewport({ children, minScale = 0.1, maxScale = 8, style = {} }) {
       const t = tf.current;
       const next = Math.min(maxScale, Math.max(minScale, t.scale * factor));
       const k = next / t.scale;
-      // --dc-inv-zoom consumers (.dc-sectionhead's CSS zoom, each section's
-      // marginBottom) reflow on every scale change, vertically shifting the
-      // world layout — so a world point mathematically pinned under the cursor
-      // drifts as you zoom (content creeps up on zoom-in, down on zoom-out).
-      // Anchor the DOM element under the cursor instead: record its screen Y,
-      // apply the transform + --dc-inv-zoom, then cancel whatever vertical
-      // drift the reflow introduced so it stays put on screen.
       let marker = null, markerY0 = 0;
       if (k !== 1) {
         const hit = document.elementFromPoint(cx, cy);
@@ -421,13 +360,6 @@ function DCViewport({ children, minScale = 0.1, maxScale = 8, style = {} }) {
       }
     };
     window.addEventListener('message', onHostMsg);
-    // Announce canvas mode so the host toolbar proxies its % control here
-    // instead of scaling the iframe element (which would just shrink the
-    // viewport window of an infinite canvas). The apply() that follows emits
-    // the initial __dc_zoom so the toolbar % is correct before first pinch.
-    // lastPostedScale reset mirrors the __dc_probe handler: the layout
-    // effect's restore-path apply() may already have posted the restored
-    // scale (before __dc_present), so clear the guard to re-post it in order.
     window.parent.postMessage({ type: '__dc_present' }, '*');
     lastPostedScale.current = undefined;
     apply();

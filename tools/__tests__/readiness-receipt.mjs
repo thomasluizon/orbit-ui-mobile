@@ -70,13 +70,6 @@ export const cases = () => {
   const ticketOffTarget = { ...receipt, ticket: { ...receipt.ticket, status: "In Progress" } }
   T(`${TOOL}: a board status away from the target status is TICKET_STALE`, readinessReport(ticketOffTarget).verdicts.includes("TICKET_STALE"))
 
-  /**
-   * Every identifier below was read off a live response on 2026-08-12, never assumed. `gh api
-   * repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks` returned
-   * `{"context":"Unit Tests","app_id":15368}` and `{"context":"pullfrog-approval","app_id":1768019}`,
-   * and the GraphQL rollup of pull request 716 returned `pullfrog-approval` as a CheckRun whose
-   * `checkSuite.app.databaseId` is 1768019 and `Unit Tests` as one whose app is 15368.
-   */
   const GITHUB_ACTIONS_APP = 15368
   const PULLFROG_APP = 1768019
   const requiredUnitTests = { context: "Unit Tests", appId: GITHUB_ACTIONS_APP }
@@ -153,7 +146,6 @@ export const cases = () => {
   T(`${TOOL}: a protection check with a non-integer app id is refused`, requiredChecksOf({ checks: [{ context: "Unit Tests", app_id: "15368" }] }) === null)
 
   /**
-   * The live envelope, copied from the 2026-08-12 response to
    * `gh api graphql` for pull request 716 rather than composed here. `workflowRun` is null on the
    * Pullfrog check run, which is exactly what GitHub returned.
    */
@@ -189,11 +181,6 @@ export const cases = () => {
     `${TOOL}: Pullfrog's own CHANGES_REQUESTED run keeps that pull request out of green`,
     readinessCiIsGreen(liveState.statusCheckRollup, [{ context: "Unit Tests", appId: 15368 }, { context: "pullfrog-approval", appId: 1768019 }]) === false,
   )
-  /**
-   * A head commit carrying no check at all returns `statusCheckRollup: null`, confirmed on
-   * 2026-08-12 against this repository's root commit 1100e15b. That is an empty rollup, not a
-   * broken read, and it stays not green while a required check is missing from it.
-   */
   const emptyState = pullRequestStateFromGraphQl({ data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, statusCheckRollup: null } } } })
   T(`${TOOL}: a head commit with no check at all reads as an empty rollup`, Array.isArray(emptyState?.statusCheckRollup) && emptyState.statusCheckRollup.length === 0, JSON.stringify(emptyState))
   T(`${TOOL}: an empty rollup is not green while a check is required`, readinessCiIsGreen(emptyState.statusCheckRollup, [requiredApproval]) === false)

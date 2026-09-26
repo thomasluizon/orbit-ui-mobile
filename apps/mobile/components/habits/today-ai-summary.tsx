@@ -14,16 +14,6 @@ interface TodayAISummaryProps {
   date: string
 }
 
-/**
- * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.10
- * tint, 0.28 ring, radius 18, sparkles + ASTRA eyebrow over the message.
- * Whole card is tappable; tap destination depends on state (pro → /chat,
- * free → /upgrade, error → refetch).
- *
- * - Pro + enabled: shows the AI summary text
- * - Free: shows the upgrade prompt
- * - Pro + disabled: renders nothing
- */
 export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()

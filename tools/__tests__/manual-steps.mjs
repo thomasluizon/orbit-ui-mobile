@@ -6,7 +6,6 @@ const TOOL = "lib/manual-steps.mjs"
 
 /**
  * orbit-tickets#81's real Rollout section, verbatim, plus the two lines elsewhere in that body which
- * mention the same key. This is the ticket that closed Done on 2026-08-08 with the key never set, so
  * it is the fixture the whole library exists to answer.
  */
 const POSTHOG = `## Scope
@@ -38,7 +37,7 @@ export const cases = () => {
 
   T(`${TOOL}: the rollout section yields the two steps that leave the repository`, posthog.steps.length === 2, JSON.stringify(posthog.steps.map((step) => step.action)))
   T(
-    `${TOOL}: "merge" is the harness's job and never becomes one of Thomas's steps`,
+    `${TOOL}: "merge" is the harness's job and never becomes one of Alex's steps`,
     posthog.steps.every((step) => !/^merge$/i.test(step.action)),
     JSON.stringify(posthog.steps.map((step) => step.action)),
   )
@@ -61,7 +60,7 @@ export const cases = () => {
 
   /**
    * The `:` to `__` rewrite is .NET behaviour, so it applies to the .NET repo and nowhere else.
-   * Applying it to a ui ticket would hand Thomas an env var name nothing reads.
+   * Applying it to a ui ticket would hand Alex an env var name nothing reads.
    */
   const uiKey = renderManualSteps(extractManualSteps(POSTHOG, { repo: "ui" })) ?? ""
   T(`${TOOL}: the .NET env var mapping is not applied to a non-.NET repo`, !/PostHog__ApiKey/.test(uiKey) && /Key: `PostHog:ApiKey`/.test(uiKey), uiKey)

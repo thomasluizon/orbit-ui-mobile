@@ -117,8 +117,8 @@ Parse `$ARGUMENTS` into one `{scope}` token, forwarded to every child audit:
 
 | Repo | Root |
 |---|---|
-| `orbit-ui-mobile` | `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile` |
-| `orbit-api` | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` |
+| `orbit-ui-mobile` | `primary Orbit UI checkout` |
+| `orbit-api` | `../orbit-api from the primary checkout` |
 
 ---
 
@@ -276,7 +276,7 @@ open the `chore(deps)` PR before the Phase 3 gate; the PRs are provenance the ga
 they wait on Pullfrog like everything else. **The verdict certifies the sweep branch, not the
 launch head**: until the `chore(deps)` PRs are merged into the head being shipped, item 12 is a
 standing launch condition — `SWEPT` or `SWEPT_WITH_HOLDBACKS` with unmerged PRs caps the launch
-verdict at CONDITIONAL, naming the pending PRs, unless Thomas explicitly waives them at the
+verdict at CONDITIONAL, naming the pending PRs, unless the owner explicitly waives them at the
 gate.
 
 ---
@@ -285,7 +285,7 @@ gate.
 
 The map is the finder: regenerate it, then FIX what it reports, deleting stale code rather than
 ticketing it. `tools/arch-map.mjs` derives `architecture.json`, `architecture.html` and
-`architecture.mmd` from the tree, none of them committed (#470); after the 2026-08-13 honesty fixes its signals are trustworthy (endpoint usage scans all
+`architecture.mmd` from the tree, none of them committed (#470); after the  honesty fixes its signals are trustworthy (endpoint usage scans all
 of `apps/web`, i18n ownership walks the symbol-filtered import closure, and pairing refuses to
 guess). This sweep is `repo:ui` only; never touch `orbit-api` from it.
 
@@ -314,7 +314,7 @@ file in that directory is a phantom screen. For each unpaired mobile route decid
   link opens in the browser; mobile has none on purpose): record the justification once in the
   `MOBILE_ROUTE_ALIASES` comment block in `tools/arch-map.mjs` if it is a naming divergence, or
   in the finding table as acknowledged if it is a real absence. Never invent an alias to make a
-  row green: an alias pairs two files only when they are the SAME screen (the 2026-08-13
+  row green: an alias pairs two files only when they are the SAME screen (the
   public-profile mispair is the cautionary precedent recorded in that comment block).
 
 **2. Endpoints used by neither platform** (`usedBy.webCallsites` and `mobileCallsites` both
@@ -361,7 +361,7 @@ exact reason. Every holdback becomes a Medium finding in the Phase 3 consolidate
 fixed or holdback-recorded, gates green), `SWEPT_WITH_HOLDBACKS`, `FAILED` (forces at most
 CONDITIONAL and names itself as a blocker), or `N/A (scope has no UI surface)`. Same
 launch-condition rule as item 12: the verdict certifies the sweep branch, so an unmerged
-`chore(arch)` PR caps the launch verdict at CONDITIONAL unless Thomas explicitly waives it at
+`chore(arch)` PR caps the launch verdict at CONDITIONAL unless the owner explicitly waives it at
 the gate.
 
 ---
@@ -428,7 +428,7 @@ Present ONE message and get ONE approval (mirror /ticket phase D). The headline 
 - **What's solid**: the genuine production strengths, so the gate is decision-ready, not a
   fear list.
 
-Nothing is created in the ticket tracker until Thomas approves, and none of the above is written to a
+Nothing is created in the ticket tracker until the owner approves, and none of the above is written to a
 report file (D10). On approval, create via `gh issue create`, wire blockedBy, and
 re-validate each with `--issue`.
 
@@ -441,7 +441,7 @@ re-validate each with `--issue`.
   api-only scope, which also reads the architecture sweep as N/A; the dependency and
   architecture sweeps are each `SWEPT` or `SWEPT_WITH_HOLDBACKS` (or the architecture sweep is
   a legitimate N/A) with every holdback ticketed AND their `chore(deps)` / `chore(arch)` PRs
-  merged into the launch head or explicitly waived by Thomas), and performance is `MEASURED`.
+  merged into the launch head or explicitly waived by the owner), and performance is `MEASURED`.
 - **CONDITIONAL** if no Blockers but some items are Deferred or unproven in a way that gates
   launch (e.g. backups unverified, staging gate absent, a child audit did not converge, an ops
   or a11y check FAILED so its coverage is UNKNOWN, performance is `CODE_ONLY`, either sweep
@@ -482,7 +482,7 @@ re-validate each with `--issue`.
 
 - **Write a report file, or create tickets unattended.** The output is a consolidated GitHub
   ticket set plus a verdict headline, behind the one approval gate; nothing is persisted to
-  `.claude/audits/` and nothing is created before Thomas approves (D10).
+  `.claude/audits/` and nothing is created before the owner approves (D10).
 - **Merge the `chore(deps)` or `chore(arch)` PRs, or bump a platform SDK inside a sweep.** The
   sweeps open PRs; merging stays with the normal review flow. The Expo SDK and the
   `global.json` .NET SDK pins are their own tickets, never a sweep side effect. Never

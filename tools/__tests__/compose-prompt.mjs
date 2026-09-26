@@ -94,7 +94,7 @@ export const cases = () => {
   /**
    * The two-tier ambiguity rule replaces "choose the reading a careful colleague would", which
    * instructed silent assumptions. A worker must record mechanical choices in ## Assumptions and
-   * raise a Thomas-owned decision as NEEDS_DECISION rather than guess it.
+   * raise a Alex-owned decision as NEEDS_DECISION rather than guess it.
    */
   T(
     `${TOOL}: the brief splits ambiguity into recorded assumptions and NEEDS_DECISION`,

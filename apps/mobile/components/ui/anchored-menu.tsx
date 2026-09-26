@@ -29,14 +29,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-/**
- * Single seam for an anchored (popover) menu: owns the trigger ref, open/close
- * state and the measured anchor rect. `open` and `toggle` show a fresh dialog
- * synchronously and then refine the anchor position, so the menu never depends
- * on a native measure callback firing (which silently no-ops on Android Fabric
- * release builds). Pair with `MenuAnchorHost` on the trigger and `AnchoredMenu`
- * for the panel.
- */
 export interface AnchoredMenuController {
   anchorRef: RefObject<View | null>
   visible: boolean

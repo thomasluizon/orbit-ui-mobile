@@ -48,7 +48,7 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   3. Prove it from outside with the real publishable key:
      `curl -s -o /dev/null -w '%{http_code}' "$SUPABASE_URL/rest/v1/Users?select=*" -H
      "apikey: $ANON_KEY"`. Anything other than 401/403 on a user-owned table is **Tier 1**.
-  Verified clean 2026-07-26: RLS on all 48 tables, zero `public` grants to anon/authenticated,
+  Verified clean : RLS on all 48 tables, zero `public` grants to anon/authenticated,
   live probe 401, and a `public.rls_auto_enable` event trigger enables RLS on each new table.
   Re-verify rather than trusting that line, since it is a snapshot of a live system.
 
@@ -219,7 +219,7 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   fines per violation). The landing repository and the live Play store listing sit
   OUTSIDE this audit's roots (`audit.mjs` passes only orbit-ui-mobile and orbit-api):
   put both in the Deferred ledger every run, never let an empty local grep stand for a
-  clean result on them. Landing JSON-LD verified clean by hand 2026-08-13; that line is
+  clean result on them. Landing JSON-LD verified clean by hand ; that line is
   a snapshot, not coverage.
 
 ## Tier 3 — out of scope for this audit (acknowledge, don't itemize as findings)

@@ -1,19 +1,3 @@
-/**
- * Local ESLint rule: never remove a focus outline bare.
- *
- * WCAG 2.4.7 + DESIGN.md a11y: `outline-none` is only legitimate when the same
- * element ships a visible focus replacement — a `focus-visible:` ring or outline.
- * Removing the outline with nothing in its place is what makes a surface
- * keyboard-unusable, and it is invisible to every reviewer using a mouse.
- *
- * `focus-visible:` (not `focus:`) is what satisfies this rule: a `focus:` ring
- * also fires on mouse-down, which is the reason `outline-none` gets reached for in
- * the first place. Accepted replacements are ring, outline, border and shadow
- * utilities under a `focus-visible:` variant.
- *
- * SCOPE LIMIT: this sees `className` strings in TS/TSX only. An `outline: none` in
- * `app/globals.css` is NOT covered — ESLint does not lint the stylesheet here.
- */
 
 const { collectStaticStrings, getAttribute, getAttributeValueNode, collectStyleProperties, getPropertyKeyName } = require('./_jsx-strings.cjs')
 

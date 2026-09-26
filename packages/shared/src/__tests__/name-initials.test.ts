@@ -13,7 +13,7 @@ describe('initialsOf', () => {
   })
 
   it('combines the first letters of the first and last words', () => {
-    expect(initialsOf('Thomas Gregorio')).toBe('TG')
+    expect(initialsOf('Alex Gregorio')).toBe('TG')
     expect(initialsOf('  john  ronald  reuel  tolkien ')).toBe('JT')
   })
 })

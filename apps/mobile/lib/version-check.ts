@@ -3,17 +3,8 @@ export interface AppStoreLookup {
   storeUrl: string | null
 }
 
-/**
- * Fetches the latest published version from the Apple App Store via the
- * public iTunes Search API. No auth, no scraping -- this is the official
- * standard for iOS update detection.
- *
- * Android does not need this: we use Google Play In-App Updates via
- * sp-react-native-in-app-updates, which talks to Play Services directly.
- */
 export async function getAppStoreLookup(bundleId: string): Promise<AppStoreLookup | null> {
   try {
-    // Cache-bust because iTunes caches aggressively at the CDN layer.
     const url = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(bundleId)}&_=${Date.now()}`
     const response = await fetch(url, {
       headers: { Accept: 'application/json' },

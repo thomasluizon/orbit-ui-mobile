@@ -1,0 +1,7 @@
+[
+  { "path": "LICENSE", "rule": "owner-name", "match": "Thomas", "reason": "Legal copyright and trademark holder" },
+  { "path": "design/handoff/orbit/project/orbit-fig-core.jsx", "rule": "owner-name", "match": "Thomas", "reason": "Shipped design copy" },
+  { "path": "design/handoff/orbit/project/orbit-fig-more.jsx", "rule": "owner-name", "match": "Thomas", "reason": "Shipped design copy" },
+  { "path": "design/handoff/orbit/project/orbit-screens-account.jsx", "rule": "owner-name", "match": "Thomas", "reason": "Shipped design copy" },
+  { "path": "tools/timeless-allowlist.json", "rule": "owner-name", "match": "Thomas", "reason": "Exact substrings required to review current exceptions" }
+]

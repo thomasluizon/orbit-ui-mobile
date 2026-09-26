@@ -1,20 +1,4 @@
 #!/usr/bin/env node
-/**
- * One worker prompt = the ticket body verbatim + its comments + an orchestrator's brief + the
- * finishing contract.
- *
- * WHY the comments are here, added 2026-08-13: three places claimed this file already passed them
- * through, and it did not. It read `liveTicket.body` alone. That silently broke the conversation
- * -first path in /orchestrate step 2b, whose whole design is to answer a ticket's open questions in
- * a comment BEFORE composing the prompt. Those answers reached Thomas and the reviewer and never
- * reached the implementer, which is the one reader that had to act on them.
- *
- * WHY the brief exists: a raw ticket is input to planning, not a task description. Anthropic's
- * multi-agent research writeup measured vague subagent instructions causing duplicated work, one
- * subagent exploring the 2021 chip crisis while two others independently investigated 2025 supply
- * chains. Each worker needs an objective, an output format, a scope, and explicit task boundaries,
- * so the orchestrator expands the ticket into a bounded brief rather than handing over the ticket.
- */
 
 import { writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
@@ -106,33 +90,14 @@ const ticket = `${liveTicket.body.replace(/\s*$/, "")}${commentSection}`
 const worktreeLine = worktree ? `\nWorking tree \`${worktree}\`.` : ""
 const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for you.` : ""
 
-/**
- * WHY this block is in EVERY prompt, measured 2026-08-06. The ticket is quoted verbatim (D2), and a
- * ticket's Evidence section can require screenshots. A worker that reads only the ticket may start
- * a dev server even though its fresh worktree has no seeded session. ORB-39 committed 221 correct
- * lines, then started a dev server on :3920, wrote a Playwright visual test, sat on /login, and was
- * killed at the 45 minute ceiling with a dirty tree. ORB-98 committed 145 lines including the exact
- * Vitest spec its ticket asked for, then opened /login?returnUrl=%2Fpreferences and burned the rest
- * of its budget. A worker cannot know in advance which tickets tempt it, so the prohibition takes
- * no subset. The hook at .claude/hooks/forbid-worker-browser.mjs enforces the same rule at act time,
- * because a prompt is advisory and decays as context fills.
- */
 const browserBan = `
 
 **NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
 own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
 Playwright, Maestro or Cypress, nothing under \`e2e/\`, no navigating to localhost on any port, no
 logging in to the app. If the ticket says screenshots are required, do not gather them in this
-worker. A fresh worktree has no seeded session, so the attempt can only fail. Two workers finished
-their tickets correctly and then lost the delivery to exactly this.`
+worker. A fresh worktree has no seeded session.`
 
-/**
- * WHY ambiguity is two-tiered, added 2026-08-13. The previous sentence told the worker to "choose
- * the reading a careful colleague would", which made silent assumptions the instructed behaviour:
- * a headless worker has no human channel, so a decision belonging to Thomas was guessed and the
- * guess surfaced only when the pull request existed. NEEDS_DECISION is the worker's half of the
- * channel; /orchestrate step 7 reads it from the worker log and carries the question to Thomas.
- */
 const brief = `## Orchestrator's brief
 
 **Objective.** Implement ${ticketReference} in the ${repoKey} repository, and nothing else. The
@@ -141,12 +106,12 @@ ticket above is the specification.
 **Ambiguity has two tiers, and only one of them is yours.** A mechanical ambiguity (a file name, an
 import shape, where a test lives) you resolve yourself and record in the PR body under
 \`## Assumptions\`, one line per assumption naming the alternative you rejected. A decision that is
-Thomas's is NEVER yours to guess: a product, brand, copy, price or design call; a tool or process
+the owner's is NEVER yours to guess: a product, brand, copy, price or design call; a tool or process
 the ticket names two contradictory ways; a dependency or capability the ticket presumes that turns
 out not to exist. Hitting one of those, stop: commit and push whatever is already safe and
 coherent, and make the LAST line of your output exactly
 \`NEEDS_DECISION: <one question, with your recommended answer>\`. The orchestrator carries that
-question to Thomas. The question costs a minute; a confidently wrong pull request costs the night.
+question to the owner. The question costs a minute; a confidently wrong pull request costs the night.
 
 **Where you are.** Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}
 Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.
@@ -173,25 +138,18 @@ then pass every intended path explicitly to \`git --literal-pathspecs add\`. Tra
 are source and must never be discarded; only untracked \`.orca/\` runtime residue is disposable.
 
 **Never create an end-to-end, visual-regression or Playwright file.** The testing rule in CLAUDE.md
-is Vitest unit and behaviour tests, and no new end-to-end suite. A worker on ORB-39 wrote
-apps/web/e2e/visual/orb-39-evidence.visual.ts on its own initiative to gather evidence nobody asked
-it for. If a behaviour genuinely cannot be covered by a Vitest test, say so in the PR body and leave
+is Vitest unit and behaviour tests, and no new end-to-end suite. If a behaviour genuinely cannot be covered by a Vitest test, say so in the PR body and leave
 it uncovered rather than starting a browser.
 
 **Never assume an external interface.** Confirm any field, flag, exit code, or response shape from a
 CLI, API, or library you did not write by reading the real response or the installed source. Not
-memory, not --help, not what it should obviously be. Never write the fixture that agrees with a
-guess. Two measured failures in this repository were a worker inventing a field while the same
-commit added a mock that agreed with the guess, so the harness stayed green over a defect.`
+memory, not --help, not what it should obviously be. Never write a fixture built from a guess.`
 
 const finishing = `## Finishing contract
 
 **Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
 
-That order is the contract, not a preference. Measured: one worker spent its entire 45-minute
-deadline running and rerunning tests, passed every check, and timed out without ever committing. The
-work was lost. Committing first means a timeout can only ever cost you the last verification step,
-never the work itself.
+Commit early so a timeout cannot discard completed work.
 
 Then, in order: run the broader suite, push, and open exactly one pull request. Stop there and
 report. You do not merge and you do not wait for review.
@@ -202,8 +160,7 @@ tooling opened one anyway, run \`gh pr ready <number>\` before you report. Confi
 
 Pullfrog reads a draft pull request exactly like any other one, so the review is not the reason. A
 draft still stops the run: nobody can merge it, and tools/record-readiness.mjs reports the verdict
-DRAFT until somebody marks it ready. Measured 2026-08-08, three of five pull requests opened as
-drafts (ORB-7 #464, ORB-214 #57, ORB-188 #465) and each one needed a human to mark it ready.
+DRAFT until somebody marks it ready.
 
 **The prose you write is gated too, and nothing used to tell you that.** The pull request TITLE and
 BODY pass through the Dash Ban and Copy Register jobs exactly as source files do. So: no em dash and
@@ -218,7 +175,7 @@ explicitly and name the step that failed rather than reporting a clean run.
 
 **Your PR body carries two structured sections when they apply, and omits them when empty.**
 \`## Assumptions\`: every reading you chose where the ticket was ambiguous, one line each with the
-rejected alternative, so the orchestrator can put them to Thomas instead of discovering them in
+rejected alternative, so the orchestrator can put them to the owner instead of discovering them in
 review. \`## Manual steps\`: every action outside the repository your change needs before it takes
 effect (an environment variable, a dashboard or console setting, a secret, a store listing, a manual
 migration or backfill), each naming the exact key, the exact console or screen, and what proves it

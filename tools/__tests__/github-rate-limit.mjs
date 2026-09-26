@@ -7,8 +7,6 @@ const UNIT = "lib/github-rate-limit.mjs"
 export const cases = async () => {
   const NOW = 1786302352
 
-  /** WHY this module exists, measured 2026-08-09 twice: eight pollers, then the Stop hook's live
-   * re-verification, each emptied the 5,000-point per-user GraphQL budget and stalled the run. */
   T(`${UNIT}: a healthy budget is spent rather than second-guessed`,
     graphqlBudgetDecision({ remaining: 4800, reset: NOW + 600 }, { nowSeconds: NOW }).action === "proceed",
   )

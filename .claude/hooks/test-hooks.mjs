@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-// Regression suite for the seven surviving session hooks. Three layers:
-//   1. Wiring: settings.json and the hooks directory must agree in BOTH
-//      directions. A hook deleted while settings.json still names it is exactly
-//      how this suite was broken on 2026-08-04, and nothing else catches it.
-//   2. Rule units: the pure cores in _lib/ judged in isolation.
-//   3. Real hook files: run each one with a stdin payload and assert the exit
-//      code, so the thin adapter is proven to preserve block/allow.
-// Plus a cheap frontmatter check over the agents and skills this repo ships.
-// Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
@@ -22,9 +13,12 @@ import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
+import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
+const primaryCommonDirectory = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim()
+const siblingRoots = declaredRepoRoots(repoRoot)
 let fails = 0
 const T = (name, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want)
@@ -79,7 +73,6 @@ T("git: force push to main blocks", blocks(checkGitCommand("git push --force ori
 T("git: force-with-lease to main blocks", blocks(checkGitCommand("git push --force-with-lease origin main")), true)
 T("git: push to a feature branch allows", checkGitCommand("git push origin feature/x"), null)
 // A ref ENDING in /main is a different branch. redesign/main takes direct pushes by convention,
-// and blocking it produced a refusal indistinguishable from a real one (2026-08-22).
 T("git: push to redesign/main allows", checkGitCommand("git push origin redesign/main"), null)
 T("git: push to refs/heads/redesign/main allows", checkGitCommand("git push origin refs/heads/redesign/main"), null)
 T("git: push to refs/heads/main still blocks", blocks(checkGitCommand("git push origin refs/heads/main")), true)
@@ -90,8 +83,6 @@ T("git: +main force syntax still blocks", blocks(checkGitCommand("git push origi
 T("git: redesign/main:refs/heads/main still blocks", blocks(checkGitCommand("git push origin redesign/main:refs/heads/main")), true)
 // And the reverse lands on redesign/main, so it is ordinary work.
 T("git: main:refs/heads/redesign/main allows", checkGitCommand("git push origin main:refs/heads/redesign/main"), null)
-// The rule reads the git SUBCOMMAND, not the word push anywhere on the line. A branch name carrying
-// that word blocked its own checkout while `main` sat later on the same command (2026-08-22).
 T("git: checkout of a branch named for push allows", checkGitCommand("git checkout -b chore/x-push-guard main"), null)
 T("git: log naming a push branch allows", checkGitCommand("git log --oneline main..chore/push-guard"), null)
 T("git: -C before push still blocks", blocks(checkGitCommand("git -C . push origin main")), true)
@@ -147,16 +138,12 @@ for (const [label, method] of [
 }
 T("admin-merge: curl PUT to the merge endpoint blocks", blocks(checkAdminMerge("curl -X PUT https://api.github.com/repos/o/r/pulls/667/merge")), true)
 T("admin-merge: wget PUT to the merge endpoint blocks", blocks(checkAdminMerge("wget --method=PUT https://api.github.com/repos/o/r/pulls/667/merge")), true)
-// KNOWN GAP, measured 2026-08-04 and stated rather than implied: the method is
-// matched only as a FLAG, so httpie's positional form `http PUT <merge-url>` is
-// allowed. `httpie` is in the rule's client set but the shape it actually types
-// is not covered. Fixing it belongs in _lib/rules-orchestrator.mjs, not here.
 T("admin-merge: the GraphQL mergePullRequest mutation blocks", blocks(checkAdminMerge("gh api graphql -f query='mutation{mergePullRequest(input:{pullRequestId:\"x\"}){clientMutationId}}'")), true)
 T("admin-merge: a PUT to another endpoint allows", checkAdminMerge("gh api -XPUT repos/o/r/issues/667/labels"), null)
 T("admin-merge: reading the merge endpoint allows", checkAdminMerge("gh api repos/o/r/pulls/667/merge"), null)
 T("admin-merge: another GraphQL mutation allows", checkAdminMerge("gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"x\"}){thread{isResolved}}}'"), null)
 T(`admin-merge: a commit message naming ${ADMIN} allows`, checkAdminMerge(`git commit -m "forbid gh pr merge ${ADMIN}"`), null)
-T("admin-merge: the refusal says to ask Thomas", checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask him to"), true)
+T("admin-merge: the refusal says to ask the owner", checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask him to"), true)
 
 const engine = (command, options) => checkEngineInvocation(command, { repoRoots: [], ...options })
 T("engine: codex exec blocks", blocks(engine('codex exec "do the thing"')), true)
@@ -250,15 +237,8 @@ T("staging: an attached -m value containing broad flag letters is allowed", work
 T("staging: an attached -F value containing broad flag letters is allowed", workerStaging("git commit -Fpath-to-message"), null)
 T("staging: an attached -S key ID containing broad flag letters is allowed", workerStaging("git commit -Sapi"), null)
 T("staging: broad add outside a worker is untouched", checkBroadStaging("git add -A", { cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
-// REGRESSION (fixed 2026-08-04). The previous revision split the command on a
-// bare /[&|;\n]/, so the `|` inside the quoted search pattern produced a phantom
-// segment whose first token resolved to `codex`, and a read-only grep was
-// refused. A search PATTERN is data, never an invocation.
 T("engine: a grep whose PATTERN contains the engine names allows", engine("grep -rnE 'claude|codex' tools/"), null)
 T("engine: the same grep with double quotes allows", engine('grep -rn "claude|codex" tools/'), null)
-// REGRESSION (fixed 2026-08-04). The previous revision keyed on the binary alone
-// and refused `codex --version`, which starts no model session: the refusal
-// protected no budget and only broke ordinary preflight.
 T("engine: codex --version allows", engine("codex --version"), null)
 T("engine: claude --help allows", engine("claude --help"), null)
 T("engine: an unrelated command allows", engine("npm run lint"), null)
@@ -266,10 +246,6 @@ T("engine: a commit message naming the engine allows", engine('git commit -m "st
 T("engine: a path containing .claude is not the claude binary", engine("cat .claude/skills/second-opinion/SKILL.md"), null)
 
 console.log("\n# forbid-worker-browser (_lib/rules-worker.mjs)")
-// A worker never opens a browser and never starts a server, unconditionally. Measured 2026-08-06:
-// ORB-39 and ORB-98 both finished their tickets, then spent the rest of their budgets on a dev
-// server and a login page a worktree can never authenticate against, and both needed rescuing.
-// The discrimination is the CALLER, never the command: Thomas runs /dev-server whenever he likes.
 const worker = (command, options) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" }, repoRoots: [], ...options })
 for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo start", "npx playwright test", "maestro test flow.yaml", "curl http://localhost:3920/login", "adb shell input tap 1 1"]) {
   T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)
@@ -298,9 +274,6 @@ T("worker-browser: an unrelated npm script named dev-docs allows", worker("npm r
 T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
 
 console.log("\n# require-wake-source (_lib/rules-sleep.mjs)")
-// Under --sleep the ONLY thing that continues the run is a background task completing and
-// re-invoking the session. On 2026-08-06 the orchestrator ended a turn saying "CI will wake me"
-// with nothing scheduled; the night stopped there and its artifacts looked like a finished run.
 const alive = () => true
 const dead = () => false
 const sleeping = { sessionId: "s1", sleep: true, remaining: ["ORB-2", "ORB-3"] }
@@ -332,14 +305,6 @@ T("sleep-stop: a record from another session allows", checkSleepStop({ state: sl
 // A blocked stop that blocks again is an infinite loop.
 T("sleep-stop: the second pass never blocks again", checkSleepStop({ state: sleeping, sessionId: "s1", stopHookActive: true, isAlive: dead }), null)
 
-/**
- * A run that CANNOT reach READY needs a legitimate terminal state. On 2026-08-08 a named blocker
- * made READY unreachable and the only exits left were fabricating a receipt or clearing the ledger,
- * both forbidden. That deadlock burned five turns.
- *
- * The bar is a RECORDED blocker string. A blocker is a fact the run writes down, never a verdict it
- * asserts about its own work, which is what stops "ended blocked" becoming a cheaper "finished".
- */
 const blockedEntry = { repositoryKey: "ui", prNumber: 698, receiptPath: "C:/receipt.json", receiptWritten: true, blocker: "SonarCloud new-code coverage 66.7% on a deletion-only diff" }
 const blockedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [blockedEntry] }
 T("sleep-stop: a pull request with a RECORDED blocker may end the run", blocks(stop({ state: blockedRun })), false)
@@ -358,8 +323,6 @@ T(
   null,
 )
 
-/** The ledger accepted four rows on 2026-08-08 whose receipt files were never written, and the hook
- * read them as unreadable rather than as absent, which is quieter and easier to mistake for a fault. */
 const unwritten = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [{ repositoryKey: "ui", prNumber: 699, receiptPath: "C:/never-written.json", receiptWritten: false }] }
 T("sleep-stop: a ledger row whose receipt was never written blocks", blocks(stop({ state: unwritten })), true)
 T("sleep-stop: the refusal names the receipt path that was never written", stop({ state: unwritten })?.message.includes("C:/never-written.json"), true)
@@ -460,9 +423,6 @@ T("ef-index: a file off the migrations path is skipped", checkEfMigrationRawInde
 T("ef-index: a batched Sql with one non-idempotent statement blocks", blocks(checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX ix_a ON foo (a);");')), true)
 T("ef-index: a batched Sql with all idempotent statements allows", checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX IF NOT EXISTS ix_a ON foo (a);");'), null)
 
-// An identifier a run WRITES with must have been READ by that run. On 2026-08-08 a typed
-// PRRT_ id resolved to a live thread on a stranger's public repository and replied there,
-// because node ids are globally unique and a wrong one does not fail.
 const OBSERVED = "PRRT_kwDOR5Siws6Wfy_V"
 const INVENTED = "PRRT_kwDOR5Siws6XdcAt"
 const seen = new Set([OBSERVED])
@@ -594,13 +554,6 @@ const WAKE_HOOK = "require-wake-source.mjs"
 const { readWakeSources, runStatePath } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
-/**
- * LIVE, not merely registered. `readWakeSources` returns every registration file; the hook then
- * proves each pid with `process.kill(pid, 0)` before honouring it. Counting registrations made this
- * gate take the "a live wake source allows the stop" arm whenever an old overnight run had left a
- * file behind for a process that has since died, and then fail because the hook correctly blocked.
- * Measured on this checkout 2026-08-10: red on main and on the branch alike, for stale state alone.
- */
 const isAlive = (pid) => {
   try {
     process.kill(pid, 0)
@@ -692,15 +645,6 @@ for (const relative of definitionFiles) {
 // A guard that scanned nothing passes vacuously; make that a failure instead.
 T("frontmatter: the scan actually read definitions", definitionFiles.length > 0, true)
 
-/**
- * Every `node tools/<tool>.mjs --flag` a skill prescribes must name flags that tool accepts.
- *
- * The GitHub migration renamed tools and changed their flags, and the skills kept prescribing the
- * old ones. `record-readiness.mjs --linear <json>` and a `teardown-worktree.mjs` call with no
- * `--repo` both survived every gate and both would have failed at 03:00, after a worker had already
- * done the work. Prose that names a command is an interface claim, and an unchecked interface claim
- * is the defect class this repository exists to prevent.
- */
 const toolFlagSets = new Map()
 const flagsAcceptedBy = (tool) => {
   if (toolFlagSets.has(tool)) return toolFlagSets.get(tool)
@@ -763,6 +707,13 @@ const scanForMarkers = (directory) => {
 for (const top of ["tools", ".claude"]) scanForMarkers(join(repoRoot, top))
 for (const hit of markerHits) T(`conflict markers: ${hit}`, false)
 T("conflict markers: no unresolved merge markers are committed", markerHits.length === 0, true)
+
+const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
+T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)
+const staleName = ["Tho", "mas"].join("")
+const hookPayload = { tool_name: "Edit", tool_input: { file_path: join(repoRoot, "CLAUDE.md"), old_string: "# Orbit", new_string: staleName } }
+T("timeless hook rejects a planted name", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify(hookPayload), encoding: "utf8" }).status, 2)
+T("timeless hook passes after removal", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify({ ...hookPayload, tool_input: { ...hookPayload.tool_input, new_string: "# Orbit" } }), encoding: "utf8" }).status, 0)
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

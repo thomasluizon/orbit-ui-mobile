@@ -24,7 +24,7 @@ describe('session refresh recovery', () => {
       heldAccountId: 'user-1',
       user: {
         userId: 'user-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
       },
       expiresAt: Date.now() + 60_000,

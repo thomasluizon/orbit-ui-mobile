@@ -1,12 +1,3 @@
-// ============================================================
-// Orbit — Extra variants for FIX 3 & 4
-// - Templates sheet, Tag editor (inline), Scheduled reminders form
-// - Streak variants (low/frozen/monthly-limit/legendary)
-// - Achievements variants (category/locked-detail/earned-detail/rarity-legend)
-// - Upgrade variants (in-trial/expired)
-// - Profile account-actions variant
-// - AI Settings facts paginated/select/empty
-// ============================================================
 
 // ─── Checklist Templates sheet ──────────────────────────────
 function ChecklistTemplatesSheet({ scheme = "purple", dark = true }) {

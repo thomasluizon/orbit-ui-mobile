@@ -15,7 +15,7 @@ vi.mock('@/lib/actions/profile', () => ({
 
 const mockPatchProfile = vi.fn()
 const mockInvalidate = vi.fn()
-let mockProfileName = 'Thomas'
+let mockProfileName = 'Alex'
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
@@ -62,19 +62,19 @@ describe('EditNameSheet', () => {
     mockUpdateName.mockReset()
     mockPatchProfile.mockReset()
     mockInvalidate.mockReset()
-    mockProfileName = 'Thomas'
+    mockProfileName = 'Alex'
   })
 
   it('seeds the field with the current profile name', () => {
     renderSheet()
 
-    expect(screen.getByDisplayValue('Thomas')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Alex')).toBeInTheDocument()
   })
 
   it('shows the required error and skips the action for a whitespace-only name', () => {
     renderSheet()
 
-    fireEvent.change(screen.getByDisplayValue('Thomas'), { target: { value: '   ' } })
+    fireEvent.change(screen.getByDisplayValue('Alex'), { target: { value: '   ' } })
     fireEvent.click(screen.getByText('common.save'))
 
     expect(screen.getByRole('alert')).toHaveTextContent('profile.editName.required')
@@ -84,7 +84,7 @@ describe('EditNameSheet', () => {
   it('shows the tooLong error and skips the action for a 51-character name', () => {
     renderSheet()
 
-    fireEvent.change(screen.getByDisplayValue('Thomas'), {
+    fireEvent.change(screen.getByDisplayValue('Alex'), {
       target: { value: 'a'.repeat(51) },
     })
     fireEvent.click(screen.getByText('common.save'))
@@ -97,7 +97,7 @@ describe('EditNameSheet', () => {
     mockUpdateName.mockResolvedValue(undefined)
     const onOpenChange = renderSheet()
 
-    fireEvent.change(screen.getByDisplayValue('Thomas'), {
+    fireEvent.change(screen.getByDisplayValue('Alex'), {
       target: { value: '  Ana Clara  ' },
     })
     fireEvent.click(screen.getByText('common.save'))
@@ -112,14 +112,14 @@ describe('EditNameSheet', () => {
     mockUpdateName.mockRejectedValue(new Error('boom'))
     const onOpenChange = renderSheet()
 
-    fireEvent.change(screen.getByDisplayValue('Thomas'), {
+    fireEvent.change(screen.getByDisplayValue('Alex'), {
       target: { value: 'Ana Clara' },
     })
     fireEvent.click(screen.getByText('common.save'))
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Ana Clara' })
-    expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Thomas' })
+    expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Alex' })
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 })

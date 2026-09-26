@@ -11,13 +11,6 @@ interface StreakBadgeProps {
   isFrozen?: boolean
 }
 
-/**
- * Kit streak entry point — 40px circled button (1.5px hairline-strong ring,
- * translucent well) with the 🔥 flame emoji and a tabular count. Frozen state
- * swaps the flame for a snowflake stroked in status-frozen. Tapping navigates
- * to the streak page; the press stops propagation so the Today header's
- * go-to-today Pressable does not fire.
- */
 export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   const { t } = useTranslation()
   const router = useRouter()

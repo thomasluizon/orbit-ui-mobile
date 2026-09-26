@@ -1,33 +1,3 @@
-/**
- * Local ESLint rule: keep full-bleed pill CTAs out of non-sanctioned surfaces.
- *
- * DESIGN.md "Buttons": pills hug their content. Full-width is sanctioned ONLY in
- * (1) the single primary action of a mobile bottom-sheet / dialog, (2) a form
- * submit at <= the mobile breakpoint (auth / onboarding), and (3) a full-screen
- * empty-state primary CTA. `ConfirmDialog`'s paired action row is also allowed.
- * Those surfaces are exempted by `files`-scoped path globs in each workspace's
- * eslint config; a residual sanctioned case uses an inline
- * `eslint-disable-next-line local/no-fullbleed-button` with a reason.
- *
- * The rule flags two reintroduction vectors:
- *  - a `fullWidth` prop on <PillButton> (unless explicitly `fullWidth={false}`) —
- *    gated by the `flagFullWidthProp` option (default true). The web `PillButton`
- *    already self-caps `fullWidth` at the desktop breakpoint (`sm:max-w-[360px]
- *    sm:mx-auto`), so it can never full-bleed a desktop column; the web config
- *    therefore sets `flagFullWidthProp: false` and relies on the className check
- *    below. The mobile primitive has no desktop breakpoint, so mobile keeps the
- *    prop check on to enforce the DESIGN.md full-width allowlist.
- *  - a raw pill <button> (or <PillButton>) whose className string / template
- *    literal combines a pill radius (`rounded-full`) with a full-width utility
- *    (`w-full` / `flex-1`). The pill-radius requirement is deliberate: a
- *    full-width row, menu item, or card button (no pill radius) is legitimate
- *    layout, not a full-bleed CTA, so it is not flagged. This is the raw
- *    uncapped-pill vector (e.g. the pre-migration sidebar create button).
- *
- * Mobile StyleSheet width (`alignSelf: 'stretch'` / `width: '100%'`) cannot be
- * statically tied to a button here, so it is covered by the design-reviewer
- * checklist item instead of this rule.
- */
 
 const WIDTH_TOKEN_RE = /(?:^|\s)(w-full|flex-1)(?:\s|$)/
 const PILL_RADIUS_RE = /rounded-full|rounded-\[999/

@@ -55,13 +55,6 @@ const availableInput = () => ({
       bytesPerRow: 40,
       queryShape: 'SELECT h."Id", h."Title", h."DueDate" FROM "Habits" h WHERE h."UserId" = $1 ORDER BY h."Id" LIMIT $2 OFFSET $3',
     },
-    /**
-     * A background sweep that reads the WHOLE row, which is what the background budget is actually
-     * for. It exists because `reminder-sweep` stopped signalling once egress was charged to the
-     * projection instead of the table row, and it stopped for the right reason: it selects 2 of 29
-     * columns, so it moves about 13 MB a month, not the 190 MB the full-row arithmetic claimed.
-     * Losing the only over-budget fixture would have quietly removed the signal from coverage.
-     */
     {
       queryId: "wide-sweep",
       rootTable: "Habits",
@@ -321,13 +314,6 @@ export const cases = async () => {
   T("performance-measurement: a full-entity projection is signaled from the real column count", measurement.signals.some((signal) => signal.kind === "full-entity-projection" && signal.queryId === "habit-list"))
   T("performance-measurement: a query returning a large table fraction is signaled", measurement.signals.some((signal) => signal.kind === "large-table-fraction" && signal.queryId === "habit-logs"))
   T("performance-measurement: a recurring sweep over budget is signaled", measurement.signals.some((signal) => signal.kind === "background-sweep-budget" && signal.queryId === "wide-sweep"))
-  /**
-   * The same assertion used to name `reminder-sweep`, and it passed for the WRONG reason. That
-   * query selects 2 of the 29 Habits columns, so charging it the full 348.67 byte row claimed
-   * 190 MB a month against a real 13 MB, and the background budget fired on a query that was
-   * nowhere near it. Now that egress follows the projection, it correctly does not fire, and
-   * `wide-sweep` (`select *`, identical row and call counts) carries the signal instead.
-   */
   T(
     "performance-measurement: a NARROW background sweep is no longer a false positive",
     !measurement.signals.some((signal) => signal.kind === "background-sweep-budget" && signal.queryId === "reminder-sweep"),
@@ -429,13 +415,6 @@ export const cases = async () => {
   ], measurement)
   T("performance-measurement: findings take metrics from the measured query rather than agent prose", enriched[0].monthlyEgressBytes === measurement.egressRanking[0].monthlyEgressBytes, JSON.stringify(enriched[0]))
 
-  /**
-   * P1, connector pass 3 on #699: measure the PROJECTED result width, not the full table row.
-   * `bytesPerRow` describes the whole row, so charging it to a narrow projection overstated a
-   * careful query in direct proportion to how well it was written, which is backwards for a signal
-   * meant to find unbounded reads. Every case below runs through the canonical module and the
-   * generated workflow block so the sandboxed consumer proves it executes the generated source.
-   */
   const projectionInput = (queryShape) => ({
     ...availableInput(),
     tableStats: [{ table: "Habits", liveRows: 1106, columnCount: 20, seqScan: 1, seqTupRead: 1 }],
@@ -560,13 +539,6 @@ export const cases = async () => {
     JSON.stringify(laundered[2]),
   )
 
-  /**
-   * THE guard against this defect class, rather than against one more instance of it.
-   *
-   * The workflow is sandboxed and cannot import the canonical module from disk, so its block is
-   * generated. The generator test compares it byte for byte; this corpus additionally executes the
-   * generated block over every projection and egress branch.
-   */
   /**
    * P1, connector pass 5 on #699: only a TOP-LEVEL row limit bounds the statement. A correlated
    * subquery's `LIMIT 1` marked the whole query bounded, which suppressed `unbounded-user-list`, the

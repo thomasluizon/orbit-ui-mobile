@@ -1,25 +1,3 @@
-/**
- * Local ESLint rule: no `calc()` percentage widths for multi-column layout.
- *
- * `w-[calc(33%-1rem)]` is flexbox column math done by hand: it hardcodes the
- * column count, breaks when the gap changes, and rounds badly at most viewport
- * widths. CSS Grid expresses the same intent declaratively (`grid-cols-3 gap-4`)
- * and DESIGN.md "Bans" independently forbids escape-hatch `calc()` as a structural
- * hack.
- *
- * Scoped to WIDTH utilities and width style properties carrying a FRACTIONAL
- * percentage (< 100%) in an arithmetic expression — the column-math shape
- * specifically.
- *
- * `calc(100% - 32px)` is EXEMPT and the distinction is the whole rule: a full-width
- * element inset by fixed gutters is not column math, it is the correct way to
- * express "fill the parent minus the padding", and it has no grid equivalent. Only
- * a fraction (33%, 50%, 25%) is dividing a row into columns by hand. A `calc()`
- * mixing units for a non-layout reason (`h-[calc(100dvh-56px)]`) is likewise out of
- * scope; DESIGN.md's structural-hack ban stays reviewer-judgment for those.
- *
- * Web only: `apps/mobile` has no `calc()`.
- */
 
 const { collectStaticStrings, collectStyleProperties, getAttribute, getAttributeValueNode, getPropertyKeyName } = require('./_jsx-strings.cjs')
 

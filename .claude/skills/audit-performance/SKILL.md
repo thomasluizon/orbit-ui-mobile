@@ -222,7 +222,7 @@ Performance-specific mapping into the 6.2 body:
 
 At the approval gate, present the Hotspots (the highest-impact risks, side + pattern + how it
 grows) as provenance, plus the **Deferred ledger** (the workflow's `deferred`, enterprise-only
-tuning, load-test territory #230) and the convergence state, so Thomas approves with the
+tuning, load-test territory #230) and the convergence state, so the owner approves with the
 scaling picture in view.
 
 Before the ticket table, paste the top ten production query shapes by rows returned with

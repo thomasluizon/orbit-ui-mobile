@@ -1,5 +1,8 @@
 # Standing rules: the always-loaded core
 
+Write rules, docs, and comments timelessly: no dates except load-bearing data, names or attributions,
+incident stories, or machine paths. `tools/check-timeless.mjs` enforces this.
+
 **At a glance:** the judgement that loads on EVERY turn. Everything else lives in
 `.claude/playbooks/`: **read the playbook yourself** when you start that activity, because no file
 path predicts it.
@@ -25,7 +28,7 @@ and asserts the exact symptom. Until it is red you have a story, not a bug. Cut 
 Every GitHub or ticket-tracker identifier you pass to a tool (node id, PR number, SHA, run id, comment id,
 issue key) is COPIED from output produced in the same run. Never from memory, never reconstructed.
 **A `||` fallback that retries a failed write is forbidden**: it makes the write the probe. Node ids
-are globally unique, so a wrong one does not fail, it hits a stranger's repository (2026-08-08).
+are globally unique, so a wrong one can target another repository.
 Gates: `.claude/hooks/forbid-invented-identifier.mjs`, `tools/lib/github-target.mjs`.
 
 ### 4. Never re-flag what a gate already enforces

@@ -30,6 +30,24 @@ permissions:
   pull-requests: read
 
 jobs:
+  timeless:
+    name: Timeless Text
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check text
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node tools/check-timeless.mjs --base origin/${{ github.base_ref }}
+          else
+            node tools/check-timeless.mjs --all
+          fi
+
   root-allowlist:
     name: Root Allowlist
     runs-on: ubuntu-latest

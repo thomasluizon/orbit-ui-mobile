@@ -50,15 +50,6 @@ interface AppSidebarProps {
   navLabel: string
 }
 
-/**
- * Desktop left navigation rail (≥768px). Presentational: the container wires
- * route + `activeView` into `sections` (each a leaf or the expandable Hábitos
- * parent with leaf children) and supplies the create handler. Collapses to an
- * icon rail; width snaps (layout is never animated) while labels fade. Active
- * rows are a full primary-tinted pill, never a side-stripe. The outer column
- * stretches to the full content height so its right seam runs the entire page,
- * while an inner `sticky` viewport-tall wrapper keeps the nav pinned in view.
- */
 export function AppSidebar({
   sections,
   collapsed,

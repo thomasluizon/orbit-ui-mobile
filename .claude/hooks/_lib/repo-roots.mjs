@@ -21,14 +21,6 @@ export function withinRoot(target, repoRoot) {
   return relation === "" || (relation !== ".." && !relation.startsWith(`..${pathApi.sep}`) && !pathApi.isAbsolute(relation))
 }
 
-/**
- * The repository owning a path, as `{ root, linked }`, or null when there is none.
- *
- * A linked worktree's root carries a `.git` FILE whose single `gitdir:` line points into
- * <main-root>/.git/worktrees/<name>, while an ordinary checkout carries a `.git` DIRECTORY.
- * `linked` is what separates a worker's worktree from the main checkout an orchestrating
- * session sits in, which is the discrimination both callers need.
- */
 export function owningRepository(startPath) {
   if (typeof startPath !== "string" || !startPath) return null
   let current = resolve(startPath)
@@ -52,13 +44,15 @@ export function owningRepository(startPath) {
   return null
 }
 
-/** The hook's own repository plus every absolute path in orchestrator.json's `repos` map. */
+/** The hook's own repository plus configured siblings of the primary checkout. */
 export function declaredRepoRoots(hookRepoRoot) {
   try {
     const config = JSON.parse(readFileSync(resolve(hookRepoRoot, ".claude", "orchestrator.json"), "utf8"))
-    const configured = Object.values(config?.repos ?? {}).filter(
-      (repoPath) => typeof repoPath === "string" && (win32.isAbsolute(repoPath) || posix.isAbsolute(repoPath)),
-    )
+    const owner = owningRepository(hookRepoRoot)
+    const primary = owner?.root ?? hookRepoRoot
+    const configured = Object.values(config?.repos ?? {})
+      .filter((repoPath) => typeof repoPath === "string")
+      .map((repoPath) => resolve(primary, repoPath))
     return [hookRepoRoot, ...configured]
   } catch {
     return [hookRepoRoot]

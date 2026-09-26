@@ -9,7 +9,6 @@ const THEIRS = "benhook1013/FireMUD"
 
 export const cases = () => {
   /**
-   * THE case, and the one the whole module exists for. This is the real 2026-08-08 pairing: the
    * typed id resolved, it just resolved somewhere else. A verdict that passed here would have let
    * the reply land on a stranger's pull request again.
    */
@@ -46,11 +45,6 @@ export const cases = () => {
   const noExpectation = nodeTargetVerdict({ nodeId: THREAD, expectedSlug: "", resolvedSlug: OURS })
   T(`${UNIT}: an unresolvable EXPECTED slug is refused too`, noExpectation.ok === false, JSON.stringify(noExpectation))
 
-  /**
-   * The wrong diagnosis cost as much as the wrong id. GitHub answers a write aimed at a repository
-   * you cannot write to with a permissions error, and on 2026-08-08 that was recorded as a
-   * transient glitch and retried.
-   */
   const permission = misdirectedWriteNote("thomasluizon does not have the correct permissions to execute ResolveReviewThread", THEIRS)
   T(
     `${UNIT}: the live permissions error is recognised and names the resolved target`,

@@ -16,7 +16,7 @@ You are the gate that stops a visual task from being reported as done when most 
 
 1. **The surface inventory** — the complete list of routes/pages + modals/dialogs/sheets/drawers the task was supposed to transform (visual-delivery rule 1). If you are NOT given one, that is itself a CONFIRMED finding: the task has no enumerated scope and cannot be judged done.
 2. **The changed-file list** (the diff's files) or the branch to compare.
-3. Optionally, observations of the surface running on seeded data. **Never ask for a screenshot and never flag its absence**: Orbit has no screenshot requirement. Human inspection follows visual-delivery rule 4, which is Thomas looking at the surface running.
+3. Optionally, observations of the surface running on seeded data. **Never ask for a screenshot and never flag its absence**: Orbit has no screenshot requirement. Human inspection follows visual-delivery rule 4, which is the owner looking at the surface running.
 
 ## What to find (report each as a finding, most damning first)
 

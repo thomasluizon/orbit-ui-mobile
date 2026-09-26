@@ -1,14 +1,3 @@
-/**
- * Local ESLint rule: no gradient text.
- *
- * DESIGN.md "Bans": no gradient text (`bg-clip-text` over a gradient). Emphasis
- * comes from weight or size on one solid colour.
- *
- * Reported only when BOTH halves co-occur on the same element: a text clip
- * (`bg-clip-text` / `background-clip: text`) AND a gradient background. The
- * pairing matters — `bg-clip-text` over a solid colour is inert, and a gradient
- * without a text clip is `local/no-raw-gradient`'s business, not this rule's.
- */
 
 const { collectStaticStrings, collectStyleProperties, getAttribute, getAttributeValueNode, getPropertyKeyName } = require('./_jsx-strings.cjs')
 

@@ -125,13 +125,6 @@ export async function startAndroidUpdate(
   }
 }
 
-/**
- * Drives the Android FLEXIBLE in-app update. While `active`, it starts the
- * native download flow once and listens for completion; `downloaded` flips true
- * once Play has staged the update, and `install` applies the staged update and
- * restarts the app. Without this `install` call a flexible update downloads but
- * never installs. No-op on iOS.
- */
 export function useAndroidFlexibleUpdate(active: boolean): {
   downloaded: boolean
   install: () => void

@@ -18,14 +18,6 @@ interface NormalizedHabitQueryData {
   currentPage: number
 }
 
-/**
- * Day-progress counter for the Hábitos section head. Mirrors the Today list's
- * visibility semantics: a habit (parent or sub-habit) counts toward the day
- * only when it has own content on the selected date — general, scheduled, or
- * overdue — and counts as done when it is completed or logged on that date.
- * Bad (avoid) habits are excluded entirely: a slip on one is not progress, so
- * it never enters the total or the done count.
- */
 export function computeDayProgress(
   habitsById: Map<string, NormalizedHabit>,
   selectedDate: string,
@@ -194,15 +186,6 @@ export function applyLinkedGoalUpdates(
   })
 }
 
-/**
- * Converts a single HabitDetail (from GET /api/habits/:id) to a NormalizedHabit
- * stub suitable for HabitDetailDrawer's `habit` prop. Fills schedule/list-only
- * fields with safe defaults; the drawer's internal useHabitFullDetail loads the
- * authoritative metrics and logs separately.
- *
- * Use this when opening the drawer from a context that does NOT have a cached
- * habit list (e.g., the chat screen tapping an action chip).
- */
 export function habitDetailToNormalized(detail: HabitDetail): NormalizedHabit {
   const { children: _children, ...base } = detail
   return {

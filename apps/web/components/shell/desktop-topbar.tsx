@@ -43,16 +43,6 @@ function PaletteTrigger() {
   )
 }
 
-/**
- * Sticky command strip at the top of the main column on desktop (≥768px). Left holds
- * the page-contributed slot (Today's date navigation) or the page title; right
- * clusters the palette trigger, theme toggle, streak flame, notification bell, and
- * (on home, md..xl) the rail-drawer toggle. The bar shell always renders (`hidden
- * md:flex`) so its 56px is reserved at first paint; the tour-tagged cluster contents
- * stay gated to desktop so they never shadow the phone header's in the mobile DOM.
- * A 1px sentinel flips the bar from transparent-over-gradient to opaque + hairline
- * once it sticks.
- */
 export function DesktopTopbar({ title, showRailToggle = false }: Readonly<DesktopTopbarProps>) {
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo(profile?.canViewGamification ?? false)

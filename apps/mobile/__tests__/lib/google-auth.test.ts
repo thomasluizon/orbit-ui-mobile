@@ -44,7 +44,7 @@ const loginResponse = {
   token: 'jwt-token',
   refreshToken: 'refresh-token',
   userId: 'user-1',
-  name: 'Thomas',
+  name: 'Alex',
   email: 'thomas@example.com',
 }
 
@@ -56,7 +56,7 @@ describe('completeGoogleAuthFromUrl', () => {
   })
 
   it('returns the direct backend token payload without exchanging a session', async () => {
-    const url = `${CALLBACK}?token=jwt-token&refreshToken=refresh-token&userId=user-1&name=Thomas&email=thomas%40example.com`
+    const url = `${CALLBACK}?token=jwt-token&refreshToken=refresh-token&userId=user-1&name=Alex&email=thomas%40example.com`
 
     const result = await completeGoogleAuthFromUrl(url, 'en')
 

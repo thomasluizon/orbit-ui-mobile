@@ -545,19 +545,19 @@ describe('auth schemas', () => {
     it('parses a valid User', () => {
       const result = userSchema.safeParse({
         userId: 'u-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
       })
       expect(result.success).toBe(true)
     })
 
     it('rejects missing email', () => {
-      const result = userSchema.safeParse({ userId: 'u-1', name: 'Thomas' })
+      const result = userSchema.safeParse({ userId: 'u-1', name: 'Alex' })
       expect(result.success).toBe(false)
     })
 
     it('rejects non-string userId', () => {
-      const result = userSchema.safeParse({ userId: 123, name: 'Thomas', email: 't@t.com' })
+      const result = userSchema.safeParse({ userId: 123, name: 'Alex', email: 't@t.com' })
       expect(result.success).toBe(false)
     })
   })
@@ -566,7 +566,7 @@ describe('auth schemas', () => {
     it('parses a valid login response', () => {
       const result = loginResponseSchema.safeParse({
         userId: 'u-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
       })
       expect(result.success).toBe(true)
@@ -575,7 +575,7 @@ describe('auth schemas', () => {
     it('parses login response with optional wasReactivated', () => {
       const result = loginResponseSchema.safeParse({
         userId: 'u-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
         wasReactivated: true,
       })
@@ -588,7 +588,7 @@ describe('auth schemas', () => {
     it('allows omitting wasReactivated', () => {
       const result = loginResponseSchema.safeParse({
         userId: 'u-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
       })
       expect(result.success).toBe(true)
@@ -602,7 +602,7 @@ describe('auth schemas', () => {
     it('parses a valid backend login response with token', () => {
       const result = backendLoginResponseSchema.safeParse({
         userId: 'u-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
         token: 'jwt-token',
         refreshToken: 'refresh-token',
@@ -613,7 +613,7 @@ describe('auth schemas', () => {
     it('accepts null refreshToken', () => {
       const result = backendLoginResponseSchema.safeParse({
         userId: 'u-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
         token: 'jwt-token',
         refreshToken: null,
@@ -624,7 +624,7 @@ describe('auth schemas', () => {
     it('rejects missing token', () => {
       const result = backendLoginResponseSchema.safeParse({
         userId: 'u-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
         refreshToken: 'r-token',
       })

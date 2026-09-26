@@ -19,14 +19,6 @@ interface TopbarSlotContextValue {
 
 const TopbarSlotContext = createContext<TopbarSlotContextValue | null>(null)
 
-/**
- * Lets a page contribute the left content of the desktop topbar (e.g. Today's
- * date navigation) while the shell owns the bar's layout and the right cluster.
- * The page keeps its own state; only the rendered node crosses the seam. Each
- * contributor is tracked by an owner id so a late-unmounting page (route
- * transitions keep the outgoing page mounted through its exit animation) only
- * clears the slot while it still owns it, never the incoming page's node.
- */
 export function TopbarSlotProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [state, setState] = useState<{ node: ReactNode; ownerId: string | null }>({
     node: null,

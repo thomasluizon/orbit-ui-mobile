@@ -84,7 +84,7 @@ export function createMockGoal(overrides: Partial<Goal> = {}): Goal {
 
 export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
   return {
-    name: 'Thomas',
+    name: 'Alex',
     email: 'thomas@example.com',
     timeZone: 'America/Sao_Paulo',
     aiSummaryEnabled: true,
@@ -239,13 +239,6 @@ export function createMockRecap(overrides: Partial<Recap> = {}): Recap {
 const RUN_HABIT_ID = '11111111-1111-4111-8111-111111111111'
 const READING_GOAL_ID = '33333333-3333-4333-8333-333333333333'
 
-/**
- * A fully populated GET /api/sync/v2/changes payload whose fields mirror the
- * orbit-api SyncChangesV2Response record (SyncController.cs): DateOnly fields as
- * `YYYY-MM-DD`, TimeOnly fields as `HH:mm:ss`, reminder offsets as minute ints,
- * enum fields as their PascalCase names. Every entity set carries at least one
- * updated row so downstream tests exercise realistic nested shapes.
- */
 export function createMockSyncChangesV2Response(
   overrides: Partial<SyncChangesV2Response> = {},
 ): SyncChangesV2Response {

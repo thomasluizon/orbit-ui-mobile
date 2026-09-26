@@ -10,14 +10,6 @@ import {
 import type { ZodType } from 'zod'
 import { responseReportsSessionRefreshFailure } from './session-refresh'
 
-/**
- * Centralized API fetch with error categorization.
- *
- * Handles:
- * - 401: expose failed-refresh state only when the BFF confirms it (no toast)
- * - 403 PAY_GATE: redirect to /upgrade (no toast)
- * - 403 other (e.g. NO_PERMISSION) + 400/404/409/429/5xx: categorized error toast
- */
 
 type TranslateFn = (key: string) => string
 

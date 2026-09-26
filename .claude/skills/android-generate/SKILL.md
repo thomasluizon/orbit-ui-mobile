@@ -22,7 +22,7 @@ Sentry upload, and the Gradle staging directory all stay exactly as the reposito
 `apps/mobile/app.json` sets `buildArchs` to `["armeabi-v7a", "arm64-v8a"]`, which is correct for Play:
 no real phone needs x86_64 and the bundle stays small. An x86_64 emulator cannot run that APK. React
 Native's SoLoader resolves `libreactnative.so` on the device's primary ABI, finds no `lib/x86_64/`,
-and kills the process in `MainApplication.onCreate` (measured 2026-08-12).
+and kills the process in `MainApplication.onCreate`.
 
 `--emulator` therefore passes `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64` to Gradle for
 that build only. `gradle.properties` documents this override. **Never fix this by editing
@@ -37,7 +37,7 @@ npm run android:apk            # default
 npm run android:apk:emulator   # --emulator
 ```
 
-Run it with `run_in_background: true` and a log file: a cold build took **24m 30s** on 2026-08-12, and
+Run it with `run_in_background: true` and a log file: a cold build can take over 20 minutes, and
 later builds reuse the Gradle cache. Poll the log rather than blocking the session.
 
 The script stops Gradle daemons before `expo prebuild`, because a live daemon holds `apps/mobile/android`

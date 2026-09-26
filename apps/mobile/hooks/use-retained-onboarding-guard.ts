@@ -9,13 +9,6 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useProfile } from '@/hooks/use-profile'
 
-/**
- * Decides the post-auth retained onboarding overlay for the current account. A brand-new account
- * (no habits) sees the overlay; an account that already has habits — a pre-migration user, or one
- * that abandoned onboarding after creating habits — is auto-completed instead of re-onboarded.
- * Whether the account already had habits is frozen at entry because the overlay itself creates
- * habits during the flow. Returns whether to render the overlay.
- */
 export function useRetainedOnboardingGuard(
   profile: Profile | null | undefined,
   suppressed: boolean,

@@ -94,13 +94,6 @@ export function computeHabitFrequencyLabel(
   )
 }
 
-/**
- * Whether the log control should be enabled for `habit` on `date`, mirroring the
- * backend `LogHabitCommand.ValidateTargetDate`. One-time tasks (no `frequencyUnit`)
- * stay loggable within the overdue window, including future dates; recurring and
- * flexible habits cannot log a future date; recurring non-flexible habits must be
- * scheduled on the date (or overdue today). Keep aligned with the backend validator.
- */
 export function canLogHabitOnDate(
   habit: Pick<
     NormalizedHabit,

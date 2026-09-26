@@ -148,13 +148,6 @@ export const cases = () => {
     },
   )
 
-  /**
-   * THE binding between the write and the intended ticket.
-   *
-   * The repo:* label proves only the REPOSITORY, and hundreds of tickets carry the same one, so a
-   * mistyped --issue that happened to name another ticket with that label used to pass every guard
-   * and move a stranger's ticket. The live pull request must reference the ticket.
-   */
   const unrelatedStatus = stage("sync-issue-state/unrelated-status", "status")
   const unrelatedComment = stage("sync-issue-state/unrelated-comment", "comment")
   check(

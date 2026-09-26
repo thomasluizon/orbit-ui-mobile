@@ -293,14 +293,6 @@ function isTransientNetworkError(error: unknown): boolean {
   )
 }
 
-/**
- * Rotates the access token using the stored refresh token. Uses raw fetch, not
- * apiClient: apiClient's own 401 handler calls this function, so routing it back
- * through apiClient would invert the dependency and lose the clearOnFailure
- * contract (apiClient throws + clears unconditionally; this returns a discriminated
- * outcome. A transient network failure preserves the session and a real auth
- * rejection is reported to the coordinated caller.
- */
 async function rotateSessionToken(
   epoch: number,
   expectedCredentialVersion: number,

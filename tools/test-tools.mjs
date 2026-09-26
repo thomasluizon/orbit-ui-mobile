@@ -1,34 +1,4 @@
 #!/usr/bin/env node
-/**
- * The harness execution gate: every script under tools/ is EXECUTED here, never merely
- * read. A harness cannot certify itself by review: Pullfrog reads the DIFF in GitHub
- * Actions, so a broken tool can be read, approved and merged.
- * tools/launch-worker.mjs once shipped reading `orca terminal wait`'s
- * "not yet" (exit 1 with an ok:false payload) as a fatal error, which only running it caught.
- *
- * Three layers:
- *   1. Structural coverage: every tools/ script has a COVERAGE entry and every entry names a
- *      script that exists, so tool N+1 cannot land uncovered and a deleted tool cannot leave a
- *      row pointing at nothing.
- *   2. Universal contract (tools/CONVENTIONS.md): --help exits 0 with usage on stdout, and
- *      invalid input exits non-zero instead of doing the work.
- *   3. Decision paths: one case module per covered unit under tools/__tests__/, hermetic.
- *      External calls (orca, gh, git) are stubbed or dry-run - this gate creates no worktree,
- *      opens no network connection and touches no ticket.
- *
- * This file is the RUNNER and stays the single entry point. It owns exactly four things: the
- * CLI contract, TOOLS_DIR, the case-module registry, and the three layers above. Every case
- * body lives in tools/__tests__/<module>.mjs and every shared helper in
- * tools/__tests__/_harness.mjs, so two tickets editing two tools no longer edit the same file.
- * TOOLS_DIR is resolved here once and injected, because a case body that re-derived it from its
- * own location would resolve tools/__tests__ and silently break every join against it.
- *
- * Deliberately NOT re-asserted here: the verdicts of the tools guards.yml already executes (dash
- * ban, copy register, suppressions ratchet). Those have their own jobs; this gate proves their
- * CLI contract, not their findings.
- *
- * Run: node tools/test-tools.mjs   (exits non-zero on any failure)
- */
 
 import { existsSync, readdirSync } from "node:fs"
 import { dirname, join } from "node:path"
@@ -74,6 +44,7 @@ const CASE_MODULES = [
   ["arch-map.mjs", "arch-map"],
   ["board-view.mjs", "board-view"],
   ["check-dashes.mjs", "check-dashes"],
+  ["check-timeless.mjs", "check-timeless"],
   ["check-push-target.mjs", "check-push-target"],
   ["check-review-harness.mjs", "check-review-harness"],
   ["check-root-allowlist.mjs", "check-root-allowlist"],
@@ -134,6 +105,7 @@ const INVALID_INPUT = {
   "board-view.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-timeless.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-review-harness.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-root-allowlist.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -234,13 +206,6 @@ for (const [file, cases] of Object.entries(gateCases)) {
   endToolScope()
 }
 
-/**
- * Silent coverage loss is the defect this layer exists to remove: on an earlier revision a bare
- * `return` disabled about 60 assertions and this suite still printed PASS lines and exited 0. The
- * tally is taken by EXECUTION, because a static count over the source cannot see an unreachable
- * `return`. A case module that contributes NOTHING is the shape that reaches zero cost silently,
- * so it fails here by name rather than passing quietly.
- */
 console.log("\n# assertion coverage")
 const tally = assertionTally()
 for (const [tool, count] of Object.entries(tally).sort(([left], [right]) => left.localeCompare(right))) {

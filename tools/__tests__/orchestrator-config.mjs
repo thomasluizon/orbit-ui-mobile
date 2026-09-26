@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 
 import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
@@ -85,6 +85,13 @@ export const cases = async () => {
 
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
+  const shipped = readOrchestratorConfig()
+  const commonDirectory = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../.."), encoding: "utf8" }).stdout.trim()
+  T(
+    `${NAME}: relative sibling paths resolve from the primary checkout in a linked worktree`,
+    shipped.repos.ui === join(commonDirectory, "..") && shipped.repos.api === join(commonDirectory, "..", "..", "orbit-api"),
+    JSON.stringify(shipped.repos),
+  )
   const engineName = real.worker
   const engine = real.workers[engineName]
   const invocation = resolveWorkerInvocation(engineName, engine, "default")

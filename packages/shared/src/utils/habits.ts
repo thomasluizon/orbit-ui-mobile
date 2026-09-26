@@ -267,22 +267,6 @@ function siblingsToPositions(siblings: ReorderableHabitItem[]): HabitReorderPosi
   return siblings.map((sibling, index) => ({ habitId: sibling.id, position: index }))
 }
 
-/**
- * Computes the new position list after a drag-and-drop reorder.
- *
- * Drag reorder is **position-only and same-parent**: the payload carries no
- * parentId and the API renumbers by position, so a drag never re-parents (that is
- * a separate "move to parent" flow). The moved item therefore always stays in its
- * own group, and its insert index is resolved from **same-level** neighbours only
- * — sub-habit rows of other expanded parents in the flat `items` list are skipped
- * so they can't pull the moved item into the wrong group.
- *
- * Handles filtered views correctly: when the visible `items` array is a subset of
- * all siblings (e.g. the Today view hides habits not scheduled today), the moved
- * item is merged into the FULL sibling list (preserving hidden siblings' relative
- * order) before emitting contiguous 0..N-1 positions, so hidden siblings don't
- * drift to the end on every reorder.
- */
 export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
   items: T[],
   oldIndex: number,

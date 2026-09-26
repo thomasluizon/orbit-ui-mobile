@@ -12,7 +12,10 @@
       "models": {
         "default": {
           "model": "gpt-5.6-sol",
-          "args": ["-c", "model_reasoning_effort=\"high\""]
+          "args": [
+            "-c",
+            "model_reasoning_effort=\"high\""
+          ]
         }
       }
     }
@@ -52,8 +55,8 @@
     }
   },
   "repos": {
-    "ui": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-ui-mobile",
-    "api": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-api",
-    "landing": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-landing-page"
+    "ui": ".",
+    "api": "../orbit-api",
+    "landing": "../orbit-landing-page"
   }
 }
