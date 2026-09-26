@@ -74,7 +74,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
             forwardSlot={<Button variant="ghost" size="sm" accessibleName={t('chat.insight.next')} disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>{t('chat.insight.next')}</Button>}
           />
           {/* eslint-disable-next-line local/max-button-words -- #680 requires this destination chip copy. */}
-          <Button variant="ghost" size="sm" accessibleName={t('chat.insight.progressLink')} onClick={() => router.push('/progress')}>{t('chat.insight.progressLink')}</Button>
+          <Button variant="ghost" size="sm" accessibilityRole="link" accessibleName={t('chat.insight.progressLink')} onClick={() => router.push('/progress')}>{t('chat.insight.progressLink')}</Button>
         </View>}
       />
     </View>

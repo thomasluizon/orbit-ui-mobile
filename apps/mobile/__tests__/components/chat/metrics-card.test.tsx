@@ -69,4 +69,17 @@ describe('Astra metrics card on mobile', () => {
     expect(title).toBeDefined()
     expect(title?.props.numberOfLines).toBeUndefined()
   })
+
+  it('hides an all-null series and wraps row labels', () => {
+    const emptySeries = { ...series(7), points: series(7).points.map((point) => ({ ...point, scheduled: 0, completed: 0, completionRate: null })) }
+    const root = render(<MetricsCard metricsCard={{ ...overview, series: emptySeries }} />)
+    expect(root.findAllByType('Path')).toHaveLength(0)
+    const label = root.findAllByType('Text').find((node) => node.props.children === 'chat.metrics.topHabit')
+    expect(label?.props.numberOfLines).toBeUndefined()
+  })
+
+  it('uses the generic title when a habit has no name', () => {
+    const root = render(<MetricsCard metricsCard={{ ...overview, habitId: '92ca0543-c3e1-4f41-9370-c55e1bfa8157', habitTitle: null }} />)
+    expect(root.findAllByType('Text').some((node) => node.props.children === 'chat.metrics.title')).toBe(true)
+  })
 })

@@ -1,10 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MetricsCard as MetricsCardData } from '@orbit/shared/types/chat'
 import { MetricsCard } from '@/components/chat/metrics-card'
 
-const push = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string, values?: { done?: number; scheduled?: number; name?: string }) =>
@@ -23,7 +21,6 @@ const overview: MetricsCardData = {
 }
 
 beforeEach(() => {
-  push.mockClear()
   vi.stubGlobal('ResizeObserver', class {
     observe() { this.callback([{ contentRect: { width: 320 } }]) }
     disconnect() {}
@@ -39,8 +36,7 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('chat.metrics.daysLogged')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.topHabit')).toBeInTheDocument()
     expect(container.querySelectorAll('svg path')).toHaveLength(7)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.metrics.progressLink' }))
-    expect(push).toHaveBeenCalledWith('/progress')
+    expect(screen.getByRole('link', { name: 'chat.metrics.progressLink' })).toHaveAttribute('href', '/progress')
   })
 
   it('renders one habit with thirty bars and a habit chip', () => {
@@ -50,8 +46,7 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('chat.metrics.longestStreak')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.monthlyRate')).toBeInTheDocument()
     expect(container.querySelectorAll('svg path')).toHaveLength(30)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.metrics.habitLink' }))
-    expect(push).toHaveBeenCalledWith(`/habits/${habitId}`)
+    expect(screen.getByRole('link', { name: 'chat.metrics.habitLink' })).toHaveAttribute('href', `/habits/${habitId}`)
   })
 
   it('shows one empty line and no chart when the series is unavailable', () => {
@@ -59,6 +54,18 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('chat.metrics.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('svg path')).toHaveLength(0)
     expect(screen.queryByText('0')).not.toBeInTheDocument()
+  })
+
+  it('hides an all-null series and wraps row labels', () => {
+    const emptySeries = { ...series(7), points: series(7).points.map((point) => ({ ...point, scheduled: 0, completed: 0, completionRate: null })) }
+    const { container } = render(<MetricsCard metricsCard={{ ...overview, series: emptySeries }} />)
+    expect(container.querySelectorAll('svg path')).toHaveLength(0)
+    expect(screen.getByText('chat.metrics.topHabit')).toHaveClass('break-words')
+  })
+
+  it('uses the generic title when a habit has no name', () => {
+    render(<MetricsCard metricsCard={{ ...overview, habitId: '92ca0543-c3e1-4f41-9370-c55e1bfa8157', habitTitle: null }} />)
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('chat.metrics.title')
   })
 
   it('keeps a long habit title readable', () => {

@@ -48,13 +48,16 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
 
   if (points.length === 0) return null
   const point = points[selectedIndex]!
-  const readout = point.scheduled === 0
-    ? `${point.dateLabel}: ${t('nothingScheduled')}`
-    : `${point.dateLabel}: ${t('readout', { done: point.completed, scheduled: point.scheduled })}`
+  const value = point.scheduled === 0
+    ? t('nothingScheduled')
+    : t('readout', { done: point.completed, scheduled: point.scheduled })
+  const readout = `${point.dateLabel}: ${value}`
 
   return (
     <div className="flex w-full flex-col gap-2" data-testid="bar-chart">
-      <p className="text-sm text-[var(--fg-2)]" aria-live="polite">{readout}</p>
+      <p className="text-sm text-[var(--fg-2)]" aria-live="polite">
+        {point.dateLabel}: {point.scheduled === 0 ? value : <span className="tabular-nums text-[var(--fg-1)]" style={{ fontFamily: 'var(--font-display)' }}>{value}</span>}
+      </p>
       <div
         ref={containerRef}
         role="slider"

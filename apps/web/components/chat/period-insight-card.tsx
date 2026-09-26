@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from 'next/navigation'
 import { getInsightPages } from '@orbit/shared/chat'
 import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
 import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types/chat'
@@ -10,12 +9,11 @@ import { mapCompletionSeries } from '@orbit/shared/utils'
 import { BarChart } from '@/components/ui/bar-chart'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { Pager } from '@/components/ui/pager'
-import { Button } from '@/components/ui/pill-button'
+import { Button, PillLink } from '@/components/ui/pill-button'
 
 export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: PeriodInsightData }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const router = useRouter()
   const [index, setIndex] = useState(0)
   const pages = getInsightPages(periodInsight)
   const page = pages[Math.min(index, pages.length - 1)] ?? pages[0]
@@ -72,8 +70,8 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
             onBack={index > 0 ? () => setIndex(index - 1) : undefined}
             forwardSlot={<Button variant="ghost" size="sm" disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>{t('chat.insight.next')}</Button>}
           />
-          {/* eslint-disable-next-line local/max-button-words -- #680 requires this destination chip copy. */}
-          <Button variant="ghost" size="sm" onClick={() => router.push('/progress')}>{t('chat.insight.progressLink')}</Button>
+          { }
+          <PillLink variant="ghost" size="sm" href="/progress">{t('chat.insight.progressLink')}</PillLink>
         </div>}
       />
     </div>

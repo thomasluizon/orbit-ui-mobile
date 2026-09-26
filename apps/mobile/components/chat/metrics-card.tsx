@@ -16,9 +16,11 @@ export function MetricsCard({ metricsCard }: Readonly<{ metricsCard: MetricsCard
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const habitId = metricsCard.habitId
+  const habitTitle = metricsCard.habitTitle?.trim()
   const points = metricsCard.series ? mapCompletionSeries(metricsCard.series, i18n.language) : []
   const rows = getMetricsRows(metricsCard).map((row) => ({
     id: row.id,
+    wrapLabel: true,
     label: t(row.labelKey),
     control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'], maxWidth: '45%', textAlign: 'right' }}>{row.value ?? t('chat.metrics.noFigure')}</Text>,
   }))
@@ -32,12 +34,12 @@ export function MetricsCard({ metricsCard }: Readonly<{ metricsCard: MetricsCard
     <View style={{ width: '100%', marginTop: 8 }}>
       <BlockFrame
         state="resting"
-        title={habitId ? t('chat.metrics.habitTitle', { name: metricsCard.habitTitle ?? '' }) : t('chat.metrics.title')}
-        wrapTitle={Boolean(habitId)}
+        title={habitId && habitTitle ? t('chat.metrics.habitTitle', { name: habitTitle }) : t('chat.metrics.title')}
+        wrapTitle={Boolean(habitId && habitTitle)}
         count={null}
         items={rows}
         body={body}
-        actions={<Button variant="ghost" size="sm" onClick={() => habitId ? router.push({ pathname: '/habits/[id]', params: { id: habitId } }) : router.push('/progress')}>{t(habitId ? 'chat.metrics.habitLink' : 'chat.metrics.progressLink')}</Button>}
+        actions={<Button variant="ghost" size="sm" accessibilityRole="link" onClick={() => habitId ? router.push({ pathname: '/habits/[id]', params: { id: habitId } }) : router.push('/progress')}>{t(habitId ? 'chat.metrics.habitLink' : 'chat.metrics.progressLink')}</Button>}
       />
     </View>
   )

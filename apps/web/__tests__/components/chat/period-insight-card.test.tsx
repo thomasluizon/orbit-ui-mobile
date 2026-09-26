@@ -3,8 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types/chat'
 import { PeriodInsightCard } from '@/components/chat/period-insight-card'
 
-const push = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string, values?: { done?: number; scheduled?: number }) =>
@@ -25,7 +23,6 @@ const insight: PeriodInsightData = {
 }
 
 beforeEach(() => {
-  push.mockClear()
   vi.stubGlobal('ResizeObserver', class {
     observe() { this.callback([{ contentRect: { width: 320 } }]) }
     disconnect() {}
@@ -49,8 +46,7 @@ describe('period insight card on web', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.insight.next' }))
     expect(screen.getByText('Start small')).toBeInTheDocument()
     expect(screen.queryByText('Reading')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chat.insight.progressLink' }))
-    expect(push).toHaveBeenCalledWith('/progress')
+    expect(screen.getByRole('link', { name: 'chat.insight.progressLink' })).toHaveAttribute('href', '/progress')
   })
 
   it('keeps Missed when it is the only narrative page', () => {

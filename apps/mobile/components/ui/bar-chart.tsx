@@ -24,9 +24,10 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
   const bars = resolveBarChartGeometry(points.map((point) => point.rate), width)
   if (points.length === 0) return null
   const point = points[selectedIndex]!
-  const readout = point.scheduled === 0
-    ? `${point.dateLabel}: ${t('charts.bar.nothingScheduled')}`
-    : `${point.dateLabel}: ${t('charts.bar.readout', { done: point.completed, scheduled: point.scheduled })}`
+  const value = point.scheduled === 0
+    ? t('charts.bar.nothingScheduled')
+    : t('charts.bar.readout', { done: point.completed, scheduled: point.scheduled })
+  const readout = `${point.dateLabel}: ${value}`
 
   function selectAt(event: GestureResponderEvent) {
     setSelected(nearestBarIndex(event.nativeEvent.locationX, bars))
@@ -34,7 +35,9 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
 
   return (
     <View style={styles.container} testID="bar-chart">
-      <Text accessibilityLiveRegion="polite" style={[styles.readout, { color: tokens.fg2 }]}>{readout}</Text>
+      <Text accessibilityLiveRegion="polite" style={[styles.readout, { color: tokens.fg2 }]}>
+        {point.dateLabel}: {point.scheduled === 0 ? value : <Text style={[styles.readoutValue, { color: tokens.fg1 }]}>{value}</Text>}
+      </Text>
       <View
         accessible
         accessibilityRole="adjustable"
@@ -68,6 +71,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
 const styles = StyleSheet.create({
   container: { width: '100%', gap: 8 },
   readout: { fontFamily: 'Geist_400Regular', fontSize: 14 },
+  readoutValue: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 14, fontVariant: ['tabular-nums'] },
   plot: { height: BAR_CHART_HEIGHT, width: '100%' },
   axis: { flexDirection: 'row', justifyContent: 'space-between' },
   axisLabel: { fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },

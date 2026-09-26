@@ -39,4 +39,13 @@ describe('completion series', () => {
     expect(points[0]!.dateLabel).toContain('set')
     expect(points[1]!.rate).toBeNull()
   })
+
+  it('labels a partial final week with both local dates', () => {
+    const series = { granularity: 'week' as const, points: [
+      { startDate: '2026-09-28', endDate: '2026-09-30', scheduled: 2, completed: 1, completionRate: 50 },
+    ] }
+    const [point] = mapCompletionSeries(series, 'pt-BR')
+    expect(point?.dateLabel).toContain('28 de set')
+    expect(point?.dateLabel).toContain('30 de set')
+  })
 })
