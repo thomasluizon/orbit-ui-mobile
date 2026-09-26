@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Bell, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { subscribePush } from '@/lib/actions/notifications'
@@ -37,6 +37,11 @@ export function PushPrompt() {
   const [show, setShow] = useState(false)
   const [visible, setVisible] = useState(false)
   const [showRetryHint, setShowRetryHint] = useState(false)
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (dismissTimer.current !== null) clearTimeout(dismissTimer.current)
+  }, [])
 
   useEffect(() => {
     if (
@@ -62,9 +67,13 @@ export function PushPrompt() {
   }, [])
 
   const dismiss = useCallback(() => {
+    if (dismissTimer.current !== null) clearTimeout(dismissTimer.current)
     setVisible(false)
     setCookie(STORAGE_KEY, '1', 60 * 60 * 24 * 365)
-    setTimeout(() => setShow(false), 240)
+    dismissTimer.current = setTimeout(() => {
+      dismissTimer.current = null
+      setShow(false)
+    }, 240)
   }, [])
 
   useOverlayEscape({ open: show, onDismiss: dismiss, restoreFocus: false })

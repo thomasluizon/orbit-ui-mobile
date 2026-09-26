@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the prompt fade/slide on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -40,8 +40,13 @@ export function PushPrompt() {
   const [isDismissed, setIsDismissed] = useState<boolean | null>(null)
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [slideAnim] = useState(() => new Animated.Value(20))
+  const exitAnimation = useRef<ReturnType<typeof Animated.parallel> | null>(null)
   const showRetryHint =
     registrationStatus === 'sync-failed' || registrationStatus === 'token-missing'
+
+  useEffect(() => () => {
+    exitAnimation.current?.stop()
+  }, [])
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -85,8 +90,9 @@ export function PushPrompt() {
   }, [fadeAnim, shouldShow, slideAnim])
 
   const dismiss = useCallback(() => {
+    exitAnimation.current?.stop()
     setIsExiting(true)
-    Animated.parallel([
+    exitAnimation.current = Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 200,
@@ -97,8 +103,12 @@ export function PushPrompt() {
         duration: 200,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      setIsExiting(false)
+    ])
+    exitAnimation.current.start(({ finished }) => {
+      if (finished) {
+        exitAnimation.current = null
+        setIsExiting(false)
+      }
     })
     setIsDismissed(true)
     void AsyncStorage.setItem(STORAGE_KEY, '1')
