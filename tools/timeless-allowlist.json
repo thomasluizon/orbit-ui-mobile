@@ -1,0 +1,7 @@
+[
+  { "path": "LICENSE", "rule": "owner-name", "match": "Thomas", "reason": "Legal copyright and trademark holder" },
+  { "path": "design/canvas/", "rule": "owner-name", "match": null, "scope": "directory", "exclude": ["design/canvas/tools/"], "reason": "granted Claude Design export, text another tool wrote" },
+  { "path": "design/canvas/", "rule": "comment-length", "match": null, "scope": "directory", "exclude": ["design/canvas/tools/"], "reason": "granted Claude Design export, text another tool wrote" },
+  { "path": "design/canvas/", "rule": "dated-anecdote", "match": null, "scope": "directory", "exclude": ["design/canvas/tools/"], "reason": "granted Claude Design export, text another tool wrote" },
+  { "path": "tools/timeless-allowlist.json", "rule": "owner-name", "match": "Thomas", "reason": "Exact substrings required to review current exceptions" }
+]

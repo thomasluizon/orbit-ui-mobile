@@ -121,7 +121,7 @@ domain another way.
 - **Wrapping is a defect on buttons, chips, tabs and navigation labels**, at every supported width.
   Preserve the named `DESIGN.md` exceptions: a `StatTile` label reserves up to two lines, and an
   `Input` may be multiline. Headings and body copy follow its measure and wrapping rules.
-- **A rebuild never drops a feature.** Removal is authorized only where he decided it.
+- **A rebuild never drops a feature.** Removal requires an owner decision.
 - **Compose motion wherever `DESIGN.md`'s frequency and purpose gates permit it.** A 100-plus-per-day
   interaction gets no animation budget, ever, and purposeless motion is deleted. Where those gates
   do permit motion, a screen composing none of its own fails the screen motion requirement.

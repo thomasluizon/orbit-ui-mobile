@@ -25,7 +25,7 @@ export const cases = () => {
 
   /** GitHub is case-insensitive on owner and name, so a case difference is not a misdirection. A
    * verdict that called it one would refuse legitimate writes and teach everyone to bypass this. */
-  const cased = nodeTargetVerdict({ nodeId: THREAD, expectedSlug: "ThomasLuizon/Orbit-UI-Mobile", resolvedSlug: OURS })
+  const cased = nodeTargetVerdict({ nodeId: THREAD, expectedSlug: OURS.toUpperCase(), resolvedSlug: OURS })
   T(`${UNIT}: a case difference in the slug is not a misdirection`, cased.ok === true, JSON.stringify(cased))
 
   /**

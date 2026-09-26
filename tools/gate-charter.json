@@ -24,6 +24,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".claude/hooks/forbid-stale-text.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   ".claude/hooks/forbid-worker-browser.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
@@ -122,6 +127,11 @@
   ".github/workflows/guards.yml#surface-manifest": {
     "scope": "changed-files",
     "snapshot": "node tools/surface-manifest.mjs",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#timeless": {
+    "scope": "changed-files",
+    "snapshot": "none",
     "constants": "none"
   },
   "eslint-rules/animate-presence-exit.cjs": {
@@ -453,6 +463,11 @@
         "source": "DESIGN.md Surface roles"
       }
     ]
+  },
+  "tools/check-timeless.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
   },
   "tools/check-workspace-overrides.mjs": {
     "scope": "changed-files",

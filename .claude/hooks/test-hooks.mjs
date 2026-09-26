@@ -780,6 +780,23 @@ const runHookResult = (file, input, env) =>
 const runHook = (file, payload, env) => runHookResult(file, JSON.stringify(payload), env).status
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
 const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
+const STALE_TEXT = "forbid-stale-text.mjs"
+const plantedOwner = ["Tho", "mas"].join("")
+T("adapter timeless: a new owner attribution -> 2", runHook(STALE_TEXT, {
+  tool_name: "Write",
+  tool_input: { file_path: join(repoRoot, "timeless-hook-probe.md"), content: `Ask ${plantedOwner}.\n` },
+  cwd: repoRoot,
+}), 2)
+T("adapter timeless: a clean edit -> 0", runHook(STALE_TEXT, {
+  tool_name: "Edit",
+  tool_input: { file_path: join(repoRoot, "AGENTS.md"), old_string: "clean", new_string: "still clean" },
+  cwd: repoRoot,
+}), 0)
+T("adapter timeless: a scratchpad write -> 0", runHook(STALE_TEXT, {
+  tool_name: "Write",
+  tool_input: { file_path: join(root, "scratchpad.md"), content: `Ask ${plantedOwner}.\n` },
+  cwd: repoRoot,
+}), 0)
 
 const LESSONS_HOOK = "surface-pending-lessons.mjs"
 const DRIFT_REVIEW_REMINDER = "Workflow drift review is overdue. Run /drift-review."
