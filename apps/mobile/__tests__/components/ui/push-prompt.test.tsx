@@ -7,6 +7,8 @@ const TestRenderer = require('react-test-renderer')
 
 const storage = new Map<string, string>()
 const requestPermission = vi.fn(() => Promise.resolve(true))
+const stopExitAnimation = vi.fn()
+let deferExitAnimation = false
 const pushState = {
   isSupported: true,
   permissionStatus: 'undetermined',
@@ -70,16 +72,29 @@ vi.mock('lucide-react-native', () => {
 
 vi.mock('react-native', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native')>()
-  const start = (callback?: () => void) => {
-    callback?.()
+  const parallel = () => {
+    let onFinish: ((result: { finished: boolean }) => void) | undefined
+    return {
+      start: (callback?: (result: { finished: boolean }) => void) => {
+        if (deferExitAnimation && callback) {
+          onFinish = callback
+          return
+        }
+        callback?.({ finished: true })
+      },
+      stop: () => {
+        stopExitAnimation()
+        onFinish?.({ finished: false })
+      },
+    }
   }
 
   return {
     ...actual,
     Animated: {
       ...actual.Animated,
-      timing: vi.fn(() => ({ start })),
-      parallel: vi.fn(() => ({ start })),
+      timing: vi.fn(() => ({ start: () => undefined })),
+      parallel: vi.fn(parallel),
     },
   }
 })
@@ -103,6 +118,8 @@ describe('PushPrompt (mobile)', () => {
   beforeEach(() => {
     storage.clear()
     requestPermission.mockClear()
+    stopExitAnimation.mockClear()
+    deferExitAnimation = false
     pushState.isSupported = true
     pushState.permissionStatus = 'undetermined'
     pushState.registrationStatus = 'permission-undetermined'
@@ -131,6 +148,23 @@ describe('PushPrompt (mobile)', () => {
     })
 
     expect(requestPermission).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops the exit animation when the dismissed prompt unmounts', async () => {
+    let tree: any
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<PushPrompt />)
+    })
+
+    deferExitAnimation = true
+    await TestRenderer.act(() => {
+      findPressableByText(tree.root, 'pushPrompt.later').props.onPress()
+    })
+
+    await TestRenderer.act(() => {
+      tree.unmount()
+    })
+    expect(stopExitAnimation).toHaveBeenCalledTimes(1)
   })
 
   it('stays hidden after the prompt was dismissed previously', async () => {
