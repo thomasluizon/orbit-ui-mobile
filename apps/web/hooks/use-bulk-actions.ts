@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { hasAncestorInSet } from '@orbit/shared/utils'
+import { collectSelectableDescendantIds, hasAncestorInSet } from '@orbit/shared/utils'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitListHandle } from '@/components/habits/habit-list'
@@ -40,16 +40,29 @@ export function useBulkActions({
   }, [habitsById, habitListRef])
 
   const confirmBulkDelete = useCallback(async () => {
-    const ids = Array.from(selectedHabitIds)
-    if (ids.length === 0) return
+    if (selectedHabitIds.size === 0) return
+    const childrenByParent = new Map<string, string[]>()
+    for (const habit of habitsById.values()) {
+      if (!habit.parentId) continue
+      const childIds = childrenByParent.get(habit.parentId) ?? []
+      childIds.push(habit.id)
+      childrenByParent.set(habit.parentId, childIds)
+    }
+    const ids = new Set(selectedHabitIds)
+    for (const id of selectedHabitIds) {
+      for (const descendantId of collectSelectableDescendantIds(
+        id,
+        (parentId) => childrenByParent.get(parentId) ?? [],
+      )) ids.add(descendantId)
+    }
     try {
-      await bulkDelete.mutateAsync(ids)
+      await bulkDelete.mutateAsync(Array.from(ids))
     } catch {
     } finally {
       onSuccess()
       setShowBulkDeleteConfirm(false)
     }
-  }, [selectedHabitIds, bulkDelete, onSuccess])
+  }, [selectedHabitIds, habitsById, bulkDelete, onSuccess])
 
   const confirmBulkLog = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)

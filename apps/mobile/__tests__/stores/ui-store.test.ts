@@ -243,7 +243,6 @@ describe("mobile ui store", () => {
     toggleSelectionCascade(
       "parent",
       () => ["child-1", "child-2"],
-      () => false,
     );
 
     expect(useUIStore.getState().selectedHabitIds).toEqual(
@@ -253,7 +252,6 @@ describe("mobile ui store", () => {
     toggleSelectionCascade(
       "parent",
       () => ["child-1", "child-2"],
-      () => false,
     );
 
     expect(useUIStore.getState().selectedHabitIds.size).toBe(0);
@@ -276,7 +274,6 @@ describe("mobile ui store", () => {
     toggleSelectionCascade(
       "habit-1",
       () => ["child-1", "child-2"],
-      () => false,
     );
 
     expect(useUIStore.getState().isSelectMode).toBe(true);

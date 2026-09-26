@@ -133,7 +133,6 @@ export interface UIStoreState {
   toggleSelectionCascade: (
     habitId: string,
     getDescendantIds: (id: string) => string[],
-    isAncestorSelected: (id: string) => boolean,
   ) => void;
   selectAllHabits: (allIds: string[]) => void;
   clearSelection: () => void;
@@ -333,10 +332,8 @@ export function createUIStoreState(
         return { selectedHabitIds: next };
       }),
 
-    toggleSelectionCascade: (habitId, getDescendantIds, isAncestorSelected) =>
+    toggleSelectionCascade: (habitId, getDescendantIds) =>
       set((state) => {
-        if (isAncestorSelected(habitId)) return state;
-
         const selected = new Set(state.selectedHabitIds);
         const manual = new Set(state.manuallySelectedIds);
         const descendants = getDescendantIds(habitId);

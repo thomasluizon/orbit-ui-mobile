@@ -40,24 +40,11 @@ export function useTodaySelection({
     [childrenByParent, habitListRef],
   )
 
-  const isAncestorSelected = useCallback(
-    (habitId: string): boolean => {
-      function walk(currentId: string): boolean {
-        const habit = habitsById.get(currentId)
-        if (!habit?.parentId) return false
-        if (selectedHabitIds.has(habit.parentId)) return true
-        return walk(habit.parentId)
-      }
-      return walk(habitId)
-    },
-    [habitsById, selectedHabitIds],
-  )
-
   const handleToggleSelection = useCallback(
     (habitId: string) => {
-      toggleSelectionCascade(habitId, getDescendantIds, isAncestorSelected)
+      toggleSelectionCascade(habitId, getDescendantIds)
     },
-    [toggleSelectionCascade, getDescendantIds, isAncestorSelected],
+    [toggleSelectionCascade, getDescendantIds],
   )
 
   const allSelected = habitsCount > 0 && selectedHabitIds.size === habitsCount
