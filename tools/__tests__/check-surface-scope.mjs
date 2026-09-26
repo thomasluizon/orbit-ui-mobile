@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, writeFileSync } from "node:fs"
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { check, root, toolPath } from "./_harness.mjs"
@@ -38,6 +38,33 @@ export const cases = () => {
   check("check-surface-scope.mjs", "accepts the fixed bad-status text on a sheet", ["--root", badTextSheet], {
     status: 0,
     stdout: /Surface scope guard passed/,
+  })
+
+  const wrappedSlideSource = readFileSync(join(dirname(toolPath("check-surface-scope.mjs")), "..", "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx"), "utf8")
+  const alertPosition = wrappedSlideSource.indexOf('role="alert"')
+  const paragraphStart = wrappedSlideSource.lastIndexOf("<motion.p", alertPosition)
+  const paragraphEnd = wrappedSlideSource.indexOf("</motion.p>", alertPosition) + "</motion.p>".length
+  if (alertPosition < 0 || paragraphStart < 0 || paragraphEnd < "</motion.p>".length) {
+    throw new Error("wrapped share alert paragraph is missing")
+  }
+  const alertParagraph = wrappedSlideSource.slice(paragraphStart, paragraphEnd)
+  if (!alertParagraph.includes("style={{ textAlign: 'center', fontSize: 13 }}")
+    || !alertParagraph.includes("<span style={{ color: 'var(--status-bad-text)' }}>")) {
+    throw new Error("wrapped share alert paragraph has changed")
+  }
+  const coloredParagraph = alertParagraph
+    .replace("style={{ textAlign: 'center', fontSize: 13 }}", "style={{ textAlign: 'center', fontSize: 13, color: 'var(--status-bad-text)' }}")
+    .replace("<span style={{ color: 'var(--status-bad-text)' }}>", "<span>")
+  const motionText = stageRepository("motion-text", { web: `export function WrappedShareSlide(){return (${coloredParagraph})}` })
+  check("check-surface-scope.mjs", "accepts the wrapped share alert color on its motion paragraph", ["--root", motionText], {
+    status: 0,
+    stdout: /Surface scope guard passed/,
+  })
+
+  const iconColor = stageRepository("icon-color", { web: `import { AlertTriangle } from '@/components/ui/icons'\nexport function Warning(){return <AlertTriangle style={{ color: 'var(--status-bad-text)' }} />}` })
+  check("check-surface-scope.mjs", "rejects the same color on an icon", ["--root", iconColor], {
+    status: 1,
+    stderr: /--status-bad-text used as GRAPHIC but declares TEXT/,
   })
 
   const primarySoftCard = stageRepository("primary-soft-card", { web: `export function Accent(){return <div className="bg-[var(--bg-card)] text-[var(--primary-soft)]">accent</div>}` })
