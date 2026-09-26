@@ -2,9 +2,9 @@ import React from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  getCalendarEntryMutationKey,
   useCalendarEntryMutationLock,
-} from '../hooks/calendar-entry-mutation-lock'
+} from '@/hooks/use-calendar-entry-mutation-lock'
+import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 
 type MutationLock = ReturnType<typeof useCalendarEntryMutationLock>
 
@@ -19,7 +19,7 @@ async function renderMutationLock(initialSourceState: boolean) {
     return null
   }
 
-  await act(async () => {
+  await act(() => {
     renderer = create(React.createElement(Harness))
   })
 
@@ -31,7 +31,7 @@ async function renderMutationLock(initialSourceState: boolean) {
     entryKey,
     reconcile: async (checked: boolean) => {
       sourceEntryStates = new Map([[entryKey, checked]])
-      await act(async () => renderer?.update(React.createElement(Harness)))
+      await act(() => renderer?.update(React.createElement(Harness)))
     },
     renderer: renderer as ReactTestRenderer,
   }
@@ -47,7 +47,7 @@ describe('calendar entry mutation lock', () => {
     const lock = await renderMutationLock(false)
 
     let firstRequest: Promise<unknown> | null = null
-    act(() => {
+    await act(() => {
       firstRequest = lock.current().startEntryMutation(lock.entryKey, true, mutation)
     })
     expect(lock.current().pendingEntryStates.get(lock.entryKey)).toBe(true)
@@ -63,7 +63,7 @@ describe('calendar entry mutation lock', () => {
 
     await lock.reconcile(true)
     expect(lock.current().pendingEntryStates.has(lock.entryKey)).toBe(false)
-    lock.renderer.unmount()
+    lock.renderer.update(React.createElement(React.Fragment))
   })
 
   it('releases a rejected mutation when the source identity stays unchanged', async () => {
@@ -71,14 +71,15 @@ describe('calendar entry mutation lock', () => {
     const mutation = vi.fn().mockRejectedValue(new Error('write failed'))
     let request: Promise<unknown> | null = null
 
-    act(() => {
+    await act(() => {
       request = lock.current().startEntryMutation(lock.entryKey, true, mutation)
+      void request?.catch(() => undefined)
     })
     await act(async () => {
       await expect(request).rejects.toThrow('write failed')
     })
 
     expect(lock.current().pendingEntryStates.has(lock.entryKey)).toBe(false)
-    lock.renderer.unmount()
+    lock.renderer.update(React.createElement(React.Fragment))
   })
 })

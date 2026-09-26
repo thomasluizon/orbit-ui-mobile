@@ -1,16 +1,9 @@
 'use client'
 
+import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
+import { buildPendingOperationCardLabels } from '@orbit/shared/chat'
 import { useTranslations } from 'next-intl'
-import {
-  buildPendingOperationCardLabels,
-  SharedPendingOperationCard,
-  type PendingOperationCardAdapterProps,
-  type PendingOperationCardRenderers,
-  type PendingOperationVerificationProps,
-} from '@orbit/shared/chat'
-import {
-  usePendingOperationStepUpVerification,
-} from '@orbit/shared/hooks'
+import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
 import { Badge } from '@/components/ui/badge'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'

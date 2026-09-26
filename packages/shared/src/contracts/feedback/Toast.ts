@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react'
 
 type ToastNeutralAction =
   | { actionLabel: string; onAction: () => void }
@@ -8,7 +7,7 @@ export type ToastProps =
   | ({
       kind: 'neutral'
       message: string
-      icon?: ReactElement
+      icon?: React.ReactElement
       detail?: never
       doneAfterMs?: number
       onDone?: () => void
@@ -26,7 +25,7 @@ export type ToastProps =
   | {
       kind: 'done'
       message: string
-      icon?: ReactElement
+      icon?: React.ReactElement
       doneAfterMs?: number
       onDone: () => void
       detail?: never
@@ -39,7 +38,7 @@ export type ToastProps =
       detail: string
       actionLabel: string
       onAction: () => void
-      icon?: ReactElement
+      icon?: React.ReactElement
       doneAfterMs?: never
       onDone?: never
     }

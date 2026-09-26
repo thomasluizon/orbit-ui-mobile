@@ -6,8 +6,8 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import {
   getCalendarEntryMutationKey,
-  useCalendarEntryMutationLock,
 } from '@orbit/shared/hooks'
+import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import en from '@orbit/shared/i18n/en.json'
 
 const translations: Record<string, string> = {

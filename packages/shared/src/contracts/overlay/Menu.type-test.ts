@@ -1,4 +1,3 @@
-import type { RefObject } from 'react'
 import type {
   AnchoredMenuProps,
   AutomaticMenuProps,
@@ -26,7 +25,7 @@ type ExpectedBase = {
 }
 type ExpectedAutomaticVariant = ExpectedBase & {
   presentation?: 'auto'
-  anchorRef?: RefObject<unknown>
+  anchorRef?: React.RefObject<unknown>
   wideFrom?: number
 }
 type ExpectedSheetVariant = ExpectedBase & {
@@ -36,7 +35,7 @@ type ExpectedSheetVariant = ExpectedBase & {
 }
 type ExpectedAnchoredVariant = ExpectedBase & {
   presentation: 'anchored'
-  anchorRef: RefObject<unknown>
+  anchorRef: React.RefObject<unknown>
   wideFrom?: never
 }
 
@@ -89,7 +88,7 @@ export type MenuTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<MenuProps['title'], string | undefined>>,
   Assert<IsExactWidth<MenuProps['align'], 'start' | 'end' | undefined>>,
   Assert<IsExactWidth<MenuProps['presentation'], 'auto' | 'sheet' | 'anchored' | undefined>>,
-  Assert<IsExactWidth<MenuProps['anchorRef'], RefObject<unknown> | undefined>>,
+  Assert<IsExactWidth<MenuProps['anchorRef'], React.RefObject<unknown> | undefined>>,
   Assert<IsExactWidth<MenuProps['wideFrom'], number | undefined>>,
 ]
 

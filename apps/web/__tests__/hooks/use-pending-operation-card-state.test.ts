@@ -2,13 +2,11 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import {
-  getPendingOperationExecutionStatus,
   usePendingOperationCardState,
   usePendingOperationStepUpVerification,
-  type PendingOperationExecutionResult,
-  type PendingOperationStepUpPreparationResult,
-} from '../hooks/pending-operation-card-state'
-import type { AgentExecuteOperationResponse } from '../types/ai'
+} from '@/hooks/use-pending-operation-card-state'
+import { getPendingOperationExecutionStatus, type PendingOperationExecutionResult, type PendingOperationStepUpPreparationResult } from '@orbit/shared/hooks'
+import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 
 type CardState = ReturnType<typeof usePendingOperationCardState>
 type VerificationState = ReturnType<typeof usePendingOperationStepUpVerification>

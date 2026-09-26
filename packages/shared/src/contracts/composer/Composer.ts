@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 export type ComposerWords = {
   placeholder: string
@@ -38,7 +37,7 @@ export function hasComposerContent(
 export type ComposerSuggestion = {
   id: string
   label: string
-  icon?: ReactNode
+  icon?: React.ReactNode
   onSelect: () => void
 }
 
@@ -63,7 +62,7 @@ type ComposerBase = {
 type ComposerState =
   | { state: 'idle'; limitReason?: never; limitRecovery?: never }
   | { state: 'sending'; limitReason?: never; limitRecovery?: never }
-  | { state: 'atLimit'; limitReason: string; limitRecovery?: ReactNode }
+  | { state: 'atLimit'; limitReason: string; limitRecovery?: React.ReactNode }
   | { state: 'offline'; limitReason: string; limitRecovery?: never }
   | {
       state: 'recording'

@@ -1,11 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-interface PendingCalendarEntryMutation {
-  checked: boolean
-  settled: boolean
-}
+import { pendingCalendarEntryStates, reconciledCalendarEntryMutations, type PendingCalendarEntryMutation } from '@orbit/shared/hooks'
 
 interface CalendarEntryMutationLock {
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -16,38 +12,31 @@ interface CalendarEntryMutationLock {
   ) => Promise<unknown> | null
 }
 
-export function getCalendarEntryMutationKey(date: string, habitId: string): string {
-  return `${date}:${habitId}`
-}
-
 export function useCalendarEntryMutationLock(
   sourceEntryStates: ReadonlyMap<string, boolean>,
 ): CalendarEntryMutationLock {
   const sourceEntryStatesRef = useRef(sourceEntryStates)
-  sourceEntryStatesRef.current = sourceEntryStates
+  useEffect(() => {
+    sourceEntryStatesRef.current = sourceEntryStates
+  }, [sourceEntryStates])
   const pendingEntryMutationsRef = useRef(new Map<string, PendingCalendarEntryMutation>())
   const [pendingEntryStates, setPendingEntryStates] = useState<ReadonlyMap<string, boolean>>(
     () => new Map(),
   )
 
   const publishPendingEntryStates = useCallback(() => {
-    setPendingEntryStates(new Map(
-      [...pendingEntryMutationsRef.current].map(([entryKey, mutation]) => [
-        entryKey,
-        mutation.checked,
-      ]),
-    ))
+    setPendingEntryStates(pendingCalendarEntryStates(pendingEntryMutationsRef.current))
   }, [])
 
   const releaseReconciledEntries = useCallback(() => {
-    let released = false
-    for (const [entryKey, mutation] of pendingEntryMutationsRef.current) {
-      if (mutation.settled && sourceEntryStatesRef.current.get(entryKey) === mutation.checked) {
-        pendingEntryMutationsRef.current.delete(entryKey)
-        released = true
-      }
+    const remaining = reconciledCalendarEntryMutations(
+      pendingEntryMutationsRef.current,
+      sourceEntryStatesRef.current,
+    )
+    if (remaining.size !== pendingEntryMutationsRef.current.size) {
+      pendingEntryMutationsRef.current = remaining
+      publishPendingEntryStates()
     }
-    if (released) publishPendingEntryStates()
   }, [publishPendingEntryStates])
 
   useEffect(() => {

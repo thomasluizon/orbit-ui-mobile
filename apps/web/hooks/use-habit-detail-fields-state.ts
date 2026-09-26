@@ -1,24 +1,8 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import type { NormalizedHabit, UpdateHabitRequest } from '../types/habit'
-import { validateReminderSelection } from '../validation/habit-form'
-
-export type HabitDetailField =
-  | 'goals'
-  | 'reminders'
-  | 'schedule'
-  | 'time'
-  | 'description'
-  | 'endDate'
-
-export type HabitDetailPatch = Partial<UpdateHabitRequest>
-
-interface ReminderChanges {
-  enabled?: boolean
-  offsets?: number[]
-  scheduled?: NormalizedHabit['scheduledReminders']
-}
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { getHabitReminderPatch, toggleHabitDetailGoal, type HabitDetailField, type HabitDetailPatch, type ReminderChanges } from '@orbit/shared/hooks'
 
 interface HabitDetailFieldsState {
   cancelReminders: () => void
@@ -63,9 +47,7 @@ export function useHabitDetailFieldsState(
     })
   }, [close, onPatch])
   const toggleGoal = useCallback((goalId: string) => {
-    const next = goalIds.includes(goalId)
-      ? goalIds.filter((id) => id !== goalId)
-      : [...goalIds, goalId]
+    const next = toggleHabitDetailGoal(goalIds, goalId)
     setGoalIds(next)
     void onPatch({ goalIds: next })
   }, [goalIds, onPatch])
@@ -78,20 +60,13 @@ export function useHabitDetailFieldsState(
     setScheduledReminders(scheduled)
   }, [reminderEnabled, reminderTimes, scheduledReminders])
   const saveReminders = useCallback(() => {
-    const validationError = validateReminderSelection(
-      reminderEnabled,
-      habit.dueTime ?? '',
-      reminderTimes,
-      scheduledReminders,
+    const { error, patch } = getHabitReminderPatch(
+      habit, reminderEnabled, reminderTimes, scheduledReminders,
     )
-    if (validationError) return validationError
-    save({
-      reminderEnabled,
-      reminderTimes,
-      scheduledReminders,
-    })
+    if (error !== null) return error
+    save(patch)
     return null
-  }, [habit.dueTime, reminderEnabled, reminderTimes, save, scheduledReminders])
+  }, [habit, reminderEnabled, reminderTimes, save, scheduledReminders])
   const reminderHabit = useMemo(() => ({
     ...habit,
     reminderEnabled,

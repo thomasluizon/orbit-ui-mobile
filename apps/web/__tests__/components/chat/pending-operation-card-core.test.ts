@@ -4,14 +4,14 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   SharedPendingOperationCard,
   type PendingOperationButtonSpec,
-  type PendingOperationCardLabels,
   type PendingOperationCardRenderers,
   type PendingOperationConfirmSheetProps,
   type PendingOperationVerificationProps,
-} from '../chat/pending-operation-card'
-import type { BlockFrameProps } from '../contracts/blocks'
-import type { StepUpProps } from '../contracts/overlay'
-import { makePendingAgentOperation } from '../test-support/chat-fixtures'
+} from '@/components/chat/shared-pending-operation-card'
+import type { PendingOperationCardLabels } from '@orbit/shared/chat'
+import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
+import type { StepUpProps } from '@orbit/shared/contracts/overlay'
+import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
 
 const labels: PendingOperationCardLabels = {
   approve: 'Approve',

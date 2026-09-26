@@ -1,15 +1,8 @@
-import { Text } from 'react-native'
+import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
+import { buildPendingOperationCardLabels } from '@orbit/shared/chat'
 import { useTranslation } from 'react-i18next'
-import {
-  buildPendingOperationCardLabels,
-  SharedPendingOperationCard,
-  type PendingOperationCardAdapterProps,
-  type PendingOperationCardRenderers,
-  type PendingOperationVerificationProps,
-} from '@orbit/shared/chat'
-import {
-  usePendingOperationStepUpVerification,
-} from '@orbit/shared/hooks'
+import { Text } from 'react-native'
+import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
 import { Badge } from '@/components/ui/badge'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'

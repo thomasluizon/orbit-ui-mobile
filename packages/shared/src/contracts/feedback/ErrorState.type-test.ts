@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react'
 import type { ErrorStateProps } from './ErrorState'
 
 type IsExact<T, U> = T extends U ? Exclude<keyof T, keyof U> extends never ? true : false : false
@@ -10,12 +9,12 @@ type IsExactWidth<T, U> =
     : false
 type Assert<T extends true> = T
 
-declare const _action: ReactElement
-declare const _actions: ReactElement[]
+declare const _action: React.ReactElement
+declare const _actions: React.ReactElement[]
 
 export type ErrorStateTypeContract = [
   Assert<IsExactWidth<ErrorStateProps['message'], string>>,
-  Assert<IsExactWidth<ErrorStateProps['action'], ReactElement | undefined>>,
+  Assert<IsExactWidth<ErrorStateProps['action'], React.ReactElement | undefined>>,
   Assert<IsExact<{ message: 'Try again' }, ErrorStateProps>>,
   Assert<IsExact<{ message: 'Try again'; action: typeof _action }, ErrorStateProps>>,
   // @ts-expect-error error message is required

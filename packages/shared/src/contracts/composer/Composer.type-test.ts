@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type {
   ComposerAttachWords,
   ComposerAttachment,
@@ -77,7 +76,7 @@ type ExpectedComposerAttachment = {
 type ExpectedComposerSuggestion = {
   id: string
   label: string
-  icon?: ReactNode
+  icon?: React.ReactNode
   onSelect: () => void
 }
 type ExpectedComposerSuggestions =
@@ -114,7 +113,7 @@ type ExpectedComposerBase = {
 }
 type ExpectedIdleState = { state: 'idle'; limitReason?: never; limitRecovery?: never }
 type ExpectedSendingState = { state: 'sending'; limitReason?: never; limitRecovery?: never }
-type ExpectedAtLimitState = { state: 'atLimit'; limitReason: string; limitRecovery?: ReactNode }
+type ExpectedAtLimitState = { state: 'atLimit'; limitReason: string; limitRecovery?: React.ReactNode }
 type ExpectedOfflineState = { state: 'offline'; limitReason: string; limitRecovery?: never }
 type ExpectedRecordingState = {
   state: 'recording'
@@ -232,7 +231,7 @@ export type ComposerContractWidthAssertions = [
   Assert<IsExactWidth<ComposerAttachment['name'], string>>,
   Assert<IsExactWidth<ComposerSuggestion['id'], string>>,
   Assert<IsExactWidth<ComposerSuggestion['label'], string>>,
-  Assert<IsExactWidth<ComposerSuggestion['icon'], ReactNode>>,
+  Assert<IsExactWidth<ComposerSuggestion['icon'], React.ReactNode>>,
   Assert<IsExactWidth<ComposerSuggestion['onSelect'], () => void>>,
   Assert<IsExactWidth<ComposerProps['words'], ExpectedComposerWords | (ExpectedComposerWords & { retry: string })>>,
   Assert<IsExactWidth<ComposerProps['value'], string>>,
@@ -243,7 +242,7 @@ export type ComposerContractWidthAssertions = [
   Assert<IsExactWidth<ComposerProps['conversationLabel'], string | undefined>>,
   Assert<IsExactWidth<ComposerProps['state'], 'idle' | 'sending' | 'atLimit' | 'offline' | 'recording' | 'transcribing'>>,
   Assert<IsExactWidth<ComposerProps['limitReason'], string | undefined>>,
-  Assert<IsExactWidth<ComposerProps['limitRecovery'], ReactNode>>,
+  Assert<IsExactWidth<ComposerProps['limitRecovery'], React.ReactNode>>,
   Assert<IsExactWidth<NormalizeFunction<ComposerProps['onVoice']>, (() => void) | undefined>>,
   Assert<IsExactWidth<ComposerProps['voiceWords'], ExpectedComposerVoiceWords | undefined>>,
   Assert<IsExactWidth<ComposerProps['onAttachFile'], (() => void) | undefined>>,

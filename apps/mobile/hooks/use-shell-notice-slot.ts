@@ -1,5 +1,3 @@
-'use client'
-
 import {
   createContext,
   createElement,
@@ -12,6 +10,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
+import { releaseShellNoticeRenderer } from '@orbit/shared/hooks'
 
 type NoticeRenderer = () => ReactNode
 
@@ -31,7 +30,7 @@ export function useShellNoticeHost(): ShellNoticeHost {
   const register = useCallback((nextRenderer: NoticeRenderer) => {
     setRenderer(() => nextRenderer)
     return () => setRenderer((current) =>
-      current === nextRenderer ? null : current,
+      releaseShellNoticeRenderer(current, nextRenderer),
     )
   }, [])
   const value = useMemo(() => ({ register }), [register])

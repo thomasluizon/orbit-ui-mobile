@@ -7,8 +7,8 @@ import en from '@orbit/shared/i18n/en.json'
 import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import {
   getCalendarEntryMutationKey,
-  useCalendarEntryMutationLock,
 } from '@orbit/shared/hooks'
+import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import { createTokensV2 } from '@/lib/theme'
 import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-day-detail'
 

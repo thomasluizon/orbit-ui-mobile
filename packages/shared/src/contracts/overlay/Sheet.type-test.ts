@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { SheetProps } from './Sheet'
 
 type IsExactWidth<T, U> =
@@ -26,10 +25,10 @@ type ToggledSheet = Accepts<{ open: boolean }, SheetProps>
 export type SheetTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<SheetProps['open'], true | undefined>>,
   Assert<IsExactWidth<SheetProps['title'], string | undefined>>,
-  Assert<IsExactWidth<SheetProps['headerAccessory'], ReactNode>>,
-  Assert<IsExactWidth<SheetProps['actions'], ReactNode>>,
+  Assert<IsExactWidth<SheetProps['headerAccessory'], React.ReactNode>>,
+  Assert<IsExactWidth<SheetProps['actions'], React.ReactNode>>,
   Assert<IsExactWidth<SheetProps['onClose'], (() => void) | undefined>>,
-  Assert<IsExactWidth<SheetProps['children'], ReactNode>>,
+  Assert<IsExactWidth<SheetProps['children'], React.ReactNode>>,
 ]
 
 export type SheetTypeAssertions =

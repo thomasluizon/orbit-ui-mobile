@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { RadioRowProps } from './RadioRow'
 
 type IsExactWidth<T, U> =
@@ -17,7 +16,7 @@ type ExpectedBase = {
   description?: string
   selected?: boolean
   onSelect?: () => void
-  leading?: ReactNode
+  leading?: React.ReactNode
   depth?: number
   meta?: string
   tag?: string
@@ -54,7 +53,7 @@ export type RadioRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<RadioRowProps['description'], string | undefined>>,
   Assert<IsExactWidth<RadioRowProps['selected'], boolean | undefined>>,
   Assert<IsExactWidth<RadioRowProps['onSelect'], (() => void) | undefined>>,
-  Assert<IsExactWidth<RadioRowProps['leading'], ReactNode>>,
+  Assert<IsExactWidth<RadioRowProps['leading'], React.ReactNode>>,
   Assert<IsExactWidth<RadioRowProps['depth'], number | undefined>>,
   Assert<IsExactWidth<RadioRowProps['meta'], string | undefined>>,
   Assert<IsExactWidth<RadioRowProps['tag'], string | undefined>>,

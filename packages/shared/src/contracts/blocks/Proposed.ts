@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 export type ProposedScope = 'field' | 'row' | 'block'
 
@@ -24,5 +23,5 @@ export type ProposedProps = {
    *    wants the proposed treatment on a composite passes native or intrinsic text, or sets the
    *    composite's colors itself.
    */
-  readonly children: ReactNode
+  readonly children: React.ReactNode
 }

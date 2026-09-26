@@ -89,7 +89,7 @@ import {
   DestinationShell,
   useShellComposerSlot,
 } from '@/components/shell/destination-shell'
-import { useShellNoticeSlot } from '@orbit/shared/hooks'
+import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { TodayOverlays } from '@/app/(app)/today-page-view'
 import type { TodayView } from '@/app/(app)/use-today-page'

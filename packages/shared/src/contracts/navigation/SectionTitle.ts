@@ -1,6 +1,5 @@
-import type { ReactNode } from 'react'
 
 export interface SectionTitleProps {
-  children: ReactNode
+  children: React.ReactNode
   eyebrow?: string
 }

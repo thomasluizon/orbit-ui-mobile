@@ -1,4 +1,3 @@
-import type { ReactElement } from 'react'
 import type { ToastProps } from './Toast'
 
 type Keys<T> = T extends unknown ? keyof T : never
@@ -19,7 +18,7 @@ type LostVariant = Extract<ToastProps, { kind: 'lost' }>
 type ExpectedNeutralBase = {
   kind: 'neutral'
   message: string
-  icon?: ReactElement
+  icon?: React.ReactElement
   detail?: never
   doneAfterMs?: number
   onDone?: () => void
@@ -45,7 +44,7 @@ type ExpectedWorkingVariant = {
 type ExpectedDoneVariant = {
   kind: 'done'
   message: string
-  icon?: ReactElement
+  icon?: React.ReactElement
   doneAfterMs?: number
   onDone: () => void
   detail?: never
@@ -58,12 +57,12 @@ type ExpectedLostVariant = {
   detail: string
   actionLabel: string
   onAction: () => void
-  icon?: ReactElement
+  icon?: React.ReactElement
   doneAfterMs?: never
   onDone?: never
 }
 
-declare const _icon: ReactElement
+declare const _icon: React.ReactElement
 
 export type ToastTypeContract = [
   Assert<IsExactWidth<NeutralActionVariant, ExpectedNeutralActionVariant>>,
@@ -73,7 +72,7 @@ export type ToastTypeContract = [
   Assert<IsExactWidth<LostVariant, ExpectedLostVariant>>,
   Assert<IsExactWidth<ToastProps['kind'], 'neutral' | 'working' | 'done' | 'lost'>>,
   Assert<IsExactWidth<ToastProps['message'], string>>,
-  Assert<IsExactWidth<ToastProps['icon'], ReactElement | undefined>>,
+  Assert<IsExactWidth<ToastProps['icon'], React.ReactElement | undefined>>,
   Assert<IsExactWidth<ToastProps['detail'], string | undefined>>,
   Assert<IsExactWidth<ToastProps['actionLabel'], string | undefined>>,
   Assert<IsExactWidth<ToastProps['onAction'], (() => void) | undefined>>,

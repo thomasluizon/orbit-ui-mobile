@@ -724,12 +724,6 @@ export type {
   WebPushPermission,
   WebPushPreferenceStatus,
 } from './push-notification-settings'
-export {
-  tintProposedChildren,
-  type ProposedTintAdapter,
-  type ProposedTintDecision,
-  type ProposedTintElementProps,
-} from './proposed-tint'
 
 export { searchCommands, type SearchCommandPage, type SearchCommandId } from './search-commands'
 export { buildCommandHabitList, type CommandHabitEntry } from './command-habit-list'

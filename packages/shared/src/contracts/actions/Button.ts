@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 /** Pill button. The primary fill is one of the four accent roles: exactly one filled action per view.
  *
@@ -34,7 +33,7 @@ export interface LabelledButtonProps extends ButtonBase {
 
 /** Icon-only: a glyph and nothing readable, so the name is required and comes from the caller. */
 export interface IconOnlyButtonProps extends ButtonBase {
-  children: ReactNode
+  children: React.ReactNode
   iconOnly: true
   label: string
   accessibleName?: never

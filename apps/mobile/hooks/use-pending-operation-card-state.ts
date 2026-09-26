@@ -1,24 +1,5 @@
-'use client'
-
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
-import type { AgentExecuteOperationResponse } from '../types/ai'
-
-export type PendingOperationExecutionResult = {
-  ok: boolean
-  error?: string
-  response?: AgentExecuteOperationResponse
-}
-
-export type PreparedPendingOperationStepUp = {
-  challengeId: string
-  confirmationToken: string
-}
-
-export type PendingOperationStepUpPreparationResult =
-  | { ok: true; challengeId: string; confirmationToken: string }
-  | { ok: false; error?: string }
-
-export type PendingOperationCardStatus = 'done' | 'failed' | undefined
+import { getPendingOperationExecutionStatus, type PendingOperationExecutionResult, type PreparedPendingOperationStepUp, type PendingOperationStepUpPreparationResult, type PendingOperationCardStatus } from '@orbit/shared/hooks'
 
 interface PendingOperationCardState {
   busy: boolean
@@ -40,12 +21,6 @@ interface PendingOperationStepUpVerificationState {
   setCode: Dispatch<SetStateAction<string>>
   verifying: boolean
   verify: () => Promise<void>
-}
-
-export function getPendingOperationExecutionStatus(
-  result: PendingOperationExecutionResult,
-): Exclude<PendingOperationCardStatus, undefined> {
-  return result.ok && result.response?.operation.status === 'Succeeded' ? 'done' : 'failed'
 }
 
 export function usePendingOperationCardState({
