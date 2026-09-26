@@ -575,31 +575,33 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const isolatedCancellation = (offset) => {
     const runId = cancelledRunId + offset
     return {
+      runId,
       run: { ...cancelled, databaseId: runId },
       check: checkRun("Dash Ban", { conclusion: "CANCELLED", workflow: "Guards",
         detailsUrl: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${runId}/job/67890` }),
     }
   }
-  const withoutOlder = isolatedCancellation(30)
-  check(TOOL, "a cancelled run without a later older-head run remains CI_FAILING", ciArgv,
-    { status: 1, stdout: /"verdict": "CI_FAILING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [withoutOlder.check],
-      { behind_by: 0 }, null, { runs: [withoutOlder.run] }) })
-  const otherWorkflow = isolatedCancellation(40)
-  check(TOOL, "a different workflow ending later cannot authorize a rerun", ciArgv,
-    { status: 1, stdout: /"verdict": "CI_FAILING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [otherWorkflow.check],
-      { behind_by: 0 }, null, { runs: [otherWorkflow.run, { ...older, workflowDatabaseId: 1 }] }) })
-  const unrelatedHead = isolatedCancellation(50)
-  check(TOOL, "an unrelated head ending later cannot authorize a rerun", ciArgv,
-    { status: 1, stdout: /"verdict": "CI_FAILING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [unrelatedHead.check],
-      { behind_by: 0 }, null, { runs: [unrelatedHead.run, { ...older, headSha: "cccccccccccccccccccccccccccccccccccccccc" }] }) })
-  const olderCancellation = isolatedCancellation(60)
-  check(TOOL, "a cancellation of an older head cannot authorize a current-head rerun", ciArgv,
-    { status: 1, stdout: /"verdict": "CI_FAILING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [olderCancellation.check],
-      { behind_by: 0 }, null, { runs: [{ ...olderCancellation.run, headSha: olderHead }, older] }) })
+  const excludedCancellation = (name, fixture, runs) => {
+    const marker = join(pushed.path, ".git", "orbit-ci-reruns", `200-${fixture.runId}.json`)
+    const countFile = join(pushed.path, ".git", `${fixture.runId}-excluded-rerun-count`)
+    T(`${TOOL}: ${name} starts without a rerun marker`, !existsSync(marker), marker)
+    const result = check(TOOL, name, ciArgv,
+      { status: 1, stdout: /"verdict": "CI_FAILING"/ },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [fixture.check],
+        { behind_by: 0 }, null, { runs, rerunCountFile: countFile }) })
+    T(`${TOOL}: ${name} requests no rerun`, !existsSync(countFile) && !existsSync(marker), result.stdout)
+  }
+  const withoutOlder = isolatedCancellation(70)
+  excludedCancellation("a cancelled run without a later older-head run remains CI_FAILING", withoutOlder, [withoutOlder.run])
+  const otherWorkflow = isolatedCancellation(80)
+  excludedCancellation("a different workflow ending later cannot authorize a rerun", otherWorkflow,
+    [otherWorkflow.run, { ...older, workflowDatabaseId: 1 }])
+  const unrelatedHead = isolatedCancellation(90)
+  excludedCancellation("an unrelated head ending later cannot authorize a rerun", unrelatedHead,
+    [unrelatedHead.run, { ...older, headSha: "cccccccccccccccccccccccccccccccccccccccc" }])
+  const olderCancellation = isolatedCancellation(100)
+  excludedCancellation("a cancellation of an older head cannot authorize a current-head rerun", olderCancellation,
+    [{ ...olderCancellation.run, headSha: olderHead }, older])
 
   const unprotectedResponse = {
     message: "Branch not protected",
