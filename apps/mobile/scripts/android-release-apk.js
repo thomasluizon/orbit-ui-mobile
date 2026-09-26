@@ -2,7 +2,6 @@ const { execSync, spawnSync } = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const { resolveTestBuildAdMobEnv } = require('./test-build-admob-env')
 
 const USAGE = `android-release-apk.js - build a local release APK
 
@@ -37,10 +36,9 @@ for (const arg of args) {
 
 process.env.EXPO_NO_METRO_WORKSPACE_ROOT = '1'
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
-Object.assign(process.env, resolveTestBuildAdMobEnv(process.env))
 process.env.SENTRY_DISABLE_AUTO_UPLOAD = 'true'
 
-console.log('Local build uses Google TEST AdMob units and skips the Sentry source-map upload; real-ad releases ship via .github/workflows/android-release.yml.')
+console.log('Local build skips the Sentry source-map upload; releases ship via .github/workflows/android-release.yml.')
 
 const projectRoot = path.join(__dirname, '..')
 const androidDir = path.join(__dirname, '..', 'android')
