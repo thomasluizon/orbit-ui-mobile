@@ -2,10 +2,27 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+const appLocale = vi.hoisted(() => ({ value: 'en' }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => appLocale.value }))
 
 afterEach(() => {
   delete (window as Window & { turnstile?: unknown }).turnstile
+  appLocale.value = 'en'
+})
+
+it('renders the challenge in the language Orbit shows, not the browser language', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US')
+  appLocale.value = 'pt-BR'
+  const { unmount } = render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(1))
+  expect(renderWidget.mock.calls[0]![1]).toMatchObject({ language: 'pt-br' })
+  unmount()
+
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} language="en" onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(2))
+  expect(renderWidget.mock.calls[1]![1]).toMatchObject({ language: 'en' })
 })
 
 it('clears failed and expired tokens and offers retry', async () => {

@@ -4,7 +4,10 @@ import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
 const TestRenderer = require('react-test-renderer')
 
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
+const appLanguage = vi.hoisted(() => ({ value: 'pt-BR' }))
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: appLanguage.value } }),
+}))
 const appTheme = vi.hoisted<{ currentTheme: 'dark' | 'light' }>(() => ({ currentTheme: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: appTheme.currentTheme }),
@@ -26,6 +29,7 @@ it('passes WebView tokens to the login flow and reloads after consumption', asyn
   const first = renderer!.root.findByType('WebView')
   expect(first.props.source.uri).toContain('/turnstile-bridge?siteKey=site-key')
   expect(first.props.source.uri).toContain('&theme=dark')
+  expect(first.props.source.uri).toContain('&language=pt-BR')
   expect(first.props.containerStyle).toMatchObject({ width: 256, height: 160, flex: 0 })
   expect(first.props.style).toMatchObject({ width: 256, height: 160, flex: 0 })
   appTheme.currentTheme = 'light'
