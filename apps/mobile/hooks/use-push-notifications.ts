@@ -12,6 +12,8 @@ import {
 } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
 import { apiClient } from '@/lib/api-client'
+import { queryClient } from '@/lib/query-client'
+import { invalidateNotificationList } from '@/lib/notification-cache-helpers'
 import {
   normalizePermissionStatus,
   type NotificationPermissionStatus,
@@ -52,6 +54,7 @@ interface ExpoNotificationsModule {
       }
     }) => void,
   ) => { remove: () => void }
+  addNotificationReceivedListener: (listener: () => void) => { remove: () => void }
 }
 type PushRegistrationStatus = NativePushRegistrationStatus
 
@@ -87,6 +90,7 @@ function isExpoNotificationsModule(value: unknown): value is ExpoNotificationsMo
     hasFunctionProperty(value, 'requestPermissionsAsync') &&
     hasFunctionProperty(value, 'getExpoPushTokenAsync') &&
     hasFunctionProperty(value, 'getDevicePushTokenAsync') &&
+    hasFunctionProperty(value, 'addNotificationReceivedListener') &&
     hasFunctionProperty(value, 'addNotificationResponseReceivedListener')
   )
 }
@@ -521,10 +525,14 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         }
       },
     )
+    const receivedSubscription = activeNotificationsModule.addNotificationReceivedListener(() => {
+      void invalidateNotificationList(queryClient)
+    })
 
     return () => {
       appStateSubscription.remove()
       responseSubscription.remove()
+      receivedSubscription.remove()
     }
   }, [isSupported, router, syncGrantedPermission])
 
