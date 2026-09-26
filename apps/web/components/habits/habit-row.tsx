@@ -46,6 +46,7 @@ interface HabitRowProps {
   /** Whether completion is blocked on the selected day. */
   completionReadOnly?: boolean
   completionReason?: string
+  completionStatusUnavailable?: boolean
   /** Streak number from `habit.currentStreak` — only rendered when >= 2 and not child. */
   streak?: number
   /** True when this row is rendered under a parent. Renders with smaller text. */
@@ -146,6 +147,7 @@ export function HabitRow({
   canLog = true,
   completionReadOnly = false,
   completionReason,
+  completionStatusUnavailable = false,
   child = false,
   depth = 0,
   selectMode = false,
@@ -261,6 +263,7 @@ export function HabitRow({
         onToggleStatus={handleToggleStatus}
         completionReadOnly={completionReadOnly}
         completionReason={completionReason}
+        completionStatusUnavailable={completionStatusUnavailable}
       />
     </div>
   )

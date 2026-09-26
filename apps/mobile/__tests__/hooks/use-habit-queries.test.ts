@@ -95,6 +95,20 @@ describe('useHabits (mobile query hook)', () => {
     await lastQuery().queryFn()
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits?dateFrom=2025-01-01&dateTo=2025-01-01')
   })
+
+  it('loads a detail parent on page two without changing ordinary day queries', async () => {
+    const filters = { dateFrom: '2025-01-01', dateTo: '2025-01-01' }
+    mocks.apiClient.mockResolvedValueOnce({ items: [{ id: 'other' }], page: 1, pageSize: 50, totalCount: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [{ id: 'parent', children: [{ id: 'child' }] }], page: 2, pageSize: 50, totalCount: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [{ id: 'other' }], page: 1, pageSize: 50, totalCount: 2, totalPages: 2 })
+    renderHookCapture(() => useHabits(filters, { completeDay: true }))
+    const detailQuery = lastQuery()
+    expect((await detailQuery.queryFn() as { id: string }[]).map((item) => item.id)).toEqual(['other', 'parent'])
+    renderHookCapture(() => useHabits(filters))
+    expect(lastQuery().queryKey).not.toEqual(detailQuery.queryKey)
+    expect((await lastQuery().queryFn() as { id: string }[]).map((item) => item.id)).toEqual(['other'])
+    expect(mocks.apiClient).toHaveBeenCalledTimes(3)
+  })
 })
 
 describe('useHabits refetch behavior', () => {

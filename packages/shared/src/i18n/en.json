@@ -787,6 +787,8 @@
       "screenTitle": "Habit",
       "loading": "Loading habit",
       "loadError": "We could not load this habit.",
+      "dayHabitsLoading": "Loading this day's habits",
+      "dayHabitsLoadError": "We could not load this day's habits.",
       "retry": "Try again",
       "rename": "Rename habit",
       "saveName": "Save name",

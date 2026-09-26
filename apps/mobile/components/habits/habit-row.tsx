@@ -100,6 +100,7 @@ export interface HabitRowProps {
   isExpanded?: boolean
   completionReadOnly?: boolean
   completionReason?: string
+  completionStatusUnavailable?: boolean
   childrenDone?: number
   childrenTotal?: number
   actions?: HabitRowActions
@@ -237,6 +238,7 @@ export const HabitRow = memo(function HabitRow({
   isExpanded = false,
   completionReadOnly: completionReadOnlyOverride,
   completionReason: completionReasonOverride,
+  completionStatusUnavailable = false,
   childrenDone = 0,
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
@@ -333,7 +335,7 @@ export const HabitRow = memo(function HabitRow({
     tokens,
   })
 
-  const rowAccessibilityLabel = useMemo(
+  const knownRowAccessibilityLabel = useMemo(
     () =>
       buildHabitRowAccessibilityLabel({
         title: habit.title,
@@ -346,6 +348,7 @@ export const HabitRow = memo(function HabitRow({
     // react-doctor-disable-next-line exhaustive-deps -- streak is the extracted habit.currentStreak and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [habit.title, dotState, t],
   )
+  const rowAccessibilityLabel = completionStatusUnavailable ? habit.title : knownRowAccessibilityLabel
 
   return (
     <View>
@@ -421,6 +424,7 @@ export const HabitRow = memo(function HabitRow({
           onOpenMenu={openMenu}
           completionReadOnly={completionReadOnly}
           completionReason={completionReason}
+          completionStatusUnavailable={completionStatusUnavailable}
         />
       </View>
 

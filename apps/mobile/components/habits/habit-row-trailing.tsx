@@ -28,6 +28,7 @@ interface HabitRowTrailingProps {
   onOpenMenu: () => void
   completionReadOnly: boolean
   completionReason?: string
+  completionStatusUnavailable: boolean
 }
 
 function resolveParentRingColors(
@@ -42,6 +43,14 @@ function resolveParentRingColors(
     stroke: undefined,
     trackColor: dotState === 'overdue' ? `${tokens.statusOverdue}66` : undefined,
   }
+}
+
+function completionRingLabel(unavailable: boolean, status: string, action: string, title: string): string {
+  return unavailable ? `${action}: ${title}` : `${status}, ${action}: ${title}`
+}
+
+function showParentRing(hasChildren: boolean, childrenTotal: number, unavailable: boolean): boolean {
+  return hasChildren && childrenTotal > 0 && !unavailable
 }
 
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal cluster; the flags are independent render inputs from the parent row, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -63,16 +72,19 @@ export function HabitRowTrailing({
   onOpenMenu,
   completionReadOnly,
   completionReason,
+  completionStatusUnavailable,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
-  const statusLabel = t(`habits.statusDot.${dotState}` as const)
   const toggleLabel = isDoneForRange
     ? t('habits.actions.unlog')
     : t('habits.logHabit')
+  const completionLabel = completionRingLabel(
+    completionStatusUnavailable, t(`habits.statusDot.${dotState}` as const), toggleLabel, habit.title,
+  )
   return (
     <View style={styles.trailing}>
       {!isSelectMode &&
-        (hasChildren && childrenTotal > 0 ? (
+        (showParentRing(hasChildren, childrenTotal, completionStatusUnavailable) ? (
           <>
             <Pressable
               onPress={() => {
@@ -86,7 +98,7 @@ export function HabitRowTrailing({
               disabled={completionReadOnly}
               accessibilityState={{ disabled: completionReadOnly }}
               accessibilityHint={completionReadOnly ? completionReason : undefined}
-              accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}, ${childrenDone}/${childrenTotal}`}
+              accessibilityLabel={`${completionLabel}, ${childrenDone}/${childrenTotal}`}
               style={({ pressed }) => [
                 styles.parentRingButton,
                 completionReadOnly ? { opacity: 0.4 } : null,
@@ -106,9 +118,10 @@ export function HabitRowTrailing({
         ) : (
           <CheckCircle
             state={dotState}
+            unavailable={completionStatusUnavailable}
             onToggle={onToggleStatus}
             disabled={completionReadOnly || (!canLog && !isDoneForRange)}
-            accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}`}
+            accessibilityLabel={completionLabel}
             accessibilityHint={completionReadOnly ? completionReason : undefined}
             tokens={tokens}
             size={depth === 1 ? 24 : 30}
