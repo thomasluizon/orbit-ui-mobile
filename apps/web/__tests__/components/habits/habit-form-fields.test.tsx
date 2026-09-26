@@ -63,8 +63,8 @@ vi.mock('@/components/habits/habit-checklist', () => ({
 }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => <div>checklist-templates</div> }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => <div>goal-linking</div> }))
-vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => <div>offset-reminders</div> }))
-vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => <div>scheduled-reminders</div> }))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: ({ children }: { children?: React.ReactNode }) => <div>offset-reminders{children}</div> }))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: (props: { onSetScheduledReminders: (items: { when: string; time: string }[]) => void; nested?: boolean; offsetReminderCount?: number }) => <button type="button" data-nested={String(props.nested)} data-offset-count={props.offsetReminderCount} onClick={() => props.onSetScheduledReminders([{ when: 'day_before', time: '18:00' }])}>scheduled-reminders</button> }))
 vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => <div>slip-alert</div> }))
 vi.mock('@/components/ui/time-field', () => ({
   TimeField: ({ onChange }: { onChange: (value: string) => void }) => (
@@ -350,10 +350,16 @@ describe('HabitFormFields', () => {
   })
 
   it('nests fixed clock reminders under the offset reminder switch for a timed habit', () => {
-    renderForm(createFormHelpers({ title: 'Run', dueTime: '08:00' }), undefined, true)
+    const formHelpers = createFormHelpers({ title: 'Run', dueTime: '08:00' })
+    renderForm(formHelpers, undefined, true)
 
     expect(screen.getByText('offset-reminders')).toBeDefined()
     expect(screen.getByText('scheduled-reminders')).toBeDefined()
+    const scheduled = screen.getByText('scheduled-reminders')
+    expect(scheduled).toHaveAttribute('data-nested', 'true')
+    expect(scheduled).toHaveAttribute('data-offset-count', '0')
+    fireEvent.click(scheduled)
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('scheduledReminders', [{ when: 'day_before', time: '18:00' }], { shouldDirty: true })
   })
 
   it('clears a prefilled end time when the exact time changes', () => {

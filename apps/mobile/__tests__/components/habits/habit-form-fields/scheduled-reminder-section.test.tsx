@@ -4,6 +4,7 @@ import { MAX_SCHEDULED_REMINDERS } from "@orbit/shared/validation";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import { createTokensV2 } from "@/lib/theme";
 import { ScheduledReminderSection } from "@/components/habits/habit-form-fields/scheduled-reminder-section";
+import { buildCreateHabitRequest, buildEmptyHabitFormValues } from "@orbit/shared/utils";
 
 const pushPermission = vi.hoisted(() => ({ status: "granted" }));
 vi.mock("@/hooks/use-push-notifications", () => ({
@@ -273,4 +274,26 @@ describe("ScheduledReminderSection", () => {
     const { tree } = render({ scheduledReminders: full });
     expect(texts(tree)).toContain("habits.form.scheduledReminderMax");
   });
+
+  it('adds a day-before time to the relative request', () => {
+    const { tree, onSetScheduledReminders } = render({ scheduledReminders: [], nested: true })
+    press(buttons(tree).find((node) =>
+      node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.reminderAddTime').length > 0)!)
+    press(tree.root.findAll((node) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.scheduledReminderDayBefore')[0]!)
+    const picker = tree.root.findAll((node) => node.type === 'TimeField')[0]!
+    TestRenderer.act(() => {
+      ;(picker.props as { onChange: (value: string) => void }).onChange('18:00')
+    })
+    press(buttons(tree).find((node) => !node.props.accessibilityLabel && node.props.disabled === false)!)
+    expect(onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'day_before', time: '18:00' }])
+    const form = {
+      ...buildEmptyHabitFormValues('2025-03-10'),
+      dueTime: '09:00',
+      reminderEnabled: true,
+      scheduledReminders: [{ when: 'day_before' as const, time: '18:00' }],
+    }
+    expect(buildCreateHabitRequest(form, [], [], [], []).relativeReminders).toEqual([
+      { when: 'day_before', time: '18:00' },
+    ])
+  })
 });

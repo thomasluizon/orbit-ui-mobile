@@ -1,7 +1,7 @@
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StyleSheet } from "react-native";
-import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
+import { HABIT_REMINDER_PRESETS, buildCreateHabitRequest, buildEmptyHabitFormValues } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
 import { ReminderSection } from "@/components/habits/habit-form-fields/reminder-section";
 
@@ -62,8 +62,11 @@ function renderSection(overrides: {
   reminderTimes?: number[];
   reminderEnabled?: boolean;
   onReminderTimesChange?: (times: number[]) => void;
+  scheduledReminderCount?: number;
+  onValidationError?: (message: string) => void;
 }) {
   const onReminderTimesChange = overrides.onReminderTimesChange ?? vi.fn();
+  const onValidationError = overrides.onValidationError ?? vi.fn();
   let tree!: TestTree;
   TestRenderer.act(() => {
     tree = TestRenderer.create(
@@ -74,10 +77,12 @@ function renderSection(overrides: {
         onReminderTimesChange={onReminderTimesChange}
         onToggleReminder={vi.fn()}
         reminderLabel={(minutes) => `${minutes}m`}
+        scheduledReminderCount={overrides.scheduledReminderCount}
+        onValidationError={onValidationError}
       />,
     );
   });
-  return { tree, onReminderTimesChange };
+  return { tree, onReminderTimesChange, onValidationError };
 }
 
 function press(tree: TestTree, node: TestNode) {
@@ -293,4 +298,68 @@ describe("ReminderSection", () => {
     press(tree, confirm!);
     expect(onReminderTimesChange).not.toHaveBeenCalled();
   });
+
+  it('adds an after-due choice to the relative request', () => {
+    const { tree, onReminderTimesChange } = renderSection({ reminderTimes: [15] })
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminder15minAfter')!)
+    expect(onReminderTimesChange).toHaveBeenCalledWith([15, -15])
+    const form = { ...buildEmptyHabitFormValues('2025-03-10'), dueTime: '09:00', reminderEnabled: true }
+    const request = buildCreateHabitRequest(form, [15, -15], [], [], [])
+    expect(request.relativeReminders).toEqual([{ minutesBefore: 15 }, { minutesBefore: -15 }])
+  })
+
+  it('saves a custom after-due reminder as a signed offset', () => {
+    const { tree, onReminderTimesChange } = renderSection({ reminderTimes: [15] })
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderCustom')!)
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAfter')!)
+    const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
+    TestRenderer.act(() => {
+      ;(input.props as { onChangeText: (value: string) => void }).onChangeText('30')
+    })
+    press(tree, buttons(tree).find((node) => node.props.accessibilityLabel === 'common.add')!)
+    expect(onReminderTimesChange).toHaveBeenCalledWith([15, -30])
+  })
+
+  it('rejects an after-due offset beyond the allowed range', () => {
+    const { tree, onReminderTimesChange, onValidationError } = renderSection({ reminderTimes: [15] })
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderCustom')!)
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAfter')!)
+    const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
+    TestRenderer.act(() => {
+      ;(input.props as { onChangeText: (value: string) => void }).onChangeText('1440')
+    })
+    press(tree, buttons(tree).find((node) => node.props.accessibilityLabel === 'common.add')!)
+    expect(onValidationError).toHaveBeenCalledWith('habits.form.invalidRelativeReminder')
+    expect(onReminderTimesChange).not.toHaveBeenCalled()
+  })
+
+  it('blocks a preset when offsets and clock reminders fill the shared limit', () => {
+    const { tree, onReminderTimesChange, onValidationError } = renderSection({
+      reminderTimes: Array.from({ length: 14 }, (_, index) => index + 1),
+      scheduledReminderCount: 1,
+    })
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminder1hour')!)
+    expect(onValidationError).toHaveBeenCalledWith('habits.form.relativeReminderMax')
+    expect(onReminderTimesChange).not.toHaveBeenCalled()
+  })
+
+  it('blocks a custom offset when offsets and clock reminders fill the shared limit', () => {
+    const { tree, onReminderTimesChange, onValidationError } = renderSection({
+      reminderTimes: [15],
+      scheduledReminderCount: 14,
+    })
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderCustom')!)
+    const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
+    TestRenderer.act(() => {
+      ;(input.props as { onChangeText: (value: string) => void }).onChangeText('30')
+    })
+    press(tree, buttons(tree).find((node) => node.props.accessibilityLabel === 'common.add')!)
+    expect(onValidationError).toHaveBeenCalledWith('habits.form.relativeReminderMax')
+    expect(onReminderTimesChange).not.toHaveBeenCalled()
+  })
 });
