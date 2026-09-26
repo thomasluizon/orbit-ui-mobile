@@ -101,10 +101,48 @@ export const cases = () => {
   const sixLines = Array.from({ length: 6 }, (_, index) => `// reason ${index}`).join("\n")
   T("six TypeScript comment lines pass", writeJsx(`${sixLines}\n${rendered}`).status === 0)
   T("seven TypeScript comment lines fail", writeJsx(`${sixLines}\n// reason 6\n${rendered}`).status === 2)
+  for (const [label, content] of [
+    ["empty call", `fn(/* ${date} */)\n`],
+    ["empty array", `const values = [/* ${date} */]\n`],
+    ["empty object", `const value = {/* ${date} */}\n`],
+    ["empty JSX expression", `export const Sample = () => <span>{/* ${date} */}</span>\n`],
+  ]) {
+    writeFileSync(join(jsx, "sample.tsx"), "export const Sample = () => <span>clean</span>\n")
+    T(`${label} comment fails hook`, writeJsx(content).status === 2)
+    writeFileSync(join(jsx, "sample.tsx"), content)
+    T(`${label} comment fails all`, run(jsx, ["--all"]).status === 1)
+  }
   writeFileSync(join(jsx, "sample.tsx"), jsxComment)
   git(jsx, "add", "sample.tsx")
   T("a real JSX comment fails all and staged", run(jsx, ["--all"]).status === 1 && run(jsx, ["--staged"]).status === 1)
   rmSync(jsx, { recursive: true, force: true })
+
+  const sourceLine = `const value = new Date("${date}T12:00:00.000Z")`
+  const wrapped = `/* ${sourceLine} */\n`
+  const wrapRoot = fixture("comment-wrap", "sample.js", `${sourceLine}\n`)
+  symlinkSync(join(checker, "..", "..", "node_modules"), join(wrapRoot, "node_modules"), "dir")
+  const wrapPayload = { tool_name: "Edit", tool_input: { file_path: join(wrapRoot, "sample.js"), old_string: sourceLine, new_string: `/* ${sourceLine} */` } }
+  T("wrapping an existing source line in a comment fails hook", run(wrapRoot, ["--hook"], JSON.stringify(wrapPayload)).status === 2)
+  const wrapBase = git(wrapRoot, "rev-parse", "HEAD").stdout.trim()
+  writeFileSync(join(wrapRoot, "sample.js"), wrapped)
+  git(wrapRoot, "add", "sample.js")
+  T("wrapping an existing source line in a comment fails staged", run(wrapRoot, ["--staged"]).status === 1)
+  git(wrapRoot, "commit", "-qm", "wrap")
+  T("wrapping an existing source line in a comment fails base", run(wrapRoot, ["--base", wrapBase]).status === 1)
+  rmSync(wrapRoot, { recursive: true, force: true })
+
+  const oldFinding = `// ${date}\n`
+  const existing = fixture("existing-comment", "sample.js", oldFinding)
+  symlinkSync(join(checker, "..", "..", "node_modules"), join(existing, "node_modules"), "dir")
+  const existingFile = join(existing, "sample.js")
+  const editExisting = (content) => run(existing, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: existingFile, content } }))
+  T("moving an existing finding passes hook", editExisting(`\n${oldFinding}`).status === 0)
+  T("an unrelated edit beside an existing finding passes hook", editExisting(`${oldFinding}const safe = true\n`).status === 0)
+  T("a second copy of an existing finding fails hook", editExisting(`${oldFinding}${oldFinding}`).status === 2)
+  writeFileSync(existingFile, `\n${oldFinding}`)
+  git(existing, "add", "sample.js")
+  T("moving an existing finding passes staged", run(existing, ["--staged"]).status === 0)
+  rmSync(existing, { recursive: true, force: true })
   const noParser = fixture("jsx-without-parser", "sample.tsx", "export const Sample = () => <span>clean</span>\n")
   const missingParser = run(noParser, ["--all"])
   T("TSX without TypeScript fails closed", missingParser.status === 2 && /TypeScript/.test(missingParser.stderr))
