@@ -57,7 +57,6 @@ import {
 } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
-import { useAdMob } from '@/hooks/use-ad-mob'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { addRecentCompletion, getRecentlyCompletedIdsForDate, removeRecentCompletion } from '@orbit/shared/utils/drill-navigation'
@@ -464,7 +463,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const duplicateMutation = useDuplicateHabit()
     const reorderHabitsMutation = useReorderHabits()
     const moveParentMutation = useMoveHabitParent()
-    const { showInterstitialIfDue } = useAdMob()
     const toggleSelectMode = useUIStore((s) => s.toggleSelectMode)
     const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
 
@@ -986,7 +984,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                   date: operation.date,
                   intent: 'log',
                 })
-                void showInterstitialIfDue()
               }
             } catch {
               if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
@@ -1015,7 +1012,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         markRecentlyCompleted,
         recordHabitResolution,
         settlementDateIsReadOnly,
-        showInterstitialIfDue,
         skipMutation,
       ],
     )
@@ -1098,7 +1094,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               date,
               intent: 'log',
             })
-            void showInterstitialIfDue()
           }
         } catch {
           if (confirmedResolutionsRef.current === confirmedResolutions) {
@@ -1127,7 +1122,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       recordHabitResolution,
       selectedDateStr,
       settlementDateIsReadOnly,
-      showInterstitialIfDue,
       skipMutation,
       setParentPromptQueue,
     ])
@@ -1139,9 +1133,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         }
 
         checkAndPromptParentLog(habitId)
-        void showInterstitialIfDue()
       },
-      [checkAndPromptParentLog, markRecentlyCompleted, showInterstitialIfDue],
+      [checkAndPromptParentLog, markRecentlyCompleted],
     )
 
     const handleDirectToggle = useCallback(

@@ -102,7 +102,6 @@ export const API = {
     status: '/api/subscriptions/status',
     plans: '/api/subscriptions/plans',
     billing: '/api/subscriptions/billing',
-    adReward: '/api/subscriptions/ad-reward',
     playVerify: '/api/subscriptions/play/verify',
   },
 

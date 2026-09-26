@@ -315,6 +315,14 @@ describe('profile schema', () => {
     expect(result.success).toBe(true)
   })
 
+  it('ignores the retired ad reward counter while accepting a current server profile', () => {
+    const serverProfile = { ...createMockProfile(), adRewardsClaimedToday: 2 }
+    const profile = profileSchema.parse(serverProfile)
+
+    expect(profile).not.toHaveProperty('adRewardsClaimedToday')
+    expect(profile.email).toBe(serverProfile.email)
+  })
+
   it('rejects missing email field', () => {
     const profile = createMockProfile()
     const { email: _, ...rest } = profile

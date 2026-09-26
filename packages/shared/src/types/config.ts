@@ -13,8 +13,6 @@ export const appConfigSchema = z.object({
     maxReferrals: z.number(),
     referralRewardDays: z.number(),
     freeAiMessagesPerMonth: z.number(),
-    adRewardBonusMessages: z.number(),
-    dailyAdRewardCap: z.number(),
   }),
   features: z.record(z.string(), featureFlagSchema),
   settings: z.object({
@@ -38,8 +36,6 @@ export const DEFAULT_CONFIG: AppConfig = {
     maxReferrals: 10,
     referralRewardDays: 10,
     freeAiMessagesPerMonth: 15,
-    adRewardBonusMessages: 5,
-    dailyAdRewardCap: 3,
   },
   features: {
     'habits.subHabits': { enabled: true, planRequirement: 'Pro' },

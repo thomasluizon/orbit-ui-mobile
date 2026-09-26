@@ -23,7 +23,6 @@ const PUBLIC_PATHS = [
   '/delete-account',
   '/turnstile-bridge',
   '/.well-known',
-  '/app-ads.txt',
 ]
 
 function isPublicPath(pathname: string): boolean {
@@ -111,7 +110,6 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
-    pathname === '/app-ads.txt' ||
     STATIC_IMAGE_PATH.test(pathname)
   ) {
     return secureResponse(

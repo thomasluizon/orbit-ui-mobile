@@ -1,6 +1,7 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import en from '../../../../packages/shared/src/i18n/en.json'
+import ptBR from '../../../../packages/shared/src/i18n/pt-BR.json'
 import PrivacyScreen from '@/app/privacy'
 
 const TestRenderer = require('react-test-renderer')
@@ -74,5 +75,17 @@ describe('PrivacyScreen disclosures', () => {
     expect(rendersText(tree!.root, en.privacy.thirdParty.posthog)).toBe(true)
     expect(rendersText(tree!.root, en.privacy.retention.syncRecords)).toBe(true)
     expect(rendersText(tree!.root, en.privacy.retention.afterDeletion)).toBe(true)
+  })
+
+  it('shows the legacy AdMob disclosure', () => {
+    let tree: { root: TestNode } | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<PrivacyScreen />)
+    })
+
+    expect(rendersText(tree!.root, en.privacy.thirdParty.admob)).toBe(true)
+    expect(en.privacy.dataCollected.device).toBe('Device data: a push notification token (to deliver reminders) and crash diagnostics with personal identifiers removed. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access')
+    expect(ptBR.privacy.dataCollected.device).toBe('Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar')
+    expect(rendersText(tree!.root, en.privacy.dataCollected.device)).toBe(true)
   })
 })
