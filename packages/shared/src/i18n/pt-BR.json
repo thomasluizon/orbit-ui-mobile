@@ -2304,6 +2304,7 @@
     "offline": "Reconecte-se à internet e tente de novo.",
     "api": {
       "accountChanged": "Sua conta mudou. Recarregue esta página antes de tentar de novo.",
+      "reload": "Recarregar",
       "noPermission": "Você não tem permissão para isso.",
       "sessionExpired": "Sua sessão expirou. Entre de novo.",
       "duplicateTag": "Você já tem uma tag com esse nome.",
