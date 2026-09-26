@@ -919,12 +919,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 
-  /**
-   * `xpEarned` is 0 here because that is what the server actually sends for a bad habit:
-   * GamificationService.cs:170 is `habit.IsBadHabit ? 0 : ...`. The fixture used to send 25, a
-   * response the API cannot produce, and the client then needed its own bad-habit gate to discard
-   * it. That gate is what dropped every reward for a habit missing from the list cache.
-   */
+  /** The server sends no XP for a bad habit; celebration still uses the cached habit type. */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', () => {
     seedHabitState([makeHabit({
       id: 'parent-1',
@@ -951,6 +946,31 @@ describe('mobile habit hooks', () => {
     expect(profile.currentStreak).toBe(1)
     const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
     expect(gamification.totalXp).toBe(100)
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it('banks server XP and refreshes the profile when the cached habit type is stale', () => {
+    seedHabitState([makeHabit({ id: 'edited-habit', isBadHabit: true })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      unknown
+    >
+    const response: LogHabitResponse = {
+      logId: 'log-edited-habit',
+      isFirstCompletionToday: true,
+      currentStreak: 3,
+      xpEarned: 25,
+    }
+
+    mutation.onSuccess?.(response, { habitId: 'edited-habit' }, undefined)
+
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(125)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
   })
 
   /**
@@ -986,18 +1006,13 @@ describe('mobile habit hooks', () => {
 
   it.each([
     {
-      name: 'does not celebrate a bad top-level habit completion',
-      habits: [makeHabit({ id: 'bad-habit', isBadHabit: true })],
-      habitId: 'bad-habit',
-      isFirstCompletionToday: true,
-      celebrates: false,
-    },
-    {
       name: 'celebrates a good top-level habit completion',
       habits: [makeHabit({ id: 'good-habit' })],
       habitId: 'good-habit',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 25,
+      expectedXp: 125,
     },
     {
       name: 'celebrates a good sub-habit completion',
@@ -1008,6 +1023,20 @@ describe('mobile habit hooks', () => {
       habitId: 'good-child',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 0,
+      expectedXp: 100,
+    },
+    {
+      name: 'does not celebrate or bank XP for a bad sub-habit completion',
+      habits: [makeHabit({
+        id: 'parent-1',
+        children: [makeChild({ id: 'bad-child', isBadHabit: true })],
+      })],
+      habitId: 'bad-child',
+      isFirstCompletionToday: true,
+      celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
     {
       name: 'does not celebrate an unresolvable habit completion',
@@ -1015,6 +1044,8 @@ describe('mobile habit hooks', () => {
       habitId: 'missing-habit',
       isFirstCompletionToday: true,
       celebrates: false,
+      xpEarned: 25,
+      expectedXp: 125,
     },
     {
       name: 'does not celebrate a repeat completion',
@@ -1022,10 +1053,13 @@ describe('mobile habit hooks', () => {
       habitId: 'good-habit',
       isFirstCompletionToday: false,
       celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
-  ])('$name', ({ habits, habitId, isFirstCompletionToday, celebrates }) => {
+  ])('$name', ({ habits, habitId, isFirstCompletionToday, celebrates, xpEarned, expectedXp }) => {
     seedHabitState(habits)
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
       { habitId: string; date?: string },
@@ -1035,6 +1069,7 @@ describe('mobile habit hooks', () => {
       logId: 'log-streak',
       isFirstCompletionToday,
       currentStreak: 3,
+      xpEarned,
     }
 
     mutation.onSuccess?.(response, { habitId }, undefined)
@@ -1046,6 +1081,8 @@ describe('mobile habit hooks', () => {
     }
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
     expect(profile.currentStreak).toBe(celebrates ? 3 : 1)
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(expectedXp)
   })
 
   it('skips all celebrations when a completion is queued offline', () => {
