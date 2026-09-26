@@ -95,6 +95,31 @@ export const cases = async () => {
       shippedRepos.landing === resolve(primaryRoot, "../orbit-landing-page"),
     JSON.stringify(shippedRepos),
   )
+  const primary = join(root, "resolver-primary", "orbit-ui-mobile")
+  const linked = join(root, "resolver-linked")
+  mkdirSync(join(primary, ".claude"), { recursive: true })
+  writeFileSync(join(primary, ".claude", "orchestrator.json"), JSON.stringify(real))
+  const git = (args) => spawnSync("git", ["-C", primary, ...args], { encoding: "utf8" })
+  const staged = [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["add", ".claude/orchestrator.json"],
+    ["commit", "-q", "-m", "config"],
+    ["worktree", "add", "-q", "--detach", linked],
+  ].every((args) => git(args).status === 0)
+  const linkedConfig = pathToFileURL(join(linked, ".claude", "orchestrator.json")).href
+  const resolverCommand = `import { readOrchestratorConfig } from ${JSON.stringify(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)}; console.log(JSON.stringify(readOrchestratorConfig(new URL(${JSON.stringify(linkedConfig)})).repos))`
+  const linkedResult = staged && spawnSync(process.execPath, ["--input-type=module", "-e", resolverCommand], { cwd: linked, encoding: "utf8" })
+  const linkedRepos = linkedResult?.status === 0 ? JSON.parse(linkedResult.stdout) : null
+  T(
+    `${NAME}: resolver command prints primary checkout siblings from an outside linked worktree`,
+    staged && relative(dirname(primary), linked).startsWith("..") &&
+      linkedRepos?.ui === primary &&
+      linkedRepos?.api === resolve(primary, "../orbit-api") &&
+      linkedRepos?.landing === resolve(primary, "../orbit-landing-page"),
+    linkedResult?.stderr || JSON.stringify(linkedRepos),
+  )
   const relativeRepos = { ...real, repos: { ui: ".", api: "../orbit-api", landing: "../orbit-landing-page" } }
   const relativeConfig = configUrl("relative-repositories", JSON.stringify(relativeRepos))
   const fixtureRoot = dirname(dirname(fileURLToPath(relativeConfig)))

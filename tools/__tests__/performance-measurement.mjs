@@ -81,13 +81,34 @@ export const cases = async () => {
   T("performance-measurement: audit workflow executes the four measured signals", ["unbounded-user-list", "full-entity-projection", "large-table-fraction", "background-sweep-budget"].every((signal) => auditWorkflow.includes(signal)))
   T("performance-measurement: audit workflow returns an explicit performance verdict", auditWorkflow.includes("performanceVerdict: performanceMeasurement?.verdict"))
   T("performance-measurement: prod-readiness forwards only the performance measurement to the performance child", readinessWorkflow.includes("k === 'performance' ? performanceMeasurement : undefined"))
-  for (const [name, source] of [["audit", auditWorkflow], ["prod-readiness", readinessWorkflow]]) {
+  for (const [name, source, endMarker] of [["audit", auditWorkflow, "const VERIFY_CAP"], ["prod-readiness", readinessWorkflow, "const OPS_SCHEMA"]]) {
+    const start = source.indexOf("const parsedArgs = typeof args")
+    const end = source.indexOf(endMarker)
+    const startup = start >= 0 && end > start ? source.slice(start, end) : ""
+    const runStartup = (args) => {
+      try {
+        return { value: runInNewContext(`${startup}\n;({ UI, API })`, { args }) }
+      } catch (error) {
+        return { error: error.message }
+      }
+    }
     T(
-      `performance-measurement: ${name} prompts use resolved checkout roots`,
-      source.includes("const { ui: UI, api: API } = readOrchestratorConfig().repos") &&
-        source.includes("tools/lib/orchestrator-config.mjs") &&
-        !source.includes("const UI = '.'") &&
-        !source.includes("const API = '../orbit-api'"),
+      `performance-measurement: ${name} workflow uses no filesystem or Node API`,
+      !source.includes("import(") && !source.includes("process."),
+    )
+    T(`performance-measurement: ${name} rejects missing roots at startup`, /absolute ui and api roots/.test(runStartup({}).error ?? ""))
+    T(`performance-measurement: ${name} rejects relative UI root at startup`, /absolute ui and api roots/.test(runStartup({ roots: { ui: ".", api: "/checkout/orbit-api" } }).error ?? ""))
+    T(`performance-measurement: ${name} rejects relative API root at startup`, /absolute ui and api roots/.test(runStartup({ roots: { ui: "/checkout/orbit-ui-mobile", api: "../orbit-api" } }).error ?? ""))
+    const accepted = runStartup({ roots: { ui: "/checkout/orbit-ui-mobile", api: "/checkout/orbit-api" } }).value
+    T(`performance-measurement: ${name} accepts absolute checkout roots at startup`, accepted?.UI === "/checkout/orbit-ui-mobile" && accepted?.API === "/checkout/orbit-api")
+  }
+  T("performance-measurement: prod-readiness forwards roots to audit children", readinessWorkflow.includes("roots: parsedArgs.roots"))
+  for (const name of ["audit-code-quality", "audit-performance", "audit-security", "audit-tests", "prod-readiness"]) {
+    const skill = readFileSync(join(REPO_ROOT, ".claude", "skills", name, "SKILL.md"), "utf8")
+    T(
+      `performance-measurement: ${name} resolves checkout roots before starting its workflow`,
+      skill.includes('readOrchestratorConfig().repos') &&
+        skill.includes("roots: { ui: '<resolved ui>', api: '<resolved api>' }"),
     )
   }
   const scopeResolutionIndex = auditWorkflow.indexOf("const surfaces = resolveSurfaces(kind, scope)")

@@ -101,28 +101,28 @@
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "799284759e579360",
+      "digest": "d0afdc4569cac85d",
       "calibratedAt": "2026-09-26",
       "verdict": "undeclared, inherits the session: the debt audit makes judgment calls and opens tickets; an explicit high effort would change cost."
     },
     ".claude/skills/audit-performance/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "97dae7a146ee0fc6",
+      "digest": "eb782a006d0a50f6",
       "calibratedAt": "2026-09-26",
       "verdict": "undeclared, inherits the session: the performance audit makes judgment calls and opens tickets."
     },
     ".claude/skills/audit-security/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "a3078d7f522ced89",
+      "digest": "8d9c65f47076ab01",
       "calibratedAt": "2026-09-26",
       "verdict": "undeclared, inherits the session: security findings need judgment because missed authorization gaps may be invisible in output."
     },
     ".claude/skills/audit-tests/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "291bf85e61e31045",
+      "digest": "dcc12cce57308899",
       "calibratedAt": "2026-09-26",
       "verdict": "undeclared, inherits the session: the test audit judges coverage and opens tickets."
     },
@@ -185,7 +185,7 @@
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "3054e304775236a2",
+      "digest": "1a0460c5cef2e65c",
       "calibratedAt": "2026-09-26",
       "verdict": "undeclared, inherits the session: it judges four child audits before producing a launch verdict."
     },
