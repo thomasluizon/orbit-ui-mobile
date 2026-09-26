@@ -66,6 +66,43 @@ describe('calendar entry mutation lock', () => {
     lock.renderer.unmount()
   })
 
+  it('uses the committed source when a child starts a mutation in a layout effect', async () => {
+    const oldKey = getCalendarEntryMutationKey('2025-06-15', 'old-habit')
+    const newKey = getCalendarEntryMutationKey('2025-06-15', 'new-habit')
+    let sourceEntryStates = new Map([[oldKey, false]])
+    let probeEnabled = false
+    const observations: { accepted: boolean; rejected: boolean }[] = []
+    const mutation = vi.fn(() => Promise.resolve())
+    let renderer: ReactTestRenderer | undefined
+
+    function Probe({ enabled, startEntryMutation }: {
+      enabled: boolean
+      startEntryMutation: MutationLock['startEntryMutation']
+    }) {
+      React.useLayoutEffect(() => {
+        if (!enabled) return
+        const accepted = startEntryMutation(newKey, true, mutation)
+        const rejected = startEntryMutation(oldKey, true, mutation)
+        observations.push({ accepted: accepted !== null, rejected: rejected === null })
+      }, [enabled, startEntryMutation])
+      return null
+    }
+
+    function Harness() {
+      const lock = useCalendarEntryMutationLock(sourceEntryStates)
+      return React.createElement(Probe, { enabled: probeEnabled, startEntryMutation: lock.startEntryMutation })
+    }
+
+    await act(() => {
+      renderer = create(React.createElement(Harness))
+    })
+    sourceEntryStates = new Map([[newKey, false]])
+    probeEnabled = true
+    await act(() => renderer?.update(React.createElement(Harness)))
+
+    expect(observations).toEqual([{ accepted: true, rejected: true }])
+  })
+
   it('releases a rejected mutation when the source identity stays unchanged', async () => {
     const lock = await renderMutationLock(false)
     const mutation = vi.fn().mockRejectedValue(new Error('write failed'))

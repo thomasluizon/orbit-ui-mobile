@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { pendingCalendarEntryStates, reconciledCalendarEntryMutations, type PendingCalendarEntryMutation } from '@orbit/shared/hooks'
 
 interface CalendarEntryMutationLock {
@@ -14,7 +14,7 @@ export function useCalendarEntryMutationLock(
   sourceEntryStates: ReadonlyMap<string, boolean>,
 ): CalendarEntryMutationLock {
   const sourceEntryStatesRef = useRef(sourceEntryStates)
-  useEffect(() => {
+  useLayoutEffect(() => {
     sourceEntryStatesRef.current = sourceEntryStates
   }, [sourceEntryStates])
   const pendingEntryMutationsRef = useRef(new Map<string, PendingCalendarEntryMutation>())
@@ -47,7 +47,7 @@ export function useCalendarEntryMutationLock(
     mutation: () => Promise<unknown>,
   ): Promise<unknown> | null => {
     if (pendingEntryMutationsRef.current.has(entryKey)) return null
-    const sourceChecked = sourceEntryStatesRef.current.get(entryKey)
+    const sourceChecked = sourceEntryStates.get(entryKey)
     if (sourceChecked === undefined) return null
 
     pendingEntryMutationsRef.current.set(entryKey, {
@@ -71,7 +71,7 @@ export function useCalendarEntryMutationLock(
         throw error
       },
     )
-  }, [publishPendingEntryStates, releaseReconciledEntries])
+  }, [publishPendingEntryStates, releaseReconciledEntries, sourceEntryStates])
 
   return { pendingEntryStates, startEntryMutation }
 }
