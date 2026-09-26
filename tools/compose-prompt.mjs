@@ -132,6 +132,12 @@ no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. N
 --no-gpg-sign. Do not edit the ticket. Do not touch a second repository: cross-repo work is
 two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
 
+**Dependencies.** Never edit installed files by hand inside \`node_modules\`, under any path, in any
+worktree. Read installed source to confirm an external interface, then change your own code. Never
+run \`patch-package\` or an equivalent, and never stage or commit a path under \`node_modules\`.
+\`npm ci\` is allowed and expected when an installed package is missing; it installs the tree from
+the lockfile. Do not run \`npm install\` or change the lockfile unless the ticket says to.
+
 **Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add
 --update\`, a dot path, a wildcard, or a non-literal magic pathspec. Inspect \`git status --short\`,
 then pass every intended path explicitly to \`git --literal-pathspecs add\`. Tracked \`.orca/\` changes

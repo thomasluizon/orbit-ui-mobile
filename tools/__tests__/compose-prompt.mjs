@@ -87,6 +87,16 @@ export const cases = () => {
     prompt,
   )
   T(
+    `${TOOL}: the local order permits npm ci while banning dependency edits`,
+    /`npm ci` is allowed and expected when an installed package is missing/.test(prompt) &&
+      !/NEVER write inside `node_modules`/.test(prompt) &&
+      /Never edit installed files by hand/.test(prompt) &&
+      /Never\s+run `patch-package`/.test(prompt) &&
+      /never stage or commit a\s+path under `node_modules`/.test(prompt) &&
+      /Do not run `npm install` or change the lockfile unless the ticket says to/.test(prompt),
+    prompt,
+  )
+  T(
     `${TOOL}: the brief keeps delivery and browser boundaries`,
     /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
     prompt,
