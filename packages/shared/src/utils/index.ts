@@ -21,6 +21,9 @@ export {
   buildHabitHistoryMonth,
   appendHabitDetailChild,
   buildHabitDetailChildDateModel,
+  getHabitDetailChildUnavailableReasonKey,
+  getHabitDetailChildCompletionReason,
+  getAvailableHabitDetailScopedChild,
   buildHabitDetailUpdateRequest,
   buildHabitDetailSchedulePatch,
   buildHabitDetailTimePatch,
@@ -296,6 +299,7 @@ export {
 } from './calendar-range'
 export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
+export { habitListQueryFilters, shouldFetchAllHabitPages } from './habit-list-pagination-core'
 export {
   buildHabitQueryString,
   buildUrlWithQuery,

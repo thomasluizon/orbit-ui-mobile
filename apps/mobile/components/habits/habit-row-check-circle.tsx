@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, View } from 'react-native'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -13,6 +13,7 @@ import { StatusRing } from '@/components/ui/status-ring'
 
 interface CheckCircleProps {
   state: HabitStatus
+  unavailable?: boolean
   onToggle: () => void
   disabled: boolean
   accessibilityLabel: string
@@ -23,6 +24,7 @@ interface CheckCircleProps {
 
 export function CheckCircle({
   state,
+  unavailable = false,
   onToggle,
   disabled,
   accessibilityLabel,
@@ -72,7 +74,9 @@ export function CheckCircle({
       }}
     >
       <Animated.View style={popStyle} accessible={false}>
-        <StatusRing status={state} size={size} label={accessibilityLabel} />
+        {unavailable
+          ? <View testID="unavailable-status-dot" style={{ width: size, height: size, borderRadius: 999, backgroundColor: tokens.bgWell }} />
+          : <StatusRing status={state} size={size} label={accessibilityLabel} />}
       </Animated.View>
     </Pressable>
   )

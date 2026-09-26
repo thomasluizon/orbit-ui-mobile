@@ -21,32 +21,6 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 const TRIAL_EXPIRED_SEEN_STORAGE_KEY = 'orbit_trial_expired_seen'
 
-function AmberPillButton({
-  disabled = false,
-  onClick,
-  children,
-}: Readonly<{
-  disabled?: boolean
-  onClick: () => void
-  children: React.ReactNode
-}>) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-0 px-6 py-4 text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-      style={{
-        fontFamily: 'var(--font-sans)',
-        background: 'var(--status-overdue)',
-        color: 'var(--fg-on-overdue)',
-      }}
-    >
-      {children}
-    </button>
-  )
-}
-
 function FreshStartHero({ body }: Readonly<{ body: string }>) {
   return (
     <div className="flex flex-col items-center text-center" style={{ gap: 16 }}>
@@ -280,9 +254,11 @@ function FreshStartInfoStep({
         className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
         style={{ gap: 12, paddingTop: 8 }}
       >
-        <AmberPillButton onClick={onContinue}>
-          {t('common.continue')}
-        </AmberPillButton>
+        <div className="flex flex-col sm:items-center">
+          <PillButton variant="caution" onClick={onContinue}>
+            {t('common.continue')}
+          </PillButton>
+        </div>
         <PillButton variant="ghost" onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
@@ -349,9 +325,11 @@ function FreshStartConfirmStep({
         className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
         style={{ gap: 12, paddingTop: 8 }}
       >
-        <AmberPillButton disabled={!isConfirmed || loading} onClick={onReset}>
-          {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
-        </AmberPillButton>
+        <div className="flex flex-col sm:items-center">
+          <PillButton variant="caution" disabled={!isConfirmed || loading} onClick={onReset}>
+            {loading ? t('profile.freshStart.processing') : t('profile.freshStart.button')}
+          </PillButton>
+        </div>
         <PillButton variant="ghost" disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>

@@ -7,6 +7,8 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { createTokensV2 } from '@/lib/theme'
 import { accountTimezoneDependency } from '@/lib/offline-mutations'
 
+vi.mock('@/lib/supabase', () => ({ clearSupabaseSession: vi.fn(async () => {}) }))
+
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 type TestNode = ReturnType<typeof TestRenderer.create>['root']

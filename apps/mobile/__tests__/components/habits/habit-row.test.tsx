@@ -1,4 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { neutralColors } from '@orbit/shared/theme'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
@@ -87,6 +88,44 @@ describe('HabitRow canonical content (mobile)', () => {
 })
 
 describe('HabitRow status control names (mobile)', () => {
+  it('announces why child completion is unavailable while keeping its body openable', () => {
+    const onDetail = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow habit={createMockHabit({ title: 'Read' })} completionReadOnly completionStatusUnavailable
+          completionReason="We could not load this day's habits."
+          actions={{ onDetail }} />,
+      )
+    })
+
+    const ring = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityHint === "We could not load this day's habits." &&
+        node.props.accessibilityRole === 'button',
+    )[0]
+    expect(ring.props.accessibilityState).toEqual({ disabled: true })
+    expect(ring.props.accessibilityLabel).toBe('habits.logHabit: Read')
+    const unavailableDot = renderer!.root.findByProps({ testID: 'unavailable-status-dot' })
+    expect(StyleSheet.flatten(unavailableDot.props.style)).toMatchObject({
+      width: 30,
+      height: 30,
+      backgroundColor: neutralColors.dark.bgWell,
+    })
+    expect(renderer!.root.findAllByProps({ testID: 'status-ring' })).toHaveLength(0)
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]
+    expect(body.props.accessibilityLabel).toBe('Read')
+    TestRenderer.act(() => body.props.onPress())
+    expect(onDetail).toHaveBeenCalledOnce()
+    TestRenderer.act(() => {
+      renderer!.update(<HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onDetail }} />)
+    })
+    expect(renderer!.root.findAllByProps({ testID: 'status-ring' }).length).toBeGreaterThan(0)
+    expect(renderer!.root.findAllByProps({ testID: 'unavailable-status-dot' })).toHaveLength(0)
+  })
+
   it('presses the whole card from the body and only the ring from the ring control', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {

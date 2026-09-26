@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { Switch } from "@/components/ui/switch";
+import { useReminderPermission } from "@/hooks/use-reminder-permission";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface ReminderSectionProps {
@@ -31,6 +32,7 @@ export function ReminderSection({
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customValue, setCustomValue] = useState("");
   const [customUnit, setCustomUnit] = useState<"min" | "hours" | "days">("min");
+  const permission = useReminderPermission(reminderEnabled, onToggleReminder);
 
   const availablePresets = useMemo(
     () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
@@ -74,9 +76,19 @@ export function ReminderSection({
         </View>
         <Switch
           checked={reminderEnabled}
-          onChange={onToggleReminder}
+          onChange={permission.toggleReminder}
           label={t("habits.form.reminder")}
         />
+      </View>
+      <View style={permission.showNotice ? { gap: 4 } : { position: "absolute" }}>
+          <Text accessibilityLiveRegion="polite" style={sectionStyles.hintText}>
+            {permission.showNotice ? t("habits.form.reminderPermissionNeeded") : ""}
+          </Text>
+          {permission.showNotice && <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }} onPress={permission.openSettings}>
+            <Text style={[sectionStyles.hintText, { color: tokens.fg2, textDecorationLine: "underline" }]}>
+              {t("common.openSettings")}
+            </Text>
+          </Pressable>}
       </View>
       {reminderEnabled && (
         <View style={sectionStyles.body}>

@@ -11,6 +11,8 @@ import { buildAccountScopedStorageKey, buildWrappedSlides } from '@orbit/shared/
 import { useWrapped, useWrappedStory } from '@/hooks/use-wrapped'
 import { useAuthStore } from '@/stores/auth-store'
 
+vi.mock('@/lib/supabase', () => ({ clearSupabaseSession: vi.fn(async () => {}) }))
+
 const LEGACY_WRAPPED_KEY = 'orbit_wrapped_year_seen'
 const ACCOUNT_A_WRAPPED_KEY = buildAccountScopedStorageKey(LEGACY_WRAPPED_KEY, 'user-1')
 const ACCOUNT_B_WRAPPED_KEY = buildAccountScopedStorageKey(LEGACY_WRAPPED_KEY, 'user-2')
