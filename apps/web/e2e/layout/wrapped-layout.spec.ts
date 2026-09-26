@@ -1,10 +1,9 @@
 import { expect, test } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { API } from '@orbit/shared/api'
 import { createMockRecap } from '@orbit/shared/__tests__/factories'
 import { recapResponseSchema } from '@orbit/shared/types/gamification'
-import { buildWrappedSlides } from '@orbit/shared/utils'
+import { buildRecapRequestUrl, buildWrappedSlides } from '@orbit/shared/utils'
 import { LAYOUT_ORIGIN } from '../support/env'
 
 const recap = recapResponseSchema.parse(createMockRecap())
@@ -23,10 +22,8 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             canShare: { configurable: true, value: () => true },
           })
         })
-        await context.route(
-          (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.gamification.recap,
-          (route) => route.fulfill({ json: recap }),
-        )
+        await context.route(`${LAYOUT_ORIGIN}${buildRecapRequestUrl('week')}`,
+          (route) => route.fulfill({ json: recap }))
 
         await page.goto('/wrapped')
         await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
