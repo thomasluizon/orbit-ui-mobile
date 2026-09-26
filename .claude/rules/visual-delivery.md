@@ -7,11 +7,12 @@ paths:
 
 # Visual delivery & anti-fabrication of "done"
 
-**At a glance:** 8 standing rules that make completeness STRUCTURAL for any visual/redesign/transformation task (a page, a screen, a "de-slop", a "make it beautiful", a whole-app pass). Read this the moment a task's success is judged by how a rendered surface LOOKS rather than by a passing test. Thomas's inspection grants visual completion; during D90 it happens once for the whole redesign, under rule 4. See `README.md` for the tier's contract.
+**At a glance:** 8 standing rules that make completeness STRUCTURAL for any visual/redesign/transformation task (a page, a screen, a "de-slop", a "make it beautiful", a whole-app pass). Read this the moment a task's success is judged by how a rendered surface LOOKS rather than by a passing test. the owner's inspection grants visual completion; during D90 it happens once for the whole redesign, under rule 4. See `README.md` for the tier's contract.
 
-## Why this tier exists (the #539 post-mortem, 2026-07-18)
+## Why this tier exists
 
-Every gate here is *subtractive*: it proves bad things are absent and is blind to the absence of good ones. #539's b5 passed 100% of them by redoing one view and deleting decorations, then reported "the design applied" while the calendar, every modal, search, and the profile pages were untouched. **Green gates cannot grant visual acceptance.** Thomas checks every inventoried surface running on seeded data, once for the whole redesign during D90 rather than holding each screen (rule 4).
+Visual gates detect prohibited details but cannot prove a good result. The owner checks every
+inventoried surface on seeded data, once for the whole redesign under D90.
 
 ## Before you start
 
@@ -28,20 +29,21 @@ A visual verification against an empty or one-row DB is **structurally invalid**
 
 ### 4. Human inspection follows the active redesign contract
 During the remainder of the thirteen-screen redesign, D90 suspends D76 steps **1, 3, 7 and 8** and
-D88's per-screen hold. No screen waits for Thomas's conversation, inspection or approval. Steps
+D88's per-screen hold. No screen waits for the owner's conversation, inspection or approval. Steps
 **2, 4, 5 and 6** remain mandatory, as detailed in `.claude/playbooks/redesign-screen.md`: subagent
 judgement against the canvas and `DESIGN.md` under D42, decisions in the ticket before code, a build
 from that ticket, and the ui-skills sweep. Pullfrog and every gate still apply. Screens may merge
 on groundwork terms through the authorized merge workflow; worker merge prohibitions still apply.
-Thomas inspects the whole redesign once at the end, on seeded data: web and an APK from
+the owner inspects the whole redesign once at the end, on seeded data: web and an APK from
 `redesign/main`. D76 and D88 return when the redesign ships.
 
-Outside D90, each inventoried surface requires **Thomas looking at it running**, on seeded data:
+Outside D90, each inventoried surface requires **the owner looking at it running**, on seeded data:
 `/dev-server` for web and `/android-generate` for mobile (D76 step 7). A machine judge cannot grant
 visual acceptance (D13: deterministic signals may withhold, never grant; the deleted vision judge
 scored 0/12 recall against the known human-found defects).
 
-**There is no screenshot requirement.** Thomas deleted it around 2026-07. Never produce screenshot evidence, never attach it to a ticket or pull request, never gate on it, and never ask about it. The capture tooling is deleted and the D7 "evidence gate" in older vault notes and ticket bodies is residue, not live policy; a session once installed a 192 MB Playwright browser chasing this phantom. Ignore that line wherever it appears and carry on.
+**There is no screenshot requirement.** Never produce or request screenshot evidence, attach it
+to a ticket or pull request, or gate on it. Ignore older D7 evidence-gate notes.
 
 ## Before you claim done
 

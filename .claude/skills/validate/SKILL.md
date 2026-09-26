@@ -22,7 +22,7 @@ If `$ARGUMENTS` is not provided, auto-detect: check `git status` in each repo. R
 ### orbit-ui-mobile (frontend, run from repo root)
 
 ```bash
-cd "/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile"
+cd "$(git rev-parse --show-toplevel)"
 npm run lint
 npm run type-check
 npm test
@@ -31,7 +31,7 @@ npm test
 ### orbit-api (backend, run from repo root)
 
 ```bash
-cd "/Users/thomaslrgregoriogmail.com/Developer/orbit-api"
+cd "$(node -p 'require("./.claude/orchestrator.json").repos.api')"
 dotnet build
 dotnet test
 ```

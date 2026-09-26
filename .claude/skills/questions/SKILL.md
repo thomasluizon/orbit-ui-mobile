@@ -1,11 +1,14 @@
 ---
 name: questions
-description: Filter every question you were about to ask Thomas, answer the ones you can, and put only what survives to him through AskUserQuestion with a recommendation. Use before asking him anything, when a run is blocked on a decision, or when he says /questions.
+description: Filter every question you were about to ask the owner, answer the ones you can, and put only what survives to him through AskUserQuestion with a recommendation. Use before asking him anything, when a run is blocked on a decision, or when he says /questions.
 argument-hint: [optional scope, for example "the redesign" or "ticket 67"]
 effort: high
 ---
 
 # Questions
+
+Write decisions in tracked specs as current rules without dates, attributed quotes or session IDs.
+Keep timed decision evidence in the session scratchpad outside the repository.
 
 **At a glance:** most questions are not his. Answer them yourself, then ask what is left, all at
 once, with a recommendation on each.
@@ -14,7 +17,7 @@ once, with a recommendation on each.
 
 Before filtering anything, enumerate every open question you can find, as a written list. Read the
 sources rather than your memory of them: the opening prompt of this session, the spec if one exists,
-`questions.md`, each relevant ticket's body and comments, and any "blocked" or "needs Thomas" note
+`questions.md`, each relevant ticket's body and comments, and any "blocked" or "needs the owner" note
 anywhere in the run.
 
 A question you never wrote down cannot be filtered, cannot be asked, and disappears silently. That
@@ -53,9 +56,9 @@ Check, in this order, and only the ones that could plausibly hold it:
   A question about what a field contains is a question about a file you have not opened yet.
 - **The ticket, body AND comments.** The body often already decides what the question asks, and a
   worker's question is frequently a line it did not read. The comments hold what came later: an
-  answer Thomas gave, a capability the API does not have, a scope correction. Read both, because a
+  answer the owner gave, a capability the API does not have, a scope correction. Read both, because a
   decision recorded as a comment is the most recent one and the body will not mention it.
-- **The brain.** `/brain` holds every decision Thomas has made. A question shaped like "is this Pro
+- **The brain.** `/brain` holds every decision the owner has made. A question shaped like "is this Pro
   or free", "did we keep X", "which direction did we pick" is almost always already an ADR.
 - **The web.** A vendor limit, an API's real behaviour, a library's actual semantics. If a search
   settles it against a primary source, it was never his question.
@@ -100,7 +103,7 @@ are left when you send one, so he can see the end of it.
 
 Each question carries:
 
-- the decision in his words, not the ticket's
+- the decision stated plainly, checked against the owner's answer rather than a ticket paraphrase
 - what goes wrong today if nobody decides, so he can see why it matters
 - a recommendation FIRST, labelled `(Recommended)`, with the reason in its description
 - two to four real options, each a path you would actually take

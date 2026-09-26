@@ -24,12 +24,14 @@ Only capture on a genuine signal: I explicitly corrected you, OR the same mistak
    - **Judgment** (an approach, a preference, a gotcha) → it becomes a concise, path-scoped rule or a memory pointer-fact.
 3. **Append a candidate to the staging file** `.claude/pending-lessons.md` (create if missing) — NEVER write directly into CLAUDE.md, MEMORY.md, or a loaded rule. Format:
    ```
-   ## <date> — <one-line lesson>
+ ## <one-line lesson>
    - Trigger: <files/task where it applies>
    - Type: checkable | judgment
    - Proposed home: <hook name / lint rule / path-scoped rule / memory pointer>
    - Draft: <the rule text, or the hook/lint sketch>
    ```
+ Keep the tracked entry timeless: no session ID, date, attribution, personal path or incident story.
+ Put time-stamped evidence in the session scratchpad and retain only the rule and its trigger here.
 4. **Tell me it is staged** and ask whether to promote it now. Do not promote unattended.
 
 ## On promotion (only after I approve)

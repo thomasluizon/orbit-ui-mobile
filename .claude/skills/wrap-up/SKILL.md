@@ -1,11 +1,14 @@
 ---
 name: wrap-up
-description: Close a working session in one command. Runs /progress, then /questions, then /handoff, in that order, and stops. Use when Thomas says /wrap-up, wrap up, close out the session, or is about to stop for the day. Pass --sleep through to /handoff to prepare NEXT.md for an unattended next session entered through /sleep. It runs three skills; it never does the work they surface.
+description: Close a working session in one command. Runs /progress, then /questions, then /handoff, in that order, and stops. Use when the owner says /wrap-up, wrap up, close out the session, or is about to stop for the day. Pass --sleep through to /handoff to prepare NEXT.md for an unattended next session entered through /sleep. It runs three skills; it never does the work they surface.
 argument-hint: "[--sleep] [extra instructions for the NEXT session]"
 effort: medium
 ---
 
 # /wrap-up
+
+The spec receives timeless rules and one overwritten `## Current state` section through `/handoff`.
+Timed session evidence stays in the scratchpad outside the repository.
 
 Three skills, in this order, in one turn:
 
@@ -26,7 +29,7 @@ Each step feeds the next, which is why this exists as one command instead of thr
   that, so a session that drifted cannot hand off a story instead of a state.
 - **`/questions` second**, because the progress pass is what exposes the open decisions. Every
   question it raises is either answered from the code, the ticket, the brain or a search, or it goes
-  to Thomas through `AskUserQuestion` with a recommendation. **Do not start `/handoff` until every
+  to the owner through `AskUserQuestion` with a recommendation. **Do not start `/handoff` until every
   surviving question has his answer.** A handoff that carries an unanswered question hands the
   blocker forward instead of clearing it, and he is right here.
 - **`/handoff` last**, so the spec it writes carries his fresh answers rather than the questions.
@@ -41,7 +44,7 @@ answer about, and nothing `$ARGUMENTS` describes. All of it goes into the handof
 
 **`/handoff` is the end of the session, and so is this.** That rule lives in
 `.claude/skills/handoff/SKILL.md` and it binds here identically: once step 3 has committed, anything
-Thomas asks goes into `.claude/handoffs/NEXT.md`, not into the tree. The only exception is his
+the owner asks goes into `.claude/handoffs/NEXT.md`, not into the tree. The only exception is his
 explicit "do this now, then hand off".
 
 Under `--sleep`, `/handoff` prepares `NEXT.md` for an unattended next session entered through
@@ -52,12 +55,12 @@ Under `--sleep`, `/handoff` prepares `NEXT.md` for an unattended next session en
 If `/questions` surfaces nothing and `/progress` finds nothing moved, still run `/handoff`. A short
 session is still a session, and the next one needs the state.
 
-If Thomas answers a question in a way that removes a whole effort, say so in the progress line and
+If the owner answers a question in a way that removes a whole effort, say so in the progress line and
 let `/handoff` record the removal in that effort's spec. Do not act on it.
 
 ## Every step ENDS THE TURN and waits for him to say proceed
 
-This is the contract, not a style note. A step whose output Thomas never saw did not run, and a step
+This is the contract, not a style note. A step whose output the owner never saw did not run, and a step
 he never got to read before the next one started is the same failure one turn later.
 
 **Each step is its own turn.** Print that step's output, then the handover line, then STOP. Do not
@@ -84,17 +87,7 @@ same turn as the progress answer, stop and go back.
 
 Under `--sleep` the gates still hold. It changes the `NEXT.md` prompt, never whether he reads the
 first two steps. A `--sleep` run that writes the spec without showing him progress and questions has
-skipped the two steps he asked for.
-
-### This skill failed this way on the day it shipped
-
-2026-09-16, its first run: the state was gathered, the questions were resolved internally, and the
-handoff was already half written before Thomas said "you didnt run /progress, im not seeing your
-summary ... you didn ask any questions ... and you are already doing the handoff?"
-
-The cause was the old Reply section below, which said not to narrate the steps. That is correct about
-narration and was read as "produce no output", which is the opposite of the point. Narrating is
-saying "now running /progress". Output is the progress answer itself. Never confuse them.
+skipped its two required steps.
 
 ## Reply
 

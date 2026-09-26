@@ -4,29 +4,10 @@
 Nothing here loads automatically. The handful of rules that genuinely apply to every turn live in
 `.claude/rules/core.md`, which does load automatically and is deliberately ~50 lines.
 
-## Why these moved out of `.claude/rules/`
+## Why these are on demand
 
-`.claude/rules/*.md` is a native Claude Code auto-load: every file in it is prepended to every turn
-of every session, relevant or not. This tier had six files and 375 lines there, while its own README
-described them as "situational" and told you to read the themed file when you started that activity.
-Both things could not be true. The 2026-07-19 edit to that README admitted the contradiction and
-then left the files where they were, so the tier kept costing 375 lines a turn for another three
-days.
-
-Measured cost of the whole standing set at that point: **738 always-loaded lines per turn**, of
-which this tier was more than half. Meanwhile the agents paying for it spent 36.6% of their actions
-orienting and 5.6% editing. Standing prose is the most expensive line in a harness and the least
-likely to be acted on, because it arrives before anyone knows what the task is.
-
-**Nothing was deleted.** The full text moved here; a ~50-line core stayed behind. The move is safe
-because the citation pattern already worked and was already in use:
-
-- `.claude/agents/design-reviewer.md` cites `product-and-content` rule 3 by name.
-- `.claude/agents/completeness-critic.md` opens with "visual-delivery is your charter, read it first".
-- `.claude/agents/design-reviewer.md` also cites `review-and-audit.md` rule 1 ("do not re-flag what a gate fails on").
-
-An agent that needs a playbook is told to read it by the skill or agent that needs it. That is a
-Read call at the moment of relevance instead of 375 lines on every turn forever.
+Activity-specific rules belong in playbooks that agents read when relevant. `.claude/rules/core.md`
+holds rules that apply to every turn. The skill or agent that needs a playbook names it directly.
 
 ## Two homes, chosen by whether a file path predicts relevance
 
@@ -39,7 +20,7 @@ which is strictly better than hoping an agent chooses to read them:
 
 | file | rules | auto-loads on |
 |---|---|---|
-| `../rules/visual-delivery.md` | 8 | `apps/web/**`, `apps/mobile/**`, `packages/shared/src/theme/**`. Surface inventory and the adversarial `completeness-critic` close gate; Thomas inspects seeded surfaces once for the whole redesign during D90, per surface otherwise. Written after #539 b5 shipped at 5% and was reported "done". |
+| `../rules/visual-delivery.md` | 8 | `apps/web/**`, `apps/mobile/**`, `packages/shared/src/theme/**`. Surface inventory and the adversarial `completeness-critic` close gate; the owner inspects seeded surfaces once for the whole redesign during D90, per surface otherwise. |
 | `../rules/product-and-content.md` | 9 | the i18n JSON, `apps/web/app/globals.css`, the theme, the landing page |
 
 **Activity-scoped, here** - no path predicts "I am now reviewing" or "I am now debugging", so these
@@ -50,7 +31,7 @@ are read on demand by the skill or agent that needs them:
 | `debugging.md` | 8 | chasing a bug, triaging an issue, `/investigate`, or resolving a merge conflict |
 | `review-and-audit.md` | 12 | `/audit-*`, `/prod-readiness`, acting on a Pullfrog review, or any fan-out assessment |
 | `planning-and-artifacts.md` | 11 | `/ticket`, `/orchestrate`, ticket writing, prototyping, ADRs, or deciding whether to hand off |
-| `redesign-screen.md` | - | building any of the thirteen redesign screens. The D76 eight-step loop, the step 6 ui-skills sweep with its fetch commands, and what Thomas checks that no gate does. Cited from the always-loaded core, because the step this file exists to protect is the one an agent skips when it starts from the ticket alone |
+| `redesign-screen.md` | - | building any of the thirteen redesign screens. The D76 eight-step loop, the step 6 ui-skills sweep with its fetch commands, and what the owner checks that no gate does. Cited from the always-loaded core, because the step this file exists to protect is the one an agent skips when it starts from the ticket alone |
 | `context-engineering.md` | 8 | authoring or editing anything the agent itself reads: a `CLAUDE.md`, a rule, a playbook, a skill, an agent, a tool interface, a ticket body. The 5-generation delta: constrain less, prompt the positive, design interfaces instead of writing examples, and prefer a runnable artifact over prose |
 
 ## How these relate to the gates
@@ -72,7 +53,7 @@ reliably precedes it - that file is paid for on every turn of every session.
 
 ## Provenance
 
-Harvested 2026-07-17 from 193 external design/engineering skills, deduplicated and routed in the
+The source rules are indexed in the
 vault note `Orbit skill harvest - canonical rule set (#539)` (`brain/2 Areas/20-29 Orbit
 Engineering/`). The vault note is the source of truth for *why* each rule was kept and what
 corroborated it; this tier is the operational copy. Rules that contradicted a locked Orbit decision
