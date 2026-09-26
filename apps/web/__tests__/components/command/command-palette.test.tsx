@@ -32,6 +32,7 @@ interface HabitsQueryState {
 }
 
 let habitsQuery: HabitsQueryState
+const mockUseHabits = vi.fn()
 
 function buildQueryData(habits: NormalizedHabit[]): NormalizedHabitQueryData {
   const habitsById = new Map(habits.map((habit) => [habit.id, habit]))
@@ -72,7 +73,7 @@ vi.mock('@/stores/ui-store', () => ({
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
-  useHabits: () => habitsQuery,
+  useHabits: (...args: unknown[]) => mockUseHabits(...args),
   useLogHabit: () => ({ mutate: vi.fn() }),
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))
@@ -102,9 +103,21 @@ beforeEach(() => {
   mockPush.mockClear()
   mockSetPaletteOpen.mockClear()
   mockSetActiveView.mockClear()
+  mockUseHabits.mockReset()
+  mockUseHabits.mockImplementation(() => habitsQuery)
 })
 
 describe('CommandPalette', () => {
+  it('uses the Today list until search needs one bounded result page', () => {
+    renderPalette()
+    expect(mockUseHabits).toHaveBeenCalledWith(
+      expect.objectContaining({ dateFrom: expect.any(String), dateTo: expect.any(String) }),
+    )
+    expect(mockUseHabits).not.toHaveBeenCalledWith({})
+
+    fireEvent.change(screen.getByPlaceholderText('command.placeholder'), { target: { value: 'run' } })
+    expect(mockUseHabits).toHaveBeenCalledWith({ search: 'run', pageSize: 50 }, true)
+  })
   it('renders the search input when the palette is open', () => {
     renderPalette()
     expect(screen.getByPlaceholderText('command.placeholder')).toBeInTheDocument()

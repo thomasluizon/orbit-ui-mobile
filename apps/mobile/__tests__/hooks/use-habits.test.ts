@@ -838,7 +838,7 @@ describe('mobile habit hooks', () => {
 
     mutation.onSettled?.(response, null, { habitId: 'habit-1' }, undefined)
 
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
     })

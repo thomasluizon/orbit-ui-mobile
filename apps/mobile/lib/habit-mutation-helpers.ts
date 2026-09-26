@@ -642,6 +642,7 @@ interface HabitInvalidationOptions {
   includeGamification?: boolean
   includeProfile?: boolean
   includeCount?: boolean
+  includeLists?: boolean
 }
 
 export function invalidateHabitMutationQueries(
@@ -649,7 +650,6 @@ export function invalidateHabitMutationQueries(
   options?: HabitInvalidationOptions,
 ): void {
   const invalidations: Promise<unknown>[] = [
-    queryClient.invalidateQueries({ queryKey: habitKeys.lists() }),
     queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() }),
     /**
      * The mounted summary MUST refetch, so this cannot narrow to `refetchType: 'none'`. `useSummary`
@@ -660,6 +660,10 @@ export function invalidateHabitMutationQueries(
     queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
   ]
 
+  if (options?.includeLists !== false) {
+    invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.lists() }))
+  }
+
   if (options?.includeCount) {
     invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.count() }))
   }
@@ -668,6 +672,8 @@ export function invalidateHabitMutationQueries(
     invalidations.push(
       queryClient.invalidateQueries({ queryKey: habitKeys.detail(options.habitId) }),
       queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(options.habitId) }),
+      queryClient.invalidateQueries({ queryKey: habitKeys.logs(options.habitId) }),
+      queryClient.invalidateQueries({ queryKey: habitKeys.metrics(options.habitId) }),
     )
   }
 

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, focusManager, onlineManager } from '@tanstack/react-query'
 import React from 'react'
-import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useHabits, useTotalHabitCount, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
+import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
@@ -166,6 +167,62 @@ describe('useHabits', () => {
     mockFetch.mockReset()
   })
 
+  it('counts Today requests for a 450-habit account across focus, reconnect, and mutations', async () => {
+    const { logHabit, skipHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 })
+    vi.mocked(skipHabit).mockResolvedValue(undefined)
+    const date = formatAPIDate(new Date())
+    const clock = vi.spyOn(Date, 'now')
+    let now = Date.now()
+    clock.mockImplementation(() => now)
+    focusManager.setFocused(true)
+    onlineManager.setOnline(true)
+    mockFetch.mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => url.includes('/count')
+        ? { count: 450 }
+        : { ...makePaginatedResponse([makeScheduleItem({ id: 'h-1', dueDate: date, scheduledDates: [date] })]), totalCount: 450, totalPages: 3 },
+    }))
+    const queryClient = createQueryClient()
+    const filters = { dateFrom: date, dateTo: date, includeOverdue: true }
+    const wrapper = createWrapper(queryClient)
+    const today = renderHook(() => ({ habits: useHabits(filters), count: useTotalHabitCount(), log: useLogHabit(), skip: useSkipHabit() }), { wrapper })
+    try {
+      await waitFor(() => expect(today.result.current.habits.isSuccess).toBe(true))
+      await waitFor(() => expect(today.result.current.count).toBe(450))
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+
+      now += 60_000
+      await act(async () => { focusManager.setFocused(false); focusManager.setFocused(true) })
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+
+      now += 9 * 60_000
+      await act(async () => { focusManager.setFocused(false); focusManager.setFocused(true) })
+      await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(4))
+
+      await act(async () => { onlineManager.setOnline(false); onlineManager.setOnline(true) })
+      expect(mockFetch).toHaveBeenCalledTimes(4)
+
+      await act(async () => { await today.result.current.log.mutateAsync({ habitId: 'h-1' }) })
+      expect(mockFetch).toHaveBeenCalledTimes(4)
+      await act(async () => { await today.result.current.skip.mutateAsync({ habitId: 'h-1' }) })
+      expect(mockFetch).toHaveBeenCalledTimes(4)
+
+      const firstPalette = renderHook(() => useHabits(filters), { wrapper })
+      await waitFor(() => expect(firstPalette.result.current.isSuccess).toBe(true))
+      firstPalette.unmount()
+      const secondPalette = renderHook(() => useHabits(filters), { wrapper })
+      await waitFor(() => expect(secondPalette.result.current.isSuccess).toBe(true))
+      secondPalette.unmount()
+      expect(mockFetch).toHaveBeenCalledTimes(4)
+    } finally {
+      today.unmount()
+      clock.mockRestore()
+      focusManager.setFocused(undefined)
+      onlineManager.setOnline(true)
+    }
+  })
+
   it('fetches and normalizes habits', async () => {
     const items = [
       makeScheduleItem({ id: 'h-1', title: 'Exercise', position: 1 }),
@@ -324,7 +381,7 @@ describe('useLogHabit', () => {
       await result.current.mutateAsync({ habitId: 'h-1' })
     })
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
@@ -417,7 +474,7 @@ describe('useSkipHabit', () => {
     expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', undefined)
   })
 
-  it('invalidates lists, summary, goals, gamification, and profile on settle (parity with mobile)', async () => {
+  it('refreshes skip dependents without refetching lists, profile, or gamification', async () => {
     const { skipHabit } = await import('@/lib/actions/habits')
     vi.mocked(skipHabit).mockResolvedValue(undefined)
 
@@ -431,12 +488,12 @@ describe('useSkipHabit', () => {
       await result.current.mutateAsync({ habitId: 'h-1' })
     })
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('passes date to skipHabit action', async () => {
