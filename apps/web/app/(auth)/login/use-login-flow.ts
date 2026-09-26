@@ -45,6 +45,7 @@ export function useLoginFlow() {
   const pendingAutoCode = useRef<string | null>(null)
   const attempts = useRef(new Map<string, LoginAttempts>())
   const entry = useLoginCodeEntry((code) => {
+    if (!isOnline) return
     if (turnstileSiteKey && !turnstileToken) pendingAutoCode.current = code
     else void verifyCode(code)
   })
@@ -55,6 +56,9 @@ export function useLoginFlow() {
   const pendingHabitCount = useOnboardingDraftStore((state) => state.habits.length)
 
   useEffect(() => { void useOnboardingDraftStore.persist.rehydrate() }, [])
+  useEffect(() => {
+    if (!isOnline) pendingAutoCode.current = null
+  }, [isOnline])
   useEffect(() => {
     if (isValidReferralCode(referralParam)) {
       document.cookie = `referral_code=${encodeURIComponent(referralParam)};max-age=${7 * 24 * 60 * 60};path=/;samesite=strict;secure`
@@ -161,7 +165,7 @@ export function useLoginFlow() {
 
   function handleTurnstileToken(token: string | null) {
     onTurnstileToken(token)
-    if (!token || !pendingAutoCode.current) return
+    if (!token || !isOnline || !pendingAutoCode.current) return
     const code = pendingAutoCode.current
     pendingAutoCode.current = null
     void verifyCode(code)

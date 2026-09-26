@@ -114,10 +114,12 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 
 interface Harness {
   readonly current: ReturnType<typeof useLoginFlow>
+  rerender: () => void
 }
 
 async function renderLoginFlow(): Promise<Harness> {
   const holder: { current: ReturnType<typeof useLoginFlow> | null } = { current: null }
+  let renderer!: { update: (element: React.ReactElement) => void }
 
   function Probe() {
     holder.current = useLoginFlow()
@@ -125,7 +127,7 @@ async function renderLoginFlow(): Promise<Harness> {
   }
 
   await TestRenderer.act(async () => {
-    TestRenderer.create(React.createElement(Probe))
+    renderer = TestRenderer.create(React.createElement(Probe))
     await Promise.resolve()
   })
   if (mocks.codeDigits.join('')) {
@@ -133,6 +135,7 @@ async function renderLoginFlow(): Promise<Harness> {
   }
 
   return {
+    rerender: () => renderer.update(React.createElement(Probe)),
     get current() {
       if (!holder.current) throw new Error('useLoginFlow did not render')
       return holder.current
@@ -217,6 +220,32 @@ it('auto-submits a completed mobile code after its widget token arrives', async 
   expect(bodyOf(mocks.apiClient.mock.calls[1]![1])).toMatchObject({
     code: '123456', turnstileToken: 'delayed-verify-token',
   })
+})
+
+it.each(['before', 'during'])('does not replay a mobile code completed %s an offline interval', async (timing) => {
+  vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+  const harness = await renderLoginFlow()
+  await act(() => harness.current.setEmail('user@test.com'))
+  await act(() => harness.current.onTurnstileToken('send-token'))
+  await act(() => harness.current.sendCode())
+
+  if (timing === 'before') await act(() => harness.current.onCodeChange('123456'))
+  mocks.isOnline = false
+  await act(() => harness.rerender())
+  if (timing === 'during') await act(() => harness.current.onCodeChange('123456'))
+  expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+  mocks.isOnline = true
+  await act(() => harness.rerender())
+  await act(() => harness.current.onTurnstileToken('fresh-verify-token'))
+  expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+  expect(harness.current.codeDigits.join('')).toBe('123456')
+
+  await act(() => harness.current.verifyCode())
+  expect(bodyOf(mocks.apiClient.mock.calls[1]![1])).toMatchObject({
+    code: '123456', turnstileToken: 'fresh-verify-token',
+  })
+  expect(mocks.apiClient).toHaveBeenCalledTimes(2)
 })
 
 describe('useLoginFlow (mobile)', () => {

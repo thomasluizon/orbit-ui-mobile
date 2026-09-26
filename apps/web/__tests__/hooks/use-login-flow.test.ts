@@ -202,6 +202,32 @@ it('submits a completed code when a delayed widget token arrives', async () => {
   expect(fetchMock).toHaveBeenCalledTimes(2)
 })
 
+it.each(['before', 'during'])('does not replay a code completed %s an offline interval', async (timing) => {
+  vi.stubEnv('NEXT_PUBLIC_TURNSTILE_SITE_KEY', 'test-site-key')
+  const { result, rerender } = renderHook(() => useLoginFlow())
+  act(() => result.current.setEmail('user@test.com'))
+  act(() => result.current.onTurnstileToken('send-token'))
+  await act(async () => { await result.current.sendCode() })
+
+  if (timing === 'before') typeCode(result, '123456')
+  mocks.isOnline = false
+  rerender()
+  if (timing === 'during') typeCode(result, '123456')
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+
+  mocks.isOnline = true
+  rerender()
+  act(() => result.current.onTurnstileToken('fresh-verify-token'))
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+  expect(result.current.codeDigits.join('')).toBe('123456')
+
+  await act(async () => { await result.current.verifyCode() })
+  expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({
+    code: '123456', turnstileToken: 'fresh-verify-token',
+  })
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+})
+
 describe('useLoginFlow send-code step', () => {
   it('rejects an invalid email through the real validator without hitting the network', async () => {
     const { result } = renderHook(() => useLoginFlow())

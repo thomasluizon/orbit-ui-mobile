@@ -73,10 +73,15 @@ export function useLoginFlow(isAuthCallback = false) {
   const returnUrlAttemptRef = useRef<ReturnUrlAttempt | null>(null)
   const attempts = useRef(new Map<string, LoginAttempts>())
   const entry = useLoginCodeEntry((code) => {
+    if (!isOnline) return
     if (turnstileSiteKey && !turnstileToken) pendingAutoCode.current = code
     else void verifyCode(code)
   })
   const { setCodeDigits } = entry
+
+  useEffect(() => {
+    if (!isOnline) pendingAutoCode.current = null
+  }, [isOnline])
 
   useEffect(() => {
     let active = true
@@ -205,7 +210,7 @@ export function useLoginFlow(isAuthCallback = false) {
 
   function handleTurnstileToken(token: string | null) {
     onTurnstileToken(token)
-    if (!token || !pendingAutoCode.current) return
+    if (!token || !isOnline || !pendingAutoCode.current) return
     const code = pendingAutoCode.current
     pendingAutoCode.current = null
     void verifyCode(code)
