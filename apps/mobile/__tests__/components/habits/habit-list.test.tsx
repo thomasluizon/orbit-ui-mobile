@@ -9,6 +9,7 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { tourScrollRegistry } from '@/components/tour/tour-target-context'
 import { useTourStore } from '@/stores/tour-store'
 import { i18n } from '@/lib/i18n'
+import { notifyBulkReplaySuccess } from '@/lib/bulk-replay-events'
 
 const TODAY = formatAPIDate(new Date())
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
@@ -272,6 +273,44 @@ describe('HabitList', () => {
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it.each([
+    ['bulkLogHabits', 'autoLogParentTitle'],
+    ['bulkSkipHabits', 'autoSkipParentTitle'],
+  ] as const)('settles a parent once after accepted %s replay items', (type, titleKey) => {
+    const parent = createMockHabit({
+      id: 'parent', title: 'Parent', hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const accepted = createMockHabit({ id: 'accepted', parentId: 'parent', isCompleted: false })
+    const rejected = createMockHabit({ id: 'rejected', parentId: 'parent', isCompleted: false })
+    seedHabits([parent, accepted, rejected])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+    const findDialogs = () => tree.root.findAllByType('ConfirmDialog')
+      .filter((node: any) => node.props.title === i18n.t(`habits.${titleKey}`))
+
+    TestRenderer.act(() => {
+      notifyBulkReplaySuccess({
+        mutationId: 'mutation-1', type,
+        items: [{ habitId: 'accepted', date: TODAY }],
+      })
+    })
+    expect(findDialogs()).toHaveLength(0)
+
+    TestRenderer.act(() => {
+      notifyBulkReplaySuccess({
+        mutationId: 'mutation-2', type,
+        items: [{ habitId: 'rejected', date: TODAY }],
+      })
+    })
+    expect(findDialogs()).toHaveLength(1)
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('hides one-time tasks completed before the selected day when completed items are shown', () => {

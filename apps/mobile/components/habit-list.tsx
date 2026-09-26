@@ -87,6 +87,7 @@ import {
   type DragItem,
 } from './habit-list/tree-helpers'
 import { createStyles } from './habit-list/styles'
+import { subscribeBulkReplaySuccesses } from '@/lib/bulk-replay-events'
 
 /**
  * Wraps a HabitRow in a measurable View that registers itself with the tour
@@ -143,6 +144,10 @@ export interface HabitListHandle {
   expandAll: () => void
   markRecentlyCompleted: (habitId: string) => void
   checkAndPromptParentLog: (childHabitId: string) => void
+  settleBulkHabitResolutions: (
+    items: readonly { habitId: string; date?: string }[],
+    mode: 'log' | 'skip',
+  ) => void
   refetch: () => void
   scrollToOffset: (offset: number) => void
 }
@@ -274,6 +279,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     >(new Set())
     const promptedParentIdsRef = useRef(new Set<string>())
     const skippedChildIdsRef = useRef(new Set<string>())
+    const bulkLoggedIdsRef = useRef(new Set<string>())
     const promptDataRef = useRef<{
       getChildren: (id: string) => NormalizedHabit[]
       isListView: boolean
@@ -321,6 +327,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     useEffect(() => {
       promptedParentIdsRef.current.clear()
       skippedChildIdsRef.current.clear()
+      bulkLoggedIdsRef.current.clear()
     }, [promptedParentIdsRef, selectedDateStr, skippedChildIdsRef])
     const autoLogParentHabit = autoLogParentId
       ? (habitsById.get(autoLogParentId) ?? null)
@@ -639,6 +646,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const getChildrenProgressForPrompt = useCallback((
       habitId: string,
       assumeCompletedId?: string,
+      assumeCompletedIds?: ReadonlySet<string>,
     ) => {
       const data = promptDataRef.current
       if (!data) return { done: 0, total: 0, loggedDone: 0 }
@@ -650,6 +658,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         isListView: data.isListView,
         skippedIds: skippedChildIdsRef.current,
         assumeCompletedId,
+        assumeCompletedIds,
       })
     }, [])
 
@@ -663,7 +672,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [getChildrenProgressForPrompt, habitsQuery.dataUpdatedAt])
 
     const checkAndPromptParentLog = useCallback(
-      (childHabitId: string) => {
+      (childHabitId: string, assumeCompletedIds?: ReadonlySet<string>) => {
         const data = promptDataRef.current
         if (!data) return
 
@@ -679,7 +688,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           hasHabitScheduleOnDate(parentHabit, data.selectedDateStr)
         if (!parentIsDueToday) return
 
-        const progress = getChildrenProgressForPrompt(parentHabit.id, childHabitId)
+        const completedIds = new Set([
+          ...bulkLoggedIdsRef.current,
+          ...(assumeCompletedIds ?? []),
+        ])
+        const progress = getChildrenProgressForPrompt(parentHabit.id, childHabitId, completedIds)
         if (progress.total > 0 && progress.done >= progress.total) {
           if (!promptedParentIdsRef.current.has(parentHabit.id)) {
             promptedParentIdsRef.current.add(parentHabit.id)
@@ -693,6 +706,38 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       },
       [getChildrenProgressForPrompt],
     )
+
+    const settleBulkHabitResolutions = useCallback((
+      items: readonly { habitId: string; date?: string }[],
+      mode: 'log' | 'skip',
+    ) => {
+      const currentItems = items.filter((item) => !item.date || item.date === selectedDateStr)
+      const completedIds = new Set(currentItems.map((item) => item.habitId))
+      for (const id of completedIds) {
+        if (mode === 'skip') skippedChildIdsRef.current.add(id)
+        else {
+          skippedChildIdsRef.current.delete(id)
+          bulkLoggedIdsRef.current.add(id)
+        }
+        markRecentlyCompleted(id)
+      }
+      const promptedParents = new Set<string>()
+      for (const id of completedIds) {
+        const parentId = promptDataRef.current?.habitsById.get(id)?.parentId
+        if (!parentId || promptedParents.has(parentId)) continue
+        promptedParents.add(parentId)
+        checkAndPromptParentLog(id, completedIds)
+      }
+    }, [checkAndPromptParentLog, markRecentlyCompleted, selectedDateStr])
+
+    useEffect(() => subscribeBulkReplaySuccesses((success) => {
+      if (success.items.some((item) => item.date && item.date !== selectedDateStr)) return false
+      if (success.items.some((item) => !promptDataRef.current?.habitsById.has(item.habitId))) {
+        return false
+      }
+      settleBulkHabitResolutions(success.items, success.type === 'bulkLogHabits' ? 'log' : 'skip')
+      return true
+    }), [habitsById, selectedDateStr, settleBulkHabitResolutions])
 
     const handleLogged = useCallback(
       (habitId: string, markAsRecentlyCompleted = true) => {
@@ -1053,6 +1098,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         expandAll,
         markRecentlyCompleted,
         checkAndPromptParentLog,
+        settleBulkHabitResolutions,
         refetch: () => {
           void refetch()
         },
@@ -1077,6 +1123,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         allCollapsed,
         allLoadedIds,
         checkAndPromptParentLog,
+        settleBulkHabitResolutions,
         collapseAll,
         expandAll,
         markRecentlyCompleted,

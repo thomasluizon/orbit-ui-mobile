@@ -1,7 +1,6 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BackHandler } from 'react-native'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitListHandle } from '@/components/habit-list'
 import { useTodaySelection } from '@/app/(tabs)/use-today-selection'
 
@@ -56,7 +55,7 @@ function renderSelection(options: RenderOptions = {}) {
 
   function Harness() {
     ref.current = useTodaySelection({
-      habitsById: new Map<string, NormalizedHabit>(),
+      selectedDateStr: '2026-09-25',
       habitListRef,
       habitListAllLoadedIds: options.habitListAllLoadedIds ?? null,
       closeControlsMenu: options.closeControlsMenu ?? vi.fn(),

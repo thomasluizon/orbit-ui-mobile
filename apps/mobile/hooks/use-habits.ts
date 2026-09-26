@@ -93,6 +93,30 @@ type CreateSubHabitMutationInput = {
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 
+function reconcileBulkCompletion(
+  queryClient: ReturnType<typeof useQueryClient>,
+  result: { results: readonly { index: number; status: string; habitId: string }[] },
+  items: readonly { habitId: string; date?: string }[],
+  previousLists: HabitListSnapshots | undefined,
+): void {
+  if (!previousLists ||
+    (!isQueuedResult(result) && result.results.every((item) => item.status === 'Success'))) return
+  restoreHabitLists(queryClient, previousLists)
+  if (isQueuedResult(result)) return
+  const successfulImmediateIds = result.results.flatMap((entry) => {
+    const item = items[entry.index]
+    return entry.status === 'Success' && item?.habitId === entry.habitId && !item.date
+      ? [item.habitId]
+      : []
+  })
+  updateHabitLists(queryClient, (currentItems) =>
+    successfulImmediateIds.reduce(
+      (nextItems, habitId) => optimisticPatchHabit(nextItems, habitId, { isCompleted: true }),
+      currentItems,
+    ),
+  )
+}
+
 function selectedDescendantsInSnapshots(
   snapshots: HabitListSnapshots,
   selectedIds: Set<string>,
@@ -870,6 +894,16 @@ export function useBulkDeleteHabits() {
 
     onSuccess: (result, _habitIds, context) => {
       const deleted = result.results.filter((item) => item.status === 'Success')
+      if (isQueuedResult(result) || deleted.length !== _habitIds.length) {
+        restoreHabitLists(queryClient, context.previousLists)
+        adjustHabitCount(queryClient, context.deletedCount)
+        if (!isQueuedResult(result)) {
+          updateHabitLists(queryClient, (items) =>
+            optimisticRemoveHabits(items, deleted.map((item) => item.habitId)),
+          )
+          adjustHabitCount(queryClient, -deleted.length)
+        }
+      }
       if (deleted.length === 0) return
       const cascadedIds = new Set(deleted.flatMap((item) => item.cascadedHabitIds ?? []))
       const selectedIds = new Set(deleted.map((item) => item.habitId))
@@ -881,8 +915,6 @@ export function useBulkDeleteHabits() {
         if (isQueuedResult(result)) {
           void cancelQueuedDeleteForUndo(result.queuedMutationId).then((outcome) => {
             if (outcome !== 'replayed') {
-              restoreHabitLists(queryClient, context.previousLists)
-              adjustHabitCount(queryClient, context.deletedCount)
               void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
             }
             if (outcome === 'replayed' || outcome === 'uncertain') {
@@ -961,6 +993,10 @@ export function useBulkLogHabits() {
       }
     },
 
+    onSuccess: (result, items, context) => {
+      reconcileBulkCompletion(queryClient, result, items, context.previousLists)
+    },
+
     onSettled: (data, error) =>
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
@@ -1020,6 +1056,10 @@ export function useBulkSkipHabits() {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
       }
+    },
+
+    onSuccess: (result, items, context) => {
+      reconcileBulkCompletion(queryClient, result, items, context.previousLists)
     },
 
     onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),

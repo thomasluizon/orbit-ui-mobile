@@ -10,8 +10,7 @@ import {
 
 vi.mock('@/lib/offline-mutations', () => ({
   getMutationScope: (type: string) => type === 'retiredMutation' ? undefined : 'habits',
-  isAutomaticReplayBlocked: (type: string) =>
-    type === 'bulkLogHabits' || type === 'bulkSkipHabits',
+  isAutomaticReplayBlocked: () => false,
   hasPendingOfflineDependencies: (queuedMutation: PersistedQueuedMutation) =>
     Boolean(queuedMutation.targetEntityId?.startsWith('offline-')) ||
     queuedMutation.endpoint.includes('offline-'),
@@ -56,7 +55,8 @@ describe('offline recovery', () => {
 
   it('allows only known, dependency-free, individually safe retries', () => {
     expect(canRetryDroppedMutation(mutation())).toBe(true)
-    expect(canRetryDroppedMutation(mutation({ type: 'bulkLogHabits' }))).toBe(false)
+    expect(canRetryDroppedMutation(mutation({ type: 'bulkLogHabits' }))).toBe(true)
+    expect(canRetryDroppedMutation(mutation({ type: 'bulkSkipHabits' }))).toBe(true)
     expect(canRetryDroppedMutation(mutation({ targetEntityId: 'offline-habit-1' }))).toBe(false)
     expect(canRetryDroppedMutation(mutation({ type: 'retiredMutation' }))).toBe(false)
   })
