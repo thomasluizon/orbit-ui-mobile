@@ -4,10 +4,12 @@ import en from '@orbit/shared/i18n/en.json'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
 import {
   captureAccountIntent,
+  bindAccountServerAction,
   reportAccountChanged,
   reportAccountChangedIfNeeded,
   applyServerActionFailure,
 } from '@/lib/client-action'
+import { setAccountEventOrigin } from '@/lib/account-event-origin'
 
 const account = vi.hoisted(() => ({ id: 'account-a' as string | null, generation: 1 }))
 
@@ -21,6 +23,7 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 describe('client account intent', () => {
   beforeEach(() => {
+    setAccountEventOrigin(null)
     account.id = 'account-a'
     account.generation = 1
     vi.mocked(toast.error).mockClear()
@@ -28,6 +31,15 @@ describe('client account intent', () => {
       if (key === 'errors.api.accountChanged') return en.errors.api.accountChanged
       if (key === 'errors.api.reload') return en.errors.api.reload
       return key
+    })
+  })
+
+  it('sends the current stream connection with a server action', async () => {
+    setAccountEventOrigin('connection-1')
+    const action = vi.fn(async (_intent: string | null) => ({ ok: true as const, data: null }))
+    await bindAccountServerAction(action)()
+    expect(JSON.parse(action.mock.calls[0]?.[0] ?? '')).toEqual({
+      accountId: 'account-a', eventOrigin: 'connection-1',
     })
   })
 

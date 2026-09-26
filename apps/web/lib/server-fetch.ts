@@ -3,9 +3,13 @@ import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { createApiClientError } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { APP_VERSION_HEADER, validateApiResponse } from '@orbit/shared/utils'
-import type { ZodType } from 'zod'
+import { z, type ZodType } from 'zod'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
+const accountIntentSchema = z.object({
+  accountId: z.string().nullable(),
+  eventOrigin: z.string().min(1).max(128),
+})
 
 function unauthorizedError(sessionRefreshFailed: boolean): Error {
   const error = createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized')
@@ -58,11 +62,15 @@ async function fetchWithSession<T>(
   schema: ZodType<T> | undefined,
   intendedAccountId: string | null,
 ): Promise<T> {
+  const accountIntent = intendedAccountId?.startsWith('{')
+    ? accountIntentSchema.parse(JSON.parse(intendedAccountId) as unknown)
+    : { accountId: intendedAccountId, eventOrigin: null }
   const appVersion = process.env.APP_VERSION
   const buildHeaders = (token: string): Record<string, string> => ({
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
     ...(appVersion ? { [APP_VERSION_HEADER]: appVersion } : {}),
+    ...(accountIntent.eventOrigin ? { 'X-Orbit-Event-Origin': accountIntent.eventOrigin } : {}),
     ...(init.headers as Record<string, string> | undefined),
   })
 
@@ -70,7 +78,7 @@ async function fetchWithSession<T>(
   if (!session.token) {
     throw unauthorizedError(session.refreshFailed)
   }
-  assertIntendedAccountStillHolds(session.token, intendedAccountId)
+  assertIntendedAccountStillHolds(session.token, accountIntent.accountId)
 
   let res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -80,7 +88,7 @@ async function fetchWithSession<T>(
   if (res.status === 401 && path !== API.auth.refresh) {
     session = await resolveServerSession({ forceRefresh: true })
     if (session.token) {
-      assertIntendedAccountStillHolds(session.token, intendedAccountId)
+      assertIntendedAccountStillHolds(session.token, accountIntent.accountId)
       res = await fetch(`${API_BASE}${path}`, {
         ...init,
         headers: buildHeaders(session.token),

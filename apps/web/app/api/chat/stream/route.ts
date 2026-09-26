@@ -18,10 +18,12 @@ async function forwardStream(
   formData: FormData,
   token: string,
 ): Promise<Response> {
+  const eventOrigin = request.headers.get('x-orbit-event-origin')
   return fetch(`${API_BASE}/api/chat/stream`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
+      ...(eventOrigin && eventOrigin.length <= 128 ? { 'X-Orbit-Event-Origin': eventOrigin } : {}),
       ...buildForwardedClientHeaders(request),
     },
     body: formData,

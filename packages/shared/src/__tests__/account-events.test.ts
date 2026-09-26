@@ -23,6 +23,7 @@ describe('account events', () => {
     expect(invalidateQueries).not.toHaveBeenCalled()
     invalidateAccountEvent({ invalidateQueries }, { type: 'changes', payload }, 'other')
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.all })
+    expect(accountChangeQueryKeys({ kind: 'futureKind', op: 'update', ids: [] })).toContainEqual(habitKeys.all)
   })
 
   it('reconnects with the last event id and recovers on resync', async () => {

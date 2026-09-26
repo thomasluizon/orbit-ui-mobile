@@ -26,6 +26,7 @@ import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-na
 import { createTokensV2, getRuntimeTheme } from './theme'
 import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
+import { AccountEventConnection } from './account-event-connection'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
 import './i18n'
 
@@ -119,6 +120,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
     <ThemeProvider>
       <View style={{ flex: 1 }}>
         <OfflineManager />
+        <AccountEventConnection />
         {children}
       </View>
     </ThemeProvider>

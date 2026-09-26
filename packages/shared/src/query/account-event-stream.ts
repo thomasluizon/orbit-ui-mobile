@@ -46,7 +46,7 @@ function parseBlock(block: string): ParsedAccountEvent | null {
   }
   if (type !== 'changes' && type !== 'resync') return null
   const result = accountEventPayloadSchema.safeParse(payload)
-  if (!result.success) return null
+  if (!result.success) return { type: 'resync', payload: { v: 1, changes: [] }, id: field('id')[0] || null }
   return { type, payload: result.data, id: field('id')[0] || null }
 }
 
@@ -58,7 +58,7 @@ interface StreamResponse {
 interface AccountEventStreamOptions {
   open: (signal: AbortSignal, lastEventId: string | null) => Promise<StreamResponse>
   onEvent: (event: ParsedAccountEvent) => void
-  onReconnect: () => void
+  onReconnect: (lastEventId: string | null) => void
   signal: AbortSignal
 }
 
@@ -75,17 +75,20 @@ function waitForRetry(signal: AbortSignal, delay: number): Promise<void> {
   })
 }
 
+function streamIsActive(signal: AbortSignal): boolean {
+  return !signal.aborted
+}
+
 export async function consumeAccountEventStream(options: AccountEventStreamOptions): Promise<void> {
   let lastEventId: string | null = null
   let retry = 0
-  let attempted = false
   for (;;) {
     if (options.signal.aborted) return
-    if (attempted) options.onReconnect()
-    attempted = true
+    let opened = false
     try {
       const response = await options.open(options.signal, lastEventId)
       if (!response.ok || !response.body) throw new Error('Account event stream unavailable')
+      opened = true
       await readEvents(response.body, options.signal, (event) => {
         if (event.id) lastEventId = event.id
         options.onEvent(event)
@@ -94,6 +97,7 @@ export async function consumeAccountEventStream(options: AccountEventStreamOptio
     } catch {
       retry = Math.min(retry + 1, 5)
     }
+    if (opened && streamIsActive(options.signal)) options.onReconnect(lastEventId)
     await waitForRetry(options.signal, Math.min(1000 * 2 ** retry, 30000))
   }
 }

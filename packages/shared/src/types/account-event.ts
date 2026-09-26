@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 export const accountChangeSchema = z.object({
-  kind: z.enum(['habit', 'habitLog', 'goal', 'goalProgress', 'tag', 'checklistTemplate', 'notification', 'profile']),
-  op: z.enum(['create', 'update', 'delete']),
+  kind: z.string().min(1),
+  op: z.string().min(1),
   ids: z.array(z.uuid()),
   dates: z.array(z.iso.date()).nullish(),
 })

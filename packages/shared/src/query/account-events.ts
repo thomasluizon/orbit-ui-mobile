@@ -28,6 +28,8 @@ export function accountChangeQueryKeys(change: AccountChange): QueryKey[] {
       return [notificationKeys.all]
     case 'profile':
       return [profileKeys.all, habitKeys.all, gamificationKeys.all]
+    default:
+      return TODAY_KEYS
   }
 }
 
