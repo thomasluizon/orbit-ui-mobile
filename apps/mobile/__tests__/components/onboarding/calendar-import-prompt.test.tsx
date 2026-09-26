@@ -129,11 +129,7 @@ describe('CalendarImportPrompt gating', () => {
   })
 })
 
-/**
- * Later used to call `dismissPrompt()` straight through, which flipped the
- * gating state and unmounted a presented TrueSheet. It has to wait for the
- * dismissal.
- */
+/** Wait for TrueSheet dismissal before changing the state that unmounts it. */
 describe('CalendarImportPrompt quiet dismissal', () => {
   beforeEach(() => {
     sheetTestControls.defer(true)

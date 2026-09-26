@@ -412,11 +412,8 @@ function resolveUtcUntilDate(
 }
 
 /**
- * The last date a finite RRULE still fires, as an ISO date, or null when the rule never ends.
- *
- * UNTIL is already that date. COUNT is not: it is an occurrence tally, so the date has to be walked
- * from the start. Orbit stores a bound as `endDate`, so an unmapped COUNT or UNTIL becomes a habit
- * that outlives the calendar series it came from.
+ * The last date a finite RRULE still fires, as an ISO date, or null when the rule never
+ * ends. UNTIL is already that date.
  */
 export function resolveCalendarSyncEndDate(
   rule: string | null,

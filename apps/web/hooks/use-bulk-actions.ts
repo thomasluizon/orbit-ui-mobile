@@ -58,11 +58,7 @@ export function useBulkActions({
     currentPermission.current = { selectedDateStr, completionReadOnly }
   }, [selectedDateStr, completionReadOnly])
 
-  /**
-   * The confirmation asks the person to delete the habits they selected. Its owner clears it on a
-   * date change and on a read-only day, and neither of those is an account change, so an armed
-   * delete used to sit over the next account's Today with the previous account's count on it.
-   */
+  /** Clear an armed delete when the account changes, not only when the date changes. */
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useAccountScopedState(false)
 
   const applyBulkMutationSuccesses = useCallback((

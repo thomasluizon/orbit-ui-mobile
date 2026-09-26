@@ -1376,12 +1376,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
-  /**
-   * `xpEarned` is 0 here because that is what the server actually sends for a bad habit:
-   * GamificationService.cs:170 is `habit.IsBadHabit ? 0 : ...`. The fixture used to send 25, a
-   * response the API cannot produce, and the client then needed its own bad-habit gate to discard
-   * it. That gate is what dropped every reward for a habit missing from the list cache.
-   */
+  /** The server awards no XP for a bad habit, so the fixture must return zero. */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', () => {
     seedHabitState([makeHabit({
       id: 'parent-1',
@@ -1410,11 +1405,7 @@ describe('mobile habit hooks', () => {
     expect(gamification.totalXp).toBe(100)
   })
 
-  /**
-   * THE defect the connector found on #699, mirrored from web for parity. Rewards the server
-   * already granted were discarded whenever the habit was absent from the list cache, which is the
-   * ordinary state on a deep link or a cold navigation.
-   */
+  /** Rewards must update when a deep link leaves the habit absent from the list cache. */
   it('banks XP and refreshes achievements for a habit that is not in the list cache', () => {
     seedHabitState([makeHabit({ id: 'cached-habit' })])
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })

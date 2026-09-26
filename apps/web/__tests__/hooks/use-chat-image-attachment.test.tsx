@@ -29,7 +29,7 @@ function fileSelectEvent(file: File | undefined): ChangeEvent<HTMLInputElement> 
 }
 
 function signInAs(userId: string) {
-  useAuthStore.getState().setAuth({ userId, name: 'Thomas', email: 'thomas@example.com' })
+  useAuthStore.getState().setAuth({ userId, name: 'Alex', email: 'alex@example.com' })
 }
 
 function answerSessionWith(session: { expiresAt: number; userId: string }) {

@@ -1,38 +1,16 @@
 const ACCOUNT_SIGNAL_CHANNEL = 'orbit-account-signal'
 
 /**
- * Tells the other tabs which account the shared auth cookie now holds, at the moment it changes.
- *
- * The cookie belongs to every tab at once and a tab gets no event when another one replaces it, so
- * before this the only detection was the 60-second `checkSession` poll. A poll samples; it cannot
- * close the window, only shrink it, and every shortening costs one request per tab per interval.
- *
- * `BroadcastChannel` carries the signal rather than a `storage` event, for three reasons. It says
- * what it is, where a `storage` listener has to filter every unrelated key the app writes. It
- * carries a structured payload instead of a string the receiver parses back. And it needs no
- * durable write, where the `storage` route has to leave the account id in `localStorage` and then
- * remove it, which is both a same-origin record of who signed in and a second event to ignore.
- *
- * Where `BroadcastChannel` is missing the signal simply never arrives and the 60-second poll stays
- * the detector, which is the behaviour every tab has today. Nothing depends on delivery.
- *
- * Mobile gets no equivalent, and the parity exemption is the cookie against SecureStore adapter.
- * One app has one runtime and no second tab to replace the account under it, and every request
- * reads the token out of SecureStore and sends it as an explicit Bearer, so the credential is bound
- * when the request is built rather than picked up by the platform when it is sent.
+ * Tells the other tabs which account the shared auth cookie now holds, at the moment it
+ * changes. The cookie belongs to every tab at once and a tab gets no event when another one
+ * replaces it, so before this the only detection was the 60-second `checkSession` poll.
  */
 let accountChannel: BroadcastChannel | null = null
 
 /**
- * One channel for the life of the tab, opened on first use.
- *
- * A channel per message loses the message. Measured in this repository on 2026-09-18: a sender that
- * posts and closes in the same turn delivered 0 of 200 messages, where a sender left open delivered
- * 200 of 200. Closing tears the port down before the runtime has moved anything across it, so the
- * post has to outlive the turn that made it.
- *
- * A channel never receives its own posts, so one channel for both directions also means this tab
- * never hears itself, and no message carries a tab id to filter on.
+ * One channel for the life of the tab, opened on first use. Closing tears the port down
+ * before the runtime has moved anything across it, so the post has to outlive the turn that
+ * made it.
  */
 function openAccountChannel(): BroadcastChannel | null {
   if (accountChannel) return accountChannel
@@ -65,12 +43,9 @@ function readAccountSignal(payload: unknown): AccountSignal | null {
 }
 
 /**
- * Announces the account a session just started under, or `null` for a sign out. Both transitions
- * travel, because a tab left believing a dead account is still live keeps that account's habits,
- * goals and alerts on screen for whoever is at the keyboard next.
- *
- * The posting channel never receives its own message, and a listener open in this same tab that
- * does receive it reads a state it is already in, so the sending tab does nothing either way.
+ * Announces the account a session just started under, or `null` for a sign out. Both
+ * transitions travel, because a tab left believing a dead account is still live keeps that
+ * account's habits, goals and alerts on screen for whoever is at the keyboard next.
  */
 export function announceAccountToOtherTabs(accountId: string | null): void {
   openAccountChannel()?.postMessage({ accountId } satisfies AccountSignal)

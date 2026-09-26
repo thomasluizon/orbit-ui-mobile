@@ -68,19 +68,8 @@ class OrbitWidgetModule : Module() {
     }
 
     /**
-     * A non-reversible name for the session that owns a cached payload.
-     *
-     * The session is the ACCOUNT, never the access token. An access token rotates on every silent
-     * refresh, and `apiClient` refreshes and retries on a 401 as a matter of routine, so a key made
-     * from the token bytes threw away a cache that was still correct and made the app-pushed write
-     * useless on the path that needs it most. The account claim survives a refresh and changes when
-     * somebody else signs in, which is exactly the boundary the cache needs.
-     *
-     * Every writer of `habits_json` tags the payload with this key and `OrbitWidgetService` reads a
-     * payload back only when the tag matches. One derivation serves both writers and the reader, so
-     * an app-pushed payload and a natively fetched one are readable by the same account.
-     *
-     * The token stays in encrypted preferences; only this digest reaches the plain widget cache.
+     * A non-reversible name for the session that owns a cached payload. The session is the
+     * ACCOUNT, never the access token.
      */
     fun sessionKey(token: String): String =
       MessageDigest.getInstance("SHA-256")
@@ -88,12 +77,9 @@ class OrbitWidgetModule : Module() {
         .joinToString("") { byte -> "%02x".format(byte) }
 
     /**
-     * The account a JWT names, or null when it names none.
-     *
-     * The three claims and their precedence are copied from `getUserFromPayload` in
-     * `apps/mobile/stores/auth-store.ts`, which reads these same tokens in production. A token with
-     * no identity falls back to the token itself above: that account keeps the older
-     * one-extra-fetch-per-rotation behaviour and still cannot read another account's payload.
+     * The account a JWT names, or null when it names none. The three claims and their precedence
+     * are copied from `getUserFromPayload` in `apps/mobile/stores/auth-store.ts`, which reads
+     * these same tokens in production.
      */
     private fun accountId(token: String): String? {
       val segments = token.split(".")
@@ -176,18 +162,8 @@ class OrbitWidgetModule : Module() {
 
     AsyncFunction("syncWidgetData") { json: String, token: String ->
       val context = moduleContext()
-      // The payload carries the session that produced it, exactly like the native fetch does.
-      // Without the tag the widget cannot read this cache back, so it discards data the app has
-      // already fetched, repeats the request natively, and keeps no fallback when that request
-      // fails.
-      //
-      // OWNERSHIP COMES FROM THE CALLER, never from whichever token is current when this bridge
-      // call runs. The app fetched under `token`, and a sign-out or an account switch can land
-      // while that request is in flight. Reading the current token here would label one account's
-      // habits with the next account's session and put them on their home screen.
-      //
-      // The comparison is between ACCOUNTS, not token bytes, so the silent refresh that
-      // `apiClient` performs on a 401 keeps its own response rather than discarding it.
+      // Label the payload with the caller's account, since sign-out can occur during the fetch.
+      // Compare accounts so a token refresh keeps the same account's cache.
       val session = sessionKey(token)
       if (getToken(context)?.let { sessionKey(it) } == session) {
         context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)

@@ -341,8 +341,6 @@ export function useLogHabit() {
        * The CELEBRATION still needs a known good habit, and deliberately so: a bad habit's
        * "streak" is consecutive abstinence, the opposite semantics, and an unresolvable habit
        * cannot be shown to be either. Celebrating on a guess is user-visible harm.
-       *
-       * The RECONCILIATION below does not, which is the defect. See the comment there.
        */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
@@ -382,15 +380,7 @@ export function useLogHabit() {
 
       /**
        * Rewards the server already granted are reconciled from the RESPONSE, with no list-cache
-       * requirement. Gating these on `countsTowardStreak` dropped them entirely whenever the habit
-       * was not in cache, which is the ordinary state on a deep link or a cold navigation: XP
-       * silently unbanked and the achievement list never refreshed.
-       *
-       * The habit kind cannot change the answer here, so it is not consulted. A bad habit earns
-       * ZERO XP server-side (GamificationService.cs:170, `habit.IsBadHabit ? 0 : ...`), so adding
-       * `response.xpEarned` is a no-op for one; and a bad habit CAN still grant an achievement,
-       * because GamificationService.cs:175 grants BadHabitBreaker at a 30 day abstinence streak.
-       * The old gate therefore dropped a real achievement as well.
+       * requirement. The habit kind cannot change the answer here, so it is not consulted.
        */
       if (response.xpEarned || response.newAchievementIds?.length) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {

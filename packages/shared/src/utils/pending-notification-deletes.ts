@@ -8,15 +8,9 @@ type PendingDeleteExecutor = () => unknown
 const PENDING_DELETE_DELAY_MS = 5000
 
 /**
- * How long a failed delayed delete keeps its notice and its retry. Twice the undo window, because a
- * failure is read and acted on rather than waited out, and bounded because the notice lives in the
- * authenticated shell: an entry with no life stacks one more line onto every route the person visits
- * for as long as the tab runs. When the life ends the notification is already back in the inbox, so
- * deleting it again is the same one action the retry was.
- *
- * The toast runs the clock rather than this module, because only the toast can see a pointer resting
- * on it or focus sitting inside it, and a timer that keeps running under either takes the retry away
- * from the person who is reaching for it.
+ * How long a failed delayed delete keeps its notice and its retry. When the life ends the
+ * notification is already back in the inbox, so deleting it again is the same one action the
+ * retry was.
  */
 export const FAILED_DELETE_NOTICE_LIFE_MS = 10000
 

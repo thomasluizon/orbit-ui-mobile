@@ -11,10 +11,6 @@ const STEP_UP_STORAGE_PREFIX = 'orbit.step-up'
 
 /**
  * Names the timing record after the account that asked for the code.
- *
- * The store outlives the account on both platforms, so a key with no account in it hands the
- * previous account's exhausted window to the next one, which locks a stranger out of deleting
- * their own account for the rest of the attempt window.
  */
 export function getStepUpStorageKey(operation: StepUpOperation, accountId: string): string {
   return buildAccountScopedStorageKey(`${STEP_UP_STORAGE_PREFIX}.${operation}`, accountId)

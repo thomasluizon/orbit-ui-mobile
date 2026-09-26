@@ -127,7 +127,7 @@ function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
 const frame = (json: string) => `data: ${json}\n\n`
 
 function signInAs(userId: string) {
-  useAuthStore.getState().setAuth({ userId, name: 'Thomas', email: 'thomas@example.com' })
+  useAuthStore.getState().setAuth({ userId, name: 'Alex', email: 'alex@example.com' })
 }
 
 function answerSessionWith(session: { expiresAt: number; userId: string }) {

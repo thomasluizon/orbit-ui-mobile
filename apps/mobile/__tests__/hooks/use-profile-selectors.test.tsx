@@ -106,7 +106,7 @@ describe('mobile useProfile selectors', () => {
   it('exposes the profile query result and patch/invalidate helpers', async () => {
     const result = await renderHookValue(() => useProfile())
 
-    expect(result.profile?.email).toBe('thomas@example.com')
+    expect(result.profile?.email).toBe('alex@example.com')
     expect(typeof result.patchProfile).toBe('function')
     expect(typeof result.invalidate).toBe('function')
   })

@@ -85,10 +85,7 @@ it('starts the session monitor to verify the server account', async () => {
   await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith('/api/auth/session'))
 })
 
-/**
- * `#622`: the replacement this route could not see. The next account owns no record under their own
- * key, so the challenge, the code typed into it and the scheduled deletion date all leave with it.
- */
+/** A replacement account has no challenge record, code, or scheduled deletion under its key. */
 it('returns to Profile when another account replaces the tab mid challenge', async () => {
   storeLiveChallenge('user-1')
   await act(async () => {

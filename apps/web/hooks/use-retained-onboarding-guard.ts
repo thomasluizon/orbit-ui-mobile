@@ -23,13 +23,10 @@ interface EntrySnapshot {
 }
 
 /**
- * Decides the post-auth retained onboarding overlay for the current account. A brand-new account
- * (no habits) sees the overlay; an account that already has habits — a pre-migration user, or one
- * that abandoned onboarding after creating habits — is auto-completed instead of re-onboarded.
- * Whether the account already had habits is frozen at entry because the overlay itself creates
- * habits during the flow. Neither shell unmounts across an account change, so the snapshot and the
- * spent auto-complete both carry the account generation they belong to and stop counting for the
- * next account. Returns whether to render the overlay.
+ * Decides the post-auth retained onboarding overlay for the current account. A brand-new
+ * account (no habits) sees the overlay; an account that already has habits — a pre-migration
+ * user, or one that abandoned onboarding after creating habits — is auto-completed instead
+ * of re-onboarded.
  */
 export function useRetainedOnboardingGuard(
   profile: Profile | null | undefined,

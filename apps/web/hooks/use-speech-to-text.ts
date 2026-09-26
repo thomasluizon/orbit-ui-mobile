@@ -239,12 +239,9 @@ export function useSpeechToText() {
   ])
 
   /**
-   * The app shell keeps this hook mounted through an account change, so a recording the previous
-   * account started would keep running and post their audio under the next account's cookie, where
-   * the composer appends the text to a draft it saves. Detaching the handlers before the stop is
-   * what makes that airtight: `stop()` can still deliver one last chunk, and a listener left
-   * attached would build a blob out of it and send it. The microphone is released with it, rather
-   * than left open for a person who never turned it on.
+   * The app shell keeps this hook mounted through an account change, so a recording the
+   * previous account started would keep running and post their audio under the next account's
+   * cookie, where the composer appends the text to a draft it saves.
    */
   const discardRecording = useCallback(() => {
     const recorder = mediaRecorderRef.current

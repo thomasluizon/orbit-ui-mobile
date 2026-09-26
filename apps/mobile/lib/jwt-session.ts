@@ -8,11 +8,9 @@ export interface JwtSessionPayload {
 }
 
 /**
- * A JWT payload segment is unpadded base64url, never base64. `atob` rejects the legal `-` and `_`
- * characters, so a token carrying either decoded to null and read as a foreign account.
- *
- * This mirrors `decodeBase64Url` in `apps/web/lib/auth-api.ts`, which web has always had. Mobile
- * decoded tokens with a bare `atob` before this, in the auth store, so both readers are fixed here.
+ * A JWT payload segment is unpadded base64url, never base64. `atob` rejects the legal `-`
+ * and `_` characters, so a token carrying either decoded to null and read as a foreign
+ * account.
  */
 function decodeBase64Url(segment: string): string {
   const normalized = segment.replaceAll('-', '+').replaceAll('_', '/')

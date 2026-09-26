@@ -679,12 +679,9 @@ export function formatHabitReminderLabel(
 }
 
 /**
- * Translates an AI habit-setup suggestion into a platform-agnostic patch for the create-habit form.
- * Decides flexible vs recurring vs one-time from the suggestion; for a flexible cadence the form
- * quantity is the per-period target (`flexibleTarget`), since the suggestion's own quantity is the
- * interval. Keeps suggested weekdays only for a daily (Day, quantity 1) schedule, carries the due
- * time, surfaces the sub-habit titles, and maps the checklist strings to unchecked checklist items
- * (distinct from sub-habits). The per-app caller applies this to its form state.
+ * Keeps suggested weekdays only for a daily (Day, quantity 1) schedule, carries the due
+ * time, surfaces the sub-habit titles, and maps the checklist strings to unchecked checklist
+ * items (distinct from sub-habits).
  */
 export function buildHabitFormPatchFromSuggestion(
   suggestion: HabitSetupSuggestion,
@@ -725,12 +722,10 @@ export function buildHabitFormPatchFromSuggestion(
 }
 
 /**
- * Coalesces a react-hook-form text field to an empty string. `watch` / `useWatch`
- * / `getValues` type a required string field (e.g. the habit title) as `string`,
- * but return `undefined` before RHF applies `defaultValues`, so callers pass the
- * `string`-typed read into this honest `string | undefined` boundary rather than
- * guarding a value the type claims is always present.
- * https://github.com/thomasluizon/orbit-ui-mobile/issues/424
+ * `watch` / `useWatch` / `getValues` type a required string field (e.g. the habit title) as
+ * `string`, but return `undefined` before RHF applies `defaultValues`, so callers pass the
+ * `string`-typed read into this honest `string | undefined` boundary rather than guarding a
+ * value the type claims is always present..
  */
 export function coalesceFormText(value: string | undefined): string {
   return value ?? ''

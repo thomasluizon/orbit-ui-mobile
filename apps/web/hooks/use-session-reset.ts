@@ -22,14 +22,9 @@ export function useAccountGeneration(): number {
 }
 
 /**
- * Drops account-scoped state the moment the tab moves to another account. The app shell never
- * unmounts, so a hook keeps its own state across an account change and no store reset can reach it.
- * The caller passes the reset it owns; the callback may be rebuilt on every render, because the
- * latest one is read at the moment the account changes rather than captured in a dependency.
- *
- * It follows the ACCOUNT rather than the session epoch, which rises on every credential change: a
- * rejected refresh that recovers as the same account would otherwise revoke a pasted image the
- * person is still looking at behind the expiry banner.
+ * Drops account-scoped state the moment the tab moves to another account. The app shell
+ * never unmounts, so a hook keeps its own state across an account change and no store reset
+ * can reach it.
  */
 export function useResetOnAccountChange(reset: () => void): void {
   const accountGeneration = useAccountGeneration()
@@ -47,29 +42,7 @@ export function useResetOnAccountChange(reset: () => void): void {
   }, [accountGeneration])
 }
 
-/**
- * A `useState` that returns to its initial value the moment the tab moves to another account.
- *
- * Every call site this replaces was the same three lines: the state, a reset that listed it, and a
- * `useResetOnAccountChange` holding them together. Nine rounds of `#1019` each closed one surface
- * and left the next one open, because the reset is a second thing to remember and the state is the
- * first. Here the state IS the reset, so a surface that adopts this hook cannot forget it.
- *
- * The reset runs during the render the account change causes, not in an effect after it. React
- * re-renders immediately and never paints the discarded state, which an effect cannot promise:
- * `useAccountGeneration` subscribes through `useSyncExternalStore`, so the rise commits a render
- * carrying the previous account's value and a passive effect clears it one commit later. That
- * is a frame of exactly what this hook exists to prevent.
- *
- * The initial value is re-read at the account change rather than captured at mount, so a lazy
- * initializer that reads a module-level grant returns the NEXT account's answer, not the previous
- * account's: React reads a function handed to the setter as an updater, and an initializer takes no
- * argument, so the same value runs the same way at the mount and at the reset. Pass a function
- * wherever the initial value is a fresh object, for the reason React already documents: an eagerly
- * built one is shared between the mount and every later reset.
- * Setters from an earlier render also carry that render's account generation. A request started
- * under one account cannot repopulate the next account's state when it resolves later.
- */
+/** Reset local state when the tab changes accounts, including state a caller may forget to clear. */
 export function useAccountScopedState<S>(
   initialState: S | (() => S),
 ): [S, Dispatch<SetStateAction<S>>] {

@@ -491,18 +491,8 @@ class OrbitWidgetFactory(
 
         val widgetData = resolveWidgetData(token)
 
-        // resolveWidgetData can block for seconds, and everything below repopulates the cache and
-        // the signed-in header, so a load must prove it still owns the session before it lands.
-        // The three ways it can stop owning it are NOT the same:
-        //
-        //  - the token is gone or names a DIFFERENT ACCOUNT: clear this factory's rows only.
-        //    The token change already refreshed the shared widget, and a newer factory may have
-        //    published its render since this fetch started.
-        //  - the token changed but names the SAME account: an access-token rotation, and the person
-        //    is still signed in. auth-store.ts calls saveWidgetToken after every refresh, and
-        //    OrbitWidgetModule.saveToken refreshes the widgets, so a NEWER load already owns the
-        //    render. This one drops silently rather than blanking a signed-in widget, and it must
-        //    keep the rows on screen because they are still that person's rows.
+        // A slow fetch must still own the account before publishing its rows.
+        // Clear rows after sign-out or account change; keep them after token rotation.
         synchronized(OrbitWidgetModule.accountRenderLock) {
             val currentToken = OrbitWidgetModule.getToken(context)
             if (currentToken == null) {
@@ -569,25 +559,9 @@ class OrbitWidgetFactory(
     }
 
     /**
-     * Returns parsed widget data, preferring a recent app-pushed cache, then a live fetch, then the
-     * last cached payload. Only the network fetch can fail, so a blip or a blocked binder-thread
-     * request degrades to stale data instead of a blank list. A successful fetch is cached for the
-     * next cold start.
-     *
-     * The payload cache belongs to ONE session and says so.
-     *
-     * Without that, a fetch still in flight at logout writes its response back after the cache is
-     * cleared, and the next account to sign in reads it as fresh and renders another person's
-     * habits without ever making a request under its own token. Ordering the write against the
-     * logout does not fix it either: `onDataSetChanged` is synchronized, so the replacement
-     * callback simply runs after the old one has already landed.
-     *
-     * So ownership is recorded rather than inferred. A payload is only readable by the account that
-     * produced it, whatever order the callbacks finish in. The key names the ACCOUNT rather than the
-     * access token, so a silent refresh keeps the cache it just filled.
-     *
-     * `OrbitWidgetModule.syncWidgetData` tags its app-pushed payload with the same key, so the two
-     * writers stay readable by one account and a fresh sign-in keeps the data the app already has.
+     * Returns parsed widget data, preferring a recent app-pushed cache, then a live fetch, then
+     * the last cached payload. Only the network fetch can fail, so a blip or a blocked
+     * binder-thread request degrades to stale data instead of a blank list.
      */
     private fun resolveWidgetData(token: String): HabitWidgetResponse? {
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
@@ -773,12 +747,8 @@ class OrbitWidgetFactory(
 
     /**
      * The mark is the ONLY place a row says done, overdue or pending: the title and the due time
-     * never name the state. So it carries an accessible name beside the icon and the colour, or the
-     * state is readable by sight alone.
-     *
-     * The name comes through `tr()` like every other visible string, not from an `@string` in the
-     * layout, because the widget renders the account's language from the cached payload rather than
-     * the device's resource configuration.
+     * never name the state. So it carries an accessible name beside the icon and the colour, or
+     * the state is readable by sight alone.
      */
     private fun applyStatusMark(views: RemoteViews, habit: HabitItem) {
         val (icon, description) = when {

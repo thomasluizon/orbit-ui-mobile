@@ -18,16 +18,7 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
-/**
- * The architecture map is GENERATED and no longer committed (thomasluizon/orbit-tickets#470), so this
- * file generates its own input instead of importing a checked-in artifact. It regenerates on every run
- * rather than reusing whatever is on disk: this test asserts i18n OWNERSHIP, and asserting ownership
- * against a map that predates the routes it describes is the staleness the provenance block exists to
- * expose. The generator takes a few seconds and is deterministic.
- *
- * Only the two fields this file reads are typed. A wider type would be a second, hand-kept copy of the
- * generator's output shape, which is the thing that goes stale.
- */
+
 const REPO_ROOT = join(__dirname, '..', '..', '..')
 
 type ArchitectureMap = {

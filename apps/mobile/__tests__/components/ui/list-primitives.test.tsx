@@ -269,7 +269,7 @@ describe('list primitives on mobile', () => {
       <SettingsGroup
         items={[
           { label: 'Version' },
-          { label: 'Profile', value: 'Thomas', trailing: <Text>Verified</Text>, onClick: openProfile },
+          { label: 'Profile', value: 'Alex', trailing: <Text>Verified</Text>, onClick: openProfile },
           { label: 'Plan', value: 'Pro' },
           { label: 'Privacy', onClick: openPrivacy },
         ]}
@@ -281,7 +281,7 @@ describe('list primitives on mobile', () => {
     expect(tree.root.findAllByType(Text).map((node) => node.props.children)).toEqual([
       'Version',
       'Profile',
-      'Thomas',
+      'Alex',
       'Verified',
       'Plan',
       'Pro',

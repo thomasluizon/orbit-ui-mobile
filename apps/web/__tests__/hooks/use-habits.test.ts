@@ -12,7 +12,7 @@ import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitSched
 const mockFetch = vi.fn()
 
 beforeEach(() => {
-  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
 })
 
 describe('search cache settlement', () => {
@@ -822,12 +822,7 @@ describe('useLogHabit onSuccess', () => {
     mockSetStreakCelebration.mockClear()
   })
 
-  /**
-   * `xpEarned` is 0 here because that is what the server actually sends for a bad habit:
-   * GamificationService.cs:170 is `habit.IsBadHabit ? 0 : ...`. The fixture used to send 25, a
-   * response the API cannot produce, and the client then needed its own bad-habit gate to discard
-   * it. That gate is what dropped every reward for a habit missing from the list cache.
-   */
+  /** The server awards no XP for a bad habit, so the fixture must return zero. */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
@@ -861,12 +856,7 @@ describe('useLogHabit onSuccess', () => {
     ).toBe(100)
   })
 
-  /**
-   * THE defect the connector found on #699. Rewards the server already granted were discarded
-   * whenever the habit was absent from the list cache, which is the ordinary state on a deep link
-   * or a cold navigation. The XP was banked server-side and never shown, and the achievement list
-   * was never refreshed, both silently.
-   */
+  /** Rewards must update when a deep link leaves the habit absent from the list cache. */
   it('banks XP and refreshes achievements for a habit that is not in the list cache', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({

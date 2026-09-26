@@ -136,8 +136,6 @@ async function verifyPlayPurchase(purchase: Purchase): Promise<boolean> {
  * Native Google Play subscription purchasing for the mobile app: connects to Play Billing,
  * exposes localized offers per interval, runs the purchase sheet, verifies the purchase
  * server-side, and restores previous purchases. Android-only; the web app uses Stripe.
- * Pass preferReferralOffer when the backend reports an unused referral coupon so the
- * referral-tagged discount offer is displayed and purchased instead of the base plan.
  */
 export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
   const preferReferralOffer = options?.preferReferralOffer ?? false

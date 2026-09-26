@@ -204,13 +204,9 @@ async function clearSessionCredentials(
 }
 
 /**
- * Drops every unsent thing the previous account left on this device. Both drafts live under one key
- * with no account in it, so one of them left behind is the next person reading, and sending, text
- * that is not theirs. They reset together rather than at two call sites, because a reset added to
- * one and forgotten at the other is how the support draft outlived the Astra one.
- *
- * The account generation rises here rather than beside it, so the composer state no store can
- * reach, a pasted image and an armed retry, drops on exactly the transitions that drop a draft.
+ * Drops every unsent thing the previous account left on this device. Both drafts live under
+ * one key with no account in it, so one of them left behind is the next person reading, and
+ * sending, text that is not theirs.
  */
 async function forgetPreviousAccountContent(): Promise<void> {
   await useChatStore.getState().resetAccountScopedChat()
@@ -312,12 +308,9 @@ async function classifyRejectedRefresh(
 }
 
 /**
- * Rotates the access token using the stored refresh token. Uses raw fetch, not
- * apiClient: apiClient's own 401 handler calls this function, so routing it back
- * through apiClient would invert the dependency and lose the clearOnFailure
- * contract (apiClient throws + clears unconditionally; this returns a discriminated
- * outcome. A transient network failure preserves the session and a real auth
- * rejection is reported to the coordinated caller.
+ * Uses raw fetch, not apiClient: apiClient's own 401 handler calls this function, so routing
+ * it back through apiClient would invert the dependency and lose the clearOnFailure contract
+ * (apiClient throws + clears unconditionally; this returns a discriminated outcome.
  */
 async function rotateSessionToken(
   epoch: number,

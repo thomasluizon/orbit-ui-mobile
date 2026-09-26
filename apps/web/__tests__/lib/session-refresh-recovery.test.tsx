@@ -28,8 +28,8 @@ describe('session refresh recovery', () => {
       isAuthenticated: true,
       user: {
         userId: 'user-1',
-        name: 'Thomas',
-        email: 'thomas@example.com',
+        name: 'Alex',
+        email: 'alex@example.com',
       },
       expiresAt: Date.now() + 60_000,
       sessionRefreshFailed: false,

@@ -51,12 +51,8 @@ export interface DrillNavigationState {
 }
 
 /**
- * Manages sub-habit drill-down navigation.
- * Keeps a stack of parent IDs and fetches children on demand.
- *
  * @param habitsById - The normalized habits map from the main query
  * @param lastUpdated - Counter that increments when the habits query refetches
- *   (used to auto-refresh drill children for eventual consistency)
  */
 export function useDrillNavigation(
   habitsById: Map<string, NormalizedHabit>,

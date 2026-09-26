@@ -117,20 +117,20 @@ describe('useSpeechToText', () => {
     })
 
     it('does not send a recording after the account changes', async () => {
-      useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+      useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
       const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => Response.json({ text: 'hello' }))
       vi.stubGlobal('fetch', fetchMock)
       const { result } = renderHook(() => useSpeechToText())
 
       await act(async () => { await result.current.startRecording() })
-      useAuthStore.getState().setAuth({ userId: 'account-b', name: 'Thomas', email: 'thomas@example.com' })
+      useAuthStore.getState().setAuth({ userId: 'account-b', name: 'Alex', email: 'alex@example.com' })
       await act(async () => { result.current.stopRecording() })
 
       expect(fetchMock).not.toHaveBeenCalled()
     })
 
     it('shows reload guidance after a transcription account switch refusal', async () => {
-      useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+      useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
       vi.stubGlobal('fetch', vi.fn(async () => Response.json({
         error: 'Account changed', errorCode: 'ACCOUNT_CHANGED',
       }, { status: 409 })))

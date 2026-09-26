@@ -1,10 +1,6 @@
 /**
- * The semantic z-index scale (DESIGN.md, Stacking): overlays stack on a named
- * tier, never a hand-picked number. Values spaced by 100 so they sit far above
- * local stacking. Two deliberate Orbit inversions: celebration sits just below
- * toast (a toast may need to surface over a celebration). Web mirrors these as the
- * --z-index-* tokens in globals.css; mobile consumes this export directly.
- * Local sibling stacking (1..9) has no tier here on purpose.
+ * The semantic z-index scale (DESIGN.md, Stacking): overlays stack on a named tier, never a
+ * hand-picked number. Values spaced by 100 so they sit far above local stacking.
  */
 export const zLayers = {
   dropdown: 1000,

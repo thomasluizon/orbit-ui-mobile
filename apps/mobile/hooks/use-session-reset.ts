@@ -12,14 +12,9 @@ export function useAccountGeneration(): number {
 }
 
 /**
- * Drops account-scoped state the moment the device moves to another account. The root layout never
- * unmounts, so a hook keeps its own state across an account change and no store reset can reach it.
- * The caller passes the reset it owns; the callback may be rebuilt on every render, because the
- * latest one is read at the moment the account changes rather than captured in a dependency.
- *
- * It follows the ACCOUNT rather than the session epoch, which rises on every credential change: a
- * rejected refresh that recovers as the same account would otherwise revoke a pasted image the
- * person is still looking at behind the expiry banner.
+ * Drops account-scoped state the moment the device moves to another account. The root layout
+ * never unmounts, so a hook keeps its own state across an account change and no store reset
+ * can reach it.
  */
 export function useResetOnAccountChange(reset: () => void): void {
   const accountGeneration = useAccountGeneration()

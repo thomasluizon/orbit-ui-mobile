@@ -12,13 +12,9 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 /**
- * BFF: GET /api/subscriptions/plans
- * Dedicated route that proxies plan pricing to the .NET backend.
- * Forwards the client's real IP via X-Forwarded-For for geolocation-based pricing.
- *
- * This takes precedence over the catch-all proxy because Next.js resolves
- * specific routes before [...path]. The catch-all does NOT forward X-Forwarded-For,
- * which breaks geolocation-based pricing on the backend.
+ * BFF: GET /api/subscriptions/plans Dedicated route that proxies plan pricing to the .NET
+ * backend. This takes precedence over the catch-all proxy because Next.js resolves specific
+ * routes before [...path].
  */
 
 function buildHeaders(

@@ -17,10 +17,9 @@ const SETTLE_DELAY_MS = 500
 
 /**
  * One-time LGPD-lawful marketing-email consent nudge. Shows once onboarding is complete, the
- * armed slot holds a consent prompt, and no celebration is in flight — deliberately skipping the
- * shared 14-day cooldown while still recording the prompt so other prompts treat it as recent.
- * Dismissing leaves consent undecided (null) so it can re-ask; an explicit Yes/No persists the
- * decision and the strict `=== null` arming gate prevents it from ever re-showing.
+ * armed slot holds a consent prompt, and no celebration is in flight — deliberately skipping
+ * the shared 14-day cooldown while still recording the prompt so other prompts treat it as
+ * recent.
  */
 export function MarketingConsentPrompt() {
   const { t } = useTranslation()

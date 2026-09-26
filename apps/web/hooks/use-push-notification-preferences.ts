@@ -110,12 +110,10 @@ export async function loadPushNotificationState(): Promise<PushPreferenceSnapsho
 }
 
 /**
- * Reads the account before the permission prompt rather than after it.
- *
- * The person can sit on that prompt for as long as they like, and the browser's auth cookie is
- * shared with every other tab, so this is the widest window in the app between an intent and the
- * request that carries it. Registering this browser's endpoint under whichever account signed in
- * meanwhile would send that account's push notifications to a device they never armed.
+ * Reads the account before the permission prompt rather than after it. The person can sit on
+ * that prompt for as long as they like, and the browser's auth cookie is shared with every
+ * other tab, so this is the widest window in the app between an intent and the request that
+ * carries it.
  */
 export async function subscribeToPushNotifications(
   vapidKey: string | undefined = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
@@ -162,11 +160,8 @@ export async function subscribeToPushNotifications(
 
 /**
  * The reminder toggle's registration keeps a subscription this browser already holds.
- *
- * `subscribeToPushNotifications` drops the current endpoint before it builds a replacement, so a
- * failed replacement leaves the browser with no push delivery at all. Turning on one habit reminder
- * must never cost the reminders that already work, so an existing endpoint is only re-sent for the
- * signed-in account and stays subscribed whether or not that call succeeds.
+ * `subscribeToPushNotifications` drops the current endpoint before it builds a replacement,
+ * so a failed replacement leaves the browser with no push delivery at all.
  */
 export async function ensurePushSubscription(): Promise<PushPreferenceSnapshot> {
   if (!isPushNotificationSupported() || Notification.permission !== 'granted') {

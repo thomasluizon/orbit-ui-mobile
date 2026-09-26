@@ -49,8 +49,8 @@ import {
 } from '@/__tests__/support/account-change'
 
 const profile = {
-  name: 'Thomas',
-  email: 'thomas@example.com',
+  name: 'Alex',
+  email: 'alex@example.com',
   timeZone: 'America/Sao_Paulo',
   aiSummaryEnabled: true,
   hasCompletedOnboarding: true,
