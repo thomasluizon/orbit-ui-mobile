@@ -582,8 +582,10 @@ function attachPerformanceMetrics(findings, measurement) {
 }
 // </generated:performance-measurement>
 
-const UI = '.'
-const API = '../orbit-api'
+const { pathToFileURL } = await import('node:url')
+const { join } = await import('node:path')
+const { readOrchestratorConfig } = await import(pathToFileURL(join(process.cwd(), 'tools/lib/orchestrator-config.mjs')).href)
+const { ui: UI, api: API } = readOrchestratorConfig().repos
 const VERIFY_CAP = 60
 const HARD_ROUNDS = 4
 

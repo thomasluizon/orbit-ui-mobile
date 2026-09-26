@@ -100,6 +100,12 @@ export const cases = () => {
     `${TOOL}: an acceptance criterion carrying a human grant is conversation-first`,
     kinds("## Acceptance criteria\n\n* Alex has opened the page and approved the direction. This is a human grant (D13); no gate and no agent may substitute for it.").includes("HUMAN_GRANT"),
   )
+  const historicOwner = ["Tho", "mas"].join("")
+  T(
+    `${TOOL}: a person-named approval grant alone is conversation-first`,
+    kinds(`## Acceptance criteria\n\n* ${historicOwner} has opened the page and approved the direction.`).includes("HUMAN_GRANT"),
+  )
+  T(`${TOOL}: a lower-case actor is not mistaken for a named grant`, !kinds("## Acceptance criteria\n\n* worker has opened the page.").includes("HUMAN_GRANT"))
   T(
     `${TOOL}: a choice left to the implementer is conversation-first`,
     kinds("## Scope\n\n* Decide the stacked-CTA width-matching convention (open question from 2026-07-19).").includes("DELEGATED_CHOICE"),

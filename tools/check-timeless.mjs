@@ -46,7 +46,9 @@ function comments(text, path) {
       }
     })
   } else if (js.has(extension)) {
-    let state = "code", start = 0, value = "", previous = ""
+    const jsx = extension === ".jsx" || extension === ".tsx"
+    let state = "code", start = 0, value = "", previous = "", jsxDepth = 0, jsxClosing = false
+    const expressions = []
     for (let i = 0, line = 1; i < text.length; i++) {
       const char = text[i], next = text[i + 1]
       if (state === "line") {
@@ -59,6 +61,29 @@ function comments(text, path) {
         else { value += char; if (char === "\n") line++ }
         continue
       }
+      if (state === "jsx-text") {
+        if (char === "<") { state = "jsx-tag"; jsxClosing = next === "/" }
+        else if (char === "{") { expressions.push({ returnTo: state, depth: 1 }); state = "code" }
+        if (char === "\n") line++
+        continue
+      }
+      if (state === "jsx-tag") {
+        if (char === "'" || char === '"') { state = "jsx-quote"; value = char; continue }
+        if (char === "{") { expressions.push({ returnTo: state, depth: 1 }); state = "code"; continue }
+        if (char === ">") {
+          if (jsxClosing) jsxDepth--
+          else if (text[i - 1] !== "/") jsxDepth++
+          state = jsxDepth > 0 ? "jsx-text" : "code"
+        }
+        if (char === "\n") line++
+        continue
+      }
+      if (state === "jsx-quote") {
+        if (char === "\\") { i++; if (text[i] === "\n") line++; continue }
+        if (char === value) { state = "jsx-tag"; value = "" }
+        if (char === "\n") line++
+        continue
+      }
       if (state !== "code") {
         if (char === "\\") { i++; if (text[i] === "\n") line++; continue }
         if (char === state) state = "code"
@@ -66,6 +91,16 @@ function comments(text, path) {
         continue
       }
       if (char === "\n") { line++; continue }
+      if (expressions.length && char === "{") { expressions.at(-1).depth++; continue }
+      if (expressions.length && char === "}") {
+        const expression = expressions.at(-1)
+        if (--expression.depth === 0) { state = expression.returnTo; expressions.pop() }
+        continue
+      }
+      if (jsx && char === "<" && /[A-Za-z/>]/.test(next ?? "") &&
+        (/[=({[,!?:>]/.test(previous) || /\b(?:return|yield)\s*$/.test(text.slice(0, i)))) {
+        state = "jsx-tag"; jsxClosing = next === "/"; continue
+      }
       if (char === "'" || char === '"' || char === "`") { state = char; continue }
       if (char === "/" && next === "/") { state = "line"; start = line; value = ""; i++; continue }
       if (char === "/" && next === "*") { state = "block"; start = line; value = ""; i++; continue }
@@ -127,8 +162,14 @@ function allowlist(root) {
   const path = join(root, "tools", "timeless-allowlist.json")
   const entries = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : []
   if (!Array.isArray(entries) || entries.some((entry) =>
-    !entry || ["path", "rule", "match", "reason"].some((key) => typeof entry[key] !== "string" || !entry[key]))) {
-    throw new Error("tools/timeless-allowlist.json requires non-empty path, rule, match, and reason strings")
+    !entry || typeof entry.path !== "string" || !entry.path || typeof entry.reason !== "string" || !entry.reason ||
+    !["machine-path", "owner-name", "dated-anecdote", "comment-length"].includes(entry.rule) ||
+    (entry.scope === "directory"
+      ? entry.match !== null || !entry.path.endsWith("/") || !["owner-name", "dated-anecdote"].includes(entry.rule) ||
+        (entry.exclude !== undefined && (!Array.isArray(entry.exclude) ||
+          entry.exclude.some((prefix) => typeof prefix !== "string" || !prefix.startsWith(entry.path) || !prefix.endsWith("/"))))
+      : entry.scope !== undefined || typeof entry.match !== "string" || !entry.match))) {
+    throw new Error("tools/timeless-allowlist.json requires valid exact or directory-scoped entries")
   }
   return entries
 }
@@ -136,7 +177,9 @@ function allowlist(root) {
 function report(results, allowed, checkUnused) {
   const used = new Set(), failures = []
   for (const item of results) {
-    const index = allowed.findIndex((entry) => entry.path === item.path && entry.rule === item.rule && item.match.includes(entry.match))
+    const index = allowed.findIndex((entry) => entry.rule === item.rule && (entry.scope === "directory"
+      ? item.path.startsWith(entry.path) && !(entry.exclude ?? []).some((prefix) => item.path.startsWith(prefix))
+      : entry.path === item.path && item.match.includes(entry.match)))
     if (index < 0) failures.push(`${item.path}:${item.line}: ${item.rule}: ${item.match}`)
     else used.add(index)
   }

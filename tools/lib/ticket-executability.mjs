@@ -73,7 +73,10 @@ export const CONVERSATION_LABEL_OFF = "needs:no-conversation"
 const CONVERSATION_SIGNALS = [
   {
     kind: "HUMAN_GRANT",
-    pattern: /human grant|no gate and no agent may substitute|only a human (?:can|may|grants)|the owner has (?:opened|read|reviewed|seen).{0,40}\bapproved\b/i,
+    pattern: {
+      test: (line) => /human grant|no gate and no agent may substitute|only a human (?:can|may|grants)|the owner has (?:opened|read|reviewed|seen).{0,40}\bapproved\b|the owner (?:has (?:opened|approved)|approves) (?:the )?(?:page|direction|design)\b/i.test(line) ||
+        /\b[A-Z][a-z]+ (?:has (?:opened|approved)|approves) (?:the )?(?:page|direction|design)\b/.test(line),
+    },
     question: (quote, heading) =>
       `${heading} carries a human grant no agent can satisfy: "${quote}". Split the grant into its own ticket, or accept this one stopping short of it?`,
   },
