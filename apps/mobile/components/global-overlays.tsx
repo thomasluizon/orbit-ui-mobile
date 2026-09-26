@@ -1,5 +1,5 @@
 import { lazy, Suspense, type Ref } from 'react'
-import { isExpoGo } from '@/lib/expo-runtime'
+import { isRunningInExpoGo } from 'expo'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import {
   OnboardingActionsProvider,
@@ -27,7 +27,7 @@ import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 
-const PushPrompt = isExpoGo()
+const PushPrompt = isRunningInExpoGo()
   ? () => null
   : lazy(() =>
       import('@/components/ui/push-prompt').then((m) => ({

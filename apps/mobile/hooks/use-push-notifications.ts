@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, Platform } from 'react-native'
 import * as Device from 'expo-device'
+import { isRunningInExpoGo } from 'expo'
 import { useRouter } from 'expo-router'
 import { API } from '@orbit/shared/api'
 import { schemes } from '@orbit/shared/theme'
@@ -10,7 +11,6 @@ import {
   type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
-import { isExpoGo } from '@/lib/expo-runtime'
 import { apiClient } from '@/lib/api-client'
 import {
   normalizePermissionStatus,
@@ -99,7 +99,7 @@ function getModuleDefaultExport(value: object): unknown {
 declare const require: (id: string) => unknown
 
 function getNotificationsModule(): ExpoNotificationsModule | null {
-  if (isExpoGo()) return null
+  if (isRunningInExpoGo()) return null
 
   try {
     const requiredModule = require('expo-notifications')
