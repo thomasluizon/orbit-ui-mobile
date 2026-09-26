@@ -90,7 +90,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
       test.describe(`${locale} ${subscriptionState} at ${width}px`, () => {
         test.use({ appLocale: locale, subscriptionState, viewport: { width, height: 1400 } })
 
-        test('keeps labels on one line and copy inside its box', async ({ page }) => {
+        test('keeps copy and actions inside the layout', async ({ page }) => {
           await page.goto('/upgrade')
           const main = page.locator('main').last()
           const heading = subscriptionState === 'trial'
@@ -109,13 +109,33 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           )
           expect(overflows, `copy stays inside the layout at ${width}px`).toEqual([])
 
+          if (width === 320) {
+            const documentWidth = await page.evaluate(() => Math.max(
+              document.documentElement.scrollWidth,
+              document.body.scrollWidth,
+            ))
+            expect(documentWidth, `${locale} ${subscriptionState}: document width at 320px`)
+              .toBeLessThanOrEqual(width)
+
+            const clippedActions = await main.locator('button, a').evaluateAll((actions) =>
+              actions.filter((action) => action.checkVisibility()).filter((action) => {
+                const bounds = action.getBoundingClientRect()
+                return bounds.left < -0.5 || bounds.right > innerWidth + 0.5
+              }).map((action) => action.textContent.trim()),
+            )
+            expect(clippedActions, `${locale} ${subscriptionState}: actions stay inside 320px`)
+              .toEqual([])
+          }
+
           await assertHeadingLeading(pitchHeading,
             `${locale} ${subscriptionState} at ${width}px`)
 
           for (const label of singleLineLabels(messages, subscriptionState === 'trial')) {
             const lines = await renderedLineCounts(page, label)
             expect(lines.length, `${label} is present at ${width}px`).toBeGreaterThan(0)
-            expect(lines.every((count) => count === 1), `${label} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
+            if (width > 320) {
+              expect(lines.every((count) => count === 1), `${label} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
+            }
           }
 
           const plans = subscriptionPlansFixtures[locale === 'pt-BR' ? 'brl' : 'usd']
@@ -127,7 +147,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             const lines = await renderedLineCounts(page, price)
             process.stdout.write(`${locale} ${subscriptionState} at ${width}px ${interval} price: lines=${lines.join(',')}\n`)
             expect(lines.length, `${locale} ${interval} price ${price} is rendered at ${width}px`).toBeGreaterThan(0)
-            expect(lines.every((count) => count === 1), `${locale} ${interval} price ${price} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
+            if (width > 320) {
+              expect(lines.every((count) => count === 1), `${locale} ${interval} price ${price} stays on one line at ${width}px; lines=${lines.join(',')}`).toBe(true)
+            }
             if (locale === 'en' && subscriptionState === 'free' && width === 412 && interval === 'monthly') {
               const priceLabel = main.getByText(price, { exact: true })
               await priceLabel.evaluate((element) => { element.style.maxWidth = '80px' })

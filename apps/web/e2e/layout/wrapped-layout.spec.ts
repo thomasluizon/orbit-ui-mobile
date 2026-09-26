@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test'
+import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockRecap } from '@orbit/shared/__tests__/factories'
 import { recapResponseSchema } from '@orbit/shared/types/gamification'
+import { profileSchema } from '@orbit/shared/types/profile'
 import { buildRecapRequestUrl, buildWrappedSlides } from '@orbit/shared/utils'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 
 const recap = recapResponseSchema.parse(createMockRecap())
@@ -16,6 +19,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
 
       test('keeps the Pager actions visible without horizontal overflow', async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
+        const profile = profileSchema.parse({ ...profileFixture, language: locale })
+        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`,
+          (route) => route.fulfill({ json: profile }))
         await context.addInitScript(() => {
           Object.defineProperties(navigator, {
             share: { configurable: true, value: async () => undefined },
