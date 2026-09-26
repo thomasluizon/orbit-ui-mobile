@@ -215,6 +215,7 @@ export function useSkipHabit() {
     onSettled: (_response, error, { habitId }) => {
       if (error) return
       invalidateHabitDependents(queryClient, habitId)
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
   })
 }

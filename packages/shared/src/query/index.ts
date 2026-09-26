@@ -24,5 +24,4 @@ export {
 export {
   updateHabitListsForDate,
   invalidateHabitDependents,
-  buildCachedCreatedHabit,
 } from './habit-cache'

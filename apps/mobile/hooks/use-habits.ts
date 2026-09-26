@@ -272,7 +272,7 @@ export function useSkipHabit() {
     },
 
     onSettled: (data, error, { habitId }) => {
-      finalizeHabitMutation(queryClient, data, error, { habitId, includeCount: false })
+      finalizeHabitMutation(queryClient, data, error, { habitId, includeCount: false, includeGoals: true })
     },
   })
 }

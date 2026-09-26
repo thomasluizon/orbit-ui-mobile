@@ -489,7 +489,7 @@ describe('useSkipHabit', () => {
     expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', undefined)
   })
 
-  it('refreshes skip lists and dependents without unrelated families', async () => {
+  it('refreshes skip lists, linked goals and dependents without unrelated families', async () => {
     const { skipHabit } = await import('@/lib/actions/habits')
     vi.mocked(skipHabit).mockResolvedValue(undefined)
 
@@ -507,7 +507,7 @@ describe('useSkipHabit', () => {
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
