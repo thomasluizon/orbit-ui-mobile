@@ -16,6 +16,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { toAnimatedEasing } from '@/lib/motion'
 import { createTokensV2, easings, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { accountStorageKey } from '@/lib/account-storage-key'
 import { resolveCenteredOverlayFrame } from '@/components/ui/centered-overlay-frame'
 
 const STORAGE_LAST_VISIT = 'orbit_last_visit'
@@ -139,9 +140,10 @@ export function WelcomeBackToast() {
         }
 
         const now = Date.now()
-        const lastVisitRaw = await AsyncStorage.getItem(STORAGE_LAST_VISIT)
+        const lastVisitKey = accountStorageKey(STORAGE_LAST_VISIT)
+        const lastVisitRaw = await AsyncStorage.getItem(lastVisitKey)
         const lastVisit = Number(lastVisitRaw ?? '0')
-        await AsyncStorage.setItem(STORAGE_LAST_VISIT, String(now))
+        await AsyncStorage.setItem(lastVisitKey, String(now))
 
         const twentyFourHours = 24 * 60 * 60 * 1000
         if (

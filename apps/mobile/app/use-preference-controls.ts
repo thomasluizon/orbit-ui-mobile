@@ -7,10 +7,9 @@ import { API } from '@orbit/shared/api'
 import { habitKeys } from '@orbit/shared/query'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import {
-  parseShowGeneralOnTodayPreference,
-  resolveSystemLocale,
-} from '@orbit/shared/utils'
+import { resolveSystemLocale } from '@orbit/shared/utils'
+import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
+import { useAccountId } from '@/lib/account-scope'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
@@ -19,6 +18,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import type { PreferencePicker } from './preferences-sections'
 
 export function usePreferenceControls() {
+  const accountId = useAccountId()
   const { i18n } = useTranslation()
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -106,22 +106,19 @@ export function usePreferenceControls() {
 
   useEffect(() => {
     void AsyncStorage.removeItem('orbit_time_format')
-    AsyncStorage.getItem('orbit_show_general_on_today')
+    readShowGeneralOnToday()
       .then((saved) => {
-        setShowGeneralOnToday(parseShowGeneralOnTodayPreference(saved))
+        setShowGeneralOnToday(saved)
       })
       .catch(() => {
         setShowGeneralOnToday(false)
       })
-  }, [])
+  }, [accountId])
 
   async function handleShowGeneralToggle(nextValue: boolean) {
     setShowGeneralOnToday(nextValue)
     try {
-      await AsyncStorage.setItem(
-        'orbit_show_general_on_today',
-        String(nextValue),
-      )
+      await writeShowGeneralOnToday(nextValue)
     } catch {
       setShowGeneralOnToday(!nextValue)
     }

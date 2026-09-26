@@ -12,6 +12,7 @@ import {
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { useReportEvent } from '@/hooks/use-gamification'
+import { accountStorageKey } from '@/lib/account-storage-key'
 
 const WRAPPED_YEAR_SEEN_STORAGE_KEY = 'orbit_wrapped_year_seen'
 
@@ -40,8 +41,9 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
   useEffect(() => {
     if (!active || period !== 'year' || !recap || isEmpty) return
     const storage = globalThis.localStorage
-    if (storage.getItem(WRAPPED_YEAR_SEEN_STORAGE_KEY)) return
-    storage.setItem(WRAPPED_YEAR_SEEN_STORAGE_KEY, '1')
+    const storageKey = accountStorageKey(WRAPPED_YEAR_SEEN_STORAGE_KEY)
+    if (storage.getItem(storageKey)) return
+    storage.setItem(storageKey, '1')
     reportEvent(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
     // react-doctor-disable-next-line exhaustive-deps -- recap aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [active, period, recap, isEmpty, reportEvent])

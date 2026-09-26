@@ -26,6 +26,7 @@ import { setRuntimeTheme } from '@/lib/theme'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { startAccountScopedSession } from '@/lib/account-scoped-state'
 
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -245,6 +246,7 @@ async function runSessionTeardown(
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
   useChatStore.getState().clearMessages()
+  if (!(await runSessionTeardownStep(epoch, () => startAccountScopedSession(null)))) return null
   useReviewReminderStore.getState().setAccountScope(null)
   resetOnboardingDraftForSignOut()
   if (!isCurrentSessionTeardown(epoch)) return null
@@ -296,6 +298,12 @@ function resetOnboardingDraftForSignOut(): void {
   if (onboardingLocallyDone) {
     useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   }
+}
+
+function shouldResetOnboardingDraftForLogin(previousAccountId: string | null, accountId: string): boolean {
+  if (previousAccountId && previousAccountId !== accountId) return true
+  const draft = useOnboardingDraftStore.getState()
+  return draft.onboardingLocallyDone && draft.habits.length === 0
 }
 
 /**
@@ -453,6 +461,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   expiresAt: null,
 
   login: async (token, refreshToken, user) => {
+    const previousAccountId = get().user?.userId ?? null
     let ownership = getSessionGeneration()
     set(deriveSessionPhase('establishing'))
     try {
@@ -488,6 +497,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await clearOfflineState()
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       useChatStore.getState().clearMessages()
+      await startAccountScopedSession(user.userId)
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
+      if (shouldResetOnboardingDraftForLogin(previousAccountId, user.userId)) {
+        useOnboardingDraftStore.getState().reset()
+      }
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
 
@@ -597,6 +611,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
       await saveWidgetToken(token).catch(() => {})
       await setQueryCacheScope(accountId)
+      if (!isCurrentSessionEpoch(ownership.epoch)) return false
+      if (get().user?.userId !== accountId) await startAccountScopedSession(accountId)
       if (!isCurrentSessionEpoch(ownership.epoch)) return false
       if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
       set((state) => ({

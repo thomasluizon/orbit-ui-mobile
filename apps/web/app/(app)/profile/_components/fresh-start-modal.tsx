@@ -16,6 +16,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/lib/actions/profile'
 import { captureAccountIntent, reportAccountChanged } from '@/lib/client-action'
 import { reportsAccountChanged } from '@/app/actions/action-result'
+import { accountStorageKey } from '@/lib/account-storage-key'
 
 function AmberPillButton({
   disabled = false,
@@ -113,7 +114,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       if (!intent.stillCurrent()) { reportAccountChanged(); return }
       localStorage.removeItem('orbit-checklist-templates')
       localStorage.removeItem('orbit:checklist-templates')
-      localStorage.removeItem('orbit_trial_expired_seen')
+      localStorage.removeItem(accountStorageKey('orbit_trial_expired_seen'))
       onOpenChange(false)
       setShowAnimation(true)
     } catch (err: unknown) {

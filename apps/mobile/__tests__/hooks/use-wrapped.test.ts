@@ -71,14 +71,14 @@ async function renderWrapped(
     return null
   }
 
-  let tree: { unmount: () => void } | null = null
+  let tree!: { unmount: () => void }
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(React.createElement(Harness))
     await Promise.resolve()
     await Promise.resolve()
   })
 
-  if (!ref.current || !tree) throw new Error('useWrapped did not render')
+  if (!ref.current) throw new Error('useWrapped did not render')
   mountedTrees.push(tree)
   return ref as { current: WrappedApi }
 }
@@ -165,8 +165,8 @@ describe('mobile useWrapped', () => {
 
     await renderWrapped('year', { active: true })
 
-    expect(getItem).toHaveBeenCalledWith('orbit_wrapped_year_seen')
-    expect(setItem).toHaveBeenCalledWith('orbit_wrapped_year_seen', '1')
+    expect(getItem).toHaveBeenCalledWith('orbit_wrapped_year_seen:signed-out')
+    expect(setItem).toHaveBeenCalledWith('orbit_wrapped_year_seen:signed-out', '1')
     expect(mocks.reportEvent).toHaveBeenCalledWith(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
   })
 

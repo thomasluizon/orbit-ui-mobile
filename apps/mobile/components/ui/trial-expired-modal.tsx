@@ -11,6 +11,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, shadowsV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { accountStorageKey } from '@/lib/account-storage-key'
+import { useAccountId } from '@/lib/account-scope'
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
 
@@ -41,17 +43,20 @@ export function TrialExpiredModal() {
   const dialogMotion = useResolvedMotionPreset('dialog')
   const progress = useMemo(() => new Animated.Value(0), [])
   const trialExpired = useTrialExpired()
-  const [dismissed, setDismissed] = useState(false)
-  const [alreadySeen, setAlreadySeen] = useState(true)
+  const accountId = useAccountId()
+  const [dismissedAccountId, setDismissedAccountId] = useState<string | null | undefined>(undefined)
+  const [seenRecord, setSeenRecord] = useState<{ accountId: string | null; seen: boolean } | null>(null)
+  const dismissed = dismissedAccountId === accountId
+  const alreadySeen = seenRecord?.accountId === accountId ? seenRecord.seen : true
   const [visibleDuringExit, setVisibleDuringExit] = useState(false)
   const transitionToken = useRef(0)
   const hasOpened = useRef(false)
 
   useEffect(() => {
-    void AsyncStorage.getItem(STORAGE_KEY).then((value) => {
-      setAlreadySeen(value === '1')
+    void AsyncStorage.getItem(accountStorageKey(STORAGE_KEY)).then((value) => {
+      setSeenRecord({ accountId, seen: value === '1' })
     })
-  }, [])
+  }, [accountId])
 
   const isOpen =
     pathname !== '/upgrade' && !dismissed && trialExpired && !alreadySeen
@@ -97,9 +102,9 @@ export function TrialExpiredModal() {
   ])
 
   const dismiss = useCallback(() => {
-    setDismissed(true)
-    void AsyncStorage.setItem(STORAGE_KEY, '1')
-  }, [])
+    setDismissedAccountId(accountId)
+    void AsyncStorage.setItem(accountStorageKey(STORAGE_KEY), '1')
+  }, [accountId])
 
   if (!visible) return null
 

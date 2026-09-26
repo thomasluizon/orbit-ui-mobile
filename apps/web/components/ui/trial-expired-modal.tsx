@@ -8,6 +8,7 @@ import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { PillButton } from '@/components/ui/pill-button'
+import { accountStorageKey } from '@/lib/account-storage-key'
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
 
@@ -33,11 +34,11 @@ export function TrialExpiredModal() {
     !dismissed &&
     trialExpired &&
     // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `mounted` (useIsClient) short-circuit at the head of this expression; localStorage is only read on the client, never during SSR https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    !localStorage.getItem(STORAGE_KEY)
+    !localStorage.getItem(accountStorageKey(STORAGE_KEY))
 
   function dismiss() {
     setDismissed(true)
-    localStorage.setItem(STORAGE_KEY, '1')
+    localStorage.setItem(accountStorageKey(STORAGE_KEY), '1')
   }
 
   if (!isOpen) return null
@@ -99,7 +100,7 @@ export function TrialExpiredModal() {
               key={featureKey}
               className="flex items-baseline justify-between"
               style={{
-                padding: '11px 0',
+                padding: '12px 0',
                 borderBottom:
                   index === PAUSED_FEATURES.length - 1
                     ? undefined

@@ -70,7 +70,7 @@ describe('TrialExpiredModal', () => {
 
   it('renders nothing when already dismissed via localStorage', () => {
     mockTrialExpired = true
-    localStorage.setItem('orbit_trial_expired_seen', '1')
+    localStorage.setItem('orbit_trial_expired_seen:signed-out', '1')
     const { container } = render(<TrialExpiredModal />)
     expect(container.innerHTML).toBe('')
   })
@@ -124,14 +124,14 @@ describe('TrialExpiredModal', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
     fireEvent.click(screen.getByText('trial.expired.continueFree'))
-    expect(localStorage.getItem('orbit_trial_expired_seen')).toBe('1')
+    expect(localStorage.getItem('orbit_trial_expired_seen:signed-out')).toBe('1')
   })
 
   it('dismisses when subscribe link is clicked', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
     fireEvent.click(screen.getByText('trial.expired.subscribe'))
-    expect(localStorage.getItem('orbit_trial_expired_seen')).toBe('1')
+    expect(localStorage.getItem('orbit_trial_expired_seen:signed-out')).toBe('1')
   })
 
   it('dismisses when overlay onOpenChange is called with false', () => {

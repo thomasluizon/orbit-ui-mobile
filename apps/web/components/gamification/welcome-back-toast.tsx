@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Gift } from 'lucide-react'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useProfile } from '@/hooks/use-profile'
+import { accountStorageKey } from '@/lib/account-storage-key'
 
 type ToastVariant = 'welcome' | 'referral'
 
@@ -69,8 +70,9 @@ export function WelcomeBackToast() {
       }, 800)
     } else {
       const now = Date.now()
-      const lastVisit = Number(localStorage.getItem('orbit_last_visit') ?? '0')
-      localStorage.setItem('orbit_last_visit', String(now))
+      const lastVisitKey = accountStorageKey('orbit_last_visit')
+      const lastVisit = Number(localStorage.getItem(lastVisitKey) ?? '0')
+      localStorage.setItem(lastVisitKey, String(now))
 
       const twentyFourHours = 24 * 60 * 60 * 1000
       if (
@@ -127,7 +129,7 @@ export function WelcomeBackToast() {
             <Gift size={17} strokeWidth={2.2} color="var(--primary-soft)" />
           )}
         </span>
-        <div className="flex-1 flex flex-col" style={{ gap: 3 }}>
+        <div className="flex-1 flex flex-col" style={{ gap: 4 }}>
           <span
             style={{
               fontFamily: 'var(--font-sans)',

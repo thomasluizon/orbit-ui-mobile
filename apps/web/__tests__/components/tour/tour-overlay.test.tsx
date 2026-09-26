@@ -88,7 +88,7 @@ describe('TourOverlay', () => {
     await waitFor(() => expect(completeTour).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(endTour).toHaveBeenCalledTimes(1))
     expect(setQueryData).toHaveBeenCalled()
-    expect(localStorage.getItem('orbit_tour_sections:v1')).toContain('habits')
+    expect(localStorage.getItem('orbit_tour_sections:v1:signed-out')).toContain('habits')
   })
 
   it('ends a coach tour without calling completeTour', () => {
@@ -107,7 +107,7 @@ describe('TourOverlay', () => {
 
     await waitFor(() => expect(endTour).toHaveBeenCalledTimes(1))
     expect(setQueryData).toHaveBeenCalledTimes(1)
-    expect(localStorage.getItem('orbit_tour_sections:v1')).not.toBeNull()
+    expect(localStorage.getItem('orbit_tour_sections:v1:signed-out')).not.toBeNull()
   })
 
   it('does not persist completion when the account changed', async () => {
@@ -118,6 +118,6 @@ describe('TourOverlay', () => {
 
     await waitFor(() => expect(completeTour).toHaveBeenCalledTimes(1))
     expect(setQueryData).not.toHaveBeenCalled()
-    expect(localStorage.getItem('orbit_tour_sections:v1')).toBeNull()
+    expect(localStorage.getItem('orbit_tour_sections:v1:signed-out')).toBeNull()
   })
 })

@@ -16,11 +16,11 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   applyScheme: vi.fn(),
   applyTheme: vi.fn(),
-  performQueuedApiMutation: vi.fn(async () => undefined),
-  invalidateQueries: vi.fn(async () => {}),
-  getItem: vi.fn(async (_key: string): Promise<string | null> => null),
-  setItem: vi.fn(async (_key: string, _value: string) => {}),
-  removeItem: vi.fn(async (_key: string) => {}),
+  performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
+  invalidateQueries: vi.fn(() => Promise.resolve()),
+  getItem: vi.fn((_key: string): Promise<string | null> => Promise.resolve(null)),
+  setItem: vi.fn((_key: string, _value: string) => Promise.resolve()),
+  removeItem: vi.fn((_key: string) => Promise.resolve()),
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -104,7 +104,7 @@ function makeProfile(overrides: Partial<Profile>): Profile {
 
 interface CapturedMutation {
   mutationFn: (variables: unknown) => Promise<unknown>
-  onMutate?: (variables: unknown) => Promise<unknown> | unknown
+  onMutate?: (variables: unknown) => unknown
   onError?: (error: unknown, variables: unknown, context: unknown) => void
   onSettled?: (
     data: unknown,
@@ -291,7 +291,7 @@ describe('usePreferenceControls', () => {
     await TestRenderer.act(async () => {
       await hook.current.handleShowGeneralToggle(true)
     })
-    expect(mocks.setItem).toHaveBeenCalledWith('orbit_show_general_on_today', 'true')
+    expect(mocks.setItem).toHaveBeenCalledWith('orbit_show_general_on_today:signed-out', 'true')
     expect(hook.current.showGeneralOnToday).toBe(true)
 
     mocks.setItem.mockRejectedValueOnce(new Error('disk full'))

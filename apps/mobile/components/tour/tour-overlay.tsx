@@ -10,6 +10,7 @@ import { TourTooltip } from './tour-tooltip'
 import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { accountStorageKey } from '@/lib/account-storage-key'
 
 /**
  * Composes TourSpotlight + TourTooltip for mobile inside a transparent Modal so
@@ -56,7 +57,7 @@ export function TourOverlay() {
     })
     try {
       await AsyncStorage.setItem(
-        'orbit_tour_sections',
+        accountStorageKey('orbit_tour_sections'),
         JSON.stringify({
           habits: true,
           goals: true,

@@ -20,6 +20,7 @@ import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
 import { useTourStore } from '@/stores/tour-store'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { accountStorageKey } from '@/lib/account-storage-key'
 import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
@@ -69,7 +70,7 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
 
   useEffect(() => {
     if (visible) {
-      void AsyncStorage.getItem('orbit_tour_sections').then((stored) => {
+      void AsyncStorage.getItem(accountStorageKey('orbit_tour_sections')).then((stored) => {
         if (stored) setSectionCompletion(JSON.parse(stored) as Record<TourSection, boolean>)
       })
     }
