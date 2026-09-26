@@ -5,7 +5,7 @@ import {
   receiveTurnstileToken,
   takeTurnstileToken,
   TurnstileTokenController,
-} from '../hooks'
+} from '../hooks/turnstile-token-core'
 
 it('consumes each token once and advances the widget reset for every request', () => {
   const initial = createTurnstileTokenState()
