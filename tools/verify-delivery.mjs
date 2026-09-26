@@ -125,11 +125,12 @@ try {
 }
 const run = async (file, args, cwd, input) => {
   const result = await runBounded(file, args, { cwd, env: file === GH ? githubAuth.environment : process.env, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 32 * 1024 * 1024, input })
-  if (result.timedOut) return { ok: false, stdout: result.stdout, status: result.status, stderr: result.stderr, error: `${file} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated` }
-  if (result.overflowed) return { ok: false, stdout: result.stdout, status: result.status, stderr: result.stderr, error: `${file} exceeded the 32 MiB output bound; the complete child process tree was terminated` }
+  const stderr = redactSecrets(result.stderr, githubAuth.secrets)
+  if (result.timedOut) return { ok: false, stdout: result.stdout, status: result.status, stderr, error: `${file} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated` }
+  if (result.overflowed) return { ok: false, stdout: result.stdout, status: result.status, stderr, error: `${file} exceeded the 32 MiB output bound; the complete child process tree was terminated` }
   if (result.error || result.status !== 0) {
-    const detail = result.stderr || result.stdout || result.error?.message || `exit ${result.status}`
-    return { ok: false, stdout: result.stdout, status: result.status, stderr: redactSecrets(result.stderr, githubAuth.secrets), error: redactSecrets(detail.trim(), githubAuth.secrets) }
+    const detail = stderr || result.stdout || result.error?.message || `exit ${result.status}`
+    return { ok: false, stdout: result.stdout, status: result.status, stderr, error: redactSecrets(detail.trim(), githubAuth.secrets) }
   }
   return { ok: true, stdout: result.stdout }
 }
