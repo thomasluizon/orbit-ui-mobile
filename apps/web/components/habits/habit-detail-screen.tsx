@@ -20,6 +20,7 @@ import {
   getHabitDetailChildCompletionReason,
   getHabitDetailChildUnavailableReasonKey,
   getHabitLogDateDecision,
+  getHabitLogDateConfirmationKeys,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
   isHabitHistoryMonthLoaded,
@@ -85,10 +86,6 @@ function CompletionBoundaryReason({ disabled, reason }: Readonly<{ disabled: boo
 function LogDateError({ visible }: Readonly<{ visible: boolean }>) {
   const t = useTranslations()
   return <div role="status" aria-live="polite">{visible ? <p className="px-4 pb-4 text-sm text-[var(--status-bad-text)] sm:px-0">{t('habits.detail.logDateUnavailable')}</p> : null}</div>
-}
-
-function logDateConfirmLabelKey(intent?: 'log' | 'unlog'): 'habits.detail.logDateConfirmLog' | 'habits.detail.logDateConfirmUnlog' {
-  return intent === 'unlog' ? 'habits.detail.logDateConfirmUnlog' : 'habits.detail.logDateConfirmLog'
 }
 
 function DayHabitsStatus({ reasonKey, onRetry }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void }>) {
@@ -453,7 +450,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void updateItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
-      <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t('habits.detail.logDateConfirmMessage', { name: pendingDateLog?.name ?? habit.title, date: formatLocaleDate(parseAPIDate(pendingDateLog?.date ?? dateStr), profile.language ?? locale, { dateStyle: 'long' }) })} confirmLabel={t(logDateConfirmLabelKey(pendingDateLog?.intent))} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
+      <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent).message, { name: pendingDateLog?.name ?? habit.title, date: formatLocaleDate(parseAPIDate(pendingDateLog?.date ?? dateStr), profile.language ?? locale, { dateStyle: 'long' }) })} confirmLabel={t(getHabitLogDateConfirmationKeys(pendingDateLog?.intent).action)} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
         const pending = pendingDateLog
         setPendingDateLog(null)
         if (pending?.date === dateStr) void writeLog(pending.habitId, pending.intent, true)

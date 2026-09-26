@@ -114,7 +114,7 @@ export function canLogHabitOnDate(
 }
 
 export function getHabitLogDateDecision(
-  habit: (Parameters<typeof canLogHabitOnDate>[0] & Pick<NormalizedHabit, 'createdAtUtc'>) | null | undefined,
+  habit: (Parameters<typeof canLogHabitOnDate>[0] & Pick<NormalizedHabit, 'createdAtUtc' | 'parentId'>) | null | undefined,
   date: string,
   today: string,
   timeZone: string | null | undefined,
@@ -122,9 +122,18 @@ export function getHabitLogDateDecision(
 ): 'write' | 'confirm' | 'block' {
   if (!habit || resolveHabitDetailRouteDate(date) !== date || !isWithinOverdueWindow(date, today) || (date > today && habit.frequencyUnit !== null)) return 'block'
   const createdDate = formatAPIDateInTimeZone(new Date(habit.createdAtUtc), timeZone)
-  return date < createdDate || getDayOffset(date, today) > MAX_INSTANCE_HORIZON_DAYS
+  return (habit.parentId !== null && date < today) || date < createdDate || getDayOffset(date, today) > MAX_INSTANCE_HORIZON_DAYS
     ? confirmed ? 'write' : 'confirm'
     : 'write'
+}
+
+export function getHabitLogDateConfirmationKeys(intent?: 'log' | 'unlog'): {
+  message: 'habits.detail.logDateConfirmUnlogMessage' | 'habits.detail.logDateConfirmMessage'
+  action: 'habits.detail.logDateConfirmUnlog' | 'habits.detail.logDateConfirmLog'
+} {
+  return intent === 'unlog'
+    ? { message: 'habits.detail.logDateConfirmUnlogMessage', action: 'habits.detail.logDateConfirmUnlog' } as const
+    : { message: 'habits.detail.logDateConfirmMessage', action: 'habits.detail.logDateConfirmLog' } as const
 }
 
 /**

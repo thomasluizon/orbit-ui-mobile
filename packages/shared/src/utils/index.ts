@@ -243,6 +243,7 @@ export type {
 export {
   canLogHabitOnDate,
   getHabitLogDateDecision,
+  getHabitLogDateConfirmationKeys,
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,

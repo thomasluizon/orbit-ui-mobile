@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
+import en from '@orbit/shared/i18n/en.json'
 import {
   makeHabitDetail as makeDetail,
   makeHabitScheduleItem,
@@ -66,6 +67,7 @@ vi.mock('react-i18next', () => ({
     t: (key: string, values?: Record<string, string>) => {
       if (key === 'habits.detail.loggedAt') return `${values?.date}, logged at ${values?.time}`
       if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
+      if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
       if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
       return key
     },
@@ -691,7 +693,9 @@ describe('HabitDetailScreen', () => {
     })
     const historicalChild = tree!.root.findByProps({ testID: 'child-child-1' })
     expect(historicalChild.props.state).toBe('done')
-    historicalChild.props.actions.onUnlog()
+    TestRenderer.act(() => historicalChild.props.actions.onUnlog())
+    expect(mocks.log).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onConfirm())
     expect(mocks.log).toHaveBeenLastCalledWith({
       habitId: 'child-1',
       date: '2026-08-28',
@@ -730,7 +734,11 @@ describe('HabitDetailScreen', () => {
       expect(child.props.action).toBe('unlog')
       expect(child.props.completionReadOnly).toBe(false)
 
-      child.props.actions.onUnlog()
+      TestRenderer.act(() => child.props.actions.onUnlog())
+      if (date < '2026-08-29') {
+        expect(mocks.log).not.toHaveBeenCalled()
+        TestRenderer.act(() => tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onConfirm())
+      }
       expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
     },
   )
@@ -1065,6 +1073,7 @@ describe('HabitDetailScreen', () => {
   })
 
   it('asks before logging a date before the habit existed', async () => {
+    expect(en.habits.detail.logDateConfirmMessage).toBe('This logs {name} on {date}.')
     mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
     mocks.logs = []
     let tree: ReturnType<typeof TestRenderer.create>
@@ -1072,12 +1081,35 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
     expect(mocks.log).not.toHaveBeenCalled()
     expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toContain('August 27, 2026')
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toContain('Read')
     expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.confirmLabel).toBe('habits.detail.logDateConfirmLog')
     await TestRenderer.act(async () => {
       tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onConfirm()
       await Promise.resolve()
     })
     expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-27', intent: 'log' })
+  })
+
+  it('names the undo action when confirming an unusual unlog date', () => {
+    expect(en.habits.detail.logDateConfirmUnlogMessage).toBe('This undoes the log for {name} on {date}.')
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
+    mocks.logs = [{ id: 'selected', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' }]
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />) })
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toBe('Undo Read: August 27, 2026')
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.confirmLabel).toBe('habits.detail.logDateConfirmUnlog')
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('confirms a child date when its creation time is unavailable from the schedule', () => {
+    const schedule = makeHabitScheduleItem({ createdAtUtc: '2026-08-01T12:00:00Z' })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onLog())
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toContain('August 28, 2026')
   })
 
   it('replaces checklist confirmation with the unusual-date confirmation', async () => {

@@ -333,6 +333,13 @@ describe('getHabitLogDateDecision', () => {
     expect(getHabitLogDateDecision(recurring, '2025-01-11', today, 'UTC', true)).toBe('block')
     expect(getHabitLogDateDecision(undefined, today, today, 'UTC', true)).toBe('block')
   })
+
+  it('confirms a past date for a child with an unknown creation time', () => {
+    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-01T12:00:00Z', frequencyUnit: 'Day' })
+    expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC')).toBe('confirm')
+    expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC', true)).toBe('write')
+    expect(getHabitLogDateDecision(child, today, today, 'UTC')).toBe('write')
+  })
 })
 
 describe('computeHabitFutureHint', () => {
