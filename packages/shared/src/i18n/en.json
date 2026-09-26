@@ -1297,7 +1297,8 @@
       "moreError": "Couldn't load more records. Try again.",
       "more": "Show more",
       "filter": "Filter shown",
-      "noMatches": "No loaded records match your search.",
+      "noMatches": "No loaded records match “{query}”.",
+      "clearFilter": "Clear filter",
       "open": { "notifications": "Open Alerts", "tags": "Open Tags", "templates": "Open Templates", "keys": "Open Profile" }
     },
     "account": {

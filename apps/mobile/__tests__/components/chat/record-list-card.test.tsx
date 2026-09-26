@@ -52,6 +52,11 @@ describe('Astra record list on mobile', () => {
     expect(filterTrigger.props.style.minHeight).toBeGreaterThanOrEqual(44)
     TestRenderer.act(() => filter.props.onChangeText('Key 3'))
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(2)
+    TestRenderer.act(() => filter.props.onChangeText('missing'))
+    expect(renderedText(tree.toJSON())).toContain('chat.recordList.noMatches:{"query":"missing"}')
+    const clear = tree.root.findAll((node: any) => node.type === Pressable && renderedText(node.props.children).includes('chat.recordList.clearFilter'))[0]
+    TestRenderer.act(() => clear.props.onPress())
+    expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(20)
     const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.recordList.open.keys'))[0]
     TestRenderer.act(() => open.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/profile')
