@@ -50,7 +50,7 @@ describe('habit-request-builders', () => {
     for (const request of [create, update, subHabit]) {
       expect(request.relativeReminders).toEqual(expected)
       expect(request).not.toHaveProperty('scheduledReminders')
-      expect(request).not.toHaveProperty('reminderTimes')
+      expect(request.reminderTimes).toEqual([])
     }
   })
 
@@ -83,6 +83,7 @@ describe('habit-request-builders', () => {
       dueTime: '08:30',
       dueEndTime: '09:00',
       reminderEnabled: true,
+      reminderTimes: [],
       relativeReminders: [{ minutesBefore: 15 }, { minutesBefore: 30 }],
       checklistItems: [{ text: 'Pick a book', isChecked: false }],
       tagIds: ['tag-1'],
@@ -157,6 +158,7 @@ describe('habit-request-builders', () => {
       dueTime: '10:00',
       dueEndTime: '10:30',
       reminderEnabled: true,
+      reminderTimes: [],
       relativeReminders: [{ minutesBefore: 0 }, { minutesBefore: 15 }],
     })
   })
@@ -212,6 +214,7 @@ describe('habit-request-builders', () => {
       dueTime: '06:30',
       dueEndTime: '06:45',
       reminderEnabled: true,
+      reminderTimes: [],
       relativeReminders: [{ minutesBefore: 10 }],
       isBadHabit: true,
       slipAlertEnabled: true,
@@ -280,6 +283,7 @@ describe('habit-request-builders', () => {
       dueTime: '10:00',
       dueEndTime: '10:30',
       reminderEnabled: true,
+      reminderTimes: [],
       relativeReminders: [{ minutesBefore: 0 }],
       slipAlertEnabled: false,
       goalIds: [],

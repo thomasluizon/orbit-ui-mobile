@@ -5,6 +5,8 @@ import {
   buildUpdateHabitRequest,
   type HabitFormData,
 } from '@/lib/habit-request-builders'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { buildEditHabitFormState } from '@orbit/shared/utils'
 
 function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
   return {
@@ -115,7 +117,7 @@ describe('buildCreateHabitRequest', () => {
     expect(result.dueEndTime).toBe('10:00')
     expect(result.reminderEnabled).toBe(true)
     expect(result.relativeReminders).toEqual([{ minutesBefore: 15 }, { minutesBefore: 30 }])
-    expect(result).not.toHaveProperty('reminderTimes')
+    expect(result.reminderTimes).toEqual([])
   })
 
   it('includes scheduled reminders when no dueTime but reminders enabled', () => {
@@ -185,6 +187,24 @@ describe('buildSubHabitRequest', () => {
 })
 
 describe('buildUpdateHabitRequest', () => {
+  it('clears a removed legacy offset while retaining the edited timed reminders', () => {
+    const habit = createMockHabit({
+      dueTime: '09:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      relativeReminders: [{ when: 'day_before', time: '18:00' }],
+    })
+    const editor = buildEditHabitFormState(habit)
+    expect(editor.reminderTimes).toEqual([15])
+
+    const remainingOffsets = editor.reminderTimes.filter((offset) => offset !== 15)
+    const request = buildUpdateHabitRequest(editor.formValues, false, editor.originalEndDate, remainingOffsets, [])
+
+    expect(request.reminderTimes).toEqual([])
+    expect(request.relativeReminders).toEqual([{ when: 'day_before', time: '18:00' }])
+    expect(request).not.toHaveProperty('scheduledReminders')
+  })
+
   it('creates a basic update request', () => {
     const data = makeFormData()
     const result = buildUpdateHabitRequest(data, true, '', [], [])

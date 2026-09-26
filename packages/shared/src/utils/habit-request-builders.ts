@@ -43,6 +43,7 @@ function applyReminderFields(
     req.dueTime = data.dueTime
     if (data.dueEndTime) req.dueEndTime = data.dueEndTime
     req.reminderEnabled = data.reminderEnabled
+    req.reminderTimes = []
     req.relativeReminders = data.reminderEnabled
       ? buildRelativeReminders(reminderTimes, data.scheduledReminders)
       : []
@@ -143,6 +144,7 @@ function applyUpdateReminderFields(
     request.dueTime = data.dueTime
     request.dueEndTime = data.dueEndTime || undefined
     request.reminderEnabled = data.reminderEnabled
+    request.reminderTimes = []
     request.relativeReminders = data.reminderEnabled
       ? buildRelativeReminders(reminderTimes, data.scheduledReminders)
       : []
