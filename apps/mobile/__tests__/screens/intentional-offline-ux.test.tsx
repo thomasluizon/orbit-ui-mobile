@@ -479,7 +479,7 @@ describe('intentional offline UX screens', () => {
         suggestion: 'Keep the streak alive.',
       },
     }
-    mocks.storage.set('orbit_retrospective_cache_week_v2', JSON.stringify(cached))
+    mocks.storage.set('orbit_retrospective_cache_week_v2:signed-out', JSON.stringify(cached))
 
     const tree = await renderScreen(<RetrospectiveScreen />)
 
