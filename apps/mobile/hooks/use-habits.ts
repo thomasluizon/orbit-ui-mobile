@@ -131,6 +131,16 @@ type BulkDeleteMutationOutcome = OfflineBulkMutationOutcome<BulkDeleteResponse> 
   queuedDeletes: { habitId: string; mutationId: string }[]
 }
 
+function refreshProfileAfterLog(
+  queryClient: ReturnType<typeof useQueryClient>,
+  response: LogHabitResponse,
+  intent: 'log' | 'unlog',
+): void {
+  if (intent === 'unlog' || response.xpEarned || response.newAchievementIds?.length) {
+    void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+  }
+}
+
 function selectedDescendantsInSnapshots(
   snapshots: HabitListSnapshots,
   selectedIds: Set<string>,
@@ -416,8 +426,7 @@ export function useLogHabit() {
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
       }
-
-      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      refreshProfileAfterLog(queryClient, response, variables.intent)
 
       if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
         void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
@@ -464,6 +473,7 @@ export function useSkipHabit() {
 
       const previousLists = snapshotHabitLists(queryClient)
 
+      /** Recurring skips complete the current occurrence; one-time skips postpone it. */
       if (!date) {
         updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
           const habit = findHabitInList(items, habitId)

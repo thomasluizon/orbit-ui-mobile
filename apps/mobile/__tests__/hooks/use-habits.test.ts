@@ -1476,6 +1476,31 @@ describe('mobile habit hooks', () => {
     expect(profile.currentStreak).toBe(1)
     const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
     expect(gamification.totalXp).toBe(100)
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it('banks server XP and refreshes the profile when the cached habit type is stale', () => {
+    seedHabitState([makeHabit({ id: 'edited-habit', isBadHabit: true })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      unknown
+    >
+    const response: LogHabitResponse = {
+      logId: 'log-edited-habit',
+      isFirstCompletionToday: true,
+      currentStreak: 3,
+      xpEarned: 25,
+    }
+
+    mutation.onSuccess?.(response, { habitId: 'edited-habit' }, undefined)
+
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(125)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
   })
 
   /** Rewards must update when a deep link leaves the habit absent from the list cache. */
@@ -1507,18 +1532,22 @@ describe('mobile habit hooks', () => {
 
   it.each([
     {
-      name: 'does not celebrate a bad top-level habit completion',
-      habits: [makeHabit({ id: 'bad-habit', isBadHabit: true })],
-      habitId: 'bad-habit',
-      isFirstCompletionToday: true,
-      celebrates: false,
-    },
-    {
       name: 'celebrates a good top-level habit completion',
       habits: [makeHabit({ id: 'good-habit' })],
       habitId: 'good-habit',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 25,
+      expectedXp: 125,
+    },
+    {
+      name: 'does not celebrate or bank XP for a bad top-level habit completion',
+      habits: [makeHabit({ id: 'bad-habit', isBadHabit: true })],
+      habitId: 'bad-habit',
+      isFirstCompletionToday: true,
+      celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
     {
       name: 'celebrates a good sub-habit completion',
@@ -1529,6 +1558,20 @@ describe('mobile habit hooks', () => {
       habitId: 'good-child',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 0,
+      expectedXp: 100,
+    },
+    {
+      name: 'does not celebrate or bank XP for a bad sub-habit completion',
+      habits: [makeHabit({
+        id: 'parent-1',
+        children: [makeChild({ id: 'bad-child', isBadHabit: true })],
+      })],
+      habitId: 'bad-child',
+      isFirstCompletionToday: true,
+      celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
     {
       name: 'does not celebrate an unresolvable habit completion',
@@ -1536,6 +1579,8 @@ describe('mobile habit hooks', () => {
       habitId: 'missing-habit',
       isFirstCompletionToday: true,
       celebrates: false,
+      xpEarned: 25,
+      expectedXp: 125,
     },
     {
       name: 'does not celebrate a repeat completion',
@@ -1543,10 +1588,13 @@ describe('mobile habit hooks', () => {
       habitId: 'good-habit',
       isFirstCompletionToday: false,
       celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
-  ])('$name', ({ habits, habitId, isFirstCompletionToday, celebrates }) => {
+  ])('$name', ({ habits, habitId, isFirstCompletionToday, celebrates, xpEarned, expectedXp }) => {
     seedHabitState(habits)
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
       LogHabitVariables,
