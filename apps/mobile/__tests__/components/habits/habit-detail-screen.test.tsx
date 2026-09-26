@@ -1102,7 +1102,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.log).not.toHaveBeenCalled()
   })
 
-  it('confirms a child date when its creation time is unavailable from the schedule', () => {
+  it('confirms a child date when its creation time is unavailable from the schedule', async () => {
     const schedule = makeHabitScheduleItem({ createdAtUtc: '2026-08-01T12:00:00Z' })
     mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
     let tree: ReturnType<typeof TestRenderer.create>
@@ -1110,6 +1110,41 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onLog())
     expect(mocks.log).not.toHaveBeenCalled()
     expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toContain('August 28, 2026')
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'log' })
+  })
+
+  it('blocks a child date before its own creation despite an earlier parent and due date', () => {
+    const schedule = makeHabitScheduleItem({
+      createdAtUtc: '2026-08-01T12:00:00Z',
+      children: [{ ...makeHabitScheduleItem().children[0]!, createdAtUtc: '2026-08-29T08:00:00Z' }],
+    })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onLog())
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' })).toHaveLength(0)
+    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.logDateUnavailable')).toBe(true)
+  })
+
+  it('logs a child date after its own creation without confirmation', async () => {
+    const schedule = makeHabitScheduleItem({
+      createdAtUtc: '2026-08-01T12:00:00Z',
+      children: [{ ...makeHabitScheduleItem().children[0]!, createdAtUtc: '2026-08-27T08:00:00Z' }],
+    })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onLog()
+      await Promise.resolve()
+    })
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'log' })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' })).toHaveLength(0)
   })
 
   it('replaces checklist confirmation with the unusual-date confirmation', async () => {

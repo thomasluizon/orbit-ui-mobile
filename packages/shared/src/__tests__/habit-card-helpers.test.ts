@@ -335,10 +335,18 @@ describe('getHabitLogDateDecision', () => {
   })
 
   it('confirms a past date for a child with an unknown creation time', () => {
-    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-01T12:00:00Z', frequencyUnit: 'Day' })
+    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-01T12:00:00Z', createdAtUtcIsInherited: true, frequencyUnit: 'Day' })
     expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC')).toBe('confirm')
     expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC', true)).toBe('write')
     expect(getHabitLogDateDecision(child, today, today, 'UTC')).toBe('write')
+  })
+
+  it('blocks dates before a child was created and writes accepted dates immediately', () => {
+    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-08T12:00:00Z', createdAtUtcIsInherited: false, dueDate: '2025-01-01', frequencyUnit: 'Day' })
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC')).toBe('block')
+    expect(getHabitLogDateDecision(child, '2025-01-07', today, 'UTC', true)).toBe('block')
+    expect(getHabitLogDateDecision(child, '2025-01-08', today, 'UTC')).toBe('write')
+    expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC')).toBe('write')
   })
 })
 

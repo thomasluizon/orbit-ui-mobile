@@ -933,13 +933,42 @@ describe('HabitDetailScreen', () => {
     expect(mocks.log).not.toHaveBeenCalled()
   })
 
-  it('confirms a child date when its creation time is unavailable from the schedule', () => {
+  it('confirms a child date when its creation time is unavailable from the schedule', async () => {
     const schedule = makeHabitScheduleItem({ createdAtUtc: '2026-08-01T12:00:00Z' })
     mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     fireEvent.click(screen.getByTestId('child-child-1'))
     expect(mocks.log).not.toHaveBeenCalled()
     expect(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle')).toHaveAttribute('data-message', expect.stringContaining('August 28, 2026'))
+    fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle'))
+    await act(async () => Promise.resolve())
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'log' })
+  })
+
+  it('blocks a child date before its own creation despite an earlier parent and due date', () => {
+    const schedule = makeHabitScheduleItem({
+      createdAtUtc: '2026-08-01T12:00:00Z',
+      children: [{ ...makeHabitScheduleItem().children[0]!, createdAtUtc: '2026-08-29T08:00:00Z' }],
+    })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByTestId('child-child-1'))
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('habits.detail.logDateUnavailable')
+  })
+
+  it('logs a child date after its own creation without confirmation', async () => {
+    const schedule = makeHabitScheduleItem({
+      createdAtUtc: '2026-08-01T12:00:00Z',
+      children: [{ ...makeHabitScheduleItem().children[0]!, createdAtUtc: '2026-08-27T08:00:00Z' }],
+    })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByTestId('child-child-1'))
+    await act(async () => Promise.resolve())
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'log' })
+    expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
   })
 
   it('replaces checklist confirmation with the unusual-date confirmation', async () => {
