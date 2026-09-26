@@ -68,4 +68,11 @@ describe('period insight card on mobile', () => {
     const next = root.findByProps({ accessibilityLabel: 'chat.insight.next' })
     expect(next.props.disabled).toBe(true)
   })
+
+  it('keeps the full habit name available in the insight row', () => {
+    const name = 'A very long walking habit name that needs multiple lines to remain readable'
+    const root = render(<PeriodInsightCard periodInsight={{ ...insight, needsAttention: [{ ...insight.needsAttention[0]!, name }] }} />)
+    const label = root.findAllByType('Text').find((node) => node.props.children === `chat.insight.needsAttention: ${name}`)
+    expect(label?.props.numberOfLines).toBeUndefined()
+  })
 })

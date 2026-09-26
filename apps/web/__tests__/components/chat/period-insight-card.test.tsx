@@ -60,4 +60,12 @@ describe('period insight card on web', () => {
     expect(container.querySelectorAll('ol li')).toHaveLength(1)
     expect(container.querySelectorAll('svg path')).toHaveLength(0)
   })
+
+  it('keeps the full habit name available in the insight row', () => {
+    const name = 'A very long walking habit name that needs multiple lines to remain readable'
+    render(<PeriodInsightCard periodInsight={{ ...insight, needsAttention: [{ ...insight.needsAttention[0]!, name }] }} />)
+    const label = screen.getByText(`chat.insight.needsAttention: ${name}`)
+    expect(label).toHaveClass('break-words')
+    expect(label).not.toHaveClass('truncate')
+  })
 })

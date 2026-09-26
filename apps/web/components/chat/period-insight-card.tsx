@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { getInsightPages } from '@orbit/shared/chat'
+import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
 import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types/chat'
 import { mapCompletionSeries } from '@orbit/shared/utils'
 import { BarChart } from '@/components/ui/bar-chart'
@@ -25,7 +26,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     { id: 'currentStreak', value: String(periodInsight.currentStreak) },
     { id: 'bestStreak', value: String(periodInsight.bestStreak) },
   ]
-  const rows = index === 0 ? figures.map((figure) => ({
+  const rows: BlockFrameItem[] = index === 0 ? figures.map((figure) => ({
     id: figure.id,
     label: t(`chat.insight.${figure.id}`),
     control: <span className="text-base tabular-nums text-[var(--fg-1)]" style={{ fontFamily: 'var(--font-display)' }}>{figure.value}</span>,
@@ -33,11 +34,13 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
   if (index === 0) {
     periodInsight.topHabits.forEach((habit, habitIndex) => rows.push({
       id: `top-${habitIndex}`,
+      wrapLabel: true,
       label: `${t('chat.insight.topHabit')}: ${habit.name}`,
       control: <span className="text-base tabular-nums text-[var(--fg-1)]">{habit.completionRate}%</span>,
     }))
     periodInsight.needsAttention.forEach((habit, habitIndex) => rows.push({
       id: `attention-${habitIndex}`,
+      wrapLabel: true,
       label: `${t('chat.insight.needsAttention')}: ${habit.name}`,
       control: <span className="text-base tabular-nums text-[var(--fg-1)]">{habit.completionRate}%</span>,
     }))
@@ -46,7 +49,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     ? points.some((point) => point.scheduled > 0)
       ? <BarChart points={points} label={t('chat.insight.chartLabel')} />
       : undefined
-    : <p className="text-sm text-[var(--fg-2)]">{page.text}</p>
+    : <p className="text-pretty text-sm text-[var(--fg-2)] [overflow-wrap:anywhere]">{page.text}</p>
 
   return (
     <div className="mt-2 w-full md:max-w-[65ch]">

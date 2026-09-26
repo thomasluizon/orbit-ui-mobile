@@ -8,7 +8,7 @@ const push = vi.fn()
 vi.mock('expo-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, values?: { done?: number; scheduled?: number; name?: string }) =>
-    key === 'charts.bar.readout' ? `${values?.done} of ${values?.scheduled}` : key,
+    key === 'charts.bar.readout' ? `${values?.done} of ${values?.scheduled}` : key === 'chat.metrics.habitTitle' ? `Metrics for ${values?.name}` : key,
     i18n: { language: 'en' } }),
 }))
 
@@ -61,5 +61,12 @@ describe('Astra metrics card on mobile', () => {
     const button = root.findByProps({ testID: 'button-ghost-sm' })
     ;(button.props.onPress as () => void)()
     expect(push).toHaveBeenCalledWith({ pathname: '/habits/[id]', params: { id: habitId } })
+  })
+
+  it('keeps a long habit title readable', () => {
+    const root = render(<MetricsCard metricsCard={{ ...overview, habitId: '92ca0543-c3e1-4f41-9370-c55e1bfa8157', habitTitle: 'A very long walking habit name that must remain readable' }} />)
+    const title = root.findAllByType('Text').find((node) => typeof node.props.children === 'string' && node.props.children.includes('A very long walking habit name'))
+    expect(title).toBeDefined()
+    expect(title?.props.numberOfLines).toBeUndefined()
   })
 })

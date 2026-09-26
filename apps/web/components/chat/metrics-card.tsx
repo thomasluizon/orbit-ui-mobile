@@ -31,6 +31,7 @@ export function MetricsCard({ metricsCard }: Readonly<{ metricsCard: MetricsCard
       <BlockFrame
         state="resting"
         title={habitId ? t('chat.metrics.habitTitle', { name: metricsCard.habitTitle ?? '' }) : t('chat.metrics.title')}
+        wrapTitle={Boolean(habitId)}
         count={null}
         items={rows}
         body={body}

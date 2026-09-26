@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { Text, View } from 'react-native'
 import { getInsightPages } from '@orbit/shared/chat'
+import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
 import type { PeriodInsightCard as PeriodInsightData } from '@orbit/shared/types/chat'
 import { mapCompletionSeries } from '@orbit/shared/utils'
 import { BarChart } from '@/components/ui/bar-chart'
@@ -27,7 +28,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     { id: 'currentStreak', value: String(periodInsight.currentStreak) },
     { id: 'bestStreak', value: String(periodInsight.bestStreak) },
   ]
-  const rows = index === 0 ? figures.map((figure) => ({
+  const rows: BlockFrameItem[] = index === 0 ? figures.map((figure) => ({
     id: figure.id,
     label: t(`chat.insight.${figure.id}`),
     control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{figure.value}</Text>,
@@ -35,11 +36,13 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
   if (index === 0) {
     periodInsight.topHabits.forEach((habit, habitIndex) => rows.push({
       id: `top-${habitIndex}`,
+      wrapLabel: true,
       label: `${t('chat.insight.topHabit')}: ${habit.name}`,
       control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{habit.completionRate}%</Text>,
     }))
     periodInsight.needsAttention.forEach((habit, habitIndex) => rows.push({
       id: `attention-${habitIndex}`,
+      wrapLabel: true,
       label: `${t('chat.insight.needsAttention')}: ${habit.name}`,
       control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{habit.completionRate}%</Text>,
     }))

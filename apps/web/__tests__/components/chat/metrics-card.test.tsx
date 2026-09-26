@@ -8,7 +8,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string, values?: { done?: number; scheduled?: number; name?: string }) =>
-    key === 'charts.bar.readout' ? `${values?.done} of ${values?.scheduled}` : key,
+    key === 'charts.bar.readout' ? `${values?.done} of ${values?.scheduled}` : key === 'chat.metrics.habitTitle' ? `Metrics for ${values?.name}` : key,
 }))
 
 const series = (count: number) => ({ granularity: 'day' as const, points: Array.from({ length: count }, (_, index) => ({
@@ -59,5 +59,12 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('chat.metrics.empty')).toBeInTheDocument()
     expect(container.querySelectorAll('svg path')).toHaveLength(0)
     expect(screen.queryByText('0')).not.toBeInTheDocument()
+  })
+
+  it('keeps a long habit title readable', () => {
+    render(<MetricsCard metricsCard={{ ...overview, habitId: '92ca0543-c3e1-4f41-9370-c55e1bfa8157', habitTitle: 'A very long walking habit name that must remain readable' }} />)
+    const title = screen.getByRole('heading', { level: 3 })
+    expect(title).toHaveTextContent('A very long walking habit name')
+    expect(title).not.toHaveClass('truncate')
   })
 })
