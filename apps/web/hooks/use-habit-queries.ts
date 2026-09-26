@@ -73,7 +73,7 @@ export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleIte
     initialData: initialItems,
     select: selectNormalizedHabits,
     refetchOnWindowFocus: true,
-    refetchOnReconnect: 'always',
+    refetchOnReconnect: true,
   })
 
   const getChildren = useCallback(

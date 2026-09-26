@@ -939,7 +939,7 @@ describe('mobile habit hooks', () => {
     vi.useRealTimers()
   })
 
-  it('queues an optimistic habit create offline and skips invalidation', async () => {
+  it('queues an optimistic habit create offline and leaves count server-owned', async () => {
     mocks.state.entries = [
       { key: habitKeys.list({}), value: [makeHabit()] },
       {
@@ -984,7 +984,7 @@ describe('mobile habit hooks', () => {
       scheduledDates: ['2025-01-01'],
       instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
     })
-    expect(count).toBe(3)
+    expect(count).toBe(2)
     expect(mocks.setLastCreatedHabitId).toHaveBeenCalledWith('offline-habit-1')
     expect(mocks.invalidateHabitMutationQueries).not.toHaveBeenCalled()
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
@@ -1682,7 +1682,7 @@ describe('mobile habit hooks', () => {
     expect(byId('habit-2')?.position).toBe(1)
   })
 
-  it('optimistically deletes a habit, decrements the count, and restores both on failure', async () => {
+  it('optimistically deletes a habit, keeps the count, and restores the list on failure', async () => {
     seedHabitState([makeHabit({ id: 'habit-1' }), makeHabit({ id: 'habit-2' })], 2)
 
     const mutation = useDeleteHabit() as unknown as MutationConfig<
@@ -1693,7 +1693,7 @@ describe('mobile habit hooks', () => {
 
     const context = await mutation.onMutate?.('habit-1')
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-2'])
-    expect(getCount()).toBe(1)
+    expect(getCount()).toBe(2)
 
     mutation.onError?.(new Error('Delete failed'), 'habit-1', context)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
@@ -1764,7 +1764,7 @@ describe('mobile habit hooks', () => {
     expect(context?.tempId).toBeNull()
   })
 
-  it('inserts a batch of optimistic habits and rolls the whole batch back on failure', async () => {
+  it('inserts a batch of optimistic habits without predicting the count and rolls back on failure', async () => {
     seedHabitState([makeHabit({ id: 'habit-1' })], 1)
 
     const mutation = useBulkCreateHabits() as unknown as MutationConfig<
@@ -1777,7 +1777,7 @@ describe('mobile habit hooks', () => {
 
     const context = await mutation.onMutate?.(variables)
     expect(getHabitList().map((habit) => habit.title)).toEqual(['Exercise', 'Read', 'Meditate'])
-    expect(getCount()).toBe(3)
+    expect(getCount()).toBe(1)
     expect(context?.createdCount).toBe(2)
 
     mutation.onError?.(new Error('Bulk create failed'), variables, context)

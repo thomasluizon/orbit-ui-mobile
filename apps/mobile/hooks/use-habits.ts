@@ -267,9 +267,10 @@ export function useLogHabit() {
             date,
             completed,
             optimisticLogId,
-          ))
+          ), { includeUnfiltered: false })
       } else {
-        updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
+        updateHabitListsForDate(queryClient, formatAPIDate(new Date()),
+          (items) => optimisticToggleCompletion(items, habitId))
       }
 
       return { previousLists, previousLogs, previousCalendars }
@@ -407,7 +408,7 @@ export function useLogHabit() {
     },
 
     onSettled: (data, error, { habitId }) => {
-      finalizeHabitMutation(queryClient, data, error, { habitId, includeHistory: true })
+      finalizeHabitMutation(queryClient, data, error, { habitId, includeCount: false })
     },
   })
 }
@@ -438,7 +439,7 @@ export function useSkipHabit() {
       const previousLists = snapshotHabitLists(queryClient)
 
       if (!date) {
-        updateHabitLists(queryClient, (items) => {
+        updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
           const habit = findHabitInList(items, habitId)
           if (!habit) return items
           return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit))
@@ -456,8 +457,10 @@ export function useSkipHabit() {
       }
     },
 
-    onSettled: (data, error) =>
+    onSettled: (data, error, { habitId }) =>
       finalizeHabitMutation(queryClient, data, error, {
+        habitId,
+        includeCount: false,
         includeGoals: true,
         includeProfile: true,
         includeGamification: true,
@@ -505,7 +508,6 @@ export function useCreateHabit() {
       const optimisticHabit = buildOptimisticHabit(queryClient, tempId, data)
 
       updateHabitLists(queryClient, (items) => optimisticInsertHabit(items, optimisticHabit))
-      adjustHabitCount(queryClient, 1)
 
       return { previousLists, tempId }
     },
@@ -513,7 +515,6 @@ export function useCreateHabit() {
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, -1)
     },
 
     onSuccess: (result) => {
@@ -650,7 +651,6 @@ export function useDeleteHabit() {
         { queryKey: habitKeys.details() },
         (detail) => detail ? removeHabitDetailChild(detail, habitId) : detail,
       )
-      adjustHabitCount(queryClient, -1)
 
       return { previousLists, previousDetails }
     },
@@ -661,18 +661,18 @@ export function useDeleteHabit() {
       for (const [queryKey, detail] of context.previousDetails) {
         if (detail) queryClient.setQueryData(queryKey, detail)
       }
-      adjustHabitCount(queryClient, 1)
     },
 
     onSuccess: (_data, habitId) => {
       showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
     },
 
-    onSettled: (data, error) => {
+    onSettled: (data, error, habitId) => {
       if (!isQueuedResult(data)) {
         void queryClient.invalidateQueries({ queryKey: habitKeys.details() })
       }
       finalizeHabitMutation(queryClient, data, error, {
+        habitId,
         includeGoals: true,
         includeCount: true,
         includeProfile: true,
@@ -1013,7 +1013,6 @@ export function useBulkCreateHabits() {
           items,
         ),
       )
-      adjustHabitCount(queryClient, optimisticHabits.length)
 
       return { previousLists, createdCount: optimisticHabits.length }
     },
@@ -1021,7 +1020,6 @@ export function useBulkCreateHabits() {
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, -context.createdCount)
     },
 
     onSettled: (data, error) =>

@@ -77,6 +77,19 @@ export function withChildren<T extends ChildContainer>(
   }
 }
 
+function removeChildHabits(children: HabitScheduleChild[], habitIds: Set<string>): HabitScheduleChild[] {
+  return children
+    .filter((child) => !habitIds.has(child.id))
+    .map((child) => withChildren(child, removeChildHabits(child.children, habitIds)))
+}
+
+export function optimisticRemoveHabits(items: HabitScheduleItem[], habitIds: Iterable<string>): HabitScheduleItem[] {
+  const ids = new Set(habitIds)
+  return items
+    .filter((item) => !ids.has(item.id))
+    .map((item) => withChildren(item, removeChildHabits(item.children, ids)))
+}
+
 function patchChildHabit(
   child: HabitScheduleChild,
   habitId: string,
