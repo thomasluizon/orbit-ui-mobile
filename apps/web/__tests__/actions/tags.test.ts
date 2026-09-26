@@ -75,6 +75,12 @@ describe('tag server actions', () => {
       expect(result).toEqual([])
     })
 
+    it('rejects a wrapped tag list response', async () => {
+      mockApiResponse({ ok: true, data: [] })
+
+      await expect(getTags()).rejects.toThrow('Unexpected API response shape for /api/tags')
+    })
+
     it('throws on server error', async () => {
       mockApiResponse({ error: 'Not authenticated' }, 401)
 
