@@ -71,9 +71,8 @@ rounds to the render grid and can clip the `O`'s overshoot at 24.292.
 
 **`tools/check-lockup-crop.mjs` holds this.** It parses the committed file, re-solves the bounds and
 fails if any edge is off by more than 1e-6. It runs in `guards.yml` and on pre-commit. The gate reads
-the shipped bytes on purpose: a generator that asserted its own pre-rounded floats passed while the
-file it wrote still clipped by 2.5e-4. Regenerating the lockup means running that check, not eyeing a
-render, because a raster shows ink on an edge whether the geometry touches it or runs past it.
+the shipped bytes so rounded generator values cannot hide a clipped edge. Run that check when
+regenerating the lockup; a raster cannot prove the bounds are correct.
 
 **The lockup's wordmark is outlined**, so it renders identically without Space Grotesk installed and
 carries no `<text>`. It cannot be restyled, re-tracked or re-set; a different wordmark size is a new
