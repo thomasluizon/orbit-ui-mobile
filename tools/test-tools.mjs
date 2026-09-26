@@ -81,6 +81,7 @@ const CASE_MODULES = [
   ["lib/github-issues.mjs", "github-issues"],
   ["lib/github-rate-limit.mjs", "github-rate-limit"],
   ["lib/github-target.mjs", "github-target"],
+  ["lib/handoff-prompt.mjs", "handoff-prompt"],
   ["lib/identifier-ledger.mjs", "identifier-ledger"],
   ["lib/integration-branch.mjs", "integration-branch"],
   ["lib/manual-steps.mjs", "manual-steps"],

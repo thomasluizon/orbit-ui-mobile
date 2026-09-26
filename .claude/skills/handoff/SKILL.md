@@ -197,7 +197,7 @@ with the count and the query that reproduces it. Summarising is allowed; omittin
 
 Overwriting `NEXT.md` replaces the file, never its instructions. Before you write the new one, read the
 committed one (`git show HEAD:.claude/handoffs/NEXT.md`) and give EVERY instruction and step in it a
-disposition in the new prompt or the spec:
+disposition in the new prompt, in a `## Previous prompt, disposition` section:
 
 | disposition | what it needs |
 |---|---|
@@ -211,9 +211,14 @@ the gap an instruction left.
 
 ## What belongs in the prompt
 
-Short. It points at the spec and says what to do next.
+Short. It points at the spec and says what to do next. Its shape is enforced, not advised: a hook
+records the mode from the owner's own `/handoff` or `/wrap-up` prompt, and `git commit` of
+`NEXT.md`, and the stop after it, are refused while the prompt misses any requirement below
+(`tools/lib/handoff-prompt.mjs`, `.claude/hooks/require-handoff-prompt.mjs`).
 
-1. The spec path, first line, as the thing to read before anything else.
+0. Under `--sleep`, the first line is exactly `/sleep`, so pasting the file starts the run with
+   nothing added. An attended prompt never starts with a slash command.
+1. The spec path, as the first thing to read, before the first `##` heading.
 2. The entry point, singular: the one skill the next session works through.
 3. **The goal: finish that spec.** Say it in one line, with the condition that proves it done and the
    query that lists what is left. Never scope the goal to the open pull requests or to whatever this
@@ -222,8 +227,10 @@ Short. It points at the spec and says what to do next.
 5. What to do, in the order it has to happen. After the in-flight items, the order comes from the
    spec's own work order section, named by its heading, with the counts from its reconciliation.
    The prompt never invents an order of its own.
-6. `$ARGUMENTS`, if any, as its own section.
-7. One line: every identifier here came from a previous session, treat each as a lead to verify.
+6. Under `--sleep`, a `## Sleep` section. Any other `$ARGUMENTS` get their own section too.
+7. A `## Previous prompt, disposition` section (above), a `## Goal` section with the `gh issue list`
+   query, and a `## In flight` section.
+8. One line: every identifier here came from a previous session, treat each as a lead to verify.
 
 **Always name the entry point. Never restate what it does.** A session that does not know its entry
 point starts by inventing its own way of working. Naming `/orchestrate` carries everything it does:
@@ -288,7 +295,7 @@ handoff and needs to know his tree is not clean. Nothing else, before or after.
 
 ### Under `--sleep`, prepare the next session's prompt
 
-Set `/sleep` as the prompt's only entry point. State the goal, the in-flight inventory, and the next
+Make `/sleep` the prompt's first line and only entry point, and give it a `## Sleep` section. State the goal, the in-flight inventory, and the next
 actions completely enough for an unattended next session to start without anyone adding instructions.
 `--sleep` changes `NEXT.md`; after committing, reply and end this session as usual.
 

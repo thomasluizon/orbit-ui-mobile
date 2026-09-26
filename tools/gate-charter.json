@@ -44,6 +44,16 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".claude/hooks/record-handoff-request.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".claude/hooks/require-handoff-prompt.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   ".claude/hooks/require-wake-source.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
