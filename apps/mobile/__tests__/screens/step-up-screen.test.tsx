@@ -42,6 +42,7 @@ const mocks = vi.hoisted(() => ({
   },
   readTiming: vi.fn(),
   router: { replace: vi.fn() },
+  userId: 'user-1',
 }))
 
 vi.mock('expo-router', () => ({
@@ -60,8 +61,11 @@ vi.mock('@/hooks/use-date-format', () => ({
 }))
 vi.mock('@/hooks/use-logout', () => ({ useLogout: () => mocks.logout }))
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: unknown) => unknown) =>
-    selector({ user: { email: 'session@example.com', userId: 'user-1' } }),
+  useAuthStore: Object.assign(
+    (selector: (state: unknown) => unknown) =>
+      selector({ user: { email: 'session@example.com', userId: mocks.userId } }),
+    { getState: () => ({ user: { email: 'session@example.com', userId: mocks.userId } }) },
+  ),
 }))
 vi.mock('@/lib/api-client', () => ({
   apiClient: (...args: unknown[]) => mocks.apiClient(...args),
@@ -166,6 +170,7 @@ async function confirm(tree: TestTree) {
 describe('mobile step up screen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.userId = 'user-1'
     mocks.operation = 'delete'
     mocks.profile.email = 'person@example.com'
     mocks.profile.hasProAccess = false
@@ -214,6 +219,7 @@ describe('mobile step up screen', () => {
     expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(false)
 
     await TestRenderer.act(async () => {
+      mocks.userId = 'user-2'
       advanceAccountGeneration()
       await Promise.resolve()
     })
@@ -229,6 +235,7 @@ describe('mobile step up screen', () => {
     expect(findText(tree.root, 'local:2026-09-04T03:00:00Z').length).toBeGreaterThan(0)
 
     await TestRenderer.act(async () => {
+      mocks.userId = 'user-2'
       advanceAccountGeneration()
       await Promise.resolve()
     })
@@ -247,6 +254,31 @@ describe('mobile step up screen', () => {
     })
 
     expect(findInput(tree.root).props.value).toBe('123456')
+  })
+
+  it('discards a pending key confirmation after the account changes', async () => {
+    mocks.operation = 'keys'
+    let resolveConfirmation: ((value: { message: string }) => void) | undefined
+    mocks.apiClient.mockReturnValue(new Promise((resolve) => {
+      resolveConfirmation = resolve
+    }))
+    const tree = await renderScreen({ operation: 'keys', sentAt: Date.now() })
+    await enterCode(tree)
+    await confirm(tree)
+
+    await TestRenderer.act(async () => {
+      mocks.userId = 'user-2'
+      advanceAccountGeneration()
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      resolveConfirmation?.({ message: 'confirmed' })
+      await Promise.resolve()
+    })
+
+    expect(mocks.markVerified).not.toHaveBeenCalled()
+    expect(mocks.router.replace).not.toHaveBeenCalled()
+    expect(findInput(tree.root).props.value).toBe('')
   })
 
   it('blocks editing and exposes the confirm loading state while checking', async () => {
