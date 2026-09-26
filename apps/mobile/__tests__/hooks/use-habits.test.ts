@@ -1413,7 +1413,7 @@ describe('mobile habit hooks', () => {
     >
     mutation.onSuccess?.({
       results: [{ status: 'Failed', habitId: 'habit-1' }],
-    }, ['habit-1'], undefined)
+    }, ['habit-1'], { previousLists: [], deletedCount: 0 })
     expect(mocks.showUndoToast).not.toHaveBeenCalled()
   })
 
@@ -1468,6 +1468,8 @@ describe('mobile habit hooks', () => {
       queued: true,
       queuedMutationId: 'mutation-1',
     }, ['habit-1'], context)
+
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
@@ -1532,6 +1534,24 @@ describe('mobile habit hooks', () => {
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
     expect(mocks.showError).not.toHaveBeenCalled()
     expect(mocks.showSuccess).toHaveBeenCalledTimes(restoreOutcome === 'success' ? 2 : 0)
+  })
+
+  it('restores rejected bulk deletes while keeping accepted items removed', async () => {
+    seedHabitState([makeHabit({ id: 'accepted' }), makeHabit({ id: 'rejected' })], 2)
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { status: 'Success' | 'Failed'; habitId: string }[] },
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+    >
+    const context = await mutation.onMutate?.(['accepted', 'rejected'])
+    expect(getHabitList()).toEqual([])
+
+    mutation.onSuccess?.({ results: [
+      { status: 'Success', habitId: 'accepted' },
+      { status: 'Failed', habitId: 'rejected' },
+    ] }, ['accepted', 'rejected'], context)
+
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['rejected'])
   })
 
   it('restores a selected parent once after its queued bulk delete replays', async () => {
@@ -1625,5 +1645,31 @@ describe('mobile habit hooks', () => {
 
     mutation.onError?.(new Error('Bulk log failed'), variables, context)
     expect(getHabitList().every((habit) => habit.isCompleted)).toBe(false)
+  })
+
+  it.each([
+    ['log', useBulkLogHabits],
+    ['skip', useBulkSkipHabits],
+  ] as const)('keeps rejected bulk %s items in their prior state', async (_mode, useBulkMutation) => {
+    seedHabitState([
+      makeHabit({ id: 'accepted', isCompleted: false }),
+      makeHabit({ id: 'rejected', isCompleted: false }),
+    ], 2)
+    const mutation = useBulkMutation() as unknown as MutationConfig<
+      { results: { index: number; status: string; habitId: string }[] },
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const items = [{ habitId: 'accepted' }, { habitId: 'rejected' }]
+    const context = await mutation.onMutate?.(items)
+    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
+
+    mutation.onSuccess?.({ results: [
+      { index: 0, status: 'Success', habitId: 'accepted' },
+      { index: 1, status: 'Failed', habitId: 'rejected' },
+    ] }, items, context)
+
+    expect(getHabitList().find((habit) => habit.id === 'accepted')?.isCompleted).toBe(true)
+    expect(getHabitList().find((habit) => habit.id === 'rejected')?.isCompleted).toBe(false)
   })
 })

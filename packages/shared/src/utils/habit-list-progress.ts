@@ -66,6 +66,7 @@ export interface ParentPromptProgressOptions {
   isListView: boolean
   skippedIds: ReadonlySet<string>
   assumeCompletedId?: string
+  assumeCompletedIds?: ReadonlySet<string>
 }
 
 export function computeParentPromptProgress(
@@ -79,6 +80,7 @@ export function computeParentPromptProgress(
     isListView,
     skippedIds,
     assumeCompletedId,
+    assumeCompletedIds,
   } = options
 
   function computeChild(child: NormalizedHabit): ParentPromptProgress {
@@ -92,7 +94,9 @@ export function computeParentPromptProgress(
       child.flexibleCompleted != null &&
       child.flexibleCompleted >= child.flexibleTarget &&
       !child.isLoggedInRange
-    const isAssumedCompleted = child.id === assumeCompletedId && !skippedIds.has(child.id)
+    const isAssumedCompleted =
+      (child.id === assumeCompletedId || assumeCompletedIds?.has(child.id) === true) &&
+      !skippedIds.has(child.id)
     const isSkipped = !isAssumedCompleted && (skippedIds.has(child.id) || isServerKnownSkip)
     const isResolved =
       child.isCompleted ||

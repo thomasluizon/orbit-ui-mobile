@@ -334,7 +334,7 @@ export default function TodayScreen() {
     handleOpenBulkLog,
     handleOpenBulkSkip,
   } = useTodaySelection({
-    habitsById,
+    selectedDateStr: dateStr,
     habitListRef,
     habitListAllLoadedIds,
     closeControlsMenu,

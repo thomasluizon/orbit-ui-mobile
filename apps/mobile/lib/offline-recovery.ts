@@ -2,7 +2,6 @@ import type { PersistedQueuedMutation } from '@orbit/shared/types/sync'
 import {
   getMutationScope,
   hasPendingOfflineDependencies,
-  isAutomaticReplayBlocked,
 } from './offline-mutations'
 
 export function getRecoveryDate(mutation: PersistedQueuedMutation): string | null {
@@ -28,7 +27,6 @@ export function needsHabitCreation(mutation: PersistedQueuedMutation): boolean {
 
 export function canRetryDroppedMutation(mutation: PersistedQueuedMutation): boolean {
   return Boolean(getMutationScope(mutation.type)) &&
-    !isAutomaticReplayBlocked(mutation.type) &&
     !hasPendingOfflineDependencies(mutation)
 }
 
