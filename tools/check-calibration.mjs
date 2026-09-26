@@ -105,8 +105,7 @@ for (const [path, entry] of Object.entries(stamp.entries)) {
 }
 
 /**
- * The denominator is a glob on every run, never a written-down number. A hardcoded count stops
- * covering a file the moment one is added, which is how ORB-120's stamp missed the `quota` skill.
+ * Discover files on every run so a new agent or skill cannot escape calibration.
  */
 const calibratedFiles = () => {
   const found = []

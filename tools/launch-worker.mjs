@@ -487,9 +487,7 @@ const sampleProgress = () => {
     noteProgress()
     return
   }
-  // Log growth counts ONLY while the byte cap bounds it. Without a configured cap there is no
-  // KILLED_LOG_RUNAWAY, so a flooding hung worker could hold this signal open to the ceiling, which
-  // is the exact ORB-201 objection. An uncapped config keeps the historical signals instead.
+  // Log growth counts only when a byte cap can stop a flooding worker.
   if (logByteCap !== null && logSize !== null && logSize > lastLogSize) {
     noteProgress()
     return

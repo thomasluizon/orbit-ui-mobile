@@ -71,7 +71,7 @@ const OPS_CHECKS = [
   },
   {
     check: 'staging',
-    where: `deploy/CI workflows in BOTH repos — ${UI}\\.github\\workflows\\promote-prod.yml, smoke-prod.yml, test.yml; ${API}\\.github\\workflows\\*. Discover the real state per repo; do not hardcode a snapshot (the QA env was aborted per #211 and the workflow set drifts)`,
+    where: `deploy/CI workflows in BOTH repos — ${UI}\\.github\\workflows\\promote-prod.yml, smoke-prod.yml, test.yml; ${API}\\.github\\workflows\\*. Discover the current state per repo.`,
     ready: 'a pre-prod gate (smoke + promote) sits between merge and prod',
     gap: 'no staging/QA env or no pre-prod gate (Medium, calibrated)',
   },

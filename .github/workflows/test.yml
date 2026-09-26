@@ -222,7 +222,7 @@ jobs:
           SURFACE_SCOPE_MODE: reporting-only
         run: |
           echo "Surface scope mode: ${SURFACE_SCOPE_MODE}. Findings are reported and do not fail this job."
-          echo "Tickets #486 and #506 flip this job to enforcing."
+          echo "Surface scope findings remain advisory in this job."
           set +e
           node tools/check-surface-scope.mjs
           checker_status=$?

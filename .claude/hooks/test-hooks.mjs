@@ -319,9 +319,7 @@ T("engine: a commit message naming the engine allows", engine('git commit -m "st
 T("engine: a path containing .claude is not the claude binary", engine("cat .claude/skills/second-opinion/SKILL.md"), null)
 
 console.log("\n# forbid-worker-browser (_lib/rules-worker.mjs)")
-// ORB-39 and ORB-98 both finished their tickets, then spent the rest of their budgets on a dev
-// server and a login page a worktree can never authenticate against, and both needed rescuing.
-// The discrimination is the CALLER, never the command: the owner runs /dev-server whenever he likes.
+// Only launcher workers are barred from browsers; the owner may use the dev server.
 const worker = (command, options) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" }, repoRoots: [], ...options })
 for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo start", "npx playwright test", "maestro test flow.yaml", "curl http://localhost:3920/login", "adb shell input tap 1 1"]) {
   T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)

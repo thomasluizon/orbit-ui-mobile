@@ -1,12 +1,4 @@
-// Command (Bash) invariants: the git workflow guard.
-// Pure: they take the command string (and, for the bare-push case, a resolver so
-// the module stays runtime-agnostic) and return { block, message } or null.
-// The Claude Code PreToolUse(Bash) git-guardrails hook calls these.
-
-// Branch protection is Orbit's, not a universal law. These three repos have it;
-// a session launched from orbit-ui-mobile routinely drives sibling repos (the
-// brain vault, thomas-brain) whose sanctioned workflow IS direct-to-main, and
-// blocking those was a false positive that forced a manual push workaround.
+// Only these three repositories protect main; other repositories may allow direct pushes.
 const PROTECTED_REPOS = ["orbit-ui-mobile", "orbit-api", "orbit-landing-page"]
 
 const unquote = (token) => token.replace(/^["']|["']$/g, "")
