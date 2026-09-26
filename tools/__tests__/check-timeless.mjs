@@ -58,6 +58,21 @@ export const cases = () => {
     rmSync(root, { recursive: true, force: true })
   }
 
+  const datedComments = [
+    ["project XML", "sample.csproj", `<Project><!-- ${date} --></Project>\n`],
+    ["props XML", "sample.props", `<Project><!-- ${date} --></Project>\n`],
+    ["NuGet XML", "nuget.config", `<configuration><!-- ${date} --></configuration>\n`],
+    ["Astro frontmatter", "sample.astro", `---\n// ${date}\n---\n<div>clean</div>\n`],
+    ["Astro script", "sample.astro", `<script>\n// ${date}\n</script>\n`],
+  ]
+  for (const [label, name, content] of datedComments) {
+    const root = fixture("dated-comment", name, content)
+    if (name.endsWith(".astro")) symlinkSync(join(checker, "..", "..", "node_modules"), join(root, "node_modules"), "dir")
+    const result = run(root, ["--all"])
+    T(`${label} date comment fails --all`, result.status === 1 && result.stderr.includes("dated-anecdote"), result.stderr)
+    rmSync(root, { recursive: true, force: true })
+  }
+
   const safe = fixture("literals", "sample.js", `const message = "${date}";\nconst pattern = /${date}/;\n// one\n// two\n// three\n// four\n// five\n// six\n`)
   const editRoot = fixture("edit-payloads", "sample.md", "clean\n")
   const editInput = { file_path: join(editRoot, "sample.md"), old_string: "clean", new_string: owner }
