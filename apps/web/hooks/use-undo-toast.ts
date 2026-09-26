@@ -49,7 +49,7 @@ export function useUndoToast() {
       }
 
       window.addEventListener('keydown', state.onKeyDown)
-      state.toastId = showQueued(message, t('undo.action'), settle, cleanup)
+      state.toastId = showQueued(message, t('undo.action'), settle, cleanup, Infinity)
     },
     [t, showQueued, dismissToast],
   )

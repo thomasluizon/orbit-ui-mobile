@@ -36,10 +36,7 @@ export function attachNotificationPolling(queryClient: QueryClient): () => void 
   consumers.set(queryClient, references)
 
   if (!unsubscribeFocus) {
-    unsubscribeFocus = focusManager.subscribe(() => {
-      synchronizeFocus()
-      pollNotifications()
-    })
+    unsubscribeFocus = focusManager.subscribe(synchronizeFocus)
     synchronizeFocus()
   }
 

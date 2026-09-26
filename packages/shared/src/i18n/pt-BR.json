@@ -510,8 +510,8 @@
     "postponeConfirmMessage": "Isso move a tarefa para amanhã.",
     "postponeConfirmButton": "Adiar",
     "deleteConfirmTitle": "Excluir hábito",
-    "deleteConfirmMessage": "Quer mesmo excluir este hábito? Não dá para desfazer.",
-    "deleteListConfirmMessage": "{name} e o {count} item dentro dele saem da sua lista. Não dá para desfazer. | {name} e os {count} itens dentro dele saem da sua lista. Não dá para desfazer.",
+    "deleteConfirmMessage": "Isso remove o hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece.",
+    "deleteListConfirmMessage": "{name} e o {count} item dentro dele saem da sua lista. Você pode desfazer pela mensagem que aparece. | {name} e os {count} itens dentro dele saem da sua lista. Você pode desfazer pela mensagem que aparece.",
     "duplicateConfirmTitle": "Duplicar hábito?",
     "duplicateConfirmMessage": "Vamos criar uma cópia de \"{name}\" com tudo: frequência, tags, lembretes e checklist.",
     "duplicateConfirm": "Duplicar",
@@ -527,7 +527,7 @@
     "checklistClearTitle": "Limpar checklist?",
     "checklistClearMessage": "Isso remove todos os itens do checklist deste hábito.",
     "bulkDeleteTitle": "Excluir hábitos",
-    "bulkDeleteMessage": "Isso exclui {count} hábito e seus sub-hábitos. Não dá para desfazer. | Isso exclui {count} hábitos e seus sub-hábitos. Não dá para desfazer.",
+    "bulkDeleteMessage": "Isso remove {count} hábito e os sub-hábitos dele. Você pode desfazer pela mensagem que aparece. | Isso remove {count} hábitos e os sub-hábitos deles. Você pode desfazer pela mensagem que aparece.",
     "bulkDeleteConfirm": "Excluir",
     "bulkLogTitle": "Registrar hábitos",
     "bulkLogMessage": "Registrar {count} hábito selecionado como concluído? Os que já estão feitos serão ignorados. | Registrar {count} hábitos selecionados como concluídos? Os que já estão feitos serão ignorados.",
@@ -1817,7 +1817,7 @@
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com o assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
-      "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes), o identificador de publicidade do seu dispositivo (usado pelo Google AdMob para exibir anúncios a usuários gratuitos) e diagnósticos de falhas com identificadores pessoais removidos"
+      "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar"
     },
     "howWeUse": {
       "title": "Como usamos seus dados",
@@ -1834,7 +1834,7 @@
       "openai": "OpenAI - para recursos de chat com IA e resumos diários",
       "resend": "Resend - para e-mails transacionais",
       "googlePlay": "Google Play Billing - para compras de assinatura no Android",
-      "admob": "Google AdMob - exibe anúncios a usuários gratuitos (sem Pro) e usa o identificador de publicidade do seu dispositivo",
+      "admob": "Google AdMob: o Orbit para Android antes da versão 1.3.35 podia mostrar anúncios para usuários do plano gratuito e podia usar o identificador de publicidade do seu dispositivo para isso. A versão 1.3.35 e as posteriores não mostram anúncios.",
       "sentry": "Sentry - para diagnósticos de falhas e erros, com identificadores pessoais removidos",
       "posthog": "PostHog (nuvem nos Estados Unidos): para análises de uso do produto vinculadas a um identificador da conta e a detalhes do plano; não enviamos conteúdo de hábitos nem do chat",
       "vercel": "Vercel: para hospedagem web, análise de tráfego e medição de desempenho"
@@ -2398,12 +2398,6 @@
       "nothingToRestore": "Não encontramos nenhuma compra anterior para restaurar."
     }
   },
-  "ads": {
-    "watchForMessages": "Assistir a um anúncio e ganhar +5 mensagens de IA",
-    "rewardGranted": "+5 mensagens de IA adicionadas",
-    "rewardFailed": "O anúncio não foi até o fim",
-    "dailyLimitReached": "recompensas diárias"
-  },
   "errors": {
     "fetchHabits": "Não foi possível carregar os hábitos",
     "createHabit": "Não foi possível criar o hábito",
@@ -2456,6 +2450,7 @@
   },
   "undo": {
     "habitDeleted": "Hábito excluído",
+    "habitsDeleted": "{count} hábito excluído | {count} hábitos excluídos",
     "goalDeleted": "Meta excluída",
     "tagDeleted": "Tag excluída",
     "action": "Desfazer",
@@ -2534,7 +2529,7 @@
       "markAbandoned": "Marcar abandonada",
       "reactivate": "Reabrir meta",
       "delete": "Excluir meta",
-      "deleteConfirm": "Quer mesmo excluir esta meta? Não dá para desfazer.",
+      "deleteConfirm": "Isso remove a meta. Você pode desfazer pela mensagem que aparece.",
       "edit": "Editar meta",
       "loadError": "Não foi possível carregar todos os detalhes. Mostrando dados em cache.",
       "showAllHistory": "Ver tudo ({count})",

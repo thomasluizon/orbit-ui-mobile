@@ -59,7 +59,8 @@ const mockShowQueued = vi.fn()
 const mockSetStreakCelebration = vi.fn()
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key,
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
@@ -737,6 +738,7 @@ describe('useDeleteHabit', () => {
       'undo.action',
       expect.any(Function),
       expect.any(Function),
+      Infinity,
     )
 
     const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
@@ -1517,6 +1519,67 @@ describe('useBulkDeleteHabits', () => {
     expect(maximumActiveDeletes).toBe(4)
     expect(mockedDeleteHabit.mock.calls.map(([habitId]) => habitId)).toEqual(ids)
     expect(response?.results.map((item) => item.index)).toEqual(Array.from({ length: 9 }, (_, index) => index))
+  })
+
+  it('offers Undo for successful bulk deletes and restores only those habits', async () => {
+    mockShowQueued.mockReset()
+    const { deleteHabit, restoreHabit } = await import('@/lib/actions/habits')
+    vi.mocked(restoreHabit).mockReset()
+    vi.mocked(deleteHabit).mockReset().mockImplementation(async (id) => {
+      if (id === 'h-2') throw new Error('Delete failed')
+    })
+    vi.mocked(restoreHabit).mockResolvedValue(undefined)
+
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
+    await act(async () => {
+      await result.current.mutateAsync(['h-1', 'h-2', 'h-3'])
+    })
+
+    expect(mockShowQueued).toHaveBeenCalledWith(
+      'undo.habitsDeleted:{"count":2}', 'undo.action', expect.any(Function), expect.any(Function), Infinity,
+    )
+    const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    await act(async () => { performUndo() })
+    await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1', 'account-a')
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-3', 'account-a')
+  })
+
+  it('does not offer Undo when no bulk delete succeeds', async () => {
+    mockShowQueued.mockReset()
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(deleteHabit).mockReset().mockRejectedValue(new Error('Delete failed'))
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
+    await act(async () => { await result.current.mutateAsync(['h-1']) })
+    expect(mockShowQueued).not.toHaveBeenCalled()
+  })
+
+  it('restores a selected parent once when the response reports its child', async () => {
+    mockShowQueued.mockReset()
+    const { deleteHabit, restoreHabit } = await import('@/lib/actions/habits')
+    vi.mocked(restoreHabit).mockReset().mockResolvedValue(undefined)
+    vi.mocked(deleteHabit).mockReset().mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({
+      id: 'parent', children: [makeScheduleChild({ id: 'child' })],
+    })])
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper(queryClient) })
+    await act(async () => { await result.current.mutateAsync(['parent', 'child']) })
+    const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    await act(async () => { performUndo() })
+    await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('parent', 'account-a')
+  })
+
+  it('shows the singular bulk Undo toast for one deleted habit', async () => {
+    mockShowQueued.mockReset()
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(deleteHabit).mockReset().mockResolvedValue(undefined)
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
+    await act(async () => { await result.current.mutateAsync(['h-1']) })
+    expect(mockShowQueued).toHaveBeenCalledWith(
+      'undo.habitsDeleted:{"count":1}', 'undo.action', expect.any(Function), expect.any(Function), Infinity,
+    )
   })
 })
 

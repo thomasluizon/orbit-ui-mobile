@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
   return {
     storage: new Map<string, string>(),
     setAstraConversationOpen: vi.fn(),
+    invalidateQueries: vi.fn(() => Promise.resolve()),
     apiClient: vi.fn((_path: string, _options?: { isCurrent?: () => boolean }) => Promise.resolve(undefined)),
     router: {
       push: vi.fn(),
@@ -97,6 +98,10 @@ vi.mock('@/stores/ui-store', () => ({
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
+}))
+
+vi.mock('@/lib/query-client', () => ({
+  queryClient: { invalidateQueries: mocks.invalidateQueries },
 }))
 
 vi.mock('@/stores/auth-store', () => {
@@ -198,6 +203,7 @@ describe('usePushNotifications', () => {
     profileSurfaceResult = null
     mocks.storage.clear()
     mocks.apiClient.mockClear()
+    mocks.invalidateQueries.mockClear()
     mocks.router.push.mockClear()
     mocks.setAstraConversationOpen.mockClear()
     mocks.appState.listener = null
@@ -234,6 +240,10 @@ describe('usePushNotifications', () => {
     vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockImplementation(() => ({
       remove: vi.fn(),
     }))
+    vi.mocked(notificationsModule.addNotificationReceivedListener).mockReset()
+    vi.mocked(notificationsModule.addNotificationReceivedListener).mockImplementation(() => ({
+      remove: vi.fn(),
+    }))
     pushNotificationsModule = await import('@/hooks/use-push-notifications')
     pushNotificationsModule.__setNotificationsModuleForTests(notificationsModule)
     usePushNotifications = pushNotificationsModule.usePushNotifications
@@ -251,6 +261,14 @@ describe('usePushNotifications', () => {
     expect(latestResult?.registrationStatus).toBe('disabled')
     expect(latestResult?.isEnabled).toBe(false)
     expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('invalidates the notification list when a push arrives', async () => {
+    await renderHarness()
+    const listener = vi.mocked(notificationsModule.addNotificationReceivedListener).mock.calls[0]?.[0]
+    expect(listener).toBeTypeOf('function')
+    listener?.({} as Parameters<NonNullable<typeof listener>>[0])
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications', 'list'] })
   })
 
   it('loads native notifications in a standalone embedded-manifest build', async () => {

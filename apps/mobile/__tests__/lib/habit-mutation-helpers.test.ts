@@ -224,7 +224,7 @@ describe('finalizeHabitMutation', () => {
     expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
-  it('invalidates the habit count only when includeCount is set (parity with web create/delete/bulk)', () => {
+  it('invalidates the habit count by default and allows writes to skip it', () => {
     const withCount = { getQueryCache: () => ({ findAll: () => [] }),
     removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async () => {}) }
@@ -234,7 +234,7 @@ describe('finalizeHabitMutation', () => {
     const withoutCount = { getQueryCache: () => ({ findAll: () => [] }),
     removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async () => {}) }
-    finalizeHabitMutation(withoutCount as never, { ok: true }, null, { includeGoals: true })
+    finalizeHabitMutation(withoutCount as never, { ok: true }, null, { includeGoals: true, includeCount: false })
     expect(withoutCount.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
   })
 

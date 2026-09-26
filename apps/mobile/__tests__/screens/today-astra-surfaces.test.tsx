@@ -43,9 +43,6 @@ vi.mock('@/hooks/use-notifications', () => ({
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
-vi.mock('@/hooks/use-ad-mob', () => ({
-  useAdMob: () => ({ showInterstitialIfDue: vi.fn() }),
-}))
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map(),
   useHabits: () => ({

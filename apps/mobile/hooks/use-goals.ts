@@ -33,10 +33,12 @@ import {
 } from '@/lib/goal-mutation-helpers'
 import {
   buildQueuedMutation,
+  cancelQueuedDeleteForUndo,
   createQueuedAck,
   createTempEntityId,
   isQueuedResult,
   queueOrExecute,
+  type QueuedMarker,
   withQueuedMarker,
 } from '@/lib/offline-mutations'
 import { useUIStore } from '@/stores/ui-store'
@@ -243,7 +245,12 @@ export function useDeleteGoal() {
   const restoreGoal = useRestoreGoal()
   const showUndoToast = useUndoToast()
 
-  return useMutation({
+  return useMutation<
+    void | QueuedMarker,
+    Error,
+    string,
+    { previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[] }
+  >({
     mutationFn: async (goalId: string) => {
       const mutation = buildQueuedMutation({
         type: 'deleteGoal',
@@ -262,8 +269,20 @@ export function useDeleteGoal() {
       })
     },
 
-    onSuccess: (_data, goalId) => {
-      showUndoToast(t('undo.goalDeleted'), () => restoreGoal.mutate(goalId))
+    onSuccess: (data, goalId, context) => {
+      showUndoToast(t('undo.goalDeleted'), () => {
+        if (isQueuedResult(data)) {
+          void cancelQueuedDeleteForUndo(data.queuedMutationId).then((outcome) => {
+            if (outcome !== 'replayed') {
+              restoreGoalLists(queryClient, context.previousLists)
+              void invalidateGoalQueries(queryClient)
+            }
+            if (outcome === 'replayed' || outcome === 'uncertain') restoreGoal.mutate(goalId)
+          })
+          return
+        }
+        restoreGoal.mutate(goalId)
+      })
     },
 
     onMutate: async (goalId) => {
