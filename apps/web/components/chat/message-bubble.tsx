@@ -23,6 +23,7 @@ import { PeriodInsightCard } from './period-insight-card'
 import { DaySummaryCard } from './day-summary-card'
 import { StreakCard } from './streak-card'
 import { CalendarCard } from './calendar-card'
+import { RecordListCard } from './record-list-card'
 import { PendingOperationCard } from './pending-operation-card'
 import { OperationOutcomes } from './operation-outcomes'
 
@@ -35,6 +36,7 @@ function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBub
       {message.daySummary ? <DaySummaryCard daySummary={message.daySummary} /> : null}
       {message.streakCard ? <StreakCard streakCard={message.streakCard} /> : null}
       {message.calendarCard ? <CalendarCard calendarCard={message.calendarCard} /> : null}
+      {message.recordList ? <RecordListCard recordList={message.recordList} /> : null}
     </>
   )
 }

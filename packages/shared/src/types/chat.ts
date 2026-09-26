@@ -282,6 +282,24 @@ export const calendarCardSchema = z.object({
 
 export type CalendarCard = z.infer<typeof calendarCardSchema>
 
+export const recordListCardSchema = z.object({
+  kind: z.enum(['notifications', 'tags', 'templates', 'keys']),
+  totalCount: z.number(),
+  items: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    detail: z.string().nullable().optional(),
+    date: z.string().nullable().optional(),
+    isRead: z.boolean().nullable().optional(),
+    count: z.number().nullable().optional(),
+    state: z.enum(['active', 'expired', 'revoked']).nullable().optional(),
+  })),
+  surfaceId: z.string().nullable().optional(),
+  nextCursor: z.string().nullable().optional(),
+})
+
+export type RecordListCard = z.infer<typeof recordListCardSchema>
+
 export const chatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'ai']),
@@ -300,6 +318,7 @@ export const chatMessageSchema = z.object({
   daySummary: daySummaryCardSchema.nullable().optional(),
   streakCard: streakCardSchema.nullable().optional(),
   calendarCard: calendarCardSchema.nullable().optional(),
+  recordList: recordListCardSchema.nullable().optional(),
   timestamp: z.date(),
 })
 
@@ -320,6 +339,7 @@ export const chatResponseSchema = z.object({
   daySummary: daySummaryCardSchema.nullable().optional(),
   streakCard: streakCardSchema.nullable().optional(),
   calendarCard: calendarCardSchema.nullable().optional(),
+  recordList: recordListCardSchema.nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

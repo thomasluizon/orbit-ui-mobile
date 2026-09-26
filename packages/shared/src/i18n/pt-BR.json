@@ -62,6 +62,7 @@
     "deleteAllError": "Não foi possível limpar os avisos. Tente de novo.",
     "markAllRead": "Marcar todas",
     "markAsRead": "Marcar lida",
+    "markRead": "Marcar {title} como lida",
     "deleteAll": "Limpar tudo",
     "deleteAllConfirmTitle": "Apagar todos os avisos?",
     "deleteAllConfirmDescription": "Todos os avisos saem da lista. Não há como desfazer.",
@@ -1283,6 +1284,19 @@
         "disabled": "Sincronização desativada"
       },
       "open": "Abrir Calendário"
+    },
+    "recordList": {
+      "title": { "notifications": "Avisos", "tags": "Etiquetas", "templates": "Modelos de checklist", "keys": "Chaves de API" },
+      "count": "{shown} de {total}",
+      "empty": "Nada por aqui ainda.",
+      "unread": "Não lido",
+      "templateCount": "{count} itens",
+      "templateLimit": "Modelos com mais de 20 itens abrem no editor de checklist.",
+      "keyState": { "active": "Ativa", "expired": "Expirada", "revoked": "Revogada" },
+      "markReadError": "Não foi possível marcar o aviso como lido. Tente de novo.",
+      "moreError": "Não foi possível carregar mais registros. Tente de novo.",
+      "more": "Mostrar mais",
+      "open": { "notifications": "Abrir Avisos", "tags": "Abrir Etiquetas", "templates": "Abrir Modelos", "keys": "Abrir Perfil" }
     },
     "preview": {
       "proposed": "Proposto pelo Astra",

@@ -62,6 +62,7 @@
     "deleteAllError": "Couldn't clear the alerts. Try again.",
     "markAllRead": "Mark all",
     "markAsRead": "Mark read",
+    "markRead": "Mark {title} as read",
     "deleteAll": "Clear all",
     "deleteAllConfirmTitle": "Delete all alerts?",
     "deleteAllConfirmDescription": "All alerts leave the list. There is no way to undo this.",
@@ -1283,6 +1284,19 @@
         "disabled": "Sync is off"
       },
       "open": "Open Calendar"
+    },
+    "recordList": {
+      "title": { "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
+      "count": "{shown} of {total}",
+      "empty": "Nothing here yet.",
+      "unread": "Unread",
+      "templateCount": "{count} items",
+      "templateLimit": "Templates with more than 20 items open in the checklist editor.",
+      "keyState": { "active": "Active", "expired": "Expired", "revoked": "Revoked" },
+      "markReadError": "Couldn't mark that alert read. Try again.",
+      "moreError": "Couldn't load more records. Try again.",
+      "more": "Show more",
+      "open": { "notifications": "Open Alerts", "tags": "Open Tags", "templates": "Open Templates", "keys": "Open Profile" }
     },
     "preview": {
       "proposed": "Proposed by Astra",

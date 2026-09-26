@@ -71,6 +71,17 @@ describe('chatStreamEventSchema discriminatedUnion', () => {
     expect(parsed.response).toHaveProperty('streakCard.achievementDiscs.0.earnedAt', null)
     expect(parsed.response).toHaveProperty('calendarCard.events.0.title', 'Walk')
   })
+
+  it('keeps record list cursor, key state, and unread state', () => {
+    const parsed = chatStreamEventSchema.parse({ type: 'final', response: { actions: [], recordList: {
+      kind: 'notifications', totalCount: 37, nextCursor: 'cursor', surfaceId: 'notifications',
+      items: [{ id: 'n1', title: 'Reminder', isRead: false, state: 'active' }],
+    } } })
+    expect(parsed.type).toBe('final')
+    if (parsed.type !== 'final') return
+    expect(parsed.response).toHaveProperty('recordList.nextCursor', 'cursor')
+    expect(parsed.response).toHaveProperty('recordList.items.0.isRead', false)
+  })
   it('parses the payload-less started and reset variants to their member', () => {
     expect(chatStreamEventSchema.parse({ type: 'started' }).type).toBe('started')
     expect(chatStreamEventSchema.parse({ type: 'reset' }).type).toBe('reset')

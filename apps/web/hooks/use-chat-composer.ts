@@ -346,6 +346,7 @@ export function useChatComposer() {
       daySummary: response.daySummary,
       streakCard: response.streakCard,
       calendarCard: response.calendarCard,
+      recordList: response.recordList,
     }
     if (draftMessageId) {
       updateMessage(draftMessageId, finalFields)
@@ -440,6 +441,7 @@ export function useChatComposer() {
       supportsDaySummaryCard: true,
       supportsStreakCard: true,
       supportsCalendarCard: true,
+      supportsRecordListCard: true,
       ...(entryPointIntent ? { entryPointIntent } : {}),
     } satisfies ChatClientContext
     formData.append('clientContext', JSON.stringify(clientContext))
