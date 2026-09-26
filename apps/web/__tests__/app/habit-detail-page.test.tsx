@@ -13,7 +13,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/habits/habit-detail-screen', () => ({
-  HabitDetailScreen: ({ date }: { date: string }) => <output data-testid="route-date">{date}</output>,
+  HabitDetailScreen: ({ date }: { date: string | null }) => <output data-testid="route-date" data-date={date ?? 'account-today'} />,
 }))
 
 describe('habit detail page route date', () => {
@@ -29,11 +29,12 @@ describe('habit detail page route date', () => {
   it.each([
     new URLSearchParams('date=bad'),
     new URLSearchParams('date=2026-08-28&date=2026-08-29'),
-  ])('falls back before rendering malformed or repeated input', (searchParams) => {
+    new URLSearchParams(),
+  ])('uses the account-day fallback for missing, malformed, or repeated input', (searchParams) => {
     mocks.searchParams = searchParams
 
     render(<HabitDetailPage />)
 
-    expect(screen.getByTestId('route-date')).toHaveTextContent('2026-08-30')
+    expect(screen.getByTestId('route-date')).toHaveAttribute('data-date', 'account-today')
   })
 })
