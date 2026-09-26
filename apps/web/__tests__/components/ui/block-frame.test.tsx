@@ -26,6 +26,13 @@ afterEach(() => {
 })
 
 describe('BlockFrame on web', () => {
+  it('renders a body without a zero count when there are no rows', () => {
+    const { container } = render(<BlockFrame {...resting({ items: [], body: <p>Nothing logged</p> })} />)
+    expect(screen.getByText('Nothing logged')).toBeInTheDocument()
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
+    expect(container.querySelector('header')?.nextElementSibling).toContainElement(screen.getByText('Nothing logged'))
+  })
+
   it('renders a busy loading skeleton without row labels', () => {
     const { container } = render(<BlockFrame {...resting({ state: 'loading', actions: <button>Save</button> })} />)
     expect(container.querySelector('[data-state="loading"]')).toHaveAttribute('aria-busy', 'true')

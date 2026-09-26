@@ -49,6 +49,16 @@ function StatTileSkeleton() {
   )
 }
 
+function BarChartSkeleton() {
+  return (
+    <div className="flex w-full flex-col gap-2" data-bar-chart-skeleton="">
+      <span className={`${blockClass} h-4 w-1/2`} />
+      <span className={`${blockClass} h-24 w-full`} />
+      <span className={`${blockClass} h-3 w-full`} />
+    </div>
+  )
+}
+
 function GridSkeleton({ rows, cols, cell, gap }: Readonly<Extract<SkeletonProps, { variant: 'grid' }>>) {
   return (
     <div
@@ -84,6 +94,7 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
       {props.variant === 'habit-row' ? <HabitRowSkeleton /> : null}
       {props.variant === 'settings' ? <SettingsSkeleton rows={props.rows} /> : null}
       {props.variant === 'stat-tile' ? <StatTileSkeleton /> : null}
+      {props.variant === 'bar-chart' ? <BarChartSkeleton /> : null}
       {props.variant === 'grid' ? <GridSkeleton {...props} /> : null}
     </div>
   )

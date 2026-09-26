@@ -19,7 +19,7 @@ import { delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
-import { ADMISSION_REFUSED_EXIT, checkAdmission } from "./lib/admission.mjs"
+import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch } from "./lib/run-state.mjs"
@@ -295,10 +295,22 @@ try {
   console.log(JSON.stringify(result))
   process.exit(ADMISSION_REFUSED_EXIT)
 }
-const admission = await checkAdmission({ config, repositoryKey, branch, environment: githubAuth.environment })
+const admission = await checkAdmission({ config, repositoryKey, branch, environment: githubAuth.environment, worktree: runDirectory })
 if (!admission.admitted) {
   console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
   process.exit(ADMISSION_REFUSED_EXIT)
+}
+process.on("exit", () => releaseAdmission(admission.reservationId))
+let child
+for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
+  process.once(signal, () => {
+    if (child?.pid) {
+      if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(child.pid)], { windowsHide: true })
+      else { try { process.kill(-child.pid) } catch { /* child already exited */ } }
+    }
+    releaseAdmission(admission.reservationId)
+    process.exit(exitCode)
+  })
 }
 
 const timestamp = new Date().toISOString()
@@ -344,7 +356,7 @@ const logFd = openSync(logFile, "a")
 // The gate cannot enter the worktree until both records name its pid. If this launcher dies
 // beforehand, its IPC channel closes and the gate exits without starting the real worker.
 const gatePath = fileURLToPath(new URL("./lib/worker-gate.cjs", import.meta.url))
-const child = spawn(process.execPath, [gatePath], {
+child = spawn(process.execPath, [gatePath], {
   cwd: tmpdir(),
   stdio: ["ignore", logFd, logFd, "ipc"],
   windowsHide: true,
@@ -380,6 +392,7 @@ let finishing = false
 const finish = (outcome, exitCode) => {
   if (finishing) return
   finishing = true
+  releaseAdmission(admission.reservationId)
   clearWakeSource(process.pid)
   clearWorkerLaunchReservation(process.pid, runDirectory)
   closeSync(logFd)

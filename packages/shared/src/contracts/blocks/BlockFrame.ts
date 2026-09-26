@@ -9,6 +9,7 @@ export type BlockFrameStatusLabels = Readonly<Record<BlockFrameItemStatus, strin
 export type BlockFrameItem = {
   readonly id: string
   readonly label: ReactNode
+  readonly wrapLabel?: boolean
   readonly meta?: string
   readonly status?: BlockFrameItemStatus
   readonly statusLabel?: string
@@ -35,8 +36,10 @@ type BlockFrameItemEditArm =
 
 type BlockFrameCommon = {
   readonly title: string
+  readonly wrapTitle?: boolean
   readonly count?: ReactNode
   readonly items: readonly BlockFrameItem[]
+  readonly body?: ReactNode
   readonly risk?: ReactNode
   readonly actions?: ReactNode
   readonly irreversibleLabel?: string

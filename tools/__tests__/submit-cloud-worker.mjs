@@ -18,6 +18,7 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
+import { RELEASE_HOLD_MS, checkAdmission, releaseAdmission } from "../lib/admission.mjs"
 import {
   receiptBlocksTicketAdmission,
   acquireSubmissionLock,
@@ -89,6 +90,20 @@ const spawnTool = (entry, args, env) => {
 }
 
 const runConcurrent = (entry, env) => spawnTool(entry, argvOf(entry), env).result
+
+const cloudAdmissionAfterHold = (entry, now = Date.now() + RELEASE_HOLD_MS + 1000) => checkAdmission({
+  config: { ...entry.config, repos: { ui: entry.repo.path }, caps: { maxOpenPullRequests: 0, maxQueuedRuns: 0 } },
+  repositoryKey: "ui",
+  branch: "feature/next",
+  environment: orcaEnv([
+    { match: "pulls?head=", stdout: "[]" },
+    { match: "pulls?state=open", stdout: "[]" },
+    { match: "actions/runs?status=queued", stdout: '{"total_count":0,"workflow_runs":[]}' },
+  ]),
+  worktree: entry.repo.path,
+  repoRoot: entry.base,
+  now,
+})
 
 const replacementOwnerSurvives = (interleave, duringRelease = false) => {
   const stateRoot = join(stage(`submit-cloud/replacement-${interleave}-${duringRelease}/fixture`, ""), "..")
@@ -522,6 +537,14 @@ export const cases = async () => {
       readdirSync(join(entry.repo.path, ".git", "orbit-cloud", "receipts")).length === 1,
     JSON.stringify(receipt),
   )
+  const pendingCloudAdmission = await cloudAdmissionAfterHold(entry)
+  T(
+    `${TOOL}: a submitted Cloud task holds admission after process exit and the release window`,
+    !pendingCloudAdmission.admitted && pendingCloudAdmission.counts.reservations?.pullRequests === 1 &&
+      pendingCloudAdmission.counts.reservations?.queuedRuns === 1,
+    JSON.stringify(pendingCloudAdmission),
+  )
+  releaseAdmission(pendingCloudAdmission.reservationId, entry.base, Date.now() - RELEASE_HOLD_MS - 1000)
 
   const priorReceipt = JSON.parse(readFileSync(receipt.mirrorPath, "utf8"))
   priorReceipt.ticket = "#397"
@@ -574,6 +597,26 @@ export const cases = async () => {
     `exit ${watcherResult.status}: ${watcherResult.stdout || watcherResult.stderr}\n` +
       `live ${watcherWasLive}; receipt ${JSON.stringify(watchedReceipt)}`,
   )
+  const interruptedCloud = fixture("interrupted-admission")
+  const acceptedPath = stage("submit-cloud/interrupted-admission-accepted.txt", "")
+  const interruptedSubmission = spawnTool(interruptedCloud, argvOf(interruptedCloud), {
+    ORBIT_FAKE_CODEX_LOG: interruptedCloud.log,
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_a399",
+    ORBIT_FAKE_ACCEPTANCE_LOG: acceptedPath,
+    ORBIT_FAKE_EXEC_DELAY_MS: "1500",
+  })
+  const acceptedDeadline = Date.now() + 5000
+  while (readFileSync(acceptedPath, "utf8") === "" && Date.now() < acceptedDeadline) await wait(10)
+  interruptedSubmission.child.kill("SIGTERM")
+  const interruptedResult = await interruptedSubmission.result
+  const interruptedAdmission = await cloudAdmissionAfterHold(interruptedCloud)
+  T(
+    `${TOOL}: SIGTERM during an accepted Cloud submission keeps admission capacity`,
+    interruptedResult.status === 143 && !interruptedAdmission.admitted &&
+      interruptedAdmission.counts.reservations?.pullRequests === 1 &&
+      interruptedAdmission.counts.reservations?.queuedRuns === 1,
+    `exit ${interruptedResult.status}: ${JSON.stringify(interruptedAdmission)}`,
+  )
 
   const abandonedWatcher = fixture("abandoned-watcher")
   const abandonedSubmission = run(TOOL, argvOf(abandonedWatcher), {
@@ -609,6 +652,13 @@ export const cases = async () => {
       Number(readFileSync(abandonedWatcherIndex, "utf8")) >= 2,
     `exit ${abandonedWatcherResult.status}: ${abandonedWatcherResult.stdout || abandonedWatcherResult.stderr}\n` +
       JSON.stringify(persistedAbandonment),
+  )
+  const terminalCloudAdmission = await cloudAdmissionAfterHold(abandonedWatcher)
+  T(
+    `${TOOL}: a terminal Cloud receipt releases admission after the release window`,
+    terminalCloudAdmission.admitted && terminalCloudAdmission.counts.reservations?.pullRequests === 0 &&
+      terminalCloudAdmission.counts.reservations?.queuedRuns === 0,
+    JSON.stringify(terminalCloudAdmission),
   )
 
   const largeOrder = fixture("large-order")

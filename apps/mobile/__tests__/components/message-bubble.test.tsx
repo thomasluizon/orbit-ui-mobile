@@ -25,6 +25,7 @@ interface TestTreeRoot extends TestNode {
 
 interface TestInstance {
   root: TestTreeRoot
+  update(element: React.ReactNode): void
 }
 
 interface TestRendererApi {
@@ -43,7 +44,8 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/theme')>(),
   createTokensV2: () =>
     new Proxy(
       {},
@@ -133,7 +135,25 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   }
 }
 
+const periodInsight: NonNullable<ChatMessage['periodInsight']> = {
+  period: 'week', dateFrom: '2026-09-01', dateTo: '2026-09-07',
+  completionRate: 50, activeDays: 4, periodDays: 7,
+  totalCompletions: 7, totalScheduled: 14, currentStreak: 2, bestStreak: 5,
+  topHabits: [], needsAttention: [],
+  narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
+}
+
 describe('MessageBubble trace footer (mobile)', () => {
+  it('reveals the period insight only after the final response', async () => {
+    const message = makeMessage({ role: 'ai', periodInsight })
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<MessageBubble message={message} isStreaming />)
+    })
+    expect(tree.root.findAll((node) => node.props.testID === 'block-frame-resting')).toHaveLength(0)
+    await TestRenderer.act(() => { tree.update(<MessageBubble message={message} />) })
+    expect(tree.root.findAll((node) => node.props.testID === 'block-frame-resting').length).toBeGreaterThan(0)
+  })
   it('never renders a trace footer, even when the AI message has a correlationId', async () => {
     let tree!: TestInstance
     await TestRenderer.act(() => {

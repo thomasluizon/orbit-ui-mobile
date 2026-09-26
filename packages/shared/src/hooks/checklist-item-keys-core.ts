@@ -38,8 +38,21 @@ export function reconcileChecklistItemKeys(
   items: ChecklistItem[],
   knownKeys: KnownItemKeys,
 ): ChecklistItemKeyState {
-  const keys: (string | undefined)[] = items.map((item) => knownKeys.get(item))
-  const used = new Set(keys)
+  const keys: (string | undefined)[] = items.map(() => undefined)
+  const used = new Set<string | undefined>()
+  const claim = (index: number, key: string | undefined) => {
+    if (!key || used.has(key)) return
+    keys[index] = key
+    used.add(key)
+  }
+
+  items.forEach((item, index) => {
+    const holder = state.items.indexOf(item)
+    if (holder >= 0) claim(index, state.keys[holder])
+  })
+  items.forEach((item, index) => {
+    if (!keys[index]) claim(index, knownKeys.get(item))
+  })
 
   for (let index = 0; index < items.length; index += 1) {
     if (keys[index]) continue

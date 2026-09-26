@@ -160,6 +160,31 @@ export async function subscribeToPushNotifications(
   return createSnapshot(permission, true)
 }
 
+/**
+ * The reminder toggle's registration keeps a subscription this browser already holds.
+ *
+ * `subscribeToPushNotifications` drops the current endpoint before it builds a replacement, so a
+ * failed replacement leaves the browser with no push delivery at all. Turning on one habit reminder
+ * must never cost the reminders that already work, so an existing endpoint is only re-sent for the
+ * signed-in account and stays subscribed whether or not that call succeeds.
+ */
+export async function ensurePushSubscription(): Promise<PushPreferenceSnapshot> {
+  if (!isPushNotificationSupported() || Notification.permission !== 'granted') {
+    return subscribeToPushNotifications()
+  }
+
+  const intendedAccountId = getHeldAccountId()
+  const registration = await navigator.serviceWorker.ready
+  const existingSubscription = await registration.pushManager.getSubscription()
+
+  if (!existingSubscription) {
+    return subscribeToPushNotifications()
+  }
+
+  await subscribePushAction(existingSubscription.toJSON(), intendedAccountId)
+  return createSnapshot('granted', true)
+}
+
 export async function requestWebPushPermission(): Promise<WebPushPermissionOutcome> {
   if (!isPushNotificationSupported()) return 'unsupported'
   const permission = Notification.permission === 'granted'

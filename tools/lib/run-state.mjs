@@ -377,7 +377,7 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
  * Both sources were read for #437; macOS uses `darwinProcessStart`, whose BSD state Z is a zombie.
  * A failed probe supplies no identity evidence.
  */
-const processStartIdentity = (pid) => {
+export const processStartIdentity = (pid) => {
   try {
     if (process.platform === "win32") {
       const result = spawnSync("powershell.exe", [
@@ -402,6 +402,11 @@ const processStartIdentity = (pid) => {
     /* unreadable process metadata cannot identify a wake source */
   }
   return null
+}
+
+export const processIsAlive = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try { process.kill(pid, 0); return true } catch (error) { return error?.code === "EPERM" }
 }
 
 /** Recheck the recorded process at the decision point; pid ownership alone is not evidence. */

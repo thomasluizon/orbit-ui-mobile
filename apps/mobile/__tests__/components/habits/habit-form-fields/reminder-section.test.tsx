@@ -1,9 +1,21 @@
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { StyleSheet } from "react-native";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
 import { ReminderSection } from "@/components/habits/habit-form-fields/reminder-section";
+
+const pushPermission = vi.hoisted(() => ({ status: "granted" }));
+vi.mock("@/hooks/use-push-notifications", () => ({
+  usePushNotifications: () => ({
+    isSupported: true,
+    permissionStatus: pushPermission.status,
+    permissionCanAskAgain: true,
+    requestPermissionOutcome: vi.fn(),
+  }),
+}));
+
+afterEach(() => { pushPermission.status = "granted"; });
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -79,6 +91,13 @@ function buttons(tree: TestTree): TestNode[] {
 }
 
 describe("ReminderSection", () => {
+  it("keeps the reminder on and shows the settings action when permission is blocked", () => {
+    pushPermission.status = "denied";
+    const { tree } = renderSection({ reminderEnabled: true });
+    expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === "habits.form.reminderPermissionNeeded")).toHaveLength(1);
+    expect(buttons(tree).some((node) => descendantText(node) === "common.openSettings")).toBe(true);
+  });
+
   it("hides the reminder body while the toggle is off", () => {
     const { tree } = renderSection({
       reminderEnabled: false,

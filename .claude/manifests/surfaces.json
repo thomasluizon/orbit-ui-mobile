@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 187,
-  "cellCount": 804,
+  "surfaceCount": 191,
+  "cellCount": 820,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -1145,7 +1145,6 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
         "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "state": "default",
@@ -1165,7 +1164,6 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
         "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "state": "default",
@@ -1185,7 +1183,6 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
         "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "state": "default",
@@ -1205,7 +1202,6 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
         "apps/web/components/ui/columns.tsx",
-        "apps/web/components/ui/pager.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "state": "default",
@@ -2573,6 +2569,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-metrics-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/metrics-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-metrics-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/metrics-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-metrics-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/metrics-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-metrics-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/metrics-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "block-chat-operation-outcomes",
       "platform": "web",
       "kind": "block",
@@ -2679,6 +2731,62 @@
       "parentSurfaceId": "route-chat",
       "ownedFiles": [
         "apps/web/components/chat/pending-operation-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-period-insight-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-insight-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-insight-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-period-insight-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-insight-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-insight-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-period-insight-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-insight-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-insight-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-period-insight-card",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/chat/period-insight-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/chat/period-insight-card.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7214,7 +7322,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -7234,7 +7341,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -7254,7 +7360,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -7274,7 +7379,6 @@
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
         "apps/mobile/components/ui/columns.tsx",
-        "apps/mobile/components/ui/pager.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -7981,6 +8085,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-block-chat-metrics-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/metrics-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-metrics-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/metrics-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-metrics-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/metrics-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-metrics-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/metrics-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/metrics-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-block-chat-operation-outcomes",
       "platform": "mobile",
       "kind": "block",
@@ -8087,6 +8247,62 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/pending-operation-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-period-insight-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-insight-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-insight-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-period-insight-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-insight-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-insight-card.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-period-insight-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-insight-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-insight-card.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-period-insight-card",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/chat/period-insight-card.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/chat/period-insight-card.tsx"
       ],
       "state": "default",
       "theme": "dark",

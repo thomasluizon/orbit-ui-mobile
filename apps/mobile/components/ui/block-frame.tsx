@@ -74,7 +74,7 @@ function FrameRow(props: FrameRowProps) {
     >
       <View style={styles.rowWords}>
         {typeof item.label === 'string' || typeof item.label === 'number' ? (
-          <Text numberOfLines={1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
+          <Text numberOfLines={item.wrapLabel ? undefined : 1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
             {item.label}
           </Text>
         ) : <View style={styles.rowLabelNode}>{item.label}</View>}
@@ -234,8 +234,10 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       testID={`block-frame-${props.state}`}
     >
       <View style={styles.header}>
-        <Text numberOfLines={1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>
-        <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text>
+        <Text numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>
+        {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
+          <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text>
+        ) : null}
         {props.risk}
       </View>
       {props.state === 'loading' ? (
@@ -246,6 +248,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         />
       ) : (
         <>
+          {props.body}
           <ScrollView
             accessibilityLiveRegion="polite"
             contentContainerStyle={styles.rows}

@@ -467,6 +467,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         relatedSurfaces: response.relatedSurfaces,
         habitList: response.habitList,
         goalList: response.goalList,
+        metricsCard: response.metricsCard,
+        periodInsight: response.periodInsight,
       };
       if (draftMessageId) {
         updateMessage(draftMessageId, finalFields);
@@ -545,6 +547,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         currentAppArea: "chat",
         supportsHabitListCard: true,
         supportsGoalListCard: true,
+        supportsMetricsCard: true,
+        supportsPeriodInsightCard: true,
         ...(entryPointIntent ? { entryPointIntent } : {}),
       } satisfies ChatClientContext;
       formData.append("clientContext", JSON.stringify(clientContext));
