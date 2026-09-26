@@ -176,6 +176,12 @@ function blockingRunUsesChangedFiles(script) {
 
 function guardJobUsesChangedFiles(job) {
   const blockingRuns = runSteps(job).filter((step) => step["continue-on-error"] !== true)
+  const timeless = blockingRuns.at(-1)?.run.trim()
+  if (timeless === `if [ "\${{ github.event_name }}" = "pull_request" ]; then
+  node tools/check-timeless.mjs --base origin/\${{ github.base_ref }}
+else
+  node tools/check-timeless.mjs --all
+fi` && blockingRuns.slice(0, -1).every((step) => isPrerequisiteRun(step.run))) return true
   const preparation = blockingRuns.findIndex((step) =>
     step.name === "Resolve pull request changed paths" &&
     step.if === "github.event_name == 'pull_request'" &&

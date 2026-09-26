@@ -5,6 +5,9 @@ not fork. This file DEFERS to `CLAUDE.md` (same directory) for every repo conven
 before you write code. Your launch prompt already carries the objective, scope, caps, output
 contract, and the merge and push prohibitions; this file holds only what neither of those does.
 
+Write rules, docs and comments timelessly: no dates except load-bearing data, no names or
+attributions, no incident stories and no machine paths. `tools/check-timeless.mjs` enforces this.
+
 Beyond the gates `CLAUDE.md` names: the dash and copy baselines may only shrink, and there is no
 lint-suppression baseline at all. A `local/*` rule runs at `error` with zero violations, so a new
 violation fails on the spot; `Lint Severity` fails if anyone recreates a baseline or lowers a

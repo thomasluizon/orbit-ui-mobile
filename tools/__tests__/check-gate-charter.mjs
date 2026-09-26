@@ -68,6 +68,23 @@ export const cases = () => {
     { status: 1, stderr: /changed-files job has a blocking run that is not scoped to the pull request diff/ },
   )
 
+  const timelessJob = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8")).jobs.timeless
+  const timelessWorkflow = (job) => yaml.dump({ jobs: { existing: job } })
+  check(
+    "check-gate-charter.mjs",
+    "accepts the timeless gate scoped to added lines on pull requests",
+    ["--root", stageRepository("timeless-base", completeCharter(), { guardWorkflow: timelessWorkflow(timelessJob) })],
+    { status: 0 },
+  )
+  const wholeTreeTimelessJob = structuredClone(timelessJob)
+  wholeTreeTimelessJob.steps.at(-1).run = wholeTreeTimelessJob.steps.at(-1).run.replace("--base origin/${{ github.base_ref }}", "--all")
+  check(
+    "check-gate-charter.mjs",
+    "rejects a timeless gate that scans the whole tree on pull requests",
+    ["--root", stageRepository("timeless-unscoped", completeCharter(), { guardWorkflow: timelessWorkflow(wholeTreeTimelessJob) })],
+    { status: 1, stderr: /changed-files job has a blocking run that is not scoped to the pull request diff/ },
+  )
+
   const unconditionalDiffStatus = "jobs:\n  existing:\n    steps:\n      - run: |\n          if git diff --name-only origin/${{ github.base_ref }}...HEAD; then\n            node gate.mjs\n          fi\n"
   check(
     "check-gate-charter.mjs",
