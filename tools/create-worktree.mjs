@@ -55,7 +55,6 @@ const refreshBase = async (refreshPath, run) => {
   try {
     previous = JSON.parse(readFileSync(refreshPath, "utf8"))
   } catch (error) {
-    // #447: an interrupted marker write is a cache miss, never a permanent creation failure.
     if (!(error instanceof SyntaxError) && error.code !== "ENOENT") throw error
   }
   if (previous?.baseBranch !== baseBranch || previous.completedAt < requestedAt) await git(["fetch", "origin", baseBranch], run)
@@ -76,7 +75,6 @@ const refreshBase = async (refreshPath, run) => {
   console.log(`WORKTREE_BASE ${baseBranch} ${remoteCommit}`)
 }
 
-// Same OS identity as #437's run-state.mjs on redesign/main, which this branch predates.
 const processStartIdentity = (pid) => {
   if (process.platform === "win32") {
     const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
@@ -100,8 +98,6 @@ const processStartIdentity = (pid) => {
   return null
 }
 
-// #447: the command inherits this lease before it can execute. Windows closes it on exit,
-// including after supervisor death, so no PID-publication race or live supervisor is required.
 const windowsLease = (name, pid = null) => {
   if (!/^Local\\orbit-worktree-[0-9a-f-]{36}$/.test(name)) throw new Error("invalid Windows lease name")
   const source = `

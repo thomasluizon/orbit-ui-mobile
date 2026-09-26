@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-/**
- * Post one comment to one ticket, with no pull request involved.
- *
- * `sync-issue-state.mjs` already comments, but only as part of a PR lifecycle transition: it demands
- * `--pr`, `--state`, `--head-sha` and `--base-sha`. The conversation-first path in /orchestrate step
- * 2b writes its answers to the ticket BEFORE any worktree exists, so there is no pull request to name
- * and no lifecycle state to move. That is this tool.
- *
- * Why the ticket and not the transcript: a comment stays auditable after the session ends, and
- * `compose-prompt.mjs` renders the visible comment thread into the worker prompt, oldest first,
- * where the later comment wins. Use a comment for a decision that arrives as its own event, such as
- * an answer to an open question; a correction to the work order itself belongs in the BODY, through
- * `update-ticket.mjs`, so the ticket stays one coherent order rather than a body plus errata.
- */
 
 import { readFileSync } from "node:fs"
 

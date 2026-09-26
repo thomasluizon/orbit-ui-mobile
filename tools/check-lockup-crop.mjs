@@ -1,19 +1,4 @@
 #!/usr/bin/env node
-// The lockup asset claims its viewBox IS its ink: no clipped overshoot, no baked margin. That
-// claim is only worth making if something checks it, so this parses the COMMITTED file, solves
-// the real path bounds from the curve extrema, applies the serialized transforms, and compares.
-//
-// It reads the shipped bytes on purpose. An earlier revision asserted the invariant inside its
-// generator against pre-rounded floats, passed, and still shipped a file whose ink sat 2.5e-4
-// outside the viewBox once the numbers were formatted.
-//
-// Solving beats sampling here. A raster shows ink on an edge whether the geometry touches that
-// edge or runs past it, so a render can confirm contact and never detect clipping.
-//
-// It FAILS CLOSED. Every element, attribute and path command it cannot account for is an error,
-// never a skip. An earlier revision inventoried only paths inside transformed groups, so a
-// root-level path outside the viewBox passed silently. A gate that omits what it does not
-// understand reports clean over geometry it never measured, which is worse than no gate.
 
 import { readFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -271,18 +256,11 @@ for (const match of svg.matchAll(TAG)) {
            `  without modelling it would be a clean result over geometry never measured.`)
     }
   }
-  // Every measured path must declare a visible fill. `fill` is INHERITED, and the root carries
-  // fill="none", so a path that simply omits the attribute paints nothing while its geometry
-  // would still have been counted as ink. Checking only for an explicit fill="none" missed that.
   if (name === "path") {
     if (attrs.fill === undefined) {
       fail("a <path> declares no fill, so it inherits the root's fill=\"none\" and paints nothing,\n" +
            "  yet its geometry would be counted as ink. Declare the fill this gate should measure.")
     }
-    // A CLOSED set again, for the same reason as the attribute names. Listing `none` and
-    // `transparent` as the not-visible values left `rgba(0,0,0,0)`, `#0000`, `hsl(0 0% 0% / 0)`
-    // and every other zero-alpha spelling counted as ink. There is no finite list of ways to
-    // write invisible, so the gate enumerates what it knows paints instead.
     if (!VISIBLE_FILLS.has(attrs.fill)) {
       fail(`a <path> is fill="${attrs.fill}", which this gate cannot prove paints.\n` +
            `  Known visible: ${[...VISIBLE_FILLS].join(", ")}.\n` +

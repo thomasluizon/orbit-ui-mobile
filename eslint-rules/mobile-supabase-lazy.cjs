@@ -1,13 +1,5 @@
 "use strict"
 
-/**
- * The mobile Supabase module must stay lazy: no throw and no `createClient()`
- * at module scope. A module-eval throw or eager client init runs during the
- * app's first import and crashes to a grey screen at launch before any error
- * boundary mounts (#172/#174). Scope this rule to the supabase.ts glob via the
- * config's `files` selector. Replaces the forbid-mobile-supabase-eager hook.
- * https://github.com/thomasluizon/orbit-ui-mobile/issues/172
- */
 module.exports = {
   meta: {
     type: "problem",

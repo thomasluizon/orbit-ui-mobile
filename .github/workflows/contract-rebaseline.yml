@@ -18,9 +18,6 @@ jobs:
     outputs:
       moved: ${{ steps.regenerate.outputs.moved }}
     steps:
-      # This job never holds a write token. npm ci runs install scripts, including Lefthook's hook
-      # installer, and Orval runs generated code, so anything they leave behind dies with this runner.
-      # Only the two generated files cross to the write job, as an artifact (review of ui#1098).
       - uses: actions/checkout@v7
         with:
           ref: redesign/main

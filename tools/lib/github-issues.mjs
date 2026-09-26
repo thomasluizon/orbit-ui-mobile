@@ -318,22 +318,6 @@ export const addComment = async (number, body) => {
   await runGh(["issue", "comment", String(number), "--repo", tickets.repository, "--body-file", "-"], { input: body })
 }
 
-/**
- * Read one ticket's visible comments, sorted oldest first.
- *
- * Field shape confirmed live on 2026-08-13 against issue #312, never from memory (code standard 8):
- * gh issue view 312 --repo thomasluizon/orbit-tickets --json comments --jq '.comments[0] | keys'
- * returned author, authorAssociation, body, createdAt, id, includesCreatedEdit, isMinimized,
- * minimizedReason, reactionGroups, url, viewerDidAuthor. `author` is an object carrying `login`.
- *
- * Minimized comments are dropped: the "later comment wins" rule must never hand authority to a
- * comment a maintainer hid as outdated. The sort is explicit because neither the CLI's
- * `comments(first: 100)` query nor GraphQL pagination promises chronological order; Node's stable
- * sort keeps the response order for equal timestamps.
- *
- * `readTicket` deliberately does not fetch these. It is called on almost every orchestration step,
- * and a comment thread is unbounded, so the cost belongs only to the caller that renders them.
- */
 export const readComments = async (number) => {
   positiveIssueNumber(number)
   const tickets = ticketConfiguration()
@@ -356,11 +340,6 @@ export const readComments = async (number) => {
     .sort((first, second) => first.createdAt.localeCompare(second.createdAt))
 }
 
-/**
- * Replace one ticket body. Comments also reach the worker through `compose-prompt.mjs`, but the
- * body is the work order itself (D2): a correction to the order belongs here, not in an errata
- * comment. Before this existed the body was write-once (2026-08-13).
- */
 export const updateBody = async (number, body) => {
   positiveIssueNumber(number)
   if (typeof body !== "string" || body.trim().length === 0) throw new Error("GitHub issue body must be a non-empty string")
@@ -368,17 +347,6 @@ export const updateBody = async (number, body) => {
   await runGh(["issue", "edit", String(number), "--repo", tickets.repository, "--body-file", "-"], { input: body })
 }
 
-/**
- * Replaces the TITLE of one existing ticket. createTicket wrote it and nothing could change it
- * afterwards: the raw-mutation hook blocks `gh issue edit` from a session, and update-ticket
- * touched only the body. Measured 2026-08-25: orbit-tickets#365 kept ordering "the 24 grid variant"
- * in its title long after DESIGN.md:267 cancelled that deliverable, and no sanctioned path could
- * correct it. A title is the line every board view and every `gh issue list` shows, so a stale one
- * misdirects for as long as it stands.
- *
- * The `--title` contract is proven by execution against gh 2.97.0 on 2026-08-25, per code standard
- * 8, with the title read back afterwards. It is NOT taken from `--help`.
- */
 export const updateTitle = async (number, title) => {
   positiveIssueNumber(number)
   if (typeof title !== "string" || title.trim().length === 0) throw new Error("GitHub issue title must be a non-empty string")
@@ -387,18 +355,6 @@ export const updateTitle = async (number, title) => {
   await runGh(["issue", "edit", String(number), "--repo", tickets.repository, "--title", title])
 }
 
-/**
- * Add or remove labels on one existing ticket. The only sanctioned label mutation: the
- * raw-mutation hook blocks `gh issue edit` from a session, and until this existed a label change
- * on an existing ticket had no path at all (measured 2026-08-13: `needs:conversation` could not be
- * applied to #36 by any tool).
- *
- * The `--add-label` / `--remove-label` contract is proven by execution against gh 2.97.0 on
- * 2026-08-13, per code standard 8, three real invocations on orbit-tickets#316 with the label set
- * read back after each: `--add-label harness` added it; `--add-label needs:no-conversation
- * --remove-label harness` in ONE call applied both; `--add-label harness` restored it. Exit 0 on
- * each, and the follow-up `issue view` showed exactly the expected set every time.
- */
 export const editLabels = async (number, { add = [], remove = [] } = {}) => {
   positiveIssueNumber(number)
   const wanted = [...add, ...remove]
@@ -416,16 +372,6 @@ export const editLabels = async (number, { add = [], remove = [] } = {}) => {
   await runGh(args)
 }
 
-/**
- * Adds or removes blocked-by relations on one EXISTING ticket. createTicket writes blockers only at
- * creation, and nothing could change them afterwards: the raw-mutation hook blocks `gh issue edit`
- * from a session and update-ticket writes only the title and the body. That is the same gap
- * label-ticket exists to close, one field over. Measured 2026-08-22: seventeen redesign tickets
- * needed an edge onto the design system tickets that block them and there was no sanctioned path.
- *
- * Every added blocker is RESOLVED and then READ, so a reference that does not exist fails here rather
- * than writing an edge onto a stranger's issue number.
- */
 export const editBlockers = async (number, { add = [], remove = [] } = {}) => {
   positiveIssueNumber(number)
   const wanted = [...add, ...remove]
@@ -465,10 +411,6 @@ export const editBlockers = async (number, { add = [], remove = [] } = {}) => {
   return { number, added: toAdd, removed: toRemove, changed: true }
 }
 
-/**
- * Verified live on 2026-08-08. This exact read returned one title per line for every milestone:
- * gh api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100 --paginate --jq .[].title
- */
 export const listMilestones = async () => {
   const tickets = ticketConfiguration()
   const output = await runGh(["api", `repos/${tickets.repository}/milestones?state=all&per_page=100`, "--paginate", "--jq", ".[].title"])
@@ -659,13 +601,6 @@ const SET_VIEW_FILTER_MUTATION = `mutation($v:ID!,$f:String!){
   updateProjectV2View(input:{viewId:$v,filter:$f}){ projectV2View{ id name number layout filter } }
 }`
 
-/**
- * Every saved view on the configured board, with its current filter.
- *
- * `views` is a paginated connection, so the pages are walked to exhaustion. Reading only the first
- * would make a listing silently incomplete and, worse, make a view on a later page look like it does
- * not exist, which is the one answer a caller must never get wrong before a write.
- */
 export const listProjectViews = async () => {
   const tickets = ticketConfiguration()
   const views = []
@@ -699,15 +634,6 @@ export const listProjectViews = async () => {
   throw new Error("gh api graphql returned more project view pages than this tool will walk")
 }
 
-/**
- * Sets one saved view's filter. Views are the only part of the board no other tool reaches, so a
- * lost filter could previously be repaired only by hand: the write guard blocks a raw
- * updateProjectV2View, correctly, because a mutation cannot prove which board it targets.
- *
- * The view is resolved by name from the live list before the write, so a typo fails here rather
- * than silently doing nothing, and the resulting filter is read back from the mutation's own
- * response rather than assumed.
- */
 export const setProjectViewFilter = async (name, filter) => {
   if (typeof name !== "string" || name.trim().length === 0) throw new Error("A view name is required")
   if (typeof filter !== "string") throw new Error("A view filter must be a string, empty to clear it")
@@ -751,19 +677,6 @@ export const setProjectViewFilter = async (name, filter) => {
 /** How a closed ticket's reason maps onto the board column that reports it. */
 const REPAIRED_STATUS_FOR_REASON = { COMPLETED: "Done", NOT_PLANNED: "Canceled", DUPLICATE: "Duplicate" }
 
-/**
- * Reconciles the board Status of an ALREADY CLOSED ticket with the reason it closed. This is the
- * exact inverse of preflightTicketCompletion, which refuses a closed ticket; this refuses an open
- * one, so neither path can do the other's job by accident.
- *
- * It exists because GitHub closes an issue itself when a merge commit names it, which leaves the
- * issue closed and the board Status wherever the worker left it. complete-ticket then refuses the
- * ticket for being closed, so the row strands. On 2026-08-22 eleven rows were stranded that way and
- * the only remaining route was a raw project mutation, which the ticket-write guard blocks.
- *
- * `allowDone` is passed because the guard behind it protects the readiness loop from targeting Done
- * before a merge. A ticket that is already closed has no merge left to precede.
- */
 export const repairTicketStatus = async (number) => {
   positiveIssueNumber(number)
   const tickets = ticketConfiguration()

@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/**
- * Add or remove labels on one existing ticket.
- *
- * `create-ticket.mjs` validates labels at creation and nothing could change them afterwards: the
- * raw-mutation hook blocks `gh issue edit` from a session, and `update-ticket.mjs` deliberately
- * never touches labels. Measured 2026-08-13: `needs:conversation` could not be applied to #36
- * through any sanctioned path. Every label is validated against the live label list before the
- * write, exactly like creation.
- */
 
 import { editLabels, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 

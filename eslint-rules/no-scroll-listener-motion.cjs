@@ -1,32 +1,3 @@
-/**
- * Local ESLint rule: never drive continuous values through a scroll listener or
- * React state.
- *
- * The strongest consensus in the #539 harvest (5 independent skills). Three
- * distinct failures, one root cause — reading a continuously-changing value on the
- * main thread and routing it through React:
- *  - `window.addEventListener('scroll'|'wheel')` fires per frame on the main
- *    thread and, un-passive, blocks the scroll itself;
- *  - `scrollY` / `scrollTop` / `pageYOffset` read into a `useState` setter forces a
- *    full React render per frame, and reading layout mid-scroll thrashes;
- *  - a `requestAnimationFrame` LOOP whose body sets state re-renders forever at
- *    60fps.
- *
- * "Loop" is load-bearing in that third case: the rAF callback must re-schedule
- * itself. A ONE-SHOT `requestAnimationFrame(() => setIsVisible(true))` is the
- * idiomatic next-frame flip that lets an entrance transition apply from its
- * pre-mount state — it sets state exactly once and is correct. Flagging every
- * state-setting rAF would condemn that idiom, which both apps use.
- *
- * Use IntersectionObserver for "is it visible", a Scroll/View Timeline for
- * scroll-linked animation, or a motion value (`useScroll` / `useMotionValueEvent`)
- * which stays off the React render path.
- *
- * The listener check tolerates a genuinely cheap non-render listener only through
- * an eslint-disable with a reason — the rule cannot tell a cheap handler from an
- * expensive one, and the expensive one is the default.
- */
-
 const SCROLL_EVENTS = new Set(['scroll', 'wheel', 'touchmove', 'mousewheel'])
 const SCROLL_PROPERTIES = new Set(['scrollY', 'scrollX', 'scrollTop', 'scrollLeft', 'pageYOffset', 'pageXOffset'])
 const SETTER_RE = /^set[A-Z]/

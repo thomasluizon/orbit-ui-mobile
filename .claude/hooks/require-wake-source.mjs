@@ -1,23 +1,4 @@
 #!/usr/bin/env node
-// Adapter for the unattended-run wake-source invariant. The reusable core is checkSleepStop in
-// _lib/rules-sleep.mjs. Wired to Stop, the only event that can see a turn ending.
-// Exits 0 (allow the stop) or 2 + stderr (block it, and the message reaches the session).
-// Any error exits 0, so a hook fault can never trap a session that wants to stop.
-//
-// The run record and the wake sources are read through tools/lib/run-state.mjs rather than
-// re-derived here: launch-worker.mjs writes them with that same module, and two definitions of
-// where the files live is how one of them silently stops finding the other. The reader admits a
-// pending launch only while its registered process identity is live and its short window is fresh.
-//
-// This hook reads local state only: the run record, receipt files, and OS process identities. It
-// never calls GitHub. The previous revision re-verified every ledger row against live GitHub
-// (pull request view, branch protection, review threads, board item-list) on EVERY Stop of EVERY
-// session in this project, including for a dead session's ledger it then discarded on the
-// session-id check. Measured 2026-08-09: that alone spent the entire 5,000-point per-user GraphQL
-// budget (5,002 points used) and stalled all work. Whether a receipt is stale against live GitHub
-// is record-readiness.mjs's question, answered once at readiness time; the receipt this hook
-// reads is at most minutes old because the readiness loop ends by recording it, and the final
-// verifier of live state is Thomas, who tests and merges every pull request by hand.
 
 import { readFileSync } from "node:fs"
 
@@ -52,18 +33,6 @@ try {
     process.stderr.write(verdict.message)
     process.exit(2)
   }
-  /**
-   * A run that ends BLOCKED or on a MERGE is allowed to end, and neither must look like one that
-   * finished on its receipts. The banner goes to stderr and the hook still exits 0, because exit 2
-   * is this hook's only confirmed channel back into the session and using it here would BLOCK the
-   * very ending it is describing. So this marks the transcript, and the orchestrate skill's report
-   * step carries the same distinction where the model certainly reads it. Stated rather than
-   * implied: this line is a record, not a guaranteed prompt.
-   *
-   * MERGED is surfaced for the same reason BLOCKED is. A merged pull request leaves the pending set
-   * on a sha rather than on a READY receipt, so without a banner the sha reaches no reader and the
-   * night is indistinguishable in the transcript from one where every receipt was READY.
-   */
   if (verdict?.terminal === "BLOCKED" || verdict?.terminal === "MERGED") {
     process.stderr.write(verdict.message)
   }

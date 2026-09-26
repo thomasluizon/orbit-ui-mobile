@@ -1,32 +1,4 @@
 #!/usr/bin/env node
-/**
- * The sole authority for the word "delivered".
- *
- * A worker's exit code is not evidence. Three documented CLI bugs make "the
- * process finished" untrustworthy: on Windows `codex exec` hangs forever when
- * stdin is an inherited-but-unwritten pipe (openai/codex#20919); it exits 0
- * with zero output when detached from a TTY (openai/codex#19945); and
- * claude-code hangs after emitting its own success event
- * (anthropics/claude-code#25629). A measured incident closed the argument: the
- * remote PR head remained 20987524 while four later commits and the pagination
- * work existed only locally. A successful local repair that is never pushed,
- * reviewed, and made green is not delivery.
- *
- * So every check below reads a git or GitHub artifact. None reads a
- * self-report, and child stdin is never inherited.
- *
- * Two things this file is careful NOT to do, both measured on ORB-39 (2026-08-06):
- *
- * 1. It never short-circuits before counting commits. It used to emit NO_COMMIT the
- *    moment the tree was dirty, so a worktree holding commit 7c726189 (8 files, 221
- *    insertions, the whole ticket) reported one check and the word NO_COMMIT. That
- *    reads as "produced nothing", and the correct recovery was the opposite: discard
- *    the residue, push, open the pull request. DIRTY_TREE is now its own verdict and
- *    hasCommits is always evaluated and always reported.
- * 2. It measures diff size for review planning but never turns size into a delivery verdict.
- *    Correct migrations, generated artifacts, lockfiles and codemod output stay attached to the
- *    source change that requires them.
- */
 
 import { statSync } from "node:fs"
 
@@ -161,13 +133,6 @@ const emit = (verdict) => {
   process.exit(verdict === "DELIVERED" ? 0 : 1)
 }
 
-/**
- * Residue a run may safely discard, against work it may not. Generated files and evidence a worker
- * should never have produced are one situation; a tracked source file left mid-edit is another, and
- * only the second is somebody's unfinished thinking. Measured on ORB-39: `M apps/web/next-env.d.ts`
- * plus `?? apps/web/e2e/orb-39-evidence.spec.ts`, both discardable, so the finished commit
- * underneath was recoverable without a human opening the worktree.
- */
 const GENERATED_RESIDUE = [/(^|\/)next-env\.d\.ts$/, /(^|\/)\.next\//, /(^|\/)dist\//, /(^|\/)build\//, /(^|\/)coverage\//, /(^|\/)node_modules\//, /\.tsbuildinfo$/, /(^|\/)test-results\//, /(^|\/)playwright-report\//]
 /**
  * Discardable only while UNTRACKED. The repository has a tracked E2E suite, and a path-only rule
@@ -372,21 +337,6 @@ const readRequiredChecks = async (state) => {
 }
 let requiredChecks = await readRequiredChecks(pullRequestState)
 
-/**
- * A pull request that cannot merge was never delivered, and until this check existed nothing here
- * looked: the header above promises that every check reads a GitHub artifact, and CI status was the
- * one artifact it never read. Measured on #685, which this file called DELIVERED twice while five
- * required-or-gating checks were red.
- *
- * The rollup mixes two node types with DIFFERENT fields, confirmed against a live response rather
- * than assumed: a `CheckRun` carries `status` plus `conclusion`, and a `StatusContext` carries
- * `state` alone and no status. Reading only one shape silently ignores every check of the other
- * kind. lib/readiness-receipt.mjs normalises both into one node shape carrying the producing app.
- *
- * Per-check classification uses the exact complement of readinessCiIsGreen's pass rule, and
- * required-check matching is the library's own. Delivery additionally observes registration when
- * there is no required inventory; it does not change the shared rule for any reported check.
- */
 const FAILING_STATES = new Set(["FAILURE", "ERROR"])
 const PENDING_STATES = new Set(["PENDING", "EXPECTED"])
 
@@ -409,12 +359,6 @@ const checkMetadata = (name, node) => {
 const REGISTRATION_WINDOW_MS = 60_000
 let registrationObservation = null
 
-/** Without an expected inventory, a fast green check cannot prove registration finished (#429).
- * Require unchanged evidence across two 30-second poll intervals, even when nothing is running.
- * Reset on any latest-check or base/head change; old completion timestamps are not observations.
- * Workflow-derived counts would duplicate trigger/matrix logic and miss external checks; typical
- * base counts vary with paths and workflow changes. A local observation window avoids both guesses,
- * though it cannot prove that a producer will never register after the window has elapsed. */
 const registrationPending = (newestByCheck, fingerprint) => {
   if (requiredChecks.length > 0 || newestByCheck.size === 0) {
     registrationObservation = null
@@ -431,12 +375,6 @@ const registrationPending = (newestByCheck, fingerprint) => {
 }
 
 const readRollup = async () => {
-  /**
-   * A re-run does NOT replace the old entry: the rollup carries BOTH, so a re-run of a red check
-   * reads as failing and pending at once and could never clear. Measured on #685, where a re-queued
-   * `Dash Ban` appeared twice. `newestChecks` keeps only the newest entry per check and producer,
-   * which is what the GitHub UI shows and the only reading under which a re-run can go green.
-   */
   // Never null here: readPullRequestState rejects any rollup entry that carries no check name.
   const newestByCheck = newestChecks(pullRequestState.statusCheckRollup)
   const fingerprint = registrationFingerprint(pullRequestState, newestByCheck)
@@ -444,23 +382,12 @@ const readRollup = async () => {
   const pending = []
   const registering = registrationPending(newestByCheck, fingerprint)
   if (registering) pending.push(registering)
-  /** An empty rollup cannot become delivery evidence just by remaining empty (#429). */
   if (requiredChecks.length === 0 && newestByCheck.size === 0) {
     pending.push({
       ...checkMetadata("Reported checks", { status: "NOT_REGISTERED", conclusion: null }),
       reason: "No checks reported; an empty required set is not evidence of successful CI",
     })
   }
-  /**
-   * A required check the rollup does not carry UNDER ITS PINNED PRODUCER is pending, never green.
-   * That absence is the mechanism by which a missing `pullfrog-approval` blocks, and it is also the
-   * mechanism by which a same-named success from another app fails to clear the review gate.
-   *
-   * The one exception is the review fallback (#440), applied here through the SAME predicate
-   * record-readiness.mjs uses. It has to be applied here too: this tool's `ci.pass` is cached into the
-   * delivery artifact, and record-readiness.mjs honours that cached false as a veto, so recording an
-   * excused absence as pending kept the fallback from ever producing READY on a protected base.
-   */
   const { verdict: reviewVerdict, complete: reviewComplete } = await resolveReviewVerdict(pullRequestState, readOlderReviewPage)
   const satisfiedOutOfBand = reviewSatisfiedOutOfBand(reviewVerdict)
   for (const required of requiredChecks) {
@@ -481,8 +408,6 @@ const readRollup = async () => {
     }
     if (!PASSING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
   }
-  // Which evidence carried the review axis, so an artifact that leaned on the fallback says so rather
-  // than reading like an ordinary green (#440). The receipt records the same three fields.
   const review = { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null, complete: reviewComplete }
   return { total: newestByCheck.size, failing, pending, registrationFingerprint: fingerprint, review }
 }

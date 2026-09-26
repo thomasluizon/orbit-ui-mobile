@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
-import { pathToFileURL } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
 
@@ -85,9 +85,19 @@ export const cases = async () => {
 
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
+  const commonDir = spawnSync("git", ["-C", dirname(toolPath("lib/orchestrator-config.mjs")), "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" })
+  const primaryRoot = dirname(commonDir.stdout.trim())
+  const shippedRepos = readOrchestratorConfig().repos
+  T(
+    `${NAME}: shipped paths resolve from the primary checkout even in a linked worktree`,
+    commonDir.status === 0 && shippedRepos.ui === primaryRoot &&
+      shippedRepos.api === resolve(primaryRoot, "../orbit-api") &&
+      shippedRepos.landing === resolve(primaryRoot, "../orbit-landing-page"),
+    JSON.stringify(shippedRepos),
+  )
   const relativeRepos = { ...real, repos: { ui: ".", api: "../orbit-api", landing: "../orbit-landing-page" } }
   const relativeConfig = configUrl("relative-repositories", JSON.stringify(relativeRepos))
-  const fixtureRoot = dirname(dirname(relativeConfig.pathname))
+  const fixtureRoot = dirname(dirname(fileURLToPath(relativeConfig)))
   const resolvedRepos = readOrchestratorConfig(relativeConfig).repos
   T(
     `${NAME}: relative repository paths resolve from the primary checkout`,
@@ -130,15 +140,6 @@ export const cases = async () => {
     JSON.stringify(mechanicalInvocation),
   )
 
-  /**
-   * EVERY declared engine, not only the one `worker` names. `readOrchestratorConfig` validates
-   * `config.workers[config.worker]` alone, so a typo in a fallback engine nobody runs today stays
-   * invisible until the first real launch. The cost is the night, not a launch: `launch-worker.mjs`
-   * resolves the invocation at `:135` and a bad `command` fails at `:239`, both before
-   * `reserveWorkerLaunch` at `:288`, so every failure mode here exits having spent zero of the two
-   * launches `caps.workerLaunchesPerBranch` allows. The fallback exists for the night the primary
-   * allowance is exhausted, which is the worst moment to find out it does not resolve.
-   */
   const engineFailures = []
   for (const [declaredName, declaredEngine] of Object.entries(real.workers)) {
     const tiers = Object.keys(declaredEngine.models ?? {})
@@ -164,25 +165,6 @@ export const cases = async () => {
     engineFailures.join("; "),
   )
 
-  /**
-   * The fallback engine's isolation flags, pinned by name, and the ABSENCE that carries the whole
-   * safety argument. `--strict-mcp-config` narrows the worker to the servers `--mcp-config` names,
-   * so it isolates nothing on its own: with no `--mcp-config` beside it the set is empty and the
-   * worker loads zero MCP servers, which is what stops it inheriting the user-scope servers in
-   * `~/.claude.json` while running at `bypassPermissions`. Presence alone is the weaker property and
-   * asserting it alone leaves a green test beside a real change, so the absence is asserted too.
-   * `--output-format stream-json` is what keeps the launcher's log-growth progress signal live, and
-   * `--verbose` is not decoration: the binary refuses stream-json without it.
-   *
-   * It is asserted on the RESOLVED vector, per tier, not on `workers.claude.args`. The worker's real
-   * argv is `[...engine.args, ...(entry.args ?? []), "--model", entry.model]` at
-   * `tools/lib/orchestrator-config.mjs:177`, so the engine array is only the first of three pieces.
-   * Driven 2026-09-18: `--mcp-config` in the engine array failed the old predicate, and the same flag
-   * in a TIER's array passed it while the worker would have received
-   * `[..., "--strict-mcp-config", "--permission-mode", "bypassPermissions", "--mcp-config", "<path>", ...]`.
-   * A per-tier MCP set is exactly where a later change would put it, so the absence is checked where
-   * the worker reads it.
-   */
   const claudeEngine = real.workers.claude ?? { args: [], models: {} }
   const claudeTiers = Object.keys(claudeEngine.models ?? {})
   const isolationFailures = claudeTiers.length === 0 ? ["the claude engine declares no model tiers"] : []
@@ -205,17 +187,6 @@ export const cases = async () => {
     isolationFailures.join("; "),
   )
 
-  /**
-   * The fallback's executable and both model ids, pinned literally the way the shipped default is
-   * above. The loop over every declared engine cannot catch either: `resolveWorkerInvocation` never
-   * reads `command`, and it reads `entry.model` from the same block the loop compares against, so
-   * `resolved.model === expectedModel` is true by construction. Nothing else reads a model against a
-   * catalog. A typo that is not a real id fails loudly at the first launch, but `claude-opus-4-8` IS
-   * a real id, so that one runs a whole night on the wrong model in silence. It matters more for
-   * this engine than for codex: `reseed-calibration.mjs:178-182` builds `workerTiers` from the
-   * ACTIVE engine alone, so the calibration gate gives the claude block no drift coverage at all,
-   * for exactly the period `SKILL.md` §5.4.1 tells the operator to read that gate as expected-red.
-   */
   const fallback = real.workers.claude ?? {}
   T(
     `${NAME}: the claude fallback engine runs claude, opus 5 by default and sonnet 5 mechanically`,
@@ -389,7 +360,6 @@ export const cases = async () => {
       real.timeouts.gitRemoteSeconds === 30 &&
       real.timeouts.receiptLockSeconds === 1 &&
       real.caps.cloudParallelTasks === 8 &&
-      // Six on the 64 GB, 18-core M5 Pro (2026-09-24); see the sleep skill, section 5.
       real.caps.parallelTickets === 6 &&
       real.caps.workerLaunchesPerBranch === 2 &&
       real.caps.workerLogMegabytes === 512,
@@ -406,11 +376,6 @@ export const cases = async () => {
     "the real config shape was refused by its own reader",
   )
 
-  /**
-   * The measured defect: a launcher read its config from a checkout 26 commits behind and started
-   * a worker on the superseded model. A working copy that disagrees with origin/<base> is refused
-   * ONLY when the checkout cannot already contain that ref, so a PR editing the config stays green.
-   */
   const stale = stageConfigRepo("stale", { head: "base", origin: "newer", working: '{"revision":"local"}\n' })
   T(
     `${NAME}: a working copy behind origin/main is refused with the fetch command to repair it`,

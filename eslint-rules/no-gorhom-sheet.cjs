@@ -1,15 +1,3 @@
-/**
- * Local ESLint rule: keep `@gorhom/bottom-sheet` out of apps/mobile and route
- * every sheet through the shared Sheet primitive.
- *
- * gorhom's `present()` + portal silently no-op on the New Architecture
- * (Fabric/Bridgeless) in release builds, so the bug is invisible at runtime.
- * This rule fails CI for the two reintroduction vectors:
- *  - importing `@gorhom/bottom-sheet` (anywhere), and
- *  - calling `.present()` / `.dismiss()` on a sheet ref (`someRef.current.present()`)
- *    outside the single sanctioned primitive `components/ui/sheet.tsx`.
- */
-
 const GORHOM_MODULE = '@gorhom/bottom-sheet'
 const SHEET_METHODS = new Set(['present', 'dismiss'])
 const ALLOWED_SHEET_FILE = 'components/ui/sheet.tsx'

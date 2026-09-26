@@ -81,10 +81,6 @@ export const cases = () => {
     { path: localEnvironment.script, cwd: localEnvironment.repository },
   )
 
-  // A tool's runtime directory is the third declared class (#256). `.orca/web-port` blocked every
-  // commit in two worktrees whose worker had started a dev server, and deleting orca's own state was
-  // the only way through. A declared line fixes that without exempting the gitignored scratch above:
-  // the case below proves both halves of that in one fixture.
   const toolRuntime = stageRepository("tool-runtime-state", [".gitignore"], [".orca"])
   writeFileSync(join(toolRuntime.repository, ".gitignore"), "/.orca/\n.tmp-*\n")
   mkdirSync(join(toolRuntime.repository, ".orca"), { recursive: true })

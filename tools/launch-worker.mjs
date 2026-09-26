@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-/**
- * Supervise ONE headless worker for one ticket, in the foreground. This process IS the watchdog:
- * the orchestrator runs it as a background shell task, so this process's death is the orchestrator's
- * wake signal. It spawns the worker as its own child, holds two clocks over it, kills the whole
- * process tree when either expires, and prints one JSON result. It launches a worker; it never
- * merges, reviews, or moves a ticket.
- *
- * THE CHILD'S EXIT CODE IS NEVER PROOF OF DELIVERY. openai/codex#19945 exits 0 with zero output
- * when detached from a TTY, and anthropics/claude-code#25629 hangs after emitting its own success
- * event. What this script reports is what the process did, not what the ticket got. Delivery is
- * verified out of band by tools/verify-delivery.mjs.
- */
 
 import { spawn, spawnSync } from "node:child_process"
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs"
@@ -139,31 +127,12 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
-/** Per-launch override for a ticket that legitimately outruns the fleet-wide default: three of the
- * six 2026-08-22 kills were the 45-minute cap on tickets whose work simply takes longer (#358). */
 const hardCeilingMinutes = hardCeilingArg === null ? config.timeouts.hardCeilingMinutes : Number(hardCeilingArg)
 if (hardCeilingArg !== null && !(Number.isFinite(hardCeilingMinutes) && hardCeilingMinutes > 0)) {
   fail(2, `${USAGE}\n\n--hard-ceiling-minutes must be a positive number, got "${hardCeilingArg}"`)
 }
 const hardCeilingMs = hardCeilingMinutes * 60 * 1000
 
-/**
- * THE no-progress cap punished work whose whole job is measurement.
- *
- * The clock samples HEAD and file mtimes, so a ticket that RUNS a benchmark looks byte for byte like
- * a hung worker: no commit, no file written, for minutes at a time. ORB-225 was killed mid-Lighthouse
- * on 2026-08-08 with real measurements sitting in its log and zero commits. It only succeeded on a
- * second attempt, after those measurements were recovered by hand and injected into the work order.
- * Lighthouse, benchmarks, profiling and bundle-size tickets all share that shape.
- *
- * The first fix was a longer cap for those tickets, and log growth was rejected as a signal then
- * because ORB-201's runaway wrote 61.73 MB in 37 minutes while delivering nothing. That objection
- * died when caps.workerLogMegabytes started killing exactly that flood by byte count: with the
- * runaway bounded, log growth became an honest liveness signal, and the sampler now counts it, next
- * to process-tree CPU, after six FINISHED workers were killed in one night for running long test
- * suites (#358, 2026-08-22). The measurement cap stays for work that is silent on every signal,
- * and the hard ceiling still bounds everything: a worker that really is hung dies at the ceiling.
- */
 const measurementNoProgressMinutes = config.timeouts.measurementNoProgressMinutes
 if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measurementNoProgressMinutes > config.timeouts.noProgressMinutes)) {
   fail(2, `--measurement requires timeouts.measurementNoProgressMinutes in .claude/orchestrator.json, greater than noProgressMinutes (${config.timeouts.noProgressMinutes})`)
@@ -225,16 +194,6 @@ const resolveOnPath = (command) => {
   return null
 }
 
-/**
- * Node has refused to spawn a `.cmd` or `.bat` without `shell: true` since the CVE-2024-27980 fix,
- * and `spawn("codex.cmd", ...)` throws EINVAL before codex ever starts. `shell: true` avoids the
- * errno but hands the worker pointer to cmd.exe to re-parse, and that pointer is a positional
- * prompt carrying spaces and quotes, which is the ORB-88 mangled-prompt class. So resolve the npm
- * shim to the script it execs and spawn Node on that: the argv array survives with no shell in the
- * path. Verified against the installed codex.cmd, whose last line is
- * `"%_prog%"  "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*`. A shim that does not match
- * that shape fails closed here rather than falling through to a spawn known to throw.
- */
 const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
 const headlessInvocation = () => {
   const resolved = resolveOnPath(engine.command)
@@ -343,16 +302,6 @@ if (!registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: 
   fail(3, "could not register the pending launcher wake source")
 }
 const logFd = openSync(logFile, "a")
-/**
- * stdin is CLOSED, never "inherit" and never "pipe": an inherited-but-unwritten stdin pipe hangs
- * `codex exec` forever on Windows (openai/codex#20919). The marker in the env is what lets the
- * orchestrator hook tell this launcher's `codex exec` from a hand-typed one.
- *
- * ORCA_CLI_COMMAND is the orca-linear skill's FIRST binary-resolution rule. The default is bare
- * `orca`, the same default create-worktree.mjs uses: on the Mac it resolves through PATH to the
- * Homebrew link `/opt/homebrew/bin/orca` into Orca.app (checked 2026-09-24). The Windows machine
- * had no `orca` on PATH (ORB-87), so a machine without one sets ORCA_BIN.
- */
 // The gate cannot enter the worktree until both records name its pid. If this launcher dies
 // beforehand, its IPC channel closes and the gate exits without starting the real worker.
 const gatePath = fileURLToPath(new URL("./lib/worker-gate.cjs", import.meta.url))
@@ -375,13 +324,6 @@ if (!child.pid || !recordReservedWorkerPid(process.pid, child.pid, runDirectory)
   fail(3, "could not publish the worker pid in the worktree reservation")
 }
 
-/**
- * THIS process, not the child, is what the orchestrator backgrounds and what its exit re-invokes the
- * session with, so this pid is the run's real wake source. Registering it here is what lets the Stop
- * hook prove an unattended run has something live to wake it rather than take its word: a run that
- * ended a turn claiming "CI will wake me" with nothing scheduled ended the whole night on 2026-08-06.
- * This overwrites the pending form now that the child pid is known.
- */
 if (!registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: child.pid, logFile, startedAt })) {
   child.kill()
   fail(3, "could not publish the worker pid in the wake source")
@@ -396,12 +338,6 @@ const finish = (outcome, exitCode) => {
   clearWakeSource(process.pid)
   clearWorkerLaunchReservation(process.pid, runDirectory)
   closeSync(logFd)
-  /**
-   * What the run left in the tree, read once here so the orchestrator does not have to call git to
-   * tell a kill that discarded nothing from one that discarded nine finished commits (#358). The
-   * exit code carries the same distinction: on 2026-08-22 six killed workers all exited identically
-   * while every one of them held complete, committed work.
-   */
   const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
   const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
   const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
@@ -454,33 +390,9 @@ const newestMtimeUnder = (directory) => {
  */
 const progressFingerprint = () => `${gitIn(["rev-parse", "HEAD"])}:${newestMtimeUnder(runDirectory)}`
 
-/**
- * Cumulative CPU milliseconds burned by a process and every currently running descendant, or null
- * when the probe cannot answer. One CIM query returns the whole table; KernelModeTime and
- * UserModeTime are 100 ns units. Confirmed against the live output of this exact command on this
- * machine (2026-08-23), whose first rows were, verbatim:
- *   [{"ProcessId":0,"ParentProcessId":0,"KernelModeTime":47697331093750,"UserModeTime":0},
- *    {"ProcessId":4,"ParentProcessId":0,"KernelModeTime":826359375000,"UserModeTime":0},
- *    {"ProcessId":140,"ParentProcessId":4,"KernelModeTime":0,"UserModeTime":0}]
- *
- * The number is a snapshot of LIVE processes, not an account of the whole tree's history: a child
- * that starts and exits between two polls contributes nothing, a child exiting mid-window makes the
- * total DROP, and a dead intermediate breaks the parent-pid chain, so live grandchildren behind it
- * are unreachable from the root. Windows does not re-parent orphans, and following a dead pid's key
- * would count strangers under a recycled pid, so a single snapshot cannot see across that break
- * without native job objects, complexity this harness does not warrant. The sampler clamps on a
- * drop rather than demanding a re-climb, and the shapes this blindness leaves, short-lived children
- * and an orphaned burner, are what the log signal covers, since the worker narrates work to its
- * log; a kill still requires every signal silent for the whole cap.
- *
- * Windows and macOS only. macOS re-parents an orphan to launchd, so the same break applies there.
- * Linux stays null because no Linux `ps` was read for this parser (code standard 8). A null probe
- * fails toward the historical signals, never toward keeping a worker alive.
- */
 const processRows = () => {
   if (process.platform === "darwin") {
     // BSD ps `time` is user plus system CPU as minutes:seconds.hundredths. Read on the M5 Pro
-    // (2026-09-24): `0:17.22`, and `66:23.41` from an 18-thread burner, so minutes never roll into
     // hours. A row in any other shape is skipped; the sampler clamps a drop, never a rise.
     const result = spawnSync("ps", ["-A", "-o", "pid=,ppid=,time="], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } })
     if (result.status !== 0) return null
@@ -542,38 +454,9 @@ const ceiling = setTimeout(() => {
   killTree(child.pid)
 }, hardCeilingMs)
 
-/**
- * A worker that floods its own log is a runaway, and until now it died unexplained.
- *
- * Measured on the 2026-08-08 night, from the 30 logs it left behind. ORB-201 wrote 61.73 MB in 36.9
- * minutes, 28.6 KB/s, EIGHT times the next-fastest writer (ORB-162 at 3.6 KB/s), and its log is one
- * enormous `git diff`: 5,928 hunk headers and 41,215 deleted lines. It is the only log in the batch
- * carrying `ERROR codex_core::tools::router: error=code-mode host closed its stdout`, and ORB-162
- * died 3 seconds later mid-write with no error line at all.
- *
- * That proximate failure is the vendor's code-mode host, not this harness, and it is named as such
- * rather than papered over. What IS the harness's is that nothing bounded the flood that preceded
- * it. This turns an unexplained death into a named outcome with the byte count attached.
- *
- * The child writes to the log fd directly, so this samples rather than rotates: re-plumbing a
- * running child's stdio is not possible, and the sampler already runs on the same clock.
- */
 const logMegabyteCap = config.caps?.workerLogMegabytes
 const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMegabyteCap * 1024 * 1024 : null
 
-/**
- * Progress is any of three signals, tested cheapest first (#358, after six workers holding
- * finished, committed work were killed in one night as "stalled"):
- *   1. HEAD moved or a file changed under the run directory, the original fingerprint.
- *   2. The worker log grew. The worker streams to it continuously, so a long `dotnet test`, a CI
- *      wait, or a model turn all show up here while writing nothing to the tree. Safe to count only
- *      because KILLED_LOG_RUNAWAY bounds a flood by byte count, which is what answers ORB-201.
- *   3. The process tree burned real CPU since the last silent sample. This is the honest signal for
- *      a child that computes without writing, and the probe enumerates every process on the
- *      machine, so it runs only when both cheap signals are static, which is exactly the situation
- *      that used to count toward a kill.
- * A tree that is idle on all three for noProgressMinutes is still killed, as it must be.
- */
 let progress = progressFingerprint()
 let lastProgressAt = supervisionNow() ?? Date.now()
 if (supervisionClockPath) publishSupervisionMarker(`${supervisionClockPath}.ready`, "ready")

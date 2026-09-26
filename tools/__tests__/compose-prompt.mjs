@@ -158,11 +158,6 @@ export const cases = () => {
   const prompt = composed(out)
   T(`${TOOL}: the ticket body survives composition verbatim`, prompt.startsWith("# Ticket body\n\nKeep this verbatim."), prompt.slice(0, 200) || written.stderr)
 
-  /**
-   * Only the body, the comments and the labels reach the prompt, so a whole-board read here is pure
-   * GraphQL cost on the hot path. #308 memoized the read per process, which buys nothing when the
-   * orchestrator spawns one process per ticket.
-   */
   const boardMarker = stage("compose-prompt/board-read", "must remain")
   check(
     TOOL,
@@ -195,11 +190,6 @@ export const cases = () => {
     /file every finding through `node tools\/create-ticket\.mjs`/.test(prompt),
     prompt,
   )
-  /**
-   * The two-tier ambiguity rule replaces "choose the reading a careful colleague would", which
-   * instructed silent assumptions. A worker must record mechanical choices in ## Assumptions and
-   * raise a Thomas-owned decision as NEEDS_DECISION rather than guess it.
-   */
   T(
     `${TOOL}: the brief splits ambiguity into recorded assumptions and NEEDS_DECISION`,
     /## Assumptions/.test(prompt) && /NEEDS_DECISION: <one question, with your recommended answer>/.test(prompt) && /NEVER yours to guess/.test(prompt) && !/choose the reading a careful colleague/.test(prompt),
@@ -222,8 +212,8 @@ export const cases = () => {
   )
   const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract"), prompt.indexOf("\n\n---\n\n## Orchestrator's brief")).trimEnd()
   T(
-    `${TOOL}: original implementation keeps its finishing section byte for byte`,
-    createHash("sha256").update(originalFinishing).digest("hex") === "4dc1cb5d62215f363ac2173dc740caf1ab1f2a47c055273989af1ad0ae0a4205",
+    `${TOOL}: local finishing section matches the reviewed contract byte for byte`,
+    createHash("sha256").update(originalFinishing).digest("hex") === "c25370efe9db1d7b71f52f917d2056bec15a602e370bdc1fce5478a961cc5f31",
     originalFinishing,
   )
   const reviewOut = join(root, "compose-prompt", "review-batch.md")

@@ -21,14 +21,6 @@ export function withinRoot(target, repoRoot) {
   return relation === "" || (relation !== ".." && !relation.startsWith(`..${pathApi.sep}`) && !pathApi.isAbsolute(relation))
 }
 
-/**
- * The repository owning a path, as `{ root, linked }`, or null when there is none.
- *
- * A linked worktree's root carries a `.git` FILE whose single `gitdir:` line points into
- * <main-root>/.git/worktrees/<name>, while an ordinary checkout carries a `.git` DIRECTORY.
- * `linked` is what separates a worker's worktree from the main checkout an orchestrating
- * session sits in, which is the discrimination both callers need.
- */
 export function owningRepository(startPath) {
   if (typeof startPath !== "string" || !startPath) return null
   let current = resolve(startPath)
@@ -66,11 +58,6 @@ export function declaredRepoRoots(hookRepoRoot) {
   }
 }
 
-/**
- * macOS keeps its temp directory behind a symlink (`/var` to `/private/var`), and git writes the
- * REAL path into a linked worktree's `gitdir:` line, so one repository read as two roots there
- * (39 staging cases, 2026-09-24). A path that does not resolve is compared as written.
- */
 const canonical = (path) => {
   try {
     return realpathSync.native(path)

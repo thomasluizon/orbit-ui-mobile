@@ -1,19 +1,3 @@
-// An unattended run may not end a turn with nothing left to wake it.
-//
-// Measured 2026-08-06: under --sleep the only thing that continues the run is a background task
-// completing and re-invoking the session. The orchestrator ended a turn saying "CI will wake me"
-// with nothing scheduled. The queue stopped there, and the artifacts it left are indistinguishable
-// from a run that finished, so nobody went looking.
-//
-// Pure: takes the run record, wake sources already verified by the adapter's reader, and an injected
-// identity predicate, and returns { block, message } or null. OS process probes belong at the adapter
-// boundary so this rule can be tested without real processes.
-//
-// What it CAN prove: that at least one registered wake source still identifies its live process.
-// launch-worker.mjs registers itself, so a launched worker is real evidence, not a claim. What it
-// CANNOT prove: that the wake source will actually re-invoke this session. That is still the run's
-// own responsibility, and the invariant in the skill says to name it.
-
 /**
  * @param options `{ state, wakeSources, sessionId, stopHookActive, isWakeSourceAlive, receiptVerdict }`
  * `isWakeSourceAlive(source)` must compare the persisted identity with a fresh OS observation.
@@ -29,17 +13,6 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
   if (typeof state.sessionId === "string" && state.sessionId !== "" && sessionId !== "" && state.sessionId !== sessionId) return null
 
   const remaining = Array.isArray(state.remaining) ? state.remaining.filter((entry) => typeof entry === "string" && entry !== "") : []
-  /**
-   * An open pull request with no READY final-head receipt is unfinished work too, and it is the
-   * shape a SALVAGE produces: PR #690 was cleaned, pushed and opened by hand, then reported as
-   * finished while two required checks were red, because opening it was treated as the end of
-   * salvage.
-   *
-   * Pullfrog reviews every pull request in GitHub Actions, and `pullfrog-approval` is a required
-   * status check on `main`. The review verdict therefore arrives through the same required contexts
-   * the receipt already reads, so the receipt alone decides whether a pull request is done. A queue
-   * is not done while one of its pull requests lacks a READY receipt.
-   */
   const rawPullRequests = [
     ...(Array.isArray(state.pullRequests) ? state.pullRequests : []),
     ...(Array.isArray(state.readinessLedger) ? state.readinessLedger : []),
@@ -48,55 +21,10 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
     (entry) => typeof entry?.repositoryKey === "string" && entry.repositoryKey !== "" && Number.isInteger(entry?.prNumber) && typeof entry?.receiptPath === "string" && entry.receiptPath !== "",
   )
   const uniquePullRequests = [...new Map(pullRequests.map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
-  /**
-   * A run that CANNOT reach READY needs a way to end honestly.
-   *
-   * Measured 2026-08-08: a named blocker made READY unreachable, and the only exits this hook left
-   * were fabricating a receipt or clearing the ledger, both forbidden. The deadlock burned five
-   * turns. So a pull request may also be terminal as BLOCKED, and the bar for that is a recorded,
-   * machine-readable blocker string on its ledger entry. A blocker is not a verdict the run may
-   * assert about its own work: it is a fact it must write down first, which is what keeps "ended
-   * blocked" from becoming a cheaper synonym for "finished".
-   */
   const hasRecordedBlocker = (entry) => typeof entry.blocker === "string" && entry.blocker !== ""
-  /**
-   * A MACHINE RESOURCE is never a blocker. It is a reason to use fewer workers.
-   *
-   * Measured 2026-09-19: the low-memory guard reaped two workers mid-round, the run recorded that as
-   * a blocker on both rows, and this function let it end BLOCKED with a pull request approved and
-   * one body edit from merging. Thomas: "YOU CANT END A RUN BECAUSE OF A MEMORY HOOK ... if you have
-   * memory problems, just use less workers or some shit, but never end the run".
-   *
-   * The distinction is whether the limit is external and unarguable. An exhausted API allowance is:
-   * no amount of care makes it resolve before it resets. Memory, disk and CPU are not: they are
-   * consequences of how much this run chose to start at once, so the answer is to start less and
-   * keep going. Letting them end a night makes "the box was busy" a synonym for "the work is done".
-   */
   const MACHINE_PRESSURE =
     /\b(low[- ](?:on[- ])?memory|out of memory|memory pressure|oom|reaped?|reaper|disk (?:space|full)|enospc|cpu pressure)\b/i
   const isMachinePressureBlocker = (entry) => hasRecordedBlocker(entry) && MACHINE_PRESSURE.test(entry.blocker)
-  /**
-   * A MERGED pull request is finished, and neither READY nor BLOCKED describes it.
-   *
-   * Measured 2026-09-18 by driving this function: a run that merged a pull request under the step 9
-   * exception, with nothing left to launch, got `block: true` here. The receipt stays `CI_STALE`
-   * forever, because the check it waits on will never publish, and the ledger row is append only, so
-   * the merge could not clear it. That is the 2026-08-08 deadlock reached after a SUCCESSFUL merge,
-   * and the two exits it left were the forbidden ones.
-   *
-   * The bar is the merge commit sha, which a reader can check against GitHub. A merge is not
-   * reversible, so a merged row leaves the pending set for good rather than waiting on a receipt
-   * that cannot change.
-   *
-   * It must LOOK like a sha, and that is not pedantry. `blocker` may be any non-empty string
-   * because a false blocker prints a loud BLOCKED banner naming the pull request; a false `merged`
-   * ends the night in SILENCE. Measured 2026-09-18 by driving this function: with a non-empty-string
-   * test, `orchestrate/SKILL.md`'s own unfilled template value,
-   * "<merge commit sha once it is merged, or absent>", and the bare word "yes" both returned null,
-   * so copying the template without filling it reported an UNMERGED pull request as a finished
-   * night. `tools/lib/run-state.mjs` carries the same rule over the same literal; the two must not
-   * drift, and `test-hooks.mjs` asserts that they have not.
-   */
   const MERGE_SHA = /^[0-9a-f]{7,40}$/
   const hasRecordedMerge = (entry) => typeof entry.merged === "string" && MERGE_SHA.test(entry.merged)
   const mergedPullRequests = uniquePullRequests.filter(hasRecordedMerge)
@@ -119,19 +47,6 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
   }
 
   if (remaining.length === 0 && pendingPullRequests.length === 0 && invalidPullRequestIdentities === 0) {
-    /**
-     * The run may end. Say WHICH ending it is, visibly, because "ended blocked" reading as
-     * "finished" is precisely the failure this whole state exists to prevent. A hook that allows a
-     * stop prints nothing, so the distinction is returned for the caller to surface.
-     *
-     * A LIVE wake source means the run has not ended at all, so it gets no banner: this turn is
-     * ending, the run is not. Announcing a final state there would be the mirror of the defect, a
-     * run reporting an ending while work is still in flight.
-     *
-     * BLOCKED outranks MERGED when a run produced both, because the blocked row is the one that
-     * still needs a reader. The BLOCKED banner already names every blocked pull request, and step
-     * 11's report carries the merge shas beside it.
-     */
     if (live.length > 0) return null
     const machinePressure = blockedPullRequests.filter(isMachinePressureBlocker)
     if (machinePressure.length > 0) {

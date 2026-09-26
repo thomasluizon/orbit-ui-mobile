@@ -1,33 +1,3 @@
-/**
- * Local ESLint rule: no decorative gradient of any kind.
- *
- * DESIGN.md "Bans": `--gradient-header` and `GradientTop` are deleted. No gradient
- * borders, no mesh, no bloom, no scanlines, no film grain, no "subtle texture".
- * Bundle 5 removes the call sites; this rule keeps them from coming back.
- *
- * Matched vectors:
- *  - the deleted `--gradient-header` / `--gradient-header-from` tokens and their
- *    mobile token-bag spelling (`gradientHeader`, `gradientHeaderFrom`);
- *  - a raw CSS gradient function (`linear-gradient(`, `radial-gradient(`,
- *    `conic-gradient(` and their `repeating-` forms) in any string;
- *  - Tailwind gradient utilities (`bg-gradient-to-*`, `bg-linear-*`, `from-*`/
- *    `via-*`/`to-*` colour stops) in a className;
- *  - `<LinearGradient>` (expo-linear-gradient) and `<GradientTop>` elements, plus
- *    imports of either module.
- *
- * MASK exemption: `-webkit-mask` / `mask` / `maskImage` use `radial-gradient()` as
- * a geometry primitive, not decoration (the sanctioned ring sweep is built this
- * way). A gradient inside a mask-valued style property is not reported.
- *
- * OPAQUE CARD exemption: a uniform `--bg-card` image over a `--bg` base resolves
- * the translucent card token to an opaque pinned pane. Both layers must live in
- * the same style object and match the semantic tokens exactly.
- *
- * SCOPE LIMIT: ESLint sees only TS/TSX here, so gradients declared in
- * `app/globals.css` are NOT covered by this rule — the token deletion in bundle 5
- * is what removes those, and no lint gate re-guards the stylesheet.
- */
-
 const { collectStaticStrings, getAttribute, getAttributeValueNode, getElementName, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const GRADIENT_TOKEN_RE = /--gradient-header|\bgradientHeader\b|\bgradientHeaderFrom\b/

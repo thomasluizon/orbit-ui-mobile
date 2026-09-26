@@ -62,11 +62,6 @@ export const cases = () => {
   )
   T(`${TOOL}: a settled filter never reached the mutation`, existsSync(settled))
 
-  /**
-   * views is a paginated connection. Reading only the first page would make a view on a later page
-   * look like it does not exist, which is the one answer that must never be wrong before a write
-   * (Pullfrog, PR #743).
-   */
   const firstPage = page([{ id: "PVTV_board", name: "Board", number: 1, layout: "BOARD_LAYOUT", filter: "" }], true, "CURSOR1")
   const secondPage = page([{ id: "PVTV_late", name: "Late", number: 9, layout: "TABLE_LAYOUT", filter: "" }])
   const paged = [
@@ -90,10 +85,6 @@ export const cases = () => {
   )
   T(`${TOOL}: the later-page view was written`, !existsSync(lateWrite))
 
-  /**
-   * GitHub does not make a view name unique and the mutation targets an id, so picking the first of
-   * two would silently reshape whichever came back first (Pullfrog, PR #743).
-   */
   const ambiguous = stage("board-view/ambiguous", "must remain")
   const twins = page([
     { id: "PVTV_one", name: "Orca", number: 2, layout: "TABLE_LAYOUT", filter: "" },

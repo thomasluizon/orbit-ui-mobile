@@ -41,15 +41,6 @@ function pushTargetDir(segments, pushIndex, cwd) {
   return cwd
 }
 
-// A heredoc body is data, not command flags: `git commit -F -` with a message
-// that mentions the no-verify flag is writing ABOUT it, not using it, and the
-// guard blocking that is a false positive. Strip heredoc bodies before matching.
-//
-// Exception: when the heredoc feeds a shell, its body IS commands and stays in
-// scope. That check is anchored to the consumer immediately before each `<<`,
-// never searched across the whole string: a body that merely MENTIONS `bash <<`
-// would otherwise switch its own stripping off, which is the same
-// text-is-not-command bug one level down.
 const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n([\s\S]*?)^\3[ \t]*$/gm
 
 /** An unquoted heredoc expands command substitutions before its consumer starts. */
@@ -113,33 +104,11 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   // actually have it.
   const segments = scannable.split(/[&|;\n]/)
 
-  /**
-   * The git SUBCOMMAND, read the way git reads it: skip the global options that take a value, then
-   * the remaining flags, and take the first bare word. Keying off the word `push` appearing anywhere
-   * in the segment instead blocked `git checkout -b chore/x-push-guard main`, because the branch name
-   * carried the word and `main` came later on the line (2026-08-22).
-   */
-  /**
-   * The segment is raw shell text, but git sees argv. The shell removes quoting and escapes before
-   * git ever runs, so `git "push"`, `git p''ush` and `git \push` are all the same command, and a
-   * guard comparing the raw token reads them as some other subcommand and waves the push through.
-   *
-   * Undo the two transforms that change argv without changing meaning: a backslash escape, then a
-   * quote character ANYWHERE in the token, not only at its boundaries. This is not a shell parser
-   * and does not pretend to be one; it closes the quoting and escaping class, which is what stands
-   * between this guard and an accidental push to main.
-   */
   const unquoteToken = (token) => token.replace(/\\(.)/g, "$1").replace(/["']/g, "")
 
   /** A leading `NAME=value` is an environment assignment, not the command word. */
   const isEnvironmentAssignment = (token) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)
 
-  /**
-   * The git BINARY as a whole token, so `git`, `/usr/bin/git` and `git.exe` all count and
-   * `FOO=git` does not. Matching the first textual `git` instead let an environment assignment
-   * stand in for the command word: `FOO=git git push origin main` read its subcommand as `git`
-   * and the push went unjudged (Pullfrog, PR #743).
-   */
   const isGitBinary = (token) => /(?:^|[\\/])git(?:\.exe)?$/i.test(token)
 
   /** Everything after the git command word, normalized to what argv would carry. */
@@ -172,14 +141,6 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
 
   const gitSubcommand = (segment) => gitCommandParts(segment).subcommand
 
-  /**
-   * A push lands on the protected branch only when the pushed REF is itself main or master.
-   * Matching a bare `/main` substring also caught `redesign/main`, which is an ordinary branch
-   * this repo pushes to by convention, and the refusal was indistinguishable from a real one.
-   * So each positional token is read as git reads it: strip a leading `+` (force), take the
-   * destination of a `src:dst` pair, drop a `refs/heads/` prefix, then compare the whole ref.
-   * `origin redesign/main:refs/heads/main` still blocks, because its DESTINATION is main.
-   */
   const pushesProtectedRef = (segment) => {
     const { subcommand, rest } = gitCommandParts(segment)
     if (subcommand !== "push") return false

@@ -1,25 +1,3 @@
-/**
- * Local ESLint rule: control labels stay within the DESIGN.md word cap.
- *
- * DESIGN.md:860: "Labels are verb-first and 1 to 2 words."
- * DESIGN.md:939: "Strings stay short: 1 to 2 words on buttons, chips, tabs and labels.
- * Sentences live only in body, description and empty-state copy."
- *
- * Controls and their label-bearing props are options data. The rule resolves static
- * `t('key')` calls against both English and Brazilian Portuguese once per process.
- * `localePaths` can point tests at their own catalogs; omitted paths use production catalogs.
- * A placeholder such as `{count}` is one word, punctuation is not a word, and a
- * hyphenated compound is one word. An ICU plural block is skipped rather than guessed.
- *
- * WHAT IT DOES NOT SEE, stated rather than guessed at:
- *   - a translation key assembled at runtime, including `t(dynamicKey)`.
- *   - a locale value that is not a string or a key absent from either locale file.
- *   - text assembled by runtime helpers other than `useMemo`, or imported from another file.
- *   - a label split across multiple sibling JSX nodes. Each provable node is checked alone.
- *   - body, description, heading, empty-state or toast copy unless a configured control
- *     explicitly names that prop as its visible label.
- */
-
 const { readFileSync } = require('node:fs')
 const { join } = require('node:path')
 const {

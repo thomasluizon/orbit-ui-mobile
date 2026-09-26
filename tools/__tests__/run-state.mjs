@@ -124,13 +124,6 @@ export const cases = async () => {
   writeRunState({ ...state, pullRequests: [identity] }, repoRoot)
   writeRunState({ ...state, pullRequests: [] }, repoRoot)
   T(`${TOOL}: clearing pullRequests cannot erase the append-only readiness ledger`, readRunState(repoRoot)?.readinessLedger?.[0]?.prNumber === 694, JSON.stringify(readRunState(repoRoot)))
-  /**
-   * A blocker discovered AFTER a pull request is already in the ledger must reach the ledger.
-   *
-   * The identity list puts the previous ledger before the current state, so first-seen-wins on the
-   * whole row kept the older entry and threw the blocker away. The run then believed nothing was
-   * blocking it, which is the quiet direction of that failure: an unattended run reports READY.
-   */
   const late = stageCheckout("late-blocker")
   writeFileSync(runStatePath(late), JSON.stringify({ sessionId: "s1", sleep: true, remaining: [] }))
   const base = readRunState(late)
@@ -185,14 +178,6 @@ export const cases = async () => {
     (readRunState(unmerged)?.readinessLedger ?? [])[0]?.merged === null,
     JSON.stringify(readRunState(unmerged)?.readinessLedger),
   )
-  /**
-   * `orchestrate/SKILL.md` hands the run a jsonc template whose `merged` value is the literal
-   * below. Copying the template and leaving the placeholder unfilled is a non-empty string, so a
-   * lenient predicate records an UNMERGED pull request as merged and the Stop hook then allows the
-   * night to end printing nothing. The safety argument for this field is that it is a checkable
-   * sha, so the predicate has to be the one that checks it. Kept in step with the Stop hook's copy
-   * in `.claude/hooks/_lib/rules-sleep.mjs`: the same rule written twice must not drift.
-   */
   const placeholder = stageCheckout("placeholder-merge")
   writeFileSync(runStatePath(placeholder), JSON.stringify({ sessionId: "s1", sleep: true, remaining: [] }))
   writeRunState({ ...mergeBase, pullRequests: [{ repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/r.json", merged: "<merge commit sha once it is merged, or absent>" }] }, placeholder)

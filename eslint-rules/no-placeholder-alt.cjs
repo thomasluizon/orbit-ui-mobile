@@ -1,15 +1,3 @@
-/**
- * Local ESLint rule: no placeholder alt text.
- *
- * `jsx-a11y/alt-text` catches the MISSING alt; it cannot judge a present-but-
- * worthless one. `alt="image"` announces "image image" to a screen reader and
- * passes every automated check. This is the custom half of that pair.
- *
- * `alt=""` is untouched — it is the correct, meaningful marker for a decorative
- * image, and reporting it would push authors toward exactly the junk values this
- * rule bans.
- */
-
 const { getAttribute } = require('./_jsx-strings.cjs')
 
 const IMAGE_ELEMENTS = new Set(['img', 'Image', 'NextImage'])

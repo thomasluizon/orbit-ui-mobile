@@ -390,7 +390,7 @@
     "constants": [
       {
         "name": "late mtime tolerance seconds",
-        "source": "tools/check-dependency-edits.mjs DEFAULT_TOLERANCE_SECONDS, the widest max-minus-min mtime span inside one package, measured 2026-09-19 over this repository's 1671 packages and 187012 files"
+        "source": "tools/check-dependency-edits.mjs DEFAULT_TOLERANCE_SECONDS, the widest max-minus-min mtime span inside one package"
       }
     ]
   },

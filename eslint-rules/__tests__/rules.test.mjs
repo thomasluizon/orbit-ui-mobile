@@ -1,12 +1,3 @@
-/**
- * RuleTester coverage for the `local/*` gates.
- *
- * Each rule gets its intended catch AND the shapes that must stay silent. The
- * `valid` cases are the load-bearing half: several of these rules were caught
- * false-positiving on real Orbit code during #539 bundle 4a, and every such shape
- * is pinned here so the next edit cannot quietly reintroduce it.
- */
-
 import { RuleTester } from 'eslint'
 import tsParser from '@typescript-eslint/parser'
 import { afterAll, describe, it } from 'vitest'
@@ -85,8 +76,6 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
       code: '<div className="shadow-[0_8px_28px_rgba(var(--primary-rgb),0.45)]" />',
       errors: [{ messageId: 'noHandRolledGlow' }],
     },
-    // The exact glow that shipped in PR #560, the PR that bans glow. It escaped
-    // because the old test looked for `--primary-rgb` and this is `--status-frozen`.
     {
       code: '<div style={{ boxShadow: "0 0 60px color-mix(in srgb, var(--status-frozen) 40%, transparent)" }} />',
       errors: [{ messageId: 'noHandRolledGlow' }],
@@ -97,8 +86,6 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
       code: 'const styles = StyleSheet.create({ orb: { boxShadow: "0 0 40px rgba(134,89,234,0.5)" } })',
       errors: [{ messageId: 'noHandRolledGlow' }],
     },
-    // CSS also permits the COLOR-FIRST form; truncating at the first paren used
-    // to read zero lengths here and silently accept the glow (#577 review).
     {
       code: 'const s = { boxShadow: "rgba(134,89,234,0.5) 0 0 40px" }',
       errors: [{ messageId: 'noHandRolledGlow' }],
@@ -648,33 +635,11 @@ ruleTester.run('no-sparkle-ai-marker', rule('no-sparkle-ai-marker'), {
   ],
 })
 
-/**
- * `local/icon-size-grid` reads the TYPE of a JSX tag, so its cases need a real TypeScript
- * program rather than the bare parser the tester above uses. The fixture project beside this
- * file supplies one: an `IconProps` declared under an `@tabler/icons-react` path, a barrel
- * that re-exports it, and a subject file the cases are parsed as.
- *
- * Each hop below is a shape ui PR #751 shipped a rule against and Pullfrog then broke. The AST
- * revision needed one special case per row and still missed the last one. The type question
- * answers all of them identically.
- */
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'type-fixtures')
 const SUBJECT = join(FIXTURES, 'subject.tsx')
 
-// CI sets this and a developer machine does not, and that single difference hid #379 for weeks:
-// the ten cases below passed here and threw on the runner. Pinning it makes both take one path.
 process.env.CI = 'true'
 
-/**
- * `disallowAutomaticSingleRunInference` is load-bearing, not a performance knob (#379).
- *
- * `CI=true` makes typescript-eslint infer a single run, and a single run parses one file path
- * once. Every case below is a different source under the SAME path, so from the second case on
- * the parser drops the fixture project and builds an isolated `noResolve` program instead. There
- * `./icons` resolves to nothing, the checker raises "has no exported member", and naming the
- * module for that message walks into a TypeScript path bug and throws. A RuleTester is a
- * long-running process linting one path many times, which is the case this flag exists for.
- */
 const typedTester = new RuleTester({
   languageOptions: {
     parser: tsParser,
@@ -850,8 +815,6 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
     '<div style={{ borderRadius: 999, height: 7 }} />',
     // an avatar sized from one variable is a circle at every value of that variable
     "const a = <div className={['rounded-full', c].filter(Boolean).join(' ')} style={{ width: size, height: size }}>{initials}</div>",
-    // The SAME style key on a real control stays silent. This is the false positive that made
-    // the previous revision oscillate: the style cannot decide, only the element can.
     "const s = StyleSheet.create({ chip: { borderRadius: radius.full } }); const a = <Pressable style={s.chip}><Text>Go</Text></Pressable>",
     // a resolved style whose radius is not a pill
     "const s = StyleSheet.create({ card: { borderRadius: radius.md } }); const a = <View style={s.card}><Text>Card</Text></View>",
@@ -880,8 +843,6 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
     // a provably text expression still reads as a chip
     { code: "<div className=\"rounded-full bg-surface\">{'Pro'}</div>", errors: [{ messageId: 'pillOnStatic' }] },
     { code: '<div className="rounded-full bg-surface">{`${count} left`}</div>', errors: [{ messageId: 'pillOnStatic' }] },
-    // The mobile Badge, which the previous revision's blanket opt-out went blind to: the radius
-    // arrives through a StyleSheet reference, and the element applying it is a static View.
     {
       code: "const s = StyleSheet.create({ badge: { borderRadius: radius.full } }); const a = <View style={s.badge}><Text>Pro</Text></View>",
       errors: [{ messageId: 'pillOnStatic' }],

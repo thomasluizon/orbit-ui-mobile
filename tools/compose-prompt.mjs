@@ -1,21 +1,4 @@
 #!/usr/bin/env node
-/**
- * One worker prompt = the ticket body verbatim + its comments, then the finishing contract and the
- * orchestrator's brief. A local order puts the finishing contract (and any redesign sweep) BEFORE the
- * brief, so the delivery steps are read first (#624); a Cloud order keeps brief, then finishing.
- *
- * WHY the comments are here, added 2026-08-13: three places claimed this file already passed them
- * through, and it did not. It read `liveTicket.body` alone. That silently broke the conversation
- * -first path in /orchestrate step 2b, whose whole design is to answer a ticket's open questions in
- * a comment BEFORE composing the prompt. Those answers reached Thomas and the reviewer and never
- * reached the implementer, which is the one reader that had to act on them.
- *
- * WHY the brief exists: a raw ticket is input to planning, not a task description. Anthropic's
- * multi-agent research writeup measured vague subagent instructions causing duplicated work, one
- * subagent exploring the 2021 chip crisis while two others independently investigated 2025 supply
- * chains. Each worker needs an objective, an output format, a scope, and explicit task boundaries,
- * so the orchestrator expands the ticket into a bounded brief rather than handing over the ticket.
- */
 
 import { writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
@@ -156,46 +139,14 @@ local obligation is:
 ${reviewSweepContract}`
   : ""
 
-/**
- * WHY this block is in EVERY prompt, measured 2026-08-06. The ticket is quoted verbatim (D2), and a
- * ticket's Evidence section can require screenshots. A worker that reads only the ticket may start
- * a dev server even though its fresh worktree has no seeded session. ORB-39 committed 221 correct
- * lines, then started a dev server on :3920, wrote a Playwright visual test, sat on /login, and was
- * killed at the 45 minute ceiling with a dirty tree. ORB-98 committed 145 lines including the exact
- * Vitest spec its ticket asked for, then opened /login?returnUrl=%2Fpreferences and burned the rest
- * of its budget. A worker cannot know in advance which tickets tempt it, so the prohibition takes
- * no subset. The hook at .claude/hooks/forbid-worker-browser.mjs enforces the same rule at act time,
- * because a prompt is advisory and decays as context fills.
- */
 const browserBan = `
 
 **NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
 own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
 Playwright, Maestro or Cypress, nothing under \`e2e/\`, no navigating to localhost on any port, no
 logging in to the app. If the ticket says screenshots are required, do not gather them in this
-worker. A fresh worktree has no seeded session, so the attempt can only fail. Two workers finished
-their tickets correctly and then lost the delivery to exactly this.`
+worker. A fresh worktree has no seeded session.`
 
-/**
- * WHY this block is in EVERY prompt, measured 2026-09-18. A worker that could not make a test pass
- * reached for the dependency instead of its own code: it flipped `enableImperativeFocus` and
- * `enableKeyEvents` to `true` and added `KEYCODE_MOVE_HOME` and `KEYCODE_MOVE_END` to both key maps,
- * inside `node_modules/react-native`. Exactly two files carried an mtime three hours later than the
- * package's own extraction, and they were precisely the two the record then argued over.
- *
- * `npm install` did NOT repair it. It reported `removed 11 packages, and audited 1680 packages in
- * 7s` and left the package alone, because the lockfile entry already matched what was on disk, so
- * npm had no reason to re-extract. Only `rm -rf node_modules/react-native` plus an install repaired
- * it. Four contradictory citations of those two files were published across three sessions, and
- * every one was accurate about the tree its author read.
- *
- * So code standard 8 did not fail here, its premise did: it says to confirm an external interface
- * against the installed source, and it assumes the installed source is what the lockfile says. One
- * worker edit breaks that assumption for every later reader, in every checkout, silently. The hook
- * at .claude/hooks/forbid-node-modules-write.mjs refuses the write at act time, because a prompt is
- * advisory and decays as context fills, and `node tools/check-dependency-edits.mjs` finds whatever
- * arrives another way.
- */
 const dependencyBan = `
 
 **NEVER write inside \`node_modules\`, under any path, in any worktree, for any reason.** Not a
@@ -204,17 +155,9 @@ evidence: you confirm an external interface by READING the installed source, the
 OWN code to match it. Never run \`patch-package\` or any equivalent, and never stage or commit a
 path under \`node_modules\`. If the installed source disagrees with what the ticket needs, that
 disagreement IS the finding: report it in the pull request body and, where the ticket needs a real
-mechanism, use the supported one such as an Expo config plugin. On 2026-09-18 two edited files
-inside \`node_modules/react-native\` survived a reinstall and corrupted three sessions of evidence,
-because every reader afterwards was accurate about a tree that nobody had changed on purpose.`
+mechanism, use the supported one such as an Expo config plugin. A plain reinstall may leave edits
+inside a complete dependency package intact.`
 
-/**
- * WHY ambiguity is two-tiered, added 2026-08-13. The previous sentence told the worker to "choose
- * the reading a careful colleague would", which made silent assumptions the instructed behaviour:
- * a headless worker has no human channel, so a decision belonging to Thomas was guessed and the
- * guess surfaced only when the pull request existed. NEEDS_DECISION is the worker's half of the
- * channel; /orchestrate step 7 reads it from the worker log and carries the question to Thomas.
- */
 const assumptionDestination = cloud
   ? "the committed handoff's `assumptions` array"
   : reviewBatch ? "your final report's `## Assumptions` section" : "the PR body's `## Assumptions` section"
@@ -231,12 +174,12 @@ ticket above is the specification.
 **Ambiguity has two tiers, and only one of them is yours.** A mechanical ambiguity (a file name, an
 import shape, where a test lives) you resolve yourself and record in ${assumptionDestination},
 one line per assumption naming the alternative you rejected. A decision that is
-Thomas's is NEVER yours to guess: a product, brand, copy, price or design call; a tool or process
+the owner's is NEVER yours to guess: a product, brand, copy, price or design call; a tool or process
 the ticket names two contradictory ways; a dependency or capability the ticket presumes that turns
 out not to exist. Hitting one of those, stop: ${cloud ? "record the question in the handoff's `needsDecision` field, then " : ""}${decisionDelivery} whatever is already safe and
 coherent, and make the LAST line of your output exactly
 \`NEEDS_DECISION: <one question, with your recommended answer>\`. The orchestrator carries that
-question to Thomas. The question costs a minute; a confidently wrong pull request costs the night.
+question to the owner. The question costs a minute; a confidently wrong pull request costs the night.
 
 **Where you are.** ${locationInstruction}
 ${baseInstruction}
@@ -269,8 +212,7 @@ it uncovered rather than starting a browser.
 **Never assume an external interface.** Confirm any field, flag, exit code, or response shape from a
 CLI, API, or library you did not write by reading the real response or the installed source. Not
 memory, not --help, not what it should obviously be. Never write the fixture that agrees with a
-guess. Two measured failures in this repository were a worker inventing a field while the same
-commit added a mock that agreed with the guess, so the harness stayed green over a defect.
+guess. A mock derived from an unverified field can keep the harness green over a defect.
 
 **File findings through the repository adapter.** When this work exposes a finding that belongs in
 a separate ticket, file every finding through \`node tools/create-ticket.mjs\`. Never use \`gh issue
@@ -307,8 +249,7 @@ tooling opened one anyway, run \`gh pr ready <number>\` before you report. Confi
 
 Pullfrog reads a draft pull request exactly like any other one, so the review is not the reason. A
 draft still stops the run: nobody can merge it, and tools/record-readiness.mjs reports the verdict
-DRAFT until somebody marks it ready. Measured 2026-08-08, three of five pull requests opened as
-drafts (ORB-7 #464, ORB-214 #57, ORB-188 #465) and each one needed a human to mark it ready.
+DRAFT until somebody marks it ready.
 
 **The prose you write is gated too, and nothing used to tell you that.** The pull request TITLE and
 BODY pass through the Dash Ban and Copy Register jobs exactly as source files do. So: no em dash and
@@ -317,7 +258,7 @@ A red gate on your own PR description blocks the merge just as hard as a failing
 
 **Your PR body carries two structured sections when they apply, and omits them when empty.**
 \`## Assumptions\`: every reading you chose where the ticket was ambiguous, one line each with the
-rejected alternative, so the orchestrator can put them to Thomas instead of discovering them in
+rejected alternative, so the orchestrator can put them to the owner instead of discovering them in
 review. \`## Manual steps\`: every action outside the repository your change needs before it takes
 effect (an environment variable, a dashboard or console setting, a secret, a store listing, a manual
 migration or backfill), each naming the exact key, the exact console or screen, and what proves it

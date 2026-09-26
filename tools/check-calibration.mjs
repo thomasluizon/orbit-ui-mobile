@@ -1,39 +1,4 @@
 #!/usr/bin/env node
-/**
- * Fail when the harness's own per-agent and per-skill tuning has gone stale relative to the model
- * that actually runs the work.
- *
- * ORB-120 (#126) shipped this capability on 2026-07-28 and the harness rebuild deleted it on
- * 2026-08-04 as an orphan, correctly: the rebuild replaced the skills and agents the stamp indexed.
- * The capability had no replacement, so nothing has gone red since when the configuration drifted.
- * This is the re-derivation (#188), and three facts made a verbatim restore wrong.
- *
- * 1. `.claude/orchestrator.json` no longer carries a top-level model. The implementer profile is
- *    `workers.<config.worker>.models.default`, resolved the way `launch-worker.mjs:115-122` resolves
- *    it: the ENGINE comes from `config.worker` rather than being named here, and the profile carries
- *    both a `model` and the `args` that hold the reasoning effort. An earlier revision hardcoded
- *    `codex` and read only the model string, which would have compared the wrong profile the moment
- *    the engine switched and would have missed an args-only effort change entirely.
- * 2. The denominators moved. ORB-120 assumed 24 skills and 9 or more agents; today the tree holds
- *    7 agent files and 18 skill files. So the denominator is derived from a glob on every run and
- *    never written down, the pattern `tools/CONVENTIONS.md` documents and `redesign-coverage.mjs`
- *    implements.
- * 3. **It ships BLOCKING, with no `--report-only` anywhere.** ORB-120 shipped report-only "through
- *    2026-08-11" as a safety measure, and the measured result was a gate that was red on `main` and
- *    green in CI for days without anyone noticing, because the CI step passed `--report-only` and
- *    that flag exits 0 on drift by design. It had failed silently since the `quota` skill arrived and
- *    was never added to the calibration. A gate that cannot fail is not a gate, so this one has no
- *    such flag to pass.
- *
- * THE ALIAS GAP, recorded so it is not rediscovered. A declared model may be an alias, so a newer
- * model behind the same alias never changes `orchestrator.json` and the model-match assertion stays
- * green while the tuning underneath it decays. The 90-day max-age assertion is the backstop for
- * exactly that. It is not decoration, and the event trigger is not complete on its own.
- *
- * The escape hatch is the `calibration:reseed` GitHub label, mirroring `parity:exempt`. It lives in
- * the `guards.yml` job condition, never here: a tool that can be told to pass is the report-only
- * failure wearing a different hat.
- */
 
 import { createHash } from "node:crypto"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
@@ -84,19 +49,6 @@ const fail = (code, message) => {
 
 /** The backstop for a model alias whose target moved without the declared string changing. */
 const MAX_AGE_DAYS = 90
-/**
- * The ENGINE is read from `config.worker` rather than hardcoded, because that is what
- * `launch-worker.mjs:115-116` does (`const engineName = config.worker`, then
- * `config.workers[engineName]`). Naming `codex` here would have compared the wrong profile the moment
- * the engine switched, and read a path that no longer exists.
- *
- * The stamp records every RESOLVED argument vector alongside its `model`, because the reasoning
- * effort lives in the args. A model string that never moves can still have its tuning changed.
- *
- * The whole vector, not the profile half: `resolveWorkerInvocation` launches
- * `[...engine.args, ...profile.args, "--model", model]`, so tuning declared at the ENGINE level is
- * just as load-bearing as tuning declared in the profile.
- */
 
 let repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const positional = process.argv.slice(2)
@@ -164,15 +116,6 @@ const calibratedFiles = () => {
       if (name.endsWith(".md")) found.push(`.claude/agents/${name}`)
     }
   }
-  /**
-   * BOTH skill roots, because both are read by a host at runtime. `.claude/skills/**` holds the
-   * canonical definitions and `.agents/skills/**` holds the entrypoints Codex discovers, each one a
-   * pointer whose frontmatter carries the name and description the host lists the skill by and whose
-   * body names the canonical file. Changing an entrypoint changes which prompt runs, or stops the
-   * skill being discovered at all, while every `.claude` digest stays untouched and this gate stayed
-   * green. A pointer declares no `model:` and no `effort:`, so its verdict is a judgement about the
-   * pointer itself and its digest is what pins it.
-   */
   for (const root of [join(repositoryRoot, ".claude", "skills"), join(repositoryRoot, ".agents", "skills")]) {
     if (!existsSync(root)) continue
     const relativeRoot = root === join(repositoryRoot, ".claude", "skills") ? ".claude/skills" : ".agents/skills"
@@ -200,19 +143,6 @@ const declaredTuning = (relativePath) => {
   return tuning
 }
 
-/**
- * A digest of the file's COMPLETE normalized content, not just its two tuning scalars.
- *
- * The verdict in the stamp is a judgement about what the file ASKS THE MODEL TO DO. Rewriting a
- * skill's body makes it materially more or less demanding while `model:` and `effort:` never move, so
- * a tuning-only comparison kept blessing a verdict that was reconsidered for different text. PR #640
- * proved that miss and fixed it with full-content fingerprints; the #188 re-derivation dropped them,
- * which is how the same hole reopened. The 90-day age assertion is not a substitute: it would let a
- * rewritten prompt ride an old verdict for up to three months.
- *
- * Line endings are normalized so a CRLF checkout is not a false mismatch, and the digest is truncated
- * to 16 hex characters, which is 64 bits and far past what an accidental collision needs.
- */
 const contentDigest = (relativePath) =>
   createHash("sha256").update(readFileSync(join(repositoryRoot, relativePath), "utf8").replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
 
@@ -312,13 +242,6 @@ if (orchestrator.classifier) {
   }
 }
 
-/**
- * Whole days, from dates rather than a clock, so the verdict cannot change inside one CI run and a
- * stamp taken today is never 0.99 days old.
- *
- * Parsed and refused HERE for every date in the file, entry dates included, because a date this
- * function accepts is a date the backstop trusts.
- */
 const ageInDays = (date, label, softFuture = false) => {
   const [year, month, day] = date.split("-").map(Number)
   const at = Date.UTC(year, month - 1, day)
@@ -333,16 +256,6 @@ const ageInDays = (date, label, softFuture = false) => {
   }
   return age
 }
-/**
- * `Date.UTC` NORMALIZES an impossible calendar date rather than refusing it, so `2026-02-31` silently
- * becomes 2026-03-03 and the regex above cannot tell. Round-tripping the parsed date back to the
- * string is what refuses it: only a real date survives.
- *
- * And a FUTURE stamp produced a finite NEGATIVE age, which sailed past a `> MAX_AGE_DAYS` test, so a
- * `9999-12-31` stamp exited 0 at -2912192 days old and turned the alias backstop off entirely. That is
- * precisely the gate-that-cannot-fail this ticket exists to undo, so a stamp dated in the future is a
- * data error rather than a fresh stamp.
- */
 const ageDays = ageInDays(stamp.calibratedAt, "calibratedAt")
 if (orchestrator.classifier && stamp.classifier) {
   if (typeof stamp.classifier.calibratedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(stamp.classifier.calibratedAt)) {
@@ -355,20 +268,6 @@ if (orchestrator.classifier && stamp.classifier) {
   }
 }
 
-/**
- * The backstop is PER VERDICT, never stamp-wide.
- *
- * One date for the whole file meant recalibrating a single changed prompt and advancing that date
- * renewed every untouched verdict beside it. Ordinary prompt churn therefore held the whole stamp
- * permanently under 90 days, which is exactly the case the backstop exists for: a model alias moves
- * while every declared string stays put, and age is the only signal left. A verdict is a judgement
- * about ONE file against the model of the day, so only re-reading THAT file may renew it.
- *
- * The stamp-wide date stays, and it is the date of the last pass rather than a verdict of its own. A
- * verdict is OLDER than it whenever that verdict was carried forward, which is the ordinary case and
- * the whole point. What cannot happen is a verdict dated AFTER the pass that wrote it, so that is the
- * direction this refuses.
- */
 for (const relativePath of Object.keys(stamp.entries).sort()) {
   const entryAge = ageInDays(stamp.entries[relativePath].calibratedAt, `entry ${relativePath} calibratedAt`)
   if (entryAge < ageDays) {

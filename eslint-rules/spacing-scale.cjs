@@ -1,35 +1,4 @@
-/**
- * Local ESLint rule: every layout spacing value must sit on the DESIGN.md scale.
- *
- * DESIGN.md `### Spacing (base 4)` enumerates the only legal steps
- * (0 4 8 12 16 24 32 48 64 96 px, `DEFAULT_SCALE` below). This gate reads spacing from the
- * three places it actually lives in Orbit - JSX inline `style={{ }}` objects,
- * React Native `StyleSheet.create({ })` objects, and Tailwind `className`
- * utilities (both scale steps and arbitrary `[13px]` values) - because a
- * CSS-only linter sees none of the first two. Inline-style values are read both
- * as a single length (`padding: 15`, `'15px'`) and as a multi-value shorthand
- * string (`padding: '0 20px 6px'`), so a spaced shorthand is not a loophole;
- * unparseable tokens (`auto`, `calc(...)`, `%`) make the rule skip that value.
- *
- * Scope: margin / padding (every side + logical + RN Horizontal/Vertical),
- * gap / rowGap / columnGap, and the positional insets. `width` / `height` are
- * deliberately NOT checked: an avatar diameter or a sheet height is a component
- * dimension, not layout rhythm, and folding them in would force an exemption
- * list wide enough to gut the gate.
- *
- * Autofix snaps a value to the nearest scale step ONLY when that step is unique,
- * within 1px, and non-zero. 13 -> 12 is mechanical; 10 -> 8-or-12 is a layout
- * decision and is reported unfixed. Snapping to 0 is never automatic because it
- * deletes spacing rather than correcting it.
- *
- * https://github.com/thomasluizon/orbit-ui-mobile/issues/539
- * JSX style identifiers resolve only write-free local const object literals.
- * Their static literal properties and qualifying const spreads are checked;
- * runtime values and escaping bindings are outside this rule's contract.
- */
-
 // DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
-// (chosen by Thomas against the rendered reference, 2026-08-15). It drops 20, 28, 40
 // and 56, which are the values the existing violations cluster around, so there is
 // less to choose wrongly between, and its jumps widen at the top to serve the
 // spacious direction. https://github.com/thomasluizon/orbit-tickets/issues/36

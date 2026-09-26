@@ -95,8 +95,6 @@ export const cases = () => {
     { status: 1, stderr: /empty or placeholder evidence for: execution lane/ },
   )
 
-  // The red direction, and the one this gate exists for: #766, #765 and #763 all looked exactly
-  // like this and merged.
   check(
     "check-review-harness.mjs",
     "rejects a UI redesign pull request with no Review harness block at all",

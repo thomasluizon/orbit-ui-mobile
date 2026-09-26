@@ -1,21 +1,3 @@
-/**
- * Local ESLint rule: use a ternary, not `&&`, for conditional rendering.
- *
- * On mobile this is a CRASH, not a style preference: `{items.length && <List/>}`
- * renders the raw number `0` when the array is empty, and React Native throws
- * "Text strings must be rendered within a <Text> component". On web the same
- * expression renders a stray `0` into the layout.
- *
- * Only reports a left operand that can produce a renderable falsy value — a
- * number, a string, or `.length`. A boolean-typed left operand (`isOpen &&`,
- * `a === b &&`, `!x &&`) renders nothing when false and is genuinely safe, so it
- * is not reported; flagging it would make the rule noise and get it disabled.
- *
- * NOTE on the harvest table: it specifies `{cond && <X/>}` wholesale. That form
- * would fire on ~every conditional render in both apps for zero real defects. The
- * narrowed version is the one worth having — it targets the actual failure.
- */
-
 const NUMERIC_COERCING_OPERATORS = new Set(['+', '-', '*', '/', '%', '**'])
 
 function isBooleanish(node) {

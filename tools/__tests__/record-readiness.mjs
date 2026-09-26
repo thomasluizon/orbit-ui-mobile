@@ -57,11 +57,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const ticketArtifact = stage("record-readiness/ticket.json", JSON.stringify({ issue: "ORB-700", repositoryKey: "ui", prNumber: 700, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
   const argv = ["--repo", "ui", "--pr", "700", "--delivery", delivery, "--ticket", ticketArtifact]
 
-  /**
-   * The two app ids are live, read on 2026-08-12 from
-   * `gh api repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks`,
-   * which pins every workflow check to 15368 (github-actions) and `pullfrog-approval` to 1768019.
-   */
   const GITHUB_ACTIONS_APP = 15368
   const PULLFROG_APP = 1768019
   /** The exact node shape the confirmed GraphQL rollup returns, app identity included. */
@@ -83,9 +78,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
    * exists to pass here.
    */
   const approval = checkRun("pullfrog-approval", PULLFROG_APP, { startedAt: "2026-08-07T10:30:00Z", workflow: null })
-  /** The reviews the same query now selects (#440). GraphQL spells the reviewing bot `pullfrog`
-   * with `__typename: "Bot"`, confirmed live on 2026-09-08; REST spells the same actor
-   * `pullfrog[bot]`. */
   const botReview = (state, oid, submittedAt = "2026-08-07T10:31:00Z") => ({
     state, submittedAt, author: { __typename: "Bot", login: "pullfrog" }, commit: { oid },
   })
@@ -114,10 +106,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
         reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: options.reviews ?? approvedAtHead },
         statusCheckRollup: { contexts: { nodes: options.statusCheckRollup ?? [greenCheck, approval] } },
       } } } }) },
-      /**
-       * The real payload carries BOTH lists, and only `checks` names the app that must provide each
-       * check. Confirmed live on 2026-08-12 against the `main` protection of this repository.
-       */
       { match: `branches/${encodeURIComponent(options.baseRefName ?? "main")}/protection/required_status_checks`, stdout: options.protectionResponse ?? JSON.stringify({
         contexts: ["Lint", "pullfrog-approval"],
         ...(options.omitChecks === true ? {} : { checks: options.checks ?? [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: PULLFROG_APP }] }),
@@ -142,7 +130,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     JSON.stringify(readyReceipt),
   )
 
-  /** Complete body observed from gh api on redesign/main on 2026-09-05, exit 1. */
   const unprotected = {
     baseRefName: "redesign/main",
     protectionExit: 1,
@@ -165,19 +152,11 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const emptyReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
   T(`${TOOL}: no-check 404 writes a blocking receipt instead of leaving the previous READY receipt`,
     emptyReceipt.ci.green === false && emptyReceipt.ci.settled === false, JSON.stringify(emptyReceipt))
-  // `reviews: []` is load-bearing here now (#440): with the check absent AND no review at the head,
-  // there is no review evidence of any kind, which is what this case has always been about.
   unprotectedCase("unprotected passing CI without independent review cannot reach READY", { statusCheckRollup: [greenCheck], reviews: [] })
   unprotectedCase("unprotected review from the wrong app cannot reach READY", { statusCheckRollup: [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP)] })
   unprotectedCase("unprotected failing CI cannot reach READY despite passing review", { statusCheckRollup: [{ ...greenCheck, conclusion: "FAILURE" }, approval] })
   unprotectedCase("unprotected pending CI cannot reach READY despite passing review", { statusCheckRollup: [{ ...greenCheck, status: "IN_PROGRESS", conclusion: null }, approval] })
   unprotectedCase("unprotected newest failed review rerun cannot reach READY", { statusCheckRollup: [greenCheck, approval, { ...approval, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }] })
-  /**
-   * The review fallback, end to end (#440). Pullfrog stopped publishing the `pullfrog-approval`
-   * CHECK during the night of 2026-09-06 while its reviews stayed healthy, so every receipt stalled
-   * short of READY and an unattended run could only ever end as BLOCKED. The check is a publication
-   * of the review, so an APPROVED review at the exact head stands in for it. Nothing weaker does.
-   */
   unprotectedCase(
     "the approval CHECK absent still reaches READY on an APPROVED review at the exact head",
     { statusCheckRollup: [greenCheck], reviews: approvedAtHead },

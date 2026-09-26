@@ -1,20 +1,4 @@
 #!/usr/bin/env node
-/**
- * Resolve a scope into ONE ordered execution plan for /orchestrate, and print it as JSON.
- *
- * A scope is an explicit ticket list, a GitHub milestone, or the whole open board. The plan names
- * which tickets are admissible, which are deferred and why, what order they run in, which of them
- * stack on each other, and which may run concurrently.
- *
- * It PLANS. It creates no worktree, launches no worker, opens no pull request and writes nothing to
- * the ticket system. Every decision below is derived from the ticket adapter, so an
- * unreachable ticket is a refusal rather than a guess.
- *
- * The ordering rule that matters: a ticket whose blocker is not itself in this queue cannot run,
- * because its branch would have to contain work that does not exist yet. A ticket whose blocker IS
- * in the queue does not have to wait for a merge when its dependencies form one stackable chain.
- * Other DAG shapes run against main in a later wave, after every blocker has landed.
- */
 
 import { listMilestones, listTickets, readTickets, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
@@ -195,7 +179,7 @@ for (const [id, entry] of fetched) {
   /**
    * The executability pass, and the reason it runs HERE rather than at the scope gate: a ticket
    * dropped before the fixed point below cascades correctly onto whatever depended on it, and a
-   * ticket named at 23:00 is a decision Thomas can make before bed rather than a slot burned at 03:00.
+   * ticket named at 23:00 is a decision the owner can make before bed rather than a slot burned at 03:00.
    */
   const { deferrals, warnings } = await classifyExecutability(issue.body)
   if (deferrals.length > 0) {
@@ -203,17 +187,6 @@ for (const [id, entry] of fetched) {
     deferred.push({ identifier: id, reason: first.reason, detail: also.length > 0 ? `${first.detail}. It also reads as ${also.map((entry) => entry.reason).join(" and ")}` : first.detail })
     continue
   }
-  /**
-   * The conversation pass, and why it is not a deferral in both modes: a ticket whose acceptance
-   * criteria carry a human grant, or whose body contradicts itself about which tool is current, can
-   * be executed by a headless worker. It just cannot be executed CORRECTLY without asking first.
-   * ORB-30 (#36) is the case: 34,709 characters naming Pencil as the prototyping tool in one section
-   * and Claude Design in another while saying Pencil is retired.
-   *
-   * Attended, that is a conversation, so the ticket stays admitted and its questions travel with it
-   * for step 2b. Under `--sleep` nobody is awake to answer, so it defers with the questions attached
-   * and Thomas wakes to a decision list rather than a confidently wrong pull request.
-   */
   const conversation = await classifyConversationFirst(issue.body, { labels: issue.labels })
   if (conversation.conversationFirst && sleep) {
     deferred.push({
@@ -293,16 +266,6 @@ for (const id of order) {
   unlocksById.set(id, unlocked.size)
 }
 
-/**
- * A stack is a dependency chain inside ONE repository. Cross-repo blockers can never stack, because
- * GitHub requires every branch in a stack to live in the same repository, so those stay independent
- * pull requests against main and the api one has to merge and deploy first.
- *
- * A branch has exactly ONE parent, so a ticket can stack only when its same-repo blockers form one
- * chain. Picking one parent for independent blockers would plan a branch that does not contain the
- * other blockers' work while claiming all are satisfied. Such a ticket instead opens against main
- * in its DAG-ordered wave, after every blocker; only a cycle is genuinely unorderable and refused.
- */
 const sameRepoBlockersOf = (id) => {
   const entry = candidates.get(id)
   return entry.blockedBy.filter((blocker) => candidates.get(blocker)?.repo === entry.repo)
@@ -323,24 +286,6 @@ for (const id of order) {
   branchModeById.set(id, stackable ? (stackParent ? "stacked" : "main") : "unstackable")
 }
 
-/**
- * An unstackable ticket cannot run in this queue at all, and saying so is the only honest verdict.
- *
- * The first attempt annotated it and admitted it anyway, on the reasoning that a later wave gates
- * it. That reasoning is wrong: waves order tickets in TIME, and nothing merges between them, so a
- * later wave confers no code. Three independent reviewers reached the same defect on #685.
- *
- * There is no live "have the blockers merged yet" check worth writing, because the answer is fixed
- * by construction. `sameRepoBlockersOf` counts only blockers that are CANDIDATES, and a blocker
- * whose work already merged is Done, so it was deferred as CLOSED and never became one.
- * Every blocker still counted here is therefore open and in THIS queue, and cannot merge before the
- * ticket that waits on it. So the ticket defers.
- *
- * This amends an acceptance criterion of ORB-235, which said no diamond may land in `deferred`. That
- * criterion was written under the same wrong assumption. What ORB-235 actually bought is intact and
- * is the part that mattered: the board PLANS instead of refusing, and one unrunnable ticket costs
- * itself rather than the whole night.
- */
 const dropped = new Map()
 for (const id of order) {
   if (branchModeById.get(id) !== "unstackable") continue
@@ -351,15 +296,6 @@ for (const id of order) {
   )
 }
 
-/**
- * Dropping a ticket orphans anything that depended on it, so the removal is transitive. A child
- * whose blocker just left the queue is in exactly the position BLOCKED_OUTSIDE_QUEUE describes: its
- * branch would have to contain work that will not exist, and it is reported with that same reason so
- * the two identical situations do not carry two different names.
- *
- * Detail strings are computed BEFORE anything is removed, because `sameRepoBlockersOf` reads
- * `candidates` and a mutation mid-walk would silently change a later ticket's answer.
- */
 for (let changed = true; changed; ) {
   changed = false
   for (const id of order) {

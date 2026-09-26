@@ -29,11 +29,6 @@ import {
 
 const TOOL = "submit-cloud-worker.mjs"
 
-/**
- * Admission resolves every configured repository's slug from its origin, so a fixture that kept the
- * real sibling paths would read the author's own checkouts (Pullfrog on PR 1091). One staged
- * checkout per sibling key is shared by every fixture, because admission only reads its remote.
- */
 let siblingRepos = null
 const stagedSiblings = (config) => {
   siblingRepos ??= Object.fromEntries(Object.keys(config.repos).filter((key) => key !== config.cloud.repositoryKey).map((key) => {
@@ -1086,7 +1081,6 @@ export const cases = async () => {
   )
 
   const execTimeout = fixture("exec-timeout")
-  // Allow the fake CLI to start before testing its deliberate post-acceptance hang (#433).
   execTimeout.config.timeouts.cloudCommandMinutes = 0.05
   writeFileSync(execTimeout.configPath, `${JSON.stringify(execTimeout.config, null, 2)}\n`)
   const acceptanceLog = stage("submit-cloud/exec-timeout-acceptance.txt", "")
@@ -1132,7 +1126,6 @@ export const cases = async () => {
   )
 
   const liveOrphan = fixture("live-orphan")
-  // The preliminary list must finish before the deliberate submission timeout (#433).
   liveOrphan.config.timeouts.cloudCommandMinutes = 0.05
   writeFileSync(liveOrphan.configPath, `${JSON.stringify(liveOrphan.config, null, 2)}\n`)
   const liveOrphanTaskId = "task_e_a401"

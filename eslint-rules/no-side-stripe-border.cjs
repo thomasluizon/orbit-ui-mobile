@@ -1,19 +1,3 @@
-/**
- * Local ESLint rule: no coloured side-stripe.
- *
- * DESIGN.md "Bans": never a `border-left` / `border-right` thicker than 1px as an
- * accent stripe on a card, row, callout, or alert. Use a full inset hairline ring,
- * a background tint, or a leading glyph.
- *
- * The thickness AND the colour must co-occur on the same element — a bare
- * `border-l-4` with no colour is (a) invisible and (b) not the AI-slop artifact
- * this bans, so it is not reported. A 1px side border is explicitly fine: that is
- * a hairline, which the kit uses.
- *
- * Mobile is covered via the style-object branch (`borderLeftWidth: 4` +
- * `borderLeftColor`), per the DESIGN.md Enforcement table.
- */
-
 const { collectStaticStrings, collectStyleProperties, getAttribute, getAttributeValueNode, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const STRIPE_WIDTH_CLASS_RE = /(?:^|\s|:)border-([lr])-(\d+)(?:\s|$)/g
