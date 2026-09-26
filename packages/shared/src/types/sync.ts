@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { relativeReminderTimeSchema } from './habit'
 
 export const mutationTypeSchema = z.enum([
   'createHabit', 'updateHabit', 'deleteHabit', 'restoreHabit', 'logHabit', 'skipHabit',
@@ -124,6 +125,7 @@ const syncHabitDtoSchema = z.object({
   slipAlertEnabled: z.boolean(),
   checklistItems: z.array(syncChecklistItemSchema),
   scheduledReminders: z.array(syncScheduledReminderSchema),
+  relativeReminders: z.array(relativeReminderTimeSchema).nullable().optional(),
   endDate: z.string().nullable(),
   position: z.number().nullable(),
   parentHabitId: z.string().nullable(),
