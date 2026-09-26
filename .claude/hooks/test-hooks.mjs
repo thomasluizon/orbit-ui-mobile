@@ -13,6 +13,8 @@ import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
+import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib/rules-handoff.mjs"
+import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
@@ -1474,6 +1476,45 @@ const scanForMarkers = (directory) => {
 for (const top of ["tools", ".claude"]) scanForMarkers(join(repoRoot, top))
 for (const hit of markerHits) T(`conflict markers: ${hit}`, false)
 T("conflict markers: no unresolved merge markers are committed", markerHits.length === 0, true)
+
+// Handoff prompt gate: the owner's requested mode decides what NEXT.md must look like.
+T("handoff request: typed /wrap-up --sleep asks for sleep", parseHandoffRequest("/wrap-up --sleep"), { command: "wrap-up", sleep: true })
+T("handoff request: typed /handoff alone is attended", parseHandoffRequest("/handoff"), { command: "handoff", sleep: false })
+T("handoff request: expanded command tags are read", parseHandoffRequest("<command-message>wrap-up</command-message>\n<command-name>/wrap-up</command-name>\n<command-args>--sleep</command-args>"), { command: "wrap-up", sleep: true })
+T("handoff request: another command is not a handoff", parseHandoffRequest("/progress --full"), null)
+T("handoff request: a plain reply is not a handoff", parseHandoffRequest("proceed"), null)
+
+const goodSleepPrompt = [
+  "/sleep", "", "Read .claude/specs/orbit-prod-release.md before anything else.", "",
+  "## Sleep", "", "Unattended.", "", "## Goal", "", "Finish it. gh issue list --repo x --state open", "",
+  "## In flight", "", "none", "", "## Previous prompt, disposition", "", "- carried", "",
+  "## Carried", "", "Every identifier in this prompt came from a previous session: treat each as a lead to verify.",
+].join("\n")
+const attendedPrompt = goodSleepPrompt.replace("/sleep\n\n", "").replace("## Sleep\n\nUnattended.\n\n", "")
+T("handoff prompt: a complete sleep prompt passes", validateHandoffPrompt(goodSleepPrompt, { sleep: true }), [])
+T("handoff prompt: a sleep prompt must start with /sleep", validateHandoffPrompt(goodSleepPrompt.replace("/sleep\n", "# NEXT\n"), { sleep: true }).some((item) => item.includes("/sleep")), true)
+T("handoff prompt: a sleep prompt needs its own Sleep section", validateHandoffPrompt(goodSleepPrompt.replace("## Sleep", "## Unattended"), { sleep: true }).some((item) => item.includes("## Sleep")), true)
+T("handoff prompt: an attended prompt passes without the sleep block", validateHandoffPrompt(attendedPrompt, { sleep: false }), [])
+T("handoff prompt: an attended prompt must not start with a slash command", validateHandoffPrompt(goodSleepPrompt, { sleep: false }).length, 1)
+T("handoff prompt: the previous prompt must be given dispositions", validateHandoffPrompt(goodSleepPrompt.replace("## Previous prompt, disposition", "## History"), { sleep: true }).some((item) => item.includes("Previous prompt")), true)
+T("handoff prompt: an unrecorded mode checks only the shared rules", validateHandoffPrompt(goodSleepPrompt, {}), [])
+
+const handoffCommit = (command, request, text) => checkHandoffCommit({ command, cwd: "/repo", request, promptForCommit: () => text })
+T("handoff commit: a sleep request refuses a prompt without /sleep", blocks(handoffCommit("git commit -m docs -- .claude/handoffs/NEXT.md", { sleep: true }, goodSleepPrompt.replace("/sleep\n", "# NEXT\n"))), true)
+T("handoff commit: a sleep request accepts a complete prompt", handoffCommit("git commit -m docs -- .claude/handoffs/NEXT.md", { sleep: true }, goodSleepPrompt), null)
+T("handoff commit: a commit that leaves NEXT.md alone passes", handoffCommit("git commit -m fix -- src/a.ts", { sleep: true }, null), null)
+T("handoff commit: a command that commits nothing passes", handoffCommit("git status --short", { sleep: true }, "anything"), null)
+T("handoff commit: -C names the directory the commit runs in", gitCommitDirectory("git -C /other/repo commit -m x", "/repo"), "/other/repo")
+
+T("handoff stop: a failing prompt committed after the request refuses the stop", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" })), true)
+T("handoff stop: a prompt committed before the request is not judged", checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T09:00:00Z" }), null)
+T("handoff stop: no recorded request allows the stop", checkHandoffStop({ request: null, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" }), null)
+
+const handoffRepo = join(root, "handoff-repo")
+mkdirSync(join(handoffRepo, ".git"), { recursive: true })
+recordHandoffRequest("s-handoff", { command: "wrap-up", sleep: true }, "2026-01-01T10:00:00Z", handoffRepo)
+T("handoff request: a recorded request reads back for its session", readHandoffRequest("s-handoff", handoffRepo), { command: "wrap-up", sleep: true, recordedAt: "2026-01-01T10:00:00Z" })
+T("handoff request: another session sees no request", readHandoffRequest("s-other", handoffRepo), null)
 
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
 T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)
