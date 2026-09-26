@@ -49,6 +49,7 @@ const mocks = vi.hoisted(() => ({
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
   timeZone: 'UTC',
+  profileReady: true,
   focusEffect: null as null | (() => void | (() => void)),
   suggestion: null as null | {
     frequencyUnit: 'Day'
@@ -202,14 +203,14 @@ vi.mock('@/hooks/use-app-toast', () => ({
 }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
-    profile: {
+    profile: mocks.profileReady ? {
       aiMessagesLimit: 20,
       aiMessagesUsed: 0,
       hasProAccess: mocks.hasProAccess,
       language: 'en',
       weekStartDay: 1,
       timeZone: mocks.timeZone,
-    },
+    } : undefined,
   }),
 }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
@@ -290,11 +291,12 @@ vi.mock('@/components/habits/habit-log-button', () => ({
   HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled: boolean; disabledReason?: string }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled, disabledReason }),
 }))
 vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, selectedDate, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; selectedDate: Date; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void } }) => React.createElement('HabitRow', {
+  HabitRow: ({ habit, selectedDate, today, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; selectedDate: Date; today: string; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void } }) => React.createElement('HabitRow', {
     testID: `child-${habit.id}`,
     state: habit.isCompleted ? 'done' : 'empty',
     action: habit.isCompleted ? 'unlog' : 'log',
     selectedDate: formatAPIDate(selectedDate),
+    today,
     completionReadOnly,
     completionReason,
     completionStatusUnavailable,
@@ -345,8 +347,29 @@ describe('HabitDetailScreen', () => {
     mocks.history = []
     mocks.hasProAccess = true
     mocks.timeZone = 'UTC'
+    mocks.profileReady = true
+    mocks.scopedCompleteDay = false
     mocks.suggestion = null
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
+  })
+
+  it('waits for the account day before querying an unpinned detail', () => {
+    mocks.profileReady = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(mocks.scopedCompleteDay).toBe(false)
+    mocks.profileReady = true
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(mocks.scopedCompleteDay).toBe(true)
+  })
+
+  it('returns a direct detail link to Today while the profile loads', () => {
+    mocks.profileReady = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    TestRenderer.act(() => { tree.root.findByProps({ testID: 'screen-back' }).props.onBack() })
+    expect(mocks.routerReplace).toHaveBeenCalledWith({ pathname: '/(tabs)', params: { date: '2026-08-28' } })
+    expect(mocks.routerBack).not.toHaveBeenCalled()
   })
 
   afterEach(() => {
@@ -1108,6 +1131,7 @@ describe('HabitDetailScreen', () => {
     expect(tree!.root.findByProps({ testID: 'header-log' }).props.disabledReason).toBe('habits.todayBoundary.readOnly')
     expect(tree!.root.findByProps({ testID: 'child-child-1' }).props.completionReadOnly).toBe(true)
     expect(tree!.root.findByProps({ testID: 'child-child-1' }).props.completionReason).toBe('habits.todayBoundary.readOnly')
+    expect(tree!.root.findByProps({ testID: 'child-child-1' }).props.today).toBe('2026-08-31')
   })
 
   it.each(['log', 'unlog'] as const)('refuses stale detail %s and child log immediately after account midnight', (intent) => {

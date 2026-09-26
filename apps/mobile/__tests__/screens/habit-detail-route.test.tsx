@@ -18,7 +18,7 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@/components/habits/habit-detail-screen', () => ({
-  HabitDetailScreen: (props: { date: string }) => React.createElement('HabitDetailScreen', props),
+  HabitDetailScreen: (props: { date: string | null }) => React.createElement('HabitDetailScreen', props),
 }))
 
 describe('habit detail route date', () => {
@@ -34,7 +34,8 @@ describe('habit detail route date', () => {
   it.each([
     'bad',
     ['2026-08-28', '2026-08-29'],
-  ])('falls back before rendering malformed or repeated input %#', (date) => {
+    undefined,
+  ])('uses the account-day fallback for missing, malformed, or repeated input %#', (date) => {
     mocks.params = { id: 'habit-1', date }
     let tree: ReturnType<typeof TestRenderer.create>
 
@@ -42,6 +43,6 @@ describe('habit detail route date', () => {
       tree = TestRenderer.create(<HabitDetailRoute />)
     })
 
-    expect(tree!.root.findByType('HabitDetailScreen').props.date).toBe('2026-08-30')
+    expect(tree!.root.findByType('HabitDetailScreen').props.date).toBeNull()
   })
 })

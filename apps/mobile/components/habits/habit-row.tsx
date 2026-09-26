@@ -92,6 +92,7 @@ function runMenuAction(actions: HabitRowActions, id: string): void {
 export interface HabitRowProps {
   habit: NormalizedHabit
   selectedDate?: Date
+  today?: string
   /** Two inline display levels. Deeper data descendants are clamped to level 1 by the list. */
   depth?: 0 | 1
   isSelectMode?: boolean
@@ -231,6 +232,7 @@ function buildRowStyle({
 export const HabitRow = memo(function HabitRow({
   habit,
   selectedDate,
+  today,
   depth = 0,
   isSelectMode = false,
   isSelected = false,
@@ -257,8 +259,8 @@ export const HabitRow = memo(function HabitRow({
   const { displayTime } = useTimeFormat()
 
   const isChild = depth === 1
-  const todayStr = formatAPIDate(new Date())
-  const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
+  const todayStr = today ?? formatAPIDate(new Date())
+  const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
 
   const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
   const status = useMemo(

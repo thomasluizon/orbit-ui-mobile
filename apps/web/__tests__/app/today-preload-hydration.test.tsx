@@ -23,6 +23,10 @@ vi.mock('next/navigation', () => ({
   ),
 }))
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone } }),
+}))
+
 const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   locale: string
   messages: typeof en

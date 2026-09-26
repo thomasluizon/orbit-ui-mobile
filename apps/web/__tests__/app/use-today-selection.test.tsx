@@ -32,6 +32,10 @@ vi.mock('@/hooks/use-bulk-actions', () => ({
   },
 }))
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: 'UTC' } }),
+}))
+
 const habitListRef = { current: null } as RefObject<HabitListHandle | null>
 
 function renderSelection(selectedDateStr: string, today: string) {

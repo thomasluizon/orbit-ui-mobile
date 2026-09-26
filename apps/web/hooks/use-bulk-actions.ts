@@ -2,7 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
+import { formatAPIDateInTimeZone, getTodayBoundary, hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -16,6 +16,7 @@ interface UseBulkActionsOptions {
   selectedHabitIds: Set<string>
   selectedDateStr: string
   completionReadOnly: boolean
+  accountTimeZone?: string | null
   habitsById: Map<string, NormalizedHabit>
   habitListRef: React.RefObject<HabitListHandle | null>
   onSuccess: () => void
@@ -41,6 +42,7 @@ export function useBulkActions({
   selectedHabitIds,
   selectedDateStr,
   completionReadOnly,
+  accountTimeZone,
   habitsById,
   habitListRef,
   onSuccess,
@@ -108,6 +110,7 @@ export function useBulkActions({
 
   async function executeLog(ids: string[]) {
     if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
+    if (accountTimeZone !== undefined && getTodayBoundary(selectedDateStr, formatAPIDateInTimeZone(new Date(), accountTimeZone)) === 'read-only') return
     if (ids.length === 0) return
     const date = selectedDateStr
     const accountGeneration = getAccountGeneration()
@@ -129,6 +132,7 @@ export function useBulkActions({
 
   async function executeSkip(ids: string[]) {
     if (currentPermission.current.completionReadOnly || currentPermission.current.selectedDateStr !== selectedDateStr) return
+    if (accountTimeZone !== undefined && getTodayBoundary(selectedDateStr, formatAPIDateInTimeZone(new Date(), accountTimeZone)) === 'read-only') return
     if (ids.length === 0) return
     const date = selectedDateStr
     const accountGeneration = getAccountGeneration()

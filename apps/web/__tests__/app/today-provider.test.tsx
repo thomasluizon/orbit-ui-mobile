@@ -11,12 +11,20 @@ vi.mock('@orbit/shared/query', () => ({
   gamificationKeys: { all: ['gamification'] },
 }))
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: 'Pacific/Kiritimati' } }),
+}))
+
 import { TodayProvider, useToday } from '@/app/(app)/today-provider'
 
 const originalTimeZone = process.env.TZ
 
 function TodayProbe() {
   return <span data-testid="today">{useToday()}</span>
+}
+
+function DeviceTodayProbe() {
+  return <span data-testid="device-today">{useToday()}</span>
 }
 
 function AccountTodayProbe() {
@@ -78,14 +86,17 @@ describe('TodayProvider', () => {
   it('advances at account midnight while the device remains on the previous day', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-11T09:59:59.000Z'))
-    render(<TodayProvider><AccountTodayProbe /></TodayProvider>)
+    render(<TodayProvider><AccountTodayProbe /><DeviceTodayProbe /></TodayProvider>)
     expect(screen.getByTestId('today')).toHaveTextContent('2026-09-11')
+    expect(screen.getByTestId('device-today')).toHaveTextContent('2026-09-11')
 
     act(() => {
       vi.advanceTimersByTime(2_000)
     })
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
+    expect(screen.getByTestId('device-today')).toHaveTextContent('2026-09-11')
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
   })
 
   it('advances the day and refreshes gamification when the tab regains visibility on a new day', () => {
@@ -104,7 +115,7 @@ describe('TodayProvider', () => {
     expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
   })
 
-  it('advances the day and refreshes gamification at local midnight without a focus event', () => {
+  it('advances the local day without refreshing gamification before account midnight', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-07T23:59:55'))
 
@@ -116,7 +127,7 @@ describe('TodayProvider', () => {
     })
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-04-08')
-    expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['gamification'] })
+    expect(invalidateQueriesMock).not.toHaveBeenCalled()
   })
 
   it('does not refresh gamification when a focus event fires on the same day', () => {

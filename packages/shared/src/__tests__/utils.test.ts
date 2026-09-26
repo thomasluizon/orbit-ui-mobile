@@ -131,10 +131,8 @@ describe('getAccountDateTime', () => {
 })
 
 describe('resolveHabitDetailRouteDate', () => {
-  const today = new Date(2026, 7, 30)
-
   it('preserves one valid API date', () => {
-    expect(resolveHabitDetailRouteDate('2026-08-29', today)).toBe('2026-08-29')
+    expect(resolveHabitDetailRouteDate('2026-08-29')).toBe('2026-08-29')
   })
 
   it.each([
@@ -142,8 +140,8 @@ describe('resolveHabitDetailRouteDate', () => {
     '2026-02-30',
     ['2026-08-28', '2026-08-29'],
     [],
-  ])('falls back for malformed or repeated route input %#', (value) => {
-    expect(resolveHabitDetailRouteDate(value, today)).toBe('2026-08-30')
+  ])('leaves malformed or repeated route input to the account-day fallback %#', (value) => {
+    expect(resolveHabitDetailRouteDate(value)).toBeNull()
   })
 })
 

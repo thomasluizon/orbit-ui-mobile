@@ -82,13 +82,11 @@ export function millisecondsUntilNextDay(now: Date, timeZone?: string | null): n
 
 export function resolveHabitDetailRouteDate(
   value: string | readonly string[] | null | undefined,
-  today = new Date(),
-): string {
-  const fallback = formatAPIDate(today)
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return fallback
+): string | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
   try {
-    return formatAPIDate(parseAPIDate(value)) === value ? value : fallback
+    return formatAPIDate(parseAPIDate(value)) === value ? value : null
   } catch {
-    return fallback
+    return null
   }
 }

@@ -5,6 +5,7 @@ import { collectSelectableDescendantIds, getTodayBoundary } from '@orbit/shared/
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useUIStore } from '@/stores/ui-store'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
+import { useProfile } from '@/hooks/use-profile'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 interface TodaySelectionParams {
@@ -29,6 +30,7 @@ export function useTodaySelection({
   habitsCount,
   habitListRef,
 }: TodaySelectionParams) {
+  const { profile } = useProfile()
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds)
   const toggleSelectionCascade = useUIStore((s) => s.toggleSelectionCascade)
   const selectAllHabits = useUIStore((s) => s.selectAllHabits)
@@ -82,6 +84,7 @@ export function useTodaySelection({
     selectedHabitIds,
     selectedDateStr,
     completionReadOnly,
+    accountTimeZone: profile?.timeZone,
     habitsById,
     habitListRef,
     onSuccess: clearSelection,

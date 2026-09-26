@@ -121,6 +121,10 @@ vi.mock('@/hooks/use-ad-mob', () => ({
   useAdMob: () => ({ showInterstitialIfDue: vi.fn() }),
 }))
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: 'UTC' } }),
+}))
+
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: vi.fn(),
 }))
@@ -270,6 +274,7 @@ async function press(handler: unknown): Promise<void> {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   while (mountedTrees.length > 0) {
     void TestRenderer.act(() => mountedTrees.pop()?.unmount())
   }
@@ -277,6 +282,8 @@ afterEach(() => {
 
 describe('Hoje production bulk action path', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-04-08T12:00:00Z'))
     mocks.bulkBarProps = null
     mocks.modalProps = null
     mocks.showToast.mockReset()

@@ -4,7 +4,7 @@ import React from 'react'
 import { renderToString } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 
@@ -16,6 +16,16 @@ afterEach(() => vi.useRealTimers())
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
+const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: accountDate.timeZone } }),
+}))
+vi.mock('@/app/(app)/today-provider', () => ({
+  useToday: (timeZone?: string) => timeZone === undefined
+    ? formatAPIDate(new Date())
+    : formatAPIDateInTimeZone(new Date(), timeZone),
+}))
 
 
 const mockHabitsData = {
@@ -159,7 +169,7 @@ vi.mock('@/components/habits/habit-row', () => ({
     selectMode,
     selected,
     canLog,
-    readOnly,
+    completionReadOnly,
     actions,
   }: {
     habit: NormalizedHabit
@@ -168,7 +178,7 @@ vi.mock('@/components/habits/habit-row', () => ({
     selectMode?: boolean
     selected?: boolean
     canLog?: boolean
-    readOnly?: boolean
+    completionReadOnly?: boolean
     actions?: {
       onLog?: () => void
       onUnlog?: () => void
@@ -186,7 +196,7 @@ vi.mock('@/components/habits/habit-row', () => ({
       data-selected={selected ? 'yes' : 'no'}
       data-state={state}
       data-can-log={canLog ? 'yes' : 'no'}
-      data-read-only={readOnly ? 'yes' : 'no'}
+      data-read-only={completionReadOnly ? 'yes' : 'no'}
       data-has-skip={actions?.onSkip ? 'yes' : 'no'}
     >
       <span>{habit.title}</span>
@@ -340,6 +350,7 @@ const defaultFilters = {
 
 describe('HabitList', () => {
   beforeEach(() => {
+    accountDate.timeZone = undefined
     capturedDrillOptions = undefined
     vi.clearAllMocks()
     sheetTestControls.defer(false)
@@ -793,7 +804,7 @@ describe('HabitList', () => {
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
     mockHabitsData.habitsById.set('h-1', habit)
     mockHabitsData.topLevelHabits = [habit]
-    const selectedDate = new Date('2026-04-08T09:00:00Z')
+    const selectedDate = new Date('2026-09-05T09:00:00Z')
 
     renderWithProviders(
       <HabitList filters={defaultFilters} selectedDate={selectedDate} />,
@@ -803,7 +814,7 @@ describe('HabitList', () => {
 
     expect(logHabitMutateAsync).toHaveBeenCalledWith({
       habitId: 'h-1',
-      date: '2026-04-08',
+      date: '2026-09-05',
       intent: 'log',
     })
   })
@@ -2079,6 +2090,49 @@ describe('HabitList', () => {
       .toEqual([[{ habitId: parent.id, date: TODAY }]])
   })
 
+  it('does not settle a parent when a delayed child result arrives after account midnight', async () => {
+    accountDate.timeZone = 'Pacific/Honolulu'
+    vi.setSystemTime(new Date('2026-09-20T09:59:00Z'))
+    const parent = createMockHabit({ id: 'parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
+    const acceptedChild = createMockHabit({ id: 'accepted', parentId: parent.id, isCompleted: true })
+    const rejectedChild = createMockHabit({ id: 'rejected', parentId: parent.id, isCompleted: false })
+    for (const habit of [parent, acceptedChild, rejectedChild]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [acceptedChild.id, rejectedChild.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${TODAY}T00:00:00`)} />)
+
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }], TODAY)
+      await Promise.resolve()
+    })
+    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+
+    vi.setSystemTime(new Date('2026-09-20T10:01:00Z'))
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }], TODAY)
+      await Promise.resolve()
+    })
+    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+  })
+
+  it('does not confirm a parent after its account-day window closes', async () => {
+    accountDate.timeZone = 'Pacific/Honolulu'
+    vi.setSystemTime(new Date('2026-09-20T09:59:00Z'))
+    const parent = createMockHabit({ id: 'parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
+    const child = createMockHabit({ id: 'child', parentId: parent.id, isCompleted: true })
+    for (const habit of [parent, child]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${TODAY}T00:00:00`)} />)
+    await act(async () => ref.current?.checkAndPromptParentLog(child.id))
+
+    vi.setSystemTime(new Date('2026-09-20T10:01:00Z'))
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY, intent: 'log' })
+  })
+
   it('deduplicates parent settlement through refetches until progress becomes incomplete', async () => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', isCompleted: true })
@@ -2897,12 +2951,31 @@ describe('HabitList', () => {
     )
 
     const row = screen.getByTestId('habit-card-future-1')
-    expect(row).toHaveAttribute('data-read-only', 'no')
+    expect(row).toHaveAttribute('data-read-only', 'yes')
     expect(row).toHaveAttribute('data-can-log', 'no')
     expect(row).toHaveAttribute('data-has-skip', 'no')
 
     fireEvent.click(screen.getByTestId('detail-future-1'))
     expect(routerPush).toHaveBeenCalledWith(`/habits/future-1?date=${TOMORROW}&from=today`)
+  })
+
+  it('blocks a completion outside the account window before sending a write', () => {
+    vi.setSystemTime(new Date('2026-09-11T10:30:00Z'))
+    accountDate.timeZone = 'Pacific/Kiritimati'
+    const habit = createMockHabit({ id: 'account-window', title: 'Read' })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+
+    renderWithProviders(
+      <HabitList filters={{ dateFrom: '2026-09-04', dateTo: '2026-09-04' }}
+        selectedDate={new Date('2026-09-04T12:00:00Z')} />,
+    )
+
+    const row = screen.getByTestId('habit-card-account-window')
+    expect(row).toHaveAttribute('data-read-only', 'yes')
+    expect(row).toHaveAttribute('data-has-skip', 'no')
+    fireEvent.click(screen.getByTestId('log-account-window'))
+    expect(logHabitMutateAsync).not.toHaveBeenCalled()
   })
 })
 

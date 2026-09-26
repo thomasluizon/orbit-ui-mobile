@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { canNavigateToNextDay, formatAPIDate, formatLocaleDate } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
+import { useProfile } from '@/hooks/use-profile'
 import { useToday } from './today-provider'
 
 export interface TodayDateNavBundle {
@@ -47,6 +48,7 @@ export function useTodayNavigation(initialToday: string): TodayNavigation {
   const router = useRouter()
   const searchParams = useSearchParams()
   const setActiveView = useUIStore((s) => s.setActiveView)
+  const { profile } = useProfile()
 
   const dateParam = searchParams.get('date')
   const pinnedDateStr = useMemo(() => {
@@ -54,7 +56,7 @@ export function useTodayNavigation(initialToday: string): TodayNavigation {
     return null
   }, [dateParam])
 
-  const localToday = useToday()
+  const localToday = useToday(profile?.timeZone)
   const today = useSyncExternalStore(
     subscribeToHydrationToday,
     () => localToday,
