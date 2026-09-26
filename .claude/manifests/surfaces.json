@@ -1692,7 +1692,8 @@
       "href": "/turnstile-bridge",
       "ownedFiles": [
         "apps/web/app/turnstile-bridge/page.tsx",
-        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx"
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx",
+        "packages/shared/src/i18n/index.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -1706,7 +1707,8 @@
       "href": "/turnstile-bridge",
       "ownedFiles": [
         "apps/web/app/turnstile-bridge/page.tsx",
-        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx"
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx",
+        "packages/shared/src/i18n/index.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -1720,7 +1722,8 @@
       "href": "/turnstile-bridge",
       "ownedFiles": [
         "apps/web/app/turnstile-bridge/page.tsx",
-        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx"
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx",
+        "packages/shared/src/i18n/index.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -1734,7 +1737,8 @@
       "href": "/turnstile-bridge",
       "ownedFiles": [
         "apps/web/app/turnstile-bridge/page.tsx",
-        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx"
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx",
+        "packages/shared/src/i18n/index.ts"
       ],
       "state": "default",
       "theme": "dark",
