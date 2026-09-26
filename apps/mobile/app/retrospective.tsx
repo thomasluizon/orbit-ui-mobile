@@ -27,7 +27,7 @@ import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useOffline } from '@/hooks/use-offline'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { accountStorageKey } from '@/lib/account-storage-key'
-import { useAccountId } from '@/lib/account-scope'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
 import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
@@ -38,7 +38,11 @@ import { styles } from './retrospective-styles'
 const CACHE_VERSION_SUFFIX = '_v2'
 
 export default function RetrospectiveScreen() {
-  useAccountId()
+  const accountId = useAccountId()
+  return <AccountRetrospectiveScreen key={accountId ?? 'signed-out'} accountId={accountId} />
+}
+
+function AccountRetrospectiveScreen({ accountId }: Readonly<{ accountId: string | null }>) {
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
@@ -86,7 +90,7 @@ export default function RetrospectiveScreen() {
 
     void AsyncStorage.getItem(cacheKey)
       .then((value) => {
-        if (!active) return
+        if (!active || getAccountId() !== accountId) return
         if (!value) {
           setCachedData(null)
           return
@@ -98,18 +102,18 @@ export default function RetrospectiveScreen() {
         }
       })
       .finally(() => {
-        if (active) setIsCacheLoading(false)
+        if (active && getAccountId() === accountId) setIsCacheLoading(false)
       })
 
     return () => {
       active = false
     }
-  }, [cacheKey])
+  }, [accountId, cacheKey])
 
   useEffect(() => {
-    if (!data) return
+    if (!data || getAccountId() !== accountId) return
     AsyncStorage.setItem(cacheKey, JSON.stringify(data)).catch(() => {})
-  }, [cacheKey, data])
+  }, [accountId, cacheKey, data])
 
   const displayedData =
     data ?? (!isOnline && !isLoading ? cachedData : null)

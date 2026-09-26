@@ -29,7 +29,7 @@ import {
 import { useTags } from "@/hooks/use-tags";
 import { useCoachTour } from "@/hooks/use-coach-tour";
 import { useUIStore } from "@/stores/ui-store";
-import { useAccountId } from "@/lib/account-scope";
+import { getAccountId, useAccountId } from "@/lib/account-scope";
 import { useReferralPromptStore } from "@/stores/referral-prompt-store";
 import { type HabitListHandle } from "@/components/habit-list";
 import { BulkActionBarV2 } from "@/components/habits/bulk-action-bar-v2";
@@ -221,13 +221,15 @@ export default function TodayScreen() {
   );
 
   useEffect(() => {
+    let active = true;
     readShowGeneralOnToday()
       .then((storedValue) => {
-        setShowGeneralOnToday(storedValue);
+        if (active && getAccountId() === accountId) setShowGeneralOnToday(storedValue);
       })
       .catch(() => {
-        setShowGeneralOnToday(false);
+        if (active && getAccountId() === accountId) setShowGeneralOnToday(false);
       });
+    return () => { active = false; };
   }, [accountId]);
 
   const frequencyOptions = useMemo<{ key: FreqKey; label: string }[]>(

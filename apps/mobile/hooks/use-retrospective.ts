@@ -11,6 +11,7 @@ import {
   type RetrospectiveResponse,
 } from '@orbit/shared/utils/retrospective'
 import { apiClient } from '@/lib/api-client'
+import { getAccountId } from '@/lib/account-scope'
 
 export type { RetrospectivePeriod } from '@orbit/shared/utils/retrospective'
 
@@ -27,9 +28,10 @@ export function useRetrospective() {
   const requestIdRef = useRef(0)
 
   const generate = useCallback(async () => {
+    const accountId = getAccountId()
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
-    const isStale = () => requestIdRef.current !== requestId
+    const isStale = () => requestIdRef.current !== requestId || getAccountId() !== accountId
 
     setIsLoading(true)
     setError(null)

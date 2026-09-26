@@ -1,11 +1,12 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 import RetrospectiveScreen from '@/app/retrospective'
 import { setAccountId } from '@/lib/account-scope'
 
 const TestRenderer = require('react-test-renderer')
+const renderedScreens: { unmount: () => void }[] = []
 
 type TestNode = {
   type: unknown
@@ -37,6 +38,7 @@ const mocks = vi.hoisted(() => ({
     setPeriod: vi.fn(),
     generate: vi.fn(() => Promise.resolve()),
   },
+  retrospectiveHookMounts: 0,
 }))
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
@@ -60,7 +62,12 @@ vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => mocks.hasProAccess,
   useIsYearlyPro: () => mocks.isYearlyPro,
 }))
-vi.mock('@/hooks/use-retrospective', () => ({ useRetrospective: () => mocks.retro }))
+vi.mock('@/hooks/use-retrospective', () => ({
+  useRetrospective: () => {
+    const [data] = React.useState(() => mocks.retrospectiveHookMounts++ === 0 ? mocks.retro.data : null)
+    return { ...mocks.retro, data }
+  },
+}))
 
 const tokensProxy = new Proxy({}, { get: () => '#111111' }) as Record<string, string>
 vi.mock('@/lib/use-app-theme', () => ({
@@ -88,12 +95,13 @@ vi.mock('@/app/retrospective-view', () => ({
 vi.mock('@/app/retrospective-styles', () => ({ styles: new Proxy({}, { get: () => ({}) }) }))
 
 async function renderScreen() {
-  let tree: { root: TestNode; update: (element: React.ReactElement) => void } | undefined
+  let tree: { root: TestNode; update: (element: React.ReactElement) => void; unmount: () => void } | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<RetrospectiveScreen />)
     await Promise.resolve()
     await Promise.resolve()
   })
+  renderedScreens.push(tree!)
   return tree!
 }
 
@@ -102,7 +110,15 @@ function findByType(root: TestNode, type: string) {
 }
 
 describe('RetrospectiveScreen', () => {
+  afterEach(() => {
+    TestRenderer.act(() => {
+      for (const tree of renderedScreens) tree.unmount()
+    })
+    renderedScreens.length = 0
+  })
   beforeEach(() => {
+    mocks.retrospectiveHookMounts = 0
+    setAccountId(null)
     vi.clearAllMocks()
     mocks.isOnline = true
     mocks.profile = createMockProfile({ isTrialActive: false })
@@ -180,6 +196,27 @@ describe('RetrospectiveScreen', () => {
     await renderScreen()
     expect(mocks.setItem).toHaveBeenCalledTimes(1)
     expect(mocks.setItem.mock.calls[0]![1]).toBe(JSON.stringify({ summary: 'fresh' }))
+  })
+
+  it('does not display or persist account A retrospective under account B while mounted', async () => {
+    setAccountId('account-a')
+    mocks.retro.data = { summary: 'A private recap' }
+    const tree = await renderScreen()
+    expect(mocks.setItem).toHaveBeenCalledWith(
+      'orbit_retrospective_cache_week_v2:account-a',
+      JSON.stringify(mocks.retro.data),
+    )
+
+    await TestRenderer.act(async () => {
+      setAccountId('account-b')
+      await Promise.resolve()
+    })
+
+    expect(mocks.setItem).not.toHaveBeenCalledWith(
+      'orbit_retrospective_cache_week_v2:account-b',
+      expect.any(String),
+    )
+    expect(findByType(tree.root, 'RetrospectiveContent').props.displayedData).toBeNull()
   })
 
   it('opens the billing portal and subscribes from the locked-yearly panel', async () => {

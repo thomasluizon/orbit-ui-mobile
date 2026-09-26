@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as SecureStore from 'expo-secure-store'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
@@ -207,6 +208,35 @@ describe('mobile auth store security paths', () => {
     })
 
     expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(true)
+  })
+
+  it('keeps B scoped stores after A login hydration finishes last', async () => {
+    let releaseA!: (value: string | null) => void
+    const originalGetItem = vi.mocked(AsyncStorage.getItem).getMockImplementation()!
+    vi.mocked(AsyncStorage.getItem).mockImplementation((key: string) => key === 'orbit-referral-prompt-store:account-a'
+      ? new Promise<string | null>((resolve) => { releaseA = resolve })
+      : originalGetItem(key))
+    const accountA = { userId: 'account-a', email: 'a@example.com', name: 'A' }
+    const accountB = { userId: 'account-b', email: 'b@example.com', name: 'B' }
+
+    try {
+      const firstLogin = useAuthStore.getState().login('first-token', null, accountA)
+      await vi.waitFor(() => expect(releaseA).toBeTypeOf('function'))
+      await useAuthStore.getState().login('second-token', null, accountB)
+      useUIStore.getState().setFilters({ search: 'B filter' })
+      useOnboardingDraftStore.getState().bufferColorScheme('blue')
+
+      releaseA(null)
+      await firstLogin
+
+      expect(useAuthStore.getState().user?.userId).toBe('account-b')
+      expect(useUIStore.persist.getOptions().name).toBe('orbit-ui-store:account-b')
+      expect(useEngagementPromptStore.persist.getOptions().name).toBe('orbit-referral-prompt-store:account-b')
+      expect(useUIStore.getState().activeFilters).toEqual({ search: 'B filter' })
+      expect(useOnboardingDraftStore.getState().colorScheme).toBe('blue')
+    } finally {
+      vi.mocked(AsyncStorage.getItem).mockImplementation(originalGetItem)
+    }
   })
 
   it('drops a persisted draft from another account on a cold session', async () => {

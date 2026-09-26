@@ -9,7 +9,7 @@ import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
-import { useAccountId } from '@/lib/account-scope'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
 import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
@@ -105,14 +105,16 @@ export function usePreferenceControls() {
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
 
   useEffect(() => {
+    let active = true
     void AsyncStorage.removeItem('orbit_time_format')
     readShowGeneralOnToday()
       .then((saved) => {
-        setShowGeneralOnToday(saved)
+        if (active && getAccountId() === accountId) setShowGeneralOnToday(saved)
       })
       .catch(() => {
-        setShowGeneralOnToday(false)
+        if (active && getAccountId() === accountId) setShowGeneralOnToday(false)
       })
+    return () => { active = false }
   }, [accountId])
 
   async function handleShowGeneralToggle(nextValue: boolean) {
@@ -120,7 +122,7 @@ export function usePreferenceControls() {
     try {
       await writeShowGeneralOnToday(nextValue)
     } catch {
-      setShowGeneralOnToday(!nextValue)
+      if (getAccountId() === accountId) setShowGeneralOnToday(!nextValue)
     }
   }
 

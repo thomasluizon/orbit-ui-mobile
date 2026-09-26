@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -53,9 +53,11 @@ vi.mock('@/components/ui/app-overlay', () => ({
 }))
 
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
+import { setAccountId } from '@/lib/account-scope'
 
 describe('TrialExpiredModal', () => {
   beforeEach(() => {
+    setAccountId(null)
     mockTrialExpired = false
     mockPathname = '/'
     mockPush.mockClear()
@@ -138,5 +140,18 @@ describe('TrialExpiredModal', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
     expect(screen.getByTestId('overlay')).toBeInTheDocument()
+  })
+
+  it('shows B trial notice after A dismisses it in a mounted shell', () => {
+    mockTrialExpired = true
+    setAccountId('account-a')
+    const modal = render(<TrialExpiredModal />)
+    fireEvent.click(screen.getByText('trial.expired.continueFree'))
+    expect(localStorage.getItem('orbit_trial_expired_seen:account-a')).toBe('1')
+
+    act(() => setAccountId('account-b'))
+    modal.rerender(<TrialExpiredModal />)
+
+    expect(screen.getByText('trial.expired.continueFree')).toBeInTheDocument()
   })
 })
