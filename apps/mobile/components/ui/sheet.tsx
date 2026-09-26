@@ -24,10 +24,10 @@ export interface SheetHandle {
 }
 
 /**
- * The one close path a sheet host may use. Never flip the open state directly: unmounting a
- * presented TrueSheet wedges every later Android modal until the process restarts, and it
- * drops the navigation that has to run after the dismissal
- * (https://sheet.lodev09.com/guides/navigation).
+ * The one close path a sheet host may use. Direct navigation from a presented TrueSheet requires the react-native-screens patch (https://sheet.lodev09.com/guides/navigation).
+ * This app ships without it, so dismiss before navigating and never flip the open state directly.
+ * The reported menu failure (#134) came from a render-phase `setState` in `anchored-menu.tsx` racing a queued async `setState` at mount, fixed in #633.
+ * Apply D136: "Reproduce a device bug on the exact shipped build before calling it fixed."
  */
 export function useSheetHost() {
   const sheetRef = useRef<SheetHandle>(null)
