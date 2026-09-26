@@ -88,6 +88,7 @@ export const pendingOperationChangePreviewSchema = z.object({
   items: z.array(pendingOperationItemSchema).nullable().optional(),
   previewFingerprint: z.string().nullable().optional(),
 })
+export type PendingOperationChangePreview = z.infer<typeof pendingOperationChangePreviewSchema>
 
 export const revisedPendingOperationItemSchema = z.object({
   itemId: z.string(),

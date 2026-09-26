@@ -1,13 +1,18 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { TextInput } from 'react-native'
+import { ScrollView, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { RevisePendingOperation } from '@orbit/shared/hooks'
 import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
+import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
+
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+}))
 
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
@@ -91,6 +96,7 @@ describe('PendingOperationCard (mobile)', () => {
       items: [{ itemId: 'habit-1', edits: { date: '2026-09-27' } }, { itemId: 'habit-2' }],
     })
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.edited')
   })
 
   it('rejects every item and collapses the preview', async () => {
@@ -134,6 +140,49 @@ describe('PendingOperationCard (mobile)', () => {
     expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.edit' })).toHaveLength(0)
     expect(renderedText(tree.toJSON())).not.toContain('chat.operation.reject')
     expect(renderedText(tree.toJSON())).toContain('chat.operation.approve')
+  })
+
+  it('replaces a same-ID preview and clears an unsaved draft when its fingerprint changes', () => {
+    const { tree, handlers } = renderCard(preview, vi.fn())
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
+    TestRenderer.act(() => tree.update(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...preview, items: [secondItem], changeTargetCount: 1, previewFingerprint: 'preview-other' })} onRevise={vi.fn()} {...handlers} />))
+    expect(renderedText(tree.toJSON())).not.toContain('Run')
+    expect(renderedText(tree.toJSON())).toContain('Read')
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.field.date' })).toHaveLength(0)
+  })
+
+  it('keeps a draft when the editor switches to another item and back', () => {
+    const { tree } = renderCard(preview, vi.fn())
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'Read' }).props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'Run' }).props.onPress())
+    expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'common.search' })).toHaveLength(0)
+  })
+
+  it('uses theme foreground for every editor label and weekday chip', () => {
+    const fields = [
+      { ...firstItem.fields[0]!, field: 'reminder_enabled', valueType: 'boolean', newValue: 'true' },
+      { ...firstItem.fields[0]!, field: 'days', valueType: 'text', newValue: 'Monday' },
+    ]
+    const { tree } = renderCard({ ...preview, items: [{ ...firstItem, fields }] }, vi.fn())
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    const body = tree.root.findByProps({ testID: 'sheet-body-slot' })
+    const foreground = createTokensV2('purple', 'dark').fg1
+    for (const label of ['chat.operation.field.reminder_enabled', 'chat.operation.field.days', 'dates.daysLong.monday']) {
+      const text = body.findAllByType(Text).find((node: any) => node.props.children === label)
+      expect(text?.props.style).toMatchObject({ color: foreground })
+    }
+    expect(body.findAllByType(ScrollView)).toHaveLength(0)
+  })
+
+  it('shows editor search only when more than eight items are available', () => {
+    const items = Array.from({ length: 9 }, (_, index) => ({ ...firstItem, itemId: `habit-${index}`, entityName: `Habit ${index}` }))
+    const { tree } = renderCard({ ...preview, items, changeTargetCount: items.length }, vi.fn())
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'common.search')).toHaveLength(1)
   })
   it('states risk and requires confirmation before a destructive operation', async () => {
     const { tree, handlers } = renderCard()

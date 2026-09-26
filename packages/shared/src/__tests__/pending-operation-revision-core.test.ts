@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isPendingOperationEditableField, pendingOperationDraft, pendingOperationEdits } from '../hooks/pending-operation-revision-core'
+import {
+  applyPendingOperationRevisionPreview, changePendingOperationRevisionDraft,
+  createPendingOperationRevisionState, isPendingOperationEditableField,
+  pendingOperationDraft, pendingOperationEdits, reconcilePendingOperationRevisionState,
+  selectPendingOperationRevisionItem,
+} from '../hooks/pending-operation-revision-core'
+import { makePendingAgentOperation } from '../test-support/chat-fixtures'
 import type { PendingOperationItem } from '../types/ai'
 
 const item: PendingOperationItem = {
@@ -21,5 +27,31 @@ describe('pending operation edits', () => {
 
   it('keeps summary-only list fields out of the editor', () => {
     expect(isPendingOperationEditableField(item.fields[2]!)).toBe(false)
+  })
+
+  it('keeps drafts by item and replaces them when a different server fingerprint arrives', () => {
+    const second = { ...item, itemId: 'habit-2', entityId: 'habit-2', entityName: 'Read' }
+    const operation = makePendingAgentOperation({ previewFingerprint: 'preview-1', items: [item, second] })
+    let state = createPendingOperationRevisionState(operation)
+    state = selectPendingOperationRevisionItem(state, item.itemId)
+    state = changePendingOperationRevisionDraft(state, 'days', 'Friday')
+    state = selectPendingOperationRevisionItem(state, second.itemId)
+    state = selectPendingOperationRevisionItem(state, item.itemId)
+    expect(state.drafts[item.itemId]?.days).toBe('Friday')
+
+    const replacement = { ...operation, previewFingerprint: 'preview-other', items: [second] }
+    state = reconcilePendingOperationRevisionState(state, replacement)
+    expect(state.operation.items).toEqual([second])
+    expect(state.editingItemId).toBeUndefined()
+    expect(state.drafts).toEqual({})
+  })
+
+  it('keeps an edited marker when the parent echoes a revised preview', () => {
+    const operation = makePendingAgentOperation({ previewFingerprint: 'preview-1', items: [item] })
+    const revised = { changes: [], changeTargetCount: 1, items: [item], previewFingerprint: 'preview-2' }
+    const state = applyPendingOperationRevisionPreview(createPendingOperationRevisionState(operation), revised, item.itemId)
+    expect(state.editedItemIds).toEqual([item.itemId])
+    expect(reconcilePendingOperationRevisionState(state, { ...operation, ...revised }).editedItemIds).toEqual([item.itemId])
+    expect(reconcilePendingOperationRevisionState(state, { ...operation, previewFingerprint: 'preview-other' }).editedItemIds).toEqual([])
   })
 })

@@ -127,6 +127,8 @@ describe('PendingOperationCard', () => {
       items: [{ itemId: 'habit-1', edits: { date: '2026-09-27' } }, { itemId: 'habit-2' }],
     }))
     expect(confirm).not.toHaveBeenCalled()
+    expect(screen.getByText(/chat.operation.edited/)).toBeInTheDocument()
+    expect(screen.getAllByRole('group', { name: 'chat.preview.proposed' })).toHaveLength(1)
   })
 
   it('collapses the rejected preview with no approval action', async () => {
@@ -163,5 +165,37 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByRole('button', { name: 'chat.operation.edit' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'chat.operation.reject' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeEnabled()
+  })
+
+  it('replaces a same-ID preview and drops its unsaved edit when the fingerprint changes', () => {
+    const { rerender } = render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
+    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-30' } })
+
+    const replacement = makePendingAgentOperation({ ...preview, previewFingerprint: 'preview-other', items: [secondItem], changeTargetCount: 1 })
+    rerender(<PendingOperationCard pendingOperation={replacement} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+
+    expect(screen.queryByText('Run')).not.toBeInTheDocument()
+    expect(screen.getByText('Read')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'chat.operation.field.date' })).not.toBeInTheDocument()
+  })
+
+  it('keeps an unsaved edit when switching items', () => {
+    render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
+    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-30' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Read' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Run' }))
+    expect(screen.getByRole('textbox', { name: 'chat.operation.field.date' })).toHaveValue('2026-09-30')
+    expect(screen.queryByRole('textbox', { name: 'common.search' })).not.toBeInTheDocument()
+  })
+
+  it('offers search only above the established record filter threshold', () => {
+    const items = Array.from({ length: 9 }, (_, index) => ({
+      ...firstItem, itemId: `habit-${index}`, entityName: `Habit ${index}`,
+    }))
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...preview, items, changeTargetCount: items.length })} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
+    expect(screen.getByRole('textbox', { name: 'common.search' })).toBeInTheDocument()
   })
 })

@@ -105,6 +105,7 @@ export interface PendingOperationCardActions {
     items: readonly PendingOperationItem[]
     editingItem: PendingOperationItem | undefined
     draft: Readonly<Record<string, string>>
+    editedItemIds: readonly string[]
     busy: boolean
     stale: boolean
     rejected: boolean
@@ -178,6 +179,7 @@ function previewRows<Node>(
 ): PendingOperationFrame<Node>['items'] | null {
   if (!revision?.canRevise) return null
   return revision.items.map((item) => {
+    const edited = revision.editedItemIds.includes(item.itemId)
     const summary = item.fields.map((field) => {
       const name = labels.fieldLabels[field.field] ?? field.field
       const value = previewValue(field, labels)
@@ -186,10 +188,10 @@ function previewRows<Node>(
     return {
       id: item.itemId,
       label: item.entityName,
-      meta: summary || labels.pending,
+      meta: edited ? `${labels.edited} · ${summary || labels.pending}` : summary || labels.pending,
       status: card.status,
       irreversible: destructive && card.status == null,
-      proposed: card.status == null,
+      proposed: card.status == null && !edited,
       wrapLabel: true,
       control: card.status == null && !revision.stale ? render.removeItem(
         `${labels.remove} ${item.entityName}`,

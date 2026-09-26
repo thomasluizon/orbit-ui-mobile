@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { PendingAgentOperation, PendingOperationItem } from '@orbit/shared/types/ai'
 import {
-  pendingOperationDraft, pendingOperationEdits, pendingOperationRevisionRequest,
-  isPendingOperationEditableField,
+  pendingOperationEdits, pendingOperationRevisionRequest,
+  createPendingOperationRevisionState, reconcilePendingOperationRevisionState,
+  selectPendingOperationRevisionItem, changePendingOperationRevisionDraft,
+  applyPendingOperationRevisionPreview,
   type RevisePendingOperation,
 } from '@orbit/shared/hooks'
 
@@ -10,39 +12,48 @@ export function usePendingOperationRevision(
   initialOperation: PendingAgentOperation,
   onRevise: RevisePendingOperation | undefined,
 ) {
-  const [operation, setOperation] = useState(initialOperation)
-  const [editingItemId, setEditingItemId] = useState<string>()
-  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [revision, setRevision] = useState(() => createPendingOperationRevisionState(initialOperation))
+  const synchronized = reconcilePendingOperationRevisionState(revision, initialOperation)
+  if (synchronized !== revision) setRevision(synchronized)
+  const { operation, editingItemId, editedItemIds } = synchronized
+  const draft = useMemo(() => editingItemId ? synchronized.drafts[editingItemId] ?? {} : {},
+    [editingItemId, synchronized.drafts])
   const [busy, setBusy] = useState(false)
-  const [stale, setStale] = useState(false)
-  const [rejected, setRejected] = useState(false)
-  const [error, setError] = useState<string>()
+  const [staleFingerprint, setStaleFingerprint] = useState<string>()
+  const [rejectedFingerprint, setRejectedFingerprint] = useState<string>()
+  const [revisionError, setRevisionError] = useState<{ fingerprint: string; message: string }>()
+  const stale = Boolean(staleFingerprint && staleFingerprint === operation.previewFingerprint)
+  const rejected = Boolean(rejectedFingerprint && rejectedFingerprint === operation.previewFingerprint)
+  const error = revisionError && revisionError.fingerprint === operation.previewFingerprint ? revisionError.message : undefined
   const items = useMemo(() => operation.items ?? [], [operation.items])
   const editingItem = items.find((item) => item.itemId === editingItemId)
   const canRevise = Boolean(onRevise && operation.previewFingerprint && operation.items)
 
   const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }): Promise<boolean> => {
     if (!onRevise || !operation.previewFingerprint || busy) return false
+    const requestFingerprint = operation.previewFingerprint
     setBusy(true)
-    setError(undefined)
+    setRevisionError(undefined)
     try {
-      const response = await onRevise(operation.id, pendingOperationRevisionRequest(operation.previewFingerprint, selected, edits))
+      const response = await onRevise(operation.id, pendingOperationRevisionRequest(requestFingerprint, selected, edits))
       if (!response.ok) {
-        setStale(response.stale === true)
-        setError(response.error)
+        setStaleFingerprint(response.stale ? requestFingerprint : undefined)
+        setRevisionError({ fingerprint: requestFingerprint, message: response.error })
         return false
       } else if (response.result.cancelled) {
-        setRejected(true)
+        setRejectedFingerprint(requestFingerprint)
         return true
       } else if (response.result.preview) {
-        setOperation((current) => ({ ...current, ...response.result.preview }))
-        setStale(false)
+        const preview = response.result.preview
+        setRevision((current) => current.operation.previewFingerprint === requestFingerprint
+          ? applyPendingOperationRevisionPreview(current, preview, edits?.itemId) : current)
+        setStaleFingerprint(undefined)
         return true
       }
-      setError('invalid')
+      setRevisionError({ fingerprint: requestFingerprint, message: 'invalid' })
       return false
     } catch {
-      setError('invalid')
+      setRevisionError({ fingerprint: requestFingerprint, message: 'invalid' })
       return false
     } finally {
       setBusy(false)
@@ -50,12 +61,9 @@ export function usePendingOperationRevision(
   }, [busy, onRevise, operation])
 
   const startEdit = useCallback((itemId: string) => {
-    const item = items.find((entry) => entry.itemId === itemId)
-    if (!item || !item.fields.some(isPendingOperationEditableField)) return
-    setDraft(pendingOperationDraft(item))
-    setEditingItemId(itemId)
-    setError(undefined)
-  }, [items])
+    setRevision((current) => selectPendingOperationRevisionItem(current, itemId))
+    setRevisionError(undefined)
+  }, [])
 
   const saveEdit = useCallback(async (): Promise<boolean> => {
     if (!editingItem) return false
@@ -66,15 +74,15 @@ export function usePendingOperationRevision(
       }
       return await revise(items, { itemId: editingItem.itemId, values })
     } catch {
-      setError('invalid')
+      if (operation.previewFingerprint) setRevisionError({ fingerprint: operation.previewFingerprint, message: 'invalid' })
       return false
     }
-  }, [draft, editingItem, items, revise])
+  }, [draft, editingItem, items, operation.previewFingerprint, revise])
 
   return {
-    operation, items, canRevise, editingItem, draft, busy, stale, rejected, error,
-    setDraftField: (field: string, value: string) => setDraft((current) => ({ ...current, [field]: value })),
-    closeEdit: () => setEditingItemId(undefined),
+    operation, items, canRevise, editingItem, draft, editedItemIds, busy, stale, rejected, error,
+    setDraftField: (field: string, value: string) => setRevision((current) => changePendingOperationRevisionDraft(current, field, value)),
+    closeEdit: () => setRevision((current) => ({ ...current, editingItemId: undefined })),
     startEdit,
     saveEdit,
     rejectItem: (itemId: string) => revise(items.filter((item) => item.itemId !== itemId)),

@@ -4,12 +4,14 @@ import { getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
 export const PENDING_OPERATION_WEEKDAYS = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
 ] as const
+export const PENDING_OPERATION_ITEM_SEARCH_THRESHOLD = 8
 
 export interface PendingOperationCardLabels {
   approve: string
   acting: string
   cancel: string
   edit: string
+  edited: string
   editTitle: string
   reject: string
   remove: string
@@ -46,6 +48,7 @@ export function buildPendingOperationCardLabels(
     acting: translate('blockFrame.status.acting'),
     cancel: translate('common.cancel'),
     edit: translate('chat.operation.edit'),
+    edited: translate('chat.operation.edited'),
     editTitle: translate('chat.operation.editTitle'),
     reject: translate('chat.operation.reject'),
     remove: translate('chat.operation.remove'),

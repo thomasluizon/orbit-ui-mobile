@@ -1,7 +1,7 @@
 'use client'
 
 import { SharedPendingOperationCard, type PendingOperationCardAdapterProps, type PendingOperationCardRenderers, type PendingOperationVerificationProps } from './shared-pending-operation-card'
-import { buildPendingOperationCardLabels, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
+import { buildPendingOperationCardLabels, PENDING_OPERATION_ITEM_SEARCH_THRESHOLD, PENDING_OPERATION_WEEKDAYS, type PendingOperationEditSheetProps } from '@orbit/shared/chat'
 import { useTranslations } from 'next-intl'
 import { usePendingOperationStepUpVerification } from '@/hooks/use-pending-operation-card-state'
 import { Badge } from '@/components/ui/badge'
@@ -22,6 +22,8 @@ import { RadioRow } from '@/components/ui/select-check'
 function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, error, onSelectItem, onChange, onClose, onSave }: Readonly<PendingOperationEditSheetProps>) {
   const { sheetRef, closeSheet } = useSheetHost()
   const [query, setQuery] = useState('')
+  const editableItems = items.filter((entry) => entry.fields.some(isPendingOperationEditableField))
+  const showSearch = editableItems.length > PENDING_OPERATION_ITEM_SEARCH_THRESHOLD
   useEffect(() => { if (stale) closeSheet(onClose) }, [stale, closeSheet, onClose])
   const save = async () => { if (await onSave()) closeSheet(onClose) }
   return <Sheet
@@ -34,7 +36,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
     </>}
   >
     <div className="flex flex-col gap-4">
-      {items.length > 1 ? <div className="flex flex-col gap-2"><Input label={labels.search} value={query} onChange={setQuery} disabled={busy} /><div className="max-h-48 overflow-y-auto">{items.filter((entry) => entry.fields.some(isPendingOperationEditableField) && entry.entityName.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((entry) =>
+      {editableItems.length > 1 ? <div className="flex flex-col gap-2">{showSearch ? <Input label={labels.search} value={query} onChange={setQuery} disabled={busy} /> : null}<div>{editableItems.filter((entry) => !showSearch || entry.entityName.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((entry) =>
         busy
           ? <RadioRow key={entry.itemId} label={entry.entityName} selected={entry.itemId === item.itemId} disabled reason={labels.acting} />
           : <RadioRow key={entry.itemId} label={entry.entityName} selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</div></div> : null}

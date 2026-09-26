@@ -1283,6 +1283,7 @@
       "confirmNote": "Deleting cannot be undone, so approval asks for confirmation.",
       "approve": "Approve",
       "edit": "Edit item",
+      "edited": "Edited",
       "editTitle": "Edit",
       "reject": "Reject all",
       "remove": "Remove",

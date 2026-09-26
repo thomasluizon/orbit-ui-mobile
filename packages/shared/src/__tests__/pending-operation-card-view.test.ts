@@ -13,7 +13,7 @@ import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from
 
 const labels: PendingOperationCardLabels = {
   approve: 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Confirm',
-  edit: 'Edit item', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
+  edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
   rejected: 'Declined:', save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
   confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
@@ -81,7 +81,7 @@ describe('pending operation card view', () => {
     })
     card.revision = {
       operation, canRevise: true, items: operation.items ?? [], editingItem: undefined,
-      draft: {}, busy: false, stale: false, rejected: false, error: undefined,
+      draft: {}, editedItemIds: [], busy: false, stale: false, rejected: false, error: undefined,
       setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(),
       saveEdit: vi.fn().mockResolvedValue(undefined),
       rejectItem: vi.fn().mockResolvedValue(undefined),

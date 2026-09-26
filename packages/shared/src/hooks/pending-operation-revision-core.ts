@@ -1,8 +1,81 @@
 import type {
+  PendingAgentOperation,
   PendingOperationItem,
+  PendingOperationChangePreview,
   PendingOperationRevisionResult,
   RevisePendingOperationRequest,
 } from '../types/ai'
+
+export interface PendingOperationRevisionState {
+  sourceId: string
+  sourceFingerprint: string | null | undefined
+  operation: PendingAgentOperation
+  editingItemId: string | undefined
+  drafts: Readonly<Record<string, Readonly<Record<string, string>>>>
+  editedItemIds: readonly string[]
+}
+
+export function createPendingOperationRevisionState(operation: PendingAgentOperation): PendingOperationRevisionState {
+  return {
+    sourceId: operation.id, sourceFingerprint: operation.previewFingerprint,
+    operation, editingItemId: undefined, drafts: {}, editedItemIds: [],
+  }
+}
+
+export function reconcilePendingOperationRevisionState(
+  current: PendingOperationRevisionState,
+  incoming: PendingAgentOperation,
+): PendingOperationRevisionState {
+  if (current.sourceId === incoming.id && current.sourceFingerprint === incoming.previewFingerprint) return current
+  if (current.sourceId === incoming.id && current.operation.previewFingerprint === incoming.previewFingerprint) {
+    return { ...current, sourceFingerprint: incoming.previewFingerprint, operation: incoming }
+  }
+  return createPendingOperationRevisionState(incoming)
+}
+
+export function selectPendingOperationRevisionItem(
+  current: PendingOperationRevisionState,
+  itemId: string,
+): PendingOperationRevisionState {
+  const item = current.operation.items?.find((entry) => entry.itemId === itemId)
+  if (!item || !item.fields.some(isPendingOperationEditableField)) return current
+  return {
+    ...current,
+    editingItemId: itemId,
+    drafts: current.drafts[itemId] ? current.drafts : { ...current.drafts, [itemId]: pendingOperationDraft(item) },
+  }
+}
+
+export function changePendingOperationRevisionDraft(
+  current: PendingOperationRevisionState,
+  field: string,
+  value: string,
+): PendingOperationRevisionState {
+  const itemId = current.editingItemId
+  if (!itemId) return current
+  return { ...current, drafts: {
+    ...current.drafts,
+    [itemId]: { ...current.drafts[itemId], [field]: value },
+  } }
+}
+
+export function applyPendingOperationRevisionPreview(
+  current: PendingOperationRevisionState,
+  preview: PendingOperationChangePreview,
+  editedItemId?: string,
+): PendingOperationRevisionState {
+  const items = preview.items ?? []
+  const itemIds = new Set(items.map((item) => item.itemId))
+  return {
+    ...current,
+    operation: { ...current.operation, ...preview },
+    drafts: Object.fromEntries(Object.entries(current.drafts).filter(([id]) => id !== editedItemId && itemIds.has(id))),
+    editedItemIds: [...new Set([...current.editedItemIds, ...(editedItemId ? [editedItemId] : [])])]
+      .filter((id) => itemIds.has(id)),
+    editingItemId: editedItemId || !current.editingItemId || !itemIds.has(current.editingItemId)
+      ? undefined : current.editingItemId,
+  }
+}
 
 export type PendingOperationRevisionResponse =
   | { ok: true; result: PendingOperationRevisionResult }
