@@ -49,7 +49,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
           <View testID="legal-document-closing" style={styles.section}>
             <Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{closingNote.title}</Text>
             {closingNote.paragraphs.map((paragraph) => (
-              <Text key={paragraph} style={[styles.closingBody, { color: tokens.fg3 }]}>{paragraph}</Text>
+              <Text key={paragraph} style={[styles.closingBody, { color: tokens.fg1 }]}>{paragraph}</Text>
             ))}
           </View>
         </View>
@@ -72,5 +72,5 @@ const styles = StyleSheet.create({
   sectionTitle: { minWidth: 0, fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 },
   paragraphs: { minWidth: 0, gap: 8 },
   body: { minWidth: 0, maxWidth: '100%', flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25.6 },
-  closingBody: { minWidth: 0, maxWidth: '100%', flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21.7 },
+  closingBody: { minWidth: 0, maxWidth: '100%', flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24.8 },
 })

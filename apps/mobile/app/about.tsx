@@ -141,7 +141,7 @@ export default function AboutScreen() {
             ) : null}
           </View>
 
-          <Text testID="about-credit" style={[styles.credit, { color: tokens.fg3 }]}>
+          <Text testID="about-credit" style={[styles.credit, { color: tokens.fg1 }]}>
             {t('about.credit')}
           </Text>
         </View>
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     maxWidth: '100%',
     fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 21.7,
+    fontSize: 16,
+    lineHeight: 24.8,
   },
 })
