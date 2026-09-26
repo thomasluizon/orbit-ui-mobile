@@ -330,6 +330,29 @@ export const cases = async () => {
   )
 
   const unresolvedMeasurement = resolvePerformanceMeasurement(availableInput())
+  const duplicateInput = availableInput()
+  duplicateInput.queryStats.push({ ...duplicateInput.queryStats[0], rows: 1 })
+  const duplicateMeasurement = resolvePerformanceMeasurement(duplicateInput)
+  T(
+    "performance-measurement: duplicate measured queryIds fail with the offending id",
+    duplicateMeasurement.verdict === "CODE_ONLY"
+      && duplicateMeasurement.reason.includes("duplicate queryId: habit-logs"),
+    JSON.stringify({ verdict: duplicateMeasurement.verdict, reason: duplicateMeasurement.reason }),
+  )
+  const workflowDuplicate = runInNewContext(
+    `${measurementFunctions}\nresolvePerformanceMeasurement(${JSON.stringify(duplicateInput)})`,
+  )
+  T(
+    "performance-measurement: generated workflow rejects duplicate measured queryIds",
+    workflowDuplicate.verdict === "CODE_ONLY"
+      && workflowDuplicate.reason.includes("duplicate queryId: habit-logs"),
+    JSON.stringify({ verdict: workflowDuplicate.verdict, reason: workflowDuplicate.reason }),
+  )
+  T(
+    "performance-measurement: unique measured queryIds retain every statement",
+    unresolvedMeasurement.verdict === "MEASURED"
+      && unresolvedMeasurement.rowsRanking.length === availableInput().queryStats.length,
+  )
   const measurement = applyMeasuredQueryContexts(unresolvedMeasurement, measuredMappings())
   const workflowMeasurement = runInNewContext(
     `${measurementFunctions}\napplyMeasuredQueryContexts(
