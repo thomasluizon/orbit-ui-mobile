@@ -60,7 +60,10 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habits')>(),
   useTotalHabitCount: () => 0,
 }))
-vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }) }))
+vi.mock('@/hooks/use-gamification', () => ({
+  useGamificationProfile: () => ({ crossedStreakMilestones: [], newAchievements: [] }),
+  useReportEvent: () => ({ mutate: vi.fn() }),
+}))
 vi.mock('@/stores/onboarding-draft-store', () => ({
   useOnboardingDraftHydrated: () => true,
   useOnboardingHasPendingAnswers: () => false,
@@ -84,6 +87,11 @@ vi.mock('@/components/marketing-consent/marketing-consent-prompt', () => ({ Mark
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => mocks.queryClient,
+  useQuery: () => ({ data: undefined, error: null, isLoading: false, isError: false }),
+  useMutation: (options: { mutationFn?: (value: unknown) => unknown }) => ({
+    mutate: (value: unknown) => options.mutationFn?.(value),
+    isPending: false,
+  }),
 }))
 
 vi.mock('@/lib/query-client', () => ({
@@ -121,6 +129,7 @@ import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
 import AppLayout from '@/app/(app)/layout'
+import ProfilePage from '@/app/(app)/profile/page'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -272,6 +281,22 @@ describe('web useChatComposer streaming send', () => {
       const context = JSON.parse((request.body as FormData).get('clientContext') as string)
       expect(context.entryPointIntent).toBe('support')
     }
+  })
+
+  it('sends Support row intent with the first problem description', async () => {
+    mocks.pathname = '/profile'
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    render(<ProfilePage />)
+    const { result } = renderHook(() => useChatComposer())
+
+    fireEvent.click(screen.getByRole('button', { name: /profile\.support\.title/i }))
+    await act(async () => { await result.current.sendMessage('my streak reset after I travelled') })
+
+    const [, request] = mocks.fetch.mock.calls[0]!
+    const formData = request.body as FormData
+    expect(formData.get('message')).toBe('my streak reset after I travelled')
+    const context = JSON.parse(formData.get('clientContext') as string)
+    expect(context.entryPointIntent).toBe('support')
   })
 
   it.each([

@@ -748,12 +748,15 @@ running. There is nothing to poll, nothing to babysit, and no monitor to arm.
 node tools/verify-delivery.mjs --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> --wait-ci <seconds>
 ```
 
+The verifier reads the pull request's base branch for commit counting and parity paths. Pass
+`--base <ref>` only when the plan names an explicit base; a mismatch with the pull request is an error.
+
 It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
 
 | Verdict | Meaning |
 |---|---|
 | `DELIVERED` | every check below passed |
-| `NO_COMMIT` | `git rev-list --count main..HEAD` is 0. **This and nothing else** |
+| `NO_COMMIT` | `git rev-list --count <PR base>..HEAD` is 0. **This and nothing else** |
 | `DIRTY_TREE` | commits exist AND the tree is dirty |
 | `UNPUSHED` | commits exist above `origin/<branch>` |
 | `NO_PR` | `gh pr list --head <branch>` returned 0, or more than 1 |

@@ -26,6 +26,7 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
 export function useModalFocusTrap(
   open: boolean,
   dialogRef: RefObject<HTMLElement | null>,
+  returnFocusTriggerRef?: RefObject<HTMLElement | null>,
 ): void {
   const ownerId = useId()
   const returnTargetRef = useRef<HTMLElement | null>(null)
@@ -89,14 +90,14 @@ export function useModalFocusTrap(
 
   useEffect(() => {
     if (!open) return
-    returnTargetRef.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null
+    returnTargetRef.current = returnFocusTriggerRef?.current?.isConnected
+      ? returnFocusTriggerRef.current
+      : document.activeElement instanceof HTMLElement ? document.activeElement : null
 
     return () => {
       const returnTarget = returnTargetRef.current
       returnTargetRef.current = null
       if (returnTarget?.isConnected) returnTarget.focus()
     }
-  }, [open])
+  }, [open, returnFocusTriggerRef])
 }

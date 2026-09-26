@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { createRef, type ReactElement } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { act, create } from 'react-test-renderer'
@@ -53,6 +53,13 @@ function actionContent(node: TestNode, pressed: boolean) {
 }
 
 describe('list primitives on mobile', () => {
+  it('exposes the Support action as an accessibility focus target', () => {
+    const supportRef = createRef<View>()
+    const tree = render(<ListRow title="Support" onClick={() => {}} ref={supportRef} />)
+    expect(tree.root.findByType(Pressable).props.accessibilityRole).toBe('button')
+    expect(supportRef.current).toMatchObject({ __nativeTag: expect.any(Number) })
+  })
+
   it('insets invoice actions and navigation controls without shrinking their touch targets', () => {
     const onDownload = vi.fn()
     const tree = render(

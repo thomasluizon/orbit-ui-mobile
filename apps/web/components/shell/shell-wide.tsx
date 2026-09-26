@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {
+  useEffect,
   useRef,
   useSyncExternalStore,
   type ComponentType,
@@ -201,8 +202,8 @@ function ShellWideBackground({
             {props.children}
           </main>
           {props.notice !== undefined ? <div data-shell-notice="">{props.notice}</div> : null}
-          {pinnedSlot !== undefined && !conversationOpen ? (
-            <div data-shell-pinned-slot="" className="shrink-0 pb-4">
+          {pinnedSlot !== undefined ? (
+            <div data-shell-pinned-slot="" hidden={conversationOpen} className="shrink-0 pb-4">
               {pinnedSlot}
             </div>
           ) : null}
@@ -221,13 +222,38 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
   )
   const modalOpen = conversationOpen && !sidePanel
   const conversationRef = useRef<HTMLDivElement>(null)
+  const sidePanelRef = useRef<HTMLElement>(null)
+  const returnFocusTriggerRef = useRef<HTMLElement>(null)
   const registerScroller = useShellScrollerRegistration()
-  useModalFocusTrap(modalOpen, conversationRef)
+  useModalFocusTrap(modalOpen, conversationRef, returnFocusTriggerRef)
+  useEffect(() => {
+    if (!conversationOpen || !sidePanel) return
+    const panel = sidePanelRef.current
+    if (!panel) return
+    const returnTarget = returnFocusTriggerRef.current?.isConnected
+      ? returnFocusTriggerRef.current
+      : document.activeElement instanceof HTMLElement ? document.activeElement : null
+    ;(panel.querySelector<HTMLButtonElement>('button:not([disabled])') ?? panel).focus()
+    return () => {
+      if (returnTarget?.isConnected) returnTarget.focus()
+    }
+  }, [conversationOpen, sidePanel])
 
   return (
     <div
       data-shell="wide"
       className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] text-[var(--fg-1)]"
+      onFocusCapture={(event) => {
+        if (!conversationOpen && event.target instanceof HTMLElement) {
+          returnFocusTriggerRef.current = event.target
+        }
+      }}
+      onClickCapture={(event) => {
+        if (!conversationOpen && event.target instanceof Element) {
+          const trigger = event.target.closest<HTMLElement>('button, a[href], [role="button"]')
+          if (trigger) returnFocusTriggerRef.current = trigger
+        }
+      }}
     >
       <ShellWideBackground
         props={props}
@@ -238,6 +264,8 @@ export function ShellWide(props: Readonly<ShellWideProps>) {
 
       {conversationOpen && sidePanel ? (
         <aside
+          ref={sidePanelRef}
+          tabIndex={-1}
           data-shell-conversation="panel"
           aria-label={props.conversationLabel}
           className="h-dvh w-[380px] shrink-0 overflow-y-auto bg-[var(--bg)] shadow-[inset_1px_0_0_var(--hairline)]"

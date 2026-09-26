@@ -115,6 +115,12 @@ const outputInstruction = cloud
     : `One commit series on your branch, pushed, with exactly one open pull request that links
 ${ticketReference}. The orchestrator verifies delivery from git and GitHub artifacts with
 tools/verify-delivery.mjs; your own exit code counts for nothing. It owns CI waiting after handoff.`
+const localUiParityDelivery = !cloud && !reviewBatch && repoKey === "ui"
+  ? `\n\n**UI parity at pull request creation.** If the change touches only one of \`apps/web\` and
+\`apps/mobile\` and qualifies for the exemption, open the pull request with
+\`--label parity:exempt\` and a one-line \`## Parity\` section naming the platform adapter or
+the enumerated layout-shell divergence. Otherwise make the mirror change.`
+  : ""
 
 const uiReviewSweepOwed = composedOrderNeedsUiReview(repoKey, baseBranch)
 const reviewSweepContract = renderUiReviewSweepContract()
@@ -192,7 +198,7 @@ with the module or route change that requires regeneration, and required lockfil
 in this pull request. Do not split required generated output away to make the diff look smaller, and
 do not deliver partial behaviour silently.${browserBan}
 
-**Output.** ${outputInstruction}
+**Output.** ${outputInstruction}${localUiParityDelivery}
 
 **Boundaries.** Never merge, in any shape: no gh pr merge, no PUT /repos/{owner}/{repo}/pulls/N/merge,
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or

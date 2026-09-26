@@ -23,6 +23,18 @@ vi.mock('@/components/referral/referral-drawer', () => ({
     open ? React.createElement('ReferralDrawerOpen', {}) : null,
 }))
 
+vi.mock('react-native', async (importOriginal) => {
+  const native = await importOriginal<typeof import('react-native')>()
+  return {
+    ...native,
+    AccessibilityInfo: {
+      ...native.AccessibilityInfo,
+      sendAccessibilityEvent: mockSendAccessibilityEvent,
+    },
+    Platform: { ...native.Platform, OS: 'android' },
+  }
+})
+
 const TestRenderer = require('react-test-renderer')
 
 const {
@@ -34,6 +46,9 @@ const {
   mockUseGamificationProfile,
   mockPatchProfile,
   mockRouterPush,
+  mockSetAstraConversationOpen,
+  mockSendAccessibilityEvent,
+  mockConversationOpen,
   mockProfileState,
   mockSearchParams,
   mockStepUpVerified,
@@ -52,6 +67,9 @@ const {
   mockPatchProfile: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
+  mockSetAstraConversationOpen: vi.fn(),
+  mockSendAccessibilityEvent: vi.fn(),
+  mockConversationOpen: { current: false },
   mockSearchParams: { current: {} },
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
@@ -135,8 +153,8 @@ vi.mock('@/stores/auth-store', () => {
 })
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: () => void }) => unknown) =>
-    selector({ setAstraConversationOpen: vi.fn() }),
+  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mockSetAstraConversationOpen; astraConversationOpen: boolean }) => unknown) =>
+    selector({ setAstraConversationOpen: mockSetAstraConversationOpen, astraConversationOpen: mockConversationOpen.current }),
 }))
 
 vi.mock('@/hooks/use-offline', () => ({
@@ -342,6 +360,7 @@ vi.mock('@/components/ui/list-row', () => ({
     trailing,
     onClick,
     accessibilityLabel,
+    ref,
     chevron = true,
     action,
     readOnly = false,
@@ -352,6 +371,7 @@ vi.mock('@/components/ui/list-row', () => ({
     trailing?: React.ReactNode
     onClick?: () => void
     accessibilityLabel?: string
+    ref?: React.Ref<unknown>
     chevron?: boolean
     action?: { label: string; onPress: () => void }
     readOnly?: boolean
@@ -366,6 +386,7 @@ vi.mock('@/components/ui/list-row', () => ({
       chevron,
       accessibilityRole: !readOnly && onClick ? 'button' : undefined,
       accessibilityLabel: accessibilityLabel ?? title,
+      ref,
     },
     action ? React.createElement('RowActionStub', {
       accessibilityRole: 'button',
@@ -398,10 +419,10 @@ interface SettingsRowStubNode {
   }
 }
 
-async function renderProfileScreen() {
+async function renderProfileScreen(createNodeMock?: (element: { props: { label?: string } }) => unknown) {
   let tree: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<ProfileScreen />)
+    tree = TestRenderer.create(<ProfileScreen />, { createNodeMock })
     await Promise.resolve()
   })
   return tree!
@@ -444,6 +465,9 @@ describe('ProfileScreen', () => {
     mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
+    mockSetAstraConversationOpen.mockClear()
+    mockSendAccessibilityEvent.mockClear()
+    mockConversationOpen.current = false
     vi.mocked(beginStepUpChallenge).mockClear()
     mockAuthState.user.userId = 'user-1'
     mockSearchParams.current = {}
@@ -1247,7 +1271,8 @@ describe('ProfileScreen', () => {
       findRowByLabel(tree, 'profile.support.title').props.onPress?.()
       await Promise.resolve()
     })
-    expect(mockRouterPush).toHaveBeenCalledWith('/support')
+    expect(mockSetAstraConversationOpen).toHaveBeenCalledWith(true, 'support')
+    expect(mockRouterPush).not.toHaveBeenCalled()
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
@@ -1255,6 +1280,27 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
     })
     expect(mockRouterPush).toHaveBeenCalledWith('/about')
+  })
+
+  it('returns Android accessibility focus to Support after closing the conversation', async () => {
+    const supportNode = { label: 'profile.support.title' }
+    const tree = await renderProfileScreen(({ props }) =>
+      props.label === 'profile.support.title' ? supportNode : null)
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.support.title').props.onPress?.()
+      mockConversationOpen.current = true
+      tree.update(<ProfileScreen />)
+      await Promise.resolve()
+    })
+    expect(mockSendAccessibilityEvent).not.toHaveBeenCalled()
+
+    await TestRenderer.act(async () => {
+      mockConversationOpen.current = false
+      tree.update(<ProfileScreen />)
+      await Promise.resolve()
+    })
+    expect(mockSendAccessibilityEvent).toHaveBeenCalledWith(supportNode, 'focus')
   })
 
   it('opens calendar sync directly for Pro', async () => {

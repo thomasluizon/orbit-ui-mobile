@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { useLayoutEffect, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 const media = vi.hoisted(() => ({ matches: false }))
 
@@ -19,6 +19,13 @@ const items = [
   { id: 'progresso', label: 'Progresso', icon: 'chart-line' },
   { id: 'perfil', label: 'Perfil', icon: 'user' },
 ]
+
+function BlurFocusedElement() {
+  useLayoutEffect(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+  }, [])
+  return null
+}
 
 describe('ShellWide', () => {
   beforeEach(() => {
@@ -141,6 +148,59 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-conversation="panel"]')).toHaveClass('w-[380px]')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
+  })
+
+  it('moves focus into the Support conversation panel and returns it on close', () => {
+    media.matches = true
+    const props = {
+      items,
+      activeId: 'perfil',
+      navLabel: 'Main navigation',
+      conversation: <><BlurFocusedElement /><button type="button">Close conversation</button></>,
+      conversationLabel: 'Astra conversation',
+    }
+    const { rerender } = render(
+      <ShellWide {...props} conversationOpen={false}>
+        <button type="button">Support</button>
+      </ShellWide>,
+    )
+    const support = screen.getByRole('button', { name: 'Support' })
+    fireEvent.click(support)
+
+    rerender(
+      <ShellWide {...props} conversationOpen>
+        <button type="button">Support</button>
+      </ShellWide>,
+    )
+    expect(screen.getByRole('button', { name: 'Close conversation' })).toHaveFocus()
+
+    rerender(
+      <ShellWide {...props} conversationOpen={false}>
+        <button type="button">Support</button>
+      </ShellWide>,
+    )
+    expect(support).toHaveFocus()
+  })
+
+  it.each([true, false])('returns conversation focus to the composer trigger with side panel=%s', (sidePanel) => {
+    media.matches = sidePanel
+    const props = {
+      items,
+      activeId: 'hoje',
+      navLabel: 'Main navigation',
+      composer: <button type="button">Open conversation</button>,
+      conversation: <><BlurFocusedElement /><button type="button">Close conversation</button></>,
+      conversationLabel: 'Astra conversation',
+    }
+    const { rerender } = render(<ShellWide {...props} conversationOpen={false} />)
+    screen.getByRole('button', { name: 'Open conversation' }).focus()
+
+    rerender(<ShellWide {...props} conversationOpen />)
+    expect(screen.getByRole('button', { name: 'Close conversation' })).toHaveFocus()
+    expect(screen.queryByRole('button', { name: 'Open conversation' })).not.toBeInTheDocument()
+
+    rerender(<ShellWide {...props} conversationOpen={false} />)
+    expect(screen.getByRole('button', { name: 'Open conversation' })).toHaveFocus()
   })
 
   it('omits navigation and uses the action slot in flow mode', () => {
