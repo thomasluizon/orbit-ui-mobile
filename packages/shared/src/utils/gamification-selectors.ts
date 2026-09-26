@@ -68,6 +68,14 @@ export function calculateXpProgress(
   return Math.min(100, Math.max(0, Math.round((progress / range) * 100)))
 }
 
+/** Mirrors the server's LevelDefinitions.XpRequiredForLevel ladder. */
+export function xpRequiredForLevel(level: number): number {
+  const thresholds = [0, 100, 300, 600, 1000, 1500, 2500, 4000, 6000, 10000]
+  if (level <= 1) return 0
+  if (level <= thresholds.length) return thresholds[level - 1] ?? 0
+  return 100 * level * level
+}
+
 export function getEarnedAchievements(
   profile: Pick<GamificationProfile, 'achievements' | 'userAchievements'> | null | undefined,
 ): Achievement[] {

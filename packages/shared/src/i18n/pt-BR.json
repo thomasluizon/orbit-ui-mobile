@@ -62,6 +62,7 @@
     "deleteAllError": "Não foi possível limpar os avisos. Tente de novo.",
     "markAllRead": "Marcar todas",
     "markAsRead": "Marcar lida",
+    "markRead": "Marcar {title} como lida",
     "deleteAll": "Limpar tudo",
     "deleteAllConfirmTitle": "Apagar todos os avisos?",
     "deleteAllConfirmDescription": "Todos os avisos saem da lista. Não há como desfazer.",
@@ -1249,10 +1250,80 @@
       "progress": "{current} / {target} {unit}",
       "percentage": "{pct}%",
       "deadline": "Prazo {date}",
+      "projected": "Previsão para {date} neste ritmo",
       "empty": "Nenhuma meta ainda. Uma meta nasce de um hábito, ou de um pedido aqui.",
       "done": "{name} foi concluída",
       "ring": "Progresso de {name}",
       "progressLink": "Ver no Progresso"
+    },
+    "daySummary": {
+      "title": "Hoje",
+      "doneOfDue": "{done} de {due} concluídos",
+      "nothingDue": "Nada previsto para hoje",
+      "overdue": "Atrasados",
+      "streak": "Sequência atual",
+      "ring": "{done} de {due} concluídos hoje",
+      "open": "Abrir Hoje"
+    },
+    "streakCard": {
+      "title": "Sua sequência e XP",
+      "days": "Dias recentes da sequência",
+      "current": "Sequência atual",
+      "xp": "{current} de {next} XP",
+      "open": "Ver no Progresso"
+    },
+    "calendarCard": {
+      "title": "Calendário",
+      "allDay": "O dia todo",
+      "empty": "Nenhum evento por aqui ainda.",
+      "sync": "Sincronização do calendário",
+      "syncState": {
+        "Idle": "Atualizado",
+        "ReconnectRequired": "Reconecte seu calendário",
+        "TransientError": "Falha na sincronização. Tente mais tarde",
+        "disabled": "Sincronização desativada"
+      },
+      "open": "Abrir Calendário"
+    },
+    "recordList": {
+      "title": { "notifications": "Avisos", "tags": "Etiquetas", "templates": "Modelos de checklist", "keys": "Chaves de API" },
+      "count": "{shown} de {total}",
+      "empty": "Nada por aqui ainda.",
+      "unread": "Não lido",
+      "templateCount": "{count} itens",
+      "templateLimit": "Modelos com mais de 20 itens abrem no editor de checklist.",
+      "keyState": { "active": "Ativa", "expired": "Expirada", "revoked": "Revogada" },
+      "markReadError": "Não foi possível marcar o aviso como lido. Tente de novo.",
+      "moreError": "Não foi possível carregar mais registros. Tente de novo.",
+      "more": "Mostrar mais",
+      "filter": "Filtrar exibidos",
+      "noMatches": "Nenhum registro carregado corresponde a “{query}”.",
+      "clearFilter": "Limpar filtro",
+      "open": { "notifications": "Abrir Avisos", "tags": "Abrir Etiquetas", "templates": "Abrir Modelos", "keys": "Abrir Perfil" }
+    },
+    "account": {
+      "title": { "profile": "Seu perfil", "plan": "Seu plano", "referral": "Sua indicação" },
+      "row": {
+        "name": "Nome", "email": "Email", "language": "Idioma", "timeZone": "Fuso horário",
+        "weekStartDay": "Início da semana", "themePreference": "Tema", "aiSummary": "Resumo diário",
+        "plan": "Plano", "trialEnd": "Fim do teste", "planExpiry": "Fim do plano", "interval": "Intervalo",
+        "source": "Provedor", "lifetime": "Acesso vitalício", "astraAllowance": "Mensagens Astra usadas",
+        "successfulReferrals": "Indicações concluídas", "pendingReferrals": "Indicações pendentes",
+        "maxReferrals": "Limite de indicações", "rewardType": "Recompensa", "discountPercent": "Desconto"
+      },
+      "value": {
+        "language": { "en": "Inglês", "pt-BR": "Português (Brasil)" },
+        "weekStartDay": { "0": "Domingo", "1": "Segunda-feira" },
+        "themePreference": { "dark": "Escuro", "light": "Claro" },
+        "plan": { "Free": "Grátis", "Pro": "Pro" },
+        "interval": { "monthly": "Mensal", "yearly": "Anual" },
+        "source": { "stripe": "Stripe", "play": "Google Play" },
+        "rewardType": { "discount": "Desconto" }
+      },
+      "yes": "Sim", "no": "Não", "notSet": "Não definido", "unknown": "Desconhecido",
+      "code": "Código de indicação", "copy": "Copiar", "copied": "Copiado", "share": "Compartilhar",
+      "copyError": "Não foi possível copiar o código. Tente de novo.", "shareError": "Não foi possível compartilhar o link. Tente de novo.",
+      "open": "Abrir Perfil"
     },
     "preview": {
       "proposed": "Proposto pelo Astra",
