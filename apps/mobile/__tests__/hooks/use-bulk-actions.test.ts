@@ -53,7 +53,7 @@ describe('useBulkActions confirmBulkDelete', () => {
     expect(captured.current!.showBulkDeleteConfirm).toBe(false)
   })
 
-  it('includes excluded descendants when deleting their selected parent', async () => {
+  it('sends only selected habits when deleting a parent with an excluded child', async () => {
     const habits = [
       createMockHabit({ id: 'parent', parentId: null }),
       createMockHabit({ id: 'child-a', parentId: 'parent' }),
@@ -65,9 +65,7 @@ describe('useBulkActions confirmBulkDelete', () => {
       await captured.current!.confirmBulkDelete()
     })
 
-    expect(new Set(bulkDelete.mutateAsync.mock.calls[0]![0])).toEqual(
-      new Set(['parent', 'child-a', 'child-b']),
-    )
+    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent', 'child-b'])
   })
 
   it('is a no-op when nothing is selected', async () => {

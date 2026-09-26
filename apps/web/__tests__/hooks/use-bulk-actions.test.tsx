@@ -33,7 +33,7 @@ describe('useBulkActions selection payloads', () => {
     mutations.bulkSkip.mockReset().mockResolvedValue({ results: [] })
   })
 
-  it('includes excluded descendants when deleting a selected parent', async () => {
+  it('sends only selected habits when deleting a parent with an excluded child', async () => {
     const habits = [
       createMockHabit({ id: 'parent', parentId: null }),
       createMockHabit({ id: 'child-a', parentId: 'parent' }),
@@ -43,9 +43,7 @@ describe('useBulkActions selection payloads', () => {
 
     await act(async () => { await result.current.confirmBulkDelete() })
 
-    expect(new Set(mutations.bulkDelete.mock.calls[0]![0])).toEqual(
-      new Set(['parent', 'child-a', 'child-b']),
-    )
+    expect(mutations.bulkDelete).toHaveBeenCalledWith(['parent', 'child-b'])
   })
 
   it('sends only selected habits to log and skip', async () => {
