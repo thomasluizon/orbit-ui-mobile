@@ -139,4 +139,61 @@ describe('ReminderSection', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(props.onReminderTimesChange).toHaveBeenCalledWith([3])
   })
+
+  it('saves a custom after-due reminder as a signed offset', () => {
+    const props = renderSection({ reminderTimes: [15] })
+    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByText('habits.form.reminderCustom'))
+    fireEvent.change(screen.getByLabelText('habits.form.reminderDirection'), {
+      target: { value: 'after' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+      target: { value: '30' },
+    })
+    fireEvent.click(screen.getByLabelText('common.add'))
+    expect(props.onReminderTimesChange).toHaveBeenCalledWith([15, -30])
+  })
+
+  it('rejects an after-due offset beyond the allowed range', () => {
+    const props = renderSection({ reminderTimes: [15], onValidationError: vi.fn() })
+    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByText('habits.form.reminderCustom'))
+    fireEvent.change(screen.getByLabelText('habits.form.reminderDirection'), {
+      target: { value: 'after' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+      target: { value: '1440' },
+    })
+    fireEvent.click(screen.getByLabelText('common.add'))
+    expect(props.onValidationError).toHaveBeenCalledWith('habits.form.invalidRelativeReminder')
+    expect(props.onReminderTimesChange).not.toHaveBeenCalled()
+  })
+
+  it('blocks a preset when offsets and clock reminders fill the shared limit', () => {
+    const props = renderSection({
+      reminderTimes: Array.from({ length: 14 }, (_, index) => index + 1),
+      scheduledReminderCount: 1,
+      onValidationError: vi.fn(),
+    })
+    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByText('habits.form.reminder1hour'))
+    expect(props.onValidationError).toHaveBeenCalledWith('habits.form.relativeReminderMax')
+    expect(props.onReminderTimesChange).not.toHaveBeenCalled()
+  })
+
+  it('blocks a custom offset when offsets and clock reminders fill the shared limit', () => {
+    const props = renderSection({
+      reminderTimes: [15],
+      scheduledReminderCount: 14,
+      onValidationError: vi.fn(),
+    })
+    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByText('habits.form.reminderCustom'))
+    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+      target: { value: '30' },
+    })
+    fireEvent.click(screen.getByLabelText('common.add'))
+    expect(props.onValidationError).toHaveBeenCalledWith('habits.form.relativeReminderMax')
+    expect(props.onReminderTimesChange).not.toHaveBeenCalled()
+  })
 })

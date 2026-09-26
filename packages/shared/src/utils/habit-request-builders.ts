@@ -49,6 +49,7 @@ function applyReminderFields(
       : []
     return
   }
+  req.relativeReminders = []
   if (data.reminderEnabled && data.scheduledReminders.length > 0) {
     req.reminderEnabled = true
     req.scheduledReminders = data.scheduledReminders
@@ -150,6 +151,7 @@ function applyUpdateReminderFields(
       : []
     return
   }
+  request.relativeReminders = []
   if (data.reminderEnabled && data.scheduledReminders.length > 0) {
     request.reminderEnabled = true
     request.reminderTimes = []

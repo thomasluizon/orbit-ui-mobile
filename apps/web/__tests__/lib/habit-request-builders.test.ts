@@ -187,6 +187,27 @@ describe('buildSubHabitRequest', () => {
 })
 
 describe('buildUpdateHabitRequest', () => {
+  it('clears removed timed offsets when saving selected untimed reminders', () => {
+    const habit = createMockHabit({
+      dueTime: '09:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      relativeReminders: [{ minutesBefore: 15 }],
+    })
+    const editor = buildEditHabitFormState(habit)
+    const selectedReminders = [{ when: 'same_day' as const, time: '08:00' }]
+    const request = buildUpdateHabitRequest(
+      { ...editor.formValues, dueTime: '', scheduledReminders: selectedReminders },
+      false,
+      editor.originalEndDate,
+      [],
+      [],
+    )
+
+    expect(request.relativeReminders).toEqual([])
+    expect(request.scheduledReminders).toEqual(selectedReminders)
+  })
+
   it('clears a removed legacy offset while retaining the edited timed reminders', () => {
     const habit = createMockHabit({
       dueTime: '09:00',

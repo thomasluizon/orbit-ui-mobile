@@ -543,7 +543,7 @@ describe('HabitFormFields (mobile)', () => {
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
           onUpgrade={vi.fn()}
-          reminderTimes={[15]}
+          reminderTimes={[-31, -120]}
           onReminderTimesChange={vi.fn()}
           defaultExpanded
         />,
@@ -557,6 +557,8 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(hasText('habits.form.reminder')).toBe(true)
     expect(hasText('habits.form.reminderAddTime')).toBe(true)
+    expect(hasText('31 habits.form.reminderMinutesAfter')).toBe(true)
+    expect(hasText('2 habits.form.reminderHoursAfter')).toBe(true)
     expect(
       tree.root.findAllByProps({
         accessibilityLabel: 'habits.form.scheduledReminder',
@@ -596,6 +598,31 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(hasText('habits.form.reminder')).toBe(true)
     expect(hasText('habits.form.reminderAddTime')).toBe(true)
+    const addTime = tree.root.findAll((node: any) =>
+      node.props.accessibilityRole === 'button' &&
+      node.findAll((child: any) => child.type === 'Text' && child.props.children === 'habits.form.reminderAddTime').length > 0,
+    )[0]
+    TestRenderer.act(() => addTime.props.onPress())
+    const dayBefore = tree.root.findAll((node: any) =>
+      node.props.accessibilityRole === 'button' &&
+      node.findAll((child: any) => child.type === 'Text' && child.props.children === 'habits.form.scheduledReminderDayBefore').length > 0,
+    )[0]
+    TestRenderer.act(() => dayBefore.props.onPress())
+    const picker = tree.root.findAll((node: any) =>
+      node.type === 'AppTimePicker' &&
+      node.props.accessibilityLabel === 'habits.form.scheduledReminderTimePlaceholder',
+    )[0]
+    TestRenderer.act(() => picker.props.onChange('18:00'))
+    const add = tree.root.findAll((node: any) =>
+      node.props.accessibilityRole === 'button' &&
+      node.findAll((child: any) => child.type === 'Text' && child.props.children === 'common.add').length > 0,
+    )[0]
+    TestRenderer.act(() => add.props.onPress())
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith(
+      'scheduledReminders',
+      [{ when: 'day_before', time: '18:00' }],
+      { shouldDirty: true },
+    )
   })
 
   it('advances the frequency carousel to the next card when the next arrow is pressed', () => {

@@ -6,6 +6,7 @@ import {
   buildUpdateHabitRequest,
   type HabitFormData,
 } from '../utils/habit-request-builders'
+import { buildEditHabitFormState } from '../utils/habit-form-state'
 import { createMockHabit, createMockRescheduleSuggestion } from './factories'
 
 function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
@@ -32,6 +33,31 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
 }
 
 describe('habit-request-builders', () => {
+  it('clears removed timed offsets when saving selected untimed reminders', () => {
+    const habit = createMockHabit({
+      dueTime: '09:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      relativeReminders: [{ minutesBefore: 15 }],
+    })
+    const editor = buildEditHabitFormState(habit)
+    const form = {
+      ...editor.formValues,
+      dueTime: '',
+      scheduledReminders: [{ when: 'same_day' as const, time: '08:00' }],
+    }
+    const expectedReminders = [{ when: 'same_day', time: '08:00' }]
+
+    for (const request of [
+      buildCreateHabitRequest(form, [], [], [], []),
+      buildUpdateHabitRequest(form, false, editor.originalEndDate, [], []),
+      buildSubHabitRequest(form, [], []),
+    ]) {
+      expect(request.relativeReminders).toEqual([])
+      expect(request.scheduledReminders).toEqual(expectedReminders)
+    }
+  })
+
   it('round-trips before, at, after, and day-before reminders in one request field', () => {
     const form = makeFormData({
       dueTime: '09:00',
@@ -135,6 +161,7 @@ describe('habit-request-builders', () => {
       endDate: '2026-12-31',
       reminderEnabled: true,
       scheduledReminders: [{ when: 'same_day', time: '07:00' }],
+      relativeReminders: [],
     })
   })
 
@@ -253,6 +280,7 @@ describe('habit-request-builders', () => {
       reminderEnabled: true,
       reminderTimes: [],
       scheduledReminders: [{ when: 'same_day', time: '21:00' }],
+      relativeReminders: [],
       slipAlertEnabled: false,
       checklistItems: [{ text: 'Reflect', isChecked: true }],
       goalIds: ['goal-1', 'goal-2'],
@@ -310,6 +338,7 @@ describe('habit-request-builders', () => {
       reminderEnabled: false,
       reminderTimes: [],
       scheduledReminders: [],
+      relativeReminders: [],
       slipAlertEnabled: false,
       goalIds: [],
     })
@@ -339,6 +368,7 @@ describe('habit-request-builders', () => {
       reminderEnabled: true,
       reminderTimes: [],
       scheduledReminders: [{ when: 'day_before', time: '21:00' }],
+      relativeReminders: [],
       slipAlertEnabled: false,
       goalIds: [],
     })
