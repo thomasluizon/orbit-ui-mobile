@@ -82,4 +82,12 @@ describe('Astra list cards on web', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.goalList.progressLink' }))
     expect(mocks.push).toHaveBeenCalledWith('/progress')
   })
+
+  it('shows API goal tracking and a localized projection without changing older rows', () => {
+    const oldRow = render(<GoalListCard goalList={goals} />).container.innerHTML
+    expect(oldRow).not.toContain('badge')
+    render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: 'at_risk', projectedCompletionDate: '2026-10-12' }] }} />)
+    expect(screen.getByText('goals.metrics.atRisk')).toBeInTheDocument()
+    expect(screen.getByText(/chat.goalList.projected/)).toBeInTheDocument()
+  })
 })

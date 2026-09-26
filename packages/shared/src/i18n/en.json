@@ -1249,6 +1249,7 @@
       "progress": "{current} / {target} {unit}",
       "percentage": "{pct}%",
       "deadline": "Due {date}",
+      "projected": "Projected {date} at this pace",
       "empty": "No goals yet. A goal starts from a habit, or from an ask right here.",
       "done": "{name} is done",
       "ring": "Progress of {name}",

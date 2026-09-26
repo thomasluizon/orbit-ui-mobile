@@ -104,4 +104,10 @@ describe('Astra list cards on mobile', () => {
     TestRenderer.act(() => progress.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/progress')
   })
+
+  it('shows API goal tracking and projection', () => {
+    const tree = render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: 'at_risk', projectedCompletionDate: '2026-10-12' }] }} />)
+    expect(renderedText(tree.toJSON())).toContain('goals.metrics.atRisk')
+    expect(renderedText(tree.toJSON())).toContain('chat.goalList.projected')
+  })
 })

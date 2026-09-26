@@ -1249,6 +1249,7 @@
       "progress": "{current} / {target} {unit}",
       "percentage": "{pct}%",
       "deadline": "Prazo {date}",
+      "projected": "Previsão para {date} neste ritmo",
       "empty": "Nenhuma meta ainda. Uma meta nasce de um hábito, ou de um pedido aqui.",
       "done": "{name} foi concluída",
       "ring": "Progresso de {name}",

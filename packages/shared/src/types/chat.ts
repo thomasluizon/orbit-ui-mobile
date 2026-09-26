@@ -165,6 +165,10 @@ export const goalListCardItemSchema = z.object({
   target: z.number(),
   unit: z.string(),
   deadline: z.string().nullable().optional(),
+  trackingStatus: z.enum(['on_track', 'at_risk', 'behind', 'no_deadline']).nullable().optional(),
+  progressPercentage: z.number().nullable().optional(),
+  projectedCompletionDate: z.iso.date().nullable().optional(),
+  daysToDeadline: z.number().nullable().optional(),
 })
 
 export type GoalListCardItem = z.infer<typeof goalListCardItemSchema>
