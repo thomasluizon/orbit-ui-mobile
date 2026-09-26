@@ -19,6 +19,15 @@ function checkProdReadinessInventory() {
     .map(({ name }) => name.toLowerCase().replace(/ readiness$/, "").replaceAll(" ", "-"))
   const output = skill.match(/^\*\*Inventory \((\d+)\)\*\*: (.+)$/m)
   const outputNames = output?.[2].split(" · ").map((item) => item.split(" {")[0]) ?? []
+  const inventoryNumbers = new Map(rows.map(({ name, number }) => [name, number]))
+  const whereValues = [...workflow.matchAll(/^\s*where: `([^`]+)`/gm)].map(([, value]) => value)
+  const numberedReferences = [skill, workflow, rubric].map((source) =>
+    [...source.matchAll(/inventory item (\d+)/g)].map(([, number]) => Number(number)))
+  const expectedReferences = [
+    ["Concurrency", "Accessibility (static WCAG 2.2 AA)", "Dependency freshness", "Architecture drift", "Architecture drift"],
+    ["Concurrency"],
+    ["Concurrency"],
+  ].map((names) => names.map((name) => inventoryNumbers.get(name)))
 
   T("prod-readiness: inventory rows stay sequential", rows.length > 0 && rows.every((row, index) => row.number === index + 1))
   T("prod-readiness: workflow ops checks match the active inventory", JSON.stringify(workflowOps) === JSON.stringify(tableOps),
@@ -26,8 +35,14 @@ function checkProdReadinessInventory() {
   T("prod-readiness: Phase 4 names every inventory item in order", Number(output?.[1]) === rows.length &&
     JSON.stringify(outputNames) === JSON.stringify(rows.map(({ name }) => name)),
     `output=${outputNames.join(",")} inventory=${rows.map(({ name }) => name).join(",")}`)
-  T("prod-readiness: shared-resource review reaches the canonical checklist", rows[12]?.name === "Concurrency" &&
-    rubric.includes("`.claude/skills/prod-readiness/SKILL.md` inventory item 13"))
+  T("prod-readiness: every finder where path uses forward slashes", whereValues.length === workflowOps.length + 2 &&
+    whereValues.every((value) => !value.includes("\\")), whereValues.filter((value) => value.includes("\\")).join("\n"))
+  T("prod-readiness: numbered item references match the inventory", JSON.stringify(numberedReferences) === JSON.stringify(expectedReferences),
+    `references=${JSON.stringify(numberedReferences)} inventory=${JSON.stringify(expectedReferences)}`)
+  T("prod-readiness: shared-resource review reaches the canonical checklist", inventoryNumbers.has("Concurrency") &&
+    skill.includes(`### Concurrency checklist (inventory item ${inventoryNumbers.get("Concurrency")})`) &&
+    workflow.includes(`Concurrency checklist (inventory item ${inventoryNumbers.get("Concurrency")})`) &&
+    rubric.includes(`\`.claude/skills/prod-readiness/SKILL.md\` inventory item ${inventoryNumbers.get("Concurrency")}`))
 }
 
 const assertionCount = (result) => {

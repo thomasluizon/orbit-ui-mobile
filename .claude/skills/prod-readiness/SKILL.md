@@ -323,7 +323,7 @@ ticketing it. `tools/arch-map.mjs` derives `architecture.json`, `architecture.ht
 screen pairings. This sweep is `repo:ui` only; never touch `orbit-api` from it.
 
 **Scope-aware, same rule as a11y**: run this sweep only when the resolved scope contains a UI
-surface. Under an `api`-only scope (or an api-side path), inventory item 13 reads **N/A (scope
+surface. Under an `api`-only scope (or an api-side path), inventory item 14 reads **N/A (scope
 has no UI surface)** — that is a verdict, not a skipped item, and it never caps the launch
 verdict.
 
@@ -389,7 +389,7 @@ by Pullfrog like everything else.
 breaks a deep link, a red gate) is reverted and recorded as a holdback: item, signal, and the
 exact reason. Every holdback becomes a Medium finding in the Phase 3 consolidated set.
 
-**Sweep verdict** for inventory item 13: `SWEPT` (map regenerated, every actionable signal
+**Sweep verdict** for inventory item 14: `SWEPT` (map regenerated, every actionable signal
 fixed or holdback-recorded, gates green), `SWEPT_WITH_HOLDBACKS`, `FAILED` (forces at most
 CONDITIONAL and names itself as a blocker), or `N/A (scope has no UI surface)`. Same
 launch-condition rule as item 12: the verdict certifies the sweep branch, so an unmerged
