@@ -1,5 +1,8 @@
 # Standing rules: the always-loaded core
 
+Tracked rules, prompts, specs and comments state current requirements without dated incidents,
+attributed quotes, session IDs or personal machine paths. Keep timed run evidence in the scratchpad.
+
 **At a glance:** the judgement that loads on EVERY turn. Everything else lives in
 `.claude/playbooks/`: **read the playbook yourself** when you start that activity, because no file
 path predicts it.
@@ -26,7 +29,7 @@ and asserts the exact symptom. Until it is red you have a story, not a bug. Cut 
 Every GitHub or ticket-tracker identifier you pass to a tool (node id, PR number, SHA, run id, comment id,
 issue key) is COPIED from output produced in the same run. Never from memory, never reconstructed.
 **A `||` fallback that retries a failed write is forbidden**: it makes the write the probe. Node ids
-are globally unique, so a wrong one does not fail, it hits a stranger's repository (2026-08-08).
+are globally unique, so a wrong one can hit a stranger's repository.
 Gates: `.claude/hooks/forbid-invented-identifier.mjs`, `tools/lib/github-target.mjs`.
 
 ### 4. Never re-flag what a gate already enforces
@@ -56,7 +59,7 @@ would annotate "Recommend: X"; decide X and move on.
 
 Retry once with different wording, then say the answer came from built-in defaults, not a match.
 Never invent ratings, prices, reviews, or org details, or a `file:line` no tool gave you.
-Before any item reaches Thomas as a blocker, try every installed tool and existing account that could reach the same goal, and write what each returned. A blocker names the goal, not the first method's precondition.
+Before any item reaches the owner as a blocker, try every installed tool and existing account that could reach the same goal, and write what each returned. A blocker names the goal, not the first method's precondition.
 This never crosses an identity, authorization, manual-step or redaction limit a skill sets: a method such a limit forbids is written down as forbidden, not tried, and no credential appears in what you write.
 
 ### 9. Carry the standing operating contract (D89, D90)

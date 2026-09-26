@@ -2,8 +2,7 @@
 
 **At a glance:** the standing rules for authoring a `CLAUDE.md`, a rule, a playbook, a skill, an
 agent, or a ticket body, including agent tool scoping. Read it before you write or edit one.
-Source: Anthropic's 2026-07-24
-"The new rules of context engineering for Claude 5 generation models", which removed over 80% of
+Source: Anthropic's "The new rules of context engineering for Claude 5 generation models", which removed over 80% of
 Claude Code's own system prompt for Opus 5 and Fable 5 with no measurable loss on coding evals.
 Everything here is the delta between what a 4-generation model needed and what a 5-generation
 model needs. Companion: `.claude/playbooks/README.md`, which measures what this tier costs.
@@ -29,7 +28,7 @@ Steering by prohibition backfires the way "do not think of an elephant" does. A 
 NOT` section is the usual carrier, and it is usually duplication as well: most of its bullets are
 some earlier positive rule turned inside out.
 
-The 2026-07-24 skill sweep cut those sections across most Orbit skills. Cutting rule: delete a
+Cutting rule: delete a
 guardrail only when its meaning survives at another site **inside the same file**. A guardrail that
 duplicates only against `CLAUDE.md` or `core.md` stays, because deleting it would make the file
 depend on another file staying loaded.
@@ -52,8 +51,7 @@ the pattern: `.claude/rules/core.md` auto-loads, `.claude/playbooks/*` are read 
 moment of relevance, and deferred tools load their schemas through ToolSearch. Extend it rather
 than growing the top.
 
-The failure this prevents: a `CLAUDE.md` or `SKILL.md` grown into the central repository of
-everything the author feared the agent would not find otherwise. That file is paid for on every
+Keep `CLAUDE.md` and `SKILL.md` focused on the rules their readers need. That file is paid for on every
 turn of every session, and most of it is inert on any given one.
 
 ## Agent tool scoping
@@ -78,10 +76,7 @@ better results than a description of the design or a screenshot."*
 Prefer, in order: a runnable artifact, then code, then a rubric, then prose. A spec can be a test
 suite. A design spec can be a rendered page. A taste can be a rubric a verifier agent applies.
 
-This is a diagnosis of the #539 failure, not a style note. The measured causes were "the
-spec is subtractive" and "nothing in the loop rendered a picture", and `DESIGN.md` carried exactly
-one mechanical rule with everything else as prose adjectives. D42 is the correction: ticket 0 ships
-the granted canvas under `design/canvas/` alongside the prose. Information architecture wins on
+D42 places the granted canvas under `design/canvas/` alongside the prose. Information architecture wins on
 whether a surface exists, bans win over every drawing, and the granted drawing wins below those two.
 
 ## 7. Memory is a tool now, not a file section

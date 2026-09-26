@@ -19,12 +19,12 @@ Two outputs, both committed files in this repo:
 | `.claude/specs/<slug>.md` | the effort's living spec. One per effort. Survives every session. |
 | `.claude/handoffs/NEXT.md` | the prompt for the next session. **Exactly one, always at this path.** |
 
+Both outputs are timeless tracked text: no session IDs, dated run sections, attributed quotes,
+personal machine paths or anecdote histories. Keep timed decision logs in the session scratchpad.
+
 ## `/handoff` ENDS the session. Nothing more gets done in it.
 
-Thomas, 2026-09-16: "after i run /handoff, the session is FINISHED, you cant continue working,
-anything i ask, you put on the handoff prompt, not now."
-
-The moment he runs `/handoff`, this session's working life is over. It writes the two files, commits
+The moment the owner runs `/handoff`, this session's working life is over. It writes the two files, commits
 them, replies with the one line, and stops.
 
 **Everything he asks for from that point goes into `NEXT.md`, not into the tree.** A new request
@@ -43,11 +43,8 @@ weighing whether a message qualifies, it does not.
 This rule also applies under `--sleep`. The next session enters through `/sleep`; the handing-off
 session ends after writing and committing the files.
 
-**The prompt path never changes.** Thomas, 2026-09-15: "i want one handoff, always, just combine
-both in one ... you need to put always in the same place, in a way that i can just ctrl + click and
-open the file." Overwrite `NEXT.md` every time. Git history keeps every earlier version, so nothing
-is lost by overwriting and he never has to pick between two files or read a timestamp to find the
-current one.
+**The prompt path never changes.** Overwrite `NEXT.md` every time. Git history keeps earlier versions,
+and the owner always opens the same path.
 
 A timestamped name is forbidden. So is a second prompt file.
 
@@ -72,7 +69,7 @@ unrelated progress into whichever spec you happened to open loses it for the eff
 
 **But it writes exactly ONE prompt**, `NEXT.md`, covering every live effort. It opens by naming each
 spec to read, states the goal for each, and says plainly which effort outranks the other when they
-compete for the machine. Two prompt files is the failure Thomas named on 2026-09-15.
+compete for the machine. Never write a second prompt file.
 
 ## What belongs in the spec
 
@@ -82,7 +79,7 @@ keep what still binds.
 - **What this effort is**, in one paragraph, in product terms.
 - **How the work runs**: the entry point skill, who writes code, and a pointer to the rule file that
   carries the rest.
-- **Standing instructions the user has given**, in his words, with the date.
+- **Standing instructions**, stated as rules without quotes, dates or attribution.
 - **Decisions**, each with its reasoning and a pointer to its ADR if one exists.
 - **The brain notes this effort runs on**, named by their exact vault path, as a block the reader is
   told to open BEFORE acting, and told to open **through the Obsidian MCP**:
@@ -97,11 +94,11 @@ keep what still binds.
   absent block reads as "there is nothing to read", and that is the failure this bullet prevents.
 - **Constraints** that are not obvious from the code: what the API cannot do, what a gate enforces,
   what is blocked and on what.
-- **State**: what is built, what is half built and what is missing from it, what is open.
+- **Current state**: what is built, what is half built and what is missing from it, what is open.
 - **Open questions**, each with who has to answer it and what it blocks.
 
-These seven are a floor. Add a section when something durable has no home in them, and say in it why
-it is durable. Never delete a section you did not understand.
+These seven are a floor. Add a section when something durable has no home in them. Keep exactly one
+`## Current state` section and overwrite it at each handoff. Never append a dated session section.
 
 Do not restate what a skill, a rule file or `CLAUDE.md` already says. Point at it.
 
@@ -109,9 +106,8 @@ Do not restate what a skill, a rule file or `CLAUDE.md` already says. Point at i
 
 That section is the one that decays, and it is the one he notices.
 
-Every run, read each existing instruction against everything he has said since. Mark one superseded
-with a pointer to what replaced it rather than deleting it silently, and fold two into one when the
-later narrows the earlier. An instruction nobody has contradicted stays, however old.
+Every run, check each existing instruction against current decisions. Keep the later rule where two
+conflict, and fold a narrower rule into the rule it updates. Keep every instruction still in force.
 
 ### Keep the work order current, every run
 
@@ -126,9 +122,8 @@ handoff reconciles it against the live board before writing anything else:
 4. Prove it with a script that compares the two lists, and put the counts in the prompt: open,
    placed, unplaced (must be 0), placed twice (must be 0).
 
-**A session section is history, not state.** Writing one never replaces updating State and the work
-order in place. A spec whose order only grows session notes goes stale, and a prompt with no current
-order to point at falls back to a skill's default ordering.
+Update the one `## Current state` section and the work order in place. The prompt points at the
+current order, never at a session record.
 
 ### The spec is shared state
 
@@ -161,10 +156,6 @@ That includes the brain notes. List the vault's `Decisions/` directory through
 `mcp__obsidian__obsidian_list_notes` and confirm every filename the spec names still exists, because
 a note gets renamed when its decision is superseded, and a pointer to a file that is gone sends the
 next session looking for reasoning it will never find.
-
-The failure this prevents: a 2026-08-22 handoff carried six confident facts and every one was wrong
-by the time it was read. The checks that feel most redundant after a long session are the ones that
-catch this.
 
 Where checking a fact is slow, write the command instead of the answer.
 
@@ -250,11 +241,6 @@ This section sets the next session's goal. It does not extend the session perfor
 **Every run ends when its spec is done, and at no other point.** This is not a `--sleep` rule and it
 is not about any one effort. A session working a spec is not finished while that spec has work left.
 
-Thomas, 2026-09-14: "ANY RUN ends only when the original spec is done ... anytime i run /handoff, the
-handoff needs to list a clear goal: finish the original spec. if its not done, then your work is not
-done, and if it means fixing blockers, taking decisions, whathever it takes, you will do it, until
-the spec is finished with the best approach possible."
-
 So every prompt this skill writes states ONE goal, and it is finishing that spec. Not the open pull
 requests, not the tickets this session happened to touch. Give it the termination condition in the
 spec's own terms, and the query that re-derives what is left, so the next session never has to trust
@@ -262,8 +248,7 @@ your list:
 
     gh issue list --repo <ticket repo> --state open --label <the effort's label> --limit 200
 
-**A blocker is not an ending. A blocker is the next piece of work.** "theres no blocker impossible of
-being fixed by you, you create the blockers, you fix them, always doing the best approach."
+**A blocker is not an ending. A blocker is the next piece of work.**
 
 - Waiting on CI or a review is waiting, not blocking. Start the next thing while it runs.
 - A stacked branch is not blocked; its parent is the work.
@@ -275,7 +260,7 @@ being fixed by you, you create the blockers, you fix them, always doing the best
 - A recorded blocker in a readiness ledger is a TODO, not a finish line.
 
 The only honest ending short of a finished spec is EXTERNAL: the model allowance is exhausted, the
-machine stops, or Thomas says stop. Those are not decisions the run makes. Say which one it was, and
+machine stops, or the owner says stop. Those are not decisions the run makes. Say which one it was, and
 never report it as the work being finished.
 
 A prompt that permits a session to stop with its spec unfinished is a defective prompt. Check yours

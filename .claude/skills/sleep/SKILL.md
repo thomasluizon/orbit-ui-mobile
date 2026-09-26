@@ -6,7 +6,10 @@ argument-hint: [optional focus, for example "finish 814 then groundwork tickets"
 
 # Sleep mode
 
-**At a glance:** Thomas is asleep. Nobody answers a question tonight. You decide, you record, you
+The timed decision log lives in this session's scratchpad outside every repository. Tracked specs,
+prompts and lessons retain only current rules and state, without log entries or session IDs.
+
+**At a glance:** the owner is asleep. Nobody answers a question tonight. You decide, you record, you
 put the current `/orchestrate` run in `--sleep` mode or enter a new one, keep working through its
 lifecycle, and account for it when he wakes.
 This skill is an entry policy for that path, not a standalone continuation mechanism.
@@ -16,17 +19,14 @@ call is unconscious.
 
 ## 1. Open the log and enter the canonical orchestrator
 
-Read the existing run record with `readRunState` before you act. Take the exact `sessionId` from the
-parent directory of `scratchpad` in the system prompt's path. For example, a path ending in
-`.../79719f66-9e44-4f76-b8b2-30bcd6d279be/scratchpad` has the session id
-`79719f66-9e44-4f76-b8b2-30bcd6d279be`, never `scratchpad`. This rule was verified on 2026-09-11
-when the record id matched a sibling scratchpad directory whose parent had that name.
+Read the existing run record with `readRunState` before acting. Take the exact `sessionId`
+from the parent directory of the system prompt's `scratchpad` path, never from the final
+`scratchpad` component.
 
 Your first action must write the run state through `writeRunState` with this session id and
 `sleep: true`. Do this before queue work or log setup. A record with a different `sessionId` makes
 the Stop guard inert until this write replaces it. Read the state back with `readRunState`, and
-confirm the session id and `sleep: true` before the first turn ends. The stale record made the Stop
-guard inert for six hours on 2026-09-11.
+confirm the session id and `sleep: true` before the first turn ends.
 
 If an `/orchestrate` run is active, change that run to `--sleep` in place. Do not enter the
 orchestrator again, and do not plan the queue again. Keep its admitted `remaining` queue. Preserve
@@ -74,7 +74,7 @@ Log a choice when a reasonable person could have chosen otherwise. That includes
 - Any judgement about scope: what belongs in a pull request and what becomes a ticket.
 - Any merge, and the evidence you had at the moment you merged.
 - Any time you disagreed with a review, a lane, a subagent, or a previous session.
-- Any time you deferred something to Thomas instead of guessing.
+- Any time you deferred something to the owner instead of guessing.
 
 Do not log routine tool calls, greps, or reads. A log nobody can finish reading is not a record.
 
@@ -97,14 +97,14 @@ Concretely, in this repository that means:
 **This is the mechanism that makes the mode work at all.** Nothing continues an unattended session
 except a background task finishing and re-invoking it. A turn that ends with no live task ends the
 night, and what it leaves behind looks exactly like a run that finished, so nobody goes looking.
-That is how 2026-08-06 ended.
+Keep a registered wake source until the queue is complete.
 
 Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source, named" protocol:
 
 - At step 2b, write canonical state through `writeRunState` in `tools/lib/run-state.mjs`, from the
   orchestrating checkout. Use this session's exact `sessionId`, `sleep: true`, and the admitted
   `remaining` queue. Read it back with `readRunState` to confirm it before the first wait. An old
-  session's record is ignored by `rules-sleep.mjs`; that made the 2026-09-04 guard inert all night.
+  session's record is ignored by `rules-sleep.mjs`.
 - Preserve repository-qualified `pullRequests` and the append-only `readinessLedger`, with actual
   receipt paths. Update state at step 9 as work lands. Never clear the ledger to claim completion.
 - While actionable work or readiness debt remains, always leave a live background wake source
@@ -112,13 +112,12 @@ Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source
   `tools/launch-worker.mjs`, `tools/submit-cloud-worker.mjs --watch <receiptPath>`, and
   `tools/wait-ci.mjs --repo <key> --pr <n>` call `registerWakeSource`. These calls write
   `.git/orbit-wake-sources/<pid>.json`. A background shell command does not register a wake source,
-  however long it runs. A 2026-09-11 session treated a background `npm install` as a wake source.
-  It was not one, and the Stop hook caught it. A remote Cloud task or a GitHub check by itself cannot
+  however long it runs. A background `npm install` is not a wake source. A remote Cloud task or a GitHub check by itself cannot
   wake this session.
 - If a slot is free and admission permits new ticket work, launch the next worker.
   When work waits on CI or review, start `tools/wait-ci.mjs` in the background for those pull requests.
   Verify the wake source is live; a stale pid file or an unscheduled promise to watch CI is not one.
-- When Thomas says stop, clear `sleep` for this session and report. On queue exhaustion write
+- When the owner says stop, clear `sleep` for this session and report. On queue exhaustion write
   `remaining: []` and retain the ledger. Finish only with READY receipts or recorded named blockers,
   following the canonical protocol; report blocked work as blocked.
 
@@ -128,10 +127,8 @@ above is complete.
 
 ## 5. Worker capacity follows D89
 
-D89 (2026-09-05) sized the local pool at about 3, through `caps.parallelTickets`, on a 32 GB,
-8-core Windows laptop that reaped two workers at 5.6 GB free (2026-09-19). The pool is now **6** on
-the MacBook Pro M5 Pro: 64 GB and 18 cores, read with `sysctl hw.memsize hw.ncpu` on 2026-09-24.
-One capped worker measured 1.5 to 5.4 GB (spec, "The machine", 2026-09-18), so six peak near 33 GB.
+Read the current local cap from `caps.parallelTickets` in `.claude/orchestrator.json`.
+Memory pressure may lower the active pool, but never ends the run.
 `materialize-cloud-result.mjs` stays serial across the fleet, so Cloud delivery still runs one
 ticket at a time. Sleep mode does not raise the pool. Memory pressure lowers it, and never ends a run.
 
@@ -158,15 +155,12 @@ Stop and log instead of acting, every time:
    direction are his. Take the reversible path, which is usually leaving the current behaviour alone,
    log it as blocked, and move on to other work.
 
-Rule 7 has teeth. On 2026-09-04 a worker rewrote a conversion headline in two locales so that its own
-new guard would pass. The guard was wrong, the copy was right, and no gate caught it.
-
 ## 7. What may merge overnight, and what may not
 
-**D88 authorizes groundwork merges without asking. D90 (2026-09-05) extends those same terms to
+**D88 authorizes groundwork merges without asking. D90 extends those same terms to
 screens for the remainder of the redesign.** The per-screen merge hold is suspended during that
 period, along with D76's conversation and eyes waits as specified in #829. D90 leaves product and
-design authority with Thomas and preserves the implementation requirements and gates.
+design authority with the owner and preserves the implementation requirements and gates.
 
 Before each merge, require all three on the exact current head: green checks, fresh Pullfrog
 approval at that head, and zero unresolved threads. Log the head and evidence. The orchestrator may
@@ -174,11 +168,11 @@ then use ordinary `gh pr merge --squash` against `redesign/main`, with `--match-
 to refuse a moved head. Implementation workers never merge.
 
 **Never use `--admin` or a direct merge API in `/sleep`.** Admin merge remains confined to the
-canonical `/merge-prs` skill after Thomas explicitly invokes it for an already-approved frozen PR
+canonical `/merge-prs` skill after the owner explicitly invokes it for an already-approved frozen PR
 set, per `CLAUDE.md`. Neither `/sleep` nor standing authority invokes that exception. Direct APIs
 stay forbidden without exception, including `PUT /repos/{owner}/{repo}/pulls/{number}/merge` and
 GraphQL `mergePullRequest`. Never merge to `main` from this run. Outside D88/D90 authority, leave
-the PR ready for Thomas; do not invent authorization from green checks.
+the PR ready for the owner; do not invent authorization from green checks.
 
 ## 8. Choose the next work in this order
 
@@ -233,20 +227,18 @@ invalid artifact, or a non-null `needsDecision`, blocks delivery and readiness. 
 and manual steps into the PR body. Follow `/orchestrate`'s Cloud handoff procedure; a final report
 in the container is supplementary and cannot replace the artifact.
 
-Measured 2026-09-05: four Cloud tasks returned `ready` with an empty diff because no commit existed.
-Putting the commit step first, alone and with its consequence recovered two on resubmission.
+A Cloud task can report `ready` with an empty diff. Require a commit before delivery.
 Ticket #433 owns the harness handling of empty results; this instruction does not treat an empty
 result as successful delivery.
 
-Also measured that night: a local worker committed and pushed, then burned its ceiling polling CI.
 That is why both modes hand CI waiting back to the orchestrator.
 
 ## 9. When something blocks
 
-A blocked item is not a reason to stop the session. Log it, leave the tree in a state Thomas can read,
+A blocked item is not a reason to stop the session. Log it, leave the tree in a state the owner can read,
 and take the next item.
 
-Write blocked items under a `## Blocked, needs Thomas` heading in the same log, so the wake report can
+Write blocked items under a `## Blocked, needs owner decision` heading in the same log, so the wake report can
 lift them straight out.
 
 ## 10. Watch the allowance

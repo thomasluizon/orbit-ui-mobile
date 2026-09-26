@@ -95,21 +95,21 @@ const VERDICTS = {
   ".claude/skills/drift-review/SKILL.md":
     "undeclared, inherits the session: it judges repeated evidence against the current workflow files, but every result remains a staged candidate for human review.",
   ".claude/skills/handoff/SKILL.md":
-    "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four. The rule that handoff always ENDS the session needs the same judgement: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong.",
+    "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, including standing rules. The rule that handoff always ENDS the session needs the same judgement: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong.",
   ".claude/skills/investigate/SKILL.md":
     "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate.",
   ".claude/skills/lesson/SKILL.md":
-    "undeclared, inherits the session: it graduates a correction into a rule, which is judgement, but it always runs with Thomas present, so an inherited effort is checked by a human in the moment.",
+    "undeclared, inherits the session: it graduates a correction into a rule, which is judgement, but it always runs with the owner present, so an inherited effort is checked by a human in the moment.",
   ".claude/skills/merge-prs/SKILL.md":
     "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth.",
   ".claude/skills/orchestrate/SKILL.md":
-    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review. Reseeded 2026-09-18 a fifth time, when the third ending a pull request can reach became a CHECKED one. A run says which of READY, BLOCKED and merged each pull request landed on, and merged now carries a shape-checked merge commit sha: the measured failure was copying the skill's own template and leaving the placeholder unfilled, which read as a finished night in silence. So the call this file asks for is not only which disposition applies, it is which self-asserted fact stays honest, and the answer is the one a reader can check. The same caution now reaches its own red-gate arithmetic: four FAILs are the engine switch, a fifth may be the load-sensitive CPU test rather than a defect, and telling those apart is what a lower effort skips. That sits on top of the calls the earlier stamps named: deriving which required check failed from delivery's ci.checks.pass beside the receipt's ci.green, holding a CI_STALE receipt as expected even after a successful merge, judging when an exhausted allowance justifies a transient worker switch and naming it while it is live, judging whether a substitute reviewer is named openly or promoted quietly, and telling an instructed contract apart from one a run granted itself. Merge authority is the most expensive rule here to get wrong.",
+    "current: high effort, because it plans the queue, enforces admission controls, reviews local work, verifies delivery, and clears review. It must report READY, BLOCKED, CHECKED or merged with evidence, including a validated merge commit SHA. It distinguishes a failed required check from a stale receipt or load-sensitive test, manages the worker engine when an allowance is exhausted, names substitute review openly, and respects merge authority.",
   ".claude/skills/prod-readiness/SKILL.md":
     "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
   ".claude/skills/progress/SKILL.md":
     "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up. The effort-agnostic rewrite now resolves integration per repository and distinguishes direct ancestry from an unprovable stacked squash boundary, so the answer requires evidence-led judgement rather than table lookup. The base-chain walk now also resolves each candidate in every pull request state and reports a closed unmerged parent as an unresolved chain rather than naming its head as integration, which adds one more judgement the answer cannot look up.",
   ".claude/skills/questions/SKILL.md":
-    "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes his attention or ships a guess as a decision.",
+    "current: high effort, because the filter decides what not to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision.",
   ".claude/skills/second-opinion/SKILL.md":
     "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call.",
   ".claude/skills/sleep/SKILL.md":
@@ -119,7 +119,7 @@ const VERDICTS = {
   ".claude/skills/validate/SKILL.md":
     "current: runs lint, type-check and tests across both repos, so low effort is right.",
   ".claude/skills/wrap-up/SKILL.md":
-    "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement themselves. What is left here is real but bounded, and 2026-09-17 made it stricter: each step now ENDS THE TURN on a literal handover line and waits for Thomas to say proceed, so the skill has to hold the order across three turns rather than one, and it must not let --sleep collapse the first two. Low would round that gate away, which is the one thing this skill exists to enforce.",
+    "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement. Each step ends the turn on a literal handover line and waits for the owner to say proceed, so the skill must hold their order across three turns and not let --sleep collapse the first two.",
   ".agents/skills/merge-prs/SKILL.md":
     "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict: the frontmatter name and description decide whether Codex finds this skill at all, and the body names the one canonical definition both hosts read.",
   ".agents/skills/orchestrate/SKILL.md":

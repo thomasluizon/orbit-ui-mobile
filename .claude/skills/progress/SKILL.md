@@ -1,16 +1,19 @@
 ---
 name: progress
-description: Answer "what happened" in product terms: what a person can now do, what is half built, and what Thomas has to decide. Reads live state, never a remembered summary. Defaults to THIS SESSION; --full adds the whole effort's spec below it. Use when he asks for a progress update, how something is going, or says /progress.
+description: Answer "what happened" in product terms: what a person can now do, what is half built, and what the owner has to decide. Reads live state, never a remembered summary. Defaults to THIS SESSION; --full adds the whole effort's spec below it. Use when he asks for a progress update, how something is going, or says /progress.
 argument-hint: "[--full] [optional area, for example \"calendar\" or \"perfil\"]"
 effort: medium
 ---
 
 # Progress
 
+Update any tracked spec's single `## Current state` section in place. Do not append a dated session
+section or copy a timed run log into tracked prose.
+
 **Input**: `$ARGUMENTS`. `--full` anywhere in it adds the whole-effort section. Anything else is an
 area to narrow to.
 
-**At a glance:** Thomas asks what the product does now. Answer in screens and behaviours. A ticket
+**At a glance:** the owner asks what the product does now. Answer in screens and behaviours. A ticket
 number, a pull request number or a commit SHA belongs in this answer only when he asks which one.
 
 ## What he is asking
@@ -118,7 +121,7 @@ For the session scope:
      `git merge-base --is-ancestor <merge-commit-oid> origin/<integration-branch>` there. Only exit 0
      proves direct arrival.
    - With any other `baseRefName`, say the pull request landed into `<baseRefName>` and that ancestry
-     cannot prove arrival across that squash boundary. Name the base so Thomas can follow it. Do not
+     cannot prove arrival across that squash boundary. Name the base so the owner can follow it. Do not
      claim the work will reach integration or already did.
    If a required field is absent, the fetch fails, or the ancestry check errors, say arrival could
    not be verified for that repository. Read the pull request and its ticket for the behaviour it
@@ -158,7 +161,7 @@ Three things, in this order:
 
 1. What a person can do now that they could not before.
 2. What is half built, and what is missing from it.
-3. What is waiting on Thomas, phrased as the decision, not the ticket.
+3. What is waiting on the owner, phrased as the decision, not the ticket.
 
 With `--full`, answer those three for the session, then the same three for the whole effort
 underneath, clearly separated and clearly labelled. The session part comes first and stays first,

@@ -11,27 +11,53 @@ effort: low
 
 ---
 
-## Detect Scope
+## Resolve repositories
 
-If `$ARGUMENTS` is not provided, auto-detect: check `git status` in each repo. Run validation for any repo with uncommitted changes. If both are clean, default to `both`.
+Run this from either repository. Read the printed roots and use them for every status check and validation command. The current checkout takes priority, including a linked worktree; `$CLAUDE_PROJECT_DIR` and the sibling UI checkout are fallbacks when starting in the API repository. The API root resolves from the UI config against the UI repository's primary checkout, because `repos` paths are relative to it.
+
+```bash
+node <<'NODE'
+const { execFileSync } = require("node:child_process")
+const { existsSync, readFileSync } = require("node:fs")
+const { dirname, join, resolve } = require("node:path")
+
+const commonDirectory = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).trim()
+const currentRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim()
+const primaryRoot = dirname(commonDirectory)
+const candidates = [currentRoot, process.env.CLAUDE_PROJECT_DIR, primaryRoot, resolve(primaryRoot, "../orbit-ui-mobile")]
+const uiRoot = candidates.find((candidate) => candidate
+  && existsSync(join(candidate, ".claude/orchestrator.json"))
+  && existsSync(join(candidate, "apps/web"))
+  && existsSync(join(candidate, "apps/mobile")))
+if (!uiRoot) throw new Error("Could not locate orbit-ui-mobile from this checkout")
+
+const config = JSON.parse(readFileSync(join(uiRoot, ".claude/orchestrator.json"), "utf8"))
+if (typeof config.repos?.api !== "string") throw new Error("Missing repos.api in UI orchestrator config")
+const uiPrimaryRoot = dirname(execFileSync("git", ["-C", uiRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).trim())
+const apiRoot = resolve(uiPrimaryRoot, config.repos.api)
+console.log(JSON.stringify({ uiRoot: resolve(uiRoot), apiRoot }))
+NODE
+```
+
+## Detect scope
+
+If `$ARGUMENTS` is `frontend`, run only frontend checks. If it is `backend`, run only backend checks. If it is `both`, run both. Otherwise check `git status --short` in each printed root and validate each repository with uncommitted changes. If both are clean, validate both.
 
 ---
 
 ## Checks
 
-### orbit-ui-mobile (frontend, run from repo root)
+### orbit-ui-mobile (frontend, run from printed `uiRoot`)
 
 ```bash
-cd "/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile"
 npm run lint
 npm run type-check
 npm test
 ```
 
-### orbit-api (backend, run from repo root)
+### orbit-api (backend, run from printed `apiRoot`)
 
 ```bash
-cd "/Users/thomaslrgregoriogmail.com/Developer/orbit-api"
 dotnet build
 dotnet test
 ```

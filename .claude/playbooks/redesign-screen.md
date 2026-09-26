@@ -4,13 +4,12 @@
 suspension, and the ui-skills sweep. Read it before writing a screen work order. Groundwork tickets do not
 use this; they run autonomously through `/orchestrate`.
 
-The loop exists because an agent cannot tell that its own output is mediocre. Every step that feels
-skippable is one that was skipped before and produced a screen Thomas rejected on sight.
+The loop forces independent judgement against the running screen and design authority.
 
 ## During the remainder of the redesign (D90)
 
-D90 suspends every D76 step requiring Thomas until the redesign ships: **step 1** (look at the
-screen running, together), **step 3** (grill Thomas), **step 7** (Thomas looks at it running) and
+D90 suspends every D76 step requiring the owner until the redesign ships: **step 1** (look at the
+screen running, together), **step 3** (grill the owner), **step 7** (the owner looks at it running) and
 **step 8** (he approves and the next screen starts), together with D88's per-screen merge hold.
 A screen does not stop for a conversation, human inspection or approval.
 
@@ -23,34 +22,34 @@ conversation. These authorities, Pullfrog and every gate remain required.
 
 Screens may merge on the same terms as groundwork: green checks, approval at the current head and
 zero unresolved review threads, through the authorized merge workflow. Worker merge prohibitions
-still apply. Thomas reviews the whole redesign at the end: web and an APK from `redesign/main`.
+still apply. The owner reviews the whole redesign at the end: web and an APK from `redesign/main`.
 D76 and D88 are suspended, not deleted; they return when the redesign ships.
 
 Decision record: brain ADR `Run the rest of the redesign unattended and review it once as a whole`.
 
 ## The eight steps (D76; apply D90 above while active)
 
-Outside D90's temporary suspension, steps 1 to 4 happen with Thomas, in conversation, before code.
+Outside D90's temporary suspension, steps 1 to 4 happen with the owner, in conversation, before code.
 
 1. **Look at the screen running**, together.
 2. **A subagent judges it** against `design/canvas/<screen>.dc.html` and `DESIGN.md`, with the audit
    skills: `ibelick/improve-ui`, `Leonxlnx/redesign-skill`, `MengTo/redesign-existing-projects`, plus
    `emilkowalski/improve-animations` when it moves. The question is "is this the best it can be, and
    where is it not", never "what is this".
-3. **Grill Thomas** with the questions that judgement raises. Product questions only; settle the
+3. **Grill the owner** with the questions that judgement raises. Product questions only; settle the
    engineering calls yourself (D82).
 4. **Settle the design.** Write the decisions and the audit's verified findings into the ticket body,
    including any finding you threw out, so nobody re-files it.
 5. **Build**, from the ticket, with a worker.
 6. **Sweep what was built** with the ui-skills, below.
-7. **Thomas looks at it running**, `/dev-server` for web, `/android-generate` for mobile. His eyes
+7. **The owner looks at it running**, `/dev-server` for web, `/android-generate` for mobile. His eyes
    are the evidence.
 8. **He approves and the next screen starts**, or it goes back into the loop.
 
 Outside D90, **a redesign screen being built with no conversation behind it is out of contract.**
 Stop and open the conversation instead.
 
-Outside D90, when step 4 moves a screen off the canvas, Thomas's approval is the grant.
+Outside D90, when step 4 moves a screen off the canvas, the owner's approval is the grant.
 Record the deviation on the ticket, then push it back with `DesignSync`.
 During D90, the canvas and `DESIGN.md` precedence ladder settle design calls in place of conversation.
 
@@ -117,7 +116,7 @@ names, especially measurements, because a lane can be confidently wrong in the d
 re-reads. A lane that marks a routed domain skipped has not covered it; send it back or cover that
 domain another way.
 
-## What Thomas checks, so a work order carries it
+## What the owner checks, so a work order carries it
 
 - **Wrapping is a defect on buttons, chips, tabs and navigation labels**, at every supported width.
   Preserve the named `DESIGN.md` exceptions: a `StatTile` label reserves up to two lines, and an
@@ -125,8 +124,7 @@ domain another way.
 - **A rebuild never drops a feature.** Removal is authorized only where he decided it.
 - **Compose motion wherever `DESIGN.md`'s frequency and purpose gates permit it.** A 100-plus-per-day
   interaction gets no animation budget, ever, and purposeless motion is deleted. Where those gates
-  do permit motion, a screen composing none of its own fails his 2026-09-02 point 5, whatever else
-  is right about it.
+  do permit motion, a screen composing none of its own fails the screen motion requirement.
 - **A whole screen ships, with nothing old left on it** (D86). No mid-stack partial.
 
 ## Traps this screen family sets
@@ -139,5 +137,5 @@ domain another way.
   the granted Button contract faithfully and deleted 31 `accessibilityLabel` props
   (`thomasluizon/orbit-tickets#375`). A lane is allowed to argue
   with the canvas; that is why step 2 exists.
-- **A sweep lane that reports "the structure is sound" on a screen Thomas called horrible has not
-  done the work.** Send it back with the specific thing it failed to see.
+- **A sweep lane that misses a visible defect has not done the work.** Send it back with the
+  specific defect it failed to see.

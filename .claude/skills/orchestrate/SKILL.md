@@ -7,6 +7,9 @@ effort: high
 
 # /orchestrate: a queue of tickets, a stack of reviewed pull requests
 
+Tracked prose produced during orchestration states current rules and facts without dated incidents,
+attributed quotes, personal machine paths or session IDs. Keep timed run evidence in the scratchpad.
+
 Constants:
 
 - Ticket repository `thomasluizon/orbit-tickets`; the configured Projects v2 board carries Status.
@@ -34,7 +37,7 @@ Flags, all combinable:
 | `--cloud` | request Codex Cloud for UI when `cloud.enabled` is true; otherwise submission refuses with no CLI override |
 | `--auto` | take the scope from the board rather than from an argument |
 
-**Without `--sleep` the run stops after every pull request** and waits for Thomas to type
+**Without `--sleep` the run stops after every pull request** and waits for the owner to type
 `continue`. Nothing polls, nothing watches, and zero tokens burn while it waits.
 
 **One ticket with no flags behaves exactly as it did before: it runs locally.** `--parallel` remains
@@ -82,7 +85,7 @@ no invocation flag overrides it. Pool sizing for an enabled Cloud lane is detail
                      · STALE_PR · OUT_OF_DATE · CI_FAILING · CI_PENDING
                      on EVERY worker exit, DELIVERED included: read the worker log tail for
                      NEEDS_DECISION and the PR body's ## Assumptions (attended: adjudicate
-                     both with Thomas NOW, before step 8)
+                     both with the owner NOW, before step 8)
                      anything but DELIVERED enters the bounded readiness/fixer path or a real blocker
                      SALVAGE allowed: discard residue · test then commit+push what the worker
                      left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
@@ -122,7 +125,7 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--review-batch] [--cloud]
-node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
@@ -211,19 +214,18 @@ nobody chose.
 Six sources feed every turn. Print each one's current byte count and the total, then continue.
 **Print it, never fail on it.** A budget that blocks the run is how the harness froze the product.
 
-| Source | 2026-08-04 | Target |
+| Source | Current bytes | Target |
 |---|---:|---:|
-| `CLAUDE.md` | 10,504 | 6,000 |
-| `.claude/rules/core.md` | 3,027 | 2,200 |
-| `~/.claude/CLAUDE.md` | 2,406 | unchanged |
-| `~/.claude/rules/agentic-baseline.md` | 5,571 | unchanged |
-| `brain/hot.md` | 8,668 | 6,000 |
-| every skill `description:`, both scopes | 23,981 | 11,262 |
+| `CLAUDE.md` | print current | 6,000 |
+| `.claude/rules/core.md` | print current | 2,200 |
+| `~/.claude/CLAUDE.md` | print current | unchanged |
+| `~/.claude/rules/agentic-baseline.md` | print current | unchanged |
+| `brain/hot.md` | print current | 6,000 |
+| every skill `description:`, both scopes | print current | 11,262 |
 
 ```bash
 wc -c CLAUDE.md .claude/rules/core.md ~/.claude/CLAUDE.md \
       ~/.claude/rules/agentic-baseline.md \
-      ~/Developer/brain/hot.md
 
 # the sixth source: the frontmatter description: value, continuation lines included,
 # of every discoverable skill in BOTH scopes
@@ -239,10 +241,9 @@ LAST frontmatter key is terminated by `---`, not by another key, so an awk that 
 next `key:` runs into the body and counts the whole file. That bug reported `humanize` at 11,526
 bytes against a true 255.
 
-Plugin and built-in skills load their descriptions too, and live under `~/.claude/plugins/`, a third
-location outside both scopes. They measured 11,462 bytes across 31 skills on 2026-08-04. Nothing in
-this repo can shrink them, which is why the row above scopes to the two directories the rebuild
-controls. Print them separately if the total looks unaccountably large.
+Plugin and built-in skills load descriptions from `~/.claude/plugins/` outside both scopes.
+Print them separately if the total looks unaccountably large. Read the brain vault `hot.md`
+through its configured interface and include its current byte count when available.
 
 This replaces the old context-budget checker tool, which is deleted. It measured 24% of the surface
 and its own source is why: `const MEASURABLE_BASELINE_KEY = /^(?:CLAUDE\.md|\.claude\/rules\/[^/]+\.md)$/`.
@@ -283,8 +284,7 @@ Pass only the returned issue numbers to `plan-queue.mjs --tickets`. Do not subst
 Projects v2 board. A milestone is a completion body; the board also contains the holding pen.
 
 It returns `admitted`, `deferred`, `waves` and `stacks`. **Print the plan and every deferral before
-any work starts.** A ticket dropped at 03:00 that Thomas only discovers at 08:00 is a wasted night;
-the same ticket named at the start is a decision he can make before he goes to bed.
+any work starts.** The owner must see each deferral before queue work begins.
 
 Then read each admitted ticket in full **with its comments**, because the plan carries titles and
 labels, not bodies:
@@ -315,10 +315,9 @@ The ticket is the prompt (D2): quoted verbatim into the worker prompt, never par
 | `NOT_REPRODUCED` | the body says NOT REPRODUCED, asks for a device or emulator repro, or makes obtaining one the first Scope item. ORB-128 and ORB-208 are both Android runtime bugs whose competing hypotheses only a device can tell apart |
 | `NOT_CODE_WORK` | the body says no code in any repo, Ops-only, or HUMAN-ONLY. ORB-27, ORB-28, ORB-83 |
 | `MULTI_PR` | the body scopes itself to several pull requests, which breaks D4 before the harness sees it. ORB-25, ORB-26 |
-| `NEEDS_CONVERSATION` | **`--sleep` only.** The ticket can be executed headlessly, but not CORRECTLY without asking first: a human grant in its acceptance criteria, a body that contradicts itself about which tool is current, a choice left to the implementer, or a product/brand/copy/price call the repository cannot supply. Thomas is asleep, so it defers WITH its open questions printed. ORB-30 (#36) |
+| `NEEDS_CONVERSATION` | **`--sleep` only.** The ticket can be executed headlessly, but not CORRECTLY without asking first: a human grant in its acceptance criteria, a body that contradicts itself about which tool is current, a choice left to the implementer, or a product/brand/copy/price call the repository cannot supply. the owner is asleep, so it defers WITH its open questions printed. ORB-30 (#36) |
 
-The last four are the executability pass, added after the Onda 1 queue admitted 71 tickets and
-deferred none while eleven of them could not be executed by a headless agent at all. Two things it is
+The last four are the executability pass. Two things it is
 deliberately careful about, and you should be too when you read its output: **a keyword match is
 evidence, not a verdict** (the same sentence under Out of scope means the opposite of what it means
 under Scope), and **counting bullets under Affected modules over-counts**, because that list carries
@@ -347,7 +346,7 @@ Read every admitted ticket, its comments, and the deferrals from step 1, and col
    `design/reference.html` in another, and says Pencil is retired in the first. `hot.md` confirms it
    is retired. A headless worker cannot ask which is current, and the Pencil section is the more
    detailed of the two, so it would follow the retired tool and produce evidence in the wrong form.
-2. **Acceptance criteria carrying a human grant no agent can satisfy.** ORB-30 again: "Thomas has
+2. **Acceptance criteria carrying a human grant no agent can satisfy.** ORB-30 again: "the owner has
    opened the page and approved the direction. This is a human grant (D13); no gate and no agent may
    substitute for it." Run as one ticket that produces a failed verdict however good the work is, so
    ask whether to split the grant out or accept the ticket stopping short of it.
@@ -378,7 +377,7 @@ The label `needs:conversation` forces it on and `needs:no-conversation` forces i
 overrides the body. Use `needs:no-conversation` once the questions are already answered in a comment,
 so the ticket runs headless the next night.
 
-**Under `--sleep`, never attempt one.** A conversation cannot happen while Thomas is asleep. The
+**Under `--sleep`, never attempt one.** A conversation cannot happen while the owner is asleep. The
 ticket defers before any worker spawns and its open questions go in the step 11 report, so he wakes
 to a decision list rather than a confidently wrong pull request.
 
@@ -401,11 +400,11 @@ run at all" and wrong for "design this with me". So for a conversation-first tic
 ### The classifier is evidence; unresolved uncertainty is the gate
 
 `plan-queue.mjs`'s signals and the `needs:conversation` label are detection aids, not the boundary
-of asking. Attended, ask Thomas ANY question the run raises, at any step, at the moment it appears:
+of asking. Attended, ask the owner ANY question the run raises, at any step, at the moment it appears:
 The model call fails closed, so a `CLASSIFIER_ERROR` signal is itself a question to resolve before a worker starts.
 a contradiction found while reading, a tool the ticket names that is not wired, a dependency that
 does not exist. One topic at a time, your recommended answer first (core rule 7). A decision that
-belongs to Thomas (product, brand, copy, price, design direction, or which of two contradictory
+belongs to the owner (product, brand, copy, price, design direction, or which of two contradictory
 instructions is current) is never proceeded on by assumption, at any step, in either mode. Under
 `--sleep` the same discovery defers the ticket with its question in the step 11 report. Write every
 answer to the ticket with `comment-ticket.mjs` so it reaches the worker and survives the session.
@@ -478,7 +477,7 @@ gh stack submit          # links the existing PRs into a Stack; --open marks the
 gh stack view --json     # machine-readable state, for the final report
 ```
 
-**Merging a layer auto-rebases and auto-retargets every pull request above it**, so Thomas has no
+**Merging a layer auto-rebases and auto-retargets every pull request above it**, so the owner has no
 rebasing to do. `gh stack` needs `gh` 2.90.0 or newer.
 
 **A stack lives in ONE repository.** GitHub requires it, so `plan-queue.mjs` never sets a
@@ -612,7 +611,7 @@ both receipt copies; retries return the same outcome without applying again. Pre
 patch in its worktree for manual delivery and record the blocker. The recovery marker is cleared
 only after receipt resolution is durable. Exit 10 with `NEEDS_DECISION` preserves the handoff
 and refuses delivery. Route its question through step 7 (under `--sleep`, log it as blocked), and
-do not run readiness or merge until Thomas answers and the resulting work is verified.
+do not run readiness or merge until the owner answers and the resulting work is verified.
 
 For a Cloud `ui` order targeting `redesign/main`, inspect the locally materialized diff for the UI
 scope printed in the order. When it matches, run the owed sweep locally after materialization and
@@ -713,8 +712,7 @@ Headless, `stdin=NUL`, `cwd` = the worktree, log to the scratchpad.
 ceiling and the no-progress cap from `.claude/orchestrator.json` (currently 45 and 10 minutes),
 killing the whole process tree on either. Pass `--hard-ceiling-minutes` at launch for a ticket the
 plan already shows outrunning the fleet-wide ceiling: a large migration, a subsystem ticket, or one
-whose test matrix is the work. Three finished workers died at the fixed 45 on 2026-08-22 for
-exactly that shape.
+whose test matrix is the work.
 
 Every local order names its tier. Use `--tier default` for an original implementation. Use
 `--tier mechanical` only for a merge-forward whose conflicts are already known, or for
@@ -762,8 +760,7 @@ It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
 
 `gh pr ready <n>`, then re-run `verify-delivery.mjs`. There is no reading of `DRAFT` that lets the
 run continue: the readiness receipt reports `DRAFT` for a draft pull request, so a draft never
-reaches READY however good the code is. Measured 2026-08-08, three of five pull requests opened as
-drafts (ORB-7 #464, ORB-214 #57, ORB-188 #465) and each needed a human.
+reaches READY however good the code is.
 
 `compose-prompt.mjs` now forbids the worker from opening a draft at all, so reaching this verdict
 means the worker's tooling did it anyway. Clear it here rather than carrying it into step 9.
@@ -774,12 +771,6 @@ generated Designer output, mandatory architecture artifacts, generated contracts
 codemod output are admitted when the behavioral delivery checks pass.
 
 ### `DIRTY_TREE` with commits is the one failed verdict worth a human look
-
-Measured on ORB-39, 2026-08-06. The tool short-circuited on the dirty tree, printed a `checks` object
-with ONE key, and called it `NO_COMMIT`. There WAS a commit: 7c726189, 8 files, 221 insertions,
-carrying the entire ticket across both platforms with its tests. `NO_COMMIT` reads as "produced
-nothing", and had it been trusted that work would have been binned and re-run from scratch. It became
-PR #690 with zero re-work instead.
 
 So the two states are now two verdicts, because their recoveries have nothing in common:
 
@@ -797,10 +788,6 @@ the worker's own commit; the run is pushing a commit that already exists. `allDi
 anything ambiguous, hands over with the paths named.
 
 ### A red pull request was never delivered
-
-For its whole life this step read eight artifacts and not the one that decides whether the work can
-land. Measured on PR #685, the run that found it: `DELIVERED` twice, while five required-or-gating
-checks were red. An unattended night would have stacked those up and called every one clean.
 
 **`CI_FAILING` feeds the existing bounded fixer.** After each new commit,
 discard every old CI and readiness receipt and re-verify the new head. Stop only at the
@@ -822,7 +809,7 @@ For Cloud workers, read `materialized.handoff` through the Cloud handoff procedu
 delivery. Its `needsDecision`, `assumptions` and `manualSteps` replace the local worker log and
 not-yet-created PR body as inputs to this step. Missing metadata blocks, even if the diff applied.
 
-The composed prompt forbids a worker from guessing a decision that belongs to Thomas: it commits
+The composed prompt forbids a worker from guessing a decision that belongs to the owner: it commits
 what is already safe and ends its output with `NEEDS_DECISION: <question>`. Read the tail of the
 worker log for that line on EVERY worker exit, `DELIVERED` included, before diagnosing anything
 else. `verify-delivery.mjs` reads git and GitHub artifacts and never the log, so a delivered branch
@@ -831,7 +818,7 @@ still end on the question that scopes the rest. On a failed verdict the line als
 worker that stopped on a question often leaves `NO_COMMIT` or a partial branch behind, and neither
 means the work failed.
 
-- **Attended:** ask Thomas the question, the worker's recommended answer first. Write the answer to
+- **Attended:** ask the owner the question, the worker's recommended answer first. Write the answer to
   the ticket with `comment-ticket.mjs`. No delivery yet: recompose the prompt and launch a fresh
   worker, which is a NEW work order carrying the answer, not the banned auto-relaunch of a failed
   prompt. Delivered PR in hand: the answer either confirms the PR complete or becomes fixer work on
@@ -839,11 +826,11 @@ means the work failed.
 - **`--sleep`:** the question goes to the step 11 decision list, exactly like a
   `NEEDS_CONVERSATION` deferral. A delivered PR carrying an open `NEEDS_DECISION` stays in the run
   record but its ticket is synchronized as In Progress with the decision required, never In Review:
-  Thomas wakes to a question instead of a confidently wrong pull request.
+  the owner wakes to a question instead of a confidently wrong pull request.
 
 **The PR body's `## Assumptions` section is read at the same moment.** The contract makes
-assumptions mechanical by definition (a Thomas-owned decision hiding in that list is a
-`NEEDS_DECISION` and is treated as one). Attended: put them to Thomas as one batch here, BEFORE the
+assumptions mechanical by definition (an owner decision hiding in that list is a
+`NEEDS_DECISION` and is treated as one). Attended: put them to the owner as one batch here, BEFORE the
 step 8 and 9 loops run, so an answer that invalidates work becomes ordinary bounded-fixer work and
 no receipt has to be revoked after the fact. Under `--sleep`: they go to the step 11 decision list;
 being mechanical, they do not block readiness.
@@ -852,8 +839,7 @@ being mechanical, they do not block readiness.
 
 The most common real outcome is neither delivered nor empty: a worker COMMITTED complete work and
 then died, at the hard ceiling, at the no-progress kill, or because it was stopped. That happened
-four times on 2026-08-06 (ORB-39, ORB-98, ORB-213, ORB-92) and each time this step had no rule, so
-the run asked Thomas. **A harness converting its own gap into an interruption is the defect.** So:
+A committed worker result remains recoverable after a ceiling or process kill. Therefore:
 
 **You MAY, without asking:**
 
@@ -877,8 +863,7 @@ gets finished by hand, and the answer is never. Answering a Pullfrog finding at 
 act with its own rule; see **Who writes the fix** there.
 
 **Never push a worker's uncommitted work without running its tests first.** That is a precondition,
-not a preference. Both salvages that worked that night, ORB-39 and ORB-98, were verified before the
-push, and both pull requests were correct.
+not a preference.
 
 **A salvaged pull request RE-ENTERS this algorithm at step 7 and runs every remaining step exactly as
 a worker-delivered one does.** Opening the pull request is the MIDDLE of salvage, never the end. Add
@@ -886,12 +871,6 @@ its `{repositoryKey, prNumber, receiptPath}` identity to `pullRequests` in the r
 it opens. It remains outstanding until current-head delivery, green CI carrying the review verdict
 admissible on that base under Hard prohibitions, `behind_by=0`, and ticket synchronization are all
 recorded for the same head/base pair.
-
-Measured, and the reason this sentence is here: PR #690 (ORB-39) was salvaged by hand, cleaned,
-pushed and opened, and then reported as finished. It was carrying two failing
-required checks (`Architecture map drift`, and SonarCloud coverage at 61.5% against a floor of 80%)
-and one unresolved P2 bot thread. Nobody would have found out until the merge. A pull request that
-skipped steps 7, 8 and 9 is not delivered, however it came to exist.
 
 **Never read the worker's own exit code as proof of anything.** Three documented CLI bugs make it
 meaningless: openai/codex#20919, openai/codex#19945, anthropics/claude-code#25629. Artifacts are the
@@ -1034,12 +1013,6 @@ itself, and spawning a worker per round is what turns a six-round review into a 
 Everything else stays with a worker. A finding large enough to be its own work order is composed
 and dispatched, never typed here. Implementing a ticket is never this step.
 
-**Stated because it used to be left to inference.** Step 7 forbids writing implementation code during
-a SALVAGE and this step orders a fix, so the skill named two acts and no actor. Sessions filled that
-gap by carrying a claimed standing override forward in handoff prompts, where it lived in no decision
-record and drifted wider each time it was copied. Thomas deleted that override on 2026-09-10 and
-replaced it with the sentence above.
-
 **`isOutdated` is not evidence.** It means the code moved under the comment, not that anyone
 addressed the comment. Treat that thread like any other.
 
@@ -1061,11 +1034,7 @@ from one nobody read, which is the whole defect this step exists to remove.
 
 **Every `--thread` value is COPIED from the `threads[].id` field of the `list-bot-threads.mjs` run
 above, in this run.** Never typed, never remembered from an earlier ticket, and never passed with a
-`||` fallback that lists fresh when it fails. Measured 2026-08-08: a typed
-`PRRT_kwDOR5Siws6XdcAt` did not fail, because node ids are globally unique. It resolved to a live
-CodeRabbit thread on a stranger's public repository and posted a reply there under Thomas's account,
-then announced itself as `thomasluizon does not have the correct permissions to execute
-ResolveReviewThread` and was filed as a transient glitch. Two gates now hold this:
+`||` fallback that lists fresh when it fails. Two gates now hold this:
 `.claude/hooks/forbid-invented-identifier.mjs` refuses the command, and the tool itself refuses to
 write unless the node's own `repository.nameWithOwner` equals what `--repo` resolves to.
 
@@ -1108,7 +1077,7 @@ The only READY state is simultaneous truth for one current head/base pair. Run
 `record-readiness.mjs` after every artifact update:
 
 ```bash
-node tools/record-readiness.mjs --repo <key> --pr <n> --delivery <json> --ticket <json>
+node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --ticket <json>
 ```
 
 The recorder re-reads the live PR base/head, draft state, the base branch's required status checks
@@ -1164,18 +1133,14 @@ and the signature never appears. Only a check ABSENT from the rollup entirely re
 **A merge admitted here does NOT end the night on its own. Record the merge sha.** The Stop hook
 reads the receipt and never the pull request state: `require-wake-source.mjs:30-37` takes READY only
 from `readinessReport(receipt).verdict`, which stays `CI_STALE` forever because the check will never
-publish, and the ledger row is append only. Measured 2026-09-18 by driving `checkSleepStop`: a run
-that merged under this exception with nothing left to launch got `block: true` and exit 2, the
-2026-08-08 deadlock reached after a successful merge. So write the merge commit sha as the
+publish, and the ledger row is append only. Write the merge commit sha as the
 machine-readable `merged` string on that pull request's ledger entry. `rules-sleep.mjs:84-87` then
 takes that row out of the pending set for good, because a merge cannot be undone and no later write
 clears it (`run-state.mjs:184-198`).
 
 **It must be a real sha, and an unfilled placeholder is refused.** Both
 `.claude/hooks/_lib/rules-sleep.mjs:84` and `tools/lib/run-state.mjs:46` test the value against
-`/^[0-9a-f]{7,40}$/`. Measured 2026-09-18 by driving `checkSleepStop` with a non-empty-string test:
-the template value below, left unfilled, and the bare word "yes" each ended the night returning
-null, so an UNMERGED pull request read as a finished night in silence. `blocker` may be any
+`/^[0-9a-f]{7,40}$/`. `blocker` may be any
 non-empty string because a false one prints a loud BLOCKED banner naming the pull request; a false
 `merged` printed nothing, and that asymmetry is what the sha test closes.
 
@@ -1207,8 +1172,7 @@ the `merged` sha or the `blocker` string. Nothing else clears it.
 Set the actual ticket reference to In Review only from a READY receipt.
 
 **A worker never produces visual evidence.** A fresh worktree has no seeded session, so the attempt
-can only ever end at a login page. Measured 2026-08-06 on two tickets
-whose code was already committed and correct: ORB-39 started a dev server on :3920, wrote a
+can only ever end at a login page. whose code was already committed and correct: ORB-39 started a dev server on :3920, wrote a
 Playwright visual test, and was killed at the 45 minute ceiling with a dirty tree; ORB-98 opened
 `/login?returnUrl=%2Fpreferences` and burned the rest of its budget. Two worker budgets, two dev
 servers left listening, two deliveries a human had to rescue.
@@ -1216,7 +1180,7 @@ servers left listening, two deliveries a human had to rescue.
 Both enforcement points are unconditional. `compose-prompt.mjs` puts the prohibition in every
 worker prompt, and `.claude/hooks/forbid-worker-browser.mjs` refuses the command at act time for any
 caller carrying the launcher marker or running inside a linked worktree. `/dev-server` is untouched:
-it runs from the main checkout, which is Thomas.
+it runs from the main checkout, which is the owner.
 
 Print:
 
@@ -1236,14 +1200,14 @@ Print:
 - **The PR body's `## Assumptions` section, with each one's adjudication.** The adjudication itself
   happened at the step 7 worker-exit read, before the step 8 and 9 loops ran; this stop only prints
   the outcomes. An assumption first discovered here is a step 7 miss, and it is adjudicated now
-  rather than skipped. Under `--sleep`: the assumptions go to the step 11 decision list, so Thomas
+  rather than skipped. Under `--sleep`: the assumptions go to the step 11 decision list, so the owner
   reads them before he merges anything.
 
 **Why a manual step is printed here and not only at merge.** orbit-tickets#81 said "merge, deploy to
 Render, then set `PostHog:ApiKey` in the Render env. The code path is inert until the key exists." The
-pull request was perfect, review was clean, CI was green, the ticket closed Done on 2026-08-08, and
+pull request was perfect, review was clean, CI was green, the ticket closed Done on , and
 nothing anywhere in that path ever mentioned the key. The key turned out to be set already (verified
-live 2026-08-10: `posthog-dotnet` events since 2026-07-25, nothing lost), so this is a near miss
+live : `posthog-dotnet` events since , nothing lost), so this is a near miss
 rather than an incident. The missing thing is not the key, it is any mechanism that knew. Every gate
 in this harness measures the PULL REQUEST; that step is not in one, so it has to be carried to the
 human at the moments a human is reading. 13 of the 166 open tickets carry a step of the same shape.
@@ -1251,7 +1215,7 @@ And the ticket section is only ONE of the shapes: the equally common one is a wo
 the out-of-repo dependency mid-implementation, which no ticket section can know in advance. That is
 why the PR body and your own diff read are sources beside the ticket, not decoration on it.
 
-**Then, without `--sleep`: STOP and wait for Thomas to type `continue`.** Nothing polls and nothing
+**Then, without `--sleep`: STOP and wait for the owner to type `continue`.** Nothing polls and nothing
 watches; zero tokens burn while it waits. **With `--sleep`: go straight to the next ticket.**
 
 ## Step 11. The report
@@ -1272,12 +1236,12 @@ Once the queue is exhausted, print one summary and stop:
   classification, and retry task/outcome from `queue-run.jsonl` and durable receipts. Include failures
   even when the retry delivered. An exhausted or uncertain retry is unfinished, never completed.
 - **Every manual step across the whole queue, in one "still outstanding" list**, merged from all
-  three step 10 sources. These are Thomas's clicks, not the harness's, and they are the only work
+  three step 10 sources. These are the owner's clicks, not the harness's, and they are the only work
   the merge does not finish.
 - **Every open decision, in one list**: each `NEEDS_DECISION` question a worker raised and each
   unadjudicated PR-body assumption, beside the `NEEDS_CONVERSATION` questions, so the night ends in
   a decision list rather than a guess list.
-- **Merge evidence for work merged under D88/D90**, plus the remaining PRs needing Thomas.
+- **Merge evidence for work merged under D88/D90**, plus the remaining PRs needing the owner.
 
 Append one JSON line per ticket outcome to `<scratchpad>/queue-run.jsonl` as the queue runs, not at
 the end. A summary assembled only at the end does not survive a context reset in the middle of the
@@ -1385,9 +1349,8 @@ two in each of two files:
 - `tools/__tests__/launch-worker.mjs:279-286`, which pins `model_reasoning_effort="medium"` on the
   mechanical tier the same way.
 
-Expect all four, by name. The whole gate reads `ORBIT TOOLS GATE FAILED (4)`. An earlier revision of
-this paragraph said two, because it was verified with `--only orchestrator-config`, which
-structurally cannot see the launch-worker pair; run both, or run the whole gate.
+Expect all four, by name. The whole gate reads `ORBIT TOOLS GATE FAILED (4)`.
+`--only orchestrator-config` cannot see the launch-worker pair; run both, or run the whole gate.
 **None of the four is a licence to edit a test.** Hard prohibitions forbids editing a gate to change
 what this run is judged by, a FIFTH unexplained FAIL is a real defect rather than the switch, and the
 revert clears all four.
@@ -1396,13 +1359,9 @@ revert clears all four.
 runs `a worker burning CPU while writing nothing anywhere is NOT killed as stalled` against real
 clocks: a 0.15 minute no-progress ceiling against a 60 second busy loop, measured against the 1.5
 percent CPU floor at `tools/launch-worker.mjs:565`. On a machine already running another worker that
-floor is missed and the assertion fails on its own, with `worker` set either way. Measured
-2026-09-18 at head `4d590110` in the `chore/claude-worker-engine` worktree, which carries the
-committed `"worker": "codex"`: `ORBIT TOOLS GATE FAILED (1)`, that one test, while a run on the same
-tree minutes apart recorded `ORBIT TOOLS GATE OK`. So check that name FIRST when the count does not
-match, and rerun it on a quiet machine before treating it as a defect. **Do not change that test**:
-it belongs to no pull request that switches the engine, and D95 forbids a run editing the gate it is
-judged by.
+floor is missed and the assertion fails on its own, with `worker` set either way.
+Check that test name first when the count does not match and rerun it on a quiet machine.
+Do not change the test in a pull request that switches the engine.
 
 Nothing else changes. The order generator, `§5.7`'s queue, the readiness loop, the caps and every
 hard prohibition apply identically, because the engine is the only variable.
@@ -1411,9 +1370,7 @@ hard prohibition apply identically, because the engine is the only variable.
 session, so it dies with that session and a handoff inherits nothing: its edits sit uncommitted in a
 worktree with no record of what they were, and the next session cannot resume or even find them.
 A subagent also registers no wake source, so `.claude/hooks/require-wake-source.mjs` correctly reads
-an unattended run as having no continuation. Measured 2026-09-18: five subagents ran as workers, the
-Stop hook objected on every turn, and each one had to be told to commit and push before a handoff
-could be written at all. A headless engine through `launch-worker.mjs` has none of those problems,
+an unattended run as having no continuation. A headless engine through `launch-worker.mjs` has none of those problems,
 because the process is external, the launcher's pid is the wake source with the worker's pid recorded
 beside it, and its output is a commit rather than a conversation.
 
@@ -1430,12 +1387,8 @@ subagent's word is the failure; saying plainly which agent reviewed what, and wh
 is not. Hard prohibitions and step 8 state this same rule in the same words, so a run that reads any
 one of the three reaches the same answer.
 
-**Where this clause came from, because the difference is the whole point.** Thomas gave the run that
-built it a written instruction at entry, in his own words, that `redesign/main` is unprotected and
-that a separate-agent review plus green checks at the exact head is the bar there. That is an
-instructed contract. A run may never merge on a clause it wrote itself in the same pull request the
-clause would excuse, which Hard prohibitions states absolutely; a contract change takes effect for
-the NEXT run. A future reader can tell the two apart by this paragraph.
+A run may never merge on a clause it wrote itself in the same pull request that clause would
+excuse. A contract change takes effect for the next run.
 
 ## §5.7 The queue
 
@@ -1463,8 +1416,7 @@ with the exact decision required.
 **The invariant:** under `--sleep`, a turn may only end while at least one background task is still
 running, and the turn's last line names it. Nothing else continues the run. Ending a turn with no
 live task ends the night silently, and what it leaves behind is indistinguishable from a queue that
-finished, so nobody goes looking. That is exactly how 2026-08-06 ended: the orchestrator said "CI
-will wake me" with nothing scheduled.
+finished, so nobody goes looking. A claim that CI will wake the session requires a registered waiter.
 
 **Launch a new ticket only when a slot is free and admission allows it.** `launch-worker.mjs` and
 `submit-cloud-worker.mjs` enforce the GitHub counts. Existing pull request work can proceed.
@@ -1508,9 +1460,7 @@ cannot be undone, while a resolved `blocker` clears. The sha is checked in SHAPE
 `.claude/hooks/_lib/rules-sleep.mjs:84`, so the template value above left unfilled records no merge
 at all and the row keeps blocking. A merged row also gets a terminal MERGED banner, the way a
 blocked row gets a BLOCKED one, so the ending reaches a reader.
-It reads disk alone and never calls GitHub: an earlier revision revalidated every ledger row against
-live GitHub on every `Stop` of every session, and on 2026-08-09 that alone spent the whole
-5,000-point per-user GraphQL budget and stalled all work. Whether a receipt is stale against live
+It reads disk alone and never calls GitHub. Whether a receipt is stale against live
 GitHub is `record-readiness.mjs`'s question, answered once at readiness time. This is the
 mechanical half of salvage: a pull request opened by hand and never re-verified cannot be reported
 as a finished queue even if a fallible session clears the active list.
@@ -1529,15 +1479,12 @@ THIS session. That part is still yours, which is why the invariant says to name 
 A no-flag single ticket still runs locally. Cloud remains bound to `ui` through
 `cloud.repositoryKey`, so `orbit-api` and `orbit-landing-page` tickets use the small local pool:
 **`--parallel` runs up to `caps.parallelTickets`
-local tickets at once**, currently **6**, one worktree each (64 GB, 18-core M5 Pro, 2026-09-24).
+local tickets at once**, using the current config, one worktree each.
 
 Size that pool against the serial materialization lane. `materialize-cloud-result.mjs` is serial
 across the whole fleet: local test, build, signed commit, push and pull request run on this laptop,
 one ticket at a time, with GitHub-calling readiness work capped at 3. Filling every core with local implementers
 starves that lane. This cap applies during both attended and `--sleep` runs (D89 supersedes D81).
-
-Measured 2026-09-05: Intel Core Ultra 7 258V, 8 physical and 8 logical cores, 31.5 GB RAM; two live
-Codex workers held about 290 MB and about 20 percent of the CPU each.
 
 Drop below the active cap if workers return `KILLED_HARD_CEILING`, or if elapsed delivery time rises
 well beyond a smaller fan-out. Those are the signals CPU starvation produces here.
@@ -1558,8 +1505,7 @@ Three rules bound it:
   against one checkout race on `.git/index`.
 - **Never more than 3 GitHub-calling children alive at once, across every repo.** The GraphQL
   budget is 5,000 points per USER per hour, shared by ui, api and landing alike. Eight concurrent
-  `list-bot-threads.mjs` pollers exhausted it three times in one night (2026-08-09, roughly 90
-  minutes lost). Run bot waits and readiness passes at most three at a time; the poller itself
+  Run bot waits and readiness passes at most three at a time; the poller itself
   reads the free REST `rate_limit` before each GraphQL spend and waits out an empty window, but
   that is self-defence, not a licence to fan out.
 
@@ -1567,7 +1513,7 @@ Three rules bound it:
 outranks three easy ones. `plan-queue.mjs --board` computes that ordering from the real `blockedBy`
 graph, so it is derived rather than guessed.
 
-**Check this session's own checkout ONCE, up front, before Thomas sleeps.** Step 0b refuses to switch
+**Check this session's own checkout ONCE, up front, before the owner sleeps.** Step 0b refuses to switch
 the repository this session is running from, and most tickets are `repo:ui`, so a session sitting on
 the wrong branch loses the entire night. Discover it at the start, not at 03:00.
 
@@ -1579,7 +1525,7 @@ the wrong branch loses the entire night. Discover it at the start, not at 03:00.
   D90 applies the same terms to screens for the remainder of the redesign, suspending the per-screen
   merge hold. During that period, use only
   ordinary `gh pr merge --squash` against `redesign/main`, with `--match-head-commit <sha>` for the
-  head just verified. Log the evidence. Outside that authority, leave the PR ready for Thomas.
+  head just verified. Log the evidence. Outside that authority, leave the PR ready for the owner.
   A green check alone is not an exact-head approval, on either branch.
 - **What may stand in for Pullfrog turns on the branch, and it is the same rule in `§5.4.1` and in
   step 8.** It decides one case only: Pullfrog produced neither the check nor an APPROVED review at
@@ -1592,7 +1538,7 @@ the wrong branch loses the entire night. Discover it at the start, not at 03:00.
   evidence a reader can check**, alongside green checks at the exact head and zero unresolved
   threads. A hidden substitution is the failure; a named one with its evidence is not.
 - **Never `--admin` inside `/orchestrate` or `/sleep`.** Per `CLAUDE.md`, that exception belongs only
-  to the canonical `/merge-prs` skill after Thomas explicitly invokes it for an already-approved
+  to the canonical `/merge-prs` skill after the owner explicitly invokes it for an already-approved
   frozen PR set. Standing ordinary merge authority does not invoke that skill. Direct merge APIs
   remain forbidden without exception: no `PUT /repos/{owner}/{repo}/pulls/{number}/merge` and no
   GraphQL `mergePullRequest` mutation.
