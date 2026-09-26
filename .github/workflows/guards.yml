@@ -40,6 +40,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
+      # The checker reads JS and TS comments with the installed TypeScript parser.
+      - run: npm ci
       - name: Check text
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
