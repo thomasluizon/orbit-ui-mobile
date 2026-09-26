@@ -64,7 +64,13 @@ vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ cr
 vi.mock('@/stores/onboarding-draft-store', () => ({
   useOnboardingDraftHydrated: () => true,
   useOnboardingHasPendingAnswers: () => false,
-  useOnboardingDraftStore: (selector: (state: { pushRegistrationFailed: boolean }) => unknown) => selector({ pushRegistrationFailed: false }),
+  useOnboardingDraftStore: Object.assign(
+    (selector: (state: { pushRegistrationFailed: boolean }) => unknown) => selector({ pushRegistrationFailed: false }),
+    {
+      getState: () => ({ reset: vi.fn(), setAccountScope: vi.fn() }),
+      persist: { rehydrate: vi.fn() },
+    },
+  ),
 }))
 vi.mock('@/components/navigation/notification-delete-notice', () => ({ NotificationDeleteNotice: () => null }))
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))

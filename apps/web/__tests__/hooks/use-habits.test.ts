@@ -111,6 +111,8 @@ vi.mock('@/stores/ui-store', () => ({
   ),
 }))
 
+vi.mock('@/lib/account-scoped-state', () => ({ startAccountScopedSession: vi.fn() }))
+
 function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
     id: 'h-1',

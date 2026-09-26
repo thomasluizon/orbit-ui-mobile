@@ -11,8 +11,7 @@ pre-commit:
     web-eslint:
       root: "apps/web/"
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
-      run: npx eslint --fix {staged_files}
-      stage_fixed: true
+      run: npx eslint {staged_files}
     shared-eslint:
       root: "packages/shared/"
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"

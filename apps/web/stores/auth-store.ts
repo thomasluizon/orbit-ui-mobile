@@ -14,6 +14,7 @@ import { clearSupabaseSession } from '@/lib/supabase'
 import { useChatStore } from './chat-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
+import { startAccountScopedSession as resetAccountScopedState } from '@/lib/account-scoped-state'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
@@ -37,7 +38,10 @@ let lastObservedAccountId: string | null = null
  * under a tab that keeps running. Two resets run on EVERY transition, a teardown included,
  * because both are cheap to redo and unsafe to keep.
  */
-function startAccountScopedSession(nextAccountId: string | null): void {
+function startAccountScopedSession(nextAccountId: string | null, preserveAnonymousDraft = false): void {
+  if (nextAccountId !== null) {
+    resetAccountScopedState(lastObservedAccountId, nextAccountId, preserveAnonymousDraft)
+  }
   if (nextAccountId !== null) clearSupabaseSession()
   if (nextAccountId !== null) sessionReadVersion += 1
   advanceSessionEpoch()
@@ -73,6 +77,7 @@ function clearAccountScopedSessionState(): void {
 function endSessionLocally(): void {
   sessionReadVersion += 1
   clearAccountScopedSessionState()
+  resetAccountScopedState(lastObservedAccountId, null)
   forgetPreviousAccountContent()
   getQueryClient().clear()
   lastObservedAccountId = null
@@ -185,7 +190,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setAuth: (loginResponse: LoginResponse) => {
     sessionRecoveryUser = null
     bindStepUpStateToAccount(loginResponse.userId)
-    startAccountScopedSession(loginResponse.userId)
+    startAccountScopedSession(loginResponse.userId, true)
     set({
       isAuthenticated: true,
       sessionInactive: false,

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
-import { parseShowGeneralOnTodayPreference, resolveSystemLocale } from '@orbit/shared/utils'
+import { resolveSystemLocale } from '@orbit/shared/utils'
+import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
+import { useAccountId } from '@/lib/account-scope'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
@@ -27,6 +29,7 @@ function writeLocaleCookie(value: string) {
 }
 
 export function usePreferenceControls() {
+  const accountId = useAccountId()
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
   const queryClient = useQueryClient()
@@ -115,15 +118,18 @@ export function usePreferenceControls() {
     applyTheme(mode)
   }
 
-  const [showGeneralOnToday, setShowGeneralOnToday] = useState<boolean>(() => {
-    if (typeof localStorage === 'undefined') return false
-    return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
-  })
+  const [showGeneralPreference, setShowGeneralPreference] = useState(() => ({
+    accountId,
+    value: readShowGeneralOnToday(),
+  }))
+  const showGeneralOnToday = showGeneralPreference.accountId === accountId
+    ? showGeneralPreference.value
+    : readShowGeneralOnToday()
 
   function toggleShowGeneral() {
     const next = !showGeneralOnToday
-    setShowGeneralOnToday(next)
-    localStorage.setItem('orbit_show_general_on_today', String(next))
+    setShowGeneralPreference({ accountId, value: next })
+    writeShowGeneralOnToday(next)
   }
 
   return {

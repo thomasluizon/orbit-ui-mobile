@@ -107,6 +107,7 @@ describe('onboarding draft store', () => {
 
   it('migrates unknown persisted shapes to a clean draft', () => {
     expect(migrateOnboardingDraft(null)).toEqual({
+      accountKey: null,
       habits: [],
       firstLog: null,
       goal: null,
@@ -120,6 +121,20 @@ describe('onboarding draft store', () => {
     const partial = migrateOnboardingDraft({ onboardingLocallyDone: true })
     expect(partial.onboardingLocallyDone).toBe(true)
     expect(partial.habits).toEqual([])
+  })
+
+  it('claims an anonymous signup draft and clears it for another account', () => {
+    const store = makeStore()
+    store.getState().bufferHabit({ title: 'Read' })
+    store.getState().setAccountScope('account-a', true)
+    expect(store.getState().habits).toHaveLength(1)
+    expect(store.getState().accountKey).toBe('account-a')
+
+    store.getState().setAccountScope('account-a')
+    expect(store.getState().habits).toHaveLength(1)
+    store.getState().setAccountScope('account-b')
+    expect(store.getState().habits).toEqual([])
+    expect(store.getState().accountKey).toBe('account-b')
   })
 
   it('round-trips a payload through the pure builder', () => {

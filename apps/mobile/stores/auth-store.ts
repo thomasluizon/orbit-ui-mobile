@@ -36,6 +36,8 @@ import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 import { useThrottleStore } from './throttle-store'
+import { startAccountScopedSession } from '@/lib/account-scoped-state'
+import { getAccountId } from '@/lib/account-scope'
 
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -240,8 +242,10 @@ async function runSessionTeardown(
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
   if (!(await runSessionTeardownStep(epoch, forgetPreviousAccountContent))) return null
+  const onboardingLocallyDone = useOnboardingDraftStore.getState().onboardingLocallyDone
+  if (!(await runSessionTeardownStep(epoch, () => startAccountScopedSession(null)))) return null
   useReviewReminderStore.getState().setAccountScope(null)
-  resetOnboardingDraftForSignOut()
+  if (onboardingLocallyDone) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   if (!isCurrentSessionTeardown(epoch)) return null
   useAuthStore.setState({ user: null })
   return teardown
@@ -283,14 +287,6 @@ function isTransientNetworkError(error: unknown): boolean {
     message.includes('load failed') ||
     message.includes('timed out')
   )
-}
-
-function resetOnboardingDraftForSignOut(): void {
-  const onboardingLocallyDone = useOnboardingDraftStore.getState().onboardingLocallyDone
-  useOnboardingDraftStore.getState().reset()
-  if (onboardingLocallyDone) {
-    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
-  }
 }
 
 async function classifyRejectedRefresh(
@@ -460,6 +456,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   expiresAt: null,
 
   login: async (token, refreshToken, user) => {
+    const previousAccountId = get().user?.userId ?? null
     let ownership = getSessionGeneration()
     set(deriveSessionPhase('establishing'))
     try {
@@ -497,6 +494,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await clearOfflineState()
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       await forgetPreviousAccountContent()
+      if (!isCurrentSessionEpoch(ownership.epoch)) return null
+      const preserveAnonymousDraft = previousAccountId === null
+        && useOnboardingDraftStore.getState().habits.length > 0
+      await startAccountScopedSession(user.userId, preserveAnonymousDraft)
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
@@ -613,6 +614,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await saveWidgetToken(token).catch(() => {})
       if (accountId) bindStepUpStateToAccount(accountId)
       await setQueryCacheScope(accountId)
+      if (!isCurrentSessionEpoch(ownership.epoch)) return false
+      if (getAccountId() !== accountId) await startAccountScopedSession(accountId)
       if (!isCurrentSessionEpoch(ownership.epoch)) return false
       if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
       set((state) => ({

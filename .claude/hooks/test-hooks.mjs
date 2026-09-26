@@ -19,6 +19,8 @@ import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
+const primaryCommonDirectory = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: repoRoot, encoding: "utf8" }).stdout.trim()
+const siblingRoots = declaredRepoRoots(repoRoot)
 let fails = 0
 const T = (name, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want)
@@ -1451,6 +1453,13 @@ const scanForMarkers = (directory) => {
 for (const top of ["tools", ".claude"]) scanForMarkers(join(repoRoot, top))
 for (const hit of markerHits) T(`conflict markers: ${hit}`, false)
 T("conflict markers: no unresolved merge markers are committed", markerHits.length === 0, true)
+
+const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
+T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)
+const staleName = ["Tho", "mas"].join("")
+const hookPayload = { tool_name: "Edit", tool_input: { file_path: join(repoRoot, "CLAUDE.md"), old_string: "# Orbit", new_string: staleName } }
+T("timeless hook rejects a planted name", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify(hookPayload), encoding: "utf8" }).status, 2)
+T("timeless hook passes after removal", spawnSync(process.execPath, [timelessHook], { input: JSON.stringify({ ...hookPayload, tool_input: { ...hookPayload.tool_input, new_string: "# Orbit" } }), encoding: "utf8" }).status, 0)
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

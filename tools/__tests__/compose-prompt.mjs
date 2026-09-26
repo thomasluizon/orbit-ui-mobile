@@ -181,6 +181,16 @@ export const cases = () => {
     prompt,
   )
   T(
+    `${TOOL}: the local order permits npm ci while banning dependency edits`,
+    /`npm ci` is allowed and expected when an installed package is missing/.test(prompt) &&
+      !/NEVER write inside `node_modules`/.test(prompt) &&
+      /Never edit installed files by hand/.test(prompt) &&
+      /Never\s+run `patch-package`/.test(prompt) &&
+      /never stage or commit a\s+path under `node_modules`/.test(prompt) &&
+      /Do not run `npm install` or change the lockfile unless the ticket says to/.test(prompt),
+    prompt,
+  )
+  T(
     `${TOOL}: the brief keeps delivery and browser boundaries`,
     /your own exit code counts for nothing/.test(prompt) && /tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
     prompt,
@@ -402,14 +412,15 @@ export const cases = () => {
   /**
    * One brief feeds the local, Cloud and redesign orders, so each one is asserted separately: a
    * later split could drop the block from any single mode and the other two would stay green. Each
-   * assertion names the read-only rule rather than the bare word node_modules, which a prompt could
+   * assertion names the edit ban rather than the bare word node_modules, which a prompt could
    * carry for an unrelated reason.
    */
   for (const [mode, order] of [["local", prompt], ["Cloud", cloudPrompt], ["redesign", redesignPrompt]]) {
     T(
-      `${TOOL}: the ${mode} order forbids writing inside node_modules and keeps it read-only evidence`,
-      /NEVER write inside `node_modules`, under any path, in any worktree, for any reason/.test(order) &&
-        /READ-ONLY\s+evidence/.test(order) &&
+      `${TOOL}: the ${mode} order permits installs but forbids dependency edits`,
+      /Never edit installed files by hand inside `node_modules`/.test(order) &&
+        /Read installed source to confirm an external interface/.test(order) &&
+        /`npm ci` is allowed and expected/.test(order) &&
         /never stage or commit a\s+path under `node_modules`/.test(order) &&
         /patch-package/.test(order),
       order,

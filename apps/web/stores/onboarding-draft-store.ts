@@ -12,6 +12,7 @@ import {
   type PersistedOnboardingDraft,
 } from '@orbit/shared/stores'
 import { getPersistStorage } from '@/lib/persist-storage'
+import { getAccountId } from '@/lib/account-scope'
 
 export const useOnboardingDraftStore = create<OnboardingDraftState>()(
   persist(
@@ -27,6 +28,16 @@ export const useOnboardingDraftStore = create<OnboardingDraftState>()(
       migrate: migrateOnboardingDraft,
       partialize: getPersistedOnboardingDraft,
       skipHydration: true,
+      merge: (persisted, current) => {
+        const draft = migrateOnboardingDraft(persisted)
+        const accountId = getAccountId()
+        return {
+          ...current,
+          ...(accountId !== null && draft.accountKey !== accountId
+            ? migrateOnboardingDraft(null)
+            : draft),
+        }
+      },
     },
   ),
 )

@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -161,5 +161,18 @@ describe('TrialExpiredModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
 
     expect(localStorage.getItem(SEEN_KEY)).toBe('1')
+  })
+
+  it('shows B trial notice after A dismisses it in a mounted shell', () => {
+    mockTrialExpired = true
+    holdAccount('account-a')
+    const modal = render(<TrialExpiredModal />)
+    fireEvent.click(screen.getByText('trial.expired.continueFree'))
+    expect(localStorage.getItem('orbit_trial_expired_seen:account-a')).toBe('1')
+
+    act(() => holdAccount('account-b'))
+    modal.rerender(<TrialExpiredModal />)
+
+    expect(screen.getByText('trial.expired.continueFree')).toBeInTheDocument()
   })
 })

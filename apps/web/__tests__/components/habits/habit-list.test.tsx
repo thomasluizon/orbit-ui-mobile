@@ -146,6 +146,7 @@ vi.mock('@/hooks/use-time-format', () => ({
 }))
 
 vi.mock('@/stores/ui-store', () => ({
+  setUIAccountScope: vi.fn(),
   useUIStore: () => null,
 }))
 

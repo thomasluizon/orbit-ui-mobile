@@ -15,6 +15,8 @@ vi.mock('@/stores/ui-store', () => ({
   ) => selector({ enqueueCelebration }),
 }))
 
+vi.mock('@/lib/account-scoped-state', () => ({ startAccountScopedSession: vi.fn() }))
+
 vi.mock('@/lib/actions/gamification', () => ({
   reportAchievementEvent: (eventKey: string) => reportAchievementEvent(eventKey),
 }))

@@ -1,0 +1,120 @@
+import { ESLint } from 'eslint'
+import { describe, expect, it } from 'vitest'
+
+const packageRoot = new URL('../../', import.meta.url).pathname
+const sourcePath = new URL('../hooks/tag-selection-core.ts', import.meta.url).pathname
+const testPath = new URL('./tag-selection-core.test.ts', import.meta.url).pathname
+
+describe('shared source import boundary', () => {
+  it.each([
+    'react',
+    'react/jsx-runtime',
+    'react-dom',
+    'react-dom/client',
+    'react-native',
+    'next',
+    'next/navigation',
+    'react-native/gesture-handler',
+  ])('rejects %s at error severity', async (moduleName) => {
+    const eslint = new ESLint({ cwd: packageRoot })
+    const [result] = await eslint.lintText(`import '${moduleName}'\n`, {
+      filePath: sourcePath,
+    })
+    if (!result) throw new Error('ESLint returned no result for shared source')
+
+    expect(result.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: 'no-restricted-imports',
+          severity: 2,
+          message: expect.stringContaining('packages/shared/CLAUDE.md'),
+        }),
+      ]),
+    )
+  })
+
+  it.each([
+    'react',
+    'react/jsx-runtime',
+    'react-dom/client',
+    'react-native',
+    'next',
+    'next/navigation',
+  ])('rejects a dynamic import of %s at error severity', async (moduleName) => {
+    const eslint = new ESLint({ cwd: packageRoot })
+    const [result] = await eslint.lintText(`export const load = () => import('${moduleName}')\n`, {
+      filePath: sourcePath,
+    })
+    if (!result) throw new Error('ESLint returned no result for shared source')
+
+    expect(result.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: 'no-restricted-syntax',
+          severity: 2,
+          message: expect.stringContaining('packages/shared/CLAUDE.md'),
+        }),
+      ]),
+    )
+  })
+
+  it.each([
+    'import(`react`)',
+    'import(`react-dom/client`)',
+    'import(`next/navigation`)',
+    "import('re' + 'act')",
+    "import(['react', 'native'].join('-'))",
+  ])(
+    'rejects the non-literal dynamic import %s at error severity',
+    async (expression) => {
+      const eslint = new ESLint({ cwd: packageRoot })
+      const [result] = await eslint.lintText(`export const load = () => ${expression}\n`, {
+        filePath: sourcePath,
+      })
+      if (!result) throw new Error('ESLint returned no result for shared source')
+
+      expect(result.messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            severity: 2,
+            message: expect.stringContaining('packages/shared/CLAUDE.md'),
+          }),
+        ]),
+      )
+    },
+  )
+
+  it('allows a relative string-literal dynamic import, as the locale loader uses', async () => {
+    const eslint = new ESLint({ cwd: packageRoot })
+    const [result] = await eslint.lintText("export const load = () => import('./en.json')\n", {
+      filePath: sourcePath,
+    })
+    if (!result) throw new Error('ESLint returned no result for shared source')
+
+    expect(result.messages.some((message) => message.ruleId === 'no-restricted-syntax')).toBe(false)
+  })
+
+  it.each(['react-i18next', 'next-intl', 'reactive'])(
+    'allows a dynamic import of %s, which only shares a prefix',
+    async (moduleName) => {
+      const eslint = new ESLint({ cwd: packageRoot })
+      const [result] = await eslint.lintText(`export const load = () => import('${moduleName}')\n`, {
+        filePath: sourcePath,
+      })
+      if (!result) throw new Error('ESLint returned no result for shared source')
+
+      expect(result.messages.some((message) => message.ruleId === 'no-restricted-syntax')).toBe(false)
+    },
+  )
+
+  it('allows test files to import React', async () => {
+    const eslint = new ESLint({ cwd: packageRoot })
+    const [result] = await eslint.lintText("import 'react'\n", {
+      filePath: testPath,
+    })
+    if (!result) throw new Error('ESLint returned no result for shared test')
+
+    expect(result.messages.some((message) => message.ruleId === 'no-restricted-imports')).toBe(false)
+  })
+})

@@ -147,17 +147,6 @@ Playwright, Maestro or Cypress, nothing under \`e2e/\`, no navigating to localho
 logging in to the app. If the ticket says screenshots are required, do not gather them in this
 worker. A fresh worktree has no seeded session.`
 
-const dependencyBan = `
-
-**NEVER write inside \`node_modules\`, under any path, in any worktree, for any reason.** Not a
-patch, not a flag, not a one-character flip, not "just to check". A dependency is READ-ONLY
-evidence: you confirm an external interface by READING the installed source, then you change your
-OWN code to match it. Never run \`patch-package\` or any equivalent, and never stage or commit a
-path under \`node_modules\`. If the installed source disagrees with what the ticket needs, that
-disagreement IS the finding: report it in the pull request body and, where the ticket needs a real
-mechanism, use the supported one such as an Expo config plugin. A plain reinstall may leave edits
-inside a complete dependency package intact.`
-
 const assumptionDestination = cloud
   ? "the committed handoff's `assumptions` array"
   : reviewBatch ? "your final report's `## Assumptions` section" : "the PR body's `## Assumptions` section"
@@ -196,7 +185,13 @@ do not deliver partial behaviour silently.${browserBan}
 **Boundaries.** Never merge, in any shape: no gh pr merge, no PUT /repos/{owner}/{repo}/pulls/N/merge,
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or
 --no-gpg-sign. Do not edit the ticket. Do not touch a second repository: cross-repo work is
-two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.${dependencyBan}
+two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
+
+**Dependencies.** Never edit installed files by hand inside \`node_modules\`, under any path, in any
+worktree. Read installed source to confirm an external interface, then change your own code. Never
+run \`patch-package\` or an equivalent, and never stage or commit a path under \`node_modules\`.
+\`npm ci\` is allowed and expected when an installed package is missing; it installs the tree from
+the lockfile. Do not run \`npm install\` or change the lockfile unless the ticket says to.
 
 **Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add
 --update\`, a dot path, a wildcard, or a non-literal magic pathspec. Inspect \`git status --short\`,

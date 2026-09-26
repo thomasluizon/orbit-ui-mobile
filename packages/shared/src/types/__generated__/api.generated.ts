@@ -185,7 +185,8 @@ export const postApiAuthSendCodeBodyLanguageDefault = `en`;
 
 export const PostApiAuthSendCodeBody = zod.object({
   "email": zod.string(),
-  "language": zod.string().default(postApiAuthSendCodeBodyLanguageDefault)
+  "language": zod.string().default(postApiAuthSendCodeBodyLanguageDefault),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiAuthSendCodeResponse = zod.unknown()
@@ -195,7 +196,8 @@ export const postApiAuthOperationsSendCodeBodyLanguageDefault = `en`;
 
 export const PostApiAuthOperationsSendCodeBody = zod.object({
   "email": zod.string(),
-  "language": zod.string().default(postApiAuthOperationsSendCodeBodyLanguageDefault)
+  "language": zod.string().default(postApiAuthOperationsSendCodeBodyLanguageDefault),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiAuthOperationsSendCodeResponse = zod.unknown()
@@ -207,7 +209,8 @@ export const PostApiAuthVerifyCodeBody = zod.object({
   "email": zod.string(),
   "code": zod.string(),
   "language": zod.string().default(postApiAuthVerifyCodeBodyLanguageDefault),
-  "referralCode": zod.string().nullish()
+  "referralCode": zod.string().nullish(),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiAuthVerifyCodeResponse = zod.unknown()
@@ -219,7 +222,8 @@ export const PostApiAuthOperationsVerifyCodeBody = zod.object({
   "email": zod.string(),
   "code": zod.string(),
   "language": zod.string().default(postApiAuthOperationsVerifyCodeBodyLanguageDefault),
-  "referralCode": zod.string().nullish()
+  "referralCode": zod.string().nullish(),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiAuthOperationsVerifyCodeResponse = zod.unknown()
@@ -384,6 +388,35 @@ export const GetApiChallengesChallengeIdParams = zod.object({
 export const GetApiChallengesChallengeIdResponse = zod.unknown()
 
 
+export const GetApiChatRecordsKindParams = zod.object({
+  "kind": zod.string()
+})
+
+export const GetApiChatRecordsKindQueryParams = zod.object({
+  "cursor": zod.string().optional()
+})
+
+export const getApiChatRecordsKindResponseTotalCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiChatRecordsKindResponseItemsItemCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const GetApiChatRecordsKindResponse = zod.object({
+  "kind": zod.string(),
+  "totalCount": zod.union([zod.int(),zod.stringFormat('int32', getApiChatRecordsKindResponseTotalCountRegExpTwo)]),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "detail": zod.string().nullish(),
+  "date": zod.iso.datetime({"offset":true}).nullish(),
+  "isRead": zod.boolean().nullish(),
+  "count": zod.union([zod.int(),zod.stringFormat('int32', getApiChatRecordsKindResponseItemsItemCountRegExpTwo)]).nullish(),
+  "state": zod.string().nullish()
+})),
+  "surfaceId": zod.string().nullish(),
+  "nextCursor": zod.string().nullish()
+})
+
+
 export const PostApiChatBody = zod.object({
   "message": zod.string().optional()
 }).and(zod.object({
@@ -398,6 +431,7 @@ export const PostApiChatBody = zod.object({
 
 export const postApiChatResponseActionsItemSuggestedSubHabitsItemFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseActionsItemSuggestedSubHabitsItemReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiChatResponsePendingOperationsItemChangeTargetCountRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseHabitListTwoItemsItemDepthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const postApiChatResponseGoalListTwoItemsItemCurrentRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
 export const postApiChatResponseGoalListTwoItemsItemTargetRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$');
@@ -513,7 +547,16 @@ export const PostApiChatResponse = zod.object({
   "summary": zod.string(),
   "riskClass": zod.int(),
   "confirmationRequirement": zod.int(),
-  "expiresAtUtc": zod.iso.datetime({"offset":true})
+  "expiresAtUtc": zod.iso.datetime({"offset":true}),
+  "changes": zod.array(zod.object({
+  "entityId": zod.uuid(),
+  "entityName": zod.string(),
+  "field": zod.string(),
+  "oldValue": zod.string().nullable(),
+  "newValue": zod.string().nullable(),
+  "valueType": zod.string()
+})).nullish(),
+  "changeTargetCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePendingOperationsItemChangeTargetCountRegExpTwo)]).nullish()
 })).nullish(),
   "policyDenials": zod.array(zod.object({
   "operationId": zod.string(),
@@ -646,7 +689,12 @@ export const PostApiChatResponse = zod.object({
   "iconKey": zod.string(),
   "earnedAt": zod.iso.datetime({"offset":true})
 })),
-  "surfaceId": zod.string().default(postApiChatResponseStreakTwoSurfaceIdDefault)
+  "surfaceId": zod.string().default(postApiChatResponseStreakTwoSurfaceIdDefault),
+  "achievementDiscs": zod.array(zod.object({
+  "id": zod.string(),
+  "iconKey": zod.string(),
+  "earnedAt": zod.iso.datetime({"offset":true}).nullable()
+})).nullish()
 })]).optional(),
   "calendar": zod.union([zod.null(),zod.object({
   "events": zod.array(zod.object({
@@ -671,9 +719,11 @@ export const PostApiChatResponse = zod.object({
   "detail": zod.string().nullish(),
   "date": zod.iso.datetime({"offset":true}).nullish(),
   "isRead": zod.boolean().nullish(),
-  "count": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseRecordListsItemItemsItemCountRegExpTwo)]).nullish()
+  "count": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponseRecordListsItemItemsItemCountRegExpTwo)]).nullish(),
+  "state": zod.string().nullish()
 })),
-  "surfaceId": zod.string().nullish()
+  "surfaceId": zod.string().nullish(),
+  "nextCursor": zod.string().nullish()
 })).nullish(),
   "accountRows": zod.union([zod.null(),zod.object({
   "kind": zod.string(),
@@ -685,7 +735,8 @@ export const PostApiChatResponse = zod.object({
   "referralCode": zod.string().nullish(),
   "referralLink": zod.string().nullish(),
   "surfaceId": zod.string().default(postApiChatResponseAccountRowsTwoSurfaceIdDefault)
-})]).optional()
+})]).optional(),
+  "followUps": zod.array(zod.string()).nullish()
 })
 
 
@@ -1548,7 +1599,8 @@ export const postOauthSendCodeBodyLanguageDefault = `en`;
 
 export const PostOauthSendCodeBody = zod.object({
   "email": zod.string(),
-  "language": zod.string().default(postOauthSendCodeBodyLanguageDefault)
+  "language": zod.string().default(postOauthSendCodeBodyLanguageDefault),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostOauthSendCodeResponse = zod.unknown()
@@ -1560,7 +1612,8 @@ export const PostOauthVerifyCodeBody = zod.object({
   "email": zod.string(),
   "code": zod.string(),
   "language": zod.string().default(postOauthVerifyCodeBodyLanguageDefault),
-  "referralCode": zod.string().nullish()
+  "referralCode": zod.string().nullish(),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostOauthVerifyCodeResponse = zod.unknown()
@@ -2046,7 +2099,8 @@ export const postApiWaitlistBodyLanguageDefault = `en`;
 
 export const PostApiWaitlistBody = zod.object({
   "email": zod.string(),
-  "language": zod.string().default(postApiWaitlistBodyLanguageDefault)
+  "language": zod.string().default(postApiWaitlistBodyLanguageDefault),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiWaitlistResponse = zod.unknown()

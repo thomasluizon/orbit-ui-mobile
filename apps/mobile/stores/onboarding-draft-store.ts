@@ -9,6 +9,7 @@ import {
   type OnboardingDraftState,
   type PersistedOnboardingDraft,
 } from '@orbit/shared/stores'
+import { getAccountId } from '@/lib/account-scope'
 
 /** Draft store augmented with a hydration flag so the splash gate and route guards can wait for AsyncStorage rehydration. */
 export interface OnboardingDraftStore extends OnboardingDraftState {
@@ -30,6 +31,16 @@ export const useOnboardingDraftStore = create<OnboardingDraftStore>()(
       storage: createJSONStorage<PersistedOnboardingDraft>(() => AsyncStorage),
       migrate: migrateOnboardingDraft,
       partialize: getPersistedOnboardingDraft,
+      merge: (persisted, current) => {
+        const draft = migrateOnboardingDraft(persisted)
+        const accountId = getAccountId()
+        return {
+          ...current,
+          ...(accountId !== null && draft.accountKey !== accountId
+            ? migrateOnboardingDraft(null)
+            : draft),
+        }
+      },
       onRehydrateStorage: () => () => {
         useOnboardingDraftStore.setState({ _hasHydrated: true })
       },
