@@ -95,7 +95,9 @@ const requiredFrom = (nodes) => nodes.map((node) => ({ context: node.name ?? nod
 
 /** The envelope the confirmed GraphQL query returns, keyed exactly like the live #716 response. */
 const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
-  data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: reviews }, statusCheckRollup: { contexts: { nodes } } } } },
+  data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid,
+    commits: { nodes: [{ commit: { oid: headRefOid, committedDate: "2026-08-01T00:00:00Z" } }] },
+    isDraft, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: reviews }, statusCheckRollup: { contexts: { nodes } } } } },
 })
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")

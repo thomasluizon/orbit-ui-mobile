@@ -41,7 +41,7 @@ const approvalCheck = (status = "COMPLETED", conclusion = "SUCCESS", startedAt =
   checkSuite: { app: { databaseId: 1768019 } },
 })
 
-const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], checks = [approvalCheck()], headRefOid = HEAD, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
+const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], checks = [approvalCheck()], headRefOid = HEAD, headCommittedDate = "2026-08-04T22:00:00Z", pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
   JSON.stringify({
     data: {
       repository: {
@@ -50,6 +50,7 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], c
           isDraft,
           baseRefOid: BASE,
           headRefOid,
+          commits: { nodes: [{ commit: { oid: headRefOid, committedDate: headCommittedDate } }] },
           statusCheckRollup: { contexts: { nodes: checks } },
           reviews: { nodes: reviews },
           comments: { nodes: comments },
@@ -505,6 +506,34 @@ export const cases = () => {
     stalePlan?.staleReviewCommit === OLD_HEAD && stalePlan.headRefOid === HEAD && /@pullfrog review/.test(stalePlan.note ?? ""),
     stale.stdout,
   )
+  /** GitHub's PR 1107 reports the old review with the later merge head's oid. */
+  const repointed = readPr(payload({
+    headRefOid: "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
+    headCommittedDate: "2026-09-26T02:48:29Z",
+    reviews: [botReview("APPROVED", "2026-09-25T21:50:13Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  }))
+  T(`${TOOL}: PR 1107's repointed older review is NO_REVIEW`,
+    repointed.status === 1 && parsed(repointed)?.verdict === "NO_REVIEW" &&
+      parsed(repointed)?.staleReviewCommit === "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
+    repointed.stdout || repointed.stderr)
+  const reviewedAfterMerge = readPr(payload({
+    headRefOid: "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
+    headCommittedDate: "2026-09-26T02:48:29Z",
+    reviews: [botReview("APPROVED", "2026-09-26T02:59:43Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  }))
+  T(`${TOOL}: PR 1107's later real review is REVIEWED`, reviewedAfterMerge.status === 0 && parsed(reviewedAfterMerge)?.verdict === "REVIEWED", reviewedAfterMerge.stdout || reviewedAfterMerge.stderr)
+  const fiveSecondSkew = readPr(payload({
+    headRefOid: "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
+    headCommittedDate: "2026-09-26T02:48:29Z",
+    reviews: [botReview("APPROVED", "2026-09-26T02:48:24Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  }))
+  T(`${TOOL}: five seconds of committer clock skew keeps a real review`, fiveSecondSkew.status === 0 && parsed(fiveSecondSkew)?.verdict === "REVIEWED", fiveSecondSkew.stdout || fiveSecondSkew.stderr)
+  const beyondSkew = readPr(payload({
+    headRefOid: "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
+    headCommittedDate: "2026-09-26T02:48:29Z",
+    reviews: [botReview("APPROVED", "2026-09-26T02:48:23Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  }))
+  T(`${TOOL}: six seconds before the head is stale`, beyondSkew.status === 1 && parsed(beyondSkew)?.verdict === "NO_REVIEW", beyondSkew.stdout || beyondSkew.stderr)
   /**
    * NO_REVIEW is ambiguous unless it says whether anyone asked, and the two readings justify
    * different actions: a reviewer that was asked and stayed silent is evidence about the reviewer,

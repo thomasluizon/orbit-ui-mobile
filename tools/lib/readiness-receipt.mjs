@@ -66,6 +66,7 @@ const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name:
       baseRefOid
       headRefOid
       isDraft
+      commits(last: 1) { nodes { commit { oid committedDate } } }
       reviews(last: 50, author: "pullfrog[bot]") {
         totalCount
         pageInfo { hasPreviousPage startCursor }
@@ -248,11 +249,18 @@ const normalizeReviewNode = (node) => {
  *
  * Newest, never first. Pullfrog often submits TWO reviews seconds apart, COMMENTED then APPROVED: on
  * PR 832 they arrived at 05:44:04Z and 05:44:39Z. A reader that returns on the first one reports
- * COMMENTED and hides a real approval, so this sorts by `submittedAt` and takes the last.
+ * COMMENTED and hides a real approval, so this sorts by `submittedAt` and takes the last. GitHub
+ * can repoint a review onto a later merge head, so the review must also follow its commit date.
  */
-export const reviewAppVerdictAtHead = (reviews, headOid) => {
-  if (!Array.isArray(reviews) || typeof headOid !== "string" || headOid === "") return null
-  const atHead = reviews.filter((review) => review.isBot && review.login === REVIEW_APP_LOGIN && review.commitOid === headOid)
+/** Git commits use a committer clock while GitHub stamps review submission. Allow five seconds
+ * between those clocks; neither API promises a bound, so this is a narrow policy allowance. */
+const COMMIT_CLOCK_SKEW_MS = 5_000
+
+export const reviewAppVerdictAtHead = (reviews, headOid, headCommittedDate) => {
+  const headTime = Date.parse(headCommittedDate ?? "")
+  if (!Array.isArray(reviews) || typeof headOid !== "string" || headOid === "" || !Number.isFinite(headTime)) return null
+  const atHead = reviews.filter((review) => review.isBot && review.login === REVIEW_APP_LOGIN && review.commitOid === headOid &&
+    review.submittedAt !== null && Number.isFinite(Date.parse(review.submittedAt)) && Date.parse(review.submittedAt) >= headTime - COMMIT_CLOCK_SKEW_MS)
   if (atHead.length === 0) return null
   return atHead.reduce((newest, review) => (String(review.submittedAt ?? "") >= String(newest.submittedAt ?? "") ? review : newest))
 }
@@ -371,7 +379,7 @@ export const MAX_REVIEW_PAGES = 4
  * ends the walk as INCOMPLETE rather than as an absence, for the same reason.
  */
 export const resolveReviewVerdict = async (state, fetchOlderPage) => {
-  const verdict = reviewAppVerdictAtHead(state?.reviews, state?.headRefOid)
+  const verdict = reviewAppVerdictAtHead(state?.reviews, state?.headRefOid, state?.headCommittedDate)
   if (verdict) return { verdict, complete: true, pagesRead: 0 }
   let truncated = state?.reviewsTruncated === true
   let cursor = state?.reviewsStartCursor ?? null
@@ -380,7 +388,7 @@ export const resolveReviewVerdict = async (state, fetchOlderPage) => {
     const page = await fetchOlderPage(cursor)
     pagesRead += 1
     if (!page) return { verdict: null, complete: false, pagesRead }
-    const found = reviewAppVerdictAtHead(page.reviews, state?.headRefOid)
+    const found = reviewAppVerdictAtHead(page.reviews, state?.headRefOid, state?.headCommittedDate)
     if (found) return { verdict: found, complete: true, pagesRead }
     truncated = page.truncated
     cursor = page.startCursor
@@ -408,6 +416,8 @@ export const pullRequestStateFromGraphQl = (payload) => {
   if (!pullRequest) return null
   const { number, baseRefName, baseRefOid, headRefOid, isDraft } = pullRequest
   if (!Number.isInteger(number) || typeof baseRefName !== "string" || typeof baseRefOid !== "string" || typeof headRefOid !== "string" || typeof isDraft !== "boolean") return null
+  const headCommit = pullRequest.commits?.nodes?.[0]?.commit
+  if (headCommit?.oid !== headRefOid || !Number.isFinite(Date.parse(headCommit?.committedDate))) return null
   const nodes = pullRequest.statusCheckRollup === null ? [] : pullRequest.statusCheckRollup?.contexts?.nodes
   if (!Array.isArray(nodes)) return null
   const statusCheckRollup = []
@@ -462,7 +472,7 @@ export const pullRequestStateFromGraphQl = (payload) => {
   const reviewsTruncated = reviewsConnection === null || reviewsConnection === undefined ? false : truncationOf(reviewsConnection)
   if (reviewsTruncated === null) return null
   const reviewsStartCursor = typeof reviewsConnection?.pageInfo?.startCursor === "string" ? reviewsConnection.pageInfo.startCursor : null
-  return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
+  return { number, baseRefName, baseRefOid, headRefOid, headCommittedDate: headCommit.committedDate, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
 }
 
 /**

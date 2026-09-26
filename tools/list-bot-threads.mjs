@@ -79,9 +79,8 @@ head to be APPROVED and checkConclusion to be SUCCESS. checkStatus is COMPLETED,
 an APPROVED review with an ABSENT check is REVIEWED, because an unprotected base publishes no check
 and the exact-head approval is its evidence. Triage a non-null reviewBody like a thread.
 
-A review is evidence about the commit it was given on and nothing else. One pinned to an older
-head is NOT accepted: after a push the newest review names the old commit until the re-review
-lands, and taking it would report REVIEWED for code Pullfrog never saw.
+A review pinned to an older head is NOT accepted. A review submitted before the current head
+commit is stale too, even when GitHub reports the later head's oid on it.
 
 A draft pull request is read exactly like any other one, because Pullfrog reviews drafts too.
 
@@ -186,6 +185,7 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
   repository(owner:$owner,name:$repo){
     pullRequest(number:$pr){
       number isDraft baseRefOid headRefOid
+      commits(last:1){nodes{commit{oid committedDate}}}
       reviews(last:50){nodes{id author{login} state submittedAt body commit{oid}}}
       comments(last:100){nodes{createdAt url}}
       statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion startedAt completedAt checkSuite{app{databaseId}}}}}}
@@ -231,6 +231,8 @@ const readPullRequest = async () => {
     if (payload.errors?.length) fail(2, `gh api graphql reported: ${payload.errors.map((entry) => entry.message).join("; ")}`)
     const node = payload.data?.repository?.pullRequest
     if (!node) fail(2, `gh api graphql returned no pull request ${pullRequest}`)
+    const headCommit = node.commits?.nodes?.[0]?.commit
+    if (headCommit?.oid !== node.headRefOid || !Number.isFinite(Date.parse(headCommit?.committedDate))) fail(2, "gh api graphql returned no dated head commit")
     const pageInfo = node.reviewThreads?.pageInfo
     if (typeof pageInfo?.hasNextPage !== "boolean" || !(typeof pageInfo.endCursor === "string" || pageInfo.endCursor === null)) fail(2, "gh api graphql returned no complete reviewThreads pageInfo")
     if (!Array.isArray(node.reviewThreads?.nodes)) fail(2, "gh api graphql returned no reviewThreads nodes array")
@@ -337,14 +339,17 @@ progress("REVIEW_STATE_READ", node, startedAt, deadline)
  * Pullfrog re-reviews after every push, so between a push and the next review the newest review
  * still names the OLD commit. Accepting it would report REVIEWED for code Pullfrog never saw, which
  * is the very defect this tool exists to remove: the harness reading a stale approval as a current
- * one. Comparing the commit is what makes the answer correct. A review whose commit is not the head
- * does not count, and the wait continues.
+ * one. The oid check alone misses GitHub repointing a review onto a later merge commit, so the
+ * submission also has to follow the head's committer timestamp.
  */
 const COMPLETED_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
+/** Git commits use a committer clock while GitHub stamps review submission. Allow five seconds
+ * between those clocks; neither API promises a bound, so this is a narrow policy allowance. */
+const COMMIT_CLOCK_SKEW_MS = 5_000
 const currentHeadReviews = (payload) =>
   (payload.reviews?.nodes ?? [])
     .filter((review) => review.author?.login === botLogin)
-    .filter((review) => review.commit?.oid && review.commit.oid === payload.headRefOid)
+    .filter((review) => review.commit?.oid === payload.headRefOid && submittedAtOf(review) >= Date.parse(payload.commits.nodes[0].commit.committedDate) - COMMIT_CLOCK_SKEW_MS)
     .sort((left, right) => submittedAtOf(left) - submittedAtOf(right))
 
 const reviewThreadsOf = (payload, review) => (payload.reviewThreads?.nodes ?? [])
@@ -507,6 +512,8 @@ if (!review) {
     : 'no "@pullfrog review" was posted on this run, so the reviewer may simply never have been triggered'
   const note = stale && stale.commit?.oid !== node.headRefOid
     ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
+    : stale && stale.commit?.oid === node.headRefOid && submittedAtOf(stale) < Date.parse(node.commits.nodes[0].commit.committedDate) - COMMIT_CLOCK_SKEW_MS
+      ? `the newest ${botLogin} review predates head ${node.headRefOid}; GitHub reported the later head on that review. ${asked}`
     : `no completed ${botLogin} review of this head arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
