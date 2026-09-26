@@ -582,10 +582,14 @@ function attachPerformanceMetrics(findings, measurement) {
 }
 // </generated:performance-measurement>
 
-const { pathToFileURL } = await import('node:url')
-const { join } = await import('node:path')
-const { readOrchestratorConfig } = await import(pathToFileURL(join(process.cwd(), 'tools/lib/orchestrator-config.mjs')).href)
-const { ui: UI, api: API } = readOrchestratorConfig().repos
+const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
+for (const name of ['ui', 'api']) {
+  const root = parsedArgs.roots?.[name]
+  if (typeof root !== 'string' || !/^(?:\/|[A-Za-z]:[\\/]|\\\\[^\\]+\\)/.test(root)) {
+    throw new Error(`audit workflow: args.roots.${name} must be an absolute path`)
+  }
+}
+const { ui: UI, api: API } = parsedArgs.roots
 const VERIFY_CAP = 60
 const HARD_ROUNDS = 4
 
@@ -840,7 +844,6 @@ const countBy = (findings) => {
   return out
 }
 
-const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
 const kind = parsedArgs.kind
 const scope = parsedArgs.scope || 'both'
 if (!KIND[kind]) throw new Error(`audit workflow: unknown kind "${kind}" (expected security | tests | performance | code-quality)`)

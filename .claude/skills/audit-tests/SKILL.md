@@ -87,8 +87,10 @@ the workflow tags it **Critical**.
 
 Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
+From the UI checkout, run `node --input-type=module -e 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; const { ui, api } = readOrchestratorConfig().repos; console.log(JSON.stringify({ ui, api }))'`. Parse its JSON output as `{ ui, api }` and pass it as `roots`.
+
 ```
-Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: { kind: 'tests', scope: '<resolved {scope}>' } })
+Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: { kind: 'tests', scope: '<resolved {scope}>', roots: { ui, api } } })
 ```
 
 (`scriptPath` is canonical, named workflow resolution is not available in this Claude Code build.)

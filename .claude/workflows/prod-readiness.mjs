@@ -9,10 +9,14 @@ export const meta = {
   ],
 }
 
-const { pathToFileURL } = await import('node:url')
-const { join } = await import('node:path')
-const { readOrchestratorConfig } = await import(pathToFileURL(join(process.cwd(), 'tools/lib/orchestrator-config.mjs')).href)
-const { ui: UI, api: API } = readOrchestratorConfig().repos
+const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
+for (const name of ['ui', 'api']) {
+  const root = parsedArgs.roots?.[name]
+  if (typeof root !== 'string' || !/^(?:\/|[A-Za-z]:[\\/]|\\\\[^\\]+\\)/.test(root)) {
+    throw new Error(`prod-readiness workflow: args.roots.${name} must be an absolute path`)
+  }
+}
+const { ui: UI, api: API } = parsedArgs.roots
 
 const OPS_SCHEMA = {
   type: 'object',
@@ -129,7 +133,6 @@ function uiInScope(requestedScope) {
   return !(normalized.includes('/orbit-api/') || /^(?:\.\/)?(?:src|tests)\//.test(normalized))
 }
 
-const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
 const scope = parsedArgs.scope || 'both'
 const performanceMeasurement = parsedArgs.performanceMeasurement || {
   status: 'unavailable',
@@ -142,7 +145,7 @@ log(`prod-readiness · scope ${scope} · running ${AUDIT_KINDS.length} audits + 
 const auditResults = (
   await parallel(AUDIT_KINDS.map((k) => () => workflow(
     { scriptPath: '.claude/workflows/audit.mjs' },
-    { kind: k, scope, measurement: k === 'performance' ? performanceMeasurement : undefined },
+    { kind: k, scope, roots: parsedArgs.roots, measurement: k === 'performance' ? performanceMeasurement : undefined },
   )))
 ).map((r, i) => r || { kind: AUDIT_KINDS[i], failed: true, findings: [], counts: {}, coverage: [], deferred: [] })
 

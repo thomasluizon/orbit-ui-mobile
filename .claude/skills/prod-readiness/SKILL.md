@@ -131,9 +131,11 @@ performance inventory item is `CODE_ONLY`, never a pass.
 
 Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
+From the UI checkout, run `node --input-type=module -e 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; const { ui, api } = readOrchestratorConfig().repos; console.log(JSON.stringify({ ui, api }))'`. Parse its JSON output as `{ ui, api }` and pass it as `roots`.
+
 ```
 Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: {
-  scope: '<resolved {scope}>', performanceMeasurement: productionMeasurement
+  scope: '<resolved {scope}>', roots: { ui, api }, performanceMeasurement: productionMeasurement
 } })
 ```
 
