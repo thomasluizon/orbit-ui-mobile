@@ -15,6 +15,7 @@ import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epo
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import RootLayout from '@/app/_layout'
+import ProfileScreen from '@/app/(tabs)/profile'
 
 const TestRenderer = require('react-test-renderer')
 const mountedTrees: ReturnType<typeof TestRenderer.create>[] = []
@@ -55,7 +56,21 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: mocks.useQueryClient,
+  useQuery: () => ({ data: undefined, error: null, isLoading: false, isError: false }),
+  useMutation: (options: { mutationFn?: (value: unknown) => unknown }) => ({
+    mutate: (value: unknown) => options.mutationFn?.(value),
+    isPending: false,
+  }),
 }))
+vi.mock('@/lib/query-client', () => ({ clearPersistedQueryCache: vi.fn() }))
+vi.mock('@/lib/offline-mutations', () => ({
+  buildQueuedMutation: vi.fn(),
+  createQueuedAck: vi.fn(),
+  isQueuedResult: vi.fn(() => false),
+  queueOrExecute: vi.fn(),
+}))
+vi.mock('@/lib/offline-queue', () => ({ clear: vi.fn(), enqueue: vi.fn() }))
+vi.mock('@/lib/checklist-template-storage', () => ({ clearChecklistTemplates: vi.fn() }))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
@@ -80,13 +95,28 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
+vi.mock('expo-sharing', () => ({ isAvailableAsync: vi.fn().mockResolvedValue(true), shareAsync: vi.fn() }))
+vi.mock('expo-device', () => ({ __esModule: true, default: { isDevice: true }, isDevice: true }))
+vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
+vi.mock('react-native-svg', () => ({
+  __esModule: true,
+  default: () => null,
+  Path: () => null,
+  Defs: () => null,
+  Stop: () => null,
+  Rect: () => null,
+}))
 vi.mock('expo-status-bar', () => ({ StatusBar: () => null }))
 vi.mock('expo-router/react-navigation', () => ({}))
 vi.mock('react-native-gesture-handler', () => ({ GestureHandlerRootView: ({ children }: { children?: React.ReactNode }) => children }))
 vi.mock('@sentry/react-native', () => ({ wrap: (component: unknown) => component }))
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children?: React.ReactNode }) => children, useCaptureReady: () => false }))
 vi.mock('@/stores/auth-store', () => ({ useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }) }))
-vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ clearLevelUp: vi.fn(), crossedStreakMilestones: [], leveledUp: false, newAchievements: [], newLevel: null }) }))
+vi.mock('@/hooks/use-gamification', () => ({
+  useGamificationProfile: () => ({ clearLevelUp: vi.fn(), crossedStreakMilestones: [], leveledUp: false, newAchievements: [], newLevel: null }),
+  useReportEvent: () => ({ mutate: vi.fn() }),
+  useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
+}))
 vi.mock('@/hooks/use-ad-mob', () => ({ useAdMob: () => ({ initialize: vi.fn() }) }))
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
@@ -313,6 +343,35 @@ describe('mobile useChatComposer', () => {
       const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
       expect(context.entryPointIntent).toBe('support')
     }
+  })
+
+  it('sends Support row intent with the first problem description', async () => {
+    mocks.pathname = '/profile'
+    mocks.state.profile = createMockProfile({ plan: 'free', hasProAccess: false })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    let profileTree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      profileTree = TestRenderer.create(<ProfileScreen />)
+      mountedTrees.push(profileTree)
+      await Promise.resolve()
+    })
+    const supportRow = profileTree.root.find((node: { props: { accessibilityRole?: string }; children: unknown[] }) => {
+      const text = (child: unknown): string => {
+        if (typeof child === 'string') return child
+        if (!child || typeof child !== 'object' || !('children' in child)) return ''
+        return (child as { children: unknown[] }).children.map(text).join('')
+      }
+      return node.props.accessibilityRole === 'button' && text(node).includes('profile.support.title')
+    })
+    const composer = await renderComposer()
+
+    TestRenderer.act(() => { supportRow.props.onPress() })
+    await TestRenderer.act(async () => { await composer.current.sendMessage('my streak reset after I travelled') })
+
+    const [formData] = mocks.openChatStream.mock.calls[0]!
+    expect((formData as { get(name: string): string | null }).get('message')).toBe('my streak reset after I travelled')
+    const context = JSON.parse((formData as { get(name: string): string | null }).get('clientContext') as string)
+    expect(context.entryPointIntent).toBe('support')
   })
 
   it.each([
