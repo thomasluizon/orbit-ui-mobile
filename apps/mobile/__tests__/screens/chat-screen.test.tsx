@@ -128,9 +128,8 @@ vi.mock('@/components/ui/pill-button', () => ({
       React.createElement('Text', null, props.children),
     ),
 }))
-vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
-  KeyboardAwareView: (props: { children: React.ReactNode }) =>
-    React.createElement('KeyboardAwareView', props, props.children),
+vi.mock('@/components/ui/keyboard-aware-scroll-view', async (importOriginal) => ({
+  KeyboardAwareView: (await importOriginal<typeof import('@/components/ui/keyboard-aware-scroll-view')>()).KeyboardAwareView,
   KeyboardAwareFlatList: (props: {
     data: ChatMessage[]
     renderItem: (entry: { item: ChatMessage }) => React.ReactNode
@@ -209,9 +208,10 @@ describe('ChatScreen composer recoveries', () => {
   it.each([true, false])('keeps the composer inside Android keyboard avoidance when suggestions are %s', async (showSuggestions) => {
     mocks.composer.showSuggestions = showSuggestions
     const tree = await renderScreen()
-    const avoidingView = findByType(tree.root, 'KeyboardAwareView')
+    const avoidingView = findByType(tree.root, 'KeyboardAvoidingView')
 
     expect(avoidingView).toBeDefined()
+    expect(avoidingView?.props.behavior).toBe('height')
     expect(findByType(avoidingView!, 'Composer')).toBeDefined()
     expect(mocks.keyboardDidShow).toBeNull()
   })
@@ -344,13 +344,14 @@ describe('ChatScreen composer recoveries', () => {
 
   it('keeps the composer inside Android keyboard avoidance with safe-area padding', async () => {
     const tree = await renderScreen()
-    const avoidingView = findByType(tree.root, 'KeyboardAwareView')
+    const avoidingView = findByType(tree.root, 'KeyboardAvoidingView')
     const composerContainer = avoidingView?.findAll((node) => {
       const style = node.props.style
       return typeof style === 'object' && style !== null && 'paddingBottom' in style
     })[0]
 
     expect(findByType(avoidingView!, 'Composer')).toBeDefined()
+    expect(avoidingView?.props.behavior).toBe('height')
     expect(composerContainer?.props.style).toMatchObject({ paddingBottom: 20 })
     expect(composerContainer?.props.style).not.toHaveProperty('marginBottom')
     expect(mocks.keyboardDidShow).toBeNull()
