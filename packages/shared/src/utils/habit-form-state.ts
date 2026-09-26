@@ -1,8 +1,29 @@
-import type { HabitDetail, NormalizedHabit } from '../types/habit'
+import type { HabitDetail, NormalizedHabit, ScheduledReminderTime } from '../types/habit'
 import type { HabitFormData } from '../validation'
 import { formatAPIDate } from './dates'
 
 export const DEFAULT_REMINDER_TIMES = [0, 15] as const
+
+function editableReminders(habit: NormalizedHabit, detail?: HabitDetail | null) {
+  const source = detail ?? habit
+  const relative = source.relativeReminders ?? habit.relativeReminders ?? []
+  const offsets = [...new Set([
+    ...source.reminderTimes,
+    ...relative.flatMap((reminder) => reminder.minutesBefore == null ? [] : [reminder.minutesBefore]),
+  ])]
+  const clocks: ScheduledReminderTime[] = source.dueTime
+    ? [...source.scheduledReminders, ...relative.flatMap((reminder) =>
+        reminder.when && reminder.time ? [{ when: reminder.when, time: reminder.time }] : [])]
+    : source.scheduledReminders
+  const scheduledReminders = clocks
+    .filter((reminder, index) =>
+      clocks.findIndex((other) => other.when === reminder.when && other.time === reminder.time) === index)
+    .map((reminder) => ({ ...reminder }))
+  return {
+    reminderTimes: offsets.length || scheduledReminders.length ? offsets : [...DEFAULT_REMINDER_TIMES],
+    scheduledReminders,
+  }
+}
 
 export type HabitFormMode = 'oneTime' | 'recurring' | 'flexible' | 'general'
 
@@ -132,12 +153,12 @@ export function buildParentHabitFormState(
       dueEndTime: parent.dueEndTime?.slice(0, 5) ?? '',
       endDate: parent.endDate ?? '',
       reminderEnabled: parent.reminderEnabled,
-      scheduledReminders: parent.scheduledReminders.map((sr) => ({ ...sr })),
+      scheduledReminders: editableReminders(parent).scheduledReminders,
       slipAlertEnabled: parent.slipAlertEnabled,
       checklistItems: [],
     },
     mode: resolveHabitFormMode(parent),
-    reminderTimes: parent.reminderTimes.length ? [...parent.reminderTimes] : [...DEFAULT_REMINDER_TIMES],
+    reminderTimes: editableReminders(parent).reminderTimes,
     selectedGoalIds: parent.linkedGoals?.map((goal) => goal.id) ?? [],
     selectedTagIds: parent.tags.map((tag) => tag.id),
   }
@@ -163,13 +184,13 @@ export function buildEditHabitFormState(
       dueEndTime: detail?.dueEndTime?.slice(0, 5) ?? habit.dueEndTime?.slice(0, 5) ?? '',
       endDate: detail?.endDate ?? '',
       reminderEnabled: habit.reminderEnabled,
-      scheduledReminders: habit.scheduledReminders.map((sr) => ({ ...sr })),
+      scheduledReminders: editableReminders(habit, detail).scheduledReminders,
       slipAlertEnabled: habit.slipAlertEnabled,
       checklistItems: [...habit.checklistItems],
     },
     mode: resolveHabitFormMode(habit),
     originalEndDate: detail?.endDate ?? '',
-    reminderTimes: habit.reminderTimes.length ? [...habit.reminderTimes] : [...DEFAULT_REMINDER_TIMES],
+    reminderTimes: editableReminders(habit, detail).reminderTimes,
     selectedGoalIds: habit.linkedGoals?.map((goal) => goal.id) ?? [],
     selectedTagIds: habit.tags.map((tag) => tag.id),
   }

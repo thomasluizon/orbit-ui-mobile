@@ -275,7 +275,7 @@ describe('EditHabitModal', () => {
 
   it('locks General from the caller-supplied prop when the habit has no children', () => {
     mockHabitDetailResult = {
-      data: { id: 'h-1', children: [] },
+      data: { ...defaultHabit, id: 'h-1', children: [] },
       isPending: false,
       error: null,
     }
@@ -292,7 +292,7 @@ describe('EditHabitModal', () => {
 
   it('overrides the caller-supplied lockedGeneral prop with the fetched children, avoiding the filtered-habitsById gap', () => {
     mockHabitDetailResult = {
-      data: { id: 'h-1', children: [{ isGeneral: false }] },
+      data: { ...defaultHabit, id: 'h-1', children: [{ isGeneral: false }] },
       isPending: false,
       error: null,
     }

@@ -120,6 +120,7 @@ function applyOptionalHabitSchedulePatch(
   if ('reminderEnabled' in data) patch.reminderEnabled = data.reminderEnabled ?? false
   if ('reminderTimes' in data) patch.reminderTimes = data.reminderTimes ?? []
   if ('scheduledReminders' in data) patch.scheduledReminders = data.scheduledReminders ?? []
+  if ('relativeReminders' in data) patch.relativeReminders = data.relativeReminders ?? []
   if ('slipAlertEnabled' in data) patch.slipAlertEnabled = data.slipAlertEnabled ?? false
   if ('endDate' in data) patch.endDate = data.endDate ?? null
 }
@@ -147,6 +148,7 @@ export function buildOptimisticHabitPatch(
     patch.reminderEnabled = false
     patch.reminderTimes = []
     patch.scheduledReminders = []
+    patch.relativeReminders = []
     patch.dueTime = null
     patch.dueEndTime = null
     patch.endDate = null

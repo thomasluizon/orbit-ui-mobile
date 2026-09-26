@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
+import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -87,6 +88,15 @@ describe('ScheduledReminderSection', () => {
     })
     fireEvent.click(screen.getByText('common.add'))
     expect(props.onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'day_before', time: '09:30' }])
+    const form = {
+      ...buildEmptyHabitFormValues('2025-03-10'),
+      dueTime: '10:00',
+      reminderEnabled: true,
+      scheduledReminders: [{ when: 'day_before' as const, time: '09:30' }],
+    }
+    expect(buildCreateHabitRequest(form, [], [], [], []).relativeReminders).toEqual([
+      { when: 'day_before', time: '09:30' },
+    ])
   })
 
   it('reports a duplicate reminder through the validation callback', () => {
