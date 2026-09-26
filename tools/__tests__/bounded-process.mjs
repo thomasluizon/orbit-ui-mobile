@@ -41,8 +41,13 @@ setTimeout(() => process.stdout.write(bytes.subarray(bytes.length - 1)), 20)
     "bounded-process/hang.cjs",
     `const { spawn } = require("node:child_process")\nconst { writeFileSync } = require("node:fs")\nconst child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })\nwriteFileSync(${JSON.stringify(pidFile)}, String(child.pid))\nsetInterval(() => {}, 1000)\n`,
   )
-  const timed = await runBounded(process.execPath, [script], { timeoutMs: 1000 })
+  const timeoutMs = 1000
+  const timed = await runBounded(process.execPath, [script], { timeoutMs })
   const descendantPid = Number(readFileSync(pidFile, "utf8"))
+  const descendantExitDeadline = Date.now() + timeoutMs
+  while (processIsRunning(descendantPid) && Date.now() < descendantExitDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
   const alive = processIsRunning(descendantPid)
   T("bounded-process.mjs: the hard bound fires", timed.timedOut === true, JSON.stringify(timed))
   T("bounded-process.mjs: timeout kills the complete process tree", Number.isInteger(descendantPid) && !alive, `descendant ${descendantPid} still alive`)
