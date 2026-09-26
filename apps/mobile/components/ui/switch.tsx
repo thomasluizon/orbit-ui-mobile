@@ -13,7 +13,7 @@ export function Switch({ label, checked, disabled = false, onChange }: Readonly<
       disabled={disabled}
       accessibilityRole="switch"
       accessibilityLabel={label}
-      accessibilityState={{ checked, disabled }}
+      accessibilityState={{ checked, ...(disabled ? { disabled: true } : {}) }}
       data-checked={checked ? '' : undefined}
       style={styles.control}
     >
