@@ -463,6 +463,8 @@ describe('mobile useChatComposer', () => {
       await secondSendPromise
     })
     expect(useChatStore.getState().streamingMessageId).toBeNull()
+    const messageIds = useChatStore.getState().messages.map((message) => message.id)
+    expect(new Set(messageIds).size).toBe(messageIds.length)
   })
 
   it('clears the streamed draft on reset so the final answer is not duplicated', async () => {
