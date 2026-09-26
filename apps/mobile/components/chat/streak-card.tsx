@@ -5,6 +5,7 @@ import type { StreakCard as StreakCardData } from '@orbit/shared/types/chat'
 import { buildStreakWeekDays, getGamificationLevelTitleKey, xpRequiredForLevel } from '@orbit/shared/utils'
 import { DayStrip } from '@/components/dates/day-strip'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
+import { useProfile } from '@/hooks/use-profile'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { Button } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -16,7 +17,8 @@ export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const days = buildStreakWeekDays(streakCard, streakCard.currentStreak, streakCard.isFrozenToday, new Date(), 14)
+  const { profile } = useProfile()
+  const days = buildStreakWeekDays(streakCard, streakCard.currentStreak, streakCard.isFrozenToday, new Date(), 14, profile?.timeZone)
   const words = {
     active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'),
     missed: t('progressScreen.streak.missed'), today: t('progressScreen.streak.today'),

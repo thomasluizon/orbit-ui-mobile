@@ -6,6 +6,7 @@ export * from './pending-operation-card-view'
 export * from './related-surfaces'
 export * from './sse-stream'
 export * from './account-rows-core'
+export * from './record-list-core'
 
 export const CHAT_VISUALIZER_BAR_OFFSETS = [0, 0.08, 0.16, 0.04, 0.12, 0.2, 0.06, 0.14, 0.22] as const
 

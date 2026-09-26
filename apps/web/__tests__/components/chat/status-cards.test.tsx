@@ -7,6 +7,7 @@ import { CalendarCard } from '@/components/chat/calendar-card'
 
 const mocks = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <div role="progressbar" aria-label={label} /> }))
 vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <div role="progressbar" data-value={value} data-max={max} /> }))
@@ -37,6 +38,21 @@ describe('Astra status cards on web', () => {
     expect(document.querySelectorAll('[data-state="unearned"]')).toHaveLength(3)
     fireEvent.click(screen.getByRole('button', { name: 'chat.streakCard.open' }))
     expect(mocks.push).toHaveBeenCalledWith('/progress')
+  })
+
+  it('ends the streak strip on the account date across device midnight', () => {
+    vi.stubEnv('TZ', 'UTC')
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-09-26T06:00:00Z'))
+      render(<StreakCard streakCard={{ currentStreak: 1, longestStreak: 1, level: 1, totalXp: 10, xpForNextLevel: 100, lastActiveDate: '2026-09-25', isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />)
+      const cells = screen.getAllByRole('img')
+      expect(cells.at(-1)).toHaveAttribute('data-state', 'active')
+      expect(cells.at(-1)).toHaveAccessibleName(/25/)
+    } finally {
+      vi.useRealTimers()
+      vi.unstubAllEnvs()
+    }
   })
 
   it('renders all ten calendar events without an omitted sync row', () => {

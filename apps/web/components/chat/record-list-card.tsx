@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { API } from '@orbit/shared/api'
 import { recordListCardSchema, type RecordListCard as RecordListCardData } from '@orbit/shared/types/chat'
+import { filterRecordListItems, isUnreadRecord } from '@orbit/shared/chat'
 import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { Button } from '@/components/ui/pill-button'
@@ -64,10 +65,9 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
   }
 
   const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
-  const normalizedQuery = query.trim().toLocaleLowerCase(locale)
-  const visibleItems = normalizedQuery ? items.filter((item) => `${item.title} ${item.detail ?? ''}`.toLocaleLowerCase(locale).includes(normalizedQuery)) : items
+  const visibleItems = filterRecordListItems(items, query, locale)
   const rows: BlockFrameItem[] = visibleItems.map((item) => {
-    const unread = recordList.kind === 'notifications' && item.isRead === false && !readIds.has(item.id)
+    const unread = isUnreadRecord(recordList.kind, item, readIds)
     const keyState = recordList.kind === 'keys' && item.state ? t(`chat.recordList.keyState.${item.state}`) : null
     const itemCount = recordList.kind === 'templates' && item.count != null
       ? t('chat.recordList.templateCount', { count: item.count }) : null

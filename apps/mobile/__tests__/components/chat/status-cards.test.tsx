@@ -10,6 +10,7 @@ import { renderedText } from '../../support/react-test-renderer'
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { timeZone: 'Pacific/Honolulu' } }) }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <View accessibilityRole="progressbar" accessibilityLabel={label} /> }))
 vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max, now: value }} /> }))
 vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
@@ -49,6 +50,21 @@ describe('Astra status cards on mobile', () => {
     const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.streakCard.open'))[0]
     TestRenderer.act(() => open.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/progress')
+  })
+
+  it('ends the streak strip on the account date across device midnight', () => {
+    vi.stubEnv('TZ', 'UTC')
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-09-26T06:00:00Z'))
+      const tree = render(<StreakCard streakCard={{ currentStreak: 1, longestStreak: 1, level: 1, totalXp: 10, xpForNextLevel: 100, lastActiveDate: '2026-09-25', isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], surfaceId: 'progress' }} />)
+      const cells = tree.root.findAll((node: any) => node.props?.accessibilityRole === 'image')
+      expect(cells.at(-1).props.testID).toBe('day-strip-cell-active')
+      expect(cells.at(-1).props.accessibilityLabel).toContain('25')
+    } finally {
+      vi.useRealTimers()
+      vi.unstubAllEnvs()
+    }
   })
 
   it('shows ten events and no sync row when absent', () => {
