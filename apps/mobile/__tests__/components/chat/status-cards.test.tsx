@@ -30,7 +30,7 @@ describe('Astra status cards on mobile', () => {
 
   it('labels the day ring and opens Today', () => {
     const tree = render(<DaySummaryCard daySummary={{ date: '2026-09-26', due: 3, done: 1, completionRate: 33, overdueCount: 2, currentStreak: 4, surfaceId: 'today' }} />)
-    expect(tree.root.findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityLabel).toContain('1')
+    expect(tree.root.findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityLabel).toContain('"done":1,"due":3')
     const button = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.daySummary.open'))[0]
     TestRenderer.act(() => button.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/')
@@ -54,6 +54,7 @@ describe('Astra status cards on mobile', () => {
   it('shows ten events and no sync row when absent', () => {
     const tree = render(<CalendarCard calendarCard={{ events: Array.from({ length: 10 }, (_, index) => ({ title: `Event ${index}`, start: '2026-09-26', end: null, isAllDay: true })), surfaceId: 'calendar' }} />)
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'card-row')).toHaveLength(10)
+    expect(renderedText(tree.toJSON())).toContain('chat.calendarCard.allDay')
     expect(renderedText(tree.toJSON())).not.toContain('chat.calendarCard.sync')
     const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.calendarCard.open'))[0]
     TestRenderer.act(() => open.props.onPress())
