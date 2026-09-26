@@ -147,9 +147,18 @@ function report(results, allowed, checkUnused) {
 
 function hook() {
   const payload = JSON.parse(readFileSync(0, "utf8"))
-  const input = payload.tool_input ?? {}, target = input.file_path
-  if (!["Write", "Edit", "MultiEdit"].includes(payload.tool_name) || typeof target !== "string") return 0
-  const absoluteTarget = resolve(payload.cwd || process.cwd(), target)
+  const fileInput = (value) => {
+    if (!value || typeof value !== "object") return null
+    if (typeof value.file_path === "string") return value
+    for (const child of Object.values(value)) {
+      const found = fileInput(child)
+      if (found) return found
+    }
+    return null
+  }
+  const input = fileInput(payload)
+  if (!input) return 0
+  const absoluteTarget = resolve(process.cwd(), input.file_path)
   let directory = dirname(absoluteTarget)
   while (!existsSync(directory) && dirname(directory) !== directory) directory = dirname(directory)
   const rootResult = spawnSync("git", ["-C", directory, "rev-parse", "--show-toplevel"], { encoding: "utf8" })
@@ -170,13 +179,14 @@ function hook() {
     if (typeof value.old_string === "string" && typeof value.new_string === "string") return [value]
     return Object.values(value).flatMap(pairs)
   }
-  const edits = payload.tool_name === "Write" ? [{ old_string: current, new_string: input.content ?? "" }] : pairs(input)
+  const isWrite = typeof input.content === "string"
+  const edits = isWrite ? [{ old_string: current, new_string: input.content }] : pairs(input)
   const added = new Set(), oldLines = new Set()
   for (const edit of edits) {
     String(edit.old_string ?? "").split("\n").forEach((line) => oldLines.add(line))
     String(edit.new_string ?? "").split("\n").forEach((line) => { if (!oldLines.has(line)) added.add(line) })
   }
-  const proposed = payload.tool_name === "Write" ? String(input.content ?? "")
+  const proposed = isWrite ? input.content
     : edits.reduce((body, edit) => body.replace(String(edit.old_string ?? ""), String(edit.new_string ?? "")), current)
   const lines = proposed.split("\n")
   const results = findings(path, proposed).filter((item) => {

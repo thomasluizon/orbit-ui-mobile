@@ -61,6 +61,7 @@ export const cases = () => {
   const editRoot = fixture("edit-payloads", "sample.md", "clean\n")
   const editInput = { file_path: join(editRoot, "sample.md"), old_string: "clean", new_string: owner }
   T("Edit rejects an added finding", run(editRoot, ["--hook"], JSON.stringify({ tool_name: "Edit", tool_input: editInput, cwd: editRoot })).status === 2)
+  T("the hook does not depend on envelope field names", run(editRoot, ["--hook"], JSON.stringify({ nested: editInput })).status === 2)
   T("MultiEdit rejects an added finding without a container-field assumption", run(editRoot, ["--hook"], JSON.stringify({ tool_name: "MultiEdit", tool_input: { file_path: editInput.file_path, operations: [editInput] }, cwd: editRoot })).status === 2)
   T("a hook opened in another repository delegates to the target checker", run(safe, ["--hook"], JSON.stringify({ tool_name: "Edit", tool_input: editInput, cwd: safe })).status === 2)
   rmSync(editRoot, { recursive: true, force: true })
