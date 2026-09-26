@@ -14,6 +14,7 @@ import {
   findHabitInList,
   formatAPIDate,
   normalizeHabits,
+  plural,
   optimisticRemoveHabits,
   optimisticSetCalendarHabitLog,
   removeHabitDetailChild,
@@ -35,6 +36,7 @@ import {
 } from '@/lib/habit-mutation-helpers'
 import type {
   HabitScheduleItem,
+  HabitScheduleChild,
   HabitDetail,
   HabitFullDetail,
   CreateHabitRequest,
@@ -647,8 +649,27 @@ export function useBulkCreateHabits() {
   })
 }
 
+function selectedDescendantsInSnapshots(
+  snapshots: HabitListSnapshots,
+  selectedIds: Set<string>,
+): Set<string> {
+  const descendants = new Set<string>()
+  const visit = (habit: HabitScheduleItem | HabitScheduleChild, selectedAncestor: boolean) => {
+    const selected = selectedIds.has(habit.id)
+    if (selected && selectedAncestor) descendants.add(habit.id)
+    for (const child of habit.children) visit(child, selectedAncestor || selected)
+  }
+  for (const [, habits] of snapshots) {
+    for (const habit of habits ?? []) visit(habit, false)
+  }
+  return descendants
+}
+
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const restoreHabit = useRestoreHabit()
+  const showUndoToast = useUndoToast()
 
   return useAccountScopedMutation({
     mutationFn: async (
@@ -683,6 +704,21 @@ export function useBulkDeleteHabits() {
         })
       }
       return { results, ambiguousIds }
+    },
+
+    onMutate: () => ({ previousLists: snapshotHabitLists(queryClient) }),
+
+    onSuccess: (result, _habitIds, context) => {
+      const deleted = result.results.filter((item) => item.status === 'Success')
+      if (deleted.length === 0) return
+      const selectedIds = new Set(deleted.map((item) => item.habitId))
+      const selectedDescendants = selectedDescendantsInSnapshots(context.previousLists, selectedIds)
+      const restoreIds = deleted.map((item) => item.habitId)
+        .filter((id) => !selectedDescendants.has(id))
+      const message = plural(t('undo.habitsDeleted', { count: deleted.length }), deleted.length)
+      showUndoToast(message, () => {
+        for (const habitId of restoreIds) restoreHabit.mutate(habitId)
+      })
     },
 
     onSettled: () => {
