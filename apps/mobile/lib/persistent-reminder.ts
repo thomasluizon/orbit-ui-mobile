@@ -92,11 +92,8 @@ function isCompletedItem(value: unknown): boolean {
 }
 
 /**
- * Projects the widget feed payload into the streak + today's progress the
- * reminder displays. Counts each sub-habit as its own item — a parent with
- * children contributes its children (Orbit treats the parent as a container
- * done when its children are), a childless habit counts as one — so the total
- * matches the Today list. Returns null when the payload is not a feed object.
+ * Projects the widget feed payload into the streak + today's progress the reminder displays.
+ * Returns null when the payload is not a feed object.
  */
 export function extractReminderFeed(data: unknown): ReminderFeed | null {
   if (!isRecord(data)) return null
@@ -155,13 +152,9 @@ async function ensureChannel(
 }
 
 /**
- * Whether the account that authorised a payload is still the signed-in one.
- *
- * A null token means the payload could not be attributed to an account, which is never enough to
- * post: the reminder shows one account's figures and nothing that identifies whose they are.
- *
- * Call this at the last JavaScript boundary before posting. Native generation checks cover
- * cancellation that happens after this check.
+ * Whether the account that authorised a payload is still the signed-in one. A null token
+ * means the payload could not be attributed to an account, which is never enough to post:
+ * the reminder shows one account's figures and nothing that identifies whose they are.
  */
 async function stillSignedInAs(authorizingToken: string | null): Promise<boolean> {
   if (!authorizingToken) return false
@@ -221,11 +214,8 @@ export async function requestPersistentReminderPermission(): Promise<boolean> {
 }
 
 /**
- * Removes the ongoing reminder from the tray.
- *
- * Bumping the generation FIRST is what invalidates every refresh already in flight. A refresh
- * snapshots the value before its first await and rechecks it immediately before posting. The
- * native module serializes posting with cancellation and rejects older generations.
+ * Removes the ongoing reminder from the tray. A refresh snapshots the value before its first
+ * await and rechecks it immediately before posting.
  */
 export async function cancelPersistentReminder(): Promise<void> {
   presentationGeneration += 1

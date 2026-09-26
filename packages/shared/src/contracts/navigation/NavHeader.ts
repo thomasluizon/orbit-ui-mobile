@@ -1,17 +1,16 @@
-import type { ReactNode } from 'react'
 
 type NavHeaderBackVariant = {
   title: string
   onBack: () => void
   backLabel: string
-  action?: ReactNode
+  action?: React.ReactNode
 }
 
 type NavHeaderPlainVariant = {
   title: string
   onBack?: never
   backLabel?: never
-  action?: ReactNode
+  action?: React.ReactNode
 }
 
 export type NavHeaderProps = NavHeaderBackVariant | NavHeaderPlainVariant

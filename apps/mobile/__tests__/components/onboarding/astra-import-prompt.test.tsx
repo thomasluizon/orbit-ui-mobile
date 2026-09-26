@@ -138,10 +138,7 @@ describe('AstraImportPrompt gating', () => {
   })
 })
 
-/**
- * Not now used to call `markSeen()` straight through, which flipped the gating
- * state and unmounted a presented TrueSheet. It has to wait for the dismissal.
- */
+/** Wait for TrueSheet dismissal before changing the state that unmounts it. */
 describe('AstraImportPrompt quiet dismissal', () => {
   beforeEach(() => {
     sheetTestControls.defer(true)

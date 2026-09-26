@@ -18,7 +18,7 @@ function makeRequest(body: unknown) {
   })
 }
 
-const validBody = { email: 'thomas@example.com', code: '123456', language: 'en' }
+const validBody = { email: 'alex@example.com', code: '123456', language: 'en' }
 
 describe('verify-code BFF route', () => {
   beforeEach(() => {
@@ -33,8 +33,8 @@ describe('verify-code BFF route', () => {
           token: 'jwt-token',
           refreshToken: 'refresh-token',
           userId: 'user-1',
-          name: 'Thomas',
-          email: 'thomas@example.com',
+          name: 'Alex',
+          email: 'alex@example.com',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
@@ -45,13 +45,21 @@ describe('verify-code BFF route', () => {
 
     expect(response.status).toBe(200)
     expect(vi.mocked(setSessionCookies)).toHaveBeenCalledWith('jwt-token', 'refresh-token')
-    expect(json).toMatchObject({ userId: 'user-1', name: 'Thomas', email: 'thomas@example.com' })
+    expect(json).toMatchObject({ userId: 'user-1', name: 'Alex', email: 'alex@example.com' })
     expect(json).not.toHaveProperty('token')
     expect(json).not.toHaveProperty('refreshToken')
   })
 
+  it('forwards the widget token unchanged', async () => {
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ token: 'jwt', refreshToken: 'refresh' }), { status: 200 }))
+    const protectedBody = { ...validBody, turnstileToken: 'fresh-token' }
+    await POST(makeRequest(protectedBody))
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:5000/api/auth/verify-code',
+      expect.objectContaining({ body: JSON.stringify(protectedBody) }))
+  })
+
   it('rejects a malformed body with 400 before forwarding', async () => {
-    const response = await POST(makeRequest({ email: 'thomas@example.com' }))
+    const response = await POST(makeRequest({ email: 'alex@example.com' }))
 
     expect(response.status).toBe(400)
     expect(mockFetch).not.toHaveBeenCalled()

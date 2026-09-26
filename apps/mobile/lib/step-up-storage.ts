@@ -45,11 +45,8 @@ export function clearApiKeyCreationGrant(): void {
 }
 
 /**
- * Persists a timing record under the account that owns it.
- *
- * `AsyncStorage` survives a sign out and the next sign in on the same device, so the entry has to
- * name its account. An app holding no account cannot attribute the record to anybody, so it writes
- * nothing and the returned record still describes the challenge this app just started.
+ * Persists a timing record under the account that owns it. `AsyncStorage` survives a sign
+ * out and the next sign in on the same device, so the entry has to name its account.
  */
 async function persistStepUpTiming(
   record: StepUpTimingRecord,

@@ -65,11 +65,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/**
- * The timing record used to be filed under `orbit.step-up.delete`, which named no account, so the
- * previous account's exhausted window met the next account on a fresh entry and locked them out of
- * deleting their own account for the rest of the attempt window.
- */
+/** A new account must not inherit another account's exhausted attempt window. */
 it('gives the next account a fresh challenge after the previous one burned its attempts', async () => {
   const { rerender } = render(
     <DeleteAccountModal open onOpenChange={vi.fn()} profile={profile} />,

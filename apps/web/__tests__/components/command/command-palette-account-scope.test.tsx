@@ -79,11 +79,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/**
- * `shell-store.paletteOpen` holds the palette open across an account replacement, and `#600` leaves
- * that store alone, so the Log page the previous account chose meets the next account over the next
- * account's own rows.
- */
+/** An open palette must drop the previous account's selected command page. */
 it('drops the command page so the next account opens a habit instead of logging it', async () => {
   renderPalette()
   openTheLogPage()

@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 export interface ListRowAction {
   icon: string
@@ -8,13 +7,13 @@ export interface ListRowAction {
 }
 
 export interface ListRowBase {
-  icon?: string | ReactNode
+  icon?: string | React.ReactNode
   title: string
   wrapTitle?: boolean
   accessibilityLabel?: string
   description?: string
   value?: string
-  trailing?: ReactNode
+  trailing?: React.ReactNode
   danger?: boolean
   chevron?: boolean
   href?: string

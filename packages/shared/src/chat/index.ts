@@ -2,6 +2,7 @@ export * from './action-chips'
 export * from './message-actions'
 export * from './message-bubble'
 export * from './pending-operation-card'
+export * from './pending-operation-card-view'
 export * from './related-surfaces'
 export * from './sse-stream'
 
@@ -22,16 +23,9 @@ export const CHAT_STARTER_CHIP_KEYS = [
 export const CHAT_STREAM_IDLE_TIMEOUT_MS = 60_000
 
 /**
- * Voice-input auto-stop tuning shared by both platforms. Recording stops on its
- * own after {@link VOICE_SILENCE_TIMEOUT_MS} of continuous silence, but only
- * once speech has been heard, so an early pause before the user starts talking
- * never cuts the recording short. Levels are sampled every
- * {@link VOICE_LEVEL_POLL_MS}. Both platforms compare a linear time-domain RMS
- * amplitude (0..1): web via a Web Audio `AnalyserNode`, mobile via
- * `@siteed/audio-studio`'s `onAudioAnalysis` data points (expo-audio metering is
- * unusable on Android — it breaks `record()` — see
- * https://github.com/expo/expo/issues/37241). The thresholds are kept per-platform
- * so each can be tuned independently if the mic RMS scales differently.
+ * Voice-input auto-stop tuning shared by both platforms. Recording stops on its own after
+ * {@link VOICE_SILENCE_TIMEOUT_MS} of continuous silence, but only once speech has been
+ * heard, so an early pause before the user starts talking never cuts the recording short.
  */
 export const VOICE_SILENCE_TIMEOUT_MS = 2000
 export const VOICE_LEVEL_POLL_MS = 150

@@ -35,6 +35,8 @@ import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -43,6 +45,14 @@ import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 
 export default function StepUpScreen() {
+  const accountGeneration = useAccountGeneration()
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
+  const sessionPhase = useAuthStore((state) => state.sessionPhase)
+  if (sessionPhase !== 'signed-in') return null
+  return <StepUpScreenContent key={`${accountGeneration}:${accountId ?? 'none'}`} />
+}
+
+function StepUpScreenContent() {
   const { t } = useTranslation()
   const router = useRouter()
   const params = useLocalSearchParams<{ operation?: string | string[] }>()
@@ -117,6 +127,12 @@ export default function StepUpScreen() {
     ? displayDate(scheduledDeletionAt)
     : ''
 
+  function isCurrentRequest(generation: number, initiatingAccountId: string): boolean {
+    return getAccountGeneration() === generation
+      && useAuthStore.getState().sessionPhase === 'signed-in'
+      && useAuthStore.getState().user?.userId === initiatingAccountId
+  }
+
   async function requestChallenge() {
     if (operation === 'delete') {
       await apiClient(
@@ -134,12 +150,17 @@ export default function StepUpScreen() {
   }
 
   async function handleResend() {
-    if (!operation || exhausted || requesting) return
+    if (!operation || exhausted || requesting || accountId === null) return
+    const initiatingAccountId = accountId
+    const generation = getAccountGeneration()
+    if (!isCurrentRequest(generation, initiatingAccountId)) return
     setRequesting(true)
     setRequestError(null)
     try {
       await requestChallenge()
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       const next = await beginStepUpChallenge(operation, accountId)
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       setRecord(next)
       setCode('')
       setAttemptsRemaining(null)
@@ -147,14 +168,17 @@ export default function StepUpScreen() {
       setPhase(getStepUpPhaseFromTiming(next, Date.now()))
       setNow(Date.now())
     } catch {
-      setRequestError(t('stepUp.requestError'))
+      if (isCurrentRequest(generation, initiatingAccountId)) setRequestError(t('stepUp.requestError'))
     } finally {
-      setRequesting(false)
+      if (isCurrentRequest(generation, initiatingAccountId)) setRequesting(false)
     }
   }
 
   async function handleConfirm() {
-    if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking) return
+    if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking || accountId === null) return
+    const initiatingAccountId = accountId
+    const generation = getAccountGeneration()
+    if (!isCurrentRequest(generation, initiatingAccountId)) return
     setPhase('checking')
     setFieldError(null)
     setRequestError(null)
@@ -165,7 +189,9 @@ export default function StepUpScreen() {
           { method: 'POST', body: JSON.stringify({ code }) },
           stepUpMessageResponseSchema,
         )
+        if (!isCurrentRequest(generation, initiatingAccountId)) return
         await clearStepUpTiming(operation, accountId)
+        if (!isCurrentRequest(generation, initiatingAccountId)) return
         markStepUpVerified(operation)
         router.replace('/profile')
         return
@@ -175,11 +201,13 @@ export default function StepUpScreen() {
         { method: 'POST', body: JSON.stringify({ code }) },
         accountDeactivationResponseSchema,
       )
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       await clearStepUpTiming(operation, accountId)
+      if (!isCurrentRequest(generation, initiatingAccountId)) return
       setScheduledDeletionAt(response.scheduledDeletionAt)
       setPhase('deactivated')
     } catch (caught: unknown) {
-      await handleConfirmationFailure(caught)
+      if (isCurrentRequest(generation, initiatingAccountId)) await handleConfirmationFailure(caught)
     }
   }
 

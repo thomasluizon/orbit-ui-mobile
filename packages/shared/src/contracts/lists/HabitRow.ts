@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 export type HabitStatus = 'empty' | 'done' | 'overdue' | 'bad'
 
@@ -14,7 +13,7 @@ export interface HabitRowBase {
 
 export type HabitRowTrailing =
   | {
-      trailing: ReactNode
+      trailing: React.ReactNode
       statusLabel?: never
       onLog?: never
       logLabel?: never

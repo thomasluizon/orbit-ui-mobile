@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { useBreakdownSuggestionState } from '@orbit/shared/hooks'
+import { useBreakdownSuggestionState } from '@/hooks/use-breakdown-suggestion-state'
 import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
 import { getBreakdownCadenceKey } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'

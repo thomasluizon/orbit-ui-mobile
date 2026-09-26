@@ -72,8 +72,8 @@ Parse `$ARGUMENTS` into a `{scope}` token to pass to the workflow: blank → `bo
 
 | Repo | Root |
 |---|---|
-| `orbit-ui-mobile` | `/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile` |
-| `orbit-api` | `/Users/thomaslrgregoriogmail.com/Developer/orbit-api` |
+| `orbit-ui-mobile` | `.claude/orchestrator.json` `repos.ui` |
+| `orbit-api` | `.claude/orchestrator.json` `repos.api` |
 
 Load **`.claude/skills/_shared/verification-protocol.md`** (the reliability contract: the
 workflow *executes* the coverage contract §1, adversarial verify §2, and loop-until-dry §3;
@@ -172,7 +172,7 @@ re-invoke for any gap:
 
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified finding, drafted to the 6.2 template, validated by
-re-read against the 6.2 template, presented to Thomas behind ONE approval gate, then
+re-read against the 6.2 template, presented to the owner behind ONE approval gate, then
 created via `gh issue create` and re-validated from the created issue.
 
 Security-specific mapping into the 6.2 body:
@@ -192,7 +192,7 @@ At the approval gate, present the surface **coverage** (authz-isolation, ai-mcp-
 injection, secrets-config, ratelimit-ai-abuse, error-web-auth, privacy-data-rights), the
 **Deferred ledger** (the
 workflow's `deferred`: verify-cap overflow, loop bound, plus Tier-3), and the convergence
-state (`coverage UNKNOWN, <convergenceReason>` if `converged !== true`) so Thomas approves
+state (`coverage UNKNOWN, <convergenceReason>` if `converged !== true`) so the owner approves
 with the full provenance in view. None of it is written to disk.
 
 ---
@@ -203,7 +203,7 @@ with the full provenance in view. None of it is written to disk.
   you turn its return into tickets. Only re-invoke for a coverage gap.
 - **Write a report file, or create tickets unattended.** The output is GitHub tickets behind
   the one approval gate; nothing is persisted to `.claude/audits/` and nothing is created
-  before Thomas approves.
+  before the owner approves.
 - **Remediate during the audit.** Tickets first; fix only if the user asks after.
 
 ---

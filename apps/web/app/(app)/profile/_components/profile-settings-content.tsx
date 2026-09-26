@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
-import { useShellNoticeSlot } from '@orbit/shared/hooks'
+import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { buildWeekStartOptions } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,

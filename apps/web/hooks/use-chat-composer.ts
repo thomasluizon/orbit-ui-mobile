@@ -181,9 +181,8 @@ export function useChatComposer() {
   /**
    * The app shell keeps this hook mounted through an account change, so the previous account's
    * attempted send would otherwise stay armed behind Retry and post its text under the next
-   * account's cookie. The store reset cannot reach React state, so it follows the session itself.
-   * The banner goes with it: without the attempted send behind it there is nothing to retry, so
-   * the next account would read a failure notice about a send they never made.
+   * account's cookie. The store reset cannot reach React state, so it follows the session
+   * itself.
    */
   useResetOnAccountChange(() => {
     setLastFailedSend(null)

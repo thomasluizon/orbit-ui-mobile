@@ -7,13 +7,7 @@ import {
 } from '@/lib/step-up-storage'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
-/**
- * `useAccountScopedState` re-reads a lazy initializer at the account change, and
- * `use-api-key-management` uses one to read the step-up grant that lets an account create an API
- * key without the emailed code. Its subscription is the account generation, so every listener of
- * that rise has to find the grant already gone. Reading it from a subscriber asserts the ordering
- * in `adoptSessionAccount` itself, rather than the microtask React happens to defer the render to.
- */
+
 let grantAtEachRise: boolean[] = []
 let unsubscribe: () => void = () => {}
 

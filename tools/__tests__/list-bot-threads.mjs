@@ -22,6 +22,12 @@ const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", reviewId = "PRR_kwDOR5Siws8AAAAB
 const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
 const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
 const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
+const REPOINTED_HEAD = "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf"
+/** Keep the activity response shape for review freshness checks. */
+const activity = (after = HEAD, timestamp = "2026-08-04T22:01:00Z", activity_type = "push") => [{
+  activity_type, actor: { login: "<actor>" }, after, before: OLD_HEAD, id: 1,
+  node_id: "<activity-id>", ref: "refs/heads/fix/example", timestamp,
+}]
 
 const approvalCheck = (status = "COMPLETED", conclusion = "SUCCESS", startedAt = "2026-08-12T20:36:00Z") => ({
   __typename: "CheckRun", name: "pullfrog-approval", status, conclusion, startedAt,
@@ -29,15 +35,19 @@ const approvalCheck = (status = "COMPLETED", conclusion = "SUCCESS", startedAt =
   checkSuite: { app: { databaseId: 1768019 } },
 })
 
-const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], checks = [approvalCheck()], headRefOid = HEAD, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
+const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], checks = [approvalCheck()], headRefOid = HEAD, repositoryName = "thomasluizon/orbit-ui-mobile", headRepositoryName = repositoryName, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
   JSON.stringify({
     data: {
       repository: {
+        nameWithOwner: repositoryName,
         pullRequest: {
           number: 681,
           isDraft,
           baseRefOid: BASE,
           headRefOid,
+          headRefName: "fix/example",
+          headRepository: { nameWithOwner: headRepositoryName },
+          commits: { nodes: [{ commit: { oid: headRefOid } }] },
           statusCheckRollup: { contexts: { nodes: checks } },
           reviews: { nodes: reviews },
           comments: { nodes: comments },
@@ -48,14 +58,22 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], c
   })
 
 const botReview = (state = "APPROVED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "", id = "PRR_kwDOR5Siws8AAAABNo7WdA") => ({ id, author: { login: BOT }, state, submittedAt, body, commit: { oid } })
-const ghPlan = (stdout, exit = 0) => ({
+const ghPlan = (stdout, exit = 0, activities) => {
+  let headRefOid = HEAD
+  try { headRefOid = JSON.parse(stdout).data.repository.pullRequest.headRefOid } catch { /* The malformed-response case fails in the tool. */ }
+  return {
   ...orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "api graphql", stdout, exit },
+    { match: "/activity?", stdout: JSON.stringify(activities ?? activity(
+      headRefOid,
+      headRefOid === REPOINTED_HEAD ? "2026-09-26T02:48:44Z" : "2026-08-04T22:01:00Z",
+    )) },
   ]),
   CLAUDE_CODE_SESSION_ID: RUN_IDENTIFIER,
   CODEX_THREAD_ID: "",
-})
+  }
+}
 const parsed = (result) => {
   try {
     return JSON.parse(result.stdout)
@@ -64,7 +82,7 @@ const parsed = (result) => {
   }
 }
 
-const readPr = (stdout, exit = 0, argv = []) => run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "0", ...argv], { path: testedToolPath, env: ghPlan(stdout, exit) })
+const readPr = (stdout, exit = 0, argv = [], activities) => run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "0", ...argv], { path: testedToolPath, env: ghPlan(stdout, exit, activities) })
 
 export const cases = () => {
   check(TOOL, "refuses a missing pull request", ["--wait-seconds", "0"], { status: 2, stderr: /--pr must be a pull request number or full GitHub/ })
@@ -96,7 +114,8 @@ export const cases = () => {
 
   const apiNumber = run(TOOL, ["--pr", "681", "--repo", "api", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-    { match: "repo=orbit-api", stdout: payload({ reviews: [botReview()] }) },
+    { match: "repo=orbit-api", stdout: payload({ reviews: [botReview()], repositoryName: "thomasluizon/orbit-api", headRepositoryName: "thomasluizon/orbit-api" }) },
+    { match: "/activity?", stdout: JSON.stringify(activity()) },
   ]) })
   T(`${TOOL}: the same numbered API PR is queried through API, never UI cwd inference`, apiNumber.status === 0 && parsed(apiNumber)?.verdict === "REVIEWED", apiNumber.stdout || apiNumber.stderr)
 
@@ -171,6 +190,7 @@ export const cases = () => {
   const markerSequence = stage("list-bot-threads/marker-sequence", "0")
   const markerThenBody = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "3", "--poll-seconds", "1", "--no-request"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "/activity?", stdout: JSON.stringify(activity()) },
     { match: "api graphql", stdoutSequence: [
       payload({ reviews: [botReview("COMMENTED")], checks: [approvalCheck("IN_PROGRESS", null)] }),
       payload({ reviews: [botReview("COMMENTED"), botReview("COMMENTED", "2026-08-05T10:00:00Z", HEAD, "A real finding.", "PRR_later_review")], checks: [approvalCheck("IN_PROGRESS", null)] }),
@@ -263,6 +283,8 @@ export const cases = () => {
     )
   }
   T(`${TOOL}: the query selects check run identity, status, conclusion, and time`, ["statusCheckRollup", "checkSuite{app{databaseId}}", "status", "conclusion", "startedAt", "completedAt"].every((field) => querySource.includes(field)), querySource)
+  T(`${TOOL}: the query selects the head branch and repository without check suites`,
+    querySource.includes("headRefName headRepository{nameWithOwner}") && !querySource.includes("checkSuites"), querySource)
   T(`${TOOL}: the query selects each thread's owning review`, querySource.includes("pullRequestReview{id}"), querySource)
 
   const REQUEST_URL = "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-2026081201"
@@ -270,6 +292,7 @@ export const cases = () => {
   const reReviewPlan = (stdout) => ({
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: "/activity?", stdout: JSON.stringify(activity()) },
       { match: "pr comment", stdout: REQUEST_URL },
       { match: "api graphql", stdout },
     ]),
@@ -283,6 +306,7 @@ export const cases = () => {
   const inFlight = run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--re-review", "--wait-seconds", "3", "--poll-seconds", "1"], { path: testedToolPath, env: {
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: "/activity?", stdout: JSON.stringify(activity()) },
       { match: "pr comment", stdout: REQUEST_URL },
       { match: "api graphql", stdoutSequence: [
         payload({ reviews: [botReview("COMMENTED", "2026-08-12T20:10:00Z", HEAD, COMMENTED_BODY)] }),
@@ -373,6 +397,7 @@ export const cases = () => {
   const pagedSequence = stage("list-bot-threads/page-sequence", "0")
   const paged = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "/activity?", stdout: JSON.stringify(activity()) },
     { match: "api graphql", stdoutSequence: [
       payload({ reviews: [botReview()], threads: [thread({ id: "PRRT_page_one" })], pageInfo: { hasNextPage: true, endCursor: "cursor-1" } }),
       payload({ reviews: [botReview()], threads: [thread({ id: "PRRT_page_two" })], pageInfo: { hasNextPage: false, endCursor: null } }),
@@ -426,6 +451,39 @@ export const cases = () => {
     stalePlan?.staleReviewCommit === OLD_HEAD && stalePlan.headRefOid === HEAD && /@pullfrog review/.test(stalePlan.note ?? ""),
     stale.stdout,
   )
+  /** GitHub's PR 1107 reports the old review with the later merge head's oid. */
+  const repointed = readPr(payload({
+    headRefOid: REPOINTED_HEAD,
+    reviews: [botReview("APPROVED", "2026-09-25T21:50:13Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  }))
+  T(`${TOOL}: PR 1107's repointed older review is NO_REVIEW`,
+    repointed.status === 1 && parsed(repointed)?.verdict === "NO_REVIEW" &&
+      parsed(repointed)?.staleReviewCommit === "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
+    repointed.stdout || repointed.stderr)
+  const reviewedAfterMerge = readPr(payload({
+    headRefOid: REPOINTED_HEAD,
+    reviews: [botReview("APPROVED", "2026-09-26T02:59:43Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  }))
+  T(`${TOOL}: PR 1107's later real review is REVIEWED`, reviewedAfterMerge.status === 0 && parsed(reviewedAfterMerge)?.verdict === "REVIEWED", reviewedAfterMerge.stdout || reviewedAfterMerge.stderr)
+  const beforeSuite = readPr(payload({
+    headRefOid: REPOINTED_HEAD,
+    reviews: [botReview("APPROVED", "2026-09-26T02:48:44.500Z", REPOINTED_HEAD)],
+  }))
+  T(`${TOOL}: a review after the push but before the first suite is REVIEWED`,
+    beforeSuite.status === 0 && parsed(beforeSuite)?.verdict === "REVIEWED", beforeSuite.stdout || beforeSuite.stderr)
+  const atPushTime = readPr(payload({
+    headRefOid: REPOINTED_HEAD,
+    reviews: [botReview("APPROVED", "2026-09-26T02:48:44Z", REPOINTED_HEAD)],
+  }))
+  T(`${TOOL}: a review submitted exactly at the push is NO_REVIEW`, atPushTime.status === 1 && parsed(atPushTime)?.verdict === "NO_REVIEW", atPushTime.stdout || atPushTime.stderr)
+  const noActivity = readPr(payload({ reviews: [botReview()] }), 0, [], [])
+  T(`${TOOL}: no matching head activity means NO_REVIEW with a reason`, noActivity.status === 1 && /no matching head activity/.test(parsed(noActivity)?.note ?? ""), noActivity.stdout || noActivity.stderr)
+  const forkHead = readPr(payload({ headRepositoryName: "fork/orbit-ui-mobile", reviews: [botReview()] }))
+  T(`${TOOL}: a head from another repository is NO_REVIEW with a reason`, forkHead.status === 1 && /different repository/.test(parsed(forkHead)?.note ?? ""), forkHead.stdout || forkHead.stderr)
+  const forcePush = readPr(payload({ reviews: [botReview()] }), 0, [], activity(HEAD, "2026-08-04T22:01:00Z", "force_push"))
+  T(`${TOOL}: force_push activity establishes the head boundary`, forcePush.status === 0 && parsed(forcePush)?.verdict === "REVIEWED", forcePush.stdout || forcePush.stderr)
+  const invalidActivity = readPr(payload({ reviews: [botReview()] }), 0, [], activity(HEAD, "invalid"))
+  T(`${TOOL}: an unparseable activity time cannot prove a review current`, invalidActivity.status === 1 && /unparseable/.test(parsed(invalidActivity)?.note ?? ""), invalidActivity.stdout || invalidActivity.stderr)
   /**
    * NO_REVIEW is ambiguous unless it says whether anyone asked, and the two readings justify
    * different actions: a reviewer that was asked and stayed silent is evidence about the reviewer,

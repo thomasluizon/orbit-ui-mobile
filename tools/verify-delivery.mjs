@@ -6,7 +6,7 @@ import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { PASSING_CONCLUSIONS, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredCheckSatisfied, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand } from "./lib/readiness-receipt.mjs"
+import { PASSING_CONCLUSIONS, headActivityArgv, headActivityBoundary, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredCheckSatisfied, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
@@ -267,6 +267,13 @@ const readPullRequestState = async () => {
   }
   const state = pullRequestStateFromGraphQl(parsed)
   if (state === null) fail(2, `the pull request read for ${pullRequest.number} returned incomplete base/head/draft/rollup state`)
+  const activity = state.headRepository === state.repositoryName
+    ? await run(GH, headActivityArgv(state.repositoryName, state.headRefName), githubCwd) : null
+  let activities = null
+  if (activity?.ok) {
+    try { activities = JSON.parse(activity.stdout) } catch { /* An invalid page cannot prove a review current. */ }
+  }
+  state.headActivityBoundary = headActivityBoundary(activities, state.headRefOid, state.headRefName, state.repositoryName, state.headRepository)
   return state
 }
 
@@ -388,7 +395,8 @@ const readRollup = async () => {
       reason: "No checks reported; an empty required set is not evidence of successful CI",
     })
   }
-  const { verdict: reviewVerdict, complete: reviewComplete } = await resolveReviewVerdict(pullRequestState, readOlderReviewPage)
+  /** The review fallback must also clear cached CI evidence when the pinned check is absent. */
+  const { verdict: reviewVerdict, complete: reviewComplete, reason: reviewReason } = await resolveReviewVerdict(pullRequestState, readOlderReviewPage)
   const satisfiedOutOfBand = reviewSatisfiedOutOfBand(reviewVerdict)
   for (const required of requiredChecks) {
     if (requiredCheckSatisfied(newestByCheck, required, satisfiedOutOfBand)) continue
@@ -408,7 +416,9 @@ const readRollup = async () => {
     }
     if (!PASSING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
   }
-  const review = { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null, complete: reviewComplete }
+  // Which evidence carried the review axis, so an artifact that leaned on the fallback says so rather
+  // than reading like an ordinary green (#440). The receipt records the same three fields.
+  const review = { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null, complete: reviewComplete, reason: reviewReason ?? null }
   return { total: newestByCheck.size, failing, pending, registrationFingerprint: fingerprint, review }
 }
 

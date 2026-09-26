@@ -1,11 +1,6 @@
 /**
- * Compares two semver-ish version strings by their numeric
- * `major.minor.patch` portion. Non-numeric suffixes (`-beta`, `-rc1`) are
- * ignored and missing segments are treated as `0`.
- *
- * Returns `true` only when `current` can be proven strictly older than
- * `minimum`. Equal, newer, or unparseable `current` all return `false`
- * (fail-safe allow) so a version that cannot be judged is never blocked.
+ * Compares two semver-ish version strings by their numeric `major.minor.patch` portion.
+ * Returns `true` only when `current` can be proven strictly older than `minimum`.
  */
 export function isVersionBelow(current: string, minimum: string): boolean {
   const currentParts = normalizeVersion(current)

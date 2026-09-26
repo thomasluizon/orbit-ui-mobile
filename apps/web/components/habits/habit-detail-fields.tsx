@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { useHabitDetailFieldsState, type HabitDetailPatch } from '@orbit/shared/hooks'
+import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
+import type { HabitDetailPatch } from '@orbit/shared/hooks'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import {
   buildHabitDetailSchedulePatch,

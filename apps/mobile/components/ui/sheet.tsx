@@ -24,12 +24,10 @@ export interface SheetHandle {
 }
 
 /**
- * The one close path a sheet host may use. Never flip the open state directly:
- * unmounting a presented TrueSheet wedges every later Android modal until the
- * process restarts, and it drops the navigation that has to run after the
- * dismissal (https://sheet.lodev09.com/guides/navigation). Pass `sheetRef` to
- * the sheet, then call `closeSheet()`, or `closeSheet(action)` when something
- * has to run after the sheet is gone.
+ * The one close path a sheet host may use. Never flip the open state directly: unmounting a
+ * presented TrueSheet wedges every later Android modal until the process restarts, and it
+ * drops the navigation that has to run after the dismissal
+ * (https://sheet.lodev09.com/guides/navigation).
  */
 export function useSheetHost() {
   const sheetRef = useRef<SheetHandle>(null)

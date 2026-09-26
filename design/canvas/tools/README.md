@@ -4,7 +4,7 @@
 Claude Design project `918bd5d7-839c-4dd0-811b-4a8781f60507`. Run it only when the canvas app has
 stopped regenerating them itself.
 
-## The defect it works around, found 2026-08-16
+## When to use it
 
 The `DesignSync` write API writes source files fine. It does **not** rebuild the two artifacts the
 Design System pane actually reads:
@@ -13,15 +13,8 @@ Design System pane actually reads:
   is what each specimen card imports from.
 * `_ds_manifest.json` is the card index and the component list.
 
-Both are owned by the canvas app, and `"source":"spa"` in the manifest says so. After wave 0 and
-wave 1 landed, the app did not rebuild either one, even after Thomas opened the project. The visible
-symptoms were exact:
-
-* Two cards rendered `file not found`, because their manifest entries pointed at files deleted
-  earlier the same day. `unregister_assets` returned `unregistered: 2` and changed nothing.
-* Three new cards did not appear in the Components group at all.
-* The manifest still carried the eight `--p-hab-*` habit-palette tokens, deleted from
-  `tokens/colors.css` hours before.
+Both are owned by the canvas app, and `"source":"spa"` in the manifest says so. Use this script if
+source changes leave cards missing, references to removed cards, or stale token entries in the manifest.
 
 ## What the script does
 

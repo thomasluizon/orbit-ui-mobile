@@ -87,13 +87,9 @@ function scheduleShapeCarriesRepeatWeeks(schedule: OnboardingSchedule): boolean 
 }
 
 /**
- * Whether this run can show and save a repeat interval of more than one week. Two conditions, and
- * both have to hold. The shape has to carry it: only a weekday schedule does, because the API reads
- * `IntervalWeeks` for a habit with weekdays and ignores it for a general habit. The transport has to
- * carry it too: a signed-out draft flushes through `POST /api/profile/onboarding/apply`, whose
- * `ApplyHabitInput` has no `IntervalWeeks` field (see `applyOnboardingHabitSchema`), so the server
- * drops the number and the habit comes back as "every Monday". Ticket #596 adds the field to the
- * API; until it deploys, a signed-out run hides the stepper rather than write nothing.
+ * Whether this run can show and save a repeat interval of more than one week. The shape has
+ * to carry it: only a weekday schedule does, because the API reads `IntervalWeeks` for a
+ * habit with weekdays and ignores it for a general habit.
  */
 export function canRepeatOnboardingScheduleWeeks(
   schedule: OnboardingSchedule,
@@ -157,16 +153,9 @@ const EVERY_DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satu
 const WEEKDAY_BY_INDEX = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 /**
- * Whether the habit onboarding just created lands in today's list. A general habit never does:
- * `GetHabitScheduleQuery` loads the day with `!h.IsGeneral` and appends general habits only when
- * `IncludeGeneral` is set, and both clients default that preference to false, so a new account never
- * sees one on Today. A weekday habit lands there only on a day it names, because the API moves its
- * `DueDate` forward to the first matching weekday (`CreateHabitCommand.HandleLockedAsync`) and then
- * reports every earlier date as not scheduled (`HabitScheduleService.IsHabitDueOnDate`, `if (target
- * < anchor) return false`). A signed-out draft flushes through
- * `ApplyOnboardingCommand.CreateHabitsAsync`, which anchors on today rather than advancing, and the
- * same absence falls out of `HabitScheduleService.MatchesFrequency` rejecting a target whose weekday
- * is not in `habit.Days`. Every other shape anchors on today and matches it.
+ * A general habit never does: `GetHabitScheduleQuery` loads the day with `!h.IsGeneral` and
+ * appends general habits only when `IncludeGeneral` is set, and both clients default that
+ * preference to false, so a new account never sees one on Today.
  */
 export function isOnboardingHabitDueToday(schedule: OnboardingSchedule, today: Date, timeZone: string | null): boolean {
   if (schedule.isGeneral) return false
@@ -347,26 +336,9 @@ function getOnboardingCompleteTitleKey(state: OnboardingCompleteState): string {
 }
 
 /**
- * Which `onboarding.flow.done` strings the last screen may truthfully show, button included, so the
- * copy can never name a destination the button does not go to. The order of the four states is what
- * keeps every sentence true.
- *
- * Skip outranks everything, because a run can only skip before a habit exists, so a skipped run has
- * no plan to report; a skipped signed-out run then takes its own pair, because the button leaves for
- * the login screen rather than Today, which is the only place the canvas-drawn skip copy can send
- * anyone.
- *
- * Signing out outranks the general shape on purpose. A signed-out run holds a local draft rather
- * than a saved habit, so the fact that matters is that nothing joins an account until the person
- * signs in, and `generalBody`'s instruction to add days from the habit names a habit that does not
- * exist yet. The general body may not offer a reminder, and `signedOutBody` offers none either, so
- * the precedence costs detail rather than truth.
- *
- * A signed-in general habit then takes its own pair, because it is due on no day, it reaches neither
- * Today nor the reminder scheduler, and no other body may offer it a reminder. Its badge takes
- * `generalPending` rather than `notTodayPending`, which would claim a day it does not have.
- *
- * "It is in your day" holds only when the habit is due today, see {@link isOnboardingHabitDueToday}.
+ * Which `onboarding.flow.done` strings the last screen may truthfully show, button included,
+ * so the copy can never name a destination the button does not go to. The order of the four
+ * states is what keeps every sentence true.
  */
 export function getOnboardingCompleteCopy(state: OnboardingCompleteState): OnboardingCompleteCopy {
   return {
@@ -404,12 +376,8 @@ export function canSnapshotOnboardingEntry(input: {
 }
 
 /**
- * Resolves what the post-auth retained onboarding overlay should do for an account that has not
- * completed onboarding, given a frozen snapshot of whether the account already had habits at app
- * entry. `hadHabitsAtEntry` must be captured once (see {@link canSnapshotOnboardingEntry}) and never
- * recomputed, because the overlay itself creates habits mid-flow. An account that already had habits
- * (a pre-migration user, or one that abandoned onboarding after creating habits) is auto-completed
- * instead of re-onboarded.
+ * `hadHabitsAtEntry` must be captured once (see {@link canSnapshotOnboardingEntry}) and
+ * never recomputed, because the overlay itself creates habits mid-flow.
  */
 export function resolveRetainedOnboarding(input: {
   hasCompletedOnboarding: boolean | null | undefined

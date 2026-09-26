@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import { runInNewContext } from "node:vm"
 
 import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
 
@@ -47,6 +48,23 @@ const stageConfigRepo = (label, { head, origin, working }) => {
 
 export const cases = async () => {
   const { readOrchestratorConfig, resolveWorkerInvocation } = await import(pathToFileURL(toolPath("lib/orchestrator-config.mjs")).href)
+
+  for (const [name, endMarker] of [["audit", "const VERIFY_CAP"], ["prod-readiness", "const OPS_SCHEMA"]]) {
+    const source = readFileSync(new URL(`../../.claude/workflows/${name}.mjs`, import.meta.url), "utf8")
+    const start = source.indexOf("const parsedArgs =")
+    const end = source.indexOf(endMarker, start)
+    const guard = start >= 0 && end > start ? source.slice(start, end) : ""
+    T(`${NAME}: ${name} workflow uses no Node or dynamic imports`,
+      guard.length > 0 && !source.includes("import(") && !source.includes("process."))
+    for (const roots of [undefined, { ui: ".", api: "../orbit-api" }]) {
+      const message = thrown(() => runInNewContext(`${guard}\n;({ UI, API })`, { args: { roots } }))
+      T(`${NAME}: ${name} workflow rejects ${roots ? "relative" : "missing"} roots`,
+        /requires absolute ui and api roots/.test(message ?? ""), message ?? "workflow accepted invalid roots")
+    }
+    const absolute = runInNewContext(`${guard}\n;({ UI, API })`, { args: { roots: { ui: "/checkout/ui", api: "/checkout/api" } } })
+    T(`${NAME}: ${name} workflow accepts absolute roots`,
+      absolute.UI === "/checkout/ui" && absolute.API === "/checkout/api")
+  }
 
   for (const [label, args] of [
     ["--model", ["exec", "--model", "gpt-5.6-sol"]],

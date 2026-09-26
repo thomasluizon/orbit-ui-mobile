@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { NavHeaderProps } from './NavHeader'
 
 type Keys<T> = T extends unknown ? keyof T : never
@@ -17,13 +16,13 @@ type ExpectedBackVariant = {
   title: string
   onBack: () => void
   backLabel: string
-  action?: ReactNode
+  action?: React.ReactNode
 }
 type ExpectedPlainVariant = {
   title: string
   onBack?: never
   backLabel?: never
-  action?: ReactNode
+  action?: React.ReactNode
 }
 
 export type NavHeaderTypeContract = [
@@ -32,7 +31,7 @@ export type NavHeaderTypeContract = [
   Assert<IsExactWidth<NavHeaderProps['title'], string>>,
   Assert<IsExactWidth<NavHeaderProps['onBack'], (() => void) | undefined>>,
   Assert<IsExactWidth<NavHeaderProps['backLabel'], string | undefined>>,
-  Assert<IsExactWidth<NavHeaderProps['action'], ReactNode>>,
+  Assert<IsExactWidth<NavHeaderProps['action'], React.ReactNode>>,
   Assert<IsExact<{ title: 'Habit' }, NavHeaderProps>>,
   Assert<IsExact<{ title: 'Habit'; action: 'Help' }, NavHeaderProps>>,
   Assert<IsExact<{ title: 'Habit'; onBack: () => void; backLabel: 'Today' }, NavHeaderProps>>,

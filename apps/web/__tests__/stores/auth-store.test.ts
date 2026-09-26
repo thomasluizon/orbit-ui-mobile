@@ -90,8 +90,8 @@ describe('auth store', () => {
   function makeLoginResponse(overrides: Partial<LoginResponse> = {}): LoginResponse {
     return {
       userId: 'user-1',
-      name: 'Thomas',
-      email: 'thomas@example.com',
+      name: 'Alex',
+      email: 'alex@example.com',
       ...overrides,
     }
   }
@@ -149,8 +149,8 @@ describe('auth store', () => {
       isAuthenticated: true,
       user: {
         userId: 'user-1',
-        name: 'Thomas',
-        email: 'thomas@example.com',
+        name: 'Alex',
+        email: 'alex@example.com',
       },
     })
   })
@@ -176,7 +176,7 @@ describe('auth store', () => {
 
     await useAuthStore.getState().logout()
     await expect(fetchAuthEndpoint('/api/auth/verify-code', {
-      email: 'thomas@example.com', code: '123456',
+      email: 'alex@example.com', code: '123456',
     })).rejects.toThrow('Web Locks API is required for session cookie changes')
 
     expect(mockFetch).not.toHaveBeenCalled()
@@ -234,7 +234,7 @@ describe('auth store', () => {
     const oldLogout = useAuthStore.getState().logout()
     await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
     const replacementLogin = fetchAuthEndpoint('/api/auth/verify-code', {
-      email: 'thomas@example.com', code: '123456',
+      email: 'alex@example.com', code: '123456',
     })
     await Promise.resolve()
     expect(mockFetch).not.toHaveBeenCalledWith('/api/auth/verify-code', expect.anything())

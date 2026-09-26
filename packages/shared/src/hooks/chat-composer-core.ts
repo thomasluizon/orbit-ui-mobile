@@ -64,11 +64,8 @@ const CHAT_TAG_ACTION_TYPES: ReadonlySet<string> = new Set([
 export const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
 
 /**
- * Resolves the assistant chat line shown after an agent operation runs, from the
- * caller's localized done/failed copy based on the outcome. Never returns the raw
- * server `summary` (an internal audit label like "Manage Calendar Sync requested
- * via Chat"), which must not surface as user-facing chat text — the pending/denial
- * cards carry the specifics.
+ * Resolves the assistant chat line shown after an agent operation runs, from the caller's
+ * localized done/failed copy based on the outcome.
  */
 export function buildAgentExecutionMessage(
   response: AgentExecuteOperationResponse,

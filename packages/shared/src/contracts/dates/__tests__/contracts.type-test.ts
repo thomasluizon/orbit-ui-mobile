@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type {
   AccountDayStripProps,
   AccountDayWords,
@@ -220,7 +219,7 @@ export type DateContractTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<DayCellProps['loggable'], boolean | undefined>>,
   Assert<IsExactWidth<DayCellProps['onPress'], (() => void) | undefined>>,
   Assert<IsExactWidth<MonthGridProps['weekdayLabels'], string[] | undefined>>,
-  Assert<IsExactWidth<MonthGridProps['children'], ReactNode>>,
+  Assert<IsExactWidth<MonthGridProps['children'], React.ReactNode>>,
   Assert<IsExactWidth<MonthGridProps['gap'], string | number | undefined>>,
   Assert<IsExactWidth<MonthGridProps['label'], string | undefined>>,
   Assert<IsExactWidth<MonthGridProps['minimumDayGridHeight'], number | undefined>>,

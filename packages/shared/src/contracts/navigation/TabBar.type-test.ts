@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { TabBarItem, TabBarProps } from './TabBar'
 
 type Keys<T> = T extends unknown ? keyof T : never
@@ -17,7 +16,7 @@ type Props = { items: readonly [Item]; activeId: 'today'; onSelect: (id: string)
 export type TabBarTypeContract = [
   Assert<IsExactWidth<TabBarItem['id'], string>>,
   Assert<IsExactWidth<TabBarItem['label'], string>>,
-  Assert<IsExactWidth<TabBarItem['icon'], ((state: { active: boolean }) => ReactNode) | undefined>>,
+  Assert<IsExactWidth<TabBarItem['icon'], ((state: { active: boolean }) => React.ReactNode) | undefined>>,
   Assert<IsExactWidth<TabBarProps['items'], readonly TabBarItem[]>>,
   Assert<IsExactWidth<TabBarProps['activeId'], string>>,
   Assert<IsExactWidth<TabBarProps['onSelect'], (id: string) => void>>,

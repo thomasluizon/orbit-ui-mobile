@@ -7,10 +7,13 @@ effort: high
 
 # /ticket: anything in, 1..N GitHub tickets out
 
+When writing repository prose, state the current requirement without dated incidents, attributed
+quotes, session IDs or personal machine paths. Keep timed evidence in the scratchpad.
+
 The ticket is the prompt (D2): a ticket a fresh agent with no session history cannot execute is a
 defective ticket. This skill makes defective tickets impossible to create.
 
-**Cardinality is an OUTPUT of phase B, not an input Thomas has to know before typing.** One request
+**Cardinality is an OUTPUT of phase B, not an input the owner has to know before typing.** One request
 can be one ticket or eight. Never tell him to quit and retype a different command; decide the count
 yourself and show him the split at phase D.
 
@@ -23,7 +26,7 @@ same tracker with the repo label that owns the change.
 Invoke the `grilling` skill and follow it: one question at a time, each carrying your recommended
 answer, until you reach shared understanding. Look every *fact* up yourself (`architecture.json`,
 `DESIGN.md`, the filesystem, the Sentry / Render / read-only postgres MCPs); only *decisions* go to
-Thomas, and never ask him to paste what a tool can fetch. Do NOT batch every fork into one
+the owner, and never ask him to paste what a tool can fetch. Do NOT batch every fork into one
 AskUserQuestion: it cannot do the facts/decisions split plus a confirmation gate. Create nothing
 until he confirms the understanding is shared.
 
@@ -66,7 +69,7 @@ each ticket's entries into its Scope and Affected modules / files. Cover both re
 
 ## D. ONE approval gate
 
-Nothing exists in the ticket tracker yet, and nothing is created until Thomas approves. This gate is the
+Nothing exists in the ticket tracker yet, and nothing is created until the owner approves. This gate is the
 validation; no ticket-linting script runs here. In ONE message show him:
 
 - **The split**: the ticket count, each ticket's one-line title, and the `blockedBy` edges.
@@ -84,8 +87,8 @@ skill decided quietly. **He can correct the split here**; an edit loops back thr
 returns to this gate.
 
 **When he overrides, his decision goes into the body before you create anything.** A ticket that
-holds two root causes because Thomas merged them reads to a fresh worker like two tickets filed by
-mistake, and that worker will reasonably split the PR. Write the decision, its date, and its reason
+holds two root causes because the owner merged them reads to a fresh worker like two tickets filed by
+ mistake, and that worker will reasonably split the PR. Write the decision and its reason
 into the affected bodies as their own section, so the ticket carries the shape it must ship in.
 
 Every body carries the 6.2 sections: Problem/why, Scope, Out of scope, Expected behaviour,
@@ -139,16 +142,13 @@ defect if violated:
    relations. Any failure stops the sequence. Do not replace any part with a raw tracker mutation.
 5. Print the final table: issue reference, title, repo, type, milestone or `none`, and `blockedBy`.
    When tickets land in an existing milestone, say which rows are new.
-6. **Say nothing to Thomas that the body does not already carry.** Before you send the closing
+6. **Say nothing to the owner that the body does not already carry.** Before you send the closing
    message, check every claim in it against the body you just wrote. A caveat, a risk, a "worth
-   knowing before `/orchestrate`", a design-system question, a decision Thomas made at the gate: if
+   knowing before `/orchestrate`", a design-system question, a decision the owner made at the gate: if
    it is worth telling him, the implementer needs it too, and the implementer reads the body. The
    closing message SUMMARIZES the tickets; it never adds to them. A fact that exists only in the
    chat is a fact that did not get filed, and `/ticket` writes tickets, not chat.
 
-   This was a real defect on 2026-08-13. The gate merged two proposed tickets into one, the closing
-   message reported "ship this as one PR" and the design-system gap as things to know, and neither
-   the merge decision nor its reason was in the body a worker would read.
 
    Discovered something after `create-ticket.mjs` printed? Recompose the COMPLETE body and replace
    it with

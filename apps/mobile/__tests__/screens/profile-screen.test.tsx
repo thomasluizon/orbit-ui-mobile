@@ -211,7 +211,7 @@ vi.mock('@/lib/queued-api-mutation', () => ({
   performQueuedApiMutation: mockPerformQueuedApiMutation,
 }))
 
-vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
+vi.mock('@/hooks/use-shell-notice-slot', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useShellNoticeSlot: mockShellNoticeSlot,
 }))

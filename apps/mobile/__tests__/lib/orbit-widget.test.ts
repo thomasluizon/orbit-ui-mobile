@@ -122,15 +122,7 @@ describe('toWidgetColors', () => {
     )
   })
 
-  /**
-   * Stage 2 replaces stage 1's flame bitmap with the figure the canvas actually draws.
-   *
-   * `design/canvas/Orbit Widget Android.dc.html` renders the streak as a 15sp 600-weight span in
-   * `c.primaryText` followed by an 11sp `c.fg3` unit, baseline aligned with a 3px gap, and there is no
-   * flame anywhere in it. Its own note reserves the accent for "one use only: the streak figure", so a
-   * primary-tinted flame graphic would be a second use of it. Under D42 the drawing outranks
-   * DESIGN.md prose, so this asserts the drawing.
-   */
+
   it('paints the streak figure in the accent and its unit in fg-3, with no flame graphic', () => {
     const widgetProviderSource = readWidgetSource(
       'java/org/useorbit/app/widget/OrbitWidgetProvider.kt',

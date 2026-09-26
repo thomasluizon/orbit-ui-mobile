@@ -70,17 +70,8 @@ function unwrapMutateOptions<TData, TError, TVariables, TOnMutateResult>(
 }
 
 /**
- * A `useMutation` whose write carries the account the person held when they started it.
- *
- * The account is read inside `mutate`, synchronously, rather than inside `mutationFn`. Those are
- * not the same instant: `onMutate` runs in between and awaits `cancelQueries`, so a read in the
- * mutation function samples the cookie after the gap the guard exists to distrust, and would agree
- * with whichever account signed in during it.
- *
- * Every mutating call goes through one helper rather than through the same eight lines repeated at
- * each hook, because a rule written out forty times is a rule thirty-nine of them can keep and the
- * fortieth can quietly drop. `mutationFn` takes the account as its second argument; every other
- * callback sees the caller's own variables untouched.
+ * A `useMutation` whose write carries the account the person held when they started it. The
+ * account is read inside `mutate`, synchronously, rather than inside `mutationFn`.
  */
 export function useAccountScopedMutation<
   TData = unknown,

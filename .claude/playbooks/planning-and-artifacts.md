@@ -74,7 +74,7 @@ This is the one context where "every feature needs behavior tests" and the no-de
 ### 10. Main keeps only the decision
 When a prototype has answered its question: fold the validated decision into the real code, **commit the prototype to a throwaway branch off main**, and leave a pointer to that branch plus the verdict on the implementation issue.
 
-Same instinct as the 2026-07-16 decision to delete `research.md` and route knowledge to the vault. It gives prototypes a disposal path instead of leaving them to rot in main.
+Route durable knowledge to the vault. Discard prototypes before they become stale repository files.
 
 ## Sessions
 

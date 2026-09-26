@@ -150,7 +150,7 @@ At the approval gate, present **suite health** (files scored, % happy-path-only,
 carrying, % pinning all three axes) and the **critical-path coverage** table (auth, billing,
 AI/MCP, data-isolation, timezone, validation) as the provenance, plus the **Deferred ledger**
 (High gaps past the verify cap, non-critical paths not scored, policy-excluded E2E) and the
-convergence state, so Thomas approves knowing the scale of the rot. None of it is written to
+convergence state, so the owner approves knowing the scale of the rot. None of it is written to
 disk.
 
 ---

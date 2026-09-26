@@ -57,8 +57,6 @@ A recommendation must trace to an **observed metric for the specific route/surfa
 ### 11. Check a citation of installed source for a late mtime before you publish it
 Quoting a file under `node_modules` in a finding? Run `node tools/check-dependency-edits.mjs` first and say it came back clean. A file whose mtime is much later than its own package's earliest file was written by something other than the install, and a plain `npm install` will not repair it: npm leaves a complete package alone. The repair is `rm -rf node_modules/<package>` plus an install.
 
-On 2026-09-18 four contradictory citations of the same two files were published across three sessions, and **every one was accurate about the tree its author read.** Code standard 8 did not fail there, its premise did: it says to confirm an external interface against the installed source, and it assumes the installed source is what the lockfile says.
-
 ## Fixing what an audit found
 
 ### 12. Split findings by fixability, and verify by re-running

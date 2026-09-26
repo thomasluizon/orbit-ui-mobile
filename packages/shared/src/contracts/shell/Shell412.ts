@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 /** The conversation slot and its accessible name travel together.
  *
@@ -14,7 +13,7 @@ type ConversationSlot =
     }
   | {
       /** The overlay's CONTENT. Takes authored markup as readily as a pre-built node. */
-      conversation: ReactNode
+      conversation: React.ReactNode
       /** Omit it and presence means open. Pass it to hold markup permanently and toggle openness. */
       conversationOpen?: boolean
       /** The overlay dialog's accessible name, in the screen's locale. */
@@ -22,16 +21,16 @@ type ConversationSlot =
     }
 
 interface Shell412Base {
-  children?: ReactNode
+  children?: React.ReactNode
   /** PINNED above the scroller: it does not scroll with the content. A screen with no header passes
    *  nothing and the scroller takes the full height, which is what Hoje does. */
-  header?: ReactNode
+  header?: React.ReactNode
   /** TRANSIENT PINNED CHROME, directly ABOVE the pinned bottom slot and never in its place. A toast
    *  or a celebration rides here so it cannot evict Astra's front door (D69). */
-  notice?: ReactNode
+  notice?: React.ReactNode
   /** Floats above the composer. A screen that puts its create action in the header passes nothing. */
-  fab?: ReactNode
-  sheets?: ReactNode
+  fab?: React.ReactNode
+  sheets?: React.ReactNode
 }
 
 /** A destination: the tab bar is present and the pinned bottom slot is the composer. */
@@ -39,10 +38,10 @@ export type Shell412NavProps = Shell412Base &
   ConversationSlot & {
     nav?: true
     /** Four destinations, never five. Required with navigation on. */
-    tabBar: ReactNode
+    tabBar: React.ReactNode
     /** Astra's front door, pinned above the tab bar on all four destinations. THE COMPOSER AND
      *  NOTHING ELSE: transient chrome goes in `notice`, above it. */
-    composer?: ReactNode
+    composer?: React.ReactNode
     /** Rejected on a destination: a flow's forward action exists only where `nav` is false. */
     action?: never
   }
@@ -56,7 +55,7 @@ export type Shell412NoNavProps = Shell412Base &
     tabBar?: never
     /** The flow's ONE pinned forward action. A node, so a step needing a quieter second action
      *  writes both here. The shell ships no words; they are the caller's. */
-    action?: ReactNode
+    action?: React.ReactNode
     /** Rejected on a flow: a flow is not a destination, so it has no front door to pin. */
     composer?: never
   }

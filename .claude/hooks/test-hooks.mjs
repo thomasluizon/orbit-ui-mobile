@@ -725,6 +725,17 @@ T("lessons: one dated entry before Graduated is pending", countUnreviewedPending
   datedEntry("2026-09-10", "first lesson"),
   "## Graduated",
 ].join("\n")), 1)
+T("lessons: an undated candidate before Graduated is pending", countUnreviewedPendingLessons([
+  "# Pending lessons",
+  "## Keep the hook and producer in sync",
+  "- Trigger: lesson staging",
+  "## Graduated",
+].join("\n")), 1)
+T("lessons: a promoted or removed undated candidate is not pending", countUnreviewedPendingLessons([
+  "# Pending lessons",
+  "## Graduated",
+  "## Keep the hook and producer in sync",
+].join("\n")), 0)
 T("lessons: several dated entries before Graduated are pending", countUnreviewedPendingLessons([
   datedEntry("2026-09-10", "first lesson"),
   "details",
@@ -815,6 +826,14 @@ T("adapter lessons: one pending entry emits one line with the count and action",
 }, { lines: 1, count: true, action: true })
 writeFileSync(lessonsFixtureFile, [
   "# Pending lessons",
+  "## Keep the hook and producer in sync",
+  "- Trigger: lesson staging",
+  "## Graduated",
+].join("\n"))
+const undatedSurfacedLesson = runLessonsHook("{}")
+T("adapter lessons: an undated candidate emits a reminder", undatedSurfacedLesson.stdout, validReminderShapes.lessonsOnly)
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
   datedEntry("2026-09-10", "first lesson"),
   datedEntry("2026-09-11", "second lesson"),
   "## Graduated",
@@ -835,7 +854,7 @@ writeFileSync(lessonsFixtureFile, [
   "# Pending lessons",
   "## DROPPED 2026-09-10 - rejected lesson",
   "## Graduated",
-  datedEntry("2026-09-11", "already reviewed"),
+  "## Already promoted lesson",
 ].join("\n"))
 const silentLessons = runLessonsHook("{}")
 T("adapter lessons: reviewed and dropped entries exit 0", silentLessons.status, 0)

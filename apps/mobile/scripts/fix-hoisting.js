@@ -1,9 +1,6 @@
 /**
- * Fixes npm workspace hoisting issues for the mobile app.
- *
- * Hoisted packages need to resolve react-native from mobile's node_modules.
- *
- * Solution: Create symlinks so hoisted packages resolve the correct versions.
+ * Fixes npm workspace hoisting issues for the mobile app. Solution: Create symlinks so
+ * hoisted packages resolve the correct versions.
  */
 const fs = require("fs");
 const path = require("path");

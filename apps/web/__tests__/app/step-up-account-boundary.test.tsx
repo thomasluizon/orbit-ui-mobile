@@ -94,6 +94,7 @@ function confirmCode() {
 beforeEach(() => {
   globalThis.localStorage.clear()
   vi.stubGlobal('fetch', vi.fn())
+  mocks.operation = 'keys'
   mocks.router.replace.mockReset()
   mocks.serverAuthMutate.mockReset()
 })
@@ -343,6 +344,34 @@ it('keeps the challenge and typed code through same-account recovery', async () 
 
   expect(screen.getByLabelText('codeLabel')).toHaveValue('123456')
   expect(mocks.router.replace).not.toHaveBeenCalledWith('/login')
+})
+
+it('drops a typed code and disables confirmation after a session check names another account', async () => {
+  await renderChallenge()
+  fireEvent.change(screen.getByLabelText('codeLabel'), { target: { value: '123456' } })
+  expect(within(screen.getByTestId('shell-action')).getByRole('button')).toBeEnabled()
+  storeChallenge('user-2')
+
+  await replaceAccountWith('user-2')
+
+  expect(screen.getByLabelText('codeLabel')).toHaveValue('')
+  expect(within(screen.getByTestId('shell-action')).getByRole('button')).toBeDisabled()
+})
+
+it('removes the previous account deletion date after a session check names another account', async () => {
+  mocks.serverAuthMutate.mockResolvedValue({
+    message: 'confirmed', scheduledDeletionAt: '2026-09-04T03:00:00Z',
+  })
+  await renderChallenge('delete')
+  confirmCode()
+  expect(await screen.findByText(/successTitle/)).toBeInTheDocument()
+  storeChallenge('user-2', 'delete')
+
+  await replaceAccountWith('user-2')
+
+  expect(screen.queryByText(/successTitle/)).not.toBeInTheDocument()
+  expect(screen.getByLabelText('codeLabel')).toHaveValue('')
+  expect(within(screen.getByTestId('shell-action')).getByRole('button')).toBeDisabled()
 })
 
 it('drops server-account code when the first client session names another account', async () => {

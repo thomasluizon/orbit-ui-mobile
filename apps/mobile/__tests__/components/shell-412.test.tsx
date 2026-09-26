@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
-import { useShellNoticeSlot } from '@orbit/shared/hooks'
+import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import ProgressScreen from '@/app/(tabs)/progress'
 
 vi.mock('@/components/progress/progress-content', () => ({ ProgressContent: () => React.createElement('ProgressContent') }))

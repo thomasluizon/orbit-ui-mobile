@@ -39,13 +39,9 @@ function buildRecordingFileName(uri: string): string {
 }
 
 /**
- * Records microphone audio with `@siteed/audio-studio` and uploads it to the
- * server transcription endpoint, returning the recognized text. Mirrors the web
- * `useSpeechToText` return shape and its silence auto-stop: the recorder's
- * real-time `onAudioAnalysis` RMS is watched, and once speech is heard a
- * sustained drop below the threshold for VOICE_SILENCE_TIMEOUT_MS stops the
- * recording. If real-time analysis never fires, recording still works with the
- * manual stop button. The backend auto-detects language, so there is no selector.
+ * Records microphone audio with `@siteed/audio-studio` and uploads it to the server
+ * transcription endpoint, returning the recognized text. If real-time analysis never fires,
+ * recording still works with the manual stop button.
  */
 export function useSpeechToText() {
   const { t } = useTranslation()

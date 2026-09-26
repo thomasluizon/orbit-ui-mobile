@@ -57,11 +57,9 @@ export class ApiClientError extends Error {
 }
 
 /**
- * Validates an already-parsed API response `body` against a Zod `schema` at the client
- * trust boundary. Returns the parsed data when it matches — unknown keys are stripped, so
- * additive API fields never break older clients (append-only contract) — or throws a typed
- * `ApiClientError` (502, `INVALID_RESPONSE_SCHEMA`) carrying the Zod issues when it does not.
- * When no `schema` is supplied the body is returned unchanged, making validation opt-in.
+ * Validates an already-parsed API response `body` against a Zod `schema` at the client trust
+ * boundary. When no `schema` is supplied the body is returned unchanged, making validation
+ * opt-in.
  */
 export function validateApiResponse<T>(
   body: unknown,
@@ -251,14 +249,8 @@ const GOAL_CONTEXTS: ContextSet = new Set(['goal', 'goalProgress'])
 const TAG_CONTEXTS: ContextSet = new Set(['tag'])
 
 /**
- * The last resort for a backend error that carries no error code: a FluentValidation failure,
- * which `ValidationExceptionHandler` writes as a bare `{ type, status, requestId, errors }` body.
- * Every rule below is derived from a live `WithMessage` call or a FluentValidation default in
- * `orbit-api`. A rule whose only producer was a `DomainErrors` sentence belongs in
- * `ERROR_CODE_TO_KEY` instead, because the API localizes those sentences at its response boundary.
- * The first match wins, so a rule that reads a longer piece of the same sentence sits above the
- * broader one: `sub-habit title` before the plain `title` pair, for both the empty and the
- * over-the-limit case.
+ * A rule whose only producer was a `DomainErrors` sentence belongs in `ERROR_CODE_TO_KEY`
+ * instead, because the API localizes those sentences at its response boundary.
  */
 const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: ['description', String(MAX_HABIT_DESCRIPTION_LENGTH)], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
@@ -292,15 +284,7 @@ function matchesIncludes(msg: string, includes: MessageRule['includes']): boolea
   return includes.every((s) => msg.includes(s))
 }
 
-/**
- * Every rule in `CONTEXTUAL_RULES` names its own field, so the walk runs first and the title
- * fallback answers only what no rule claims. The fallback ran first until #614, where
- * `Sub-habit title must not exceed 200 characters` matched it on `title` plus the length, which
- * left the sub-habit rule below it unreachable in every context. Any rule added below
- * would have hit the same wall, which is why the order is the fix rather than a sub-habit test
- * inside the fallback. The fallback keeps its own context split because it answers for the
- * `Title` property of a habit and of a goal, which no rule covers.
- */
+/** Apply contextual rules before title fallback so named fields retain their specific message. */
 function getContextualMessageKey(
   normalizedMessage: string,
   context: FriendlyErrorContext,
@@ -321,11 +305,10 @@ function getContextualMessageKey(
 }
 
 /**
- * Maps stable backend error codes (orbit-api ErrorCodes and DomainErrors) to friendly i18n keys.
- * Consulted after contextual form-field matching, so an uncoded FluentValidation message still
- * wins; this guarantees every other backend error renders localized text instead of the raw
- * English message. The code is the durable contract: the API rewrites its English sentences at
- * the response boundary, so a form error resolves here rather than from a matched sentence.
+ * Maps stable backend error codes (orbit-api ErrorCodes and DomainErrors) to friendly i18n
+ * keys. Consulted after contextual form-field matching, so an uncoded FluentValidation
+ * message still wins; this guarantees every other backend error renders localized text
+ * instead of the raw English message.
  */
 export const ERROR_CODE_TO_KEY: Record<string, string> = {
   ACCOUNT_CHANGED: 'errors.api.accountChanged',

@@ -1,6 +1,6 @@
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useBreakdownSuggestionState } from '@orbit/shared/hooks'
+import { useBreakdownSuggestionState } from '@/hooks/use-breakdown-suggestion-state'
 import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
 import { getBreakdownCadenceKey } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'

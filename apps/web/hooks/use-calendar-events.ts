@@ -22,11 +22,9 @@ export type CalendarEventsResult =
   | { status: 'not-connected' }
 
 /**
- * Fetches the user's upcoming Google Calendar events for the manual import flow.
- *
- * Returns a discriminated union: callers branch on `status` to render the
- * not-connected prompt vs the event list. Other network errors surface via
- * the query's `error` field.
+ * Fetches the user's upcoming Google Calendar events for the manual import flow. Returns a
+ * discriminated union: callers branch on `status` to render the not-connected prompt vs the
+ * event list.
  */
 export function useCalendarEvents(options: CalendarEventsQueryOptions) {
   const queryClient = useQueryClient()

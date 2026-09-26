@@ -39,12 +39,9 @@ export async function requestDeletion(
 }
 
 /**
- * Confirm account deletion with the code received via email.
- * Returns the scheduled deletion response or a serializable expected failure.
- *
- * The account is the one the person was signed in as when they typed the code, not the one the
- * cookie names when this runs. They are the same account until somebody signs in elsewhere, and
- * this is the one request in the app where telling them apart late decides whose account is gone.
+ * Confirm account deletion with the code received via email. The account is the one the
+ * person was signed in as when they typed the code, not the one the cookie names when this
+ * runs.
  */
 export async function confirmDeletion(
   code: string,

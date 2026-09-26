@@ -1,6 +1,6 @@
 ---
 name: merge-prs
-description: Merge a frozen set of already-approved pull requests after an /orchestrate run. Accept optional PR URLs, repo#number references, or unambiguous PR numbers; with no arguments, recover the PR set from the current conversation and orchestration scratchpad. Order dependencies, update branches with main, admin-squash merge without rerunning approval/CI on the mechanical update commit, synchronize GitHub tickets, and clean only the merged PRs' branches and worktrees. Use only when Thomas explicitly invokes /merge-prs after every target PR has a passing pullfrog-approval check, green CI, and zero unresolved review threads.
+description: Merge a frozen set of already-approved pull requests after an /orchestrate run. Accept optional PR URLs, repo#number references, or unambiguous PR numbers; with no arguments, recover the PR set from the current conversation and orchestration scratchpad. Order dependencies, update branches with main, admin-squash merge without rerunning approval/CI on the mechanical update commit, synchronize GitHub tickets, and clean only the merged PRs' branches and worktrees. Use only when the owner explicitly invokes /merge-prs after every target PR has a passing pullfrog-approval check, green CI, and zero unresolved review threads.
 ---
 
 # /merge-prs
@@ -10,7 +10,7 @@ local/remote state. Optimize for elapsed time. This is a delivery command, not a
 
 ## Authorization boundary
 
-Invoking `/merge-prs` is Thomas's explicit authorization to merge exactly the frozen target set. In
+Invoking `/merge-prs` is the owner's explicit authorization to merge exactly the frozen target set. In
 this skill only, `gh pr merge --admin --squash` is allowed. The exception exists because every target
 must already have passed the required Pullfrog review check, review-thread resolution, and CI before
 this skill starts.
@@ -37,7 +37,7 @@ With no arguments, recover the set in this order:
 3. PR URLs recorded on the corresponding GitHub tickets.
 
 Do not substitute every open PR in an account or repository. Exclude PRs and worktrees identified as
-another session's work. If the recovered set is not unique, ask Thomas for the missing PR links before
+another session's work. If the recovered set is not unique, ask the owner for the missing PR links before
 any merge.
 
 Freeze a ledger containing repository, PR number/URL, ticket, base branch, approved head SHA, head
@@ -54,7 +54,7 @@ fields. Then prove for every frozen PR:
   Pullfrog review thread on that head is resolved;
 - all CI checks on that approved head are settled and green;
 - the PR is mergeable against its then-current base;
-- its ticket board Status is In Review, or is In Progress only for a handoff Thomas has now accepted;
+- its ticket board Status is In Review, or is In Progress only for a handoff the owner has now accepted;
 - `node tools/complete-ticket.mjs --issue "<actual-ticket-reference>" --preflight` succeeds for its
   open ticket and configured project item;
 - its worktree and branch belong to this PR, not another session.
@@ -151,11 +151,7 @@ that required a human conflict handoff.
 End the report with one explicit **"Still outstanding"** list: every manual step collected above, per
 merged ticket, expanded and numbered, or the single line `No manual steps outstanding.`
 
-This is not a courtesy summary. orbit-tickets#81 merged on 2026-08-08 with the body line "Rollout:
-merge, deploy to Render, then set `PostHog:ApiKey` in the Render env. The code path is inert until
-the key exists." Review was clean, CI was green, the ticket closed Done, and nothing in this skill
-ever mentioned the key. It happened to be set already, so nothing was lost, which is exactly why it
-is worth writing down: the merge path could not tell the difference. A merge is not a deploy and a
-deploy is not a rollout. Say what is left, at the moment Thomas is reading, or it is not said at all.
+A merge is not a deploy, and a deploy is not a rollout. Report every remaining console action
+at the time the owner reads the result.
 
-**Never do the step yourself.** These land in a vendor console under Thomas's account. Print them.
+**Never do the step yourself.** These land in a vendor console under the owner's account. Print them.

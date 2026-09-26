@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import * as SecureStore from 'expo-secure-store'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API } from '@orbit/shared/api'
 import { notificationKeys, profileKeys } from '@orbit/shared/query'
 import { markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
@@ -8,7 +9,9 @@ import { i18n } from '@/lib/i18n'
 import { getRuntimeTheme } from '@/lib/theme'
 import { useLogout } from '@/hooks/use-logout'
 import { useThrottleStore } from '@/stores/throttle-store'
-import { getErrorSurface } from '@orbit/shared/utils'
+import { getErrorSurface, getStepUpStorageKey } from '@orbit/shared/utils'
+import StepUpScreen from '@/app/step-up'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 import {
   clearSessionAndResetAuth,
@@ -19,7 +22,7 @@ import {
   useAuthStore,
   whenProfileHydrated,
 } from '@/stores/auth-store'
-import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
+import { beginStepUpChallenge, clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
 import { shouldExposeOnboardingRoute } from '@/lib/capture-mode'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useDeleteNotification } from '@/hooks/use-notifications'
@@ -104,11 +107,30 @@ const {
   queryCache: new Map<string, unknown>(),
 }))
 
-vi.mock('expo-router', () => ({
-  router: {
-    replace: replaceMock,
-  },
-  useRouter: () => ({ replace: replaceMock }),
+vi.mock('expo-router', () => {
+  const router = { replace: replaceMock }
+  return {
+    router,
+    useRouter: () => router,
+    useLocalSearchParams: () => ({ operation: 'delete' }),
+  }
+})
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { email: 'user@example.com', hasProAccess: false } }),
+}))
+
+vi.mock('@/hooks/use-date-format', () => ({
+  useDateFormat: () => ({ displayDate: (value: string) => value }),
+}))
+
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+}))
+
+vi.mock('@/components/shell/flow-shell', () => ({
+  FlowShell: ({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) =>
+    React.createElement('View', null, children, action),
 }))
 
 vi.mock('@/lib/secure-store', () => ({
@@ -318,6 +340,77 @@ describe('mobile auth store security paths', () => {
     expect(setRefreshTokenMock).not.toHaveBeenCalled()
     expect(saveWidgetTokenMock).toHaveBeenCalledWith('access-token')
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('clears a mounted step up code when another account logs in', async () => {
+    const userOne = { userId: 'user-1', email: 'user@example.com', name: 'User' }
+    const userTwo = { userId: 'user-2', email: 'next@example.com', name: 'Next' }
+    const stored = new Map<string, string>()
+    vi.spyOn(AsyncStorage, 'getItem').mockImplementation((key: string) =>
+      Promise.resolve(stored.get(key) ?? null),
+    )
+    vi.spyOn(AsyncStorage, 'setItem').mockImplementation((key: string, value: string) => {
+      stored.set(key, value)
+      return Promise.resolve()
+    })
+    await useAuthStore.getState().login('first-token', null, userOne)
+    await beginStepUpChallenge('delete', userOne.userId)
+    await beginStepUpChallenge('delete', userTwo.userId)
+    expect(useAuthStore.getState().user?.userId).toBe('user-1')
+    expect(await AsyncStorage.getItem(getStepUpStorageKey('delete', userOne.userId))).not.toBeNull()
+
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(React.createElement(StepUpScreen))
+      await Promise.resolve()
+    })
+    const codeInput = () => tree.root.findAll((node: { props: Record<string, unknown> }) =>
+      node.props.accessibilityLabel === 'stepUp.codeLabel' && typeof node.props.onChangeText === 'function',
+    )[0]
+    const confirmButton = () => tree.root.findAll((node: { props: Record<string, unknown> }) =>
+      node.props.testID === 'button-primary-md',
+    )[0]
+    expect(codeInput()).toBeDefined()
+    TestRenderer.act(() => {
+      codeInput().props.onChangeText('123456')
+    })
+    expect(codeInput().props.value).toBe('123456')
+    expect(confirmButton().props.disabled).toBe(false)
+
+    let releaseTokenWrite!: () => void
+    const pendingTokenWrite = new Promise<void>((resolve) => {
+      releaseTokenWrite = resolve
+    })
+    setTokenMock.mockReturnValueOnce(pendingTokenWrite)
+    let releaseCacheClear!: () => void
+    const pendingCacheClear = new Promise<void>((resolve) => {
+      releaseCacheClear = resolve
+    })
+    clearPersistedQueryCacheMock.mockReturnValueOnce(pendingCacheClear)
+    const accountGeneration = getAccountGeneration()
+    let replacementLogin!: Promise<(() => boolean) | null>
+    await TestRenderer.act(async () => {
+      replacementLogin = useAuthStore.getState().login('second-token', null, userTwo)
+      await vi.waitFor(() => expect(useAuthStore.getState().sessionPhase).toBe('establishing'))
+    })
+    expect(tree.toJSON()).toBeNull()
+    expect(getAccountGeneration()).toBe(accountGeneration)
+
+    await TestRenderer.act(async () => {
+      releaseTokenWrite()
+      await vi.waitFor(() => expect(useAuthStore.getState().user?.userId).toBe('user-2'))
+    })
+
+    expect(getAccountGeneration()).toBe(accountGeneration)
+    expect(tree.toJSON()).toBeNull()
+    await TestRenderer.act(async () => {
+      releaseCacheClear()
+      await replacementLogin
+    })
+    expect(codeInput().props.value).toBe('')
+    expect(confirmButton().props.disabled).toBe(true)
+    TestRenderer.act(() => tree.unmount())
+    vi.restoreAllMocks()
   })
 
   it('deletes the pending OAuth attempt when another account signs in', async () => {

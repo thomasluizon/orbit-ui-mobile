@@ -21,6 +21,7 @@ const PUBLIC_PATHS = [
   '/privacy',
   '/about',
   '/delete-account',
+  '/turnstile-bridge',
   '/.well-known',
   '/app-ads.txt',
 ]
@@ -81,6 +82,7 @@ function createContentSecurityPolicy(nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentScriptSource}`,
     "style-src 'self' 'unsafe-inline'",
+    "frame-src https://challenges.cloudflare.com",
     `img-src 'self' blob: data: ${supabaseUrl.origin}`,
     "font-src 'self' data:",
     `connect-src 'self' ${supabaseUrl.origin} ${websocketUrl.origin}`,

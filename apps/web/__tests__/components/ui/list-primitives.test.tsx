@@ -175,7 +175,7 @@ describe('list primitives on web', () => {
       <SettingsGroup
         items={[
           { label: 'Version' },
-          { label: 'Profile', value: 'Thomas', trailing: <span>Verified</span>, onClick: openProfile },
+          { label: 'Profile', value: 'Alex', trailing: <span>Verified</span>, onClick: openProfile },
           { label: 'Plan', value: 'Pro' },
           { label: 'Privacy', onClick: openPrivacy },
         ]}
@@ -184,7 +184,7 @@ describe('list primitives on web', () => {
 
     expect(screen.getByText('Version').closest('button')).toBeNull()
     expect(screen.getByText('Plan').closest('button')).toBeNull()
-    expect(screen.getByText('Thomas')).toBeInTheDocument()
+    expect(screen.getByText('Alex')).toBeInTheDocument()
     expect(screen.getByText('Verified')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Profile/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Privacy' }))

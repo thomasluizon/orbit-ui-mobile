@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { FabProps } from './Fab'
 
 type Keys<T> = T extends unknown ? keyof T : never
@@ -13,7 +12,7 @@ type Assert<T extends true> = T
 
 export type FabTypeContract = [
   Assert<IsExactWidth<FabProps['label'], string>>,
-  Assert<IsExactWidth<FabProps['children'], ReactNode>>,
+  Assert<IsExactWidth<FabProps['children'], React.ReactNode>>,
   Assert<IsExactWidth<FabProps['onClick'], (() => void) | undefined>>,
   Assert<IsExact<{ label: 'Create habit' }, FabProps>>,
   // @ts-expect-error a FAB requires an accessible label

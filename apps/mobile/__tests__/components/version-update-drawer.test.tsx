@@ -82,10 +82,7 @@ function pressPill(tree: any, label: string) {
   })
 }
 
-/**
- * Later used to flip the state controlling `open`, which unmounted a presented
- * TrueSheet. Both actions have to wait for the native dismissal.
- */
+/** Wait for native dismissal before clearing the state that holds TrueSheet open. */
 describe('VersionUpdateDrawer close path', () => {
   beforeEach(() => {
     mocks.platform = 'android'

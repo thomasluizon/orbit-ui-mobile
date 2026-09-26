@@ -51,13 +51,7 @@ function holdCookieForAccount(accountId: string): void {
   )
 }
 
-/**
- * The four writes acceptance criterion 1 names, each formed under `account-a`.
- *
- * They are driven through the real `serverAuthMutate` against a stubbed `fetch`, so what is
- * asserted is what the server would have received. A spy on the action itself would only prove the
- * test passed its own argument along.
- */
+
 const destructiveWrites = [
   ['delete the account', () => confirmDeletion('123456', 'account-a'), API.auth.confirmDeletion],
   ['delete a habit', () => deleteHabit('habit-1', 'account-a'), API.habits.delete('habit-1')],

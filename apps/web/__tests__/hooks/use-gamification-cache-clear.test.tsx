@@ -14,13 +14,7 @@ vi.mock('@/lib/api-fetch', () => ({
   fetchJson: (...args: unknown[]) => mocks.fetchJson(...args),
 }))
 
-/**
- * The real query client, the one `startAccountScopedSession` clears. The milestone refs in
- * `useGamificationProfile` carry the previous account's level, streak and earned achievements, and
- * nothing resets them by name. They reset because the clear empties `query.data`, so the effect
- * runs once with a null profile and rewrites all three. That is the whole claim, and a mocked
- * `useQuery` would hide it.
- */
+
 function wrapper({ children }: Readonly<{ children: ReactNode }>) {
   return <QueryClientProvider client={getQueryClient()}>{children}</QueryClientProvider>
 }

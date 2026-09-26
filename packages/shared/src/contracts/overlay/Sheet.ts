@@ -1,11 +1,10 @@
-import type { ReactNode } from 'react'
 
 /** A visible sheet. A closed sheet is unmounted, so `false` is not representable. */
 export interface SheetProps {
   open?: true
   title?: string
-  headerAccessory?: ReactNode
-  actions?: ReactNode
+  headerAccessory?: React.ReactNode
+  actions?: React.ReactNode
   onClose?: () => void
-  children?: ReactNode
+  children?: React.ReactNode
 }

@@ -9,20 +9,17 @@ export type ServerActionResult<T> =
     }
 
 /**
- * The code `serverAuthMutate` refuses a write with, once the cookie names another account.
- *
- * It lives here rather than in `server-fetch.ts` because the actions that swallow their own errors
- * into a serializable failure have to let this one through, and importing the whole server fetch
- * module to read one string would drag a server-only module into that decision.
+ * It lives here rather than in `server-fetch.ts` because the actions that swallow their own
+ * errors into a serializable failure have to let this one through, and importing the whole
+ * server fetch module to read one string would drag a server-only module into that decision.
  */
 export const ACCOUNT_CHANGED_ERROR_CODE = 'ACCOUNT_CHANGED'
 
 /**
- * Reports a write the account guard refused.
- *
- * An action that turns its own failures into `{ success: false }` must rethrow this instead: the
- * write did not fail, it never ran, and reporting it as a wrong code would tell the person to try
- * again on an account they are no longer signed in as.
+ * Reports a write the account guard refused. An action that turns its own failures into `{
+ * success: false }` must rethrow this instead: the write did not fail, it never ran, and
+ * reporting it as a wrong code would tell the person to try again on an account they are no
+ * longer signed in as.
  */
 export function reportsAccountChanged(error: unknown): boolean {
   return typeof error === 'object'

@@ -78,11 +78,9 @@ export function useTodayHabitsData({
 
   const queryKey = habitKeys.list(filters)
   /**
-   * `initialHabits` is an RSC prop, fetched under whichever account was signed in when the server
-   * rendered this page. An account replacement empties the query cache but navigates nowhere, so
-   * the payload is unchanged and TanStack rebuilds the query from it, stamped now and inside
-   * `QUERY_STALE_TIMES.habits`, which schedules no refetch. That serves the previous account's
-   * habit titles to the next one, so the payload stops counting the moment the account does.
+   * `initialHabits` is an RSC prop, fetched under whichever account was signed in when the
+   * server rendered this page. That serves the previous account's habit titles to the next
+   * one, so the payload stops counting the moment the account does.
    */
   const accountGeneration = useAccountGeneration()
   const [renderedAccountGeneration] = useState(accountGeneration)

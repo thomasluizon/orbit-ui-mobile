@@ -21,11 +21,9 @@ export function advanceSessionEpoch(): void {
 }
 
 /**
- * Counts the accounts this tab has held. It rises only where the previous account's typing is
- * forgotten, which is a sign out and a real account change, and NOT on a rejected refresh that
- * recovers as the same account. A rejected refresh keeps the shell mounted behind the expiry
- * banner, so treating it as a new account would throw away a pasted image and a half-written
- * message the person is still looking at.
+ * Counts the accounts this tab has held. It rises only where the previous account's typing
+ * is forgotten, which is a sign out and a real account change, and NOT on a rejected refresh
+ * that recovers as the same account.
  */
 export function getAccountGeneration(): number {
   return accountCounter.read()

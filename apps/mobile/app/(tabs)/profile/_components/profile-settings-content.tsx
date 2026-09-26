@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
-import { useShellNoticeSlot } from '@orbit/shared/hooks'
+import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { buildWeekStartOptions } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,

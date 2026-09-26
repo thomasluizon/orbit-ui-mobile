@@ -193,12 +193,7 @@ describe('translateErrorKey (extended)', () => {
     expect(translateErrorKey(translate, '')).toBeNull()
   })
 })
-/**
- * Builds the body `orbit-api` sends for a coded failure: `ErrorResponse` serializes exactly
- * `error` and `errorCode`, and `LocalizedErrorResultFilter` swaps `error` for the localized copy
- * selected by `errorCode`. The English sentences below are read from `ErrorCopy` on
- * `thomasluizon/orbit-api` PR 532 (`feature/ticket-75-emails`).
- */
+/** Model the API response with `error` and `errorCode` for coded failures. */
 function codedError(errorCode: string, error: string) {
   return createApiClientError(400, { error, errorCode }, 'Request failed')
 }
@@ -456,12 +451,7 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
 })
 
 
-/**
- * orbit-api PR 532 rewrites the English sentence behind every error code, so a form error can no
- * longer be recognised by its prose. Each case below sends the REWRITTEN sentence with its code
- * and expects the specific key, never the caller's fallback. Remove the code entry and the case
- * returns `errors.generic`, which is the defect this suite exists to catch.
- */
+/** Error codes must select the form message even when the English sentence changes. */
 describe('getFriendlyErrorKey resolves a rewritten form error by its code', () => {
   it('resolves TITLE_REQUIRED to the habit key in a habit context', () => {
     const err = codedError('TITLE_REQUIRED', 'Give this a title.')
@@ -505,13 +495,7 @@ describe('getFriendlyErrorKey resolves a rewritten form error by its code', () =
 })
 
 
-/**
- * A rewrite can also make a sentence match a rule it was never meant for, and a contextual match
- * wins over the error code. `ErrorCopy.cs:121` gives `GOAL_PROGRESS_DERIVED` a sentence carrying
- * `linked habits`, which the goal habit-limit rule read as a limit failure. The only producer of
- * the real limit sentence is `LinkHabitsToGoalCommandValidator.cs:15`, whose message also carries
- * `at most`, so the rule keeps both substrings and the derived-progress sentence falls through.
- */
+
 describe('a rewritten sentence does not borrow another rule', () => {
   const GOAL_PROGRESS_DERIVED_SENTENCE =
     'This goal counts progress from its linked habits, so it cannot be set by hand.'

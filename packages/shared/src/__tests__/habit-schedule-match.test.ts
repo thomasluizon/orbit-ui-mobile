@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { hasHabitScheduleOnDate, computeHabitReorderPositions, type ReorderableHabitItem } from '../utils/habits'
+import { hasHabitScheduleOnDate, computeHabitReorderPositions, buildUnresolvedBulkFailures, type ReorderableHabitItem } from '../utils/habits'
+
+it('marks every unresolved bulk item with its original index and failure reason', () => {
+  expect(buildUnresolvedBulkFailures(['A', 'B'], 3, new Error('offline'),
+    (title, index, error) => ({ title, index, error }))).toEqual([
+    { title: 'A', index: 3, error: 'offline' },
+    { title: 'B', index: 4, error: 'offline' },
+  ])
+})
 
 describe('hasHabitScheduleOnDate', () => {
   it('returns true when date is in scheduledDates', () => {

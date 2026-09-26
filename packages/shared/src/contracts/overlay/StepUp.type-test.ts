@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { StepUpProps } from './StepUp'
 
 type IsExactWidth<T, U> =
@@ -34,7 +33,7 @@ type Child = Accepts<{
   message: 'Sign in again.'
   actionLabel: 'Sign in'
   onAction: () => void
-  children: ReactNode
+  children: React.ReactNode
 }, StepUpProps>
 
 // @ts-expect-error StepUp has no disabled state
@@ -55,7 +54,7 @@ type ErrorStepUp = Accepts<{
 
 // @ts-expect-error node values cannot pass through the message prop
 type NodeMessage = Accepts<{
-  message: ReactNode
+  message: React.ReactNode
   actionLabel: 'Sign in'
   onAction: () => void
 }, StepUpProps>

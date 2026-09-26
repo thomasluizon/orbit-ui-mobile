@@ -41,13 +41,7 @@ export const sheetTestControls = {
 }
 
 
-/**
- * The one test double for `Sheet`. It is typed against the shared contract, so
- * a test cannot assert a prop the real sheet does not take, and it reproduces
- * the real close path: `onClose` runs only from a completed dismissal, and a
- * `requestClose` exit action replaces it. Import it through
- * `vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))`.
- */
+
 export function Sheet({ title, actions, onClose, children, ref }: Readonly<SheetDoubleProps>) {
   const [presented, setPresented] = useState(true)
   const requestClose = useCallback(
