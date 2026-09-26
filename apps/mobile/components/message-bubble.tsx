@@ -19,6 +19,9 @@ import { GoalListCard } from "@/components/chat/goal-list-card";
 import { HabitListCard } from "@/components/chat/habit-list-card";
 import { MetricsCard } from "@/components/chat/metrics-card";
 import { PeriodInsightCard } from "@/components/chat/period-insight-card";
+import { DaySummaryCard } from "@/components/chat/day-summary-card";
+import { StreakCard } from "@/components/chat/streak-card";
+import { CalendarCard } from "@/components/chat/calendar-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
@@ -79,6 +82,9 @@ function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBub
     <>
       {message.metricsCard ? <MetricsCard metricsCard={message.metricsCard} /> : null}
       {message.periodInsight ? <PeriodInsightCard periodInsight={message.periodInsight} /> : null}
+      {message.daySummary ? <DaySummaryCard daySummary={message.daySummary} /> : null}
+      {message.streakCard ? <StreakCard streakCard={message.streakCard} /> : null}
+      {message.calendarCard ? <CalendarCard calendarCard={message.calendarCard} /> : null}
     </>
   )
 }

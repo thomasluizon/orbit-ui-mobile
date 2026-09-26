@@ -1255,6 +1255,35 @@
       "ring": "Progress of {name}",
       "progressLink": "See it on Progress"
     },
+    "daySummary": {
+      "title": "Today",
+      "doneOfDue": "{done} of {due} done",
+      "nothingDue": "Nothing due today",
+      "overdue": "Overdue",
+      "streak": "Current streak",
+      "ring": "{done} of {due} done today",
+      "open": "Open Today"
+    },
+    "streakCard": {
+      "title": "Your streak and XP",
+      "days": "Recent streak days",
+      "current": "Current streak",
+      "xp": "{current} of {next} XP",
+      "open": "See it on Progress"
+    },
+    "calendarCard": {
+      "title": "Calendar",
+      "allDay": "All day",
+      "empty": "No events here yet.",
+      "sync": "Calendar sync",
+      "syncState": {
+        "Idle": "Up to date",
+        "ReconnectRequired": "Reconnect your calendar",
+        "TransientError": "Sync failed. Try again later",
+        "disabled": "Sync is off"
+      },
+      "open": "Open Calendar"
+    },
     "preview": {
       "proposed": "Proposed by Astra",
       "editItem": "Edit item",

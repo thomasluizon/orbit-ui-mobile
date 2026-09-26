@@ -1255,6 +1255,35 @@
       "ring": "Progresso de {name}",
       "progressLink": "Ver no Progresso"
     },
+    "daySummary": {
+      "title": "Hoje",
+      "doneOfDue": "{done} de {due} concluídos",
+      "nothingDue": "Nada previsto para hoje",
+      "overdue": "Atrasados",
+      "streak": "Sequência atual",
+      "ring": "{done} de {due} concluídos hoje",
+      "open": "Abrir Hoje"
+    },
+    "streakCard": {
+      "title": "Sua sequência e XP",
+      "days": "Dias recentes da sequência",
+      "current": "Sequência atual",
+      "xp": "{current} de {next} XP",
+      "open": "Ver no Progresso"
+    },
+    "calendarCard": {
+      "title": "Calendário",
+      "allDay": "O dia todo",
+      "empty": "Nenhum evento por aqui ainda.",
+      "sync": "Sincronização do calendário",
+      "syncState": {
+        "Idle": "Atualizado",
+        "ReconnectRequired": "Reconecte seu calendário",
+        "TransientError": "Falha na sincronização. Tente mais tarde",
+        "disabled": "Sincronização desativada"
+      },
+      "open": "Abrir Calendário"
+    },
     "preview": {
       "proposed": "Proposto pelo Astra",
       "editItem": "Editar item",
