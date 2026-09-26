@@ -38,7 +38,7 @@ export function CalendarPickerSection({
       { id, isSynced },
       {
         onError: (err: unknown) => {
-          showError(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'generic'))
+          showError(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
         },
       },
     )

@@ -16,6 +16,8 @@ import {
   validateApiRequest,
 } from '../utils/error-utils'
 import { createHabitRequestSchema, updateHabitRequestSchema } from '../types/habit'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 
 
 describe('ApiClientError', () => {
@@ -226,6 +228,20 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
   it('uses the edge key for a code-free 403 even when its body resembles validation', () => {
     expect(getFriendlyErrorKey(new ApiClientError(403, 'Title is required'), 'errors.createHabit', 'habit'))
       .toBe('errors.api.edgeBlocked')
+  })
+  it('gives textless requests a separate recovery message for a code-free 403', () => {
+    const error = new ApiClientError(403, 'Forbidden')
+    expect(getFriendlyErrorKey(error, 'calendar.calendars.saveFailed', 'textless'))
+      .toBe('errors.api.edgeBlockedRetry')
+    expect(getFriendlyErrorKey(error, 'errors.createHabit', 'habit'))
+      .toBe('errors.api.edgeBlocked')
+  })
+  it('keeps actionable blocked-request copy for both request kinds and locales', () => {
+    for (const locale of [en, ptBR]) {
+      expect(locale.errors.api.edgeBlockedRetry).toMatch(/Try again|Tente de novo/)
+      expect(locale.errors.api.edgeBlockedRetry).not.toMatch(/text|texto/i)
+      expect(locale.errors.api.edgeBlocked).toMatch(/text|texto/i)
+    }
   })
   it.each([
     [403, undefined, 'errors.api.edgeBlocked'],

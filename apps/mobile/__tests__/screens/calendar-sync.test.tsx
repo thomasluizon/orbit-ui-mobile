@@ -1,6 +1,7 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
+import { ApiClientError } from "@orbit/shared";
 
 import CalendarSyncScreen from "@/app/calendar-sync";
 
@@ -19,6 +20,7 @@ const colorProxy: any = new Proxy(
 );
 
 const mocks = vi.hoisted(() => {
+  const initialEventsQueryData: { status: "connected"; events: unknown[] } | { status: "not-connected" } | undefined = { status: "connected", events: [] };
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
   };
@@ -27,10 +29,7 @@ const mocks = vi.hoisted(() => {
     apiClient: vi.fn(),
     queryClient,
     eventsQuery: {
-      data: { status: "connected", events: [] } as
-        | { status: "connected"; events: unknown[] }
-        | { status: "not-connected" }
-        | undefined,
+      data: initialEventsQueryData,
       isLoading: false,
       isError: false,
       error: null as Error | null,
@@ -41,11 +40,13 @@ const mocks = vi.hoisted(() => {
       replace: vi.fn(),
     },
     profile: null as ReturnType<typeof createMockProfile> | null,
-    searchParams: {} as { mode?: string },
+    searchParams: {},
     suggestions: [] as unknown[],
     isOnline: true,
     bulkMutateAsync: vi.fn(),
     dismissMutateAsync: vi.fn(),
+    setAutoSyncMutate: vi.fn(),
+    runSyncNowMutate: vi.fn(),
     showError: vi.fn(),
   };
 });
@@ -103,11 +104,11 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
     error: null,
   }),
   useSetCalendarAutoSync: () => ({
-    mutate: vi.fn(),
+    mutate: mocks.setAutoSyncMutate,
     isPending: false,
   }),
   useRunCalendarSyncNow: () => ({
-    mutate: vi.fn(),
+    mutate: mocks.runSyncNowMutate,
     isPending: false,
   }),
   useDismissCalendarSuggestion: () => ({
@@ -204,7 +205,8 @@ vi.mock("@/components/ui/section-label", () => ({
 vi.mock("@/components/ui/settings-row", () => ({
   SettingsRow: ({ label, accessory }: { label: string; accessory?: string }) =>
     React.createElement("SettingsRow", { accessory }, label),
-  Switch: () => null,
+  Switch: ({ onToggle, accessibilityLabel }: { onToggle: () => void; accessibilityLabel: string }) =>
+    React.createElement("Switch", { onPress: onToggle, accessibilityLabel }),
 }));
 
 vi.mock("@/components/ui/select-check", () => ({
@@ -247,6 +249,8 @@ describe("CalendarSyncScreen", () => {
     mocks.isOnline = true;
     mocks.bulkMutateAsync.mockReset();
     mocks.dismissMutateAsync.mockReset();
+    mocks.setAutoSyncMutate.mockReset();
+    mocks.runSyncNowMutate.mockReset();
   });
 
   it("refetches calendar events through the cached query once the screen settles", async () => {
@@ -366,9 +370,159 @@ describe("CalendarSyncScreen", () => {
     const metaNodes = tree.root.findAll(
       (node: { props: Record<string, unknown> }) =>
         typeof node.props.children === "string" &&
-        (node.props.children as string).includes("Work"),
+        node.props.children.includes("Work"),
     );
     expect(metaNodes.length).toBeGreaterThan(0);
+  });
+
+  it("shows text-bearing recovery when importing an event is blocked", async () => {
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(1) };
+    mocks.bulkMutateAsync.mockRejectedValue(new ApiClientError(403, "Forbidden"));
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const importPill = tree.root.find(
+      (node: TestNode) =>
+        typeof node.props.onPress === "function" &&
+        typeof node.props.children === "string" &&
+        node.props.children.includes("calendar.importButton"),
+    );
+
+    await TestRenderer.act(async () => {
+      (importPill.props.onPress as () => void)();
+      await Promise.resolve();
+    });
+
+    expect(mocks.bulkMutateAsync.mock.calls[0]?.[0].habits[0].title).toBe("Event 0");
+    expect(tree.root.findAll(
+      (node: TestNode) => node.props.children === "errors.api.edgeBlocked",
+    ).length).toBeGreaterThan(0);
+  });
+
+  it("shows retry recovery when loading calendars is blocked", async () => {
+    mocks.eventsQuery.isError = true;
+    mocks.eventsQuery.error = new ApiClientError(403, "Forbidden");
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(tree.root.findAll(
+      (node: TestNode) => node.props.children === "errors.api.edgeBlockedRetry",
+    ).length).toBeGreaterThan(0);
+  });
+
+  it("shows retry recovery when a textless sync request is blocked", async () => {
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const syncNow = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.autoSync.syncNow" &&
+        typeof node.props.onPress === "function",
+    );
+    TestRenderer.act(() => {
+      (syncNow.props.onPress as () => void)();
+      const options = mocks.runSyncNowMutate.mock.calls[0]?.[1] as {
+        onError: (error: unknown) => void;
+      };
+      options.onError(new ApiClientError(403, "Forbidden"));
+    });
+
+    expect(mocks.runSyncNowMutate.mock.calls[0]?.[0]).toBeUndefined();
+    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
+  });
+
+  it("shows retry recovery when changing auto-sync is blocked", async () => {
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const toggle = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.autoSync.title" &&
+        typeof node.props.onPress === "function",
+    );
+    TestRenderer.act(() => {
+      (toggle.props.onPress as () => void)();
+      const options = mocks.setAutoSyncMutate.mock.calls[0]?.[1] as {
+        onError: (error: unknown) => void;
+      };
+      options.onError(new ApiClientError(403, "Forbidden"));
+    });
+
+    expect(mocks.setAutoSyncMutate.mock.calls[0]?.[0]).toEqual({ enabled: true });
+    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
+  });
+
+  it("shows text-bearing recovery when importing a review suggestion is blocked", async () => {
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "suggestion-1", event: buildEvents(1)[0] }];
+    mocks.bulkMutateAsync.mockRejectedValue(new ApiClientError(403, "Forbidden"));
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const importPill = tree.root.find(
+      (node: TestNode) =>
+        typeof node.props.onPress === "function" &&
+        typeof node.props.children === "string" &&
+        node.props.children.includes("calendar.importButton"),
+    );
+    await TestRenderer.act(async () => {
+      (importPill.props.onPress as () => void)();
+      await Promise.resolve();
+    });
+
+    expect(mocks.bulkMutateAsync.mock.calls[0]?.[0].habits[0].title).toBe("Event 0");
+    expect(tree.root.findAll(
+      (node: TestNode) => node.props.children === "errors.api.edgeBlocked",
+    ).length).toBeGreaterThan(0);
+  });
+
+  it("shows retry recovery when dismissing a suggestion is blocked", async () => {
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "suggestion-1", event: buildEvents(1)[0] }];
+    mocks.dismissMutateAsync.mockRejectedValue(new ApiClientError(403, "Forbidden"));
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const dismiss = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.autoSync.dismissSuggestion" &&
+        typeof node.props.onPress === "function",
+    );
+    await TestRenderer.act(async () => {
+      (dismiss.props.onPress as () => void)();
+      await Promise.resolve();
+    });
+
+    expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: "suggestion-1" });
+    expect(mocks.showError).toHaveBeenCalledWith("errors.api.edgeBlockedRetry");
   });
 
   it("shows the offline state without a retry chip when disconnected", async () => {
@@ -444,7 +598,7 @@ describe("CalendarSyncScreen", () => {
       (node: TestNode) =>
         typeof node.props.onPress === "function" &&
         typeof node.props.children === "string" &&
-        (node.props.children as string).includes("calendar.importButton"),
+        node.props.children.includes("calendar.importButton"),
     );
 
     await TestRenderer.act(async () => {

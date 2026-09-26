@@ -2039,6 +2039,7 @@
     "api": {
       "accountChanged": "Sua conta mudou. Recarregue esta página antes de tentar de novo.",
       "edgeBlocked": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Mude o texto e tente de novo.",
+      "edgeBlockedRetry": "Esta solicitação foi bloqueada antes de chegar ao Orbit. Tente de novo em alguns minutos. Se continuar acontecendo, fale com o suporte.",
       "habitLimit": "Você pode ter até 1.000 hábitos ativos, sem contar sub-hábitos. Exclua um hábito para adicionar outro.",
       "calendarPro": "A sincronização do calendário precisa do Orbit Pro. Veja a tela de upgrade para ativar.",
       "astraLimit": "Você atingiu o limite de mensagens da Astra hoje. Você pode enviar mais mensagens amanhã.",

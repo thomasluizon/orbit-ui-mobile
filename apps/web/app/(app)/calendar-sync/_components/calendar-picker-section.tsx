@@ -29,7 +29,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
     try {
       await setSelectedCalendars.mutateAsync({ id, isSynced })
     } catch (err: unknown) {
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'generic'))
+      toast.error(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
     }
   }
 

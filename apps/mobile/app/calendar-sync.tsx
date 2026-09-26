@@ -20,9 +20,9 @@ import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
+  getFriendlyErrorMessage,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils/error-utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
@@ -268,7 +268,7 @@ export default function CalendarSyncScreen() {
         { enabled },
         {
           onError: (err: unknown) => {
-            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
           },
         },
       )
@@ -283,7 +283,7 @@ export default function CalendarSyncScreen() {
     }
     runSyncNowMutation.mutate(undefined, {
       onError: (err: unknown) => {
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
       },
     })
   }, [isOnline, runSyncNowMutation, showError, t])
@@ -386,7 +386,7 @@ export default function CalendarSyncScreen() {
       try {
         await dismissSuggestion.mutateAsync({ id: suggestionId })
       } catch (err: unknown) {
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
       }
     },
     [dismissSuggestion, showError, t],

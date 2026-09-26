@@ -2039,6 +2039,7 @@
     "api": {
       "accountChanged": "Your account changed. Reload this page before trying again.",
       "edgeBlocked": "This request was blocked before it reached Orbit. Change the text and try again.",
+      "edgeBlockedRetry": "This request was blocked before it reached Orbit. Try again in a few minutes. If it keeps happening, contact support.",
       "habitLimit": "You can have up to 1,000 active habits, not counting sub-habits. Delete a habit to add another.",
       "calendarPro": "Calendar sync needs Orbit Pro. Open Upgrade to turn it on.",
       "astraLimit": "You've reached today's Astra message limit. You can send more messages tomorrow.",

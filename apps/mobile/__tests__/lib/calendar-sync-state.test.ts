@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest"
+import { ApiClientError } from "@orbit/shared"
 import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
@@ -73,6 +74,16 @@ describe("resolveDisplayedErrorMessage (mobile)", () => {
       translate,
     })
     expect(result.startsWith("t:")).toBe(true)
+  })
+
+  it("shows textless recovery when the calendar query is blocked", () => {
+    expect(resolveDisplayedErrorMessage({
+      wizardStage: "browse",
+      errorMessage: "",
+      isQueryError: true,
+      queryError: new ApiClientError(403, "Forbidden"),
+      translate,
+    })).toBe("t:errors.api.edgeBlockedRetry")
   })
 
   it("is empty when there is no error", () => {
