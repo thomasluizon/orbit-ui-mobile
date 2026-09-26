@@ -5,8 +5,10 @@ import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
   PendingAgentOperationConfirmation,
+  PendingOperationRevisionResult,
+  RevisePendingOperationRequest,
 } from "@orbit/shared/types";
-import { getFriendlyErrorMessage } from "@orbit/shared/utils";
+import { ApiClientError, getFriendlyErrorMessage } from "@orbit/shared/utils";
 import { apiClient } from "@/lib/api-client";
 
 export type PendingExecutionResult =
@@ -36,6 +38,22 @@ export function usePendingOperationExecution({
   appendExecutionMessage,
 }: UsePendingOperationExecutionOptions) {
   const { t, i18n } = useTranslation();
+
+  const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
+    try {
+      const result = await apiClient<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
+        method: 'POST',
+        body: JSON.stringify(request),
+      });
+      return { ok: true as const, result };
+    } catch (error: unknown) {
+      return {
+        ok: false as const,
+        error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
+        stale: error instanceof ApiClientError && error.status === 409,
+      };
+    }
+  }, [t]);
 
   const confirmAndExecutePendingOperation = useCallback(
     async (pendingOperationId: string): Promise<PendingExecutionResult> => {
@@ -165,6 +183,7 @@ export function usePendingOperationExecution({
   );
 
   return {
+    revisePendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

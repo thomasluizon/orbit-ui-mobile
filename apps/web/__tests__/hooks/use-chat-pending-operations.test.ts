@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   executePendingOperation: vi.fn(),
   issuePendingOperationStepUp: vi.fn(),
   verifyPendingOperationStepUp: vi.fn(),
+  revisePendingOperation: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -20,6 +21,7 @@ vi.mock('@/app/actions/chat', () => ({
   executePendingOperation: mocks.executePendingOperation,
   issuePendingOperationStepUp: mocks.issuePendingOperationStepUp,
   verifyPendingOperationStepUp: mocks.verifyPendingOperationStepUp,
+  revisePendingOperation: mocks.revisePendingOperation,
 }))
 
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
@@ -43,6 +45,7 @@ describe('useChatPendingOperations', () => {
     mocks.executePendingOperation.mockReset()
     mocks.issuePendingOperationStepUp.mockReset()
     mocks.verifyPendingOperationStepUp.mockReset()
+    mocks.revisePendingOperation.mockReset()
   })
 
   afterEach(() => {
@@ -70,6 +73,21 @@ describe('useChatPendingOperations', () => {
     expect(mocks.executePendingOperation).toHaveBeenCalledWith('pending-1', 'token-1', null)
     expect(onExecuted).toHaveBeenCalledWith(makeExecution('Created'))
     expect(outcome).toMatchObject({ ok: true })
+  })
+
+  it('revises without confirming or executing', async () => {
+    const response = { isSuccess: true, error: null, pendingOperationId: 'pending-1',
+      cancelled: false, preview: { changes: [], changeTargetCount: 1, items: [], previewFingerprint: 'next' } }
+    mocks.revisePendingOperation.mockResolvedValue({ ok: true, data: response })
+    const onExecuted = vi.fn(async () => {})
+    const { result } = renderHook(() => useChatPendingOperations(onExecuted))
+    const request = { previewFingerprint: 'current', items: [{ itemId: 'habit-1', edits: { emoji: 'B' } }] }
+    let outcome: Awaited<ReturnType<typeof result.current.revisePendingOperationForBubble>> | null = null
+    await act(async () => { outcome = await result.current.revisePendingOperationForBubble('pending-1', request) })
+    expect(mocks.revisePendingOperation).toHaveBeenCalledWith('pending-1', request, null)
+    expect(outcome).toEqual({ ok: true, result: response })
+    expect(mocks.confirmPendingOperation).not.toHaveBeenCalled()
+    expect(onExecuted).not.toHaveBeenCalled()
   })
 
   it('does not forward an execution that returns after the account changes', async () => {

@@ -3,11 +3,13 @@
 import { useCallback } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import type { RevisePendingOperationRequest } from '@orbit/shared/types/ai'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import {
   confirmPendingOperation,
   executePendingOperation,
   issuePendingOperationStepUp,
+  revisePendingOperation,
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
 import { applyServerActionFailure } from '@/lib/client-action'
@@ -46,6 +48,18 @@ export function useChatPendingOperations(
 ) {
   const t = useTranslations()
   const locale = useLocale()
+
+  const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
+    const intendedAccountId = getHeldAccountId()
+    const accountGeneration = getAccountGeneration()
+    const response = await revisePendingOperation(id, request, intendedAccountId)
+    if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
+    await applyServerActionFailure(response)
+    if (accountChanged(intendedAccountId, accountGeneration)) return { ok: false as const, error: t('errors.api.accountChanged') }
+    return response.ok
+      ? { ok: true as const, result: response.data }
+      : { ok: false as const, error: pendingOperationError(response, t), stale: response.status === 409 }
+  }, [t])
 
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     const intendedAccountId = getHeldAccountId()
@@ -146,6 +160,7 @@ export function useChatPendingOperations(
   )
 
   return {
+    revisePendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

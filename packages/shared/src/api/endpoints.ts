@@ -130,6 +130,7 @@ export const API = {
     dataCatalog: '/api/ai/data-catalog',
     surfaces: '/api/ai/surfaces',
     pendingOperationConfirm: (id: string) => `/api/ai/pending-operations/${id}/confirm` as const,
+    pendingOperationRevise: (id: string) => `/api/ai/pending-operations/${id}/revise` as const,
     pendingOperationStepUp: (id: string) => `/api/ai/pending-operations/${id}/step-up` as const,
     pendingOperationVerifyStepUp: (id: string) =>
       `/api/ai/pending-operations/${id}/step-up/verify` as const,

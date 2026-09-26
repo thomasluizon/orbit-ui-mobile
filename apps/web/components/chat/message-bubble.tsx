@@ -39,6 +39,7 @@ export function MessageBubble({
   isStreaming = false,
   onBreakdownConfirmed,
   onActionChipClick,
+  onPendingOperationRevise,
   onPendingOperationConfirmExecute,
   onPendingOperationPrepareStepUp,
   onPendingOperationVerifyStepUp,
@@ -225,6 +226,7 @@ export function MessageBubble({
               <PendingOperationCard
                 key={pendingOperation.id}
                 pendingOperation={pendingOperation}
+                onRevise={onPendingOperationRevise}
                 onConfirmExecute={onPendingOperationConfirmExecute}
                 onPrepareStepUp={onPendingOperationPrepareStepUp}
                 onVerifyStepUp={onPendingOperationVerifyStepUp}

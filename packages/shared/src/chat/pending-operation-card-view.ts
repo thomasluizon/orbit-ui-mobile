@@ -1,4 +1,4 @@
-import type { PendingAgentOperation } from '../types/ai'
+import type { PendingAgentOperation, PendingOperationItem } from '../types/ai'
 import type {
   PendingOperationCardStatus,
   PreparedPendingOperationStepUp,
@@ -38,6 +38,17 @@ export interface PendingOperationVerificationProps {
   prepared: PreparedPendingOperationStepUp
 }
 
+export interface PendingOperationEditSheetProps {
+  item: PendingOperationItem
+  draft: Readonly<Record<string, string>>
+  labels: PendingOperationCardLabels
+  busy: boolean
+  error: string | undefined
+  onChange: (field: string, value: string) => void
+  onClose: () => void
+  onSave: () => void
+}
+
 export interface PendingOperationFrame<Node> {
   state: 'acting' | 'partiallyFailed' | 'resting'
   title: string
@@ -47,7 +58,11 @@ export interface PendingOperationFrame<Node> {
     meta: string
     status: PendingOperationCardStatus
     irreversible: boolean
+    editable?: boolean
+    control?: Node
   }[]
+  editLabel?: string
+  onEditItem?: (itemId: string) => void
   risk: Node
   irreversibleLabel: string
   confirmNote: string
@@ -61,6 +76,9 @@ export interface PendingOperationCardRenderers<Node> {
   risk: (label: string) => Node
   stepUp: (props: { message: string; actionLabel: string; onAction: () => void; busy: boolean }) => Node
   verification: (props: PendingOperationVerificationProps) => Node
+  editSheet: (props: PendingOperationEditSheetProps) => Node
+  removeItem: (label: string, disabled: boolean, onClick: () => void) => Node
+  notice: (message: string) => Node
   fragment: (...children: (Node | null | undefined)[]) => Node
 }
 
@@ -76,6 +94,83 @@ export interface PendingOperationCardActions {
   execute: () => Promise<void>
   setConfirmOpen: (open: boolean) => void
   startStepUp: () => Promise<void>
+  revision?: {
+    operation: PendingAgentOperation
+    canRevise: boolean
+    items: readonly PendingOperationItem[]
+    editingItem: PendingOperationItem | undefined
+    draft: Readonly<Record<string, string>>
+    busy: boolean
+    stale: boolean
+    rejected: boolean
+    error: string | undefined
+    setDraftField: (field: string, value: string) => void
+    closeEdit: () => void
+    startEdit: (itemId: string) => void
+    saveEdit: () => Promise<void>
+    rejectItem: (itemId: string) => Promise<void>
+    rejectAll: () => Promise<void>
+  }
+}
+
+type CardRevision = NonNullable<PendingOperationCardActions['revision']>
+
+function pendingActions<Node>(
+  action: 'none' | 'stepUp' | 'buttons',
+  destructive: boolean,
+  card: PendingOperationCardActions,
+  revision: CardRevision | undefined,
+  labels: PendingOperationCardLabels,
+  render: PendingOperationCardRenderers<Node>,
+): Node | undefined {
+  if (action === 'stepUp') return render.stepUp({
+    message: labels.stepUpMessage,
+    actionLabel: labels.stepUpAction,
+    onAction: () => void card.startStepUp(),
+    busy: card.busy,
+  })
+  if (action !== 'buttons') return undefined
+  return render.fragment(
+    render.button({
+      label: revision?.canRevise ? labels.reject : labels.cancel,
+      variant: 'ghost',
+      onClick: revision?.canRevise ? () => void revision.rejectAll() : card.dismiss,
+    }),
+    render.button({
+      label: labels.approve,
+      variant: 'primary',
+      disabled: revision?.canRevise === true && revision.items.length === 0,
+      onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
+    }),
+  )
+}
+
+function previewRows<Node>(
+  revision: CardRevision | undefined,
+  card: PendingOperationCardActions,
+  labels: PendingOperationCardLabels,
+  destructive: boolean,
+  render: PendingOperationCardRenderers<Node>,
+): PendingOperationFrame<Node>['items'] | null {
+  if (!revision?.canRevise) return null
+  return revision.items.map((item) => {
+    const field = item.fields.length === 1 ? item.fields[0] : undefined
+    return {
+      id: item.itemId,
+      label: item.entityName,
+      meta: field?.newValue
+        ? `${labels.fieldLabels[field.field] ?? field.field}: ${field.newValue}`
+        : labels.pending,
+      status: card.status,
+      irreversible: destructive && card.status == null,
+      editable: item.fields.some((entry) => entry.valueType !== 'action'),
+      control: card.status == null ? render.removeItem(
+        `${labels.remove} ${item.entityName}`,
+        card.busy || revision.busy,
+        () => void revision.rejectItem(item.itemId),
+      ) : undefined,
+    }
+  })
 }
 
 export function renderPendingOperationCard<Node>({
@@ -92,39 +187,30 @@ export function renderPendingOperationCard<Node>({
   render: PendingOperationCardRenderers<Node>
 }): Node | null {
   if (card.dismissed) return null
+  const revision = card.revision
+  if (revision?.rejected) return render.notice(`${labels.rejected} ${labels.name}`)
+  if (revision?.stale) return render.notice(labels.stale)
 
   const { destructive, action, frameState } = getPendingOperationCardPresentation(
-    pendingOperation.riskClass, pendingOperation.confirmationRequirement, card.busy, card.status,
+    pendingOperation.riskClass, pendingOperation.confirmationRequirement,
+    card.busy || revision?.busy === true, card.status,
   )
-  let actions: Node | undefined
-  if (action === 'stepUp') {
-    actions = render.stepUp({
-      message: labels.stepUpMessage,
-      actionLabel: labels.stepUpAction,
-      onAction: () => void card.startStepUp(),
-      busy: card.busy,
-    })
-  } else if (action === 'buttons') {
-    actions = render.fragment(
-      render.button({ label: labels.cancel, variant: 'ghost', onClick: card.dismiss }),
-      render.button({
-        label: labels.approve,
-        variant: destructive ? 'destructive' : 'primary',
-        onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
-      }),
-    )
-  }
-
+  const actions = pendingActions(action, destructive, card, revision, labels, render)
+  const previewItems = previewRows(revision, card, labels, destructive, render)
   const blockFrame = render.blockFrame({
     state: frameState,
-    title: labels.pendingTitle,
-    items: [{
+    title: previewItems ? labels.name : labels.pendingTitle,
+    items: previewItems ?? [{
       id: pendingOperation.id,
       label: labels.name,
       meta: labels.pending,
       status: card.status,
       irreversible: destructive && card.status == null,
     }],
+    ...(revision?.canRevise ? {
+      editLabel: labels.edit,
+      onEditItem: revision.startEdit,
+    } : {}),
     risk: render.risk(labels.risk),
     irreversibleLabel: labels.irreversible,
     confirmNote: labels.confirmNote,
@@ -152,5 +238,17 @@ export function renderPendingOperationCard<Node>({
       })
     : null
 
-  return render.fragment(blockFrame, confirmSheet, verification)
+  const editSheet = revision?.editingItem
+    ? render.editSheet({
+        item: revision.editingItem,
+        draft: revision.draft,
+        labels,
+        busy: revision.busy,
+        error: revision.error,
+        onChange: revision.setDraftField,
+        onClose: revision.closeEdit,
+        onSave: () => void revision.saveEdit(),
+      })
+    : null
+  return render.fragment(blockFrame, confirmSheet, verification, editSheet)
 }

@@ -896,6 +896,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   ]) as ComposerProps;
 
   const {
+    revisePendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -939,6 +940,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     canRetryLastSend,
     scrollToBottom,
     handleBreakdownConfirmed,
+    revisePendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

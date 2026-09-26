@@ -1,4 +1,5 @@
 import type { AgentExecuteOperationResponse } from '../types/ai'
+import type { RevisePendingOperation } from '../hooks/pending-operation-revision-core'
 import type { ChatMessage } from '../types/chat'
 
 export interface MessageBubbleProps {
@@ -7,6 +8,7 @@ export interface MessageBubbleProps {
   message: ChatMessage
   onActionChipClick?: (entityId: string, actionType: string) => void
   onBreakdownConfirmed?: () => void
+  onPendingOperationRevise?: RevisePendingOperation
   onPendingOperationConfirmExecute?: (
     pendingOperationId: string,
   ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>

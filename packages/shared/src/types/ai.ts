@@ -64,6 +64,52 @@ export const userDataCatalogEntrySchema = z.object({
 })
 export type UserDataCatalogEntry = z.infer<typeof userDataCatalogEntrySchema>
 
+export const pendingOperationChangeSchema = z.object({
+  entityId: z.string(),
+  entityName: z.string(),
+  field: z.string(),
+  oldValue: z.string().nullable(),
+  newValue: z.string().nullable(),
+  valueType: z.string(),
+})
+
+export const pendingOperationItemSchema = z.object({
+  itemId: z.string(),
+  entityId: z.string().nullable(),
+  entityName: z.string(),
+  fields: z.array(pendingOperationChangeSchema),
+  stateFingerprint: z.string(),
+})
+export type PendingOperationItem = z.infer<typeof pendingOperationItemSchema>
+
+export const pendingOperationChangePreviewSchema = z.object({
+  changes: z.array(pendingOperationChangeSchema),
+  changeTargetCount: z.number(),
+  items: z.array(pendingOperationItemSchema).nullable().optional(),
+  previewFingerprint: z.string().nullable().optional(),
+})
+
+export const revisedPendingOperationItemSchema = z.object({
+  itemId: z.string(),
+  edits: z.record(z.string(), z.unknown()).nullable().optional(),
+})
+export type RevisedPendingOperationItem = z.infer<typeof revisedPendingOperationItemSchema>
+
+export const revisePendingOperationRequestSchema = z.object({
+  previewFingerprint: z.string(),
+  items: z.array(revisedPendingOperationItemSchema),
+})
+export type RevisePendingOperationRequest = z.infer<typeof revisePendingOperationRequestSchema>
+
+export const pendingOperationRevisionResultSchema = z.object({
+  isSuccess: z.boolean(),
+  error: z.string().nullable(),
+  pendingOperationId: z.string().nullable(),
+  preview: pendingOperationChangePreviewSchema.nullable(),
+  cancelled: z.boolean(),
+})
+export type PendingOperationRevisionResult = z.infer<typeof pendingOperationRevisionResultSchema>
+
 export const pendingAgentOperationSchema = z.object({
   id: z.string(),
   capabilityId: z.string(),
@@ -72,6 +118,10 @@ export const pendingAgentOperationSchema = z.object({
   riskClass: agentRiskClassSchema,
   confirmationRequirement: agentConfirmationRequirementSchema,
   expiresAtUtc: z.string(),
+  changes: z.array(pendingOperationChangeSchema).nullable().optional(),
+  changeTargetCount: z.number().nullable().optional(),
+  items: z.array(pendingOperationItemSchema).nullable().optional(),
+  previewFingerprint: z.string().nullable().optional(),
 })
 export type PendingAgentOperation = z.infer<typeof pendingAgentOperationSchema>
 

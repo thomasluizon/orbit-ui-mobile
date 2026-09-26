@@ -66,7 +66,7 @@ function IrreversibleMark({ label, tokens }: Readonly<{ label: string; tokens: A
 function FrameRow(props: FrameRowProps) {
   const { item, frameState, statusLabel, onEditItem, tokens } = props
   const status = frameState === 'acting' ? 'acting' : item.status
-  const isEditable = status == null && frameState !== 'stale'
+  const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <View
       style={styles.row}

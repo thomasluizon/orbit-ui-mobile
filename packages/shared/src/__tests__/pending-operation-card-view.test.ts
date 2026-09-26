@@ -13,6 +13,8 @@ import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from
 
 const labels: PendingOperationCardLabels = {
   approve: 'Approve', cancel: 'Cancel', confirm: 'Confirm',
+  edit: 'Edit item', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
+  rejected: 'Declined:', save: 'Save', invalid: 'Invalid', stale: 'Stale', fieldLabels: {},
   confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
   pendingTitle: 'Pending operation', risk: 'Destructive',
@@ -52,12 +54,45 @@ function createRenderers() {
     risk: (label) => label,
     stepUp: (props) => { record.stepUp = props; return 'step-up' },
     verification: (props) => { record.verification = props; return 'verification' },
+    editSheet: () => 'edit-sheet',
+    removeItem: (label, _disabled, onClick) => { record.buttons.push({ label, onClick }); return label },
+    notice: (message) => message,
     fragment: (...children) => children.filter(Boolean).join('|'),
   }
   return { record, render }
 }
 
 describe('pending operation card view', () => {
+  it('offers item editing and rejection before approving a preview', () => {
+    const card = createCard()
+    const { record, render } = createRenderers()
+    const operation = makePendingAgentOperation({
+      previewFingerprint: 'preview-1',
+      items: [
+        { itemId: 'habit-1', entityId: 'habit-1', entityName: 'Run', stateFingerprint: 'state-1', fields: [
+          { entityId: 'habit-1', entityName: 'Run', field: 'date', oldValue: null, newValue: '2026-09-26', valueType: 'date' },
+        ] },
+        { itemId: 'habit-2', entityId: 'habit-2', entityName: 'Read', stateFingerprint: 'state-2', fields: [
+          { entityId: 'habit-2', entityName: 'Read', field: 'date', oldValue: null, newValue: '2026-09-26', valueType: 'date' },
+        ] },
+      ],
+    })
+    card.revision = {
+      operation, canRevise: true, items: operation.items ?? [], editingItem: undefined,
+      draft: {}, busy: false, stale: false, rejected: false, error: undefined,
+      setDraftField: vi.fn(), closeEdit: vi.fn(), startEdit: vi.fn(),
+      saveEdit: vi.fn().mockResolvedValue(undefined),
+      rejectItem: vi.fn().mockResolvedValue(undefined),
+      rejectAll: vi.fn().mockResolvedValue(undefined),
+    }
+    renderPendingOperationCard({ card, labels, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
+    expect(record.frame?.items.map((item) => item.id)).toEqual(['habit-1', 'habit-2'])
+    expect(record.frame?.items.every((item) => item.label !== '')).toBe(true)
+    expect(record.buttons.map(({ label }) => label)).toContain('Reject')
+    record.buttons.find(({ label }) => label === 'Remove Run')?.onClick()
+    expect(card.revision.rejectItem).toHaveBeenCalledWith('habit-1')
+  })
+
   it('confirms destructive actions and builds the frame from plain state', () => {
     const card = createCard()
     const { record, render } = createRenderers()

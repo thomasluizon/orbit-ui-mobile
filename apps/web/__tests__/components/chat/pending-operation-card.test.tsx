@@ -17,12 +17,26 @@ vi.mock('@/components/ui/otp-input', () => ({
 const confirm = vi.fn()
 const prepareStepUp = vi.fn()
 const verifyStepUp = vi.fn()
+const revise = vi.fn()
+const firstItem = {
+  itemId: 'habit-1', entityId: 'habit-1', entityName: 'Run', stateFingerprint: 'state-1',
+  fields: [{ entityId: 'habit-1', entityName: 'Run', field: 'date', oldValue: null, newValue: '2026-09-26', valueType: 'date' }],
+}
+const secondItem = {
+  itemId: 'habit-2', entityId: 'habit-2', entityName: 'Read', stateFingerprint: 'state-2',
+  fields: [{ entityId: 'habit-2', entityName: 'Read', field: 'date', oldValue: null, newValue: '2026-09-26', valueType: 'date' }],
+}
+const preview = makePendingAgentOperation({
+  riskClass: 'Low', confirmationRequirement: 'None', previewFingerprint: 'preview-1',
+  items: [firstItem, secondItem], changeTargetCount: 2,
+})
 
 describe('PendingOperationCard', () => {
   beforeEach(() => {
     confirm.mockReset()
     prepareStepUp.mockReset()
     verifyStepUp.mockReset()
+    revise.mockReset()
   })
 
   it('states risk and requires a sheet before a destructive operation', async () => {
@@ -79,5 +93,75 @@ describe('PendingOperationCard', () => {
     render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ riskClass: 'Low', confirmationRequirement: 'None' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     await waitFor(() => expect(screen.getByText('status.failed')).toBeInTheDocument())
+  })
+
+  it('removes one item before approval executes the remaining preview', async () => {
+    revise.mockResolvedValue({ ok: true, result: {
+      isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false,
+      preview: { changes: [], changeTargetCount: 1, items: [secondItem], previewFingerprint: 'preview-2' },
+    } })
+    confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+    render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(confirm).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.remove Run' }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-2' }],
+    }))
+    expect(screen.queryByText('Run')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(confirm).toHaveBeenCalledOnce())
+  })
+
+  it('edits one item and sends only the changed field before approval', async () => {
+    const editedItem = { ...firstItem, fields: [{ ...firstItem.fields[0], newValue: '2026-09-27' }] }
+    revise.mockResolvedValue({ ok: true, result: {
+      isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false,
+      preview: { changes: [], changeTargetCount: 2, items: [editedItem, secondItem], previewFingerprint: 'preview-2' },
+    } })
+    render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
+    fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-27' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await waitFor(() => expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1',
+      items: [{ itemId: 'habit-1', edits: { date: '2026-09-27' } }, { itemId: 'habit-2' }],
+    }))
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('collapses the rejected preview with no approval action', async () => {
+    revise.mockResolvedValue({ ok: true, result: {
+      isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true,
+    } })
+    render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.reject' }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('chat.operation.rejected'))
+    expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('removing every item leaves no approval action', async () => {
+    revise.mockResolvedValueOnce({ ok: true, result: {
+      isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false,
+      preview: { changes: [], changeTargetCount: 1, items: [secondItem], previewFingerprint: 'preview-2' },
+    } }).mockResolvedValueOnce({ ok: true, result: {
+      isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true,
+    } })
+    render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.remove Run' }))
+    await waitFor(() => expect(screen.queryByText('Run')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.remove Read' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument())
+    expect(revise).toHaveBeenLastCalledWith('pending-1', { previewFingerprint: 'preview-2', items: [] })
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('keeps inferred emoji changes as a plain confirmation', () => {
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({
+      displayName: 'bulk_update_habit_emojis', items: null, previewFingerprint: null,
+    })} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.queryByRole('button', { name: 'chat.operation.edit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.operation.reject' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeEnabled()
   })
 })
