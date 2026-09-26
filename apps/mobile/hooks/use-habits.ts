@@ -468,8 +468,8 @@ export function useDeleteHabit() {
           void cancelQueuedDeleteForUndo(data.queuedMutationId).then((outcome) => {
             if (outcome !== 'replayed') {
               restoreHabitLists(queryClient, context.previousLists)
-              adjustHabitCount(queryClient, 1)
               void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+              void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
             }
             if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
           })

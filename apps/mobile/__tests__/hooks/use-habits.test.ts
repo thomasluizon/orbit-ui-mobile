@@ -782,6 +782,19 @@ describe('mobile habit hooks', () => {
     expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
   })
 
+  it('leaves the habit count to the server when Undo cancels an offline single delete', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 7)
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string }, string, { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+    const context = await mutation.onMutate?.('habit-1')
+    mutation.onSuccess?.({ queued: true, queuedMutationId: 'mutation-1' }, 'habit-1', context)
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    await vi.waitFor(() => expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() }))
+    expect(mocks.queryClient.getQueryData(habitKeys.count())).toBe(7)
+  })
+
   it('restores a habit through the queued path, targets the restore endpoint, and confirms', async () => {
     mocks.runQueuedMutation.mockResolvedValueOnce({})
 
