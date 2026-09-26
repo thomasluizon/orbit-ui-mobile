@@ -263,7 +263,7 @@ const assertGhTicketStub = (entry) => {
 
 export const ORCA_SHIM = stage(
   "orca-shim.cjs",
-  `const { existsSync, readFileSync, rmSync, writeFileSync } = require("node:fs")
+  `const { existsSync, readFileSync, rmSync, writeFileSync, writeSync } = require("node:fs")
 const { spawn } = require("node:child_process")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
@@ -275,11 +275,6 @@ if (!match) {
   process.exit(9)
 }
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
-if (match.hangTreePidFile) {
-  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
-  writeFileSync(match.hangTreePidFile, String(child.pid))
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
-}
 if (match.argvFile) writeFileSync(match.argvFile, JSON.stringify(argv))
 if (match.stdinFile) writeFileSync(match.stdinFile, readFileSync(0, "utf8"))
 if (Array.isArray(match.stdoutSequence) && match.sequenceFile) {
@@ -289,6 +284,18 @@ if (Array.isArray(match.stdoutSequence) && match.sequenceFile) {
   process.stdout.write(selected)
 } else {
   process.stdout.write(match.stdout || "")
+}
+if (match.hangTreePidFile) {
+  if (match.stderr) writeSync(2, match.stderr)
+  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
+  writeFileSync(match.hangTreePidFile, String(child.pid))
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
+}
+if (match.overflowStdoutBytes) {
+  if (match.stderr) writeSync(2, match.stderr)
+  const chunk = Buffer.alloc(1024 * 1024, "x")
+  for (let written = 0; written < match.overflowStdoutBytes; written += chunk.length) writeSync(1, chunk)
+  process.exit(0)
 }
 process.stderr.write(match.stderr || "")
 process.exit(match.exit ?? 0)

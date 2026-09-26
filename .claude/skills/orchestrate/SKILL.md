@@ -753,8 +753,8 @@ It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
 | `NO_PR` | `gh pr list --head <branch>` returned 0, or more than 1 |
 | `STALE_PR` | the PR's `headRefOid` is not the branch head |
 | `OUT_OF_DATE` | GitHub compare says `behind_by > 0`; reports the base SHA, head SHA and count |
-| `CI_FAILING` | a required or gating check concluded red on the current head |
-| `CI_PENDING` | nothing is red but checks are still running |
+| `CI_FAILING` | a required or gating check concluded red on the current head, or its one rerun request failed or has no recorded outcome |
+| `CI_PENDING` | checks are running or an accepted rerun of a cancelled current-head run has not completed |
 
 ### `DRAFT` is mandatory to clear here, before step 8
 
@@ -799,6 +799,17 @@ details URL, workflow, name, status and conclusion. `gh run view <id> --json job
 STEP. A failure at `Set up job` is GitHub infrastructure, not the diff, and the repair is a re-run:
 all five reds on #685 were one Actions outage, and every hypothesis about their content was wrong.
 Never fix a diff to satisfy a check that never ran.
+
+When a current-head Actions check is `CANCELLED`, `verify-delivery.mjs` checks runs on the pull
+request branch. It reruns that run once only if an ancestor-head run of the same workflow finished
+after it. It writes an intent marker before the request, then records the run ID, observed attempt,
+and `accepted` or `failed` outcome. `checks.ci.reruns` carries that record in the delivery artifact.
+An accepted request stays `CI_PENDING` while the newer attempt runs or the rollup still reports the
+old cancelled check. Once that attempt completes, its conclusion decides the verdict. A failed
+request is `CI_FAILING` with `RERUN_REQUEST_FAILED`, the exit code, and the first stderr line.
+An intent marker without an outcome is `CI_FAILING` with `RERUN_REQUEST_UNKNOWN`. Neither state
+requests the run again. A cancellation without later-finishing older-head evidence stays
+`CI_FAILING`; inspect it before invoking the fixer. A cancelled older head is never eligible.
 
 `CI_PENDING` is its own verdict rather than a pass or a stop. Pass `--wait-ci <seconds>` to let
 checks settle; without it the state is reported immediately and the run does not sit on it.
