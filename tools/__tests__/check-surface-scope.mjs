@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, writeFileSync } from "node:fs"
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { check, root, toolPath } from "./_harness.mjs"
@@ -24,6 +24,23 @@ function stageRepository(label, { web = "", mobile = "" }) {
   writeFileSync(join(repository, "DESIGN.md"), declarations)
   writeFileSync(join(repository, "apps/web/example.tsx"), web)
   writeFileSync(join(repository, "apps/mobile/example.tsx"), mobile)
+  return repository
+}
+
+function stageProducerRepository(label, paths, violation) {
+  const repository = stageRepository(label, {})
+  const actualRoot = join(dirname(toolPath("check-surface-scope.mjs")), "..")
+  for (const path of paths) {
+    const target = join(repository, path)
+    mkdirSync(dirname(target), { recursive: true })
+    const source = readFileSync(join(actualRoot, path), "utf8")
+    if (path !== violation?.path) {
+      writeFileSync(target, source)
+      continue
+    }
+    if (!source.includes(violation.before)) throw new Error(`producer changed: ${path}`)
+    writeFileSync(target, source.replace(violation.before, violation.after))
+  }
   return repository
 }
 
@@ -98,5 +115,45 @@ export const cases = () => {
   check("check-surface-scope.mjs", "fails a surface-sensitive token whose surface is unresolved", ["--root", unresolved], {
     status: 1,
     stderr: /apps\/mobile\/example\.tsx:1: --primary-soft TEXT surface is unresolved/,
+  })
+
+  const dateField = "apps/mobile/components/ui/date-field.tsx"
+  const calendarPaths = [dateField]
+  const calendarViolation = { path: dateField, before: "<Calendar size={20} strokeWidth={1.8} color={tokens.fg3} />", after: "<Calendar size={20} strokeWidth={1.8} color={tokens.fg4} />" }
+  const badCalendar = stageProducerRepository("producer-calendar-fg4", calendarPaths, calendarViolation)
+  check("check-surface-scope.mjs", "rejects the date field calendar on its StyleSheet field", ["--root", badCalendar], {
+    status: 1,
+    stderr: /apps\/mobile\/components\/ui\/date-field\.tsx:331: --fg-4 on field, dark ratio 2\.728, GRAPHIC floor 3\.00/,
+  })
+  const goodCalendar = stageProducerRepository("producer-calendar-fg3", calendarPaths)
+  check("check-surface-scope.mjs", "accepts the date field calendar in both modes", ["--root", goodCalendar], {
+    status: 0,
+    stdout: /Surface scope guard passed/,
+  })
+
+  const siblingStyles = stageRepository("sibling-styles", { mobile: `import { X } from '@/components/ui/icons'
+const styles = StyleSheet.create({ canvas: { backgroundColor: tokens.bg }, field: { backgroundColor: tokens.bgField } })
+export function CanvasIcon(){return <View style={styles.canvas}><X color={tokens.fg4} /></View>}` })
+  check("check-surface-scope.mjs", "uses the selected StyleSheet member instead of a sibling surface", ["--root", siblingStyles], {
+    status: 0,
+    stdout: /Surface scope guard passed/,
+  })
+
+  const deadlineField = "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+  const deadlinePaths = [
+    deadlineField,
+    "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx",
+    "apps/mobile/components/ui/sheet.tsx",
+  ]
+  const deadlineViolation = { path: deadlineField, before: "<X size={16} color={tokens.fg3} strokeWidth={1.8} />", after: "<X size={16} color={tokens.fg4} strokeWidth={1.8} />" }
+  const badDeadline = stageProducerRepository("producer-deadline-fg4", deadlinePaths, deadlineViolation)
+  check("check-surface-scope.mjs", "rejects the deadline dismiss icon on its caller sheet", ["--root", badDeadline], {
+    status: 1,
+    stderr: /apps\/mobile\/components\/habits\/create-goal-from-habit\/goal-deadline-field\.tsx:46: --fg-4 on overlay, dark ratio 2\.593, GRAPHIC floor 3\.00/,
+  })
+  const goodDeadline = stageProducerRepository("producer-deadline-fg3", deadlinePaths)
+  check("check-surface-scope.mjs", "accepts the deadline dismiss icon in both modes", ["--root", goodDeadline], {
+    status: 0,
+    stdout: /Surface scope guard passed/,
   })
 }
