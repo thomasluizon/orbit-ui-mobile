@@ -17,13 +17,6 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
 }
 
-/**
- * Global keyboard shortcuts for the desktop shell. Cmd/Ctrl+K toggles the command
- * palette anywhere; a `g`-prefixed chord (g t/c/i/a/p) jumps between the primary
- * surfaces with the tab-switch transition; `g a` opens the maximized Astra copilot
- * at md+ and routes to /chat below it. Chords are ignored while typing in a field
- * or while an overlay is open.
- */
 export function useKeyboardShortcuts(): void {
   const router = useRouter()
   const togglePalette = useShellStore((state) => state.togglePalette)

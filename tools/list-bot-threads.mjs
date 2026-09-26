@@ -1,25 +1,4 @@
 #!/usr/bin/env node
-/**
- * Report what Pullfrog said about ONE pull request, and make "it never reviewed" a verdict the
- * caller can branch on rather than a silence it reads as approval.
- *
- * Pullfrog is the only reviewer of an Orbit pull request. It runs in GitHub Actions, it reviews a
- * pull request when the pull request opens, and it re-reviews after every push. /orchestrate reads
- * this tool to clear that review: it fixes the blocking findings, files the rest as tickets, and
- * replies to every thread it did not fix.
- *
- * Two shapes make a naive reading wrong, and both are handled here rather than documented:
- *
- *   1. An empty thread list is ambiguous between "reviewed, found nothing" and "has not reviewed
- *      yet". The verdict is therefore derived from a current-head Pullfrog review, never from the
- *      thread count. Measured on pull request 711 (2026-08-12): the clean pass arrived as a review
- *      with the state APPROVED and opened no thread at all.
- *   2. A review that did not approve states its complaint in the review BODY and can open no review
- *      thread at all, so zero unresolved threads is not proof of a clean pull request. Both surfaces
- *      are read in one query, and both are reported.
- *
- * It reads. It never replies, resolves, or fixes: tools/resolve-bot-thread.mjs owns the mutations.
- */
 
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
@@ -27,13 +6,6 @@ import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifie
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
-/**
- * The login as GraphQL spells it, because this tool reads GraphQL and nothing else. The two GitHub
- * APIs disagree on the same identity, and both spellings were read on 2026-08-12:
- * `gh api repos/thomasluizon/orbit-ui-mobile/pulls/711/reviews` prints `pullfrog[bot]`, while the
- * GraphQL `author.login` of that same review prints `pullfrog` with the typename `Bot`. A login
- * that never matches makes this tool report NO_REVIEW forever, so the GraphQL spelling wins.
- */
 const BOT_LOGIN = "pullfrog"
 
 const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|landing> | URL) [options]
@@ -251,7 +223,6 @@ const readPullRequest = async () => {
 
 /**
  * Pullfrog publishes no severity. Pull request 711 is the only Pullfrog review in this repository
- * so far (2026-08-12), it approved, and it opened no thread that a severity could be read from, so
  * there is no measured shape to parse. Every finding therefore reports P1: the caller triages it or
  * treats it as blocking, and nothing is downgraded by a parser written against a guess.
  */
@@ -276,13 +247,6 @@ const claimOf = (body) => {
 
 const sleep = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000))
 
-/**
- * Ask before spending. The reviewThreads document is an expensive GraphQL read and the budget is
- * per USER, so ui, api and landing pollers all draw on the same 5,000 points; eight concurrent
- * pollers exhausted it three times on 2026-08-09. `gh api rate_limit` is REST and costs nothing.
- * On a spent budget this WAITS, bounded by the caller's own remaining --wait-seconds, and says so;
- * a budget that cannot be read proceeds, because the call itself is the better probe.
- */
 const readGraphqlBudget = async () => {
   const result = await runBounded(GH, ["api", "rate_limit"], { cwd: githubCwd, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000 })
   if (result.timedOut || result.error || result.status !== 0) return null
@@ -321,26 +285,11 @@ await awaitGraphqlBudget(deadline)
 let node = await readPullRequest()
 progress("REVIEW_STATE_READ", node, startedAt, deadline)
 
-/**
- * A review is only evidence about the commit it was given on.
- *
- * Pullfrog re-reviews after every push, so between a push and the next review the newest review
- * still names the OLD commit. Accepting it would report REVIEWED for code Pullfrog never saw, which
- * is the very defect this tool exists to remove: the harness reading a stale approval as a current
- * one. Comparing the commit is what makes the answer correct. A review whose commit is not the head
- * does not count, and the wait continues.
- */
 const COMPLETED_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
 const botReviewOf = (payload) =>
   (payload.reviews?.nodes ?? [])
     .filter((review) => review.author?.login === botLogin)
     .filter((review) => review.commit?.oid && review.commit.oid === payload.headRefOid)
-    // Confirmed live ReviewState enum: APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED, PENDING.
-    // APPROVED is the state Pullfrog used for its clean pass on pull request 711 (2026-08-12). A
-    // pending or dismissed review is not a completed pass and must never become evidence.
-    // COMMENTED stays accepted because it IS a completed review, and it is safe to accept only
-    // because the body of every non-APPROVED state is reported below. Drop that and a COMMENTED
-    // review whose whole finding lives in its body reads here as a clean pass.
     .filter((review) => COMPLETED_REVIEW_STATES.has(review.state))
     .at(-1)
 
@@ -356,19 +305,6 @@ const submittedAtOf = (review) => {
 /** Kept separately so NO_REVIEW can say WHICH shape it is: never reviewed, or reviewed a dead head. */
 const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin && COMPLETED_REVIEW_STATES.has(review.state)).at(-1)
 
-/**
- * The freshness boundary for --re-review, and it is the REQUEST, never the run's opening read.
- *
- * Binding it to the opening read is wrong, and the race is narrow but real: a same-head review
- * already in flight can land between that read and the "@pullfrog review" comment. It is then newer
- * than the baseline while answering nothing, so the run returns the very finding it was sent to
- * clear and `pullfrog-approval` stays red. Pullfrog raised this on pull request 716 against the
- * first version of this flag.
- *
- * So the boundary is the createdAt GITHUB stamped on our own request comment. It stays null until
- * that comment exists, and while it is null no review can satisfy the predicate. The local clock is
- * never used: the review timestamp and the comment timestamp must come from the same server.
- */
 let requestCreatedAt = null
 const answersTheRequest = (review) => requestCreatedAt !== null && submittedAtOf(review) > requestCreatedAt
 
@@ -385,26 +321,6 @@ const currentReviewOf = (payload) => {
 
 let review = currentReviewOf(node)
 
-/**
- * Ask BEFORE waiting, not after.
- *
- * Pullfrog starts a review by itself when a pull request opens and after every push, so the request
- * is normally redundant. It stays for the two cases that automation does not cover: a pull request
- * that was already open before auto-review was turned on, and a re-review wanted without a push.
- * The trigger is measured, not assumed: on pull request 711 the comment "@pullfrog review" landed at
- * 16:01:48Z on 2026-08-12, the workflow run started six seconds later, and the review was submitted
- * at 16:04:16Z. Pass --no-request to suppress it.
- *
- * By default the request is gated on there being no review of the CURRENT head, so a pull request
- * Pullfrog has genuinely reviewed is never nagged.
- *
- * --re-review lifts that gate deliberately, and it is the ONLY transition that can clear a finding
- * carried in a review BODY. Such a finding opens no thread, so there is nothing to reply to and
- * resolve, and answering it in a ticket changes no code. Without this flag the only way to get the
- * verdict re-adjudicated is a push, which for a filed finding means an empty commit invented purely
- * to move the head. Record the disposition as a pull request comment, then re-review; never
- * manufacture a commit.
- */
 let requested = false
 let requestUrl = null
 if (requestReview && !review && waitSeconds > 0) {
@@ -451,14 +367,6 @@ const threads = (node.reviewThreads?.nodes ?? [])
     claim: claimOf(thread.comments.nodes[0].body),
   }))
 
-/**
- * This tool is the ONLY producer of review-thread node ids in the harness, so it is the only place
- * that can attest one was really read back from GitHub. resolve-bot-thread.mjs writes with those
- * ids, and on 2026-08-08 one of them was typed instead of copied and landed a reply on a stranger's
- * repository. The ledger is what lets .claude/hooks/forbid-invented-identifier.mjs tell an id this
- * harness observed from one it never saw. Recorded before either output branch, so a NO_REVIEW run
- * that still returned threads records them too.
- */
 recordObservedIdentifiers(threads.map((thread) => thread.id), {
   repoRoot: githubCwd,
   tool: "list-bot-threads.mjs",
@@ -490,26 +398,6 @@ if (!review) {
 
 const verdict = review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
 
-/**
- * The body of every accepted state EXCEPT APPROVED, because a review that did not approve states
- * its complaint there and no thread has to repeat it.
- *
- * Measured on 2026-08-12, on the three Pullfrog reviews read that day. Every body opened with a
- * blockquote callout that states the verdict in prose. The CHANGES_REQUESTED review of pull request
- * 716 opened with `[!IMPORTANT]` and named both of its blocking findings there. The APPROVED
- * reviews of pull request 711 and of orbit-api pull request 473 opened with `No new issues found.`
- * and then summarized the diff. So the body is the reviewer's own statement of the verdict, not a
- * preamble.
- *
- * COMMENTED is the one state nobody measured, because Pullfrog posted none yet. An earlier comment
- * here said a commenting review puts boilerplate in the body and the findings in the threads. That
- * shape was measured against the ChatGPT Codex connector, never against Pullfrog, so it does not
- * transfer. A COMMENTED review that states its finding in the body and opens no thread otherwise
- * reaches the caller as REVIEWED with zero findings. APPROVED is the single state whose body says
- * there is nothing to act on, so it alone stays null.
- *
- * An empty body normalizes to null, so null always means "nothing to read" and never "dropped".
- */
 const reviewBody = review.state === "APPROVED" ? null : (review.body ?? "").trim().slice(0, 4000) || null
 
 console.log(

@@ -1,26 +1,4 @@
 #!/usr/bin/env node
-/**
- * Replace the body of one ticket.
- *
- * The body was write-once until this existed (2026-08-13): `create-ticket.mjs` wrote it and nothing
- * could change it afterwards. D2 makes the ticket the prompt, so a correction to the work order
- * belongs here, in the body. `comment-ticket.mjs` also reaches the worker (compose-prompt renders
- * the thread), but a comment is for a decision arriving as its own event; a body plus errata
- * comments stops being one coherent work order.
- *
- * This replaces the whole body rather than appending, for the same reason. Compose the complete
- * body, then write it. GitHub keeps the previous body in the issue's edit history.
- *
- * The TITLE joined it on 2026-08-25, for the same reason one field over. orbit-tickets#365 kept
- * ordering "the 24 grid variant" in its title long after DESIGN.md:267 cancelled that deliverable,
- * and the body said so while the title did not. A title is the one line every board view and every
- * `gh issue list` shows, so a stale one misdirects for as long as it stands. Either field alone is
- * a valid write; at least one is required.
- *
- * Only `--body-file` needs `--confirm-replace`. The body flag carries that guard because a partial
- * file silently deletes every section it omits, and that failure has no counterpart in a title
- * typed out in full.
- */
 
 import { readFileSync } from "node:fs"
 

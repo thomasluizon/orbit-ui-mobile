@@ -395,18 +395,6 @@ export const cases = async () => {
     )
   }
 
-  /**
-   * THE fixture guard, tested on itself.
-   *
-   * The guard exists so nobody can invent a field and then write the mock that agrees with the
-   * invention. When it was first ported from the Linear version it only validated the five READ
-   * commands it had recorded envelopes for, and returned quietly for everything else. That let
-   * `issue close`, `issue edit`, `issue create` and `project item-add`, which are exactly the
-   * ticket mutations, carry any output shape a stub felt like claiming.
-   *
-   * These cases fail if that hole is ever reopened. A guard nobody tests is a guard that silently
-   * stops guarding.
-   */
   const rejects = (plan) => {
     try {
       orcaEnv(plan)

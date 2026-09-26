@@ -1,12 +1,3 @@
-/**
- * Fixes npm workspace hoisting issues for the mobile app.
- *
- * Problem: nativewind and react-native-css-interop get hoisted to the
- * monorepo root node_modules, where they can't find tailwindcss v3
- * (root has v4 for the web app) or react-native (only in mobile's node_modules).
- *
- * Solution: Create symlinks so hoisted packages resolve the correct versions.
- */
 const fs = require("fs");
 const path = require("path");
 

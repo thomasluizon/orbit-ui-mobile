@@ -22,7 +22,7 @@ If `$ARGUMENTS` is not provided, auto-detect: check `git status` in each repo. R
 ### orbit-ui-mobile (frontend, run from repo root)
 
 ```bash
-cd "C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile"
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 npm run lint
 npm run type-check
 npm test
@@ -31,7 +31,7 @@ npm test
 ### orbit-api (backend, run from repo root)
 
 ```bash
-cd "C:\Users\thoma\Documents\Programming\Projects\orbit-api"
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/../orbit-api"
 dotnet build
 dotnet test
 ```

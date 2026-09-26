@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-/**
- * List the configured board's saved views, or set one view's filter.
- *
- * A view is the only part of the board no other tool reaches. The raw-mutation hook blocks
- * `updateProjectV2View` from a session, correctly, because a GraphQL mutation cannot prove which
- * board it targets. That left a lost filter repairable only by hand: measured 2026-08-22, the Orca
- * table view on board 2 had an empty filter and nothing in the repository could restore it.
- */
 
 import { listProjectViews, setProjectViewFilter } from "./lib/github-issues.mjs"
 

@@ -1,26 +1,4 @@
 #!/usr/bin/env node
-/**
- * Persist and evaluate one final-head readiness receipt from artifacts produced by the harness.
- *
- * One live read, not two. This tool reads the pull request, its required checks, the compare,
- * and the ticket ONCE, evaluates everything against that snapshot, and writes the receipt. The
- * previous revision read the pull request twice per invocation (an opening read and a closing
- * revalidation) to catch a seconds-wide race; measured 2026-08-09, that doubling was one of the
- * consumers that exhausted the per-user GraphQL budget and stalled the entire run. The race it
- * guarded self-corrects: the readiness loop re-records after every artifact update and always ends
- * by recording, so a receipt is at most minutes old, and the final verifier of live state is
- * Thomas, who tests and merges every pull request by hand.
- *
- * The code review is NOT an axis here. Pullfrog reviews every pull request in GitHub Actions and
- * publishes `pullfrog-approval`, a required status check on both `main` branches, so the review
- * verdict arrives through the required checks this tool already reads. A separate review axis
- * would be a second, weaker copy of a fact branch protection enforces.
- *
- * The pull request read is one `gh api graphql` call because branch protection pins a required
- * check to a producing app and `gh pr view --json statusCheckRollup` drops that identity. Both
- * commands send exactly one GraphQL request, so the budget above is unchanged. See
- * PULL_REQUEST_STATE_QUERY.
- */
 
 import { readFileSync } from "node:fs"
 

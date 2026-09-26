@@ -77,21 +77,6 @@ try {
 }
 if (current.state === "CLOSED") fail(1, `${issue} is closed; readiness synchronization never regresses a closed ticket`)
 
-/**
- * THE target assertion, the ticket half of the 2026-08-08 misdirected-write incident. `--issue` is
- * a caller-supplied identifier and this tool writes twice with it: a status change and a comment.
- * An invented or mistyped ticket reference can name live work, so the write lands
- * somewhere real and reads as deliberate.
- *
- * `repo:*` is the mechanical link between a ticket and a repository: tools/plan-queue.mjs admits a
- * ticket only when it carries EXACTLY ONE repo:* label, and derives the target repository from it
- * (plan-queue.mjs:194-212). Asserting the same label here means the ticket and --repo cannot
- * disagree.
- *
- * Fail closed on a MISSING label as well as a wrong one. A ticket with no repo:* label is one
- * plan-queue would have deferred as NO_REPO_LABEL, so writing to it proves nothing about whether it
- * is the right ticket.
- */
 try {
   assertRepositoryLabel(current, repoKey)
 } catch (error) {

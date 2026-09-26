@@ -13,13 +13,6 @@ export interface TodayViewSyncParams {
   closeSearch: () => void;
 }
 
-/**
- * Render-phase view synchronisation for the Today screen (adjusting-state-during-render
- * pattern): resets the scroll-to-top affordance when the view changes, mounts the bulk
- * action bar when entering select mode, pins the "today" view for a deep-linked date, clears
- * the search query on any tab or day change, and mirrors the computed filters into the shared
- * store. Mirrors the web `useTodayViewSync`.
- */
 export function useTodayViewSync({
   currentActiveView,
   isSelectMode,

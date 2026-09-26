@@ -82,7 +82,7 @@ genuinely arguable:
 - a load-bearing claim in your own analysis that decides the shape of a change;
 - a close call an audit skeptic left standing.
 
-Both decisive findings of the 2026-07-28/29 run were High, so a Critical-only scope would
+Both decisive findings of the /29 run were High, so a Critical-only scope would
 have skipped both. Weigh a `DISAGREE` on a Pullfrog finding harder than an `AGREE`, per
 the correlated-blind-spot note above.
 

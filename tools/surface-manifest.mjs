@@ -1,38 +1,4 @@
 #!/usr/bin/env node
-// Derives the visual-surface inventory for BOTH apps and writes
-// .claude/manifests/surfaces.json. The manifest is the DENOMINATOR: the
-// complete list of things a whole-app visual pass must touch. It is committed,
-// so the denominator survives between sessions instead of being rediscovered.
-//
-// What changed on 2026-07-19 (the harness rebuild) and why:
-//
-// 1. BOTH PLATFORMS. The previous inventory globbed apps/web only, so all 224
-//    cells were web and apps/mobile (451 files, larger than web) was invisible
-//    while the number was read as whole-app coverage. Mobile routes are
-//    enumerated from expo-router's app/ directory here, and every output
-//    states its own platform scope.
-// 2. THE COMPONENT GRAPH, NOT FILENAMES. Overlays used to be found with
-//    /(modal|dialog|sheet|drawer)/i over basenames, which silently missed the
-//    command palette and the onboarding wizard (it lives inside layout.tsx).
-//    An overlay is now any component that RENDERS an overlay primitive,
-//    detected by walking import edges - a file is what it imports, not what it
-//    is called.
-// 3. A STATE AXIS. There was none, so empty/error states were structurally
-//    unphotographable and a human found an empty-state defect in 10 seconds
-//    that ~100 judge votes never saw. A surface that imports an empty-state
-//    component now carries an `empty` cell too.
-// 4. FROZEN OWNERSHIP. Each surface records the files it exclusively owns.
-//    Ownership is computed here and COMMITTED rather than recomputed at check
-//    time: reach-count is a global property, so an unrelated second surface
-//    importing a shared file would otherwise silently un-own it and move a
-//    third surface's status with nobody editing it. Regenerating the manifest
-//    is a visible git diff; a silent recompute is not.
-//
-// There is deliberately no status field, and no field describing what evidence
-// a cell could carry. D13 retired the per-cell completion oracle and forbids
-// rebuilding one; #422 then deleted the last capture tooling. This file is an
-// INVENTORY of surfaces and their ownership, and nothing here records, implies,
-// or grants completion.
 
 import { execFileSync } from "node:child_process"
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
@@ -53,22 +19,6 @@ const DEFAULT_BASELINE_REF = "7d7c42c3"
 
 const SOURCE_EXTENSIONS = [".tsx", ".ts", ".css"]
 
-// How many surfaces may reach a file before it stops counting as any one
-// surface's own work.
-//
-// This is 1, and the value is load-bearing. Raising it to 2 was tried on
-// 2026-07-19 to fix a real hole (a component two sibling surfaces share is
-// owned by neither, so editing it moves nothing) and it immediately broke the
-// property that matters more: `route-explore`, which is byte-identical to the
-// pre-#539 baseline, flipped to touched 4/4 because a single nav component it
-// shares with one other surface had changed. A relaxed bound leaks the shared
-// shell back in one hop at a time.
-//
-// The hole is therefore ACCEPTED and documented rather than fixed: a file
-// reached by 2+ surfaces belongs to none of them, so work confined to such a
-// file does not move any surface's touched flag. Since `touched` can only
-// VETO and never grant, the cost is a surface that stays vetoed until
-// something it exclusively owns changes - conservative in the safe direction.
 const OWNERSHIP_MAX_REACH = 1
 const SHARED_ALIAS = ["@orbit/shared/", "packages/shared/src/"]
 
@@ -238,13 +188,6 @@ export function readRootViews(source) {
   return [...match[1].matchAll(/'([^']+)'|"([^"]+)"/g)].map((entry) => entry[1] ?? entry[2])
 }
 
-/**
- * True when this file is itself an overlay: it directly imports an overlay base
- * for its platform, or mounts its own portal/modal.
- * @param {string} posixPath repo-relative path
- * @param {string[]} bases overlay base module fragments for the platform
- * @param {RegExp} selfMounted pattern for a component that mounts its own overlay
- */
 export function isOverlaySource(posixPath, bases, selfMounted) {
   if (bases.some((base) => posixPath.includes(base))) return true
   const absolute = join(REPO_ROOT, posixPath)
@@ -491,14 +434,6 @@ function attachOwnershipAndStates(surfaces) {
 
   for (const surface of surfaces) {
     const closure = closures.get(surface.surfaceId)
-    // Ownership is NARROW but not strictly exclusive. Strict exclusivity
-    // (reach === 1) orphaned real files: the eight onboarding STEP components
-    // are reached by both the onboarding flow and the app layout, so they
-    // belonged to no surface and editing them moved nothing. Anything reached
-    // by at most OWNERSHIP_MAX_REACH surfaces is attributed to each of them -
-    // both genuinely changed when it changes. The shared app shell sits far
-    // above this bound (~100 reachers), so it still belongs to nobody, which
-    // is what keeps an untouched surface untouched.
     const owned = surface.ownedFilesOverride
       ? surface.ownedFilesOverride
       : [...closure].filter((file) => reachCount.get(file) <= OWNERSHIP_MAX_REACH).map(toPosix).sort()

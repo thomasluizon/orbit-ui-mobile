@@ -37,13 +37,6 @@ interface ChatInputBarProps {
   onOpenTextFilePicker: () => void;
 }
 
-/**
- * Renders the chat composer row, swapping between the text input and the
- * recording/transcribing UI. Owns the draft text (rather than the inner
- * `ChatComposerInput`) because that input unmounts while recording: keeping the
- * draft and the voice-transcript commit here lets a finished transcript land in
- * the input once recording stops.
- */
 // react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational composer aggregator: each boolean is an independent chat-input UI-state flag (recording/transcribing/typing) owned by the chat screen; an options-object rewrite would churn the caller for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
   function ChatInputBar(

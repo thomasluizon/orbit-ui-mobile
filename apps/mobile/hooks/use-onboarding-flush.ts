@@ -11,14 +11,6 @@ import { useApplyOnboarding } from '@/hooks/use-apply-onboarding'
 import { useProfile } from '@/hooks/use-profile'
 import { captureError } from '@/lib/sentry'
 
-/**
- * After a successful auth whose account has not yet onboarded, flushes buffered onboarding
- * answers to the idempotent apply endpoint. On a 2xx the local draft is cleared and the
- * profile cache is marked onboarded; on failure the draft is left for retry on the next
- * authenticated mount and the error is reported. Concurrent runs are guarded so a single
- * flush is in flight at a time. Gating on `hasCompletedOnboarding === false` prevents a
- * guest's buffered answers from being posted onto a different, already-onboarded account.
- */
 export function useOnboardingFlush(): void {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const hasHydrated = useOnboardingDraftHydrated()
@@ -49,10 +41,12 @@ export function useOnboardingFlush(): void {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )
+        /* eslint-disable @typescript-eslint/no-floating-promises -- Cache invalidations may finish after the flush. */
         queryClient.invalidateQueries({ queryKey: habitKeys.all })
         queryClient.invalidateQueries({ queryKey: goalKeys.all })
         queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
         queryClient.invalidateQueries({ queryKey: profileKeys.all })
+        /* eslint-enable @typescript-eslint/no-floating-promises */
       } catch (error) {
         captureError(error)
       } finally {

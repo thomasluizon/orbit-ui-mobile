@@ -4,7 +4,7 @@
 > - Unit-only policy (Vitest); the only sanctioned E2E against prod is the post-deploy web smoke suite.
 > - Assert behavior and data-attributes, never class names or implementation details.
 > - Eight suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
-> - The two harness suites are run BY HAND after any change to `tools/**` or `.claude/**`: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. The `Harness Execution` CI job was removed from branch protection on 2026-08-04, because a broken harness self-check froze every product merge.
+> - Run both harness suites after changing `tools/**` or `.claude/**`: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`.
 > - There is no visual regression gate and no screenshot anywhere: #422 deleted it. Its hermetic harness survived the deletion and lives under `apps/web/test-support/hermetic/`, where the Lighthouse budget gate uses it.
 > - The authed-Today Lighthouse budget gate (`perf.yml`) uses that hermetic mock-api + fake-JWT harness to enforce LCP / TBT / script-bundle-size budgets on the signed-in Today surface at PR time (web-only, no prod, no secrets). Its interactive twin is the `/profile` skill.
 > - orbit-api has its own xUnit suite, documented in that repo.
@@ -53,7 +53,7 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 ## CI mapping
 
 - **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds (`turbo run test -- --coverage`), type-check, lint, dependency-audit, design-guard, and contract-drift, on PRs to `main`.
-- **The two harness suites** - `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. RUN BOTH BY HAND after touching `tools/**` or `.claude/**`. They no longer run in CI: the `Harness Execution` job was removed from branch protection on 2026-08-04, because a red harness self-check blocked every product merge while the harness itself was being rebuilt. A harness that gates the product is the failure this repo just spent a week undoing.
+- **The two harness suites** - `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. Run both locally after touching `tools/**` or `.claude/**`.
 - **`.github/workflows/mutation.yml`** - PR-incremental Stryker run on `packages/shared`, report-only.
 - **`.github/workflows/smoke-prod.yml`** - the Playwright smoke suite, post-deploy against the live production deployment.
 - **`.github/workflows/perf.yml`** - the authed-Today Lighthouse budget gate, on PRs touching `apps/web/**` or `packages/shared/**` (pinned `ubuntu-24.04`, no secrets). Builds the web app, boots the hermetic mock orbit-api, and runs `lhci autorun` with a `puppeteerScript` fake-JWT injection to assert LCP / TBT / script-bundle-size budgets on the signed-in `/` (Today) surface. Uploads the `.lighthouseci/` reports.

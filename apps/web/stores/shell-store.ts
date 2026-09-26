@@ -20,13 +20,6 @@ interface ShellState {
   toggleAstraMaximized: () => void
 }
 
-/**
- * Web-only desktop shell state: sidebar collapse, right-rail visibility (the
- * 768–1279 toggle), command-palette open, and the docked Astra copilot. Kept out
- * of the shared cross-platform UI store since mobile has no desktop shell. Only
- * `sidebarCollapsed` persists (`astraOpen` is deliberately ephemeral); rehydrated
- * manually in `lib/providers.tsx`.
- */
 export const useShellStore = create<ShellState>()(
   persist(
     (set) => ({

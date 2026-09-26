@@ -19,13 +19,6 @@ function openPlayListing(): void {
   })
 }
 
-/**
- * Full-screen, non-dismissible blocker shown when the server returns HTTP 426
- * (the installed app version is below the supported floor). An old native
- * binary cannot self-heal, so the only path forward is a store update. Copy
- * resolves through the i18n singleton; tokens come from useAppTheme so the
- * blocker tracks the active scheme and mode.
- */
 export function UpgradeRequiredScreen() {
   const upgradeRequired = useVersionGateStore((s) => s.upgradeRequired)
   const { currentScheme, currentTheme } = useAppTheme()

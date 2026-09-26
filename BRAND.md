@@ -19,7 +19,7 @@ itself another source of work.
 Orbit is not for a generic "everyone who wants to be more productive" audience. A diagnosis neither
 qualifies nor disqualifies someone. The stated buyer is defined by the routine friction they feel.
 
-**The founder is not the ICP, and his usage pattern is not evidence of demand.** Thomas uses Orbit
+**The founder is not the ICP, and his usage pattern is not evidence of demand.** the owner uses Orbit
 manual-first and reserves AI for bulk work. That behavior must not be used to make the manual path
 the product. **The one conclusion that survives from his usage is that bulk is where AI beats manual
 outright.**
@@ -48,7 +48,7 @@ and acts on a routine, rather than an optional destination outside the main expe
 
 ## Relationship to marketing
 
-The stated buyer does not need an ADHD diagnosis. Marketing still speaks from Thomas's own ADHD
+The stated buyer does not need an ADHD diagnosis. Marketing still speaks from the owner's own ADHD
 because that is the founder's true story, and store search metadata keeps its ADHD keywords. Those
 keywords answer what someone searched for; they do not redefine who qualifies for Orbit.
 

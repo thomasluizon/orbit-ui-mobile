@@ -32,14 +32,6 @@ interface AppShellProps {
 
 type HabitSubView = 'today' | 'all' | 'general'
 
-/**
- * Desktop application shell (≥768px): a full-bleed three-column layout — sidebar
- * (left edge) | main (flex, min-w-0, content centered at `--content-max-w`) | contextual
- * right rail (right edge). Main carries the full-width gradient header and a topbar.
- * Below 768px it collapses to the single content column (sidebar, rail, and topbar hide
- * themselves), leaving the phone layout untouched. Today/Goals are `activeView` switches
- * on `/`, not routes.
- */
 export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const t = useTranslations()
   const router = useRouter()

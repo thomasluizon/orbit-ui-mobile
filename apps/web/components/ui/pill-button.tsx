@@ -36,16 +36,6 @@ const variantClasses: Record<ButtonVariant, string> = {
     'bg-[var(--status-bad)] text-[var(--fg-on-bad)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.98]',
 }
 
-/** Kit pill CTA in the canonical taxonomy: glowing `primary`, inverted
- *  `secondary`, hairline `ghost`, or status-bad `destructive`. `size` (`sm` /
- *  `md` / `lg`) drives a fixed height + horizontal padding + label/icon scale
- *  from the shared `BUTTON_SIZES` geometry so the mobile mirror cannot drift.
- *  While `busy`, a spinner fills the leading slot, the label dims, and clicks
- *  no-op. `fullWidth` spans the phone column but caps at ~360px at the desktop
- *  breakpoint (full-bleed pills are a phone-shell affordance only). With a
- *  `leading` icon and no label child it renders an icon-only square (width =
- *  the size's height), the canonical collapsed-sidebar-rail control — pass
- *  `ariaLabel` for its accessible name. */
 export function PillButton({
   variant = 'primary',
   size = 'md',

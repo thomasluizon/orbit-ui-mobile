@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/**
- * Remove one completed Orca worktree only after independently checking that no work can be lost.
- * Orca may drop its runtime connection after completing a removal, so success is verified from the
- * filesystem and git, never from its reply.
- *
- * Runs only after `gh pr view` reads MERGED. The worker PID liveness check the previous revision
- * carried is gone with the detached-spawn design: a worker is now a CHILD of tools/launch-worker.mjs
- * and cannot outlive it, and teardown happens long after that supervisor exited.
- */
 
 import { execFileSync, spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
@@ -35,7 +26,7 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
   process.exit(0)
 }
 
-const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
+const ORCA = process.env.ORCA_BIN || (process.env.LOCALAPPDATA ? resolve(process.env.LOCALAPPDATA, "Programs", "orca", "resources", "bin", "orca") : "orca")
 const GIT = process.env.GIT_BIN || "git"
 const GH = process.env.GH_BIN || "gh"
 const fail = (code, message) => {

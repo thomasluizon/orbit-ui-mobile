@@ -1,18 +1,3 @@
-// An unattended run may not end a turn with nothing left to wake it.
-//
-// Measured 2026-08-06: under --sleep the only thing that continues the run is a background task
-// completing and re-invoking the session. The orchestrator ended a turn saying "CI will wake me"
-// with nothing scheduled. The queue stopped there, and the artifacts it left are indistinguishable
-// from a run that finished, so nobody went looking.
-//
-// Pure: takes the run record, the registered wake sources, and an injected liveness predicate, and
-// returns { block, message } or null. Liveness is injected because a hook must never spawn a
-// subprocess and because a test cannot conjure a process that is reliably dead.
-//
-// What it CAN prove: that at least one registered wake source is a process that still exists.
-// launch-worker.mjs registers itself, so a launched worker is real evidence, not a claim. What it
-// CANNOT prove: that the wake source will actually re-invoke this session. That is still the run's
-// own responsibility, and the invariant in the skill says to name it.
 
 /**
  * @param options `{ state, wakeSources, sessionId, stopHookActive, isAlive, receiptVerdict }`
@@ -28,17 +13,6 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
   if (typeof state.sessionId === "string" && state.sessionId !== "" && sessionId !== "" && state.sessionId !== sessionId) return null
 
   const remaining = Array.isArray(state.remaining) ? state.remaining.filter((entry) => typeof entry === "string" && entry !== "") : []
-  /**
-   * An open pull request with no READY final-head receipt is unfinished work too, and it is the
-   * shape a SALVAGE produces: PR #690 was cleaned, pushed and opened by hand, then reported as
-   * finished while two required checks were red, because opening it was treated as the end of
-   * salvage.
-   *
-   * Pullfrog reviews every pull request in GitHub Actions, and `pullfrog-approval` is a required
-   * status check on `main`. The review verdict therefore arrives through the same required contexts
-   * the receipt already reads, so the receipt alone decides whether a pull request is done. A queue
-   * is not done while one of its pull requests lacks a READY receipt.
-   */
   const rawPullRequests = [
     ...(Array.isArray(state.pullRequests) ? state.pullRequests : []),
     ...(Array.isArray(state.readinessLedger) ? state.readinessLedger : []),
@@ -47,16 +21,6 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
     (entry) => typeof entry?.repositoryKey === "string" && entry.repositoryKey !== "" && Number.isInteger(entry?.prNumber) && typeof entry?.receiptPath === "string" && entry.receiptPath !== "",
   )
   const uniquePullRequests = [...new Map(pullRequests.map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
-  /**
-   * A run that CANNOT reach READY needs a way to end honestly.
-   *
-   * Measured 2026-08-08: a named blocker made READY unreachable, and the only exits this hook left
-   * were fabricating a receipt or clearing the ledger, both forbidden. The deadlock burned five
-   * turns. So a pull request may also be terminal as BLOCKED, and the bar for that is a recorded,
-   * machine-readable blocker string on its ledger entry. A blocker is not a verdict the run may
-   * assert about its own work: it is a fact it must write down first, which is what keeps "ended
-   * blocked" from becoming a cheaper synonym for "finished".
-   */
   const hasRecordedBlocker = (entry) => typeof entry.blocker === "string" && entry.blocker !== ""
   const notReady = uniquePullRequests.filter((entry) => receiptVerdict(entry) !== "READY")
   const blockedPullRequests = notReady.filter(hasRecordedBlocker)
@@ -68,15 +32,6 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
   const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isAlive(source.pid))
 
   if (remaining.length === 0 && pendingPullRequests.length === 0 && invalidPullRequestIdentities === 0) {
-    /**
-     * The run may end. Say WHICH ending it is, visibly, because "ended blocked" reading as
-     * "finished" is precisely the failure this whole state exists to prevent. A hook that allows a
-     * stop prints nothing, so the distinction is returned for the caller to surface.
-     *
-     * A LIVE wake source means the run has not ended at all, so it gets no banner: this turn is
-     * ending, the run is not. Announcing BLOCKED there would be the mirror of the defect, a run
-     * reporting a final state while work is still in flight.
-     */
     return blockedPullRequests.length === 0 || live.length > 0
       ? null
       : {

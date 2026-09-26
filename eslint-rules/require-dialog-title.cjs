@@ -1,19 +1,3 @@
-/**
- * Local ESLint rule: every Dialog / Sheet / Drawer renders its Title.
- *
- * An overlay with no accessible name is announced as an unlabelled region — the
- * screen-reader user is told a dialog opened and nothing about what it is. Radix
- * warns at runtime in dev and ships silent in prod, which is exactly the failure
- * shape a lint gate exists to convert into a build error.
- *
- * Use `className="sr-only"` on the Title when the design has no visible heading.
- *
- * Checks the CONTENT element (`DialogContent`, `SheetContent`, ...) rather than the
- * root, because the root's children may be composed elsewhere; the content
- * subtree is where the Title must live and is a single JSX tree in practice. A
- * content element whose children are spread from a variable cannot be judged
- * statically and is skipped — this rule reports what it can see.
- */
 
 const { getElementName } = require('./_jsx-strings.cjs')
 

@@ -1,10 +1,3 @@
-/**
- * Maps the app-surface IDs the assistant emits in a describe_feature reply
- * (`ChatResponse.relatedSurfaces`) to their i18n label key and per-platform
- * client route. Both web and mobile consume this map; only the route field they
- * read differs (platform adapter). IDs not present here are dropped — an unknown
- * surface renders no link rather than a broken one.
- */
 interface RelatedSurface {
   id: string
   labelKey: string

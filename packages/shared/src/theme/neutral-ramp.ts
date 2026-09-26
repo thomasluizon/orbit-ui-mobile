@@ -162,14 +162,6 @@ export interface AlphaSurfaceConstants {
   readonly statusEmpty: string
 }
 
-/**
- * Scheme-independent alpha surfaces: white-alpha over the dark canvas,
- * ink-alpha over the light canvas. They inherit tint optically from the
- * canvas beneath and are identical across all 6 schemes (handoff mechanism).
- * Dark translucency ladder: 0.04 card / 0.05 field / 0.06 well / 0.10 elev-2.
- * Light cards are opaque white; light fields use the scheme-tinted bgSunk
- * (resolved in the token factories, not a constant here).
- */
 export const alphaSurfaces: Record<SchemeMode, AlphaSurfaceConstants> = {
   dark: {
     bgCard: 'rgba(248, 250, 252, 0.04)',
@@ -200,13 +192,6 @@ export interface StatusConstants {
   readonly fgOnBad: string
 }
 
-/**
- * Fixed (not scheme-tinted) chromatic status colors per mode. Dots, rings and
- * icons use the base values; status-colored TEXT uses the `-Text` variants,
- * guaranteed >= 4.5:1 WCAG AA on every surface where they render. `fgOnBad` is the foreground for
- * text/icons painted ON a `bad` fill (e.g. destructive confirm pill): ink in
- * dark (white-on-bad is only 3.81:1), white in light (ink-on-bad is only 4.23:1).
- */
 export const statusConstants: Record<SchemeMode, StatusConstants> = {
   dark: {
     overdue: '#fe9a00',

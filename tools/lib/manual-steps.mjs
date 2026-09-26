@@ -1,56 +1,9 @@
-/**
- * The step that outlives the pull request.
- *
- * The gap, measured: orbit-tickets#81 shipped the PostHog server SDK and its body said, verbatim,
- * "Rollout: merge, deploy to Render, then set `PostHog:ApiKey` in the Render env. The code path is
- * inert until the key exists." The pull request was perfect, CI was green, the review was clean,
- * `complete-ticket.mjs` set Status Done and closed the issue on 2026-08-08, and at no point did
- * anything in that path mention the key. Every gate in this harness measures the PULL REQUEST, and
- * that step is not in one, so the instruction ended up readable only inside a closed ticket body.
- *
- * State it honestly, because the near-miss is the argument and the disaster is not: the key turned
- * out to be set already. Verified live 2026-08-10 against the PostHog project: `posthog-dotnet`
- * 2.12.1 has been delivering `signup_completed` and the four `subscription_*` events since
- * 2026-07-25, 20 signups with `distinct_id` set to the user GUID and the `plan` person property on
- * all 21 people. Nothing was lost. What is missing is not the key, it is any mechanism that KNEW:
- * the harness neither surfaced the step nor checked it, and 13 of the 166 open tickets carry a step
- * of the same shape, including price changes in Stripe and the Google Play Console.
- *
- * So the step is carried to the human at the two moments a human is reading (the /orchestrate
- * handover and the /merge-prs report) and written to the ticket as a comment BEFORE the ticket
- * closes, because a step that lives only in a terminal report dies with the scrollback.
- *
- * Three rules this file is built around:
- *
- * 1. **Silence is the correct output for the common case.** A ticket with no rollout section
- *    produces nothing at all. This is output, never a gate: a missing section is not an error and
- *    cannot halt a healthy run.
- * 2. **Expand only what is verified; quote everything else.** The Render navigation labels below
- *    come from Render's own configure-environment-variables documentation, read 2026-08-10. The
- *    `__` to `:` mapping was proven by execution, not memory: a console app on .NET 10.0.204 with
- *    Microsoft.Extensions.Configuration.EnvironmentVariables read `PostHog__ApiKey` back as the
- *    configuration key `PostHog:ApiKey`. Anything not on that footing is quoted from the ticket
- *    rather than invented, per CLAUDE.md code standard 8.
- * 3. **A clause is a step only when it acts OUTSIDE the repository.** "merge" is the harness's job
- *    and is dropped; "set the key in the Render env" is Thomas's and is kept.
- */
 
 import { inScopeSections, sectionsOf } from "./ticket-executability.mjs"
 
 /** A section heading whose body describes work done after, and outside, the merge. */
 const MANUAL_HEADING = /^(?:rollout|kill[ -]?switch|manual step|post[ -]?merge step|deployment step|operations? step)/i
 
-/**
- * A heading whose WHOLE section undoes the change. Anchored, so "Rollout / kill switch" stays a
- * rollout section whose individual bullets are still labelled one by one, while a standalone
- * `## Kill switch` makes every line beneath it a reversal.
- *
- * Without this, a standalone kill-switch section's bullets start straight in on the action
- * ("Remove `PostHog:ApiKey` from the Render env") with no label to strip, so they were read as
- * outstanding steps. The renderer then expanded "Remove the key" into "Click + Add Environment
- * Variable", instructing the exact opposite of the ticket's intent. Reported by the Codex reviewer
- * on PR #709 and reproduced before this fix.
- */
 const REVERSAL_HEADING = /^(?:kill[ -]?switch|revert|rollback|roll back|reversal|undo)\b/i
 
 /** A bullet label that describes UNDOING the change, which is a reversal note and never an outstanding step. */
@@ -64,13 +17,6 @@ const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+(.*)$/
 /**
  * The external systems this stack actually touches. A name here only says "this clause leaves the
  * repository"; only `render` carries navigation detail, because only Render's UI was read.
- */
-/**
- * Every platform name is matched CASE-SENSITIVELY, because each is a proper noun and several are
- * also ordinary verbs. Measured over the 166 open tickets: a case-insensitive `render` matched "the
- * localized branch has nothing to render" (#24) and the RENDER in `RENDER-CORRECTNESS.md` (#36), and
- * a case-insensitive `resend` matches "resend the code" throughout the auth tickets. The word
- * boundary is widened to reject a name embedded in a filename or an identifier.
  */
 const PLATFORMS = [
   { key: "render", pattern: /(?<![\w.-])Render(?![\w.-])/, label: "Render" },
@@ -118,16 +64,6 @@ const isOutsideTheRepo = (clause) => OUTSIDE_THE_REPO.some((pattern) => pattern.
 
 const platformOf = (clause) => PLATFORMS.find((platform) => platform.pattern.test(clause)) ?? null
 
-/**
- * One bullet becomes one or more clauses. Splitting on the comma matters: #81's single bullet is
- * "merge, deploy to Render, then set `PostHog:ApiKey` in the Render env", three actions with two
- * different owners, and only the last two are Thomas's.
- *
- * Code and parentheses are MASKED before the split and restored after. Without that, #13's
- * "verified by a live query (`SELECT \"Purpose\", COUNT(*), SUM(\"Calls\") FROM ...`)" is cut at the
- * first comma inside the SQL and Thomas is handed half a query. A separator inside a backticked span
- * or a bracket is punctuation in someone else's language, not a clause boundary in this one.
- */
 const SPLIT = /(?<!\d)\.\s+|;\s*|,\s*(?:then\s+|and then\s+)?|\s+then\s+/
 
 const clausesOf = (text) => {
@@ -171,7 +107,6 @@ const evidenceFor = (identifier, sections, manualHeadings) => {
 
 /**
  * Render's dashboard, in Render's own words. Source: render.com/docs/configure-environment-variables,
- * read 2026-08-10. The save dropdown's three options are quoted exactly because picking the wrong one
  * ("Save only") leaves the variable saved and the service still running without it.
  */
 const renderEnvironmentVariableDetail = (identifier, repo) => {
@@ -209,17 +144,6 @@ const stepFor = (clause, { repo, sections, manualHeadings }) => {
   return step
 }
 
-/**
- * The manual sections, each tagged `step` or `reversal`, with a heading's scope carried through its
- * DESCENDANTS exactly as `inScopeSections` carries Out of scope through its own.
- *
- * A flat filter on the heading matched only the exact heading, so a body organised as `## Rollout`
- * followed by `### Render` selected the empty parent and dropped every child: `extractManualSteps`
- * returned nothing and completion closed the ticket without the comment this whole file exists to
- * post. Reported by the Codex reviewer on PR #709 and reproduced before this fix.
- *
- * A sibling or ancestor heading ends the region, so `## Parity` after `## Rollout` is not rollout.
- */
 const manualRegions = (sections) => {
   const regions = []
   let scope = null

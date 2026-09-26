@@ -18,13 +18,6 @@ interface UseOverlayEscapeOptions {
   restoreFocus?: boolean
 }
 
-/**
- * Registers a bespoke (non-AppOverlay) dismissable layer in the shared overlay
- * stack so Escape resolves the top-most layer LIFO, then moves focus into the
- * layer on open, optionally traps Tab within `panelRef`, and restores focus to
- * the previously focused element on close. Use for portal overlays that do not
- * go through AppOverlay/ConfirmDialog.
- */
 export function useOverlayEscape({
   open,
   onDismiss,

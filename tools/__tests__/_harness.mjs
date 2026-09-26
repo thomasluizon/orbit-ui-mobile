@@ -1,11 +1,3 @@
-/**
- * The shared prelude every harness case module imports: the reporter, the temp fixture
- * root, the process runners, and the stubs that keep the suite hermetic.
- *
- * TOOLS_DIR is NOT derived here. tools/test-tools.mjs resolves it once from its own
- * location and calls configure() before loading a single case module, so a case body can
- * never silently resolve tools/__tests__ as the tools directory.
- */
 
 import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
@@ -248,18 +240,6 @@ const assertGhTicketStub = (entry) => {
     }
     return
   }
-  /**
-   * A ticket command with no recorded envelope is a hole, not a pass. The Linear guard this
-   * replaced refused any `orca linear` command it had no envelope for, and only skipped commands
-   * that were not Linear at all. Skipping every unrecognised `gh issue` and `gh project` command
-   * would have let `issue close`, `issue edit`, `issue create` and `project item-add`, which are
-   * exactly the ticket mutations, carry any invented output shape a stub liked.
-   *
-   * The escape is deliberate and explicit, as it was before: a write whose caller branches only on
-   * the exit code declares `ignoreTicketShape: true` AND keeps its output empty. Empty output is
-   * stronger than an invented success object the real CLI may never emit, and requiring the flag
-   * means a test author states that intent rather than getting it by omission.
-   */
   if (entry.ignoreTicketShape === true && output === "") return
   if (!envelopeName) {
     if (TICKET_COMMAND.test(command)) {
@@ -282,13 +262,6 @@ const assertGhTicketStub = (entry) => {
   assertRecordedGhValue(command, response, envelope.paths)
 }
 
-/**
- * orca is stubbed by pointing ORCA_BIN at this node binary and preloading a shim.
- * The shim answers a stubbed plan when node was invoked as orca (argv[1] is a
- * subcommand, not a file) and stands aside when node is running the tool itself.
- * An unstubbed call exits 9 with a stub-miss payload, so an unexpected orca call is
- * a loud failure rather than a silent pass.
- */
 export const ORCA_SHIM = stage(
   "orca-shim.cjs",
   `const { existsSync, readFileSync, rmSync, writeFileSync } = require("node:fs")
@@ -383,13 +356,6 @@ export const check = (file, name, argv, expect, options = {}) => {
   return result
 }
 
-/**
- * Stages a private copy of a tool beside a hand-written .claude/orchestrator.json, because
- * tools/lib/orchestrator-config.mjs resolves that config two levels up from its own location.
- * Returns the copy's path, so each config variant is a fresh, isolated run. The staged base is
- * outside every git repository, which is also what keeps the config staleness guard standing
- * aside: it refuses only a working copy it can prove disagrees with origin.
- */
 export const stageWithConfig = (label, tool, config) => {
   const base = join(root, "staged", label)
   mkdirSync(join(base, "tools"), { recursive: true })

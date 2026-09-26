@@ -1,17 +1,3 @@
-/**
- * Local ESLint rule: never key an AnimatePresence child by array index.
- *
- * This is not the generic index-key smell. AnimatePresence uses the key to decide
- * which child is entering and which is exiting: with an index key, removing row 2
- * of 5 shifts every subsequent key down one, so AnimatePresence concludes the LAST
- * row left and animates the WRONG row out. The habit list, social list, and
- * bulk-action surfaces are all keyed dynamic lists.
- *
- * Matches `key={index}` / `key={i}` — and `key={`${index}`}` — on a `.map()`
- * callback's returned element inside an <AnimatePresence> subtree, where `index`
- * is bound to the map callback's second parameter. Binding to the parameter (not
- * to a name blocklist) is what keeps a legitimate `key={item.index}` out of scope.
- */
 
 const { getAttribute, getAttributeValueNode, getElementName } = require('./_jsx-strings.cjs')
 

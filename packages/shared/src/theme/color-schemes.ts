@@ -1,14 +1,5 @@
 import type { ColorScheme, ColorSchemeDefinition } from './types'
 
-/**
- * The 6 schemes of the navy+violet system. Accents are the handoff literals;
- * neutralHue/chromaScale drive the shared neutral ramp (see neutral-ramp.ts
- * and the derivation rules in DESIGN.md). Gradient stops are precomputed from
- * the accent hue at the handoff stops' locked OKLCH lightness/chroma.
- * fgOnPrimary resolves per scheme and mode: white where white passes 4.5:1
- * WCAG AA on the accent, the locked canvas ink #020618 where it fails
- * (see the DESIGN.md hand-tune log).
- */
 export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
   purple: {
     accent: {

@@ -25,7 +25,7 @@ export const cases = () => {
       a: { live: "live", deadSibling: "dead sibling", barrelStranger: "barrel stranger" },
     }),
     "packages/shared/src/api/endpoints.ts": 'export const API = {\n  ping: "/api/ping",\n} as const\n',
-    "apps/web/app/home/page.tsx": [
+    "apps/web/app/today/page.tsx": [
       "import { Live } from '@/components/kit'",
       "export default function Page() {",
       "  return <Live />",
@@ -62,7 +62,7 @@ export const cases = () => {
   const derived = check(TOOL, "derives the map from a staged tree", [], { status: 0, stdout: /wrote architecture\.json/ }, { env: { ARCH_MAP_ROOT: fixture } })
   if (derived.status !== 0) return
   const map = JSON.parse(readFileSync(join(fixture, "architecture.json"), "utf8"))
-  const home = map.i18nOwnership.byRoute.find((route) => route.routePath === "/home")
+  const home = map.i18nOwnership.byRoute.find((route) => route.routePath === "/today")
 
   T(`${TOOL}: the requested export's key is owned by the importing route`, home !== undefined && home.keys.includes("a.live"), JSON.stringify(home))
   T(
@@ -156,7 +156,7 @@ export const cases = () => {
   stageTree(empty, {
     "packages/shared/src/i18n/en.json": JSON.stringify({ a: { live: "live" } }),
     "packages/shared/src/api/endpoints.ts": ['export const API = {', '  ping: "/api/ping",', "} as const", ""].join("\n"),
-    "apps/web/app/home/page.tsx": "export default function Page() {\n  return <p>x</p>\n}\n",
+    "apps/web/app/today/page.tsx": "export default function Page() {\n  return <p>x</p>\n}\n",
   })
   const emptyRun = check(TOOL, "derives a tree with no dependency edges", [], { status: 0 }, { env: { ARCH_MAP_ROOT: empty } })
   if (emptyRun.status === 0) {

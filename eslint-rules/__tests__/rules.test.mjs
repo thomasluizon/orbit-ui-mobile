@@ -1,11 +1,3 @@
-/**
- * RuleTester coverage for the `local/*` gates.
- *
- * Each rule gets its intended catch AND the shapes that must stay silent. The
- * `valid` cases are the load-bearing half: several of these rules were caught
- * false-positiving on real Orbit code during #539 bundle 4a, and every such shape
- * is pinned here so the next edit cannot quietly reintroduce it.
- */
 
 import { RuleTester } from 'eslint'
 import tsParser from '@typescript-eslint/parser'

@@ -1,26 +1,3 @@
-/**
- * Local ESLint rule: never build a Tailwind class name at runtime.
- *
- * Tailwind's build-time scanner reads source text, not runtime values. A class
- * assembled from an expression (`` `bg-${tone}-600` ``, `"text-" + color`) is never
- * emitted into the stylesheet, so the style is purged and the element renders
- * unstyled — **in production only**. It ships green locally and through CI. That
- * asymmetry is why this is a gate and not a review note.
- *
- * Matches an interpolation or concatenation that SPLITS a class token: the segment
- * before the hole ends mid-token (`bg-`, `size-`, `w-[`) or the segment after it
- * glues a suffix onto the hole (`-600`). Interpolating a WHOLE class is the
- * sanctioned variant-map pattern (`` `flex ${isActive ? 'bg-red-500' : 'bg-blue-500'}` ``)
- * and is not reported — the scanner sees both complete class strings there.
- *
- * The "after" half is deliberately narrow (a leading `-` only). A quasi that
- * merely starts with a letter does NOT imply a split: `` `${cond ? 'a ' : ''}flex` ``
- * interpolates a complete, space-terminated class and is safe. Widening it to any
- * non-space character false-flags that idiom, which is common in both apps.
- *
- * Scoped to `className` / `class` / `tw` attributes and to variables whose name
- * marks them as class strings, so an ordinary interpolated string is untouched.
- */
 
 const { getAttributeValueNode } = require('./_jsx-strings.cjs')
 

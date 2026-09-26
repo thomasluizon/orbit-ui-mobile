@@ -33,7 +33,7 @@ describe('google BFF route', () => {
           token: 'jwt-token',
           refreshToken: 'refresh-token',
           userId: 'user-1',
-          name: 'Thomas',
+          name: 'Alex',
           email: 'thomas@example.com',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },

@@ -120,7 +120,6 @@ export const cases = async () => {
   T(`${TOOL}: a ticket with no rollout section is closed without a comment`, readFileSync(completion.commentCapture, "utf8") === "unwritten")
 
   /**
-   * The gap this whole path exists for. orbit-tickets#81 closed Done on 2026-08-08 carrying "set
    * PostHog:ApiKey in the Render env" and nothing in the merge path mentioned it. The key was in
    * fact already set, so this is a near miss; the instruction still has to reach the ticket,
    * because the ticket outlives the terminal.
@@ -143,11 +142,7 @@ export const cases = async () => {
   check(TOOL, "a refused comment aborts the completion instead of closing silently", ["--issue", "221"], { status: 1, stderr: /complete-ticket:/ }, { env: orcaEnv(refused.entries) })
   T(`${TOOL}: the ticket was neither set Done nor closed when its step could not be recorded`, existsSync(refused.statusMarker) && existsSync(refused.closeMarker))
 
-  /**
-   * The stranded row. GitHub closes an issue itself when a merge commit names it, which leaves the
-   * board column behind and makes the ordinary path refuse the ticket for being closed. Eleven rows
-   * were stranded that way on 2026-08-22 with no sanctioned route to move them.
-   */
+  /** A merged issue can close before its board status is updated. */
   check(TOOL, "the ordinary path still refuses an already closed ticket", ["--issue", "221"], { status: 1, stderr: /is CLOSED; only an open ticket can complete after merge/ }, {
     env: orcaEnv([
       ...githubIssueReadPlan(closedIssue()),

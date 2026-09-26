@@ -51,7 +51,7 @@ describe('auth store', () => {
   function makeLoginResponse(overrides: Partial<LoginResponse> = {}): LoginResponse {
     return {
       userId: 'user-1',
-      name: 'Thomas',
+      name: 'Alex',
       email: 'thomas@example.com',
       ...overrides,
     }
@@ -71,7 +71,7 @@ describe('auth store', () => {
       isAuthenticated: true,
       user: {
         userId: 'user-1',
-        name: 'Thomas',
+        name: 'Alex',
         email: 'thomas@example.com',
       },
     })

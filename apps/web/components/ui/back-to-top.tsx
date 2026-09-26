@@ -26,14 +26,6 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
 }
 
-/**
- * Floating control that scrolls the window back to the top. Appears only after the
- * page is scrolled past {@link SHOW_THRESHOLD}, so it stays hidden on short lists and
- * surfaces once a long habit list has been scrolled. Sits bottom-right at every width:
- * above the phone bottom-nav below md, clear of the docked Astra launcher on desktop.
- * Hidden while Astra is expanded or multi-select is active to avoid colliding with
- * those bottom-anchored surfaces.
- */
 export function BackToTop() {
   const t = useTranslations('common')
   const astraOpen = useShellStore((state) => state.astraOpen)

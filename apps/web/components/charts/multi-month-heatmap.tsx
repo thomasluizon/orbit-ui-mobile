@@ -67,16 +67,6 @@ function monthLabelColumns(
   return labels
 }
 
-/**
- * GitHub-style contribution grid: one cell per provided day, laid out in week
- * columns honoring the `weekStartsOn` preference, with a localized short month
- * label above the first week column of each month. Cell size scales with the
- * span (short ranges get larger cells so a week or month fills its row; a year
- * keeps the dense grid). Intensity tints each cell along a primary-alpha ramp
- * (zero renders as a hairline cell). Optional per-cell `cellTitle` adds a hover
- * tooltip and `legend` renders a less -> more key. Scrolls horizontally when it
- * exceeds the parent width; empty data renders nothing.
- */
 export function MultiMonthHeatmap({
   days,
   maxValue,

@@ -1,16 +1,3 @@
-/**
- * Shared static-string extraction for the `local/*` DESIGN.md rules.
- *
- * Every className/style gate in this directory needs the same three things:
- * flatten a JSX attribute's static string parts, find the `className`/`style`
- * attribute on an element, and walk `style={{ ... }}` object properties. Written
- * once here rather than copied into each rule (CLAUDE.md standard 10 — the third
- * real use is well past).
- *
- * Deliberately static-only: a value assembled at runtime (`cn(a, b)`, a variable,
- * a function call) contributes its literal parts and nothing else. These rules
- * report what they can prove, never what they guess.
- */
 
 function collectStaticStrings(node) {
   if (node == null) return []

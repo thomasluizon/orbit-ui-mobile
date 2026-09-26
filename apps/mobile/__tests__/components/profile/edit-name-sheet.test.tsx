@@ -38,7 +38,7 @@ vi.mock('react-i18next', () => ({
 }))
 
 const mockPatchProfile = vi.fn()
-let mockProfileName = 'Thomas'
+let mockProfileName = 'Alex'
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
@@ -85,6 +85,7 @@ async function renderSheet(onClose = vi.fn()) {
     defaultOptions: { mutations: { retry: false } },
   })
   let tree!: TestInstance
+  // eslint-disable-next-line @typescript-eslint/require-await -- The renderer act callback uses its async overload.
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(
       <QueryClientProvider client={queryClient}>
@@ -96,9 +97,11 @@ async function renderSheet(onClose = vi.fn()) {
 }
 
 async function typeAndSave(tree: TestInstance, value: string) {
+  // eslint-disable-next-line @typescript-eslint/require-await -- The renderer act callback uses its async overload.
   await TestRenderer.act(async () => {
     findByTestId(tree, 'edit-name-input').props.onChangeText?.(value)
   })
+  // eslint-disable-next-line @typescript-eslint/require-await -- The renderer act callback uses its async overload.
   await TestRenderer.act(async () => {
     findByLabel(tree, 'common.save').props.onPress?.()
   })
@@ -108,13 +111,13 @@ describe('EditNameSheet', () => {
   beforeEach(() => {
     mockPatchProfile.mockReset()
     mockPerformQueuedApiMutation.mockReset()
-    mockProfileName = 'Thomas'
+    mockProfileName = 'Alex'
   })
 
   it('seeds the field with the current profile name', async () => {
     const { tree } = await renderSheet()
 
-    expect(findByTestId(tree, 'edit-name-input').props.value).toBe('Thomas')
+    expect(findByTestId(tree, 'edit-name-input').props.value).toBe('Alex')
   })
 
   it('shows the required error and skips the mutation for a whitespace-only name', async () => {
@@ -165,7 +168,7 @@ describe('EditNameSheet', () => {
     await typeAndSave(tree, 'Ana Clara')
 
     expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Ana Clara' })
-    expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Thomas' })
+    expect(mockPatchProfile).toHaveBeenCalledWith({ name: 'Alex' })
     expect(findByTestId(tree, 'edit-name-error')).toBeDefined()
     expect(onClose).not.toHaveBeenCalled()
   })

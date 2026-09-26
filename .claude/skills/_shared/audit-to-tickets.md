@@ -55,7 +55,7 @@ everywhere), no TBD/TODO, at least two acceptance criteria.
 
 ## 4. HARD GATE: one human approval before anything exists in the ticket tracker
 
-Mirror /ticket phase D. In ONE message show Thomas:
+Mirror /ticket phase D. In ONE message show the owner:
 
 - the ticket table: title, repo label, type label and reason, parity, severity, blockedBy;
 - the audit provenance so he approves with eyes open: coverage (surfaces swept), the Deferred

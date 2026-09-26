@@ -16,13 +16,6 @@ function encodeSegment(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url')
 }
 
-/**
- * Mints an unsigned, far-future-`exp` JWT. The BFF never verifies the signature
- * (it only base64url-decodes `exp`), so this authenticates the hermetic session
- * with no signing key and no prod OTP. Minted at runtime to avoid secret-scanner
- * false positives on a committed token.
- * @returns {string} an unsigned JWT the BFF accepts for the hermetic session.
- */
 function mintHermeticJwt() {
   const header = encodeSegment({ alg: 'HS256', typ: 'JWT' })
   const payload = encodeSegment({

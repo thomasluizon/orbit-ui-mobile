@@ -1,32 +1,4 @@
 #!/usr/bin/env node
-/**
- * The sole authority for the word "delivered".
- *
- * A worker's exit code is not evidence. Three documented CLI bugs make "the
- * process finished" untrustworthy: on Windows `codex exec` hangs forever when
- * stdin is an inherited-but-unwritten pipe (openai/codex#20919); it exits 0
- * with zero output when detached from a TTY (openai/codex#19945); and
- * claude-code hangs after emitting its own success event
- * (anthropics/claude-code#25629). A measured incident closed the argument: the
- * remote PR head remained 20987524 while four later commits and the pagination
- * work existed only locally. A successful local repair that is never pushed,
- * reviewed, and made green is not delivery.
- *
- * So every check below reads a git or GitHub artifact. None reads a
- * self-report, and child stdin is never inherited.
- *
- * Two things this file is careful NOT to do, both measured on ORB-39 (2026-08-06):
- *
- * 1. It never short-circuits before counting commits. It used to emit NO_COMMIT the
- *    moment the tree was dirty, so a worktree holding commit 7c726189 (8 files, 221
- *    insertions, the whole ticket) reported one check and the word NO_COMMIT. That
- *    reads as "produced nothing", and the correct recovery was the opposite: discard
- *    the residue, push, open the pull request. DIRTY_TREE is now its own verdict and
- *    hasCommits is always evaluated and always reported.
- * 2. It measures diff size for review planning but never turns size into a delivery verdict.
- *    Correct migrations, generated artifacts, lockfiles and codemod output stay attached to the
- *    source change that requires them.
- */
 
 import { statSync } from "node:fs"
 
@@ -151,13 +123,6 @@ const emit = (verdict) => {
   process.exit(verdict === "DELIVERED" ? 0 : 1)
 }
 
-/**
- * Residue a run may safely discard, against work it may not. Generated files and evidence a worker
- * should never have produced are one situation; a tracked source file left mid-edit is another, and
- * only the second is somebody's unfinished thinking. Measured on ORB-39: `M apps/web/next-env.d.ts`
- * plus `?? apps/web/e2e/visual/orb-39-evidence.visual.ts`, both discardable, so the finished commit
- * underneath was recoverable without a human opening the worktree.
- */
 const GENERATED_RESIDUE = [/(^|\/)next-env\.d\.ts$/, /(^|\/)\.next\//, /(^|\/)dist\//, /(^|\/)build\//, /(^|\/)coverage\//, /(^|\/)node_modules\//, /\.tsbuildinfo$/, /(^|\/)test-results\//, /(^|\/)playwright-report\//]
 /**
  * Discardable only while UNTRACKED. The repository has a tracked E2E suite, and a path-only rule
@@ -341,21 +306,6 @@ const readRequiredChecks = async (state) => {
 }
 let requiredChecks = await readRequiredChecks(pullRequestState)
 
-/**
- * A pull request that cannot merge was never delivered, and until this check existed nothing here
- * looked: the header above promises that every check reads a GitHub artifact, and CI status was the
- * one artifact it never read. Measured on #685, which this file called DELIVERED twice while five
- * required-or-gating checks were red.
- *
- * The rollup mixes two node types with DIFFERENT fields, confirmed against a live response rather
- * than assumed: a `CheckRun` carries `status` plus `conclusion`, and a `StatusContext` carries
- * `state` alone and no status. Reading only one shape silently ignores every check of the other
- * kind. lib/readiness-receipt.mjs normalises both into one node shape carrying the producing app.
- *
- * The three buckets below are the exact complement of the pass rule readinessCiIsGreen applies,
- * and the matching of a required check is the library's own, so this reading of CI and the
- * receipt's reading cannot disagree. They were burned once by disagreeing.
- */
 const FAILING_STATES = new Set(["FAILURE", "ERROR"])
 const PENDING_STATES = new Set(["PENDING", "EXPECTED"])
 

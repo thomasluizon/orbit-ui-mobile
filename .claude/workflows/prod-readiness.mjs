@@ -9,8 +9,10 @@ export const meta = {
   ],
 }
 
-const UI = 'C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-ui-mobile'
-const API = 'C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-api'
+const { pathToFileURL } = await import('node:url')
+const { join } = await import('node:path')
+const { readOrchestratorConfig } = await import(pathToFileURL(join(process.cwd(), 'tools/lib/orchestrator-config.mjs')).href)
+const { ui: UI, api: API } = readOrchestratorConfig().repos
 
 const OPS_SCHEMA = {
   type: 'object',

@@ -1,7 +1,7 @@
 # Orbit Design System
 
 > **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults.
-> - Anchor (locked, 2026-07-17 freeze): de-decorated navy-violet orbital. Neutral canvas, rationed violet accent, hierarchy from surface steps + hairlines. **No decorative glow, no gradient wash, anywhere.**
+> - Anchor (locked): de-decorated navy-violet orbital. Neutral canvas, rationed violet accent, hierarchy from surface steps + hairlines. **No decorative glow, no gradient wash, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
 > - Scales: type, **spacing (enumerated: `0 4 8 12 16 20 24 28 32 40 48 56 64`, three named exemptions, gated by `local/spacing-scale`)**, radius, motion. Ships light AND dark, all 6 color schemes; mobile-first 412px shell.
@@ -13,7 +13,7 @@
 
 It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for the `orbit-landing-page` mirror. A rule is cross-platform unless it names a platform.
 
-**Provenance.** The visual language is frozen by the owner-approved Today mockups (desktop `KQMPM`, mobile `N8aEDF`, 2026-07-17). The frozen decisions win over every other input. The craft rules below are the 2026-07-17 harvest of 193 external design skills, deduplicated and routed in the vault note `Orbit skill harvest - canonical rule set (#539)`; where a harvested rule contradicted the freeze it was dropped upstream and is not here.
+**Provenance.** The visual language is frozen by the owner-approved Today mockups (desktop `KQMPM`, mobile `N8aEDF`, ). The frozen decisions win over every other input. The craft rules below are the  harvest of 193 external design skills, deduplicated and routed in the vault note `Orbit skill harvest - canonical rule set (#539)`; where a harvested rule contradicted the freeze it was dropped upstream and is not here.
 
 ## Identity & anchor (locked)
 
@@ -193,7 +193,7 @@ Each scheme tints the neutral ramp; dark/light/system per scheme; 12 variants to
 7. **Raw-slate mapping rule** (legacy porting): translate `--slate-200/300 → fg-2`, `--slate-400 → fg-3`, `--slate-500/600 → fg-4`, `rgba(248,250,252,α) → surface/hairline tokens`, literal `#fff` on primary → `fg-on-primary`. **Never copy a raw slate var into app code.**
 8. **`color-scheme: light dark` is declared on the web document root**, with a matching `theme-color` meta, so scrollbars, native form controls, and the pre-CSS canvas follow the active mode. Without it the browser paints a light scrollbar against the dark canvas. Web only.
 
-**Recompute note for bundle 5:** the canvas, fg ramp, hairline alphas, and accent all moved in the 2026-07-17 freeze. The derivation *mechanism* above is unchanged, but every per-scheme byte and every AA measurement other than the purple/dark ones stated in this doc must be recomputed against the new anchors, and the hand-tune log re-verified line by line. Do not assume a pre-freeze byte still holds.
+**Recompute note for bundle 5:** derive every per-scheme byte and AA measurement from the anchors above. Recheck the hand-tune log against those anchors.
 
 Hand-tune log (rule 3):
 
@@ -246,7 +246,7 @@ Use the semantic classes (web `.t-*`) / shared role data (`packages/shared/src/t
 
 ## Primitives kit
 
-> **Spec-versus-main note (2026-07-24):** this kit describes the #539 target. Details marked
+> **Spec-versus-main note:** this kit describes the target. Details marked
 > *(spec-only)* are ahead of `main` until the redesign's primitive tickets land: the `--scrim` token,
 > PillButton's `caution` variant and `xs` size, `EmptyState.matchActionFooterWidth`, `InfoCard.tone`,
 > ListRow's rule handoff (`settings-row` on `main` still draws its own default bottom hairline via
@@ -540,7 +540,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If th
 | No coloured side-stripe (Bans) | `local/no-side-stripe-border` | Mobile via the style-object branch. |
 | No bounce or elastic easing (Motion) | `local/no-overshoot-easing`: any `cubic-bezier(a,b,c,d)` with `b` or `d` outside `[0,1]` | 4 skills independently proposed overshoot and were dropped each time; the ban is the settled position. |
 | No `space-x-*` / `space-y-*` (Spacing) | `local/no-space-x-y` | |
-| Off-scale spacing (Spacing) | `local/spacing-scale`: margin / padding / gap / inset values checked in Tailwind utilities, Tailwind arbitrary values, JSX inline `style={{ }}`, and `StyleSheet.create` | Reads the enumerated scale, carries the three named exemptions (`allow` option + the file-scoped PillButton exemption + the `±1` inset hairline). Autofixes only an unambiguous snap (within 1px of a unique non-zero step: 9 → 8, 13 → 12); leaves 6/10/14/18/22 unfixed because those are layout decisions. **Ships as a RATCHET at `error` on all three workspaces**: the pre-existing violations (measured against `main` 2026-07-24: web 718, mobile 718, shared 0) ride a committed `eslint-suppressions.json` per workspace, so only NEW or CHANGED code fails, and `npm run lint:prune` shrinks the baseline as they are fixed. It never grows. Before 2026-07-24 the rule ran nowhere on `main` (it lived only on the archived #539 branch), so all spacing was ungated. |
+| Off-scale spacing (Spacing) | `local/spacing-scale`: margin / padding / gap / inset values checked in Tailwind utilities, Tailwind arbitrary values, JSX inline `style={{ }}`, and `StyleSheet.create` | Reads the enumerated scale, carries the three named exemptions (`allow` option + the file-scoped PillButton exemption + the `±1` inset hairline). Autofixes only an unambiguous snap (within 1px of a unique non-zero step: 9 → 8, 13 → 12); leaves 6/10/14/18/22 unfixed because those are layout decisions. **Ships as a RATCHET at `error` on all three workspaces**: the pre-existing violations (measured against `main` : web 718, mobile 718, shared 0) ride a committed `eslint-suppressions.json` per workspace, so only NEW or CHANGED code fails, and `npm run lint:prune` shrinks the baseline as they are fixed. It never grows. Before  the rule ran nowhere on `main` (it lived only on the archived #539 branch), so all spacing was ungated. |
 | No arbitrary z-index (Stacking) | `local/no-arbitrary-zindex`: arbitrary `z-[n]` / raw `zIndex: n` with `n >= 10` | Bans the arms-race literal only. Local sibling stacking (`z-[1..9]`, `zIndex: 1..9`), the `z-<tier>` utilities, `zLayers.<tier>`, and Android `elevation` are allowed - see **Stacking**. |
 | Focus outline never removed bare (A11y) | `local/require-focus-replacement`: `outline-none` with no `focus-visible:` sibling | WCAG 2.4.7. |
 | Never disable zoom (A11y) | `local/no-user-scalable-no` over the viewport meta / Next `viewport` export | Web only. |

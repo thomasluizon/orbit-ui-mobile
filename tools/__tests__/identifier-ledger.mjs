@@ -47,16 +47,6 @@ export const cases = () => {
   T(`${UNIT}: blank and non-string entries are ignored`, recordObservedIdentifiers(["", null, 7], { repoRoot, tool: "x", runIdentifier: RUN }) === null, "a junk record must not touch the file")
   T(`${UNIT}: recording without a run identifier writes nothing`, recordObservedIdentifiers([A], { repoRoot, tool: "x" }) === null, "an unscoped record must not touch the file")
 
-  /**
-   * THE legacy ledger, which is the case the run scoping exists for and the one nothing covered.
-   *
-   * A ledger written before ids carried a runIdentifier has entries with that field absent. Reading
-   * such a file with no run identifier compares undefined against undefined, so EVERY stale id from
-   * every previous session matches and is admitted. That is the 2026-08-08 failure exactly: a node
-   * id is globally unique, so a stale one does not fail, it reaches a stranger's repository.
-   *
-   * Measured with the guard removed, this returned the stale id rather than nothing.
-   */
   const legacy = stageCheckout("legacy")
   mkdirSync(dirname(identifierLedgerPath(legacy)), { recursive: true })
   writeFileSync(

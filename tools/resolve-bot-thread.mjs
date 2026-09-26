@@ -1,22 +1,4 @@
 #!/usr/bin/env node
-/**
- * Reply to ONE Pullfrog review thread and then resolve it. Never the other way round, and never the
- * resolve alone.
- *
- * A resolved thread with no reply is worse than an open one: it reads as handled and records no
- * reason, so a later reader cannot tell a fix from a shrug. Measured 2026-08-05, PR #681 is merged
- * with a review thread still open and `isOutdated=true`, which means the code moved underneath it
- * and the record will never say whether it was addressed.
- *
- * So the ordering is a gate, not a convention: the reply is posted first, and the resolve is
- * attempted ONLY after the reply is confirmed. A failed or empty reply exits non-zero having
- * mutated nothing, which makes a bare resolve impossible rather than discouraged.
- *
- * The reply body arrives on stdin, per tools/CONVENTIONS.md. Callers send one of three shapes:
- *   fixed in <sha>            the finding was addressed in this pull request
- *   not applicable because X  the finding does not hold, with the reason
- *   filed as <ticket-ref>     the finding is real and deferred to its own ticket
- */
 
 import { readFileSync } from "node:fs"
 
@@ -85,16 +67,6 @@ const dryRun = process.argv.includes("--dry-run")
 const resolveOnly = process.argv.includes("--resolve-only")
 const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 
-/**
- * Opaque, but not unvalidated. GitHub's review-thread node ids carry the PRRT_ prefix, and refusing
- * anything else here turns a caller that passed a pull request number into an exit 2 before a
- * mutation rather than a confusing API error after one.
- *
- * The shape is ALL this proves, and that is the trap. On 2026-08-08 a correctly shaped, invented id
- * passed this check and resolved to a live thread on a stranger's repository, because a node id is
- * globally unique and --repo selected only the token. The target assertion below, not this regex,
- * is what makes the write safe.
- */
 if (!threadId || !/^PRRT_[A-Za-z0-9_-]+$/.test(threadId)) {
   fail(2, `${USAGE}\n\n--thread must be a review thread node id such as PRRT_kwDOABCD1234`)
 }
@@ -129,13 +101,6 @@ if (!resolveOnly) {
 
 const GH = process.env.GH_BIN || "gh"
 
-/**
- * `mergePullRequest` is blocked outright by .claude/hooks/_lib/rules-orchestrator.mjs wherever it
- * appears in a command string, so neither document below may ever carry that token. Both mutations
- * were verified against the live schema on 2026-08-05: resolveReviewThread takes {threadId}, and
- * addPullRequestReviewThreadReply requires {pullRequestReviewThreadId, body} with
- * pullRequestReviewId optional (it names a PENDING review, which this is not).
- */
 const REPLY_MUTATION = `mutation($thread:ID!,$body:String!){
   addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$thread, body:$body}){
     comment{ id url }
@@ -177,19 +142,6 @@ try {
   fail(2, redactSecrets(error.message))
 }
 
-/**
- * THE target assertion. It runs on BOTH paths, before the reply and before a bare resolve, because
- * both are writes and both are chosen by the node id alone.
- *
- * `repository { nameWithOwner }` and `pullRequest { number }` say where the node itself lives. They
- * are compared against what `--repo` resolves to through the checkout's own `origin` and the pull
- * request the caller named. Everything else in this document was already read here for
- * --resolve-only, so no write path can skip either check by taking a different query.
- *
- * --resolve-only also exists because a failed resolve after a landed reply told the caller to
- * "retry the resolve alone" and gave them no way to do it. It does NOT weaken the no-bare-resolve
- * rule: it asks GitHub whether a reply is actually on the thread and refuses when there is none.
- */
 const THREAD_QUERY = `query($thread:ID!){
   node(id:$thread){ ... on PullRequestReviewThread {
     isResolved

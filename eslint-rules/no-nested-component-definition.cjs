@@ -1,19 +1,3 @@
-/**
- * Local ESLint rule: never define a React component inside another component.
- *
- * A component declared in another component's body is a NEW function identity on
- * every parent render, so React unmounts and remounts the whole subtree: state is
- * lost, effects re-fire, inputs lose focus, and every animation restarts. It reads
- * as a random bug, never as a rendering mistake.
- *
- * A component is identified structurally: a capitalized function that returns JSX.
- * A nested helper returning JSX but named in camelCase (`renderRow`) is a render
- * function called directly, not mounted as an element, so it does not remount a
- * subtree and is not reported.
- *
- * apps/mobile also has `react-hooks/static-components` at error, which overlaps
- * this rule; apps/web has no such gate, which is why this exists.
- */
 
 const COMPONENT_NAME_RE = /^[A-Z]/
 

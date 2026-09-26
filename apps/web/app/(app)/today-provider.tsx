@@ -19,14 +19,6 @@ function getTodayDate(): string {
   return formatAPIDate(new Date())
 }
 
-/**
- * Single owner of the app's day rollover. Holds the current local day
- * (`YYYY-MM-DD`) and, when the day actually changes, advances it and refreshes
- * date-dependent server state that isn't itself date-keyed (gamification:
- * streak, level/XP, achievements). Date-keyed queries (habits) refresh on their
- * own once consumers re-key off the new day. Consumers read the day via
- * `useToday`; a manually pinned `?date=` param is resolved by the caller.
- */
 export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient()
   const [today, setToday] = useState(getTodayDate)

@@ -53,8 +53,8 @@ Parse `$ARGUMENTS` into a `{scope}` token for the workflow.
 
 | Repo | Root |
 |---|---|
-| `orbit-ui-mobile` | `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile` |
-| `orbit-api` | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` |
+| `orbit-ui-mobile` | `primary Orbit UI checkout` |
+| `orbit-api` | `../orbit-api from the primary checkout` |
 
 The workflow excludes generated / vendored / test-fixture code (`node_modules`, `.next`,
 `dist`, `build`, `bin`, `obj`, `coverage`, `.turbo`, `Migrations/`, `design/handoff/`,

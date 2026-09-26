@@ -1,21 +1,3 @@
-/**
- * Local ESLint rule: `will-change` is not a static property.
- *
- * `will-change` promotes an element to its own compositor layer. Declared in a
- * static class it holds that layer for the element's whole life, spending memory
- * on every instance forever to speed up an animation that may never run — the
- * usual cargo cult after learning about compositing. `will-change: all` is worse:
- * it promotes against every property at once.
- *
- * The mechanical half only. The judgement half — promote only after observing a
- * real stutter, and drop the promotion when the animation ends — stays in
- * `apps/web/CLAUDE.md`, because "is this animation imminent" is not decidable
- * here.
- *
- * A `will-change` reached through a conditional (a ternary branch, a variant map
- * keyed on an `isAnimating`-style flag) is exactly the sanctioned form and is not
- * reported: this rule only fires on an unconditional static declaration.
- */
 
 const { getAttribute, getAttributeValueNode, getPropertyKeyName, collectStyleProperties } = require('./_jsx-strings.cjs')
 

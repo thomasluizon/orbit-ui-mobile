@@ -132,7 +132,6 @@ export default [
       "local/require-focus-replacement": "warn",
 
       // A RATCHET, not a backlog: `error`, with pre-existing violations carried in the
-      // committed eslint-suppressions.json baseline (regenerated against main, 2026-07-24),
       // so only NEW or CHANGED code fails. A `warn` with hundreds of open violations is a
       // migration backlog wearing a gate's clothes; this is the gate.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539

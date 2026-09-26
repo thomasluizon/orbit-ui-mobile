@@ -12,17 +12,10 @@ work for the NEXT session**, appended to the prompt you produce. **You never do 
 `/handoff refine the Perfil screen` writes a prompt that continues the plan AND refines Perfil; it
 does not refine Perfil.
 
-## Why this exists, and the one failure it prevents
+## Purpose
 
-A handoff prompt written from memory goes stale between the writing and the reading. The 2026-08-22
-redesign session opened with a handoff carrying six confident facts: the board size, how many tickets
-had a wrong Status, that `#36` needed a label, that `#316` to `#321` were all open, that a board view
-needed recreating, and that Wrapped was blocked on a Pro gate. **Every one of the six was wrong by the
-time it was read.** The session cost real time proving that.
-
-So the prompt you write has two jobs and they pull against each other: carry enough that the next
-session is not starting cold, and carry nothing it should be checking for itself. Resolve it the same
-way every time: **point at the durable source, state the delta, and mark every identifier as a lead.**
+A handoff points at durable sources, states the session's delta, and marks every identifier as a lead
+to verify. Live state must be checked again by the receiving session.
 
 ## What a good handoff prompt is made of
 

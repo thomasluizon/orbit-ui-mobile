@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 
 import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
@@ -85,6 +85,42 @@ export const cases = async () => {
 
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
+  const shipped = readOrchestratorConfig()
+  const commonDirectory = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../.."), encoding: "utf8" }).stdout.trim()
+  T(
+    `${NAME}: relative sibling paths resolve from the primary checkout in a linked worktree`,
+    shipped.repos.ui === join(commonDirectory, "..") && shipped.repos.api === join(commonDirectory, "..", "..", "orbit-api"),
+    JSON.stringify(shipped.repos),
+  )
+  const primary = join(root, "relocation", "primary")
+  const linked = join(root, "elsewhere", "linked")
+  mkdirSync(join(primary, ".claude"), { recursive: true })
+  mkdirSync(join(primary, "tools", "lib"), { recursive: true })
+  mkdirSync(dirname(linked), { recursive: true })
+  const gitPrimary = (...args) => spawnSync("git", ["-C", primary, ...args], { encoding: "utf8" })
+  gitPrimary("init", "-q", "--initial-branch=main")
+  gitPrimary("config", "user.email", "gate@orbit.test")
+  gitPrimary("config", "user.name", "Orbit Gate")
+  writeFileSync(join(primary, ".claude", "orchestrator.json"), JSON.stringify(real))
+  copyFileSync(toolPath("lib/orchestrator-config.mjs"), join(primary, "tools", "lib", "orchestrator-config.mjs"))
+  gitPrimary("add", ".claude/orchestrator.json", "tools/lib/orchestrator-config.mjs")
+  gitPrimary("commit", "-qm", "config")
+  const linkedResult = gitPrimary("worktree", "add", "--detach", linked)
+  T(`${NAME}: test linked worktree was created outside the primary parent`, linkedResult.status === 0, linkedResult.stderr)
+  if (linkedResult.status === 0) {
+    const resolved = readOrchestratorConfig(pathToFileURL(join(linked, ".claude", "orchestrator.json")))
+    T(`${NAME}: a relocated worktree still uses primary sibling roots`, resolved.repos.ui === primary && resolved.repos.api === resolve(primary, "../orbit-api"), JSON.stringify(resolved.repos))
+  }
+  for (const workflow of ["audit.mjs", "prod-readiness.mjs"]) {
+    const source = readFileSync(resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../../.claude/workflows", workflow), "utf8")
+    T(`${NAME}: ${workflow} loads the shared repo resolver`, source.includes("await import(pathToFileURL(join(process.cwd(), 'tools/lib/orchestrator-config.mjs')).href)") && source.includes("const { ui: UI, api: API } = readOrchestratorConfig().repos"))
+    if (linkedResult.status === 0) {
+      const setup = source.match(/const \{ pathToFileURL \} = await import\('node:url'\)[\s\S]*?const \{ ui: UI, api: API \} = readOrchestratorConfig\(\)\.repos/)?.[0]
+      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+      const roots = setup && await new AsyncFunction("process", `${setup}\nreturn { UI, API }`)({ cwd: () => linked })
+      T(`${NAME}: ${workflow} resolves a relocated worktree's primary siblings`, roots?.UI === primary && roots?.API === resolve(primary, "../orbit-api"), JSON.stringify(roots))
+    }
+  }
   const engineName = real.worker
   const engine = real.workers[engineName]
   const invocation = resolveWorkerInvocation(engineName, engine, "default")

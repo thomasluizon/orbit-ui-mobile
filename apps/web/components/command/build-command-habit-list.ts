@@ -18,14 +18,6 @@ interface CommandHabitListInput {
 
 const NO_RECENTLY_COMPLETED = new Set<string>()
 
-/**
- * The single ordered habit list the command palette renders in its search/jump
- * group and its log/skip picker pages: the habits visible in the Today view
- * first (canonical position order, each parent immediately followed by its
- * visible sub-habits), then the remaining habits visible in the All view with
- * completed one-time tasks excluded. Every habit appears once; a sub-habit
- * carries its parent's title so it stays distinguishable in the flat list.
- */
 export function buildCommandHabitList({
   habitsById,
   childrenByParent,

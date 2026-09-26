@@ -5,6 +5,8 @@ directory. The `.mjs` files in `.claude/hooks/` are thin adapters: read the stdi
 payload, call a `_lib` rule, `exit 2` + stderr on a block. Wired in
 `.claude/settings.json` (`PreToolUse` / `PostToolUse`).
 
+`forbid-stale-text.mjs` delegates Write, Edit, and MultiEdit to `tools/check-timeless.mjs --hook`.
+
 Every `PreToolUse` guard is registered on the **PowerShell** tool as well as
 `Bash`. A matcher of `"Bash"` alone leaves the other shell unguarded, which is not
 hypothetical: it defeated every command guard in both repositories until ORB-163.

@@ -26,13 +26,6 @@ export const cases = () => {
   writeRunState({ ...state, pullRequests: [identity] }, repoRoot)
   writeRunState({ ...state, pullRequests: [] }, repoRoot)
   T(`${TOOL}: clearing pullRequests cannot erase the append-only readiness ledger`, readRunState(repoRoot)?.readinessLedger?.[0]?.prNumber === 694, JSON.stringify(readRunState(repoRoot)))
-  /**
-   * A blocker discovered AFTER a pull request is already in the ledger must reach the ledger.
-   *
-   * The identity list puts the previous ledger before the current state, so first-seen-wins on the
-   * whole row kept the older entry and threw the blocker away. The run then believed nothing was
-   * blocking it, which is the quiet direction of that failure: an unattended run reports READY.
-   */
   const late = stageCheckout("late-blocker")
   writeFileSync(runStatePath(late), JSON.stringify({ sessionId: "s1", sleep: true, remaining: [] }))
   const base = readRunState(late)

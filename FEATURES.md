@@ -30,8 +30,8 @@ plan, and it exists as an abuse guard rather than as an upsell.
 day's allowance, capped at **3/day**, for free non-trial users only. Pro and trial users never see
 ads.
 
-Read from the production `AppConfigs` table on 2026-08-25: `FreeAiMessagesPerDay` 5,
-`ProAiMessagesPerDay` 50, `FreeMaxHabits` 1000, `SubHabitsProOnly` true.
+Read the current production `AppConfigs` table for `FreeAiMessagesPerDay`,
+`ProAiMessagesPerDay`, `FreeMaxHabits`, and `SubHabitsProOnly` before relying on their values.
 
 `AppConfigService.GetAsync` caches each key in memory for **30 minutes** and falls back to the
 default its CALLER supplied when the row is absent, when its value cannot be parsed into the

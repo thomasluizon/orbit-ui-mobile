@@ -97,13 +97,6 @@ function isCompletedItem(value: unknown): boolean {
   return isRecord(value) && value.isCompleted === true
 }
 
-/**
- * Projects the widget feed payload into the streak + today's progress the
- * reminder displays. Counts each sub-habit as its own item — a parent with
- * children contributes its children (Orbit treats the parent as a container
- * done when its children are), a childless habit counts as one — so the total
- * matches the Today list. Returns null when the payload is not a feed object.
- */
 export function extractReminderFeed(data: unknown): ReminderFeed | null {
   if (!isRecord(data)) return null
 

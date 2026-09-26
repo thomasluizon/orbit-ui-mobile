@@ -57,7 +57,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const argv = ["--repo", "ui", "--pr", "700", "--delivery", delivery, "--ticket", ticketArtifact]
 
   /**
-   * The two app ids are live, read on 2026-08-12 from
    * `gh api repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks`,
    * which pins every workflow check to 15368 (github-actions) and `pullfrog-approval` to 1768019.
    */
@@ -93,10 +92,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
         isDraft: options.isDraft ?? false,
         statusCheckRollup: { contexts: { nodes: options.statusCheckRollup ?? [greenCheck, approval] } },
       } } } }) },
-      /**
-       * The real payload carries BOTH lists, and only `checks` names the app that must provide each
-       * check. Confirmed live on 2026-08-12 against the `main` protection of this repository.
-       */
+      /** Only `checks` names the app required to provide each check. */
       { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({
         contexts: ["Lint", "pullfrog-approval"],
         ...(options.omitChecks === true ? {} : { checks: options.checks ?? [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: PULLFROG_APP }] }),

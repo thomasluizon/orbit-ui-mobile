@@ -364,13 +364,6 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
   )
 }
 
-/**
- * Persistent Astra copilot on desktop (md+). Collapsed it is a compact launcher; opened it
- * is a docked bottom-right chat panel that can maximize to fill the content area beside the
- * sidebar (and minimize back to the dock). Reuses the shared chat store + `useChatComposer`
- * SSE pipeline so the conversation is continuous. Navigating away collapses a maximized panel
- * back to the dock. Hidden below 768px, where the phone shell keeps its bottom-nav Astra tab.
- */
 export function AstraCopilotRail() {
   const astraOpen = useShellStore((state) => state.astraOpen)
   const setAstraOpen = useShellStore((state) => state.setAstraOpen)

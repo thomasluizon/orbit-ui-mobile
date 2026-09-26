@@ -190,7 +190,6 @@ jobs:
             echo "Merged main into redesign/main."
             exit 0
           fi
-          # The pattern comes from a real refusal, not from a guess: run 32916617441 on 2026-08-26
           # ended with `! [remote rejected] redesign/main -> redesign/main (refusing to allow a GitHub
           # App to create or update workflow \`.github/workflows/guards.yml\` without \`workflows\`
           # permission)`. The dots stand in for the backticks GitHub puts around `workflows`.

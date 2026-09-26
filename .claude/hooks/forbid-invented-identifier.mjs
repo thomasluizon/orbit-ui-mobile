@@ -1,22 +1,4 @@
 #!/usr/bin/env node
-// PreToolUse(Bash, PowerShell) adapter for the invented-identifier guard. Thin: the reusable core
-// is checkInventedIdentifier in _lib/rules-identifier.mjs. Exits 0 (allow) or 2 + stderr (block).
-// Any error exits 0, so a hook fault can never wedge a shell.
-//
-// Registered on the PowerShell tool as well as Bash, for the same reason every other command guard
-// here is: the PowerShell tool fires no hook by default, so a matcher naming only "Bash" is open on
-// day one to anyone who reaches for the other shell.
-//
-// This adapter owns the two questions the pure core cannot answer: which identifiers this run has
-// really observed, and where to look for them.
-//
-//   1. tools/lib/identifier-ledger.mjs, in each declared repository's `.git/`. list-bot-threads.mjs
-//      appends every thread id with the run that observed it. Only this session's entries count.
-//   2. the session scratchpad, so an id read from a saved artifact also clears the gate.
-//
-// The scratchpad scan is BOUNDED and fails open. A PreToolUse hook runs on every command, so it may
-// not stall a shell, and a guard that blocks because it ran out of budget would be worse than the
-// defect it guards. That bypass is disclosed in the rule module beside the others.
 
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"

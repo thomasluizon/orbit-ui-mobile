@@ -1,31 +1,6 @@
-/**
- * Can a headless agent execute this ticket AT ALL?
- *
- * plan-queue.mjs used to defer on graph facts alone (blocked, unstackable, no repo label, closed), so
- * a ticket no agent could ever finish was admitted and failed one at a time during the night.
- * Measured on the Onda 1 queue, 2026-08-06: 71 admitted, 0 deferred, ELEVEN of them not executable,
- * each burning a worker slot or a scope-gate cycle before that became visible.
- *
- * Two rules this file is built around, both learned by running the heuristic by hand:
- *
- * 1. **A keyword match is evidence, not a verdict.** "no agent can execute this" inside an Out of
- *    scope section means the opposite of the same words in Scope, and a naive regex tripped on
- *    ORB-223, which is probably fine. So the scan is section-aware and skips the sections that
- *    describe what the ticket is NOT.
- * 2. **Size is planning information, never executability.** Affected modules lists carry tests,
- *    generated output and read-only references. They are not a correctness boundary, so neither
- *    their count nor a codemod, migration, lockfile or generated artifact can defer a ticket.
- */
 
 const OUT_OF_SCOPE_HEADING = /out of scope|non.?goals?|not in scope/i
 
-/**
- * Markdown sections, by ATX heading or a whole-line bold heading, which both appear in 6.2 bodies.
- * The LEVEL is carried because Out of scope owns its descendants: `## Out of scope` followed by
- * `### Operations` is one excluded region, and a parser that filtered only the parent read the child
- * as an independent in-scope section and deferred an executable ticket on it. A bold heading has no
- * level of its own, so it takes the deepest one and any real heading ends it.
- */
 const BOLD_HEADING_LEVEL = 6
 
 export const sectionsOf = (description) => {
@@ -92,32 +67,16 @@ export const classifyExecutability = (description) => {
   return { deferrals, warnings }
 }
 
-/**
- * Can this ticket be executed correctly WITHOUT talking to Thomas first?
- *
- * A different question from the one above, and the reason it needs its own answer: everything above
- * asks whether a headless worker can execute the ticket AT ALL. This asks whether it can execute it
- * CORRECTLY by guessing. ORB-30 (#36) is the worked example: 34,709 characters, an acceptance
- * criterion that is a human grant no agent can satisfy, and a body that says Pencil is retired in one
- * section while instructing the worker to build the prototype in Pencil in another. A headless worker
- * produces a confident pull request against the retired tool and a verdict that fails however good
- * the work is.
- *
- * The step 2b question gate is one batch asked before the first worktree, which is right for "should
- * this ticket run at all" and wrong for "design this with me". A design ticket needs a conversation,
- * one topic at a time, before any code is written.
- *
- * This is OUTPUT, not a gate. Attended, it produces questions to ask. Under `--sleep` it produces a
- * NEEDS_CONVERSATION deferral with those questions attached, so Thomas wakes to a decision list
- * instead of a confidently wrong pull request. It never halts a healthy run.
- */
 export const CONVERSATION_LABEL_ON = "needs:conversation"
 export const CONVERSATION_LABEL_OFF = "needs:no-conversation"
 
 const CONVERSATION_SIGNALS = [
   {
     kind: "HUMAN_GRANT",
-    pattern: /human grant|no gate and no agent may substitute|only a human (?:can|may|grants)|Thomas has (?:opened|read|reviewed|seen).{0,40}\bapproved\b/i,
+    pattern: {
+      test: (line) => /human grant|no gate and no agent may substitute|only a human (?:can|may|grants)|the owner has (?:opened|read|reviewed|seen).{0,40}\bapproved\b|the owner (?:has (?:opened|approved)|approves) (?:the )?(?:page|direction|design)\b/i.test(line) ||
+        /\b[A-Z][a-z]+ (?:has (?:opened|approved)|approves) (?:the )?(?:page|direction|design)\b/.test(line),
+    },
     question: (quote, heading) =>
       `${heading} carries a human grant no agent can satisfy: "${quote}". Split the grant into its own ticket, or accept this one stopping short of it?`,
   },
@@ -128,7 +87,7 @@ const CONVERSATION_SIGNALS = [
   },
   {
     kind: "PRODUCT_CALL",
-    pattern: /(?:needs|requires|awaiting|pending|unresolved|open)\s+(?:a\s+)?(?:product|brand|copy|pricing|price|design)\s+(?:call|decision|direction|choice)|Thomas (?:must )?(?:decides|decide|chooses|choose|picks|pick)\b/i,
+    pattern: /(?:needs|requires|awaiting|pending|unresolved|open)\s+(?:a\s+)?(?:product|brand|copy|pricing|price|design)\s+(?:call|decision|direction|choice)|the owner (?:must )?(?:decides|decide|chooses|choose|picks|pick)\b/i,
     question: (quote, heading) => `${heading} needs a call the repository cannot supply: "${quote}". What is the answer?`,
   },
 ]

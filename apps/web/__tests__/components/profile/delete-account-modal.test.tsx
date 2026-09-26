@@ -60,7 +60,7 @@ import { DeleteAccountModal } from '@/app/(app)/profile/_components/delete-accou
 
 
 const defaultProfile = {
-  name: 'Thomas',
+  name: 'Alex',
   email: 'thomas@example.com',
   timeZone: 'America/Sao_Paulo',
   aiSummaryEnabled: true,
