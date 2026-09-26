@@ -3,7 +3,7 @@
 import { useMemo, useState, useSyncExternalStore } from 'react'
 import { hashKey } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
-import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
+import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import {
   EMPTY_CHILDREN_BY_PARENT,
@@ -14,14 +14,12 @@ import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { buildTodayFilters } from './today-model'
 import type { TodayInitialHabits } from './today-initial-data'
 
-const SHOW_GENERAL_STORAGE_KEY = 'orbit_show_general_on_today'
-
 function subscribeToShowGeneral() {
   return () => {}
 }
 
 function getShowGeneralClientSnapshot() {
-  return parseShowGeneralOnTodayPreference(localStorage.getItem(SHOW_GENERAL_STORAGE_KEY))
+  return readShowGeneralOnToday()
 }
 
 function getShowGeneralServerSnapshot() {

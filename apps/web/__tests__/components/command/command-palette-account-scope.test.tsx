@@ -21,6 +21,7 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('@/hooks/use-is-client', () => ({ useIsClient: () => true }))
 vi.mock('@/stores/ui-store', () => ({
+  setUIAccountScope: vi.fn(),
   useUIStore: (selector: (state: { setActiveView: typeof mocks.setActiveView }) => unknown) =>
     selector({ setActiveView: mocks.setActiveView }),
 }))

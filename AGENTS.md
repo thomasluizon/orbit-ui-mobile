@@ -1,5 +1,8 @@
 # AGENTS.md (orbit-ui-mobile)
 
+Write rules, docs, and comments timelessly: no dates except load-bearing data, names or attributions,
+incident stories, or machine paths. `tools/check-timeless.mjs` enforces this.
+
 Instructions for Codex workers in this repository. Claude Code reads `CLAUDE.md`; the two must
 not fork. This file DEFERS to `CLAUDE.md` (same directory) for every repo convention, so read it
 before you write code. Your launch prompt already carries the objective, scope, caps, output

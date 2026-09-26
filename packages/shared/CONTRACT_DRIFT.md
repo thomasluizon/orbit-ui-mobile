@@ -40,11 +40,18 @@ merging.
 
 The workflow runs two jobs. The `generate` job runs `npm ci` and Orval with a
 read-only token and uploads only the two generated files. The `publish` job
-gets `contents: write` and `pull-requests: write`, installs nothing, and
-commits and pushes with `core.hooksPath=/dev/null`, so no install script or
-repository hook runs while the write token exists. The repository's Actions
-setting must allow GitHub Actions to create pull requests. A pull request opened with `GITHUB_TOKEN` may
-require approval before its checks run.
+installs nothing and mints a repository-scoped GitHub App token with
+`contents: write` and `pull-requests: write`. It uses that token to push and
+open or update the pull request, so its checks start without manual approval.
+It commits and pushes with `core.hooksPath=/dev/null`, so no install script or
+repository hook runs while the write token exists.
+
+Create a GitHub App installed only on `thomasluizon/orbit-ui-mobile` with
+Contents and Pull requests read/write permissions. Set its App ID as the
+repository Actions variable `CONTRACT_REBASELINE_APP_ID` and its private
+key as the repository Actions secret `CONTRACT_REBASELINE_APP_PRIVATE_KEY`.
+The App token is minted only in `publish`; `generate` never receives either
+credential. Without both settings, `publish` fails before pushing a branch.
 
 ## Regenerating locally
 

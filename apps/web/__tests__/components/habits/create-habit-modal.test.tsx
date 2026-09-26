@@ -132,6 +132,7 @@ vi.mock('@/hooks/use-tag-selection', () => ({
 }))
 
 vi.mock('@/stores/ui-store', () => ({
+  setUIAccountScope: vi.fn(),
   useUIStore: () => 'today',
 }))
 

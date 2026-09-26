@@ -5,16 +5,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import {
-  parseShowGeneralOnTodayPreference,
-  resolveSystemLocale,
-} from '@orbit/shared/utils'
+import { resolveSystemLocale } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { PreferencePicker } from '@/components/profile/preferences-sections'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
+import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 
 export function usePreferenceControls() {
+  const accountId = useAccountId()
   const { i18n } = useTranslation()
   const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
@@ -116,25 +116,24 @@ export function usePreferenceControls() {
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
 
   useEffect(() => {
+    let active = true
     void AsyncStorage.removeItem('orbit_time_format')
-    AsyncStorage.getItem('orbit_show_general_on_today')
+    readShowGeneralOnToday()
       .then((saved) => {
-        setShowGeneralOnToday(parseShowGeneralOnTodayPreference(saved))
+        if (active && getAccountId() === accountId) setShowGeneralOnToday(saved)
       })
       .catch(() => {
-        setShowGeneralOnToday(false)
+        if (active && getAccountId() === accountId) setShowGeneralOnToday(false)
       })
-  }, [])
+    return () => { active = false }
+  }, [accountId])
 
   async function handleShowGeneralToggle(nextValue: boolean) {
     setShowGeneralOnToday(nextValue)
     try {
-      await AsyncStorage.setItem(
-        'orbit_show_general_on_today',
-        String(nextValue),
-      )
+      await writeShowGeneralOnToday(nextValue)
     } catch {
-      setShowGeneralOnToday(!nextValue)
+      if (getAccountId() === accountId) setShowGeneralOnToday(!nextValue)
     }
   }
 

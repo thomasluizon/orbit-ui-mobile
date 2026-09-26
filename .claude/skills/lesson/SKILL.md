@@ -22,7 +22,7 @@ Only capture on a genuine signal: I explicitly corrected you, OR the same mistak
 2. **Classify it:**
    - **Machine-checkable** (a banned API/token/literal, a required command, a format) → it should become a HOOK or LINT rule, not a memory note. Draft the rule.
    - **Judgment** (an approach, a preference, a gotcha) → it becomes a concise, path-scoped rule or a memory pointer-fact.
-3. **Append a candidate to the staging file** `.claude/pending-lessons.md` (create if missing) — NEVER write directly into CLAUDE.md, MEMORY.md, or a loaded rule. Format:
+3. **Append a candidate to the session scratchpad** (outside the repository). Never write directly into CLAUDE.md, MEMORY.md, or a loaded rule. Format:
    ```
  ## <one-line lesson>
    - Trigger: <files/task where it applies>
@@ -36,9 +36,9 @@ Only capture on a genuine signal: I explicitly corrected you, OR the same mistak
 
 ## On promotion (only after I approve)
 
-- **Checkable** → implement the hook (`.claude/hooks/*.mjs`, wired in `settings.json`) or the ESLint/Roslyn rule, verify it with a piped-JSON test, and delete the staging entry. The lesson now lives as a gate, costing zero instruction budget.
-- **Judgment** → add a concise entry to the right scoped `.claude/rules/<topic>.md` (with `paths:` if file-specific) or a MEMORY.md pointer-fact, then delete the staging entry.
+- **Checkable** → implement the hook (`.claude/hooks/*.mjs`, wired in `settings.json`) or the ESLint/Roslyn rule, verify it with a piped-JSON test, and delete the scratchpad entry.
+- **Judgment** → add a concise entry to the right scoped `.claude/rules/<topic>.md` (with `paths:` if file-specific) or a MEMORY.md pointer-fact, then delete the scratchpad entry.
 
 ## Housekeeping
 
-Periodically (or when I ask), review `.claude/pending-lessons.md` and the memory index: merge duplicates, delete stale/contradicted entries, and graduate any checkable rule still living as prose.
+Periodically review the scratchpad and memory index: merge duplicates, delete stale entries, and graduate checkable rules still living as prose.

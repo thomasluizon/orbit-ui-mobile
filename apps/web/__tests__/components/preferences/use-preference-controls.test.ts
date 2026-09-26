@@ -5,6 +5,7 @@ import { calendarKeys } from '@orbit/shared/query'
 import React from 'react'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
+import { setAccountId } from '@/lib/account-scope'
 
 const mockPatchProfile = vi.fn()
 const mockApplyTheme = vi.fn()
@@ -86,6 +87,7 @@ function calendarEvent(startDate: string) {
 
 describe('usePreferenceControls', () => {
   beforeEach(() => {
+    setAccountId(null)
     vi.clearAllMocks()
     mockFetch.mockReset()
     mockPatchProfile.mockReset()
@@ -289,6 +291,16 @@ describe('usePreferenceControls', () => {
     expect(result.current.showGeneralOnToday).toBe(false)
     act(() => result.current.toggleShowGeneral())
     expect(result.current.showGeneralOnToday).toBe(true)
-    expect(localStorage.getItem('orbit_show_general_on_today')).toBe('true')
+    expect(localStorage.getItem('orbit_show_general_on_today:signed-out')).toBe('true')
+  })
+
+  it('shows the next account preference in a mounted panel', () => {
+    setAccountId('account-a')
+    localStorage.setItem('orbit_show_general_on_today:account-a', 'true')
+    const { result } = renderHook(() => usePreferenceControls(), { wrapper })
+    expect(result.current.showGeneralOnToday).toBe(true)
+
+    act(() => setAccountId('account-b'))
+    expect(result.current.showGeneralOnToday).toBe(false)
   })
 })

@@ -63,3 +63,4 @@ export {
 } from './celebration-queue'
 
 export * from './throttle-store'
+export { createAccountScope, type AccountScope } from './account-scope'

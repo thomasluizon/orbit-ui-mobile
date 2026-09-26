@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { ONBOARDING_DRAFT_STORAGE_VERSION } from '@orbit/shared/stores'
 
 const asyncStorageState = vi.hoisted(() => ({
   data: new Map<string, string>(),
@@ -83,7 +84,7 @@ describe('onboarding draft store', () => {
       'orbit-onboarding-draft',
       JSON.stringify({
         state: {
-          step: 2,
+          accountKey: null,
           habits: [{ title: 'Stretch' }],
           firstLog: null,
           goal: null,
@@ -91,14 +92,14 @@ describe('onboarding draft store', () => {
           colorScheme: null,
           onboardingLocallyDone: true,
         },
-        version: 1,
+        version: ONBOARDING_DRAFT_STORAGE_VERSION,
       }),
     )
 
     await useOnboardingDraftStore.persist.rehydrate()
 
     expect(useOnboardingDraftStore.getState()).toMatchObject({
-      step: 2,
+      accountKey: null,
       habits: [{ title: 'Stretch' }],
       weekStartDay: 1,
       onboardingLocallyDone: true,

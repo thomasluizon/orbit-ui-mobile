@@ -796,9 +796,7 @@ required.
 
 **Read what actually failed before fixing anything.** Preserve each failed check's run/check ID,
 details URL, workflow, name, status and conclusion. `gh run view <id> --json jobs` names the failed
-STEP. A failure at `Set up job` is GitHub infrastructure, not the diff, and the repair is a re-run:
-all five reds on #685 were one Actions outage, and every hypothesis about their content was wrong.
-Never fix a diff to satisfy a check that never ran.
+STEP. A failure at `Set up job` is GitHub infrastructure. Re-run it. Never edit a diff for a check that never ran.
 
 `CI_PENDING` is its own verdict rather than a pass or a stop. Pass `--wait-ci <seconds>` to let
 checks settle; without it the state is reported immediately and the run does not sit on it.

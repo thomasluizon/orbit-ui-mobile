@@ -216,7 +216,7 @@ describe('PreferencesPage', () => {
     render(<PreferencesPage />)
     const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
     fireEvent.click(toggle)
-    expect(localStorage.getItem('orbit_show_general_on_today')).toBe('true')
+    expect(localStorage.getItem('orbit_show_general_on_today:signed-out')).toBe('true')
   })
 
   it('persists false after toggling the home screen setting off again', () => {
@@ -224,7 +224,7 @@ describe('PreferencesPage', () => {
     const toggle = screen.getByRole('switch', { name: 'settings.homeScreen.showGeneral' })
     fireEvent.click(toggle)
     fireEvent.click(toggle)
-    expect(localStorage.getItem('orbit_show_general_on_today')).toBe('false')
+    expect(localStorage.getItem('orbit_show_general_on_today:signed-out')).toBe('false')
   })
 
   it('renders the push notification section when web push is supported', () => {

@@ -55,6 +55,7 @@ vi.mock('@/lib/actions/goals', () => ({
 }))
 
 vi.mock('@/stores/ui-store', () => ({
+  setUIAccountScope: vi.fn(),
   useUIStore: Object.assign(
     () => ({
       setGoalCompletedCelebration: mockSetGoalCompleted,
