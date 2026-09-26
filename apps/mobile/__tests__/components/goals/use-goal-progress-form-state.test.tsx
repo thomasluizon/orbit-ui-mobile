@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
   isPending: false,
   showError: vi.fn(),
-  showInterstitialIfDue: vi.fn(),
 }))
 
 vi.mock('@/hooks/use-goals', () => ({
@@ -17,10 +16,6 @@ vi.mock('@/hooks/use-goals', () => ({
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: mocks.showError }),
-}))
-
-vi.mock('@/hooks/use-ad-mob', () => ({
-  useAdMob: () => ({ showInterstitialIfDue: mocks.showInterstitialIfDue }),
 }))
 
 type FormApi = ReturnType<typeof useGoalProgressFormState>
@@ -43,7 +38,7 @@ function renderForm(input: RenderInput = {}) {
       goalId: input.goalId ?? 'goal-1',
       goalCurrentValue: input.goalCurrentValue,
       goalTargetValue: input.goalTargetValue,
-      refetchDetail: input.refetchDetail ?? (async () => undefined),
+      refetchDetail: input.refetchDetail ?? (() => Promise.resolve()),
       onClose: input.onClose ?? vi.fn(),
     })
     return null
@@ -68,7 +63,6 @@ describe('mobile useGoalProgressFormState', () => {
     mocks.mutateAsync.mockReset().mockResolvedValue(undefined)
     mocks.isPending = false
     mocks.showError.mockReset()
-    mocks.showInterstitialIfDue.mockReset().mockResolvedValue(undefined)
   })
 
   it('seeds the progress value from the current goal value on open', () => {
@@ -99,7 +93,7 @@ describe('mobile useGoalProgressFormState', () => {
     expect(form.current.progressExceedsTarget).toBe(false)
   })
 
-  it('submits the progress mutation, refetches, shows an ad, and resets the form', async () => {
+  it('submits the progress mutation, refetches, and resets the form', async () => {
     const refetchDetail = vi.fn().mockResolvedValue(undefined)
     const form = renderForm({ goalCurrentValue: 0, refetchDetail })
 
@@ -113,7 +107,6 @@ describe('mobile useGoalProgressFormState', () => {
       data: { currentValue: 5, note: 'felt great' },
     })
     expect(refetchDetail).toHaveBeenCalledTimes(1)
-    expect(mocks.showInterstitialIfDue).toHaveBeenCalledTimes(1)
     expect(form.current.showProgressForm).toBe(false)
     expect(form.current.progressValue).toBe('')
   })

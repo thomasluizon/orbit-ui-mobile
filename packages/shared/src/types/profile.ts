@@ -43,7 +43,6 @@ export const profileSchema = z.object({
   totalXp: z.number(),
   level: z.number(),
   levelTitle: z.string(),
-  adRewardsClaimedToday: z.number(),
   currentStreak: z.number(),
   longestStreak: z.number(),
   streakFreezesAvailable: z.number(),

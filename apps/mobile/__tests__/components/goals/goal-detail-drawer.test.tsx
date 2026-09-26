@@ -63,12 +63,6 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-ad-mob', () => ({
-  useAdMob: () => ({
-    showInterstitialIfDue: vi.fn(),
-  }),
-}))
-
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: colorProxy,

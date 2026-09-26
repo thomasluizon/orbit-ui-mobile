@@ -110,7 +110,6 @@ export const UPGRADE_FEATURE_CATEGORIES: UpgradeFeatureMatrixCategory[] = [
     features: [
       { key: 'colors', type: 'text' },
       { key: 'calendarImport', type: 'boolean', free: false, pro: true },
-      { key: 'adFree', type: 'boolean', free: false, pro: true },
     ],
   },
 ]

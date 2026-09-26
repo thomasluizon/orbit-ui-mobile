@@ -12,13 +12,14 @@ vi.mock('@/hooks/use-tour-target', () => ({ useTourTarget: () => {} }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => () => {} }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: null }) }))
-vi.mock('@/hooks/use-chat-reward', () => ({ useChatReward: () => ({}) }))
 vi.mock('@/hooks/use-chat-composer', () => ({
   useChatComposer: () => ({
     flatListRef: React.createRef(),
     messages: [],
     showSuggestions: mocks.showSuggestions,
     starterChips: [],
+    hasProAccess: false,
+    atMessageLimit: true,
   }),
 }))
 vi.mock('@orbit/shared/hooks', () => ({ CHAT_GOAL_ACTION_TYPES: new Set() }))
@@ -54,5 +55,16 @@ describe('ChatScreen keyboard avoidance', () => {
     const composer = avoidingView.findByType('ChatInputArea')
     expect(avoidingView.props.behavior).toBe('height')
     expect(composer.props.marginBottom).toBe(0)
+  })
+
+  it('passes no ad reward flow to the composer at the free message limit', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<ChatScreen />)
+    })
+
+    const composer = tree!.root.findByType('ChatInputArea')
+    expect(composer.props.atMessageLimit).toBe(true)
+    expect(composer.props.reward).toBeUndefined()
   })
 })

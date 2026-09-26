@@ -19,7 +19,6 @@ import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
-import { useAdMob } from '@/hooks/use-ad-mob'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { createTokensV2 } from '@/lib/theme'
@@ -139,7 +138,6 @@ function RootLayoutNav() {
   const segments = useSegments()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { profile } = useProfile()
-  const { initialize: initializeAdMob } = useAdMob()
   useTimezoneAutoSync(profile)
   const hasProAccess = useHasProAccess()
   const totalHabitCount = useTotalHabitCount()
@@ -202,10 +200,6 @@ function RootLayoutNav() {
     if (!isAuthenticated) return
     syncWidgetTheme(createTokensV2(currentScheme, currentTheme)).catch(() => {})
   }, [currentScheme, currentTheme, isAuthenticated])
-
-  useEffect(() => {
-    void initializeAdMob()
-  }, [initializeAdMob])
 
   useEffect(() => {
     if (Platform.OS !== 'android') return

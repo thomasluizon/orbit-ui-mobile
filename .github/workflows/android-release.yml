@@ -49,10 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EAS_BUILD_PROFILE: production
-      EXPO_PUBLIC_ADMOB_USE_TEST_IDS: "false"
-      EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ca-app-pub-8521676951882691~5595921738
-      EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID: ca-app-pub-8521676951882691/8083010939
-      EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_ID: ca-app-pub-8521676951882691/3704782221
       EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
       EXPO_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.EXPO_PUBLIC_TURNSTILE_SITE_KEY }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -265,27 +261,12 @@ jobs:
           set -euo pipefail
 
           echo "BUILD_API_BASE=${PROD_API_BASE}" >> "${GITHUB_ENV}"
-          echo "BUILD_ADMOB_USE_TEST_IDS=false" >> "${GITHUB_ENV}"
           echo "BUILD_EAS_PROFILE=production" >> "${GITHUB_ENV}"
-          echo "Build target: PROD (api_base=${PROD_API_BASE}, real AdMob IDs)"
+          echo "Build target: PROD (api_base=${PROD_API_BASE})"
 
       # EXPO_NO_METRO_WORKSPACE_ROOT pins Metro's root to apps/mobile instead of the
       # monorepo root, matching what scripts/android-release-apk.js has always set for
       # the local build off this same tree.
-      - name: Validate Expo config resolves production AdMob IDs
-        working-directory: apps/mobile
-        shell: bash
-        env:
-          CI: "1"
-          EXPO_NO_TELEMETRY: "1"
-          EXPO_NO_METRO_WORKSPACE_ROOT: "1"
-        run: |
-          set -euo pipefail
-
-          npx expo config --type public --json > expo-public-config.json
-
-          node scripts/assert-production-admob-config.js expo-public-config.json
-
       - name: Generate Android project with Expo prebuild
         working-directory: apps/mobile
         shell: bash
@@ -295,47 +276,12 @@ jobs:
           EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
-          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ env.BUILD_ADMOB_USE_TEST_IDS }}
         run: |
           set -euo pipefail
 
           echo "Prebuild API base: ${EXPO_PUBLIC_API_BASE}"
-          echo "Prebuild AdMob test IDs: ${EXPO_PUBLIC_ADMOB_USE_TEST_IDS}"
 
           npx expo prebuild --platform android --no-install
-
-      - name: Validate generated Android project does not contain sample AdMob IDs
-        working-directory: apps/mobile
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          if [ ! -f "${MANIFEST_PATH}" ]; then
-            echo "Android manifest not found at ${MANIFEST_PATH}" >&2
-            exit 1
-          fi
-
-          if ! grep -F -q "${EXPO_PUBLIC_ADMOB_ANDROID_APP_ID}" "${MANIFEST_PATH}"; then
-            echo "Android manifest does not contain the expected production AdMob app ID." >&2
-            exit 1
-          fi
-
-          SAMPLE_IDS=(
-            "ca-app-pub-3940256099942544~3347511713"
-            "ca-app-pub-3940256099942544/1033173712"
-            "ca-app-pub-3940256099942544/5224354917"
-          )
-
-          for sample_id in "${SAMPLE_IDS[@]}"; do
-            if grep -R -F -q "${sample_id}" android; then
-              echo "Detected Google sample AdMob ID in generated Android project: ${sample_id}" >&2
-              grep -R -F "${sample_id}" android >&2 || true
-              exit 1
-            fi
-          done
-
-          echo "Generated Android project AdMob validation passed."
 
       - name: Configure Android release signing
         working-directory: apps/mobile
@@ -393,7 +339,6 @@ jobs:
           EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
-          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ env.BUILD_ADMOB_USE_TEST_IDS }}
           CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: |
@@ -436,7 +381,7 @@ jobs:
           echo "OrbitWidgetProvider receiver is missing from the release manifest artifacts." >&2
           exit 1
 
-      - name: Verify AD_ID permission is in release manifest
+      - name: Verify advertising permissions are absent from release manifest
         working-directory: apps/mobile/android
         shell: bash
         run: |
@@ -447,14 +392,20 @@ jobs:
             "app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml"
             "app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml"
           )
+          found_manifest=false
           for MANIFEST in "${MANIFEST_CANDIDATES[@]}"; do
-            if [ -f "${MANIFEST}" ] && grep -q "com.google.android.gms.permission.AD_ID" "${MANIFEST}"; then
-              echo "AD_ID permission present in release manifest: ${MANIFEST}"
-              exit 0
+            if [ -f "${MANIFEST}" ]; then
+              found_manifest=true
+              if grep -Eq 'com\.google\.android\.gms\.permission\.AD_ID|android\.permission\.ACCESS_ADSERVICES_' "${MANIFEST}"; then
+                echo "Advertising permission present in release manifest: ${MANIFEST}" >&2
+                exit 1
+              fi
             fi
           done
-          echo "com.google.android.gms.permission.AD_ID is missing from the release manifest artifacts." >&2
-          exit 1
+          if [ "${found_manifest}" = false ]; then
+            echo "Release manifest artifact was not found." >&2
+            exit 1
+          fi
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v7

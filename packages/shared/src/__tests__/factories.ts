@@ -109,7 +109,6 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     totalXp: 0,
     level: 1,
     levelTitle: 'Beginner',
-    adRewardsClaimedToday: 0,
     currentStreak: 0,
     longestStreak: 0,
     streakFreezesAvailable: 0,
