@@ -210,6 +210,35 @@ describe('PendingOperationCard (mobile)', () => {
     expect(handlers.onVerifyStepUp).not.toHaveBeenCalled()
   })
 
+  it('removes the stale step-up sheet even when its native dismissal rejects', async () => {
+    sheetTestControls.defer(true)
+    const highRisk = { ...preview, riskClass: 'High' as const, confirmationRequirement: 'StepUp' as const }
+    const { tree, handlers } = renderCard(highRisk, vi.fn())
+    handlers.onPrepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.stepUpAction').props.onPress(); await Promise.resolve() })
+
+    TestRenderer.act(() => tree.update(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...highRisk, previewFingerprint: 'preview-2', items: [secondItem] })} onRevise={vi.fn()} {...handlers} />))
+    TestRenderer.act(() => sheetTestControls.rejectDismissal())
+
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'stepUp.codeLabel')).toHaveLength(0)
+    expect(press(tree, 'chat.operation.stepUpAction').props.disabled).toBe(false)
+  })
+
+  it('removes a stale editor even when its native dismissal rejects', async () => {
+    const revise = vi.fn().mockResolvedValue({ ok: false, error: 'stale', stale: true })
+    const { tree } = renderCard(preview, revise)
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-27'))
+    sheetTestControls.defer(true)
+    await TestRenderer.act(async () => {
+      press(tree, 'common.save').props.onPress()
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => sheetTestControls.rejectDismissal())
+
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.field.date' })).toHaveLength(0)
+  })
+
   it('keeps a pending verification response from replacing the stale native dismissal', async () => {
     sheetTestControls.defer(true)
     const highRisk = { ...preview, riskClass: 'High' as const, confirmationRequirement: 'StepUp' as const }
@@ -278,6 +307,20 @@ describe('PendingOperationCard (mobile)', () => {
       await Promise.resolve()
     })
     expect(handlers.onConfirmExecute).toHaveBeenCalledWith('pending-1')
+  })
+
+  it('finishes a verified step up even when the native dismissal rejects', async () => {
+    const { tree, handlers } = renderCard({ confirmationRequirement: 'StepUp', riskClass: 'High' })
+    handlers.onPrepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    handlers.onVerifyStepUp.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.stepUpAction').props.onPress(); await Promise.resolve() })
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'stepUp.codeLabel' }).props.onChangeText('123456'))
+    sheetTestControls.defer(true)
+    await TestRenderer.act(async () => { press(tree, 'stepUp.confirm').props.onPress(); await Promise.resolve() })
+    TestRenderer.act(() => sheetTestControls.rejectDismissal())
+
+    expect(renderedText(tree.toJSON())).toContain('status.done')
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'stepUp.codeLabel')).toHaveLength(0)
   })
 
   it('hands step up to a sheet, verifies the code, and executes', async () => {

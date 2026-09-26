@@ -60,7 +60,8 @@ export function ConfirmSheet({
   }, [])
 
   useEffect(() => {
-    if (lifecycle.closing) closeSheet(finishControlledClose)
+    // WHY: a rejected dismiss() must still finish the close; unmounting drops and dismisses the native view. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/android/src/main/java/com/lodev09/truesheet/TrueSheetView.kt#L165-L179
+    if (lifecycle.closing) closeSheet(finishControlledClose, finishControlledClose)
   }, [lifecycle.closing, closeSheet, finishControlledClose])
 
   if (!lifecycle.mounted) return null

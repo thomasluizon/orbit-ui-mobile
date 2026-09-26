@@ -9,7 +9,7 @@ import {
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 
 interface SheetHandle {
-  requestClose: (exitAction?: () => void) => void
+  requestClose: (exitAction?: () => void, onRejected?: () => void) => void
 }
 
 interface SheetDoubleProps extends SheetProps {
@@ -17,6 +17,7 @@ interface SheetDoubleProps extends SheetProps {
 }
 
 let pendingDismissal: (() => void) | null = null
+let pendingRejection: (() => void) | null = null
 let deferDismissal = false
 
 /**
@@ -29,11 +30,20 @@ export const sheetTestControls = {
   defer(next: boolean) {
     deferDismissal = next
     pendingDismissal = null
+    pendingRejection = null
   },
   completeDismissal() {
     const finish = pendingDismissal
     pendingDismissal = null
+    pendingRejection = null
     finish?.()
+  },
+  /** Stands in for the native dismissal rejecting, for example VIEW_NOT_FOUND while the sheet still mounts. */
+  rejectDismissal() {
+    const reject = pendingRejection
+    pendingDismissal = null
+    pendingRejection = null
+    reject?.()
   },
   get isDismissPending() {
     return pendingDismissal !== null
@@ -45,7 +55,7 @@ export const sheetTestControls = {
 export function Sheet({ title, actions, onClose, children, ref }: Readonly<SheetDoubleProps>) {
   const [presented, setPresented] = useState(true)
   const requestClose = useCallback(
-    (exitAction?: () => void) => {
+    (exitAction?: () => void, onRejected?: () => void) => {
       const finish = () => {
         if (exitAction) {
           exitAction()
@@ -56,6 +66,10 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Sheet
       if (deferDismissal) {
         setPresented(false)
         pendingDismissal = finish
+        pendingRejection = () => {
+          setPresented(true)
+          onRejected?.()
+        }
         return
       }
       finish()
@@ -81,9 +95,9 @@ export function Sheet({ title, actions, onClose, children, ref }: Readonly<Sheet
 export function useSheetHost() {
   const sheetRef = useRef<SheetHandle>(null)
 
-  const closeSheet = useCallback((exitAction?: () => void) => {
+  const closeSheet = useCallback((exitAction?: () => void, onRejected?: () => void) => {
     const handle = sheetRef.current
-    if (handle) handle.requestClose(exitAction)
+    if (handle) handle.requestClose(exitAction, onRejected)
     else exitAction?.()
   }, [])
 

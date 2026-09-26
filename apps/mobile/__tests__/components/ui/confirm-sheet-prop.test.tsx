@@ -32,6 +32,27 @@ describe('ConfirmSheet controlled close', () => {
     expect(tree.root.findAll((node: any) => node.type === 'Sheet')).toHaveLength(1)
   })
 
+  it('finishes a controlled close whose native dismissal rejects, so the revised confirmation is usable', () => {
+    sheetTestControls.defer(true)
+    const onNewConfirm = vi.fn()
+    const props = {
+      message: 'Permanent action', confirmLabel: 'Delete', destructive: true,
+      onCancel: vi.fn(),
+    }
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(<ConfirmSheet open title="Old preview" onConfirm={vi.fn()} {...props} />) })
+
+    TestRenderer.act(() => tree.update(<ConfirmSheet open={false} title="New preview" onConfirm={onNewConfirm} {...props} />))
+    TestRenderer.act(() => tree.update(<ConfirmSheet open title="New preview" onConfirm={onNewConfirm} {...props} />))
+    TestRenderer.act(() => sheetTestControls.rejectDismissal())
+
+    expect(tree.root.findAll((node: any) => node.type === 'Sheet')).toHaveLength(1)
+    const confirm = tree.root.find((node: any) => node.type === 'Pressable' && node.props.testID === 'button-destructive-md')
+    TestRenderer.act(() => confirm.props.onPress())
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(onNewConfirm).toHaveBeenCalledTimes(1)
+  })
+
   it('ignores exit actions and reopens the revised confirmation after dismissal', () => {
     sheetTestControls.defer(true)
     const onOldConfirm = vi.fn()

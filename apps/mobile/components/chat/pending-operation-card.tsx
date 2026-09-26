@@ -37,7 +37,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
   const tokens = createTokensV2(currentScheme, currentTheme)
   const editableItems = items.filter((entry) => entry.fields.some(isPendingOperationEditableField))
   const showSearch = editableItems.length > PENDING_OPERATION_ITEM_SEARCH_THRESHOLD
-  useEffect(() => { if (stale) closeSheet(onClose) }, [stale, closeSheet, onClose])
+  useEffect(() => { if (stale) closeSheet(onClose, onClose) }, [stale, closeSheet, onClose])
   const save = async () => { if (await onSave()) closeSheet(onClose) }
   return <Sheet
     ref={sheetRef}
@@ -89,10 +89,10 @@ function StepUpVerificationSheet({
   const openRef = useRef(open)
   useLayoutEffect(() => { openRef.current = open }, [open])
   useEffect(() => {
-    if (!open) closeSheet(onClosed)
+    if (!open) closeSheet(onClosed, onClosed)
   }, [open, onClosed, closeSheet])
   const completed = (status: 'done' | 'failed') => {
-    if (openRef.current) closeSheet(() => onCompleted(status))
+    if (openRef.current) closeSheet(() => onCompleted(status), () => onCompleted(status))
   }
   const { code, error, setCode, verifying, verify } = usePendingOperationStepUpVerification({
     genericError: t('stepUp.genericError'),
