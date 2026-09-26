@@ -26,7 +26,7 @@ export interface SheetHandle {
 /**
  * The one close path a sheet host may use. Direct navigation from a presented TrueSheet requires the react-native-screens patch (https://sheet.lodev09.com/guides/navigation).
  * This app ships without it, so dismiss before navigating and never flip the open state directly.
- * The reported menu failure (#134) came from a render-phase `setState` in `anchored-menu.tsx` racing a queued async `setState` at mount, fixed in #633.
+ * The all-Modals claim was an inference: `main`'s `anchored-menu.tsx`, absent from this branch, raced render-phase `setState` with queued async `setState` at mount (thomasluizon/orbit-tickets#134; fixed in thomasluizon/orbit-ui-mobile#1041).
  * Apply D136: "Reproduce a device bug on the exact shipped build before calling it fixed."
  */
 export function useSheetHost() {
