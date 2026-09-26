@@ -30,6 +30,9 @@ export const clearLastNotificationResponse = vi.fn()
 export const addNotificationResponseReceivedListener = vi.fn(() => ({
   remove: vi.fn(),
 }))
+export const addNotificationReceivedListener = vi.fn(() => ({
+  remove: vi.fn(),
+}))
 
 export function resetExpoNotificationsMocks(): void {
   setNotificationHandler.mockClear()
@@ -62,6 +65,10 @@ export function resetExpoNotificationsMocks(): void {
   addNotificationResponseReceivedListener.mockImplementation(() => ({
     remove: vi.fn(),
   }))
+  addNotificationReceivedListener.mockReset()
+  addNotificationReceivedListener.mockImplementation(() => ({
+    remove: vi.fn(),
+  }))
 }
 
 const expoNotificationsMock = {
@@ -77,6 +84,7 @@ const expoNotificationsMock = {
   getLastNotificationResponse,
   clearLastNotificationResponse,
   addNotificationResponseReceivedListener,
+  addNotificationReceivedListener,
 }
 
 export default expoNotificationsMock
