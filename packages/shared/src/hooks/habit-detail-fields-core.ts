@@ -16,6 +16,26 @@ export function toggleHabitDetailGoal(goalIds: string[], goalId: string): string
     : [...goalIds, goalId]
 }
 
+export function toggleHabitDetailField(
+  openField: HabitDetailField | null,
+  field: HabitDetailField,
+): HabitDetailField | null {
+  return openField === field ? null : field
+}
+
+export function mergeHabitReminderChanges(
+  reminderEnabled: boolean,
+  reminderTimes: number[],
+  scheduledReminders: NormalizedHabit['scheduledReminders'],
+  changes: ReminderChanges,
+): Pick<NormalizedHabit, 'reminderEnabled' | 'reminderTimes' | 'scheduledReminders'> {
+  return {
+    reminderEnabled: changes.enabled ?? reminderEnabled,
+    reminderTimes: changes.offsets ?? reminderTimes,
+    scheduledReminders: changes.scheduled ?? scheduledReminders,
+  }
+}
+
 export function getHabitReminderPatch(
   habit: NormalizedHabit,
   reminderEnabled: boolean,

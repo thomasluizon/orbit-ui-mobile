@@ -41,3 +41,24 @@ export function mergeBreakdownResults(
   })
   return nextResults
 }
+
+export function getFailedBreakdownIds(
+  habits: BreakdownDraftHabit[],
+  results: Record<string, BreakdownItemResult>,
+): string[] {
+  return habits.filter((habit) => results[habit.id] === 'failed').map((habit) => habit.id)
+}
+
+export function selectBreakdownHabits(
+  habits: BreakdownDraftHabit[],
+  onlyIds?: readonly string[],
+): BreakdownDraftHabit[] {
+  return onlyIds ? habits.filter((habit) => onlyIds.includes(habit.id)) : habits
+}
+
+export function failBreakdownResults(
+  results: Record<string, BreakdownItemResult>,
+  selected: BreakdownDraftHabit[],
+): Record<string, BreakdownItemResult> {
+  return { ...results, ...Object.fromEntries(selected.map((habit) => [habit.id, 'failed' as const])) }
+}

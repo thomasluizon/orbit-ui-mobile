@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { pendingCalendarEntryStates, reconciledCalendarEntryMutations, type PendingCalendarEntryMutation } from '@orbit/shared/hooks'
+import { canStartCalendarEntryMutation, pendingCalendarEntryStates, reconciledCalendarEntryMutations, type PendingCalendarEntryMutation } from '@orbit/shared/hooks'
 
 interface CalendarEntryMutationLock {
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -48,9 +48,7 @@ export function useCalendarEntryMutationLock(
     checked: boolean,
     mutation: () => Promise<unknown>,
   ): Promise<unknown> | null => {
-    if (pendingEntryMutationsRef.current.has(entryKey)) return null
-    const sourceChecked = sourceEntryStates.get(entryKey)
-    if (sourceChecked === undefined) return null
+    if (!canStartCalendarEntryMutation(pendingEntryMutationsRef.current, sourceEntryStates, entryKey)) return null
 
     pendingEntryMutationsRef.current.set(entryKey, {
       checked,

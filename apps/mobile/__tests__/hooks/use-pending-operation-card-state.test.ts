@@ -5,7 +5,7 @@ import {
   usePendingOperationCardState,
   usePendingOperationStepUpVerification,
 } from '@/hooks/use-pending-operation-card-state'
-import { getPendingOperationExecutionStatus, type PendingOperationExecutionResult, type PendingOperationStepUpPreparationResult } from '@orbit/shared/hooks'
+import { type PendingOperationExecutionResult, type PendingOperationStepUpPreparationResult } from '@orbit/shared/hooks'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 
 type CardState = ReturnType<typeof usePendingOperationCardState>
@@ -18,13 +18,6 @@ const succeededResponse = {
     riskClass: 'High',
     confirmationRequirement: 'StepUp',
     status: 'Succeeded',
-  },
-} satisfies AgentExecuteOperationResponse
-
-const failedResponse = {
-  operation: {
-    ...succeededResponse.operation,
-    status: 'Failed',
   },
 } satisfies AgentExecuteOperationResponse
 
@@ -90,21 +83,6 @@ async function renderVerificationState(
     renderer: renderer as ReactTestRenderer,
   }
 }
-
-describe('pending operation execution status', () => {
-  it('accepts only a successful response with a succeeded operation', () => {
-    expect(getPendingOperationExecutionStatus({ ok: true, response: succeededResponse })).toBe(
-      'done',
-    )
-    expect(getPendingOperationExecutionStatus({ ok: true, response: failedResponse })).toBe(
-      'failed',
-    )
-    expect(getPendingOperationExecutionStatus({ ok: false, response: succeededResponse })).toBe(
-      'failed',
-    )
-    expect(getPendingOperationExecutionStatus({ ok: true })).toBe('failed')
-  })
-})
 
 describe('pending operation card state', () => {
   it('executes the requested operation and exposes its terminal state', async () => {

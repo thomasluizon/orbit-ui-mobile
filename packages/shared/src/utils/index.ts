@@ -729,5 +729,6 @@ export { searchCommands, type SearchCommandPage, type SearchCommandId } from './
 export { buildCommandHabitList, type CommandHabitEntry } from './command-habit-list'
 
 export * from './error-surface'
+export * from './proposed-tint-core'
 
 export { buildSearchEntries, buildSearchMatchLines, type SearchMatchLine } from './search-presentation'

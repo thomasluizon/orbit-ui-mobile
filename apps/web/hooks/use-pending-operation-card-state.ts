@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
-import { getPendingOperationExecutionStatus, type PendingOperationExecutionResult, type PreparedPendingOperationStepUp, type PendingOperationStepUpPreparationResult, type PendingOperationCardStatus } from '@orbit/shared/hooks'
+import { getPendingOperationExecutionStatus, getPendingOperationVerificationResult, getPreparedPendingOperationStepUp, type PendingOperationExecutionResult, type PreparedPendingOperationStepUp, type PendingOperationStepUpPreparationResult, type PendingOperationCardStatus } from '@orbit/shared/hooks'
 
 interface PendingOperationCardState {
   busy: boolean
@@ -53,14 +53,9 @@ export function usePendingOperationCardState({
     setBusy(true)
     try {
       const result = await onPrepareStepUp(pendingOperationId)
-      if (result.ok) {
-        setPreparedStepUp({
-          challengeId: result.challengeId,
-          confirmationToken: result.confirmationToken,
-        })
-      } else {
-        setStatus('failed')
-      }
+      const prepared = getPreparedPendingOperationStepUp(result)
+      if (prepared) setPreparedStepUp(prepared)
+      else setStatus('failed')
     } finally {
       setBusy(false)
     }
@@ -118,11 +113,9 @@ export function usePendingOperationStepUpVerification({
         code,
         prepared.confirmationToken,
       )
-      if (!result.ok) {
-        setError(result.error ?? genericError)
-        return
-      }
-      onCompleted(getPendingOperationExecutionStatus(result))
+      const outcome = getPendingOperationVerificationResult(result, genericError)
+      if (outcome.error !== undefined) setError(outcome.error)
+      else onCompleted(outcome.status)
     } finally {
       setVerifying(false)
     }

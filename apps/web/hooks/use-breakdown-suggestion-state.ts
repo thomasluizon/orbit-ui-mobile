@@ -2,7 +2,7 @@
 
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import { createBreakdownDrafts, editBreakdownTitle, cycleBreakdownCadence, mergeBreakdownResults, type BreakdownDraftHabit, type BreakdownItemResult } from '@orbit/shared/hooks'
+import { createBreakdownDrafts, editBreakdownTitle, cycleBreakdownCadence, mergeBreakdownResults, getFailedBreakdownIds, selectBreakdownHabits, failBreakdownResults, type BreakdownDraftHabit, type BreakdownItemResult } from '@orbit/shared/hooks'
 import type { BulkCreateRequest, BulkCreateResponse } from '@orbit/shared/types/habit'
 import {
   buildBreakdownCreateRequest,
@@ -43,9 +43,7 @@ export function useBreakdownSuggestionState({
   const [rejected, setRejected] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [results, setResults] = useState<Record<string, BreakdownItemResult>>({})
-  const failedIds = habits
-    .filter((habit) => results[habit.id] === 'failed')
-    .map((habit) => habit.id)
+  const failedIds = getFailedBreakdownIds(habits, results)
 
   const editTitle = useCallback((id: string, title: string) => {
     setHabits((current) => editBreakdownTitle(current, id, title))
@@ -56,9 +54,7 @@ export function useBreakdownSuggestionState({
   }, [])
 
   const submit = useCallback(async (onlyIds?: readonly string[]) => {
-    const selected = onlyIds
-      ? habits.filter((habit) => onlyIds.includes(habit.id))
-      : habits
+    const selected = selectBreakdownHabits(habits, onlyIds)
     const valid = filterValidBreakdownHabits(selected)
     if (valid.length === 0) return
 
@@ -68,10 +64,7 @@ export function useBreakdownSuggestionState({
       setResults(nextResults)
       if (response.results.every((result) => result.status === 'Success')) onConfirmed()
     } catch {
-      setResults((current) => ({
-        ...current,
-        ...Object.fromEntries(selected.map((habit) => [habit.id, 'failed'])),
-      }))
+      setResults((current) => failBreakdownResults(current, selected))
     }
   }, [habits, onBulkCreate, onConfirmed, parentName, results])
 

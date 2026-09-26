@@ -13,6 +13,14 @@ export function pendingCalendarEntryStates(
   return new Map([...mutations].map(([entryKey, mutation]) => [entryKey, mutation.checked]))
 }
 
+export function canStartCalendarEntryMutation(
+  mutations: ReadonlyMap<string, PendingCalendarEntryMutation>,
+  sourceEntryStates: ReadonlyMap<string, boolean>,
+  entryKey: string,
+): boolean {
+  return !mutations.has(entryKey) && sourceEntryStates.has(entryKey)
+}
+
 export function reconciledCalendarEntryMutations(
   mutations: ReadonlyMap<string, PendingCalendarEntryMutation>,
   sourceEntryStates: ReadonlyMap<string, boolean>,
