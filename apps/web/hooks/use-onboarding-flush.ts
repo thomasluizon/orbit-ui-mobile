@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, goalKeys, profileKeys, gamificationKeys } from '@orbit/shared/query'
 import { applyOnboarding } from '@/lib/actions/onboarding'
 import { getHeldAccountId } from '@/stores/auth-store'
-import { getAccountGeneration } from '@/lib/session-epoch'
+import { getAccountGeneration, getSessionEpoch } from '@/lib/session-epoch'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useProfile } from '@/hooks/use-profile'
@@ -45,8 +45,10 @@ export function useOnboardingFlush(): void {
     const store = useOnboardingDraftStore.getState()
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
+    const sessionEpoch = getSessionEpoch()
     const stillCurrent = () => getHeldAccountId() === intendedAccountId
       && getAccountGeneration() === accountGeneration
+      && getSessionEpoch() === sessionEpoch
 
     let onboardingApplied = false
     void applyOnboarding(store.buildApplyPayload(), intendedAccountId)
@@ -59,6 +61,7 @@ export function useOnboardingFlush(): void {
         }
         if (!stillCurrent()) return
         store.reset()
+        if (!stillCurrent()) return
         patchProfile({ hasCompletedOnboarding: true })
         void queryClient.invalidateQueries({ queryKey: habitKeys.all })
         void queryClient.invalidateQueries({ queryKey: goalKeys.all })

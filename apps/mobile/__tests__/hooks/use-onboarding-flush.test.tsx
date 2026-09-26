@@ -4,6 +4,7 @@ import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/share
 import type { Profile } from '@orbit/shared/types/profile'
 
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
+import { setAccountId } from '@/lib/account-scope'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -91,6 +92,7 @@ async function renderFlush() {
 
 describe('useOnboardingFlush', () => {
   beforeEach(() => {
+    setAccountId('user-1')
     mocks.authState.isAuthenticated = true
     mocks.draftState._hasHydrated = true
     mocks.draftState.pending = true
@@ -111,6 +113,33 @@ describe('useOnboardingFlush', () => {
       createdGoal: false,
       loggedFirstHabit: false,
     })
+  })
+
+  it('abandons an apply completed after account replacement', async () => {
+    mocks.draftState.pushPermissionGranted = true
+    let finishApply!: (value: { applied: boolean; createdHabitCount: number; createdGoal: boolean; loggedFirstHabit: boolean }) => void
+    mocks.applyOnboarding.mockReturnValueOnce(new Promise((resolve) => { finishApply = resolve }))
+
+    function Harness() {
+      useOnboardingFlush()
+      return null
+    }
+
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<Harness />)
+      await Promise.resolve()
+    })
+    expect(mocks.applyOnboarding).toHaveBeenCalledTimes(1)
+    setAccountId('user-2')
+    await TestRenderer.act(async () => {
+      finishApply({ applied: true, createdHabitCount: 1, createdGoal: false, loggedFirstHabit: false })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mocks.requestPermissionOutcome).not.toHaveBeenCalled()
+    expect(mocks.draftState.reset).not.toHaveBeenCalled()
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
   })
 
   it('applies, clears the draft, and marks the profile onboarded on a 2xx', async () => {

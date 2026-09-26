@@ -11,6 +11,8 @@ import { useApplyOnboarding } from '@/hooks/use-apply-onboarding'
 import { useProfile } from '@/hooks/use-profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { captureError } from '@/lib/sentry'
+import { getAccountId } from '@/lib/account-scope'
+import { getAccountGeneration, getSessionEpoch } from '@/lib/session-epoch'
 
 /**
  * After a successful auth whose account has not yet onboarded, flushes buffered onboarding
@@ -40,6 +42,12 @@ export function useOnboardingFlush(): void {
   useEffect(() => {
     if (!shouldFlush || runningRef.current) return
     runningRef.current = true
+    const intendedAccountId = getAccountId()
+    const accountGeneration = getAccountGeneration()
+    const sessionEpoch = getSessionEpoch()
+    const stillCurrent = () => getAccountId() === intendedAccountId
+      && getAccountGeneration() === accountGeneration
+      && getSessionEpoch() === sessionEpoch
 
     let cancelled = false
 
@@ -47,13 +55,15 @@ export function useOnboardingFlush(): void {
       let onboardingApplied = false
       try {
         await applyOnboarding()
+        if (!stillCurrent()) return
         onboardingApplied = true
         if (pushPermissionGranted) {
           const outcome = await requestPermissionOutcome(true)
           if (outcome !== 'granted') throw new Error('Failed to register deferred push subscription')
         }
-        if (cancelled) return
+        if (cancelled || !stillCurrent()) return
         useOnboardingDraftStore.getState().reset()
+        if (!stillCurrent()) return
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )
@@ -64,6 +74,7 @@ export function useOnboardingFlush(): void {
           queryClient.invalidateQueries({ queryKey: profileKeys.all }),
         ])
       } catch (error) {
+        if (!stillCurrent()) return
         if (onboardingApplied && pushPermissionGranted) {
           useOnboardingDraftStore.getState().markPushRegistrationFailed()
         }
