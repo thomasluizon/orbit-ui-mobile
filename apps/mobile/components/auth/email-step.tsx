@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native'
+import type { ReactNode } from 'react'
 import { Trans } from 'react-i18next'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
@@ -13,6 +14,8 @@ interface EmailStepProps {
   isSubmitting: boolean
   isGoogleLoading: boolean
   isOnline: boolean
+  canSubmitTurnstile: boolean
+  turnstileWidget: ReactNode
   errorKey: string | null
   errorMessage: string | null
   onSendCode: () => void
@@ -26,7 +29,7 @@ interface EmailStepProps {
 }
 
 export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isOnline, errorKey,
-  errorMessage, onSendCode, onSignInWithGoogle, onOpenTerms, onOpenPrivacy, tokens, styles, t,
+  errorMessage, canSubmitTurnstile, turnstileWidget, onSendCode, onSignInWithGoogle, onOpenTerms, onOpenPrivacy, tokens, styles, t,
   sendCodeLabel }: Readonly<EmailStepProps>) {
   const fieldError = isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
   const googleError = isOnline && errorKey === 'auth.errors.googleError' ? errorMessage : null
@@ -35,10 +38,11 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
     <Input label={t('auth.email')} value={email} onChange={onEmailChange} placeholder={t('auth.emailPlaceholder')}
       kind="email" name="email" focusRequest={emailFocusRequest} autoComplete="email" disabled={isSubmitting || isGoogleLoading}
       onSubmit={onSendCode} error={fieldError ?? undefined} />
+    {turnstileWidget}
     <View style={styles.actionGroup}>
       {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
       {sendError && <Text accessibilityRole="alert" style={styles.error}>{sendError}</Text>}
-      <PillButton onClick={onSendCode} disabled={isSubmitting || isGoogleLoading || !email.trim() || !isOnline} loading={isSubmitting}>
+      <PillButton onClick={onSendCode} disabled={isSubmitting || isGoogleLoading || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
         {sendCodeLabel ?? t('auth.sendCode')}
       </PillButton>
     </View>

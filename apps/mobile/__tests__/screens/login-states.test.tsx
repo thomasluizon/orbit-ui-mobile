@@ -24,6 +24,9 @@ setI18n(testI18n)
 const { act, create } = require('react-test-renderer')
 const mocks = vi.hoisted((): { flow: Record<string, unknown>; action: () => void; theme: string } => ({ flow: {}, action: vi.fn(), theme: 'dark' }))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
+vi.mock('@/components/auth/turnstile-widget', () => ({
+  TurnstileWidget: () => React.createElement('TurnstileWidget'),
+}))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: mocks.theme }) }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true, toAnimatedEasing: (value: unknown) => value }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
@@ -65,6 +68,22 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
     vi.clearAllMocks()
     void testI18n.changeLanguage(locale)
     setI18n(testI18n)
+  })
+  it('blocks code requests while keeping code entry available until a mobile token exists', () => {
+    const { t } = setFixture('resend ready', locale)
+    mocks.flow.turnstileSiteKey = 'test-site-key'
+    mocks.flow.turnstileToken = null
+    mocks.flow.codeDigits = ['1', '2', '3', '4', '5', '6']
+    const tree = render()
+    expect(button(tree.root, t('auth.verify'))?.props.disabled).toBe(true)
+    expect(button(tree.root, t('auth.resendCode'))?.props.disabled).toBe(true)
+    expect(host(tree.root, 'TextInput')[0]?.props.editable).toBe(true)
+    mocks.flow.turnstileToken = 'fresh-token'
+    act(() => tree.update(<LoginContent />))
+    expect(button(tree.root, t('auth.verify'))?.props.disabled).toBe(false)
+    expect(button(tree.root, t('auth.resendCode'))?.props.disabled).toBe(false)
+    expect(host(tree.root, 'TextInput')[0]?.props.editable).toBe(true)
+    act(() => tree.unmount())
   })
   it('renders the complete localized legal sentence with both actions', () => {
     setFixture('email', locale)

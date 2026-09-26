@@ -8,11 +8,16 @@ import {
   getStepUpCooldownSeconds,
   getStepUpLockSeconds,
   getStepUpPhaseFromTiming,
+  getStepUpStorageKey,
   normalizeStepUpCode,
   parseStepUpTimingRecord,
 } from '../utils/step-up'
 
 describe('step-up core', () => {
+  it('isolates the verification timer by operation and account', () => {
+    expect(getStepUpStorageKey('delete', 'account-1')).not.toBe(getStepUpStorageKey('keys', 'account-1'))
+    expect(getStepUpStorageKey('delete', 'account-1')).not.toBe(getStepUpStorageKey('delete', 'account-2'))
+  })
   it('normalizes one spanning code input', () => {
     expect(normalizeStepUpCode('12 a34-567')).toBe('123456')
   })

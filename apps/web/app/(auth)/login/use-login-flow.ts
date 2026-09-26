@@ -6,6 +6,7 @@ import { buildGoogleCalendarOAuthOptions, isValidEmail, isValidReferralCode, isV
   deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useOffline } from '@/hooks/use-offline'
+import { useTurnstileToken } from '@/hooks/use-turnstile-token'
 import { useAuthStore } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getSupabaseClient } from '@/lib/supabase'
@@ -21,6 +22,13 @@ export function useLoginFlow() {
   const locale = useLocale()
   const { setAuth } = useAuthStore()
   const { isOnline } = useOffline()
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const {
+    token: turnstileToken,
+    resetKey: turnstileResetKey,
+    onToken: onTurnstileToken,
+    takeToken: takeTurnstileToken,
+  } = useTurnstileToken(turnstileSiteKey, isOnline)
   const prefersReducedMotion = useReducedMotion()
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
@@ -34,8 +42,13 @@ export function useLoginFlow() {
   const [lockCountdown, setLockCountdown] = useState(0)
   const [accountBack, setAccountBack] = useState<LoginResponse | null>(null)
   const busy = useRef(false)
+  const pendingAutoCode = useRef<string | null>(null)
   const attempts = useRef(new Map<string, LoginAttempts>())
-  const entry = useLoginCodeEntry((code) => { void verifyCode(code) })
+  const entry = useLoginCodeEntry((code) => {
+    if (!isOnline) return
+    if (turnstileSiteKey && !turnstileToken) pendingAutoCode.current = code
+    else void verifyCode(code)
+  })
   const authStepMotion = resolveMotionPreset('route-replace', Boolean(prefersReducedMotion))
   const referralParam = searchParams.get('ref')
   const referralCode = isValidReferralCode(referralParam) ? referralParam : getCookieValue('referral_code')
@@ -43,6 +56,9 @@ export function useLoginFlow() {
   const pendingHabitCount = useOnboardingDraftStore((state) => state.habits.length)
 
   useEffect(() => { void useOnboardingDraftStore.persist.rehydrate() }, [])
+  useEffect(() => {
+    if (!isOnline) pendingAutoCode.current = null
+  }, [isOnline])
   useEffect(() => {
     if (isValidReferralCode(referralParam)) {
       document.cookie = `referral_code=${encodeURIComponent(referralParam)};max-age=${7 * 24 * 60 * 60};path=/;samesite=strict;secure`
@@ -98,11 +114,13 @@ export function useLoginFlow() {
       setErrorKey(null)
       return
     }
+    const protection = takeTurnstileToken()
+    if (!protection) return
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
     try {
-      await fetchAuthEndpoint('/api/auth/send-code', { email: email.trim(), language: locale })
+      await fetchAuthEndpoint('/api/auth/send-code', { email: email.trim(), language: locale, ...protection })
       entry.resetCodeDigits()
       setCodeFailure(null)
       setStep('code')
@@ -130,12 +148,14 @@ export function useLoginFlow() {
   async function verifyCode(codeOverride?: string) {
     const code = codeOverride ?? entry.codeDigits.join('')
     if (!available() || code.length !== 6 || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
+    const protection = takeTurnstileToken()
+    if (!protection) return
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
     try {
       const response = await fetchAuthEndpoint('/api/auth/verify-code', {
-        email: email.trim(), code, language: locale, ...(referralCode ? { referralCode } : {}),
+        email: email.trim(), code, language: locale, ...protection, ...(referralCode ? { referralCode } : {}),
       }) as LoginResponse
       if (response.wasReactivated) setAccountBack(response)
       else await completeLogin(response)
@@ -143,15 +163,31 @@ export function useLoginFlow() {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
+  function handleTurnstileToken(token: string | null) {
+    onTurnstileToken(token)
+    if (!token || !isOnline || !pendingAutoCode.current) return
+    const code = pendingAutoCode.current
+    pendingAutoCode.current = null
+    void verifyCode(code)
+  }
+
+  function onCodeChange(value: string) {
+    if (pendingAutoCode.current !== value) pendingAutoCode.current = null
+    entry.onCodeChange(value)
+  }
+
   async function resendCode() {
     if (!available() || (codeFailure === 'locked' && lockCountdown > 0) || (!entry.canResend && codeFailure !== 'expired')) return
+    const protection = takeTurnstileToken()
+    if (!protection) return
+    pendingAutoCode.current = null
     busy.current = true
     setIsSubmitting(true)
     setIsResending(true)
     setSuccessMessage(null)
     setErrorKey(null)
     try {
-      await fetchAuthEndpoint('/api/auth/send-code', { email: email.trim(), language: locale })
+      await fetchAuthEndpoint('/api/auth/send-code', { email: email.trim(), language: locale, ...protection })
       entry.resetCodeDigits()
       setCodeFailure(null)
       setSuccessMessage(t('auth.codeResent'))
@@ -166,6 +202,7 @@ export function useLoginFlow() {
     setSuccessMessage(null)
     setErrorKey(null)
     setCodeFailure(null)
+    pendingAutoCode.current = null
     entry.resetCodeDigits()
   }
 
@@ -200,6 +237,7 @@ export function useLoginFlow() {
 
   return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
     errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
-    pendingHabitCount, isOnline, authStepMotion, ...entry, codeFailure, lockCountdown, accountBack,
+    turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
+    pendingHabitCount, isOnline, authStepMotion, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
     sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount }
 }

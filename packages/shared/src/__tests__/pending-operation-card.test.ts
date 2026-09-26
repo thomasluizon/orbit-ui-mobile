@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import {
   SharedPendingOperationCard,
+  buildPendingOperationCardLabels,
   type PendingOperationButtonSpec,
   type PendingOperationCardLabels,
   type PendingOperationCardRenderers,
@@ -28,6 +29,15 @@ const labels: PendingOperationCardLabels = {
   stepUpAction: 'Verify',
   stepUpMessage: 'Verification required',
 }
+
+it('labels the pending operation from its capability and risk', () => {
+  const translated = buildPendingOperationCardLabels(
+    makePendingAgentOperation(),
+    (key) => key,
+  )
+  expect(translated.risk).toBe('chat.operation.risk.destructive')
+  expect(translated.name).toBe('chat.pendingOp.capability.habits-delete')
+})
 
 interface RenderRecord {
   blockFrame?: BlockFrameProps

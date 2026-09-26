@@ -34,6 +34,7 @@ export type RefreshResponse = z.infer<typeof refreshResponseSchema>
 export const sendCodeRequestSchema = z.object({
   email: z.string(),
   language: z.string(),
+  turnstileToken: z.string().optional(),
 })
 
 export type SendCodeRequest = z.infer<typeof sendCodeRequestSchema>
@@ -43,6 +44,7 @@ export const verifyCodeRequestSchema = z.object({
   code: z.string(),
   language: z.string(),
   referralCode: z.string().optional(),
+  turnstileToken: z.string().optional(),
 })
 
 export type VerifyCodeRequest = z.infer<typeof verifyCodeRequestSchema>

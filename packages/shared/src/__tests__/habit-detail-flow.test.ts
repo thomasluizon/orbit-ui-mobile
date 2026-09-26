@@ -13,6 +13,9 @@ import {
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
   formatHabitDetailReminderValue,
+  getHabitHistoryLog,
+  getHabitStartDate,
+  parseHabitHistoryDate,
   hasAuthoritativeHabitRelationshipState,
   isHabitCompletedOnDate,
   isHabitHistoryMonthLoaded,
@@ -28,6 +31,7 @@ import {
   makeHabitScheduleItem,
   makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedParent,
+  makeLoggedGeneralHabitDetailChild,
 } from '../test-support/habit-detail-fixtures'
 import { normalizeHabitQueryData } from '../utils/habit-normalization'
 
@@ -43,6 +47,20 @@ const recurring = {
   isFlexible: false,
 }
 const today = new Date(2026, 7, 28)
+
+it('selects only active history logs and parses the saved dates', () => {
+  const logs: HabitLog[] = [
+    { id: 'removed', date: '2026-08-27', value: 0, createdAtUtc: '2026-08-27T12:00:00Z' },
+    { id: 'active', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T13:00:00Z' },
+  ]
+  expect(getHabitHistoryLog(logs, '2026-08-27')?.id).toBe('active')
+  expect(getHabitHistoryLog(logs, '2026-08-28')).toBeNull()
+  expect(getHabitStartDate('2026-08-01T12:00:00Z').toISOString()).toBe('2026-08-01T12:00:00.000Z')
+  expect(parseHabitHistoryDate('2026-08-27').getFullYear()).toBe(2026)
+  expect(makeLoggedGeneralHabitDetailChild()).toMatchObject({
+    isGeneral: true, isCompleted: true, isLoggedInRange: false,
+  })
+})
 const log = (date: string, createdAtUtc = `${date}T12:00:00Z`): HabitLog => ({
   id: date,
   date,
