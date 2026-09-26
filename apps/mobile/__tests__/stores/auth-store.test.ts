@@ -377,6 +377,11 @@ describe('mobile auth store security paths', () => {
     expect(codeInput().props.value).toBe('123456')
     expect(confirmButton().props.disabled).toBe(false)
 
+    let releaseTokenWrite!: () => void
+    const pendingTokenWrite = new Promise<void>((resolve) => {
+      releaseTokenWrite = resolve
+    })
+    setTokenMock.mockReturnValueOnce(pendingTokenWrite)
     let releaseCacheClear!: () => void
     const pendingCacheClear = new Promise<void>((resolve) => {
       releaseCacheClear = resolve
@@ -386,17 +391,24 @@ describe('mobile auth store security paths', () => {
     let replacementLogin!: Promise<(() => boolean) | null>
     await TestRenderer.act(async () => {
       replacementLogin = useAuthStore.getState().login('second-token', null, userTwo)
+      await vi.waitFor(() => expect(useAuthStore.getState().sessionPhase).toBe('establishing'))
+    })
+    expect(tree.toJSON()).toBeNull()
+    expect(getAccountGeneration()).toBe(accountGeneration)
+
+    await TestRenderer.act(async () => {
+      releaseTokenWrite()
       await vi.waitFor(() => expect(useAuthStore.getState().user?.userId).toBe('user-2'))
     })
 
     expect(getAccountGeneration()).toBe(accountGeneration)
-    expect(codeInput().props.value).toBe('')
-    expect(confirmButton().props.disabled).toBe(true)
+    expect(tree.toJSON()).toBeNull()
     await TestRenderer.act(async () => {
       releaseCacheClear()
       await replacementLogin
     })
     expect(codeInput().props.value).toBe('')
+    expect(confirmButton().props.disabled).toBe(true)
     TestRenderer.act(() => tree.unmount())
     vi.restoreAllMocks()
   })

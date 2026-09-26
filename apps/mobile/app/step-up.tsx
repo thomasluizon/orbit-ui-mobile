@@ -47,6 +47,8 @@ import { CapacityNotice } from '@/components/ui/capacity-notice'
 export default function StepUpScreen() {
   const accountGeneration = useAccountGeneration()
   const accountId = useAuthStore((state) => state.user?.userId ?? null)
+  const sessionPhase = useAuthStore((state) => state.sessionPhase)
+  if (sessionPhase !== 'signed-in') return null
   return <StepUpScreenContent key={`${accountGeneration}:${accountId ?? 'none'}`} />
 }
 
@@ -127,6 +129,7 @@ function StepUpScreenContent() {
 
   function isCurrentRequest(generation: number, initiatingAccountId: string): boolean {
     return getAccountGeneration() === generation
+      && useAuthStore.getState().sessionPhase === 'signed-in'
       && useAuthStore.getState().user?.userId === initiatingAccountId
   }
 
@@ -150,6 +153,7 @@ function StepUpScreenContent() {
     if (!operation || exhausted || requesting || accountId === null) return
     const initiatingAccountId = accountId
     const generation = getAccountGeneration()
+    if (!isCurrentRequest(generation, initiatingAccountId)) return
     setRequesting(true)
     setRequestError(null)
     try {
@@ -174,6 +178,7 @@ function StepUpScreenContent() {
     if (!operation || !record || code.length !== STEP_UP_CODE_LENGTH || checking || accountId === null) return
     const initiatingAccountId = accountId
     const generation = getAccountGeneration()
+    if (!isCurrentRequest(generation, initiatingAccountId)) return
     setPhase('checking')
     setFieldError(null)
     setRequestError(null)

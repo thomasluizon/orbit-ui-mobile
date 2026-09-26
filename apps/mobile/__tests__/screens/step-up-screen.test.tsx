@@ -42,6 +42,7 @@ const mocks = vi.hoisted(() => ({
   },
   readTiming: vi.fn(),
   router: { replace: vi.fn() },
+  sessionPhase: 'signed-in',
   userId: 'user-1',
 }))
 
@@ -63,8 +64,8 @@ vi.mock('@/hooks/use-logout', () => ({ useLogout: () => mocks.logout }))
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: Object.assign(
     (selector: (state: unknown) => unknown) =>
-      selector({ user: { email: 'session@example.com', userId: mocks.userId } }),
-    { getState: () => ({ user: { email: 'session@example.com', userId: mocks.userId } }) },
+      selector({ sessionPhase: mocks.sessionPhase, user: { email: 'session@example.com', userId: mocks.userId } }),
+    { getState: () => ({ sessionPhase: mocks.sessionPhase, user: { email: 'session@example.com', userId: mocks.userId } }) },
   ),
 }))
 vi.mock('@/lib/api-client', () => ({
@@ -170,6 +171,7 @@ async function confirm(tree: TestTree) {
 describe('mobile step up screen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.sessionPhase = 'signed-in'
     mocks.userId = 'user-1'
     mocks.operation = 'delete'
     mocks.profile.email = 'person@example.com'
@@ -279,6 +281,26 @@ describe('mobile step up screen', () => {
     expect(mocks.markVerified).not.toHaveBeenCalled()
     expect(mocks.router.replace).not.toHaveBeenCalled()
     expect(findInput(tree.root).props.value).toBe('')
+  })
+
+  it('discards a pending key confirmation when login starts before identity changes', async () => {
+    mocks.operation = 'keys'
+    let resolveConfirmation: ((value: { message: string }) => void) | undefined
+    mocks.apiClient.mockReturnValue(new Promise((resolve) => {
+      resolveConfirmation = resolve
+    }))
+    const tree = await renderScreen({ operation: 'keys', sentAt: Date.now() })
+    await enterCode(tree)
+    await confirm(tree)
+
+    mocks.sessionPhase = 'establishing'
+    await TestRenderer.act(async () => {
+      resolveConfirmation?.({ message: 'confirmed' })
+      await Promise.resolve()
+    })
+
+    expect(mocks.markVerified).not.toHaveBeenCalled()
+    expect(mocks.router.replace).not.toHaveBeenCalled()
   })
 
   it('blocks editing and exposes the confirm loading state while checking', async () => {
