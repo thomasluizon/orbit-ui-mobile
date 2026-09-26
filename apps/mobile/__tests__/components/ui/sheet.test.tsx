@@ -196,9 +196,9 @@ describe('Sheet (mobile)', () => {
 })
 
 /**
- * Unmounting a presented TrueSheet wedges every later Android modal, so the
- * host may never flip its open state itself: `onClose` has to arrive from the
- * completed native dismissal, and a scheduled action has to run after it.
+ * Keep a presented sheet mounted until native dismissal completes so
+ * `onDidDismiss` fires. Sheet owns the close path: `onClose` or a scheduled
+ * action runs after dismissal, and the host does not flip open state directly.
  */
 describe('Sheet close path (mobile)', () => {
   beforeEach(() => {

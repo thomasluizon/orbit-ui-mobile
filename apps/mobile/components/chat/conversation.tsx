@@ -107,9 +107,9 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     [router],
   );
 
-  /* WHY: selectedGoalId stays set on close - unmounting the drawer here tears
-     down its presented TrueSheet mid-dismissal, which wedges every later RN
-     Modal and drops the onDidDismiss that runs the scheduled exit action.
+  /* WHY: selectedGoalId keeps the presented sheet mounted until native
+     dismissal completes, so onDidDismiss fires and runs the scheduled exit
+     action. Sheet owns the close path.
      https://sheet.lodev09.com/guides/navigation */
   const handleGoalDrawerClose = useCallback(() => {
     setGoalDrawerOpen(false);
