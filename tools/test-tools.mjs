@@ -267,6 +267,13 @@ T(
   missingSonarPaths.length === 0,
   `sonar-project.properties names missing paths:\n     ${missingSonarPaths.join("\n     ")}`,
 )
+const dashBaseline = JSON.parse(readFileSync(join(TOOLS_DIR, "dash-baseline.json"), "utf8"))
+const staleDashEntries = Object.keys(dashBaseline).filter((path) => !existsSync(join(repositoryRoot, path)))
+T(
+  "dash baseline names existing files",
+  staleDashEntries.length === 0,
+  `tools/dash-baseline.json names missing paths:\n     ${staleDashEntries.join("\n     ")}`,
+)
 
 console.log("\n# universal contract (tools/CONVENTIONS.md)")
 T("a real bash is resolvable", Boolean(BASH) || !contractScripts.some((file) => file.endsWith(".sh")), "no working bash found; set ORBIT_BASH to one (the PATH bash on Windows is the WSL stub)")
