@@ -23,11 +23,14 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const [failure, setFailure] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [query, setQuery] = useState('')
   useEffect(() => subscribeToAccountGeneration(() => {
     setItems(recordList.items)
     setNextCursor(recordList.nextCursor)
     setReadIds(new Set())
     setFailure(null)
+    setLoadingMore(false)
+    setQuery('')
   }), [recordList])
 
   async function markNotification(id: string) {
@@ -61,7 +64,9 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
   }
 
   const date = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
-  const rows: BlockFrameItem[] = items.map((item) => {
+  const normalizedQuery = query.trim().toLocaleLowerCase(locale)
+  const visibleItems = normalizedQuery ? items.filter((item) => `${item.title} ${item.detail ?? ''}`.toLocaleLowerCase(locale).includes(normalizedQuery)) : items
+  const rows: BlockFrameItem[] = visibleItems.map((item) => {
     const unread = recordList.kind === 'notifications' && item.isRead === false && !readIds.has(item.id)
     const keyState = recordList.kind === 'keys' && item.state ? t(`chat.recordList.keyState.${item.state}`) : null
     const itemCount = recordList.kind === 'templates' && item.count != null
@@ -70,7 +75,9 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
     return {
       id: item.id,
       label: <span className={unread ? 'font-semibold text-[var(--fg-1)]' : 'font-normal text-[var(--fg-2)]'}>{item.title}</span>,
+      wrapLabel: true,
       meta: details.join(' · '),
+      wrapMeta: true,
       control: unread ? <button type="button" aria-label={t('notifications.markRead', { title: item.title })} className="grid size-11 place-items-center rounded-[8px] text-[var(--fg-2)] hover:bg-[var(--bg-hover)]" onClick={() => void markNotification(item.id)}><Check size={20} strokeWidth={1.8} aria-hidden="true" /></button> : undefined,
     }
   })
@@ -78,7 +85,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
   return <div className="mt-2 w-full md:max-w-[65ch]">
     <BlockFrame state={failure ? 'partiallyFailed' : 'resting'} title={t(`chat.recordList.title.${recordList.kind}`)}
       count={t('chat.recordList.count', { shown: items.length, total: recordList.totalCount })} items={rows}
-      body={<>{items.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.recordList.empty')}</p> : null}{recordList.kind === 'templates' && items.some((item) => (item.count ?? 0) > 20) ? <p className="text-sm text-[var(--fg-3)]">{t('chat.recordList.templateLimit')}</p> : null}{failure ? <p role="status" className="text-sm text-[var(--status-bad-text)]">{failure}</p> : null}</>}
+      body={<div className="flex flex-col gap-2">{recordList.totalCount > 20 ? <input type="search" aria-label={t('chat.recordList.filter')} placeholder={t('chat.recordList.filter')} value={query} onChange={(event) => setQuery(event.target.value)} className="min-h-11 w-full rounded-[8px] border border-[var(--hairline-strong)] bg-transparent px-3 text-sm text-[var(--fg-1)] focus-visible:outline-2 focus-visible:outline-[var(--fg-1)]" /> : null}{items.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.recordList.empty')}</p> : null}{items.length > 0 && visibleItems.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.recordList.noMatches')}</p> : null}{recordList.kind === 'templates' && items.some((item) => (item.count ?? 0) > 20) ? <p className="text-sm text-[var(--fg-3)]">{t('chat.recordList.templateLimit')}</p> : null}<p role="status" className="text-sm text-[var(--status-bad-text)]">{failure ?? ''}</p></div>}
       actions={<div className="flex flex-wrap gap-2">{nextCursor ? <Button variant="ghost" size="sm" loading={loadingMore} onClick={() => void showMore()}>{t('chat.recordList.more')}</Button> : null}{destination ? <Button variant="ghost" size="sm" onClick={() => router.push(destination)}>{t(`chat.recordList.open.${recordList.kind}`)}</Button> : null}</div>} />
   </div>
 }

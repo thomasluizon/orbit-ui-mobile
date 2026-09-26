@@ -35,6 +35,8 @@ describe('Astra record list on web', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.recordList.more' }))
     await waitFor(() => expect(screen.getAllByTestId('record-row')).toHaveLength(20))
     expect(screen.getAllByText('chat.recordList.keyState.revoked')).toHaveLength(10)
+    fireEvent.change(screen.getByRole('searchbox', { name: 'chat.recordList.filter' }), { target: { value: 'Key 3' } })
+    expect(screen.getAllByTestId('record-row')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'chat.recordList.open.keys' }))
     expect(mocks.push).toHaveBeenCalledWith('/profile')
   })

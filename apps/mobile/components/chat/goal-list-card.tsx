@@ -30,6 +30,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
       id: item.id,
       label: tracking ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Pressable accessibilityRole="button" onPress={() => onOpenGoal?.(item.id)} style={{ minHeight: 44, justifyContent: 'center', flex: 1 }}><Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text></Pressable><Badge variant="outline">{t(tracking.labelKey)}</Badge></View> : <Pressable accessibilityRole="button" onPress={() => onOpenGoal?.(item.id)} style={{ minHeight: 44, justifyContent: 'center' }}><Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text></Pressable>,
       meta: [progress, deadline, projected].filter(Boolean).join(' · '),
+      wrapMeta: projected != null,
       control: value === 100
         ? <StatusRing status="done" size={28} label={t('chat.goalList.done', { name: item.title })} />
         : <ProgressRing value={value} size={28} label={t('chat.goalList.ring', { name: item.title })} />,

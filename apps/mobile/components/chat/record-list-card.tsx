@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, Text, TextInput, View } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { recordListCardSchema, type RecordListCard as RecordListCardData } from '@orbit/shared/types/chat'
 import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
@@ -25,11 +25,14 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const [failure, setFailure] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [query, setQuery] = useState('')
   useEffect(() => subscribeToAccountGeneration(() => {
     setItems(recordList.items)
     setNextCursor(recordList.nextCursor)
     setReadIds(new Set())
     setFailure(null)
+    setLoadingMore(false)
+    setQuery('')
   }), [recordList])
 
   async function markNotification(id: string) {
@@ -63,7 +66,9 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
   }
 
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' })
-  const rows: BlockFrameItem[] = items.map((item) => {
+  const normalizedQuery = query.trim().toLocaleLowerCase(i18n.language)
+  const visibleItems = normalizedQuery ? items.filter((item) => `${item.title} ${item.detail ?? ''}`.toLocaleLowerCase(i18n.language).includes(normalizedQuery)) : items
+  const rows: BlockFrameItem[] = visibleItems.map((item) => {
     const unread = recordList.kind === 'notifications' && item.isRead === false && !readIds.has(item.id)
     const keyState = recordList.kind === 'keys' && item.state ? t(`chat.recordList.keyState.${item.state}`) : null
     const itemCount = recordList.kind === 'templates' && item.count != null
@@ -72,7 +77,9 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
     return {
       id: item.id,
       label: <Text style={{ color: unread ? tokens.fg1 : tokens.fg2, fontFamily: unread ? 'Geist_600SemiBold' : 'Geist_400Regular', fontSize: 14 }}>{item.title}</Text>,
+      wrapLabel: true,
       meta: details.join(' · '),
+      wrapMeta: true,
       control: unread ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.markRead', { title: item.title })} onPress={() => void markNotification(item.id)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></Pressable> : undefined,
     }
   })
@@ -80,7 +87,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
   return <View style={{ width: '100%', marginTop: 8 }}>
     <BlockFrame state={failure ? 'partiallyFailed' : 'resting'} title={t(`chat.recordList.title.${recordList.kind}`)}
       count={t('chat.recordList.count', { shown: items.length, total: recordList.totalCount })} items={rows}
-      body={<View style={{ gap: 8 }}>{items.length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.empty')}</Text> : null}{recordList.kind === 'templates' && items.some((item) => (item.count ?? 0) > 20) ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.templateLimit')}</Text> : null}{failure ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: tokens.statusBadText, fontSize: 14 }}>{failure}</Text> : null}</View>}
+      body={<View style={{ gap: 8 }} accessibilityLiveRegion="polite">{recordList.totalCount > 20 ? <TextInput accessibilityLabel={t('chat.recordList.filter')} placeholder={t('chat.recordList.filter')} placeholderTextColor={tokens.fg3} value={query} onChangeText={setQuery} style={{ minHeight: 44, borderWidth: 1, borderColor: tokens.hairlineStrong, borderRadius: 8, paddingHorizontal: 12, color: tokens.fg1, fontSize: 14 }} /> : null}{items.length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.empty')}</Text> : null}{items.length > 0 && visibleItems.length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.noMatches')}</Text> : null}{recordList.kind === 'templates' && items.some((item) => (item.count ?? 0) > 20) ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.templateLimit')}</Text> : null}<Text accessibilityRole="summary" style={{ color: tokens.statusBadText, fontSize: 14 }}>{failure ?? ''}</Text></View>}
       actions={<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{nextCursor ? <Button variant="ghost" size="sm" loading={loadingMore} onClick={() => void showMore()}>{t('chat.recordList.more')}</Button> : null}{destination ? <Button variant="ghost" size="sm" onClick={() => router.push(destination)}>{t(`chat.recordList.open.${recordList.kind}`)}</Button> : null}</View>} />
   </View>
 }

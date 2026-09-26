@@ -15,13 +15,14 @@ export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: Calendar
   const items: BlockFrameItem[] = calendarCard.events.map((event, index) => ({
     id: `event-${index}`,
     label: event.title,
+    wrapLabel: true,
     meta: event.isAllDay ? t('chat.calendarCard.allDay') : time.format(new Date(event.start)),
   }))
   if (calendarCard.sync) {
-    const failed = calendarCard.sync.status !== 'Idle'
+    const failed = calendarCard.sync.enabled && calendarCard.sync.status !== 'Idle'
     items.push({
       id: 'sync', label: t('chat.calendarCard.sync'),
-      meta: t(calendarCard.sync.enabled ? `chat.calendarCard.syncState.${calendarCard.sync.status}` : 'chat.calendarCard.syncState.disabled'),
+      meta: failed ? undefined : t(calendarCard.sync.enabled ? `chat.calendarCard.syncState.${calendarCard.sync.status}` : 'chat.calendarCard.syncState.disabled'),
       ...(failed ? { status: 'failed' as const, statusLabel: t(`chat.calendarCard.syncState.${calendarCard.sync.status}`) } : {}),
     })
   }

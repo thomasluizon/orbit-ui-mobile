@@ -35,6 +35,7 @@ describe('Astra account rows on web', () => {
 
   it('copies the referral code and shares its link without a destination chip', async () => {
     render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123', referralLink: 'https://example.com/r/ORBIT123' }} />)
+    expect(screen.getByText('ORBIT123')).not.toHaveClass('truncate')
     fireEvent.click(screen.getByRole('button', { name: 'chat.account.copy' }))
     await waitFor(() => expect(mocks.writeText).toHaveBeenCalledWith('ORBIT123'))
     expect(await screen.findByRole('status')).toHaveTextContent('chat.account.copied')
@@ -42,5 +43,12 @@ describe('Astra account rows on web', () => {
     fireEvent.click(screen.getByRole('button', { name: 'chat.account.share' }))
     await waitFor(() => expect(mocks.share).toHaveBeenCalledWith({ title: 'referral.share.title', url: 'https://example.com/r/ORBIT123' }))
     expect(screen.queryByRole('button', { name: 'chat.account.open' })).not.toBeInTheDocument()
+  })
+
+  it('offers link copy when browser sharing is unavailable', async () => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined })
+    render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralLink: 'https://example.com/r/ORBIT123' }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'referral.drawer.copyLink' }))
+    await waitFor(() => expect(mocks.writeText).toHaveBeenCalledWith('https://example.com/r/ORBIT123'))
   })
 })

@@ -28,6 +28,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
       id: item.id,
       label: tracking ? <div className="flex items-center gap-2"><button type="button" className="min-h-11 min-w-0 flex-1 truncate border-0 bg-transparent text-left text-sm text-[var(--fg-1)] hover:text-[var(--fg-2)]" onClick={() => onOpenGoal?.(item.id)}>{item.title}</button><Badge variant="outline">{t(tracking.labelKey)}</Badge></div> : <button type="button" className="min-h-11 w-full truncate border-0 bg-transparent text-left text-sm text-[var(--fg-1)] hover:text-[var(--fg-2)]" onClick={() => onOpenGoal?.(item.id)}>{item.title}</button>,
       meta: [progress, deadline, projected].filter(Boolean).join(' · '),
+      wrapMeta: projected != null,
       control: value === 100
         ? <StatusRing status="done" size={28} label={t('chat.goalList.done', { name: item.title })} />
         : <ProgressRing value={value} size={28} label={t('chat.goalList.ring', { name: item.title })} />,

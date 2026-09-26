@@ -9,8 +9,8 @@ const mocks = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'pt-BR', useTranslations: () => (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key }))
 vi.mock('@/components/ui/progress-ring', () => ({ ProgressRing: ({ label }: { label: string }) => <div role="progressbar" aria-label={label} /> }))
-vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: () => <div role="progressbar" /> }))
-vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ items, body, actions }: BlockFrameProps) => <section>{body}{items.map((item) => <div data-testid="card-row" key={item.id}>{item.label}{item.meta}{item.control}</div>)}{actions}</section> }))
+vi.mock('@/components/ui/progress-bar', () => ({ ProgressBar: ({ value, max }: { value: number; max: number }) => <div role="progressbar" data-value={value} data-max={max} /> }))
+vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ items, body, actions }: BlockFrameProps) => <section>{body}{items.map((item) => <div data-testid="card-row" data-status={item.status} key={item.id}>{item.label}{item.meta}{item.control}</div>)}{actions}</section> }))
 
 describe('Astra status cards on web', () => {
   beforeEach(() => mocks.push.mockReset())
@@ -22,8 +22,17 @@ describe('Astra status cards on web', () => {
     expect(mocks.push).toHaveBeenCalledWith('/')
   })
 
+  it('keeps overdue visible when nothing is due today', () => {
+    render(<DaySummaryCard daySummary={{ date: '2026-09-26', due: 0, done: 0, completionRate: null, overdueCount: 2, currentStreak: 4, surfaceId: 'today' }} />)
+    expect(screen.getByText('chat.daySummary.nothingDue')).toBeInTheDocument()
+    expect(screen.getByText('chat.daySummary.overdue')).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
   it('shows at most six earned and unearned achievement discs', () => {
-    render(<StreakCard streakCard={{ currentStreak: 0, longestStreak: 4, level: 11, totalXp: 1100, xpForNextLevel: 1200, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], achievementDiscs: Array.from({ length: 8 }, (_, index) => ({ id: `achievement-${index}`, iconKey: 'satellite', earnedAt: index % 2 ? null : '2026-09-26T10:00:00Z' })), surfaceId: 'progress' }} />)
+    render(<StreakCard streakCard={{ currentStreak: 0, longestStreak: 4, level: 11, totalXp: 12200, xpForNextLevel: 14400, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], achievementDiscs: Array.from({ length: 8 }, (_, index) => ({ id: `achievement-${index}`, iconKey: 'satellite', earnedAt: index % 2 ? null : '2026-09-26T10:00:00Z' })), surfaceId: 'progress' }} />)
+    expect(screen.getByRole('progressbar')).toHaveAttribute('data-value', '100')
+    expect(screen.getByRole('progressbar')).toHaveAttribute('data-max', '2300')
     expect(document.querySelectorAll('[data-state="earned"]')).toHaveLength(3)
     expect(document.querySelectorAll('[data-state="unearned"]')).toHaveLength(3)
     fireEvent.click(screen.getByRole('button', { name: 'chat.streakCard.open' }))
@@ -36,5 +45,11 @@ describe('Astra status cards on web', () => {
     expect(screen.queryByText('chat.calendarCard.sync')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
     expect(mocks.push).toHaveBeenCalledWith('/calendar')
+  })
+
+  it('shows disabled sync without a failure mark', () => {
+    render(<CalendarCard calendarCard={{ events: [], surfaceId: 'calendar', sync: { enabled: false, status: 'ReconnectRequired', lastSyncedAt: null } }} />)
+    const row = screen.getByText(/chat.calendarCard.syncchat.calendarCard.syncState.disabled/)
+    expect(row).not.toHaveAttribute('data-status')
   })
 })

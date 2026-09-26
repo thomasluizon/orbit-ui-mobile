@@ -15,7 +15,7 @@ export function AchievementMark({ achievement, name, tokens }: Readonly<{ achiev
   const Glyph = GLYPHS[achievementGlyphKey(achievement.iconKey)]
   return <View accessibilityRole="image"
     accessibilityLabel={t(achievement.isEarned ? 'progressScreen.achievements.earnedState' : 'progressScreen.achievements.unearnedState', { name })}
-    style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: achievement.isEarned ? tokens.statusDone : 'transparent', borderColor: achievement.isEarned ? 'transparent' : tokens.hairlineStrong, borderWidth: achievement.isEarned ? 0 : 1.5 }}
+    style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', ...(achievement.isEarned ? { backgroundColor: tokens.statusDone } : { borderColor: tokens.hairlineStrong, borderWidth: 1.5 }) }}
     testID={`achievement-mark-${achievement.isEarned ? 'earned' : 'unearned'}`}>
     <Glyph size={20} strokeWidth={2} color={achievement.isEarned ? tokens.bg : tokens.fg3} />
   </View>

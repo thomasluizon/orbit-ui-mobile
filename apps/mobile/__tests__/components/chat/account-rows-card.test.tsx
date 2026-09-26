@@ -50,6 +50,8 @@ describe('Astra account rows on mobile', () => {
   it('copies the referral code and opens the native share sheet', async () => {
     mocks.share.mockResolvedValue({ action: 'sharedAction' })
     const tree = render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123', referralLink: 'https://example.com/r/ORBIT123' }} />)
+    const code = tree.root.findAll((node: any) => node.type === Text && node.props.children === 'ORBIT123')[0]
+    expect(code.props.numberOfLines).toBeUndefined()
     const copy = tree.root.findByProps({ accessibilityLabel: 'chat.account.copy' })
     TestRenderer.act(() => copy.props.onPress())
     expect(mocks.setString).toHaveBeenCalledWith('ORBIT123')

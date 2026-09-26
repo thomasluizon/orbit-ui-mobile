@@ -63,6 +63,10 @@ function IrreversibleMark({ label, tokens }: Readonly<{ label: string; tokens: A
   )
 }
 
+function MetaLine({ meta, wrap, tokens }: Readonly<{ meta: string; wrap: boolean; tokens: AppTokensV2 }>) {
+  return <Text numberOfLines={wrap ? undefined : 1} style={[styles.meta, { color: tokens.fg3 }]}>{meta}</Text>
+}
+
 function FrameRow(props: FrameRowProps) {
   const { item, frameState, statusLabel, onEditItem, tokens } = props
   const status = frameState === 'acting' ? 'acting' : item.status
@@ -78,7 +82,7 @@ function FrameRow(props: FrameRowProps) {
             {item.label}
           </Text>
         ) : <View style={styles.rowLabelNode}>{item.label}</View>}
-        {item.meta ? <Text numberOfLines={1} style={[styles.meta, { color: tokens.fg3 }]}>{item.meta}</Text> : null}
+        {item.meta ? <MetaLine meta={item.meta} wrap={item.wrapMeta === true} tokens={tokens} /> : null}
         {item.irreversible && props.irreversibleLabel ? (
           <IrreversibleMark label={props.irreversibleLabel} tokens={tokens} />
         ) : null}
