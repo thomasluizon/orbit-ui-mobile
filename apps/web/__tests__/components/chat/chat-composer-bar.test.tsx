@@ -190,6 +190,12 @@ describe('ChatComposerBar', () => {
     expect(props.onUpgrade).toHaveBeenCalled()
   })
 
+  it('does not show Upgrade to a Pro user at the daily limit', () => {
+    render(<ChatComposerBar {...{ ...baseProps(), hasProAccess: true, atMessageLimit: true, limitLocked: true, sendError: 'chat.limitReachedError' }} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('chat.limitReachedError')
+    expect(screen.queryByText('upgrade.subscribe')).not.toBeInTheDocument()
+  })
+
   it('shows the offline notice and disables the composer while offline', () => {
     render(<ChatComposerBar {...{ ...baseProps(), isOnline: false }} />)
     expect(

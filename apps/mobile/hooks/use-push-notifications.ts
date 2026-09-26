@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, Platform } from 'react-native'
-import Constants from 'expo-constants'
 import * as Device from 'expo-device'
+import { isRunningInExpoGo } from 'expo'
 import { useRouter } from 'expo-router'
 import { API } from '@orbit/shared/api'
 import { schemes } from '@orbit/shared/theme'
@@ -73,10 +73,6 @@ interface UsePushNotificationsReturn {
 let activeRegistration: { userId: string | null; promise: Promise<boolean> } | null = null
 const PUSH_DISABLED_STORAGE_KEY_PREFIX = 'orbit_push_disabled'
 
-function isExpoGo(): boolean {
-  return Constants.expoGoConfig !== null
-}
-
 function hasFunctionProperty(value: object, key: string): boolean {
   return key in value && typeof Reflect.get(value, key) === 'function'
 }
@@ -103,7 +99,7 @@ function getModuleDefaultExport(value: object): unknown {
 declare const require: (id: string) => unknown
 
 function getNotificationsModule(): ExpoNotificationsModule | null {
-  if (isExpoGo()) return null
+  if (isRunningInExpoGo()) return null
 
   try {
     const requiredModule = require('expo-notifications')

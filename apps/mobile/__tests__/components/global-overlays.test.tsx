@@ -26,7 +26,13 @@ const TestRenderer: TestRendererApi = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true
 
-vi.mock('expo-constants', () => ({ default: { expoGoConfig: null } }))
+const runtime = vi.hoisted(() => ({
+  expoGo: false,
+  constants: { executionEnvironment: 'standalone', expoGoConfig: { name: 'Orbit' } },
+}))
+
+vi.mock('expo-constants', () => ({ default: runtime.constants }))
+vi.mock('expo', () => ({ isRunningInExpoGo: () => runtime.expoGo }))
 vi.mock('@/components/ui/push-prompt', () => ({
   PushPrompt: () => React.createElement('PushPrompt'),
 }))
@@ -86,13 +92,13 @@ vi.mock('@/components/tour/tour-provider', () => ({ TourProvider: 'TourProvider'
 vi.mock('@/components/tour/tour-overlay', () => ({ TourOverlay: 'TourOverlay' }))
 
 const onboardingActionsStub: OverlayLayerProps['onboardingActions'] = {
-  createHabit: async () => ({ id: '', title: '' }),
-  createHabitsBulk: async () => {},
-  logHabit: async () => {},
-  createGoal: async () => {},
-  setWeekStartDay: async () => {},
-  setColorScheme: async () => {},
-  finishOnboarding: async () => {},
+  createHabit: () => Promise.resolve({ id: '', title: '' }),
+  createHabitsBulk: () => Promise.resolve(),
+  logHabit: () => Promise.resolve(),
+  createGoal: () => Promise.resolve(),
+  setWeekStartDay: () => Promise.resolve(),
+  setColorScheme: () => Promise.resolve(),
+  finishOnboarding: () => Promise.resolve(),
 }
 
 function buildProps(
@@ -114,12 +120,12 @@ function buildProps(
 
 async function renderLayer(
   overrides: Partial<OverlayLayerProps> = {},
+  Layer = OverlayLayer,
 ): Promise<TestInstance> {
-  let instance: TestInstance | null = null
-  await TestRenderer.act(async () => {
-    instance = TestRenderer.create(<OverlayLayer {...buildProps(overrides)} />)
+  let instance!: TestInstance
+  await TestRenderer.act(() => {
+    instance = TestRenderer.create(<Layer {...buildProps(overrides)} />)
   })
-  if (!instance) throw new Error('render failed')
   return instance
 }
 
@@ -196,6 +202,21 @@ describe('OverlayLayer mount matrix', () => {
 
     expect(isMounted(preOnboarding, 'PushPrompt')).toBe(false)
     expect(isMounted(postOnboarding, 'PushPrompt')).toBe(true)
+  })
+
+  it('does not mount the push prompt in Expo Go', async () => {
+    runtime.expoGo = true
+    runtime.constants.executionEnvironment = 'storeClient'
+    vi.resetModules()
+
+    try {
+      const { OverlayLayer: ExpoGoLayer } = await import('@/components/global-overlays')
+      const instance = await renderLayer({ hasCompletedOnboarding: true }, ExpoGoLayer)
+      expect(isMounted(instance, 'PushPrompt')).toBe(false)
+    } finally {
+      runtime.expoGo = false
+      runtime.constants.executionEnvironment = 'standalone'
+    }
   })
 
   it('gates the achievement toast on pro access', async () => {

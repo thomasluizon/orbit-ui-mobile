@@ -355,9 +355,9 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.sendError).toBeNull()
   })
 
-  it('maps a pre-stream http failure through the same classification', async () => {
+  it('returns the limit state for a pre-stream 403 PAY_GATE', async () => {
     mocks.fetch.mockResolvedValue(
-      Response.json({ error: 'limit reached' }, { status: 403 }),
+      Response.json({ error: "You've reached your daily AI message limit (5).", errorCode: 'PAY_GATE' }, { status: 403 }),
     )
     const { result } = renderHook(() => useChatComposer())
 
@@ -367,6 +367,7 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.sendError).toBe('chat.limitReachedError')
     expect(result.current.canRetryLastSend).toBe(false)
+    expect(mocks.routerPush).not.toHaveBeenCalledWith('/upgrade')
   })
 
   it('marks auth state when revalidation confirms the chat refresh rejection', async () => {

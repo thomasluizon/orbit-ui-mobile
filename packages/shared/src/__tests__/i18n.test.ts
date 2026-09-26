@@ -57,6 +57,15 @@ describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
 
+  it('describes the Astra daily limit without promising an upgrade removes it', () => {
+    expect(en.chat.limitReachedError).toContain('tomorrow')
+    expect(ptBR.chat.limitReachedError).toContain('amanhã')
+    for (const locale of [en, ptBR]) {
+      expect(locale.errors.api.astraLimit).toBe(locale.chat.limitReachedError)
+      expect(locale.chat.limitReachedError).not.toMatch(/upgrade|pro\b/i)
+    }
+  })
+
   it('separates timed-out mobile copy from confirmed web sign-out copy', () => {
     expect(en.auth.sessionExpired).toBe('Your session timed out.')
     expect(ptBR.auth.sessionExpired).toBe('Sua sessão expirou.')
