@@ -54,7 +54,7 @@ let nextChatMessageSequence = 0;
 
 function createChatMessageId(): string {
   nextChatMessageSequence += 1;
-  return `msg-${Date.now()}-${nextChatMessageSequence}-ai`;
+  return `msg-${Date.now()}-${nextChatMessageSequence}`;
 }
 
 interface AttemptedSend {
@@ -256,7 +256,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const appendExecutionMessage = useCallback(
     async (response: AgentExecuteOperationResponse) => {
       addMessage({
-        id: `msg-${Date.now()}-agent`,
+        id: createChatMessageId(),
         role: "ai",
         content: buildAgentExecutionMessage(response, {
           done: t("chat.operationDone"),
@@ -425,7 +425,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           updateMessage(draftMessageId, { content: limitReason });
         } else {
           addMessage({
-            id: `msg-${Date.now()}-limit`,
+            id: createChatMessageId(),
             role: "ai",
             content: limitReason,
             timestamp: new Date(),
@@ -442,7 +442,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         updateMessage(draftMessageId, { content: t("chat.aiError") });
       } else {
         addMessage({
-          id: `msg-${Date.now()}-err`,
+          id: createChatMessageId(),
           role: "ai",
           content: t("chat.aiError"),
           timestamp: new Date(),
@@ -693,7 +693,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
       if (!isRetry) {
         const userMessage: ChatMessage = {
-          id: `msg-${Date.now()}`,
+          id: createChatMessageId(),
           role: "user",
           content: attempted.content,
           imageUrl: attempted.preview,
@@ -734,7 +734,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       if (atMessageLimit) {
         setSendError(null);
         addMessage({
-          id: `msg-${Date.now()}-limit`,
+          id: createChatMessageId(),
           role: "ai",
           content: t("shell.composer.limit.reason", { allowance: aiMessagesLimit }),
           timestamp: new Date(),

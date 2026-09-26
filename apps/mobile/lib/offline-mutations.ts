@@ -17,6 +17,9 @@ import type {
 } from '@orbit/shared/types/sync'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import { updateTimezoneRequestSchema, type Profile } from '@orbit/shared/types/profile'
+import { reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
+import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { apiClient } from './api-client'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
@@ -35,11 +38,8 @@ import { clearOfflineEntity, getResolvedEntityId, markOfflineTombstone, resolveO
 import { getCurrentConnectivity } from './offline-runtime'
 import { setPendingIdempotencyKey } from './idempotency-key'
 import { persistQueryCache, queryClient } from './query-client'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { captureError } from './sentry'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
-import type { HabitScheduleItem } from '@orbit/shared/types/habit'
-import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
 export { accountTimezoneDependency, ACCOUNT_TIMEZONE_DEPENDENCY } from './offline-queue'
 
 type InvalidationQueryKey = readonly unknown[]
@@ -317,12 +317,16 @@ function rewriteMutationIdReferences<T extends PersistedQueuedMutation>(mutation
 }
 
 async function resolveMutationReferences<T extends PersistedQueuedMutation>(mutation: T): Promise<T> {
-  if (!mutation.entityType || !mutation.targetEntityId) return mutation
-
-  const resolvedId = await getResolvedEntityId(mutation.entityType, mutation.targetEntityId)
-  if (resolvedId === mutation.targetEntityId) return mutation
-
-  return rewriteMutationIdReferences(mutation, mutation.targetEntityId, resolvedId)
+  let resolved = mutation
+  const entityTypes: MutationEntityType[] = ['habit', 'goal', 'tag', 'notification', 'profile', 'apiKey']
+  for (const id of new Set(getPendingOfflineDependencies(mutation))) {
+    const entityType = entityTypes.find((type) => id.startsWith(`offline-${type}-`))
+      ?? (id === mutation.targetEntityId ? mutation.entityType : undefined)
+    if (!entityType) continue
+    const serverId = await getResolvedEntityId(entityType, id)
+    if (serverId !== id) resolved = rewriteMutationIdReferences(resolved, id, serverId)
+  }
+  return resolved
 }
 
 const BACKOFF_BASE_DELAY_MS = 2_000
@@ -791,10 +795,68 @@ type FlushStepResult = {
   dropped: DroppedMutation | null
 }
 
-function hasExpiredOrphanDependency(mutation: PersistedQueuedMutation, dependencies: string[]): boolean {
-  if (Date.now() - mutation.timestamp < DEPENDENCY_MAX_AGE_MS) return false
+function getExpiredOrphanDependencies(
+  mutation: PersistedQueuedMutation,
+  dependencies: string[],
+): string[] {
+  if (Date.now() - mutation.timestamp < DEPENDENCY_MAX_AGE_MS) return []
   const producers = getAll().filter((queued) => queued.id !== mutation.id && queued.clientEntityId)
-  return dependencies.some((id) => !id.startsWith(`${ACCOUNT_TIMEZONE_DEPENDENCY}:`) && !producers.some((producer) => producer.clientEntityId === id))
+  return dependencies.filter(
+    (id) => !id.startsWith(`${ACCOUNT_TIMEZONE_DEPENDENCY}:`) && !producers.some((producer) => producer.clientEntityId === id),
+  )
+}
+
+function removeOrphanReorderPositions(
+  mutation: PersistedQueuedMutation,
+  orphans: string[],
+): PersistedQueuedMutation {
+  if (mutation.type !== 'reorderHabits' || !orphans.every((id) => id.startsWith('offline-habit-'))) {
+    return mutation
+  }
+  const parsed = reorderHabitsRequestSchema.safeParse(mutation.payload)
+  if (!parsed.success) return mutation
+  const positions = parsed.data.positions.filter((position) => !orphans.includes(position.habitId))
+  if (positions.length === 0 || positions.length === parsed.data.positions.length) return mutation
+
+  const updated = { ...mutation, payload: { positions } }
+  update(mutation.id, { payload: updated.payload })
+  captureError(new Error(`Offline mutation reorderHabits: pruned orphan positions (${parsed.data.positions.length - positions.length})`))
+  return updated
+}
+
+async function prepareQueuedMutationFlush(
+  currentMutation: PersistedQueuedMutation,
+  pendingDependencies: string[],
+  touchedScopes: Set<MutationScope>,
+): Promise<
+  | { mutation: PersistedQueuedMutation; step?: never }
+  | { step: FlushStepResult; mutation?: never }
+> {
+  let mutation = currentMutation
+  let dependencies = pendingDependencies
+
+  if (dependencies.length > 0) {
+    const orphans = getExpiredOrphanDependencies(mutation, dependencies)
+    if (orphans.length > 0) {
+      mutation = removeOrphanReorderPositions(mutation, orphans)
+      dependencies = getPendingOfflineDependencies(mutation)
+      if (orphans.some((id) => dependencies.includes(id))) {
+        const dropped = await dropQueuedMutation(
+          mutation,
+          mutation.type === 'reorderHabits'
+            ? 'No resolvable habit positions remain in reorder'
+            : 'Unresolved dependency after 24 hours',
+          touchedScopes,
+        )
+        return { step: { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped } }
+      }
+    }
+    if (dependencies.length > 0) {
+      update(mutation.id, { status: 'pending', lastError: null })
+      return { step: { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null } }
+    }
+  }
+  return { mutation }
 }
 
 async function processQueuedMutationFlush(
@@ -815,15 +877,12 @@ async function processQueuedMutationFlush(
     return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
   }
 
-  const mutation = await resolveMutationReferences(currentMutation)
+  let mutation = await resolveMutationReferences(currentMutation)
   const dependencies = getPendingOfflineDependencies(mutation)
   if (dependencies.length > 0) {
-    if (hasExpiredOrphanDependency(mutation, dependencies)) {
-      const dropped = await dropQueuedMutation(mutation, 'Unresolved dependency after 24 hours', touchedScopes)
-      return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
-    }
-    update(mutation.id, { status: 'pending', lastError: null })
-    return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
+    const prepared = await prepareQueuedMutationFlush(mutation, dependencies, touchedScopes)
+    if (prepared.step) return prepared.step
+    mutation = prepared.mutation
   }
 
   await markMutationSyncing(mutation)

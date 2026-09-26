@@ -549,17 +549,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       showCompleted,
       recentlyCompletedIds,
     })
-    const isAncestorSelected = useCallback(
-      (habitId: string): boolean => {
-        let current = habitsById.get(habitId)?.parentId ?? null
-        while (current) {
-          if (selectedIds.has(current)) return true
-          current = habitsById.get(current)?.parentId ?? null
-        }
-        return false
-      },
-      [habitsById, selectedIds],
-    )
 
     const recentlyCompletedTimersRef = useRef(
       new Map<string, ReturnType<typeof setTimeout>>(),
@@ -1505,10 +1494,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       drill: (habitId) => { void drill.drillInto(habitId) },
       enterSelectMode: (habitId) => {
         if (!isSelectMode) toggleSelectMode()
-        toggleSelectionCascade(habitId, getDescendantIds, isAncestorSelected)
+        toggleSelectionCascade(habitId, getDescendantIds)
       },
       toggleSelection: (habitId) =>
-        toggleSelectionCascade(habitId, getDescendantIds, isAncestorSelected),
+        toggleSelectionCascade(habitId, getDescendantIds),
       detail: (habit) => onDetailHabit?.(habit),
     }
     const rowActionHandlersRef = useRef(rowActionHandlers)

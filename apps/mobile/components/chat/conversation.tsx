@@ -6,8 +6,6 @@ import {
   AccessibilityInfo,
   Pressable,
   Linking,
-  KeyboardAvoidingView,
-  Keyboard,
   Platform,
   type ListRenderItem,
 } from "react-native";
@@ -23,7 +21,7 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { RefreshCw } from "@/components/ui/icons";
-import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
+import { KeyboardAwareFlatList, KeyboardAwareView } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/components/chat/conversation.styles";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -74,7 +72,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const microphonePermissionDenied = speechError === t("speech.micDenied");
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
-  const [keyboardInset, setKeyboardInset] = useState(0);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
   const closeConversation = useCallback(() => {
@@ -82,24 +79,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   }, [setAstraConversationOpen]);
 
   useOverlayBack(true, closeConversation);
-
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-
-    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
-      const nextInset = Math.max(0, event.endCoordinates.height - insets.bottom);
-      setKeyboardInset(nextInset);
-    });
-
-    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
-      setKeyboardInset(0);
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, [insets.bottom]);
 
   const handleActionChipClick = useCallback(
     (entityId: string, actionType: string) => {
@@ -151,9 +130,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
 
   return (
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <KeyboardAvoidingView
+      <KeyboardAwareView
         style={styles.keyboardAvoid}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <AppBar
@@ -191,10 +169,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         <View
           ref={chatInputRef}
           style={{
-            marginBottom:
-              Platform.OS === "android" && keyboardInset > 0
-                ? keyboardInset + 10
-                : 0,
             paddingBottom: insets.bottom,
           }}
         >
@@ -263,7 +237,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           ) : null}
           <Composer {...composerProps} />
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAwareView>
 
       {selectedGoalId && (
         <GoalDetailDrawer
