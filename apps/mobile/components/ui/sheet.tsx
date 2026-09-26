@@ -24,10 +24,10 @@ export interface SheetHandle {
 }
 
 /**
- * The one close path a sheet host may use. Never flip the open state directly: unmounting a
- * presented TrueSheet wedges every later Android modal until the process restarts, and it
- * drops the navigation that has to run after the dismissal
- * (https://sheet.lodev09.com/guides/navigation).
+ * The one close path a sheet host may use. Direct navigation from a presented TrueSheet requires the react-native-screens patch (https://sheet.lodev09.com/guides/navigation).
+ * This app ships without it, so dismiss before navigating and never flip the open state directly.
+ * The all-Modals claim was an inference: `main`'s `anchored-menu.tsx`, absent from this branch, raced render-phase `setState` with queued async `setState` at mount (thomasluizon/orbit-tickets#134; fixed in thomasluizon/orbit-ui-mobile#1041).
+ * Apply D136: "Reproduce a device bug on the exact shipped build before calling it fixed."
  */
 export function useSheetHost() {
   const sheetRef = useRef<SheetHandle>(null)
