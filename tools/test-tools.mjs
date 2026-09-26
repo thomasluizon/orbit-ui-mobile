@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, readdirSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { performance } from "node:perf_hooks"
 import { fileURLToPath } from "node:url"
@@ -247,6 +247,25 @@ T(
   `every tools/lib/ module has a case module (${libraries.length} modules)`,
   uncoveredLibraries.length === 0,
   `no CASE_MODULES row for: ${uncoveredLibraries.map((file) => `lib/${file}`).join(", ")}\n     A library has no CLI, so a case module is the only coverage it can carry.`,
+)
+
+const repositoryRoot = join(TOOLS_DIR, "..")
+const sonarProperties = readFileSync(join(repositoryRoot, "sonar-project.properties"), "utf8")
+const missingSonarPaths = []
+for (const line of sonarProperties.split(/\r?\n/)) {
+  const separator = line.indexOf("=")
+  if (separator === -1) continue
+  const setting = line.slice(0, separator).trim()
+  if (!/^sonar\.(?:sources|tests|(?:.*\.)?(?:exclusions|inclusions))$/.test(setting)) continue
+  for (const path of line.slice(separator + 1).split(",").map((part) => part.trim())) {
+    if (!path || /[*?{}]/.test(path)) continue
+    if (!existsSync(join(repositoryRoot, path))) missingSonarPaths.push(`${setting}: ${path}`)
+  }
+}
+T(
+  "literal Sonar source, test, inclusion, and exclusion paths exist",
+  missingSonarPaths.length === 0,
+  `sonar-project.properties names missing paths:\n     ${missingSonarPaths.join("\n     ")}`,
 )
 
 console.log("\n# universal contract (tools/CONVENTIONS.md)")
