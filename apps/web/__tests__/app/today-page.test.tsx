@@ -113,9 +113,10 @@ vi.mock('@/components/habits/habit-list', () => ({
   HabitList: function MockHabitList(props: {
     showCompleted?: boolean
     onSeeUpcoming?: () => void
+    filters?: { tagIds?: string[] }
   }) {
     return (
-      <div data-testid="today-habit-list" data-show-completed={String(props.showCompleted)}>
+      <div data-testid="today-habit-list" data-show-completed={String(props.showCompleted)} data-tag-ids={props.filters?.tagIds?.join(',') ?? ''}>
         {props.onSeeUpcoming ? (
           <button type="button" onClick={props.onSeeUpcoming}>See upcoming</button>
         ) : null}
@@ -311,6 +312,15 @@ describe('Hoje date control', () => {
     )
     expect(useUIStore.getState()).not.toHaveProperty('showCompleted')
     globalThis.localStorage.clear()
+  })
+
+  it('passes a valid tag selection to the redesigned Today habit list', () => {
+    const view = createMotionView('2026-04-08')
+    view.data.filters = { tagIds: ['tag-1'] }
+
+    render(<TodayHabitsPanel view={view} />)
+
+    expect(screen.getByTestId('today-habit-list')).toHaveAttribute('data-tag-ids', 'tag-1')
   })
 
   it('omits the all-done upcoming action at the instance horizon', () => {
