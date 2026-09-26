@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { QUERY_STALE_TIMES } from '@orbit/shared/query'
 import {
   useHabits,
   useHabitDetail,
@@ -205,6 +206,23 @@ describe('useHabits (query hook)', () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?pageSize=200')
+  })
+
+  it('keeps habits fresh for five minutes and limits palette searches to one page', async () => {
+    const items = Array.from({ length: 200 }, (_, index) => makeScheduleItem({ id: `h-${index}` }))
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ...makePaginatedResponse(items), totalCount: 450, totalPages: 3 }),
+    })
+
+    const { result } = renderHook(() => useHabits({ search: 'run', pageSize: 50 }), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(QUERY_STALE_TIMES.habits).toBe(5 * 60 * 1000)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=run&pageSize=50')
   })
 })
 

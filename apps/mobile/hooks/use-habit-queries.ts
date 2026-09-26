@@ -43,7 +43,7 @@ function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
   return { ...filters, pageSize: 200 }
 }
 
-export function useHabits(filters: HabitsFilter) {
+export function useHabits(filters: HabitsFilter, enabled = true) {
   const query = useQuery({
     queryKey: habitKeys.list(filters as Record<string, unknown>),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
@@ -51,7 +51,7 @@ export function useHabits(filters: HabitsFilter) {
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
       const firstPage = await apiClient<PaginatedResponse<HabitScheduleItem>>(firstQuery)
 
-      if (requestFilters.dateFrom || firstPage.totalPages <= 1) {
+      if (requestFilters.dateFrom || requestFilters.search || firstPage.totalPages <= 1) {
         return firstPage.items
       }
 
@@ -66,9 +66,10 @@ export function useHabits(filters: HabitsFilter) {
       )
     },
     staleTime: QUERY_STALE_TIMES.habits,
+    enabled,
     select: selectNormalizedHabits,
     refetchOnWindowFocus: true,
-    refetchOnReconnect: 'always',
+    refetchOnReconnect: true,
   })
 
   const getChildren = useCallback(
