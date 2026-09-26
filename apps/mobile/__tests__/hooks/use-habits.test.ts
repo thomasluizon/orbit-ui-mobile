@@ -494,6 +494,30 @@ describe('mobile habit hooks', () => {
     }))
   })
 
+  it('rejects an overlong create description before queuing or sending', async () => {
+    const mutation = useCreateHabit() as unknown as MutationConfig<
+      { id: string },
+      CreateHabitRequest,
+      unknown
+    >
+    await expect(mutation.mutationFn({ title: 'Test', description: 'x'.repeat(10001) }))
+      .rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' })
+    expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
+  })
+
+  it('rejects an overlong update description before queuing or sending', async () => {
+    const mutation = useUpdateHabit() as unknown as MutationConfig<
+      void,
+      { habitId: string; data: { title: string; description: string; isBadHabit: boolean } },
+      unknown
+    >
+    await expect(mutation.mutationFn({
+      habitId: 'habit-1',
+      data: { title: 'Test', description: 'x'.repeat(10001), isBadHabit: false },
+    })).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' })
+    expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
+  })
+
   it('falls back to today for optimistic offline creates when the payload dueDate is an empty string', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-02-14T12:00:00Z'))

@@ -4,6 +4,7 @@ import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { ApiClientError } from '@orbit/shared/utils'
 
 
 const mockCreateMutateAsync = vi.fn()
@@ -356,6 +357,21 @@ describe('CreateHabitModal', () => {
     expect(mockShowError).toHaveBeenCalledWith('Validation failed!')
     expect(mockCreateMutateAsync).not.toHaveBeenCalled()
     expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [403, undefined, 'Blocked by the edge', 'errors.api.edgeBlocked'],
+    [400, 'VALIDATION_ERROR', 'Title must be 200 characters or fewer', 'habits.form.titleTooLong'],
+    [429, 'RATE_LIMITED', 'Rate limited', 'toast.errors.tooManyRequests'],
+    [500, 'INTERNAL_SERVER_ERROR', 'Server failed', 'toast.errors.server'],
+    [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!', 'errors.api.calendarPro'],
+    [400, 'HABIT_LIMIT_REACHED', "You've reached the 1000 habit limit.", 'errors.api.habitLimit'],
+  ])('shows the classified create error for %i %s', async (status, code, message, expected) => {
+    mockCreateMutateAsync.mockRejectedValue(new ApiClientError(status, message, { code }))
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    fireEvent.submit(screen.getByTestId('app-overlay').querySelector('form')!)
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledWith(expected))
+    expect(mockShowError).not.toHaveBeenCalledWith('errors.createHabit')
   })
 
   it('resets form when modal opens', async () => {

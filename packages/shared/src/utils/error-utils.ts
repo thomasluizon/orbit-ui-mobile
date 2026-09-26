@@ -72,6 +72,16 @@ export function validateApiResponse<T>(
   return parsed.data
 }
 
+export function validateApiRequest<T>(body: unknown, schema: ZodType<T>): T {
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    throw new ApiClientError(400, parsed.error.issues[0]?.message ?? 'Invalid request', {
+      code: 'VALIDATION_ERROR',
+    })
+  }
+  return parsed.data
+}
+
 function isErrorWithData(err: unknown): err is ErrorWithData {
   return err !== null && typeof err === 'object'
 }
@@ -308,6 +318,8 @@ function getContextualMessageKey(
  * instead of the raw English message.
  */
 export const ERROR_CODE_TO_KEY: Record<string, string> = {
+  PAY_GATE: 'errors.api.payGate',
+  HABIT_LIMIT_REACHED: 'errors.api.habitLimit',
   ACCOUNT_CHANGED: 'errors.api.accountChanged',
   NO_PERMISSION: 'errors.api.noPermission',
   HABIT_NOT_OWNED: 'errors.api.noPermission',
@@ -371,6 +383,12 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   PENDING_OPERATION_NOT_FOUND: 'toast.errors.notFound',
 }
 
+function getPayGateErrorKey(normalizedMessage: string): string {
+  if (normalizedMessage.includes('calendar')) return 'errors.api.calendarPro'
+  if (normalizedMessage.includes('ai message')) return 'errors.api.astraLimit'
+  return 'errors.api.payGate'
+}
+
 export function getFriendlyErrorKey(
   err: unknown,
   fallbackKey: string,
@@ -381,7 +399,7 @@ export function getFriendlyErrorKey(
   const message = getErrorMessage(err, '')
   const normalizedMessage = normalizeMessage(message)
 
-  if (code === 'PAY_GATE') return fallbackKey
+  if (code === 'PAY_GATE') return getPayGateErrorKey(normalizedMessage)
   if (code === 'TOO_MANY_ATTEMPTS' || status === 429 || normalizedMessage.includes('please wait')) {
     return 'toast.errors.tooManyRequests'
   }
@@ -407,6 +425,8 @@ export function getFriendlyErrorKey(
   if (contextualKey) return contextualKey
 
   if (code && ERROR_CODE_TO_KEY[code]) return ERROR_CODE_TO_KEY[code]
+
+  if (status === 403) return 'errors.api.edgeBlocked'
 
   return fallbackKey
 }

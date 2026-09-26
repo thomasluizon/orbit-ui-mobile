@@ -13,7 +13,9 @@ import {
   getFriendlyErrorMessage,
   translateErrorKey,
   validateApiResponse,
+  validateApiRequest,
 } from '../utils/error-utils'
+import { createHabitRequestSchema, updateHabitRequestSchema } from '../types/habit'
 
 
 describe('ApiClientError', () => {
@@ -66,6 +68,20 @@ describe('createApiClientError', () => {
       'Fallback',
     )
     expect(err.fieldErrors).toEqual({ Title: ['Required'] })
+  })
+})
+
+describe('habit request input caps', () => {
+  it.each([createHabitRequestSchema, updateHabitRequestSchema])('rejects descriptions beyond 10,000 characters', (schema) => {
+    const result = schema.safeParse({ title: 'Test', description: 'x'.repeat(10001), isBadHabit: false })
+    expect(result.success).toBe(false)
+  })
+
+  it('returns a typed 400 before a request can be sent', () => {
+    expect(() => validateApiRequest(
+      { title: 'Test', description: 'x'.repeat(10001) },
+      createHabitRequestSchema,
+    )).toThrowError(/10000/)
   })
 })
 
@@ -196,6 +212,25 @@ describe('translateErrorKey (extended)', () => {
 
 
 describe('getFriendlyErrorKey (extended coverage)', () => {
+  it.each([
+    [403, undefined, 'errors.api.edgeBlocked'],
+    [400, 'VALIDATION_ERROR', 'toast.errors.validation'],
+    [429, 'RATE_LIMITED', 'toast.errors.tooManyRequests'],
+    [500, 'INTERNAL_SERVER_ERROR', 'toast.errors.server'],
+    [403, 'PAY_GATE', 'errors.api.payGate'],
+    [400, 'HABIT_LIMIT_REACHED', 'errors.api.habitLimit'],
+  ])('classifies status %i and code %s', (status, code, expected) => {
+    const error = new ApiClientError(status, 'Failed with status ' + status, { code })
+    expect(getFriendlyErrorKey(error, 'errors.createHabit', 'habit')).toBe(expected)
+  })
+
+  it.each([
+    ['Calendar integration is a Pro feature. Upgrade to unlock!', 'errors.api.calendarPro'],
+    ["You've reached your daily AI message limit (5). Upgrade to Pro for 50 messages per day.", 'errors.api.astraLimit'],
+  ])('names the PAY_GATE surface from the API message', (message, expected) => {
+    expect(getFriendlyErrorKey(new ApiClientError(403, message, { code: 'PAY_GATE' }), 'errors.createHabit')).toBe(expected)
+  })
+
   it('maps TOO_MANY_ATTEMPTS code', () => {
     const err = createApiClientError(400, { errorCode: 'TOO_MANY_ATTEMPTS' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('toast.errors.tooManyRequests')
