@@ -389,6 +389,11 @@ function resolvePerformanceMeasurement(input, options = {}) {
     const queries = (input.queryStats ?? []).map((entry, index) =>
       analyzeQuery(entry, index, windowDays, tableByName, thresholds))
     if (queries.length === 0) throw new Error("queryStats must contain at least one statement")
+    const queryIds = new Set()
+    for (const query of queries) {
+      if (queryIds.has(query.queryId)) throw new Error(`duplicate queryId: ${query.queryId}`)
+      queryIds.add(query.queryId)
+    }
 
     const rowsRanking = [...queries].sort((left, right) => right.rows - left.rows)
     const egressRanking = [...queries].sort((left, right) =>
