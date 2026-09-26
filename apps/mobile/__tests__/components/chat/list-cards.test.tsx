@@ -14,10 +14,12 @@ const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   mutate: vi.fn(),
+  locale: 'en',
   occurrencesById: new Map<string, { isCompleted: boolean; isLoggedInRange: boolean }>(),
 }))
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key, i18n: { language: mocks.locale } }) }))
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({ data: { habitsById: mocks.occurrencesById } }),
   useLogHabit: () => ({ mutate: mocks.mutate }),
@@ -50,6 +52,7 @@ function render(element: React.ReactElement) {
 describe('Astra list cards on mobile', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.locale = 'en'
     mocks.occurrencesById.clear()
     for (const item of habits.items) {
       mocks.occurrencesById.set(item.id, { isCompleted: false, isLoggedInRange: false })
@@ -103,5 +106,23 @@ describe('Astra list cards on mobile', () => {
     const progress = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.goalList.progressLink'))[0]
     TestRenderer.act(() => progress.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/progress')
+  })
+
+  it('shows API goal tracking and projection', () => {
+    mocks.locale = 'pt-BR'
+    const tree = render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: 'at_risk', projectedCompletionDate: '2026-10-12' }] }} />)
+    expect(renderedText(tree.toJSON())).toContain('goals.metrics.atRisk')
+    expect(renderedText(tree.toJSON())).toContain('12 de out. de 2026')
+  })
+
+  it.each([['on_track', 'onTrack'], ['at_risk', 'atRisk'], ['behind', 'behind'], ['no_deadline', 'noDeadline']] as const)('localizes %s tracking', (status, key) => {
+    const tree = render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: status }] }} />)
+    expect(renderedText(tree.toJSON())).toContain(`goals.metrics.${key}`)
+  })
+
+  it('keeps older goal rows without a projection', () => {
+    const tree = render(<GoalListCard goalList={goals} />)
+    expect(renderedText(tree.toJSON())).not.toContain('chat.goalList.projected')
+    expect(renderedText(tree.toJSON())).not.toContain('goals.metrics.')
   })
 })

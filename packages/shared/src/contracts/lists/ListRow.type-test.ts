@@ -18,6 +18,7 @@ type ExpectedBase = {
   accessibilityLabel?: string
   description?: string
   value?: string
+  wrapValue?: boolean
   trailing?: React.ReactNode
   danger?: boolean
   chevron?: boolean
@@ -65,6 +66,7 @@ export type ListRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<ListRowProps['accessibilityLabel'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['description'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['value'], string | undefined>>,
+  Assert<IsExactWidth<ListRowProps['wrapValue'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['trailing'], React.ReactNode>>,
   Assert<IsExactWidth<ListRowProps['danger'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['chevron'], boolean | undefined>>,

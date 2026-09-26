@@ -85,6 +85,7 @@ export function useMarkNotificationRead() {
       sessionEpoch: number
     }) => {
       return runForNotificationSession(sessionEpoch, () => {
+        const isCurrent = () => sessionEpoch === getSessionEpoch()
         const queuedMutation = buildQueuedMutation({
           type: 'markNotificationRead',
           scope: 'notifications',
@@ -100,8 +101,10 @@ export function useMarkNotificationRead() {
           mutation: queuedMutation,
           execute: async () => apiClient<void>(API.notifications.markRead(notificationId), {
             method: 'PUT',
+            isCurrent,
           }),
           queuedResult: createQueuedAck(queuedMutation.id),
+          isCurrent,
         })
       })
     },
@@ -159,6 +162,7 @@ export function useMarkAllNotificationsRead() {
   const mutation = useMutation({
     mutationFn: async ({ sessionEpoch }: { sessionEpoch: number }) => {
       return runForNotificationSession(sessionEpoch, () => {
+        const isCurrent = () => sessionEpoch === getSessionEpoch()
         const queuedMutation = buildQueuedMutation({
           type: 'markAllNotificationsRead',
           scope: 'notifications',
@@ -170,8 +174,9 @@ export function useMarkAllNotificationsRead() {
 
         return queueOrExecute({
           mutation: queuedMutation,
-          execute: async () => apiClient<void>(API.notifications.markAllRead, { method: 'PUT' }),
+          execute: async () => apiClient<void>(API.notifications.markAllRead, { method: 'PUT', isCurrent }),
           queuedResult: createQueuedAck(queuedMutation.id),
+          isCurrent,
         })
       })
     },
@@ -224,6 +229,7 @@ export function useDeleteNotification() {
       sessionEpoch: number
     }) => {
       return runForNotificationSession(sessionEpoch, () => {
+        const isCurrent = () => sessionEpoch === getSessionEpoch()
         const queuedMutation = buildQueuedMutation({
           type: 'deleteNotification',
           scope: 'notifications',
@@ -238,8 +244,10 @@ export function useDeleteNotification() {
           mutation: queuedMutation,
           execute: async () => apiClient<void>(API.notifications.delete(notificationId), {
             method: 'DELETE',
+            isCurrent,
           }),
           queuedResult: createQueuedAck(queuedMutation.id),
+          isCurrent,
         })
       })
     },
@@ -296,6 +304,7 @@ export function useDeleteAllNotifications() {
   const mutation = useMutation({
     mutationFn: async ({ sessionEpoch }: { sessionEpoch: number }) => {
       return runForNotificationSession(sessionEpoch, () => {
+        const isCurrent = () => sessionEpoch === getSessionEpoch()
         const queuedMutation = buildQueuedMutation({
           type: 'deleteAllNotifications',
           scope: 'notifications',
@@ -307,8 +316,9 @@ export function useDeleteAllNotifications() {
 
         return queueOrExecute({
           mutation: queuedMutation,
-          execute: async () => apiClient<void>(API.notifications.deleteAll, { method: 'DELETE' }),
+          execute: async () => apiClient<void>(API.notifications.deleteAll, { method: 'DELETE', isCurrent }),
           queuedResult: createQueuedAck(queuedMutation.id),
+          isCurrent,
         })
       })
     },

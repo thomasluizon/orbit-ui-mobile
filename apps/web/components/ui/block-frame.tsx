@@ -54,7 +54,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className={item.wrapLabel ? 'break-words text-sm font-medium' : 'truncate text-sm font-medium'}>{item.label}</div>
-        {item.meta ? <div className="truncate text-xs text-[var(--fg-3)]">{item.meta}</div> : null}
+        {item.meta ? <div className={`${item.wrapMeta ? 'break-words' : 'truncate'} text-xs text-[var(--fg-3)]`}>{item.meta}</div> : null}
         {item.irreversible && props.irreversibleLabel ? (
           <div className="flex items-center gap-1 text-xs text-[var(--fg-3)] uppercase">
             <ShieldAlert aria-hidden="true" size={20} strokeWidth={1.5} />
