@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 190,
-  "cellCount": 816,
+  "surfaceCount": 191,
+  "cellCount": 820,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -1679,6 +1679,66 @@
       "ownedFiles": [
         "apps/web/app/step-up/page.tsx",
         "apps/web/app/step-up/step-up-screen.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-turnstile-bridge",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/turnstile-bridge/page.tsx",
+      "href": "/turnstile-bridge",
+      "ownedFiles": [
+        "apps/web/app/turnstile-bridge/page.tsx",
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx",
+        "packages/shared/src/i18n/index.ts"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-turnstile-bridge",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/turnstile-bridge/page.tsx",
+      "href": "/turnstile-bridge",
+      "ownedFiles": [
+        "apps/web/app/turnstile-bridge/page.tsx",
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx",
+        "packages/shared/src/i18n/index.ts"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-turnstile-bridge",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/turnstile-bridge/page.tsx",
+      "href": "/turnstile-bridge",
+      "ownedFiles": [
+        "apps/web/app/turnstile-bridge/page.tsx",
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx",
+        "packages/shared/src/i18n/index.ts"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-turnstile-bridge",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/turnstile-bridge/page.tsx",
+      "href": "/turnstile-bridge",
+      "ownedFiles": [
+        "apps/web/app/turnstile-bridge/page.tsx",
+        "apps/web/app/turnstile-bridge/turnstile-bridge.tsx",
+        "packages/shared/src/i18n/index.ts"
       ],
       "state": "default",
       "theme": "dark",

@@ -9,7 +9,7 @@ import {
   type PendingOperationFrame,
   type PendingOperationVerificationProps,
 } from '../chat/pending-operation-card-view'
-import type { PendingOperationCardLabels } from '../chat/pending-operation-card'
+import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from '../chat/pending-operation-card'
 
 const labels: PendingOperationCardLabels = {
   approve: 'Approve', cancel: 'Cancel', confirm: 'Confirm',
@@ -18,6 +18,15 @@ const labels: PendingOperationCardLabels = {
   pendingTitle: 'Pending operation', risk: 'Destructive',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
 }
+
+it('labels the pending operation from its capability and risk', () => {
+  const translated = buildPendingOperationCardLabels(
+    makePendingAgentOperation(),
+    (key) => key,
+  )
+  expect(translated.risk).toBe('chat.operation.risk.destructive')
+  expect(translated.name).toBe('chat.pendingOp.capability.habits-delete')
+})
 
 function createCard(): PendingOperationCardActions {
   return {

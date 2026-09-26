@@ -50,6 +50,14 @@ describe('verify-code BFF route', () => {
     expect(json).not.toHaveProperty('refreshToken')
   })
 
+  it('forwards the widget token unchanged', async () => {
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ token: 'jwt', refreshToken: 'refresh' }), { status: 200 }))
+    const protectedBody = { ...validBody, turnstileToken: 'fresh-token' }
+    await POST(makeRequest(protectedBody))
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:5000/api/auth/verify-code',
+      expect.objectContaining({ body: JSON.stringify(protectedBody) }))
+  })
+
   it('rejects a malformed body with 400 before forwarding', async () => {
     const response = await POST(makeRequest({ email: 'thomas@example.com' }))
 

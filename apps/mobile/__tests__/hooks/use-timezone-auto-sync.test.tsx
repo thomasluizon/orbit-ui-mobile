@@ -1,12 +1,14 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
+import { formatAPIDate } from '@orbit/shared/utils'
 
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 
 const TestRenderer = require('react-test-renderer')
+const originalTimeZone = process.env.TZ
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -76,15 +78,14 @@ function renderHookHarness(profile: Profile | undefined) {
 }
 
 function withDetectedTimezone(zone: string, fn: () => Promise<void>) {
-  const original = Intl.DateTimeFormat
-  vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(
-    () =>
-      ({
-        resolvedOptions: () => ({ timeZone: zone }),
-      }) as Intl.DateTimeFormat,
+  const original = Intl.DateTimeFormat.prototype.resolvedOptions
+  const formatterSpy = vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockImplementation(
+    function (this: Intl.DateTimeFormat) {
+      return { ...original.call(this), timeZone: zone }
+    },
   )
   return fn().finally(() => {
-    Intl.DateTimeFormat = original
+    formatterSpy.mockRestore()
   })
 }
 
@@ -99,6 +100,29 @@ describe('mobile useTimezoneAutoSync', () => {
     mocks.performQueuedApiMutation.mockResolvedValue(undefined)
     mocks.appState.addEventListener.mockClear()
     mocks.appStateListeners.length = 0
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    if (originalTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalTimeZone
+  })
+
+  it('refreshes gamification at account midnight while the device day stays unchanged', async () => {
+    process.env.TZ = 'America/Sao_Paulo'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-11T09:59:59Z'))
+    expect(formatAPIDate(new Date())).toBe('2026-09-11')
+    mocks.state.profile = createMockProfile({ timeZone: 'Pacific/Kiritimati' })
+    await renderHookHarness(mocks.state.profile)
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => vi.advanceTimersByTime(2_000))
+
+    expect(formatAPIDate(new Date())).toBe('2026-09-11')
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: gamificationKeys.all,
+    })
   })
 
   it('queues a timezone update when the account has none', async () => {

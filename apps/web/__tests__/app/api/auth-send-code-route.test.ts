@@ -40,6 +40,14 @@ describe('send-code BFF route', () => {
     )
   })
 
+  it('forwards the widget token unchanged', async () => {
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 }))
+    const protectedBody = { ...validBody, turnstileToken: 'fresh-token' }
+    await POST(makeRequest(protectedBody))
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:5000/api/auth/send-code',
+      expect.objectContaining({ body: JSON.stringify(protectedBody) }))
+  })
+
   it('rejects a malformed body with 400 before forwarding', async () => {
     const response = await POST(makeRequest({ email: 123 }))
 

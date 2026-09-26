@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { gamificationKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
+import { formatAPIDateInTimeZone, millisecondsUntilNextDay } from '@orbit/shared/utils'
 import { isQueuedResult, performQueuedApiMutation } from '@/lib/queued-api-mutation'
 
 async function queueTimezoneSyncIfNeeded(
@@ -36,6 +37,36 @@ async function queueTimezoneSyncIfNeeded(
 
 export function useTimezoneAutoSync(profile: Profile | undefined) {
   const queryClient = useQueryClient()
+  const timeZone = profile?.timeZone
+
+  useEffect(() => {
+    if (timeZone === undefined) return
+    let accountDay = formatAPIDateInTimeZone(new Date(), timeZone)
+    let rolloverTimer: ReturnType<typeof globalThis.setTimeout>
+    const checkAccountDay = () => {
+      const nextDay = formatAPIDateInTimeZone(new Date(), timeZone)
+      if (nextDay === accountDay) return
+      accountDay = nextDay
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    }
+    const scheduleRollover = () => {
+      globalThis.clearTimeout(rolloverTimer)
+      rolloverTimer = globalThis.setTimeout(() => {
+        checkAccountDay()
+        scheduleRollover()
+      }, millisecondsUntilNextDay(new Date(), timeZone))
+    }
+    scheduleRollover()
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return
+      checkAccountDay()
+      scheduleRollover()
+    })
+    return () => {
+      globalThis.clearTimeout(rolloverTimer)
+      subscription.remove()
+    }
+  }, [queryClient, timeZone])
 
   useEffect(() => {
     const checkAndSync = () => {

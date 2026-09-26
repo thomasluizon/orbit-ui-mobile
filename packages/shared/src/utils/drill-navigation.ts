@@ -24,9 +24,10 @@ export interface NormalizedDrillDetail {
 export async function loadDrillChildren(
   habitId: string,
   fetchHabitDetail: (habitId: string) => Promise<HabitDetail>,
+  today = formatAPIDate(new Date()),
 ): Promise<NormalizedDrillDetail> {
   const detail = await fetchHabitDetail(habitId)
-  return normalizeHabitDetailForDrill(detail, formatAPIDate(new Date()))
+  return normalizeHabitDetailForDrill(detail, today)
 }
 
 /**

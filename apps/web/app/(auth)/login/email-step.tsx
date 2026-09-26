@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import type { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -11,6 +12,8 @@ interface EmailStepProps {
   isSubmitting: boolean
   isGoogleLoading: boolean
   isOnline: boolean
+  canSubmitTurnstile: boolean
+  turnstileWidget: ReactNode
   errorKey: string | null
   errorMessage: string | null
   onSendCode: () => void
@@ -20,7 +23,7 @@ interface EmailStepProps {
 }
 
 export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isOnline,
-  errorKey, errorMessage, onSendCode, onSignInWithGoogle, t, sendCodeLabel }: Readonly<EmailStepProps>) {
+  canSubmitTurnstile, turnstileWidget, errorKey, errorMessage, onSendCode, onSignInWithGoogle, t, sendCodeLabel }: Readonly<EmailStepProps>) {
   const fieldError = isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
   const googleError = isOnline && errorKey === 'auth.errors.googleError' ? errorMessage : null
   const sendError = isOnline && errorMessage && !fieldError && !googleError ? errorMessage : null
@@ -30,10 +33,11 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
         <Input label={t('auth.email')} value={email} onChange={onEmailChange} kind="email" name="email" focusRequest={emailFocusRequest}
           autoComplete="email" placeholder={t('auth.emailPlaceholder')}
           disabled={isSubmitting || isGoogleLoading} error={fieldError ?? undefined} />
+        {turnstileWidget}
         <div className="flex flex-col gap-3">
           {!isOnline && <LoginOfflineNotice t={t} />}
           {sendError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{sendError}</p>}
-          <PillButton disabled={isSubmitting || isGoogleLoading || !email.trim() || !isOnline} loading={isSubmitting}>
+          <PillButton disabled={isSubmitting || isGoogleLoading || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
             {sendCodeLabel ?? t('auth.sendCode')}
           </PillButton>
         </div>

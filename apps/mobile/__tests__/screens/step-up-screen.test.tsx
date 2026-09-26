@@ -7,6 +7,7 @@ import {
 } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
 import StepUpScreen from '@/app/step-up'
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -41,6 +42,8 @@ const mocks = vi.hoisted(() => ({
   },
   readTiming: vi.fn(),
   router: { replace: vi.fn() },
+  sessionPhase: 'signed-in',
+  userId: 'user-1',
 }))
 
 vi.mock('expo-router', () => ({
@@ -59,8 +62,11 @@ vi.mock('@/hooks/use-date-format', () => ({
 }))
 vi.mock('@/hooks/use-logout', () => ({ useLogout: () => mocks.logout }))
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: unknown) => unknown) =>
-    selector({ user: { email: 'session@example.com', userId: 'user-1' } }),
+  useAuthStore: Object.assign(
+    (selector: (state: unknown) => unknown) =>
+      selector({ sessionPhase: mocks.sessionPhase, user: { email: 'session@example.com', userId: mocks.userId } }),
+    { getState: () => ({ sessionPhase: mocks.sessionPhase, user: { email: 'session@example.com', userId: mocks.userId } }) },
+  ),
 }))
 vi.mock('@/lib/api-client', () => ({
   apiClient: (...args: unknown[]) => mocks.apiClient(...args),
@@ -106,6 +112,24 @@ function liveRecord(offset = 0): StepUpTimingRecord {
 
 function backendError(errorCode: string, error: string) {
   return { data: { error, errorCode } }
+}
+
+function deferred<Value>() {
+  let resolve!: (value: Value) => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<Value>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
+async function replaceAccount() {
+  await TestRenderer.act(async () => {
+    mocks.userId = 'user-2'
+    advanceAccountGeneration()
+    await Promise.resolve()
+  })
 }
 
 async function renderScreen(record: StepUpTimingRecord = liveRecord()) {
@@ -165,6 +189,8 @@ async function confirm(tree: TestTree) {
 describe('mobile step up screen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.sessionPhase = 'signed-in'
+    mocks.userId = 'user-1'
     mocks.operation = 'delete'
     mocks.profile.email = 'person@example.com'
     mocks.profile.hasProAccess = false
@@ -205,6 +231,250 @@ describe('mobile step up screen', () => {
     expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
     await enterCode(tree)
     expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(false)
+  })
+
+  it('drops a typed code and disables confirm after the account changes', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(false)
+
+    await TestRenderer.act(async () => {
+      mocks.userId = 'user-2'
+      advanceAccountGeneration()
+      await Promise.resolve()
+    })
+
+    expect(findInput(tree.root).props.value).toBe('')
+    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
+  })
+
+  it('drops the previous account deletion date after the account changes', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+    await confirm(tree)
+    expect(findText(tree.root, 'local:2026-09-04T03:00:00Z').length).toBeGreaterThan(0)
+
+    await TestRenderer.act(async () => {
+      mocks.userId = 'user-2'
+      advanceAccountGeneration()
+      await Promise.resolve()
+    })
+
+    expect(findText(tree.root, 'local:2026-09-04T03:00:00Z')).toHaveLength(0)
+    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
+  })
+
+  it('keeps typed code when the session changes without an account change', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+
+    await TestRenderer.act(async () => {
+      advanceSessionEpoch()
+      await Promise.resolve()
+    })
+
+    expect(findInput(tree.root).props.value).toBe('123456')
+  })
+
+  it('discards a pending key confirmation after the account changes', async () => {
+    mocks.operation = 'keys'
+    let resolveConfirmation: ((value: { message: string }) => void) | undefined
+    mocks.apiClient.mockReturnValue(new Promise((resolve) => {
+      resolveConfirmation = resolve
+    }))
+    const tree = await renderScreen({ operation: 'keys', sentAt: Date.now() })
+    await enterCode(tree)
+    await confirm(tree)
+
+    await TestRenderer.act(async () => {
+      mocks.userId = 'user-2'
+      advanceAccountGeneration()
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      resolveConfirmation?.({ message: 'confirmed' })
+      await Promise.resolve()
+    })
+
+    expect(mocks.markVerified).not.toHaveBeenCalled()
+    expect(mocks.router.replace).not.toHaveBeenCalled()
+    expect(findInput(tree.root).props.value).toBe('')
+  })
+
+  it('discards a pending key confirmation when login starts before identity changes', async () => {
+    mocks.operation = 'keys'
+    let resolveConfirmation: ((value: { message: string }) => void) | undefined
+    mocks.apiClient.mockReturnValue(new Promise((resolve) => {
+      resolveConfirmation = resolve
+    }))
+    const tree = await renderScreen({ operation: 'keys', sentAt: Date.now() })
+    await enterCode(tree)
+    await confirm(tree)
+
+    mocks.sessionPhase = 'establishing'
+    await TestRenderer.act(async () => {
+      resolveConfirmation?.({ message: 'confirmed' })
+      await Promise.resolve()
+    })
+
+    expect(mocks.markVerified).not.toHaveBeenCalled()
+    expect(mocks.router.replace).not.toHaveBeenCalled()
+  })
+
+  it.each(['delete', 'keys'] as const)(
+    'stops a pending %s confirmation before clearing old account timing',
+    async (operation) => {
+      mocks.operation = operation
+      const response = deferred<{ message: string; scheduledDeletionAt: string }>()
+      mocks.apiClient.mockReturnValue(response.promise)
+      const tree = await renderScreen({ operation, sentAt: Date.now() })
+      await enterCode(tree)
+      await confirm(tree)
+
+      await replaceAccount()
+      await TestRenderer.act(async () => {
+        response.resolve({ message: 'confirmed', scheduledDeletionAt: '2026-09-04T03:00:00Z' })
+        await response.promise
+      })
+
+      expect(mocks.clearTiming).not.toHaveBeenCalled()
+      expect(mocks.markVerified).not.toHaveBeenCalled()
+      expect(mocks.router.replace).not.toHaveBeenCalled()
+      expect(findText(tree.root, 'local:2026-09-04T03:00:00Z')).toHaveLength(0)
+    },
+  )
+
+  it.each(['delete', 'keys'] as const)(
+    'stops a pending %s confirmation after clearing old account timing',
+    async (operation) => {
+      mocks.operation = operation
+      const clearing = deferred<void>()
+      mocks.clearTiming.mockReturnValue(clearing.promise)
+      const tree = await renderScreen({ operation, sentAt: Date.now() })
+      await enterCode(tree)
+      await confirm(tree)
+      expect(mocks.clearTiming).toHaveBeenCalledWith(operation, 'user-1')
+
+      await replaceAccount()
+      await TestRenderer.act(async () => {
+        clearing.resolve()
+        await clearing.promise
+      })
+
+      expect(mocks.markVerified).not.toHaveBeenCalled()
+      expect(mocks.router.replace).not.toHaveBeenCalled()
+      expect(findText(tree.root, 'local:2026-09-04T03:00:00Z')).toHaveLength(0)
+    },
+  )
+
+  it.each(['delete', 'keys'] as const)(
+    'ignores a failed %s confirmation after account replacement',
+    async (operation) => {
+      mocks.operation = operation
+      const response = deferred<never>()
+      mocks.apiClient.mockReturnValue(response.promise)
+      const tree = await renderScreen({ operation, sentAt: Date.now() })
+      await enterCode(tree)
+      await confirm(tree)
+
+      await replaceAccount()
+      await TestRenderer.act(async () => {
+        response.reject(backendError('INVALID_VERIFICATION_CODE', 'Invalid code'))
+        await response.promise.catch(() => undefined)
+      })
+
+      expect(mocks.markAttemptFailed).not.toHaveBeenCalled()
+      expect(findText(tree.root, 'stepUp.wrong')).toHaveLength(0)
+      expect(findText(tree.root, 'stepUp.genericError')).toHaveLength(0)
+    },
+  )
+
+  it('stops a pending resend before writing old account timing', async () => {
+    const response = deferred<{ message: string }>()
+    mocks.apiClient.mockReturnValue(response.promise)
+    const tree = await renderScreen(liveRecord(60_000))
+    await TestRenderer.act(async () => {
+      ;(findButton(tree.root, 'stepUp.resend').props.onPress as () => void)()
+      await Promise.resolve()
+    })
+
+    await replaceAccount()
+    await TestRenderer.act(async () => {
+      response.resolve({ message: 'sent' })
+      await response.promise
+    })
+
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
+    expect(findInput(tree.root).props.value).toBe('')
+  })
+
+  it('stops a pending resend after writing old account timing', async () => {
+    const beginning = deferred<StepUpTimingRecord>()
+    mocks.beginChallenge.mockReturnValue(beginning.promise)
+    const tree = await renderScreen(liveRecord(60_000))
+    await TestRenderer.act(async () => {
+      ;(findButton(tree.root, 'stepUp.resend').props.onPress as () => void)()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(mocks.beginChallenge).toHaveBeenCalledWith('delete', 'user-1')
+
+    await replaceAccount()
+    await TestRenderer.act(async () => {
+      beginning.resolve(liveRecord())
+      await beginning.promise
+    })
+
+    expect(findButton(tree.root, 'stepUp.resend').props.disabled).not.toBe(true)
+    expect(findText(tree.root, 'stepUp.cooldown')).toHaveLength(0)
+  })
+
+  it('ignores a failed resend after account replacement', async () => {
+    const response = deferred<never>()
+    mocks.apiClient.mockReturnValue(response.promise)
+    const tree = await renderScreen(liveRecord(60_000))
+    await TestRenderer.act(async () => {
+      ;(findButton(tree.root, 'stepUp.resend').props.onPress as () => void)()
+      await Promise.resolve()
+    })
+
+    await replaceAccount()
+    await TestRenderer.act(async () => {
+      response.reject(new Error('Network unavailable'))
+      await response.promise.catch(() => undefined)
+    })
+
+    expect(findText(tree.root, 'stepUp.requestError')).toHaveLength(0)
+    expect(findButton(tree.root, 'stepUp.resend').props.disabled).not.toBe(true)
+  })
+
+  it('does not start an old confirmation when login begins', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+    const press = findButton(tree.root, 'stepUp.confirm').props.onPress as () => void
+    mocks.sessionPhase = 'establishing'
+
+    await TestRenderer.act(async () => {
+      press()
+      await Promise.resolve()
+    })
+
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.clearTiming).not.toHaveBeenCalled()
+  })
+
+  it('does not start an old resend when login begins', async () => {
+    const tree = await renderScreen(liveRecord(60_000))
+    const press = findButton(tree.root, 'stepUp.resend').props.onPress as () => void
+    mocks.sessionPhase = 'establishing'
+
+    await TestRenderer.act(async () => {
+      press()
+      await Promise.resolve()
+    })
+
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })
 
   it('blocks editing and exposes the confirm loading state while checking', async () => {

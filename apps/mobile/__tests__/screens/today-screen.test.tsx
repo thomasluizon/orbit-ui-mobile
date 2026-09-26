@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   clearSelection: vi.fn(),
   composerEnabled: [] as boolean[],
   astraOwnership: [] as boolean[],
+  profileReady: true,
   date: {
     today: '2026-04-08',
     selectedDate: new Date('2026-04-08T00:00:00'),
@@ -33,6 +34,10 @@ const mocks = vi.hoisted(() => ({
     goToToday: vi.fn(),
     goToNextDay: vi.fn(),
   },
+}))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: 'UTC' } : undefined }),
 }))
 
 vi.mock('expo-router', () => ({
@@ -228,6 +233,7 @@ describe('Hoje date boundaries', () => {
     mocks.focusCallback = null
     mocks.composerEnabled.length = 0
     mocks.astraOwnership.length = 0
+    mocks.profileReady = true
     asyncStorageState.values.clear()
     useUIStore.setState({
       isSelectMode: false,
@@ -237,6 +243,16 @@ describe('Hoje date boundaries', () => {
     mocks.date.selectedDate = new Date('2026-04-08T00:00:00')
     mocks.date.dateStr = '2026-04-08'
     mocks.date.nextDisabled = false
+  })
+
+  it('withholds Today actions until the account day is known', async () => {
+    mocks.profileReady = false
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<TodayScreen />) })
+    expect(tree.root.findAll((node) => String(node.type) === 'PendingRing')).toHaveLength(0)
+    mocks.profileReady = true
+    await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+    expect(tree.root.findAll((node) => String(node.type) === 'PendingRing')).toHaveLength(1)
   })
 
   it('keeps seven days back loggable and marks the next day read only', () => {

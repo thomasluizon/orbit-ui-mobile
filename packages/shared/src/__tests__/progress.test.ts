@@ -10,6 +10,9 @@ import {
   getGamificationLevelTitleKey,
   getStreakRepairErrorMessageKey,
   visibleProgressAchievements,
+  getProgressGoalLabelKey,
+  formatStreakDate,
+  formatStreakRepairDates,
 } from '../utils/progress'
 
 function goal(id: string, status: Goal['status'], position: number): Goal {
@@ -46,6 +49,15 @@ function achievement(id: string, category: string): Achievement {
 
 describe('progress surface models', () => {
   const goals = [goal('a', 'Active', 0), goal('b', 'Completed', 1), goal('c', 'Abandoned', 2)]
+
+  it('names completed and abandoned goals and formats repair dates for the locale', () => {
+    expect(getProgressGoalLabelKey(goals[1]!)).toBe('goals.status.completed')
+    expect(getProgressGoalLabelKey(goals[2]!)).toBe('goals.status.abandoned')
+    expect(getProgressGoalLabelKey({ ...goals[0]!, progressPercentage: 100 })).toBe('progressScreen.goals.targetReached')
+    const first = formatStreakDate('2026-08-27', 'en-US')
+    const second = formatStreakDate('2026-08-28', 'en-US')
+    expect(formatStreakRepairDates(['2026-08-27', '2026-08-28'], 'en-US')).toBe(`${first} and ${second}`)
+  })
 
   it('filters one list into the four decided views', () => {
     expect(filterProgressGoals(goals, 'all')).toHaveLength(3)

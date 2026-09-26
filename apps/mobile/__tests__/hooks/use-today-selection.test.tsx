@@ -36,6 +36,10 @@ vi.mock('@/hooks/use-bulk-actions', () => ({
   },
 }))
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { timeZone: 'UTC' } }),
+}))
+
 function asMockBackHandler(handler: unknown): { emitBackPress: () => boolean } {
   return handler as { emitBackPress: () => boolean }
 }

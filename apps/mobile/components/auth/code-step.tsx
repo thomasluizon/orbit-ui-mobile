@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import type { ReactNode } from 'react'
 import { Animated, BackHandler, Text, View } from 'react-native'
 import { formatLoginCountdown, type LoginCodeFailure } from '@orbit/shared/utils'
 import { type AppTokensV2, easings } from '@/lib/theme'
@@ -22,6 +23,8 @@ interface CodeStepProps {
   errorSignal: string | null
   successMessage: string | null
   isOnline: boolean
+  canSubmitTurnstile: boolean
+  turnstileWidget: ReactNode
   onVerifyCode: () => void
   onResendCode: () => void
   onBackToEmail: () => void
@@ -32,7 +35,7 @@ interface CodeStepProps {
 
 export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isResending, canResend, resendCountdown,
   lockCountdown, codeFailure, errorSignal, successMessage, isOnline, onVerifyCode, onResendCode,
-  onBackToEmail, tokens, styles, t }: Readonly<CodeStepProps>) {
+  onBackToEmail, canSubmitTurnstile, turnstileWidget, tokens, styles, t }: Readonly<CodeStepProps>) {
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onBackToEmail(); return true })
     return () => subscription.remove()
@@ -67,12 +70,13 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isRese
         error={fieldError} hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
         disabled={isSubmitting || expired || waiting} />
     </Animated.View>
+    {turnstileWidget}
     {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
-    {!waiting && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6}
+    {!waiting && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6 || !canSubmitTurnstile}
       loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
     {!waiting && <View style={styles.titleBlock}>
       {canResend || expired ? <View style={styles.quietAction}>
-        <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting} loading={isResending}>{t('auth.resendCode')}</PillButton>
+        <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting || !canSubmitTurnstile} loading={isResending}>{t('auth.resendCode')}</PillButton>
       </View> : <Text style={styles.mono}>{t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}</Text>}
     </View>}
     {locked && <View style={styles.titleBlock}>
