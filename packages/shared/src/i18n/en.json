@@ -1298,6 +1298,30 @@
       "more": "Show more",
       "open": { "notifications": "Open Alerts", "tags": "Open Tags", "templates": "Open Templates", "keys": "Open Profile" }
     },
+    "account": {
+      "title": { "profile": "Your profile", "plan": "Your plan", "referral": "Your referral" },
+      "row": {
+        "name": "Name", "email": "Email", "language": "Language", "timeZone": "Time zone",
+        "weekStartDay": "Week starts", "themePreference": "Theme", "aiSummary": "Daily summary",
+        "plan": "Plan", "trialEnd": "Trial ends", "planExpiry": "Plan ends", "interval": "Interval",
+        "source": "Provider", "lifetime": "Lifetime access", "astraAllowance": "Astra messages used",
+        "successfulReferrals": "Successful referrals", "pendingReferrals": "Pending referrals",
+        "maxReferrals": "Referral limit", "rewardType": "Reward", "discountPercent": "Discount"
+      },
+      "value": {
+        "language": { "en": "English", "pt-BR": "Português (Brasil)" },
+        "weekStartDay": { "0": "Sunday", "1": "Monday" },
+        "themePreference": { "dark": "Dark", "light": "Light" },
+        "plan": { "Free": "Free", "Pro": "Pro" },
+        "interval": { "monthly": "Monthly", "yearly": "Yearly" },
+        "source": { "stripe": "Stripe", "play": "Google Play" },
+        "rewardType": { "discount": "Discount" }
+      },
+      "yes": "Yes", "no": "No", "notSet": "Not set", "unknown": "Unknown",
+      "code": "Referral code", "copy": "Copy", "copied": "Copied", "share": "Share",
+      "copyError": "Couldn't copy the code. Try again.", "shareError": "Couldn't share the link. Try again.",
+      "open": "Open Profile"
+    },
     "preview": {
       "proposed": "Proposed by Astra",
       "editItem": "Edit item",

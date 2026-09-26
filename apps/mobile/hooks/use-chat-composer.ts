@@ -473,6 +473,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         streakCard: response.streakCard,
         calendarCard: response.calendarCard,
         recordList: response.recordList,
+        accountRows: response.accountRows,
       };
       if (draftMessageId) {
         updateMessage(draftMessageId, finalFields);
@@ -557,6 +558,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         supportsStreakCard: true,
         supportsCalendarCard: true,
         supportsRecordListCard: true,
+        supportsAccountRowsCard: true,
         ...(entryPointIntent ? { entryPointIntent } : {}),
       } satisfies ChatClientContext;
       formData.append("clientContext", JSON.stringify(clientContext));

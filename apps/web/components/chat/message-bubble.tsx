@@ -24,6 +24,7 @@ import { DaySummaryCard } from './day-summary-card'
 import { StreakCard } from './streak-card'
 import { CalendarCard } from './calendar-card'
 import { RecordListCard } from './record-list-card'
+import { AccountRowsCard } from './account-rows-card'
 import { PendingOperationCard } from './pending-operation-card'
 import { OperationOutcomes } from './operation-outcomes'
 
@@ -37,6 +38,7 @@ function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBub
       {message.streakCard ? <StreakCard streakCard={message.streakCard} /> : null}
       {message.calendarCard ? <CalendarCard calendarCard={message.calendarCard} /> : null}
       {message.recordList ? <RecordListCard recordList={message.recordList} /> : null}
+      {message.accountRows ? <AccountRowsCard accountRows={message.accountRows} /> : null}
     </>
   )
 }

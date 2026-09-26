@@ -23,6 +23,7 @@ import { DaySummaryCard } from "@/components/chat/day-summary-card";
 import { StreakCard } from "@/components/chat/streak-card";
 import { CalendarCard } from "@/components/chat/calendar-card";
 import { RecordListCard } from "@/components/chat/record-list-card";
+import { AccountRowsCard } from "@/components/chat/account-rows-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { OperationOutcomes } from "@/components/chat/operation-outcomes";
 import { Markdown } from "@/components/ui/markdown";
@@ -87,6 +88,7 @@ function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBub
       {message.streakCard ? <StreakCard streakCard={message.streakCard} /> : null}
       {message.calendarCard ? <CalendarCard calendarCard={message.calendarCard} /> : null}
       {message.recordList ? <RecordListCard recordList={message.recordList} /> : null}
+      {message.accountRows ? <AccountRowsCard accountRows={message.accountRows} /> : null}
     </>
   )
 }

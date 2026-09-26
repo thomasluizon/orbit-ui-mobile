@@ -300,6 +300,20 @@ export const recordListCardSchema = z.object({
 
 export type RecordListCard = z.infer<typeof recordListCardSchema>
 
+export const accountRowsCardSchema = z.object({
+  kind: z.enum(['profile', 'plan', 'referral']),
+  rows: z.array(z.object({
+    key: z.string(),
+    value: z.string().nullable(),
+    valueType: z.enum(['text', 'date', 'enum', 'boolean', 'count']),
+  })),
+  referralCode: z.string().nullable().optional(),
+  referralLink: z.string().nullable().optional(),
+  surfaceId: z.string(),
+})
+
+export type AccountRowsCard = z.infer<typeof accountRowsCardSchema>
+
 export const chatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'ai']),
@@ -319,6 +333,7 @@ export const chatMessageSchema = z.object({
   streakCard: streakCardSchema.nullable().optional(),
   calendarCard: calendarCardSchema.nullable().optional(),
   recordList: recordListCardSchema.nullable().optional(),
+  accountRows: accountRowsCardSchema.nullable().optional(),
   timestamp: z.date(),
 })
 
@@ -340,6 +355,7 @@ export const chatResponseSchema = z.object({
   streakCard: streakCardSchema.nullable().optional(),
   calendarCard: calendarCardSchema.nullable().optional(),
   recordList: recordListCardSchema.nullable().optional(),
+  accountRows: accountRowsCardSchema.nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

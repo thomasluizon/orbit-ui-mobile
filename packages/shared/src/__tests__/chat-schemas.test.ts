@@ -82,6 +82,16 @@ describe('chatStreamEventSchema discriminatedUnion', () => {
     expect(parsed.response).toHaveProperty('recordList.nextCursor', 'cursor')
     expect(parsed.response).toHaveProperty('recordList.items.0.isRead', false)
   })
+
+  it('keeps account rows and the referral code', () => {
+    const parsed = chatStreamEventSchema.parse({ type: 'final', response: { actions: [], accountRows: {
+      kind: 'referral', rows: [{ key: 'successfulReferrals', value: '1', valueType: 'count' }],
+      referralCode: 'ORBIT123', referralLink: 'https://example.com/r/ORBIT123', surfaceId: 'profile',
+    } } })
+    expect(parsed.type).toBe('final')
+    if (parsed.type !== 'final') return
+    expect(parsed.response).toHaveProperty('accountRows.referralCode', 'ORBIT123')
+  })
   it('parses the payload-less started and reset variants to their member', () => {
     expect(chatStreamEventSchema.parse({ type: 'started' }).type).toBe('started')
     expect(chatStreamEventSchema.parse({ type: 'reset' }).type).toBe('reset')

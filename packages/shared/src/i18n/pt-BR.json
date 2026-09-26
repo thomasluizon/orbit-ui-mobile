@@ -1298,6 +1298,30 @@
       "more": "Mostrar mais",
       "open": { "notifications": "Abrir Avisos", "tags": "Abrir Etiquetas", "templates": "Abrir Modelos", "keys": "Abrir Perfil" }
     },
+    "account": {
+      "title": { "profile": "Seu perfil", "plan": "Seu plano", "referral": "Sua indicação" },
+      "row": {
+        "name": "Nome", "email": "Email", "language": "Idioma", "timeZone": "Fuso horário",
+        "weekStartDay": "Início da semana", "themePreference": "Tema", "aiSummary": "Resumo diário",
+        "plan": "Plano", "trialEnd": "Fim do teste", "planExpiry": "Fim do plano", "interval": "Intervalo",
+        "source": "Provedor", "lifetime": "Acesso vitalício", "astraAllowance": "Mensagens Astra usadas",
+        "successfulReferrals": "Indicações concluídas", "pendingReferrals": "Indicações pendentes",
+        "maxReferrals": "Limite de indicações", "rewardType": "Recompensa", "discountPercent": "Desconto"
+      },
+      "value": {
+        "language": { "en": "Inglês", "pt-BR": "Português (Brasil)" },
+        "weekStartDay": { "0": "Domingo", "1": "Segunda-feira" },
+        "themePreference": { "dark": "Escuro", "light": "Claro" },
+        "plan": { "Free": "Grátis", "Pro": "Pro" },
+        "interval": { "monthly": "Mensal", "yearly": "Anual" },
+        "source": { "stripe": "Stripe", "play": "Google Play" },
+        "rewardType": { "discount": "Desconto" }
+      },
+      "yes": "Sim", "no": "Não", "notSet": "Não definido", "unknown": "Desconhecido",
+      "code": "Código de indicação", "copy": "Copiar", "copied": "Copiado", "share": "Compartilhar",
+      "copyError": "Não foi possível copiar o código. Tente de novo.", "shareError": "Não foi possível compartilhar o link. Tente de novo.",
+      "open": "Abrir Perfil"
+    },
     "preview": {
       "proposed": "Proposto pelo Astra",
       "editItem": "Editar item",
