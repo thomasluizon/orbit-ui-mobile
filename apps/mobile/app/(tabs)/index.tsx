@@ -24,6 +24,10 @@ import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { TodayAstra } from '@/components/today/today-astra'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { useTodayMotion } from './use-today-motion'
+import { useProfile } from '@/hooks/use-profile'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 function getBoundaryMessageKey(
   boundary: ReturnType<typeof getTodayBoundary>,
@@ -35,6 +39,22 @@ function getBoundaryMessageKey(
 }
 
 export default function TodayScreen() {
+  const { t } = useTranslation()
+  const { profile, isError, refetch } = useProfile()
+  if (!profile) {
+    return isError
+      ? <ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} />
+      : <View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
+          <Skeleton variant="settings" grouped />
+          <Skeleton variant="habit-row" grouped />
+          <Skeleton variant="habit-row" grouped />
+          <Skeleton variant="habit-row" grouped />
+        </View>
+  }
+  return <TodayScreenContent />
+}
+
+function TodayScreenContent() {
   const { t } = useTranslation()
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -242,6 +262,7 @@ export default function TodayScreen() {
 
 const styles = StyleSheet.create({
   screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
+  profileLoading: { gap: 16, padding: 16 },
   listBand: { flex: 1 },
   header: { gap: 24, paddingBottom: 24 },
   notice: { paddingHorizontal: 0 },

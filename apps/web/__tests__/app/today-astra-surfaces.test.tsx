@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   reducedMotion: false,
   motionSets: [] as number[],
   lastCompletionDate: undefined as string | null | undefined,
+  profileReady: true,
   view: {
     isSelectMode: false,
     showCreateModal: false,
@@ -55,7 +56,7 @@ vi.mock('next-intl', () => ({
     values ? `${key}:${values.days}` : key,
 }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { timeZone: 'UTC', lastCompletionDate: mocks.lastCompletionDate } }),
+  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: 'UTC', lastCompletionDate: mocks.lastCompletionDate } : undefined }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: [] }),
@@ -115,10 +116,20 @@ describe('web Today Astra owned surfaces', () => {
     mocks.view.data.showLoadError = false
     mocks.view.data.habitsCount = 1
     mocks.lastCompletionDate = undefined
+    mocks.profileReady = true
     mocks.view.nav.dateStr = '2026-08-29'
     mocks.animate.mockClear()
     mocks.reducedMotion = false
     mocks.motionSets.length = 0
+  })
+
+  it('withholds Today actions until the account day is known', () => {
+    mocks.profileReady = false
+    const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.queryByTestId('today-habit-list')).not.toBeInTheDocument()
+    mocks.profileReady = true
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(screen.getByTestId('today-habit-list')).toBeInTheDocument()
   })
 
   it('stands down while the create surface is open', () => {

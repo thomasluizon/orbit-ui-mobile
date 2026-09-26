@@ -112,6 +112,22 @@ describe('useDrillNavigation', () => {
     mockFetch.mockReset()
   })
 
+  it('keeps a fetched overdue child on account Today when device Today differs', async () => {
+    const today = '2025-01-15'
+    const detail = makeDetailResponse()
+    detail.children = [{ ...detail.children[0]!, dueDate: '2025-01-14', isOverdue: true }]
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(detail) })
+    const options = {
+      habitsById, childrenByParent: new Map([['parent1', ['child1']]]),
+      selectedDate: today, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0, options, 'today', today))
+    await act(async () => { await result.current.drillInto('parent1') })
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['child1'])
+  })
+
   it('hides completed one-time and logged recurring children until Show completed is enabled', async () => {
     const date = '2025-01-15'
     const detail = makeDetailResponse()

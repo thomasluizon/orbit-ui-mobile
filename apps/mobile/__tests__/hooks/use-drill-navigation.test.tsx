@@ -76,6 +76,7 @@ function renderDrill(
   habitsById: Map<string, NormalizedHabit> = new Map(),
   lastUpdated = 1,
   visibilityOptions?: HabitVisibilityOptions,
+  today?: string,
 ): DrillHarness {
   const holder = { current: null as unknown as DrillNavigationState }
   function Harness({
@@ -83,7 +84,7 @@ function renderDrill(
     lastUpdated: updated,
     visibilityOptions: options,
   }: Readonly<{ habitsById: Map<string, NormalizedHabit>; lastUpdated: number; visibilityOptions?: HabitVisibilityOptions }>) {
-    holder.current = useDrillNavigation(byId, updated, options, 'today')
+    holder.current = useDrillNavigation(byId, updated, options, 'today', today)
     return null
   }
   let root: { update: (element: React.ReactElement) => void } | null = null
@@ -111,6 +112,22 @@ async function actAsync(callback: () => Promise<void>): Promise<void> {
 describe('mobile useDrillNavigation', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
+  })
+
+  it('keeps a fetched overdue child on account Today when device Today differs', async () => {
+    const today = '2026-07-13'
+    mocks.apiClient.mockResolvedValue(makeDetail({
+      children: [makeChild({ dueDate: '2026-07-12', isOverdue: true })],
+    }))
+    const byId = new Map<string, NormalizedHabit>()
+    const options = {
+      habitsById: byId, childrenByParent: new Map([['p1', ['child']]]),
+      selectedDate: today, searchQuery: '', showCompleted: false,
+      recentlyCompletedIds: new Set<string>(),
+    }
+    const { holder } = renderDrill(byId, 1, options, today)
+    await actAsync(() => holder.current.drillInto('p1'))
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['child'])
   })
 
   it('hides completed drill children until Show completed is enabled', async () => {

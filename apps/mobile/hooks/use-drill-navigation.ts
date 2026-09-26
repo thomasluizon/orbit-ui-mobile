@@ -35,6 +35,7 @@ export function useDrillNavigation(
   lastUpdated: number,
   visibilityOptions?: HabitVisibilityOptions,
   view: HabitVisibilityView = 'all',
+  todayStr = formatAPIDate(new Date()),
 ): DrillNavigationState {
   const { t } = useTranslation()
   const [drillStack, setDrillStack] = useState<string[]>([])
@@ -61,20 +62,20 @@ export function useDrillNavigation(
   const drillChildren = useMemo(
     () => currentParentId
       ? visibilityOptions
-        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+        ? getVisibleDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, todayStr)
         : drillChildrenMap.get(currentParentId) ?? []
       : [],
-    [currentParentId, drillChildrenMap, visibilityOptions, view],
+    [currentParentId, drillChildrenMap, visibilityOptions, view, todayStr],
   )
   const hasUnfilteredChildren = currentParentId
     ? (drillChildrenMap.get(currentParentId)?.length ?? 0) > 0
     : false
   const canRevealCompletedChildren = currentParentId !== null && drillChildren.length === 0 && visibilityOptions
-    ? canRevealCompletedDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+    ? canRevealCompletedDrillChildren(currentParentId, drillChildrenMap, visibilityOptions, view, todayStr)
     : false
   const completedCount = countCompletedDrillChildren(
     drillChildren,
-    visibilityOptions?.selectedDate || formatAPIDate(new Date()),
+    visibilityOptions?.selectedDate || todayStr,
     visibilityOptions?.recentlyCompletedDates,
   )
 
@@ -87,8 +88,7 @@ export function useDrillNavigation(
       if (showFeedback) setDrillLoading(true)
       try {
         const detail = await fetchHabitDetail(habitId)
-        const today = formatAPIDate(new Date())
-        const normalized = normalizeHabitDetailForDrill(detail, today)
+        const normalized = normalizeHabitDetailForDrill(detail, todayStr)
         if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
         setDrillParentInfo(normalized.parent)
 
@@ -111,7 +111,7 @@ export function useDrillNavigation(
         }
       }
     },
-    [t],
+    [t, todayStr],
   )
 
   const drillInto = useCallback(
@@ -155,10 +155,10 @@ export function useDrillNavigation(
   const getDrillChildren = useCallback(
     (parentId: string): NormalizedHabit[] => {
       return visibilityOptions
-        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view, formatAPIDate(new Date()))
+        ? getVisibleDrillChildren(parentId, drillChildrenMap, visibilityOptions, view, todayStr)
         : drillChildrenMap.get(parentId) ?? []
     },
-    [drillChildrenMap, visibilityOptions, view],
+    [drillChildrenMap, visibilityOptions, view, todayStr],
   )
 
   const lastUpdatedRef = useRef(lastUpdated)

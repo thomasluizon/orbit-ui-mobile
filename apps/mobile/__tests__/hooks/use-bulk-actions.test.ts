@@ -43,6 +43,7 @@ function renderBulkActions(
   completionReadOnly = false,
   habitsById = new Map<string, NormalizedHabit>(),
   onReadOnlyCommit?: () => void,
+  accountTimeZone?: string,
 ) {
   let currentCompletionReadOnly = completionReadOnly
   const onSuccess = vi.fn()
@@ -57,6 +58,7 @@ function renderBulkActions(
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
       completionReadOnly: currentCompletionReadOnly,
+      accountTimeZone,
       habitsById,
       habitListRef,
       onSuccess,
@@ -172,6 +174,22 @@ describe('useBulkActions reversibility boundary', () => {
     bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1']))
     bulkLog.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
     bulkSkip.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('blocks bulk %s after account midnight without a rerender', async (_name, mutation, action) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-09T09:59:00Z'))
+    const { captured } = renderBulkActions(new Set(['h-1']), false, new Map(), undefined, 'Pacific/Honolulu')
+    vi.setSystemTime(new Date('2026-04-09T10:01:00Z'))
+    try {
+      await TestRenderer.act(async () => { await captured.current![action]() })
+      expect(mutation.mutateAsync).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('skips the selection on the viewed historical date with no confirmation state to clear', async () => {

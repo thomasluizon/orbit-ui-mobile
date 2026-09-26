@@ -5,6 +5,7 @@ import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import type { HabitListHandle } from "@/components/habit-list";
 import { useUIStore } from "@/stores/ui-store";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
+import { useProfile } from "@/hooks/use-profile";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 
 interface TodaySelectionInput {
@@ -32,6 +33,7 @@ export function useTodaySelection({
   habitsById,
   closeControlsMenu,
 }: TodaySelectionInput) {
+  const { profile } = useProfile();
   const activeView = useUIStore((s) => s.activeView);
   const isSelectMode = useUIStore((s) => s.isSelectMode);
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds);
@@ -47,6 +49,7 @@ export function useTodaySelection({
     selectedHabitIds,
     selectedDateStr,
     completionReadOnly,
+    accountTimeZone: profile?.timeZone,
     habitsById,
     habitListRef,
     onSuccess: clearSelection,

@@ -43,6 +43,7 @@ const mocks = vi.hoisted(() => ({
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
   timeZone: 'UTC',
+  profileReady: true,
   suggestion: null as null | {
     frequencyUnit: 'Day'
     frequencyQuantity: number
@@ -94,14 +95,14 @@ vi.mock('@/hooks/use-app-toast', () => ({
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
-    profile: {
+    profile: mocks.profileReady ? {
       aiMessagesLimit: 20,
       aiMessagesUsed: 0,
       hasProAccess: mocks.hasProAccess,
       language: 'en',
       weekStartDay: 1,
       timeZone: mocks.timeZone,
-    },
+    } : undefined,
   }),
 }))
 
@@ -245,9 +246,28 @@ describe('HabitDetailScreen', () => {
     mocks.history = []
     mocks.hasProAccess = true
     mocks.timeZone = 'UTC'
+    mocks.profileReady = true
+    mocks.scopedCompleteDay = false
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     mocks.suggestion = null
     localStorage.clear()
+  })
+
+  it('waits for the account day before querying an unpinned detail', () => {
+    mocks.profileReady = false
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    expect(mocks.scopedCompleteDay).toBe(false)
+    mocks.profileReady = true
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(mocks.scopedCompleteDay).toBe(true)
+  })
+
+  it('returns a direct detail link to Today while the profile loads', () => {
+    mocks.profileReady = false
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'screen-back' }))
+    expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
+    expect(mocks.routerBack).not.toHaveBeenCalled()
   })
 
   afterEach(() => {

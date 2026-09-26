@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { animate, m, useMotionValue, useReducedMotion } from 'motion/react'
 import { motionEasings, motionDurations } from '@orbit/shared/theme'
 import { useTodayPage } from './use-today-page'
@@ -11,6 +12,10 @@ import {
 } from './today-page-view'
 import { TodayAstra } from '@/components/today/today-astra'
 import type { TodayInitialHabits } from './today-initial-data'
+import { useProfile } from '@/hooks/use-profile'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface TodayPageClientProps {
   initialToday: string
@@ -71,6 +76,22 @@ export function TodayPageClient({
   initialToday,
   initialHabits,
 }: Readonly<TodayPageClientProps>) {
+  const t = useTranslations()
+  const { profile, isError, refetch } = useProfile()
+  if (!profile) {
+    return isError
+      ? <ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} />
+      : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="mx-auto flex w-full max-w-[740px] flex-col gap-4 p-4">
+          <Skeleton variant="settings" grouped />
+          <Skeleton variant="habit-row" grouped />
+          <Skeleton variant="habit-row" grouped />
+          <Skeleton variant="habit-row" grouped />
+        </div>
+  }
+  return <TodayPageContent initialToday={initialToday} initialHabits={initialHabits} />
+}
+
+function TodayPageContent({ initialToday, initialHabits }: Readonly<TodayPageClientProps>) {
   const view = useTodayPage(initialToday, initialHabits)
 
   return (

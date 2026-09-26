@@ -436,7 +436,7 @@ export function HabitList({
     showCompleted,
     recentlyCompletedIds,
     recentlyCompletedDates,
-  }, view)
+  }, view, todayStr)
 
   const [collapsedIds, setCollapsedIds] = useAccountScopedState(() => new Set<string>())
 
@@ -784,6 +784,13 @@ export function HabitList({
     }
   }
 
+  function settlementDateIsReadOnly(date: string): boolean {
+    return !profile || getTodayBoundary(
+      date,
+      formatAPIDateInTimeZone(new Date(), profile.timeZone),
+    ) === 'read-only'
+  }
+
   function checkAndSettleParent(
     childHabitId: string,
     confirmedResolutions: ConfirmedResolutionRecord,
@@ -794,6 +801,11 @@ export function HabitList({
     if (!child?.parentId) return
     const parent = settlementData.habitsById.get(child.parentId)
     if (!parent || parent.isCompleted) return
+    if (settlementDateIsReadOnly(settlementData.selectedDateStr)) {
+      promptedParentIdsRef.current.delete(parent.id)
+      setParentPromptQueue((current) => removeParentPrompt(current, parent.id, settlementData.selectedDateStr))
+      return
+    }
 
     const parentIsDueOnViewedDate =
       parent.isGeneral ||
@@ -865,6 +877,10 @@ export function HabitList({
     operation: ParentSettlementOperation,
     automatic = false,
   ) {
+    if (settlementDateIsReadOnly(operation.date)) {
+      promptedParentIdsRef.current.delete(parentId)
+      return
+    }
     operation.confirmedResolutions.activeSettlements += 1
     markRecentlyCompleted(parentId, operation.date)
     try {
@@ -1064,10 +1080,9 @@ export function HabitList({
   }
 
   async function skipFromRow(habit: NormalizedHabit) {
+    if (!profile) return
     const currentDate = new Date()
-    const accountToday = profile?.timeZone === undefined
-      ? formatAPIDate(currentDate)
-      : formatAPIDateInTimeZone(currentDate, profile.timeZone)
+    const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
     const boundary = getTodayBoundary(selectedDateStr, accountToday)
     if (boundary === 'read-only' || (boundary === 'future' &&
       !canLogHabitOnDate(habit, selectedDateStr, accountToday))) return
@@ -1132,10 +1147,9 @@ export function HabitList({
   }
 
   async function handleDirectToggle(habitId: string, intent: 'log' | 'unlog') {
+    if (!profile) return
     const currentDate = new Date()
-    const accountToday = profile?.timeZone === undefined
-      ? formatAPIDate(currentDate)
-      : formatAPIDateInTimeZone(currentDate, profile.timeZone)
+    const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
     const boundary = getTodayBoundary(selectedDateStr, accountToday)
     const habit = habitsById.get(habitId)
     if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||

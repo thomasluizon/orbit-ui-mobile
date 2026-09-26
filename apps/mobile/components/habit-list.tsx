@@ -411,6 +411,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const { profile } = useProfile()
     const accountTimeZone = profile?.timeZone
     const todayStr = useCurrentDate(accountTimeZone)
+    const settlementDateIsReadOnly = useCallback((date: string): boolean =>
+      !profile || getTodayBoundary(date, formatAPIDateInTimeZone(new Date(), profile.timeZone)) === 'read-only',
+    [profile])
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(
       () => createTokensV2(currentScheme, currentTheme),
@@ -481,7 +484,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       showCompleted,
       recentlyCompletedIds,
       recentlyCompletedDates,
-    }, view)
+    }, view, todayStr)
 
     useEffect(() => {
       onSurfaceOpenChange?.(drill.currentParentId !== null)
@@ -896,6 +899,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
         const parentHabit = settlementData.habitsById.get(childHabit.parentId)
         if (!parentHabit || parentHabit.isCompleted) return
+        if (settlementDateIsReadOnly(settlementData.selectedDateStr)) {
+          promptedParentIdsRef.current.delete(parentHabit.id)
+          setParentPromptQueue((current) => removeParentPrompt(current, parentHabit.id, settlementData.selectedDateStr))
+          return
+        }
 
         const parentIsDueOnViewedDate =
           parentHabit.isGeneral ||
@@ -932,6 +940,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         }
       },
       [
+        settlementDateIsReadOnly,
         setParentPromptQueue,
       ],
     )
@@ -963,6 +972,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
         if (mode === 'log' && operation.requiresLogConfirmation) {
           checkAndSettleParent(childHabitId, operation.confirmedResolutions, operation.data)
+          return
+        }
+
+        if (settlementDateIsReadOnly(operation.date)) {
+          promptedParentIdsRef.current.delete(parentHabit.id)
           return
         }
 
@@ -1011,6 +1025,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         logMutateAsync,
         markRecentlyCompleted,
         recordHabitResolution,
+        settlementDateIsReadOnly,
         showInterstitialIfDue,
         skipMutation,
       ],
@@ -1078,6 +1093,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
       const { parentId, mode, date } = settlement
       if (!settlementData) return
+      if (settlementDateIsReadOnly(date)) {
+        promptedParentIdsRef.current.delete(parentId)
+        return
+      }
       confirmedResolutions.activeSettlements += 1
       markRecentlyCompleted(parentId, date)
       try {
@@ -1118,6 +1137,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       parentPrompt,
       recordHabitResolution,
       selectedDateStr,
+      settlementDateIsReadOnly,
       showInterstitialIfDue,
       skipMutation,
       setParentPromptQueue,
@@ -1137,10 +1157,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const handleDirectToggle = useCallback(
       async (habitId: string, intent: 'log' | 'unlog') => {
+        if (!profile) return
         const currentDate = new Date()
-        const accountToday = accountTimeZone === undefined
-          ? formatAPIDate(currentDate)
-          : formatAPIDateInTimeZone(currentDate, accountTimeZone)
+        const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
         const boundary = getTodayBoundary(selectedDateStr, accountToday)
         const habit = habitsById.get(habitId)
         if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||
@@ -1175,6 +1194,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         logMutateAsync,
         markRecentlyCompleted,
         accountTimeZone,
+        profile,
         refetch,
         selectedDate,
         selectedDateStr,
@@ -1182,10 +1202,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const skipHabit = useCallback(async (habit: NormalizedHabit) => {
+      if (!profile) return
       const currentDate = new Date()
-      const accountToday = accountTimeZone === undefined
-        ? formatAPIDate(currentDate)
-        : formatAPIDateInTimeZone(currentDate, accountTimeZone)
+      const accountToday = formatAPIDateInTimeZone(currentDate, accountTimeZone)
       const boundary = getTodayBoundary(selectedDateStr, accountToday)
       if (boundary === 'read-only' || (boundary === 'future' &&
         !canLogHabitOnDate(habit, selectedDateStr, accountToday))) return
@@ -1214,6 +1233,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [
       markRecentlyCompleted,
       accountTimeZone,
+      profile,
       recordHabitResolution,
       selectedDateStr,
       settleParentAutomatically,

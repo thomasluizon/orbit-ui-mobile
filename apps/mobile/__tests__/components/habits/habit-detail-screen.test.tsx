@@ -49,6 +49,7 @@ const mocks = vi.hoisted(() => ({
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
   timeZone: 'UTC',
+  profileReady: true,
   focusEffect: null as null | (() => void | (() => void)),
   suggestion: null as null | {
     frequencyUnit: 'Day'
@@ -202,14 +203,14 @@ vi.mock('@/hooks/use-app-toast', () => ({
 }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
-    profile: {
+    profile: mocks.profileReady ? {
       aiMessagesLimit: 20,
       aiMessagesUsed: 0,
       hasProAccess: mocks.hasProAccess,
       language: 'en',
       weekStartDay: 1,
       timeZone: mocks.timeZone,
-    },
+    } : undefined,
   }),
 }))
 vi.mock('@/hooks/use-reschedule-suggestion', () => ({
@@ -346,8 +347,29 @@ describe('HabitDetailScreen', () => {
     mocks.history = []
     mocks.hasProAccess = true
     mocks.timeZone = 'UTC'
+    mocks.profileReady = true
+    mocks.scopedCompleteDay = false
     mocks.suggestion = null
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
+  })
+
+  it('waits for the account day before querying an unpinned detail', () => {
+    mocks.profileReady = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(mocks.scopedCompleteDay).toBe(false)
+    mocks.profileReady = true
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(mocks.scopedCompleteDay).toBe(true)
+  })
+
+  it('returns a direct detail link to Today while the profile loads', () => {
+    mocks.profileReady = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    TestRenderer.act(() => { tree.root.findByProps({ testID: 'screen-back' }).props.onBack() })
+    expect(mocks.routerReplace).toHaveBeenCalledWith({ pathname: '/(tabs)', params: { date: '2026-08-28' } })
+    expect(mocks.routerBack).not.toHaveBeenCalled()
   })
 
   afterEach(() => {

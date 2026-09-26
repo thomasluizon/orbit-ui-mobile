@@ -32,6 +32,7 @@ function renderBulkActions(
   completionReadOnly = false,
   habitsById = new Map<string, NormalizedHabit>(),
   onReadOnlyCommit?: () => void,
+  accountTimeZone?: string,
 ) {
   let currentCompletionReadOnly = completionReadOnly
   const onSuccess = vi.fn()
@@ -46,6 +47,7 @@ function renderBulkActions(
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
       completionReadOnly: currentCompletionReadOnly,
+      accountTimeZone,
       habitsById,
       habitListRef,
       onSuccess,
@@ -88,6 +90,19 @@ describe('useBulkActions reversibility boundary', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('blocks bulk %s after account midnight without a rerender', async (_name, mutation, action) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-09T09:59:00Z'))
+    const { result } = renderBulkActions(new Set(['h-1']), false, new Map(), undefined, 'Pacific/Honolulu')
+    vi.setSystemTime(new Date('2026-04-09T10:01:00Z'))
+    await act(async () => { await result.current[action]() })
+    expect(mutation.mutateAsync).not.toHaveBeenCalled()
   })
 
   it('disarms the delete confirmation when another account replaces the tab', async () => {

@@ -2090,6 +2090,49 @@ describe('HabitList', () => {
       .toEqual([[{ habitId: parent.id, date: TODAY }]])
   })
 
+  it('does not settle a parent when a delayed child result arrives after account midnight', async () => {
+    accountDate.timeZone = 'Pacific/Honolulu'
+    vi.setSystemTime(new Date('2026-09-20T09:59:00Z'))
+    const parent = createMockHabit({ id: 'parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
+    const acceptedChild = createMockHabit({ id: 'accepted', parentId: parent.id, isCompleted: true })
+    const rejectedChild = createMockHabit({ id: 'rejected', parentId: parent.id, isCompleted: false })
+    for (const habit of [parent, acceptedChild, rejectedChild]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [acceptedChild.id, rejectedChild.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${TODAY}T00:00:00`)} />)
+
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: acceptedChild.id, mode: 'skip' }], TODAY)
+      await Promise.resolve()
+    })
+    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+
+    vi.setSystemTime(new Date('2026-09-20T10:01:00Z'))
+    await act(async () => {
+      ref.current?.settleBulkHabitResolutions([{ habitId: rejectedChild.id, mode: 'skip' }], TODAY)
+      await Promise.resolve()
+    })
+    expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+  })
+
+  it('does not confirm a parent after its account-day window closes', async () => {
+    accountDate.timeZone = 'Pacific/Honolulu'
+    vi.setSystemTime(new Date('2026-09-20T09:59:00Z'))
+    const parent = createMockHabit({ id: 'parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
+    const child = createMockHabit({ id: 'child', parentId: parent.id, isCompleted: true })
+    for (const habit of [parent, child]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${TODAY}T00:00:00`)} />)
+    await act(async () => ref.current?.checkAndPromptParentLog(child.id))
+
+    vi.setSystemTime(new Date('2026-09-20T10:01:00Z'))
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY, intent: 'log' })
+  })
+
   it('deduplicates parent settlement through refetches until progress becomes incomplete', async () => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', isCompleted: true })
