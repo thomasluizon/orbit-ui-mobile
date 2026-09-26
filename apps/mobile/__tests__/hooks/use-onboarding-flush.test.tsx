@@ -33,7 +33,7 @@ const mocks = vi.hoisted(() => {
     profile: { hasCompletedOnboarding: false },
     captureError: vi.fn(),
     requestPermissionOutcome: vi.fn(() => Promise.resolve('granted')),
-    applyOnboarding: vi.fn(() => Promise.resolve({
+    applyOnboarding: vi.fn((_isCurrent?: () => boolean) => Promise.resolve({
       applied: true,
       createdHabitCount: 1,
       createdGoal: false,
@@ -131,6 +131,9 @@ describe('useOnboardingFlush', () => {
     })
     expect(mocks.applyOnboarding).toHaveBeenCalledTimes(1)
     setAccountId('user-2')
+    const isCurrent = mocks.applyOnboarding.mock.calls[0]?.[0]
+    if (!isCurrent) throw new Error('expected an account guard')
+    expect(isCurrent()).toBe(false)
     await TestRenderer.act(async () => {
       finishApply({ applied: true, createdHabitCount: 1, createdGoal: false, loggedFirstHabit: false })
       await Promise.resolve()
@@ -138,6 +141,32 @@ describe('useOnboardingFlush', () => {
     })
 
     expect(mocks.requestPermissionOutcome).not.toHaveBeenCalled()
+    expect(mocks.draftState.reset).not.toHaveBeenCalled()
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+  })
+
+  it('keeps the new account draft when permission finishes after replacement', async () => {
+    mocks.draftState.pushPermissionGranted = true
+    let finishPermission!: (outcome: string) => void
+    mocks.requestPermissionOutcome.mockReturnValueOnce(new Promise((resolve) => { finishPermission = resolve }))
+
+    function Harness() {
+      useOnboardingFlush()
+      return null
+    }
+
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<Harness />)
+      await Promise.resolve()
+    })
+    expect(mocks.requestPermissionOutcome).toHaveBeenCalledTimes(1)
+    setAccountId('user-2')
+    await TestRenderer.act(async () => {
+      finishPermission('granted')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
     expect(mocks.draftState.reset).not.toHaveBeenCalled()
     expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
   })
@@ -167,7 +196,7 @@ describe('useOnboardingFlush', () => {
 
     await renderFlush()
 
-    expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true)
+    expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true, expect.any(Function))
     expect(mocks.draftState.reset).toHaveBeenCalledTimes(1)
   })
 
@@ -186,7 +215,7 @@ describe('useOnboardingFlush', () => {
       tree = TestRenderer.create(<Harness providerVersion={1} />)
       await Promise.resolve()
     })
-    expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true)
+    expect(mocks.requestPermissionOutcome).toHaveBeenCalledWith(true, expect.any(Function))
     mocks.draftState.reset.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
 

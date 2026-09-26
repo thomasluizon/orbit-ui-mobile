@@ -19,8 +19,8 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
   },
 }))
 
-function renderApply(): () => Promise<ApplyOnboardingResponse> {
-  const holder: { current: (() => Promise<ApplyOnboardingResponse>) | null } = { current: null }
+function renderApply(): (isCurrent?: () => boolean) => Promise<ApplyOnboardingResponse> {
+  const holder: { current: ((isCurrent?: () => boolean) => Promise<ApplyOnboardingResponse>) | null } = { current: null }
   function Harness() {
     holder.current = useApplyOnboarding()
     return null
@@ -59,6 +59,20 @@ describe('mobile useApplyOnboarding', () => {
       body: JSON.stringify(payload),
     })
     expect(result).toEqual(validResponse)
+  })
+
+  it('passes the flush account guard to the apply request', async () => {
+    mocks.buildApplyPayload.mockReturnValue({ habits: [] })
+    mocks.apiClient.mockResolvedValue(validResponse)
+    const isCurrent = vi.fn(() => true)
+
+    await renderApply()(isCurrent)
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.profile.onboardingApply, {
+      method: 'POST',
+      body: JSON.stringify({ habits: [] }),
+      isCurrent,
+    })
   })
 
   it('rejects when the API response fails the response schema (boundary validation)', async () => {

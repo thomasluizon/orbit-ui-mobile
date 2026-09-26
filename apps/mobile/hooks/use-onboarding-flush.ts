@@ -54,11 +54,11 @@ export function useOnboardingFlush(): void {
     async function flush() {
       let onboardingApplied = false
       try {
-        await applyOnboarding()
+        await applyOnboarding(stillCurrent)
         if (!stillCurrent()) return
         onboardingApplied = true
         if (pushPermissionGranted) {
-          const outcome = await requestPermissionOutcome(true)
+          const outcome = await requestPermissionOutcome(true, stillCurrent)
           if (outcome !== 'granted') throw new Error('Failed to register deferred push subscription')
         }
         if (cancelled || !stillCurrent()) return

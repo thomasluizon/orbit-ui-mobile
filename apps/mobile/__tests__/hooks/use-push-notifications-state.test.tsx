@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => {
   return {
     storage: new Map<string, string>(),
     setAstraConversationOpen: vi.fn(),
-    apiClient: vi.fn(() => Promise.resolve(undefined)),
+    apiClient: vi.fn((_path: string, _options?: { isCurrent?: () => boolean }) => Promise.resolve(undefined)),
     router: {
       push: vi.fn(),
     },
@@ -391,6 +391,36 @@ describe('usePushNotifications', () => {
     )
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(latestResult?.isEnabled).toBe(true)
+  })
+
+  it('drops registration when the account changes while the API loads its token', async () => {
+    const { setAccountId } = await import('@/lib/account-scope')
+    setAccountId('user-1')
+    let finishTokenLoad!: () => void
+    let backendPostSent = false
+    mocks.apiClient.mockImplementationOnce(async (_path: string, options?: { isCurrent?: () => boolean }) => {
+      await new Promise<void>((resolve) => { finishTokenLoad = resolve })
+      if (options?.isCurrent?.() === false) throw new Error('Account changed')
+      backendPostSent = true
+    })
+    await renderHarness()
+    await flush()
+
+    let registration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      registration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    mocks.auth.user = { userId: 'user-2' }
+    setAccountId('user-2')
+    await TestRenderer.act(async () => {
+      finishTokenLoad()
+      await registration
+    })
+
+    expect(backendPostSent).toBe(false)
   })
 
   it('requests signed-out permission without registering the device', async () => {
