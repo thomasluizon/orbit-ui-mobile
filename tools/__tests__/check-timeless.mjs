@@ -111,6 +111,9 @@ export const cases = () => {
   T("a comment after nested JSX in a map callback fails Write hook", writeJsx(nestedMap).status === 2)
   const nestedAttribute = `export const Sample = () => <div title={ok ? <span>x</span> : /* ${date} */ null}>clean</div>\n`
   T("a comment after nested JSX in an attribute expression fails Write hook", writeJsx(nestedAttribute).status === 2)
+  const emptyCall = `export const Sample = () => run(/* ${date} */)\n`
+  writeFileSync(join(jsx, "sample.tsx"), emptyCall)
+  T("a dated comment inside an empty call fails --all", run(jsx, ["--all"]).status === 1)
   const parserLiterals = `export const Sample = () => <span>{"${date}"}{/${date}/.test(value)}</span>\n`
   T("the TypeScript parser ignores dates in strings and regex literals", writeJsx(parserLiterals).status === 0)
   const sixLines = Array.from({ length: 6 }, (_, index) => `// reason ${index}`).join("\n")
@@ -124,6 +127,21 @@ export const cases = () => {
   const missingParser = run(noParser, ["--all"])
   T("TSX without TypeScript fails closed", missingParser.status === 2 && /TypeScript/.test(missingParser.stderr))
   rmSync(noParser, { recursive: true, force: true })
+
+  const wrapped = fixture("wrapped-literal", "sample.js", `const value = new Date("${date}")\n`)
+  symlinkSync(join(checker, "..", "..", "node_modules"), join(wrapped, "node_modules"), "dir")
+  const sourceLine = `const value = new Date("${date}")`
+  const wrapWrite = { file_path: join(wrapped, "sample.js"), content: `/*\n${sourceLine}\n*/\n` }
+  const wrapResult = run(wrapped, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: wrapWrite, cwd: wrapped }))
+  T("wrapping an existing date literal in a comment fails Write hook", wrapResult.status === 2 && wrapResult.stderr.includes("dated-anecdote"), wrapResult.stderr)
+  rmSync(wrapped, { recursive: true, force: true })
+
+  const moved = fixture("moved-comment", "sample.js", `// ${date}\nconst value = 1\n`)
+  symlinkSync(join(checker, "..", "..", "node_modules"), join(moved, "node_modules"), "dir")
+  const moveEdit = { file_path: join(moved, "sample.js"), old_string: `// ${date}\nconst value = 1`, new_string: `const value = 1\n// ${date}` }
+  const moveResult = run(moved, ["--hook"], JSON.stringify({ tool_name: "Edit", tool_input: moveEdit, cwd: moved }))
+  T("moving an existing dated comment down one line passes Edit hook", moveResult.status === 0, moveResult.stderr)
+  rmSync(moved, { recursive: true, force: true })
 
   const scoped = fixture("directory-scope", "design/canvas/example.md", `Ask ${owner} on ${date}.\n`)
   const scopedAllowlist = ["owner-name", "dated-anecdote"].map((rule) => ({ path: "design/canvas/", rule, match: null, scope: "directory", exclude: ["design/canvas/tools/"], reason: "granted export" }))
@@ -139,6 +157,15 @@ export const cases = () => {
   writeFileSync(join(scoped, "design/canvas/example.md"), "clean\n")
   T("unused directory entries fail --all", run(scoped, ["--all"]).status === 1)
   rmSync(scoped, { recursive: true, force: true })
+  const longComment = Array.from({ length: 7 }, (_, index) => `// reason ${index}`).join("\n") + "\n"
+  const scopedLength = fixture("scoped-length", "design/canvas/example.js", longComment)
+  const scopedEntry = { path: "design/canvas/", rule: "comment-length", match: null, scope: "directory", reason: "reviewed export" }
+  writeFileSync(join(scopedLength, "tools", "timeless-allowlist.json"), JSON.stringify([scopedEntry]))
+  T("a directory entry may exempt comment-length", run(scopedLength, ["--all"]).status === 0)
+  writeFileSync(join(scopedLength, "tools", "timeless-allowlist.json"), JSON.stringify([{ ...scopedEntry, rule: "machine-path" }]))
+  const forbiddenScope = run(scopedLength, ["--all"])
+  T("a directory entry cannot exempt machine-path", forbiddenScope.status === 2 && forbiddenScope.stderr.includes("valid exact or directory-scoped entries"), forbiddenScope.stderr)
+  rmSync(scopedLength, { recursive: true, force: true })
   writeFileSync(join(safe, "tools", "timeless-allowlist.json"), JSON.stringify([{ path: "sample.js", rule: "owner-name", match: owner, reason: "unused" }]))
   T("an unused allowlist entry fails", run(safe, ["--all"]).status === 1)
   const scratch = join(tmpdir(), "timeless-scratchpad.txt")
