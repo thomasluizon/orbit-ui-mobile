@@ -34,3 +34,44 @@ it('clears failed and expired tokens and offers retry', async () => {
   act(() => { callbacks['error-callback']() })
   expect(screen.getByRole('alert')).toHaveTextContent('auth.turnstileFailed')
 })
+
+it('keeps the active challenge when callbacks change and delivers to the latest callback', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
+  const remove = vi.fn()
+  const reset = vi.fn()
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset, remove }
+  const firstToken = vi.fn()
+  const nextToken = vi.fn()
+  const firstState = vi.fn()
+  const nextState = vi.fn()
+  const { rerender } = render(
+    <TurnstileWidget siteKey="site-key" resetKey={0} onToken={firstToken} onStateChange={firstState} />,
+  )
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(1))
+  const callbacks = renderWidget.mock.calls[0]![1] as { callback: (token: string) => void }
+
+  rerender(
+    <TurnstileWidget siteKey="site-key" resetKey={0} onToken={nextToken} onStateChange={nextState} />,
+  )
+  expect(remove).not.toHaveBeenCalled()
+  expect(renderWidget).toHaveBeenCalledTimes(1)
+
+  act(() => callbacks.callback('fresh-token'))
+  expect(nextToken).toHaveBeenCalledWith('fresh-token')
+  expect(nextState).toHaveBeenCalledWith('solved')
+  expect(firstToken).not.toHaveBeenCalled()
+  expect(firstState).not.toHaveBeenCalled()
+
+  rerender(
+    <TurnstileWidget siteKey="site-key" resetKey={1} onToken={nextToken} onStateChange={nextState} />,
+  )
+  expect(reset).toHaveBeenCalledWith('widget-1')
+  expect(remove).not.toHaveBeenCalled()
+
+  rerender(
+    <TurnstileWidget siteKey="new-site-key" resetKey={1} onToken={nextToken} onStateChange={nextState} />,
+  )
+  expect(remove).toHaveBeenCalledWith('widget-1')
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledTimes(2))
+  expect((renderWidget.mock.calls[1]![1] as { sitekey: string }).sitekey).toBe('new-site-key')
+})
