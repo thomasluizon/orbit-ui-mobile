@@ -11,11 +11,12 @@ import { HabitListCard } from '@/components/chat/habit-list-card'
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   mutate: vi.fn(),
+  locale: 'en-US',
   occurrencesById: new Map<string, { isCompleted: boolean; isLoggedInRange: boolean }>(),
 }))
 
 vi.mock('next-intl', () => ({
-  useLocale: () => 'en-US',
+  useLocale: () => mocks.locale,
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,
 }))
@@ -38,6 +39,7 @@ vi.mock('@/components/ui/block-frame', () => ({
 describe('Astra list cards on web', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.locale = 'en-US'
     mocks.occurrencesById.clear()
     for (const item of habits.items) {
       mocks.occurrencesById.set(item.id, { isCompleted: false, isLoggedInRange: false })
@@ -84,10 +86,22 @@ describe('Astra list cards on web', () => {
   })
 
   it('shows API goal tracking and a localized projection without changing older rows', () => {
-    const oldRow = render(<GoalListCard goalList={goals} />).container.innerHTML
+    const original = render(<GoalListCard goalList={goals} />)
+    const oldRow = original.container.innerHTML
     expect(oldRow).not.toContain('badge')
+    original.unmount()
+    const explicitMissing = { items: goals.items.map((item) => ({ ...item, trackingStatus: undefined, projectedCompletionDate: undefined })) }
+    const missingRow = render(<GoalListCard goalList={explicitMissing} />)
+    expect(missingRow.container.innerHTML).toBe(oldRow)
+    missingRow.unmount()
+    mocks.locale = 'pt-BR'
     render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: 'at_risk', projectedCompletionDate: '2026-10-12' }] }} />)
     expect(screen.getByText('goals.metrics.atRisk')).toBeInTheDocument()
-    expect(screen.getByText(/chat.goalList.projected/)).toBeInTheDocument()
+    expect(screen.getByText(/12 de out\. de 2026/)).toBeInTheDocument()
+  })
+
+  it.each([['on_track', 'onTrack'], ['at_risk', 'atRisk'], ['behind', 'behind'], ['no_deadline', 'noDeadline']] as const)('localizes %s tracking', (status, key) => {
+    render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: status }] }} />)
+    expect(screen.getByText(`goals.metrics.${key}`)).toBeInTheDocument()
   })
 })

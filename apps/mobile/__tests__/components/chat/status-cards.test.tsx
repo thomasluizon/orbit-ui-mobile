@@ -46,12 +46,18 @@ describe('Astra status cards on mobile', () => {
     const tree = render(<StreakCard streakCard={{ currentStreak: 0, longestStreak: 4, level: 11, totalXp: 12200, xpForNextLevel: 14400, lastActiveDate: null, isFrozenToday: false, recentFreezeDates: [], recentAchievements: [], achievementDiscs: Array.from({ length: 8 }, (_, index) => ({ id: `achievement-${index}`, iconKey: 'satellite', earnedAt: index % 2 ? null : '2026-09-26T10:00:00Z' })), surfaceId: 'progress' }} />)
     expect(tree.root.findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityValue).toEqual({ min: 0, max: 2300, now: 100 })
     expect(tree.root.findAll((node: any) => node.type === View && String(node.props?.testID).startsWith('achievement-mark-'))).toHaveLength(6)
+    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.streakCard.open'))[0]
+    TestRenderer.act(() => open.props.onPress())
+    expect(mocks.push).toHaveBeenCalledWith('/progress')
   })
 
   it('shows ten events and no sync row when absent', () => {
     const tree = render(<CalendarCard calendarCard={{ events: Array.from({ length: 10 }, (_, index) => ({ title: `Event ${index}`, start: '2026-09-26', end: null, isAllDay: true })), surfaceId: 'calendar' }} />)
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'card-row')).toHaveLength(10)
     expect(renderedText(tree.toJSON())).not.toContain('chat.calendarCard.sync')
+    const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.calendarCard.open'))[0]
+    TestRenderer.act(() => open.props.onPress())
+    expect(mocks.push).toHaveBeenCalledWith('/calendar')
   })
 
   it('shows disabled sync without a failure mark', () => {

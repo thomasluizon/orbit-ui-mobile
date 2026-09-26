@@ -73,4 +73,15 @@ describe('Astra record list on mobile', () => {
     expect(mocks.apiClient).toHaveBeenCalledTimes(2)
     await TestRenderer.act(async () => { resolveFirst({ kind: 'keys', totalCount: 30, items: [], nextCursor: null }); await Promise.resolve() })
   })
+
+  it('drops a pending mark-read completion after an account switch', async () => {
+    let finish: () => void = () => {}
+    mocks.markRead.mockReturnValue(new Promise<void>((resolve) => { finish = resolve }))
+    const tree = render(<RecordListCard recordList={{ kind: 'notifications', totalCount: 1, items: [{ id: 'n1', title: 'Reminder', isRead: false }] }} />)
+    const mark = tree.root.findByProps({ accessibilityLabel: 'notifications.markRead:{"title":"Reminder"}' })
+    TestRenderer.act(() => mark.props.onPress())
+    TestRenderer.act(() => { mocks.generation++; mocks.onAccountChange?.() })
+    await TestRenderer.act(async () => { finish(); await Promise.resolve() })
+    expect(tree.root.findAll((node: any) => node.type === Pressable && String(node.props?.accessibilityLabel).startsWith('notifications.markRead'))).toHaveLength(1)
+  })
 })

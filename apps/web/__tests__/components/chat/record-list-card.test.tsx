@@ -58,4 +58,14 @@ describe('Astra record list on web', () => {
     expect(mocks.fetchJson).toHaveBeenCalledTimes(2)
     await act(async () => { resolveFirst({ kind: 'keys', totalCount: 30, items: [], nextCursor: null }); await Promise.resolve() })
   })
+
+  it('drops a pending mark-read completion after an account switch', async () => {
+    let finish: () => void = () => {}
+    mocks.markRead.mockReturnValue(new Promise<void>((resolve) => { finish = resolve }))
+    render(<RecordListCard recordList={{ kind: 'notifications', totalCount: 1, items: [{ id: 'n1', title: 'Reminder', isRead: false }] }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'notifications.markRead:{"title":"Reminder"}' }))
+    act(() => { mocks.generation++; mocks.onAccountChange?.() })
+    await act(async () => { finish(); await Promise.resolve() })
+    expect(screen.getByRole('button', { name: 'notifications.markRead:{"title":"Reminder"}' })).toBeInTheDocument()
+  })
 })
