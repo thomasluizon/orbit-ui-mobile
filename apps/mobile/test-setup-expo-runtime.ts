@@ -1,11 +1,7 @@
 /**
- * The Expo runtime installs a global `expo` object through JSI before any JavaScript runs on a
- * device, then registers each native module on `expo.modules`. Node gives Vitest no such runtime.
- * `expo-modules-core` reads `globalThis.expo.EventEmitter` at import, so every suite that reaches an
- * Expo module fails to load before one test runs. `installExpoGlobalPolyfill` is the entry point
- * Expo publishes for this case, and its source at
- * node_modules/expo-modules-core/src/polyfill/dangerous-internal.ts names a test runner as the
- * caller. It leaves `expo.modules` empty, so the modules the app imports are registered below.
+ * The Expo runtime installs a global `expo` object through JSI before any JavaScript runs on
+ * a device, then registers each native module on `expo.modules`. Node gives Vitest no such
+ * runtime.
  */
 import { installExpoGlobalPolyfill } from 'expo-modules-core/src/polyfill/dangerous-internal'
 

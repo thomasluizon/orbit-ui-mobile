@@ -44,11 +44,8 @@ export function clearApiKeyCreationGrant(): void {
 }
 
 /**
- * Persists a timing record under the account that owns it.
- *
- * `localStorage` survives somebody else signing in to this tab, so the entry has to name its
- * account. A tab holding no account cannot attribute the record to anybody, so it writes nothing
- * and the returned record still describes the challenge this tab just started.
+ * Persists a timing record under the account that owns it. `localStorage` survives somebody
+ * else signing in to this tab, so the entry has to name its account.
  */
 function persistStepUpTiming(
   record: StepUpTimingRecord,

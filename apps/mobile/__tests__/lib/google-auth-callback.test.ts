@@ -63,7 +63,7 @@ describe('google auth callback helpers', () => {
 
   it('detects direct backend token payloads', () => {
     const params = extractGoogleAuthParams(
-      `${AUTH_CALLBACK_URL}?token=backend-token&refreshToken=refresh-token&userId=user-1&name=Alex&email=thomas%40example.com`,
+      `${AUTH_CALLBACK_URL}?token=backend-token&refreshToken=refresh-token&userId=user-1&name=Alex&email=alex%40example.com`,
     )
 
     expect(params.token).toBe('backend-token')

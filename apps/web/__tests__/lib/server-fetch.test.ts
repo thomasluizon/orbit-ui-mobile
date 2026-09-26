@@ -54,23 +54,7 @@ vi.mock('@orbit/shared', () => ({
 
 vi.stubGlobal('fetch', mockFetch)
 
-/**
- * The module is imported ONCE, statically, and `vi.resetModules()` is deliberately absent
- * (thomasluizon/orbit-tickets#287).
- *
- * The file used to call `vi.resetModules()` in `beforeEach` and then `await import('@/lib/server-fetch')`
- * inside all twelve tests, so the module graph was torn down and re-instantiated twelve times. The
- * first instantiation pays the whole transform: measured at 1872ms against 14-36ms for every later
- * test. Under load that cold cost grows past `testTimeout` and the two tests that run while the
- * import machinery is cold time out, which is exactly the "2 failed, 10 passed" signature reported on
- * 2026-08-08. Reproduced on demand at a 100% rate with `--testTimeout=1000`, which sits between the
- * warm cost and the cold one: the same two tests fail and the other ten pass.
- *
- * `resetModules()` bought nothing here. The only module-load-time state in `server-fetch.ts` is
- * `API_BASE`, and no test varies it; `APP_VERSION` is read per call, so `vi.stubEnv` reaches it
- * without a fresh module. Removing the reset removes the cold window rather than hiding it, so no
- * timeout was raised, no test was reordered, and nothing is retried.
- */
+
 describe('serverAuthFetch', () => {
   beforeEach(() => {
     resolveServerSessionMock.mockReset()

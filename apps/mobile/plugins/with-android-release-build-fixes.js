@@ -133,15 +133,8 @@ function forceJvmFlag(value, pattern, flag) {
     : `${value} ${flag}`.trim()
 }
 
-// The template's default org.gradle.jvmargs is too small for the SDK 57 release
-// build: R8 minification of the Hermes bundle exhausts the default heap, and the
-// expo-updates KSP AA worker exhausts the default metaspace
-// (https://github.com/google/ksp/issues/1922). Force the flags authoritatively.
-//
-// This plugin is the only writer of org.gradle.jvmargs. configure-android-release-signing.js
-// used to upsert the whole property after prebuild, which silently overwrote the
-// heap and metaspace set here back down to -Xmx4g/1024m for every CI release, so
-// the encoding and heap-dump flags it contributed live here now instead.
+// R8 and expo-updates KSP need larger heap and metaspace for SDK 57 release builds.
+// Keep this plugin the sole writer of org.gradle.jvmargs so later setup preserves the flags.
 function withRaisedReleaseBuildJvmMemory(config) {
   return withGradleProperties(config, (mod) => {
     const heapFlag = `-Xmx${RELEASE_BUILD_HEAP_SIZE}`

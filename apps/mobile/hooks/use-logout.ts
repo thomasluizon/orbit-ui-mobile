@@ -3,14 +3,9 @@ import { useRouter } from 'expo-router'
 import { getSessionGeneration, useAuthStore } from '@/stores/auth-store'
 
 /**
- * Signs the user out and routes to the login screen.
- *
- * Navigation lives here (the component layer), not inside the auth store's
- * `logout`: an imperative navigation during store teardown caused a grey-screen
- * crash (#170), so `logout` stays navigation-free. Guard-based routing alone
- * cannot tell a signed-out user from a first-run user (both are unauthenticated
- * with an empty onboarding draft), so the router anchor would otherwise drop the
- * user on the onboarding flow (#431 / #432).
+ * Signs the user out and routes to the login screen. Navigation lives here (the component
+ * layer), not inside the auth store's `logout`: an imperative navigation during store
+ * teardown caused a grey-screen crash (#170), so `logout` stays navigation-free.
  */
 export function useLogout(): (observedCredential?: ReturnType<typeof getSessionGeneration>) => Promise<void> {
   const router = useRouter()

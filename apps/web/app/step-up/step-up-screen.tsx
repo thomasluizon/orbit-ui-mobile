@@ -45,24 +45,8 @@ const getServerNotReady = () => false
 
 /**
  * Runs the emailed-code challenge that guards deleting an account and creating an API key.
- *
- * The screen belongs to one account twice over. It reads a timing record stored under that account,
- * and it holds the code the person typed, which is that account's credential. Both need the account
- * this tab holds, and this route is the one place that cannot simply ask for it.
- *
- * `/step-up` sits outside `(app)`, so nothing here starts the session monitor: `useHeldAccountId`
- * reports null for the whole life of a cold load, the record read comes back empty, and the person
- * lands back on Profile mid-challenge. `serverAccountId` is the proxy's answer, resolved from the
- * cookie it already validated to let this render happen at all, so the first paint names the
- * account. The held id takes precedence once it exists, because it is the one that moves. Seed it
- * from that verified server answer before starting the monitor, so its first check cannot erase a
- * completed challenge for the same account.
- *
- * Starting the monitor here is what makes it move. It gives the route the cross-tab signal and the
- * poll every other route has, so a replacement reaches this screen as an account generation rise,
- * every field drops with it, and the record read returns the next account's answer, which is
- * nothing. That sends them to Profile rather than leaving a stranger's code and scheduled deletion
- * date on screen.
+ * Both need the account this tab holds, and this route is the one place that cannot simply
+ * ask for it.
  */
 export function StepUpScreen({ serverAccountId }: Readonly<{ serverAccountId: string | null }>) {
   const heldAccountId = useHeldAccountId()

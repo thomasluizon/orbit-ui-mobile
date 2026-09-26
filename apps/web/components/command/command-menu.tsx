@@ -28,11 +28,9 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   const router = useRouter()
   const search = useHabitSearch()
   /**
-   * The palette outlives an account replacement, because `shell-store.paletteOpen` holds it open
-   * and `#600` leaves that store alone. Its rows are already the next account's, and so is the
-   * typed text, which `use-habit-search.ts:16-18` scopes. This page is the one thing that is not:
-   * left on `'log'`, the next account's first Enter logs a habit instead of opening it, which is a
-   * wrong write on their own data.
+   * The palette outlives an account replacement, because `shell-store.paletteOpen` holds it
+   * open and `#600` leaves that store alone. Its rows are already the next account's, and so
+   * is the typed text, which `use-habit-search.ts:16-18` scopes.
    */
   const [page, setPage] = useAccountScopedState<SearchCommandPage>(null)
   const { showError } = useAppToast()

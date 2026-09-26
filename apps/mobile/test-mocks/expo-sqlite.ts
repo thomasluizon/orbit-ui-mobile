@@ -1,9 +1,7 @@
 /**
- * `expo-sqlite` reaches a whole native database engine, so it is the one Expo dependency the test
- * runtime does not reproduce. This double keeps the synchronous surface `lib/offline-queue.ts` calls
- * and answers every read as an empty database, which is what a suite that never touches the offline
- * queue expects. A suite that does exercise the queue keeps its own richer `vi.mock`. The signatures
- * come from node_modules/expo-sqlite/build/SQLiteDatabase.d.ts and its `SQLiteRunResult`.
+ * `expo-sqlite` reaches a whole native database engine, so it is the one Expo dependency the
+ * test runtime does not reproduce. A suite that does exercise the queue keeps its own richer
+ * `vi.mock`.
  */
 export interface MockSQLiteRunResult {
   lastInsertRowId: number

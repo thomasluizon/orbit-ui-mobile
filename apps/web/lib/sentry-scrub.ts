@@ -7,11 +7,7 @@ const TRANSIENT_GATEWAY_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 5
 const EXPECTED_API_ERROR_CODES = new Set(['AI_UNAVAILABLE', 'CONCURRENT_UPDATE_CONFLICT'])
 
 /**
- * True for ApiClientErrors that represent expected, already-user-handled states rather than
- * defects worth alerting on: a transient upstream gateway blip (502/503/504/520-524, which the
- * orbit-api project alerts on at the source), the optimistic-concurrency conflict the UI tells the
- * user to retry, or an upstream AI outage the UI already toasts. Matched by status/error code, never
- * by localized message.
+ * Matched by status/error code, never by localized message.
  */
 export function isExpectedApiClientError(error: unknown): boolean {
   if (!(error instanceof ApiClientError)) return false

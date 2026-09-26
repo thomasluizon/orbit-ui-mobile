@@ -138,7 +138,7 @@ module.exports = defineConfig([
       // ONLY in apps/web, so mobile spacing was completely ungated while CLAUDE.md
       // described the gate without any platform qualifier. `error` from the start;
       // pre-existing mobile violations ride the committed suppressions baseline
-      // (regenerated against main, 2026-07-24), so only NEW or CHANGED code fails.
+      // so only new or changed code fails.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
       "local/spacing-scale": "error",
       "local/no-gorhom-sheet": "error",
@@ -168,14 +168,8 @@ module.exports = defineConfig([
         },
       ],
 
-      // The cross-platform half of the #539 gate set. Rules absent here are web-only by
-      // scope, not by oversight: the Tailwind/CSS-string rules (no-space-x-y,
-      // require-focus-replacement, no-calc-percentage-width, no-dynamic-tailwind-class,
-      // no-gradient-text, will-change-discipline, no-user-scalable-no, no-dead-href,
-      // require-dialog-title, no-placeholder-alt) have no RN surface — apps/mobile styles via
-      // StyleSheet objects. `local/react19-api` is held
-      // back per the #539 spec, though apps/mobile is in fact pinned to react 19.2.3 by the
-      // root override, so it could be extended here in a follow-up.
+      // CSS-specific rules have no React Native StyleSheet surface.
+      // `local/react19-api` remains scoped to web under #539.
       "local/animate-presence-exit": "error",
       "local/animate-presence-stable-key": "error",
       "local/no-arbitrary-zindex": "error",

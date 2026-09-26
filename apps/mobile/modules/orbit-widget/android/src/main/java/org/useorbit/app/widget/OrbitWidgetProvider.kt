@@ -99,13 +99,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
         fun isSignedOut(context: Context): Boolean = OrbitWidgetModule.getToken(context) == null
 
-        // The WHOLE signed-out card. A fresh RemoteViews starts on the layout's own defaults, which
-        // are the signed-in widget_today and widget_all_clear strings, so a render that fails after
-        // sign-out would otherwise paint a control-free card that still reads as signed in.
-        // updateAppWidget submits a COMPLETE representation and the host may inflate it rather than
-        // reapply it over the last one, so a card that only mutates text inherits no actions and no
-        // empty view. Every full submission goes through here.
-        // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/appwidget/AppWidgetManager.java
+        // Submit a complete signed-out card because the host may inflate fresh RemoteViews.
+        // A text-only update would inherit signed-in defaults without the open-app action.
         fun applyOpenAppActions(context: Context, views: RemoteViews) {
             val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                 ?: Intent(Intent.ACTION_VIEW, Uri.parse("https://app.useorbit.org"))
@@ -168,13 +163,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         }
 
         /**
-         * API 31 lets the host choose a complete RemoteViews child for the size it is rendering.
-         * Every wide height variant starts just above the #490 breakpoint. RemoteViews chooses the
-         * fitting key with the nearest two-dimensional distance, so keying those variants at the
-         * drawn 336dp width would let the height-matched narrow child beat them at intermediate
-         * widths such as 250 by 192dp. Each child carries its own height and time visibility into
-         * its collection factory, so resizing never depends on a runtime width read or a partial
-         * update. Older hosts receive the default 4 by 2 layout.
+         * RemoteViews chooses the fitting key with the nearest two-dimensional distance, so keying
+         * those variants at the drawn 336dp width would let the height-matched narrow child beat
+         * them at intermediate widths such as 250 by 192dp.
          */
         internal fun buildWidgetRemoteViews(
             context: Context,

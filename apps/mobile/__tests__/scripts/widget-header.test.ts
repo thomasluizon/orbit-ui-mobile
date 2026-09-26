@@ -317,23 +317,8 @@ describe('Android widget header', () => {
     )
   })
 
-  /**
-   * Ticket #490 is the deliberate replacement for the old SizeF guard. The host can select a
-   * size-keyed child safely only after every update becomes a full update: Android's partial merge
-   * mutates the parent actions but renders a child, which leaves the selected variant stale.
-   *
-   * Both children are keyed at 1dp tall, so `ceil(height) + 1 > 1` always holds and width alone
-   * decides. Every sampled width above the breakpoint is one a host can really produce, because
-   * AppWidgetHostView divides its laid out pixel span by the display density: 526px at density
-   * 2.625 arrives as 200.38dp.
-   */
-  /**
-   * RemoteViews inflates only classes annotated @RemoteView, and android.view.View is not one of
-   * them. A bare <View> makes RemoteViews.apply throw and the host substitutes its own error view,
-   * which no source-text guard and no unit test can see. Proven on an API 35 emulator: the hairline
-   * that pull request 873 added as a <View> failed with
-   * `Class not allowed to be inflated android.view.View`.
-   */
+
+
   it('builds every widget layout from RemoteViews-inflatable classes only', () => {
     const inflatable = new Set([
       'AdapterViewFlipper', 'AnalogClock', 'Button', 'Chronometer', 'FrameLayout', 'GridLayout',
@@ -706,15 +691,7 @@ describe('Android widget header', () => {
     expect(provider).toContain('views.setViewVisibility(R.id.widget_empty, View.VISIBLE)')
   })
 
-  /**
-   * `resolveWidgetData` blocks for seconds, and everything after it repopulates the cache and the
-   * signed-in header. A load must prove it still owns the session, and the two ways it can stop
-   * owning it are not the same: a CLEARED token is a sign-out and the signed-out card wins, while a
-   * CHANGED token naming the SAME account is an access-token rotation, the person is still signed
-   * in, and a newer load already owns the render, so this one drops silently rather than blanking a
-   * signed-in widget. A different account clears only this factory's rows, because its token write
-   * has already refreshed the shared widget and its render may have completed.
-   */
+
   it('drops a load whose session ended or account changed and keeps a rotation', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
@@ -828,15 +805,7 @@ describe('Android widget header', () => {
    * 48 tall." The header around the refresh opens Orbit, so a short refresh does not merely miss the
    * floor, it hands near-edge taps to a different action.
    */
-  /**
-   * The cross-account leak this closes: a fetch still in flight at logout writes its response back
-   * after the cache is cleared, and the NEXT account to sign in reads it as fresh and renders
-   * another person's habits without ever making a request under its own token. Ordering the write
-   * against the logout cannot fix it, because `onDataSetChanged` is synchronized and the
-   * replacement callback runs after the old one has already landed. So the payload records which
-   * session produced it and only that session can read it back. The key is the token's DIGEST, never
-   * the token, which lives in encrypted preferences and must not reach the plain widget cache.
-   */
+
   it('scopes the payload cache to the session that produced it', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
     const widgetModule = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
@@ -853,21 +822,7 @@ describe('Android widget header', () => {
     }
   })
 
-  /**
-   * Ownership belongs to the ACCOUNT that fetched the payload, never to whichever token happens to
-   * be current when the bridge call lands, and never to the token bytes.
-   *
-   * Two failures meet here. Labelling the response with the current token puts one account's habits
-   * on the next account's home screen when a sign-out or an account switch lands mid-flight. Keying
-   * on the token instead of the account throws the cache away on every silent refresh, and
-   * `apiClient` refreshes and retries on a 401 as a matter of routine, so the app-pushed write
-   * would be discarded on the very path it exists to serve. The account claim answers both: it
-   * survives a refresh and it changes when somebody else signs in.
-   *
-   * The TypeScript half is held by the two-argument module type, which `type-check` gates, and by
-   * `lib/orbit-widget.ts` passing the token the API accepted rather than the one it read before the
-   * fetch. `api-client.test.ts` covers why those two differ.
-   */
+
   it('takes cache ownership from the calling account, not the token current at write time', () => {
     const widgetModule = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
 
@@ -918,15 +873,7 @@ describe('Android widget header', () => {
     expect(widgetClaims).toEqual(appClaims)
   })
 
-  /**
-   * The reader accepts a payload only when `habits_session` names the current token, so a writer
-   * that omits the tag writes a cache nothing can read: the widget discards habits the app already
-   * fetched, repeats the request natively, and keeps no fallback when that request fails. The
-   * service writer and the app-pushed `syncWidgetData` writer are both bound by this, and so is any
-   * writer added later, which is why this sweeps every widget source rather than naming two. The
-   * per-file count assertion keeps the sweep honest: a writer placed outside an
-   * `edit() ... apply()` chain would otherwise slip past the tag check unseen.
-   */
+
   it('tags every habits_json writer with the session that owns it', () => {
     const writers: string[] = []
 
@@ -953,13 +900,7 @@ describe('Android widget header', () => {
     ])
   })
 
-  /**
-   * The status mark is the only place a row states done, overdue or pending: the title and the due
-   * time never name it, and the icon plus its colour filter carry the whole meaning. Left at
-   * `@null` it is outside the accessibility tree, so the state is readable by sight alone. The name
-   * comes through `tr()` like every other visible string, because the widget renders the account's
-   * language from the cached payload rather than the device's resource configuration.
-   */
+
   it('names the row status for a screen reader, in both locales', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 

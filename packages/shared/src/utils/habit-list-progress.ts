@@ -8,15 +8,9 @@ export interface HabitDateBucket {
 }
 
 /**
- * Buckets the All-view's top-level habits into an overdue section plus
- * per-due-date sections (label-less; callers format the label per platform).
- *
- * Overdue membership follows the authoritative `isOverdue` flag rather than a
- * raw `dueDate < today` check, so an always-due daily habit whose `DueDate` has
- * gone stale is NOT mislabelled overdue (it is surfaced under today). A
- * non-overdue habit whose `DueDate` already slipped into the past is clamped to
- * today; genuinely missed habits (weekly/one-time) keep `isOverdue` and sort
- * into the overdue section.
+ * Overdue membership follows the authoritative `isOverdue` flag rather than a raw `dueDate <
+ * today` check, so an always-due daily habit whose `DueDate` has gone stale is NOT
+ * mislabelled overdue (it is surfaced under today).
  */
 export function buildHabitDateBuckets(
   habits: NormalizedHabit[],
@@ -123,17 +117,10 @@ export function computeParentSettlementDecision(
 }
 
 /**
- * Aggregates a parent habit's sub-habit resolution for the auto-resolve-parent
- * prompt. A sub-habit counts toward `total` when it is due today, overdue,
- * already logged, or was just skipped; it counts toward `done` when logged,
- * completed, skipped, or present in `resolvedModes`. `loggedDone` tracks how
- * many of the done sub-habits were resolved by logging rather than skipping, so
- * the caller can offer to LOG the parent (any logged) or SKIP it (all skipped).
- *
- * Counting overdue and just-skipped sub-habits keeps the count stable across the
- * optimistic-update/refetch window, so the prompt no longer fires after only one
- * of several overdue siblings is logged, and reliably fires once every sub-habit
- * is resolved.
+ * Aggregates a parent habit's sub-habit resolution for the auto-resolve-parent prompt. A
+ * sub-habit counts toward `total` when it is due today, overdue, already logged, or was just
+ * skipped; it counts toward `done` when logged, completed, skipped, or present in
+ * `resolvedModes`.
  */
 export function computeParentPromptProgress(
   options: ParentPromptProgressOptions,

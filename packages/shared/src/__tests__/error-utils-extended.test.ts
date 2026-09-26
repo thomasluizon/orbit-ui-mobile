@@ -505,13 +505,7 @@ describe('getFriendlyErrorKey resolves a rewritten form error by its code', () =
 })
 
 
-/**
- * A rewrite can also make a sentence match a rule it was never meant for, and a contextual match
- * wins over the error code. `ErrorCopy.cs:121` gives `GOAL_PROGRESS_DERIVED` a sentence carrying
- * `linked habits`, which the goal habit-limit rule read as a limit failure. The only producer of
- * the real limit sentence is `LinkHabitsToGoalCommandValidator.cs:15`, whose message also carries
- * `at most`, so the rule keeps both substrings and the derived-progress sentence falls through.
- */
+
 describe('a rewritten sentence does not borrow another rule', () => {
   const GOAL_PROGRESS_DERIVED_SENTENCE =
     'This goal counts progress from its linked habits, so it cannot be set by hand.'

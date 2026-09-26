@@ -9,13 +9,9 @@ import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
 const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
 
 /**
- * BFF: POST /api/subscriptions/checkout
- * Dedicated route that proxies checkout session creation to the .NET backend.
- * Forwards the client's real IP via X-Forwarded-For for geolocation-based pricing.
- *
- * This takes precedence over the catch-all proxy because Next.js resolves
- * specific routes before [...path]. The catch-all does NOT forward X-Forwarded-For,
- * which breaks geolocation-based pricing on the backend.
+ * BFF: POST /api/subscriptions/checkout Dedicated route that proxies checkout session
+ * creation to the .NET backend. This takes precedence over the catch-all proxy because
+ * Next.js resolves specific routes before [...path].
  */
 
 function buildHeaders(

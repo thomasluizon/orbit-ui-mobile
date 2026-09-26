@@ -4,14 +4,9 @@ import { captureError } from '@/lib/sentry'
 export const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
 /**
- * The one owner of the stored support draft. The key carries no account, and AsyncStorage keeps it
- * through a sign out and an app restart, so the person who signs in next would read the previous
- * person's subject and message straight back into the form. The session paths that forget the Astra
- * draft call `forgetStoredSupportDraft` beside it, which is only possible while one module owns the
- * key.
- *
- * A failed read or write is reported and swallowed, because losing a draft is worse than crashing a
- * sign in over it.
+ * The one owner of the stored support draft. The key carries no account, and AsyncStorage
+ * keeps it through a sign out and an app restart, so the person who signs in next would read
+ * the previous person's subject and message straight back into the form.
  */
 export async function readStoredSupportDraft(): Promise<string | null> {
   try {
