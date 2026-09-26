@@ -730,12 +730,7 @@ describe('useLogHabit onSuccess', () => {
     mockSetStreakCelebration.mockClear()
   })
 
-  /**
-   * `xpEarned` is 0 here because that is what the server actually sends for a bad habit:
-   * GamificationService.cs:170 is `habit.IsBadHabit ? 0 : ...`. The fixture used to send 25, a
-   * response the API cannot produce, and the client then needed its own bad-habit gate to discard
-   * it. That gate is what dropped every reward for a habit missing from the list cache.
-   */
+  /** The server sends no XP for a bad habit; celebration still uses the cached habit type. */
   it('does not celebrate a bad sub-habit completion, and the server sends it no XP', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
@@ -752,6 +747,7 @@ describe('useLogHabit onSuccess', () => {
     })])
     queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
     queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useLogHabit(), {
       wrapper: createWrapper(queryClient),
     })
@@ -767,6 +763,36 @@ describe('useLogHabit onSuccess', () => {
     expect(
       queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp,
     ).toBe(100)
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it('banks server XP and refreshes the profile when the cached habit type is stale', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({
+      logId: 'log-edited-habit',
+      isFirstCompletionToday: true,
+      currentStreak: 3,
+      xpEarned: 25,
+    })
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({ id: 'edited-habit', isBadHabit: true }),
+    ])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'edited-habit' })
+    })
+
+    expect(queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp).toBe(125)
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(mockSetStreakCelebration).not.toHaveBeenCalled()
   })
 
   /**
@@ -810,15 +836,6 @@ describe('useLogHabit onSuccess', () => {
 
   it.each([
     {
-      name: 'does not celebrate a bad top-level habit completion',
-      habits: [makeScheduleItem({ id: 'bad-habit', isBadHabit: true })],
-      habitId: 'bad-habit',
-      isFirstCompletionToday: true,
-      celebrates: false,
-      xpEarned: 25,
-      expectedXp: 100,
-    },
-    {
       name: 'celebrates a good top-level habit completion',
       habits: [makeScheduleItem({ id: 'good-habit' })],
       habitId: 'good-habit',
@@ -840,7 +857,7 @@ describe('useLogHabit onSuccess', () => {
       expectedXp: 100,
     },
     {
-      name: 'does not bank XP for a bad sub-habit completion',
+      name: 'does not celebrate or bank XP for a bad sub-habit completion',
       habits: [makeScheduleItem({
         id: 'parent-1',
         children: [makeScheduleChild({ id: 'bad-child', isBadHabit: true })],
@@ -848,7 +865,7 @@ describe('useLogHabit onSuccess', () => {
       habitId: 'bad-child',
       isFirstCompletionToday: true,
       celebrates: false,
-      xpEarned: 25,
+      xpEarned: 0,
       expectedXp: 100,
     },
     {

@@ -152,7 +152,7 @@ export function useLogHabit() {
         void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       }
 
-      if (!loggedHabit?.isBadHabit && (response.xpEarned || response.newAchievementIds?.length)) {
+      if (response.xpEarned || response.newAchievementIds?.length) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
