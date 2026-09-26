@@ -411,18 +411,43 @@ describe('useBulkActions reversibility boundary', () => {
     expect(mutation).toHaveBeenCalledTimes(1)
   })
 
-  it('deletes only selected roots so one request covers each server-side subtree', async () => {
+  it('sends only selected habits when a child is excluded', async () => {
     const habitsById = new Map<string, NormalizedHabit>([
       ['parent', { id: 'parent', parentId: null } as NormalizedHabit],
-      ['child', { id: 'child', parentId: 'parent' } as NormalizedHabit],
+      ['child-a', { id: 'child-a', parentId: 'parent' } as NormalizedHabit],
+      ['child-b', { id: 'child-b', parentId: 'parent' } as NormalizedHabit],
     ])
-    const { result } = renderBulkActions(new Set(['parent', 'child']), false, habitsById)
+    const { result } = renderBulkActions(new Set(['parent', 'child-b']), false, habitsById)
 
     await act(async () => {
       await result.current.confirmBulkDelete()
     })
 
-    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent'])
+    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent', 'child-b'])
+  })
+
+  it('does not send an empty delete request', async () => {
+    const { result } = renderBulkActions(new Set())
+
+    await act(async () => { await result.current.confirmBulkDelete() })
+
+    expect(bulkDelete.mutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('sends only selected habits to log and skip', async () => {
+    const { result } = renderBulkActions(new Set(['parent', 'child-b']))
+
+    await act(async () => {
+      await result.current.confirmBulkLog()
+      await result.current.confirmBulkSkip()
+    })
+
+    const selected = [
+      { habitId: 'parent', date: VIEWED_DATE },
+      { habitId: 'child-b', date: VIEWED_DATE },
+    ]
+    expect(bulkLog.mutateAsync).toHaveBeenCalledWith(selected)
+    expect(bulkSkip.mutateAsync).toHaveBeenCalledWith(selected)
   })
 
   it('refuses completion but allows deletion on an old date', async () => {

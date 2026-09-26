@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
+import en from '@orbit/shared/i18n/en.json'
 import {
   makeHabitDetail as makeDetail,
   makeHabitScheduleItem,
@@ -65,6 +66,8 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, string>) => {
       if (key === 'habits.detail.loggedAt') return `${values?.date}, logged at ${values?.time}`
+      if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
+      if (key === 'habits.detail.logDateConfirmUnlogMessage') return `Undo ${values?.name}: ${values?.date}`
       if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
       return key
     },
@@ -230,8 +233,8 @@ vi.mock('@/components/ui/app-bar', () => ({
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, title, onConfirm }: { open: boolean; title: string; onConfirm: () => void }) => open
-    ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, onConfirm })
+  ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void }) => open
+    ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, message, confirmLabel, onConfirm })
     : null,
 }))
 vi.mock('@/components/ui/error-state', () => ({
@@ -690,7 +693,9 @@ describe('HabitDetailScreen', () => {
     })
     const historicalChild = tree!.root.findByProps({ testID: 'child-child-1' })
     expect(historicalChild.props.state).toBe('done')
-    historicalChild.props.actions.onUnlog()
+    TestRenderer.act(() => historicalChild.props.actions.onUnlog())
+    expect(mocks.log).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onConfirm())
     expect(mocks.log).toHaveBeenLastCalledWith({
       habitId: 'child-1',
       date: '2026-08-28',
@@ -729,7 +734,11 @@ describe('HabitDetailScreen', () => {
       expect(child.props.action).toBe('unlog')
       expect(child.props.completionReadOnly).toBe(false)
 
-      child.props.actions.onUnlog()
+      TestRenderer.act(() => child.props.actions.onUnlog())
+      if (date < '2026-08-29') {
+        expect(mocks.log).not.toHaveBeenCalled()
+        TestRenderer.act(() => tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onConfirm())
+      }
       expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
     },
   )
@@ -1044,6 +1053,82 @@ describe('HabitDetailScreen', () => {
     })
 
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.logError')
+  })
+
+  it.each(['2020-01-01', '2030-01-01'])('rejects an outside date before offline queueing: %s', async (date) => {
+    mocks.log.mockImplementation(({ habitId }: { habitId: string }) => performQueuedApiMutation({
+      type: 'logHabit', scope: 'habits', endpoint: `/api/habits/${habitId}/log`,
+      method: 'POST', payload: { date }, entityType: 'habit', targetEntityId: habitId,
+      dedupeKey: `habit-toggle:${habitId}:${date}`,
+    }))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date={date} />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'header-log' }).props.onPress()
+      await Promise.resolve()
+    })
+    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.logDateUnavailable')).toBe(true)
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(getQueuedMutations()).toEqual([])
+  })
+
+  it('asks before logging a date before the habit existed', async () => {
+    expect(en.habits.detail.logDateConfirmMessage).toBe('This logs {name} on {date}.')
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
+    mocks.logs = []
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />) })
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toContain('August 27, 2026')
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toContain('Read')
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.confirmLabel).toBe('habits.detail.logDateConfirmLog')
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-27', intent: 'log' })
+  })
+
+  it('names the undo action when confirming an unusual unlog date', () => {
+    expect(en.habits.detail.logDateConfirmUnlogMessage).toBe('This undoes the log for {name} on {date}.')
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
+    mocks.logs = [{ id: 'selected', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' }]
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />) })
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toBe('Undo Read: August 27, 2026')
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.confirmLabel).toBe('habits.detail.logDateConfirmUnlog')
+    expect(mocks.log).not.toHaveBeenCalled()
+  })
+
+  it('confirms a child date when its creation time is unavailable from the schedule', () => {
+    const schedule = makeHabitScheduleItem({ createdAtUtc: '2026-08-01T12:00:00Z' })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onLog())
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toContain('August 28, 2026')
+  })
+
+  it('replaces checklist confirmation with the unusual-date confirmation', async () => {
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z', checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValue(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' })).toHaveLength(1)
+    expect(mocks.log).not.toHaveBeenCalled()
   })
 
   it('contains and reports a checklist failure', async () => {

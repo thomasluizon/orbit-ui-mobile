@@ -101,7 +101,7 @@ export function ConfirmSheet({
         </>
       }
     >
-      <p className="text-sm text-[var(--fg-2)]">{message}</p>
+      <p className="break-words text-sm text-[var(--fg-2)]">{message}</p>
     </Sheet>
   )
 }

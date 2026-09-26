@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
+import { ApiClientError } from '@orbit/shared/utils'
 
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
@@ -1011,6 +1012,24 @@ await Promise.resolve()
 
     expect(mockShowError).toHaveBeenCalledTimes(1)
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [403, undefined, 'Blocked by the edge', 'errors.api.edgeBlocked'],
+    [400, 'VALIDATION_ERROR', 'Title must be 200 characters or fewer', 'habits.form.titleTooLong'],
+    [429, 'RATE_LIMITED', 'Rate limited', 'toast.errors.tooManyRequests'],
+    [500, 'INTERNAL_SERVER_ERROR', 'Server failed', 'toast.errors.server'],
+    [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!', 'errors.api.calendarPro'],
+    [400, 'HABIT_LIMIT_REACHED', "You've reached the 1000 habit limit.", 'errors.api.habitLimit'],
+  ])('shows the classified create error for %i %s', async (status, code, message, expected) => {
+    mockCreateMutateAsync.mockRejectedValue(new ApiClientError(status, message, { code }))
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
+    })
+    expect(mockShowError).toHaveBeenCalledWith(expected)
+    expect(mockShowError).not.toHaveBeenCalledWith('errors.createHabit')
   })
 
   it('keeps sub-habit creation available without routing to upgrade', () => {

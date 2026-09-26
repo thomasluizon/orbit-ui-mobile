@@ -10,6 +10,7 @@ import {
   profileKeys,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
+import { createHabitRequestSchema, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
 import {
   applyLinkedGoalUpdates,
   appendHabitDetailChild,
@@ -475,6 +476,7 @@ export function useCreateHabit() {
   >({
     mutationFn: async (input) => {
       const { __offlineTempId, __offlineDependsOn, ...data } = input
+      const request = validateApiRequest(data, createHabitRequestSchema)
       const tempId = __offlineTempId ?? createTempEntityId('habit')
 
       return performQueuedApiMutation<{ id: string }, { id: string } & QueuedMarker>({
@@ -482,7 +484,7 @@ export function useCreateHabit() {
         scope: 'habits',
         endpoint: API.habits.create,
         method: 'POST',
-        payload: data,
+        payload: request,
         entityType: 'habit',
         clientEntityId: tempId,
         dependsOn: __offlineDependsOn,
@@ -532,17 +534,19 @@ export function useUpdateHabit() {
     { habitId: string; data: UpdateHabitRequest; dependsOn?: string[] },
     { previousLists: HabitListSnapshots; previousDetail: HabitDetail | undefined }
   >({
-    mutationFn: ({ habitId, data, dependsOn }) =>
-      performQueuedApiMutation<void>({
+    mutationFn: async ({ habitId, data, dependsOn }) => {
+      const request = validateApiRequest(data, updateHabitRequestSchema)
+      return performQueuedApiMutation<void>({
         type: 'updateHabit',
         scope: 'habits',
         endpoint: API.habits.update(habitId),
         method: 'PUT',
-        payload: data,
+        payload: request,
         entityType: 'habit',
         targetEntityId: habitId,
         dependsOn,
-      }),
+      })
+    },
 
     onMutate: async ({ habitId, data }) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })

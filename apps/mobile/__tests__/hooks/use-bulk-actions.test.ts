@@ -2,6 +2,7 @@ import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitListHandle } from '@/components/habit-list'
 
 const TestRenderer = require('react-test-renderer')
@@ -102,6 +103,25 @@ describe('useBulkActions confirmBulkDelete', () => {
     expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['h-1', 'h-2'])
     expect(onSuccess).toHaveBeenCalledTimes(1)
     expect(captured.current!.showBulkDeleteConfirm).toBe(false)
+  })
+
+  it('sends only selected habits when deleting a parent with an excluded child', async () => {
+    const habits = [
+      createMockHabit({ id: 'parent', parentId: null }),
+      createMockHabit({ id: 'child-a', parentId: 'parent' }),
+      createMockHabit({ id: 'child-b', parentId: 'parent' }),
+    ]
+    const { captured } = renderBulkActions(
+      new Set(['parent', 'child-b']),
+      false,
+      new Map(habits.map((habit) => [habit.id, habit])),
+    )
+
+    await TestRenderer.act(async () => {
+      await captured.current!.confirmBulkDelete()
+    })
+
+    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent', 'child-b'])
   })
 
   it('is a no-op when nothing is selected', async () => {
@@ -530,7 +550,7 @@ describe('useBulkActions reversibility boundary', () => {
     expect(mutation).toHaveBeenCalledTimes(1)
   })
 
-  it('deletes only selected roots so one request covers each server-side subtree', async () => {
+  it('sends every selected habit to bulk delete', async () => {
     const habitsById = new Map<string, NormalizedHabit>([
       ['parent', { id: 'parent', parentId: null } as NormalizedHabit],
       ['child', { id: 'child', parentId: 'parent' } as NormalizedHabit],
@@ -545,7 +565,7 @@ describe('useBulkActions reversibility boundary', () => {
       await captured.current!.confirmBulkDelete()
     })
 
-    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent'])
+    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent', 'child'])
   })
 
   it('refuses completion but allows deletion on an old date', async () => {

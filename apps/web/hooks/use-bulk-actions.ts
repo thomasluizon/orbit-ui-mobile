@@ -2,7 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { formatAPIDateInTimeZone, getTodayBoundary, hasAncestorInSet, type HabitResolutionMode } from '@orbit/shared/utils'
+import { formatAPIDateInTimeZone, getTodayBoundary, type HabitResolutionMode } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -43,7 +43,6 @@ export function useBulkActions({
   selectedDateStr,
   completionReadOnly,
   accountTimeZone,
-  habitsById,
   habitListRef,
   onSuccess,
   onPartialFailure,
@@ -148,11 +147,7 @@ export function useBulkActions({
     }
   }
 
-  const confirmBulkDelete = () => executeDelete(
-    Array.from(selectedHabitIds).filter(
-      (habitId) => !hasAncestorInSet(habitId, habitsById, selectedHabitIds),
-    ),
-  )
+  const confirmBulkDelete = () => executeDelete(Array.from(selectedHabitIds))
 
   const confirmBulkLog = () => executeLog(Array.from(selectedHabitIds))
 

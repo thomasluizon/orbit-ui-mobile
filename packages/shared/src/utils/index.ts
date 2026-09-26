@@ -103,6 +103,7 @@ export {
   getFriendlyErrorMessage,
   translateErrorKey,
   validateApiResponse,
+  validateApiRequest,
 } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
@@ -242,6 +243,8 @@ export type {
 } from './habit-form-helpers'
 export {
   canLogHabitOnDate,
+  getHabitLogDateDecision,
+  getHabitLogDateConfirmationKeys,
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,

@@ -457,14 +457,14 @@ describe('getFriendlyErrorKey', () => {
     )
   })
 
-  it('returns the caller fallback for paywall errors', () => {
+  it('shows the shared Pro message for an unspecified pay gate', () => {
     const err = createApiClientError(
       400,
       { errorCode: 'PAY_GATE', error: 'Upgrade required' },
       'fallback',
     )
     expect(getFriendlyErrorKey(err, 'goals.errors.create', 'goal')).toBe(
-      'goals.errors.create',
+      'errors.api.payGate',
     )
   })
 

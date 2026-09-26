@@ -8,6 +8,7 @@ import {
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitMatchBadges,
+  getHabitLogDateDecision,
 } from '../utils/habit-card-helpers'
 
 function createTranslator() {
@@ -307,6 +308,37 @@ describe('canLogHabitOnDate', () => {
   it('rejects dates older than the overdue window', () => {
     const oneTime = createMockHabit({ frequencyUnit: null })
     expect(canLogHabitOnDate(oneTime, '2025-01-01', today)).toBe(false)
+  })
+})
+
+describe('getHabitLogDateDecision', () => {
+  const today = '2025-01-10'
+  const recurring = createMockHabit({ createdAtUtc: '2025-01-03T12:00:00Z', frequencyUnit: 'Day' })
+
+  it('blocks API rejected past and future dates', () => {
+    expect(getHabitLogDateDecision(recurring, '2025-01-02', today, 'UTC')).toBe('block')
+    expect(getHabitLogDateDecision(recurring, '2025-01-11', today, 'UTC')).toBe('block')
+  })
+
+  it('keeps the accepted backfill window immediate', () => {
+    expect(getHabitLogDateDecision(recurring, '2025-01-03', today, 'UTC')).toBe('write')
+    expect(getHabitLogDateDecision(recurring, '2025-01-09', today, 'UTC')).toBe('write')
+  })
+
+  it('confirms accepted dates the app never offers', () => {
+    const oneTime = createMockHabit({ createdAtUtc: '2025-01-09T12:00:00Z', frequencyUnit: null })
+    expect(getHabitLogDateDecision(oneTime, '2025-01-08', today, 'UTC')).toBe('confirm')
+    expect(getHabitLogDateDecision(oneTime, '2025-05-01', today, 'UTC')).toBe('confirm')
+    expect(getHabitLogDateDecision(oneTime, '2025-01-08', today, 'UTC', true)).toBe('write')
+    expect(getHabitLogDateDecision(recurring, '2025-01-11', today, 'UTC', true)).toBe('block')
+    expect(getHabitLogDateDecision(undefined, today, today, 'UTC', true)).toBe('block')
+  })
+
+  it('confirms a past date for a child with an unknown creation time', () => {
+    const child = createMockHabit({ parentId: 'parent-1', createdAtUtc: '2025-01-01T12:00:00Z', frequencyUnit: 'Day' })
+    expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC')).toBe('confirm')
+    expect(getHabitLogDateDecision(child, '2025-01-09', today, 'UTC', true)).toBe('write')
+    expect(getHabitLogDateDecision(child, today, today, 'UTC')).toBe('write')
   })
 })
 

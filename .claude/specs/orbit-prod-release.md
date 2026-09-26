@@ -75,10 +75,12 @@ already open pull requests to merge.
    per active user is recorded in the Current state section.
 
 The four root causes (#742 Today log window, #743 streak and achievement projections, #744 scheduler
-projections, #745 warm connection pools) are merged on `main`. What remains:
+projections, #745 warm connection pools) are merged on `main`, and the client notification poll now runs
+every 15 minutes while visible (#759, merged). What remains:
 
-- `#745` Record the Supavisor `Connection authenticated` count for the 24 hours after its deploy (the before count is on the ticket), then close it
-- Measure per-shape deltas from `pg_stat_statements` against the snapshot of the top 60 shapes taken before the deploys (query ids, calls and rows are on #742), and record the remaining egress per active user in `## Current state`
+- `#758` Stop refetching every habit page on focus, reconnect and each log (`orbit-ui-mobile` PR 1176): keep the 5-minute habit freshness, stale-only reconnect and the palette reusing the cached Today list; mutations settle from the server, never from client-synthesized list membership or counts
+- `#745` Record the Supavisor `Connection authenticated` count for the 24 hours after its deploy (the before count is on the ticket; the window closes about 16:34 UTC the day after the deploy), then close it
+- Measure per-shape deltas: `pg_stat_statements` is cumulative, so take two snapshots of the top 60 shapes by rows (queryid, calls, rows) an hour or more apart and rank the difference. The pre-deploy Today shapes are named on #742 and have stopped growing. Map each still-growing shape to its code path, fix what the product does not need, and record the remaining egress per active user in `## Current state`
 
 ### Batch 0b: the harness, before the redesign
 
@@ -96,7 +98,6 @@ Defects a person hits in the shipped build today (web on `main`, Android from `m
 `/android-release` to the open track.
 
 - `#740` Extend the relative reminder model so every reminder keeps its local time, then make it the only model for a habit with a due time
-- `#751` Identical bulk log or skip calls in one chat request lose the second mutation (`orbit-api` PR 595)
 - `#752` Add after-due and day-before wall-clock reminders to the web and mobile editors (after `#740` deploys)
 - `#754` Give actionable 403 guidance for textless actions
 - `#755` Resolve the Play foreground service permissions declaration
@@ -345,21 +346,25 @@ Current operational rules above take precedence when a record conflicts.
 - A worker branch has a launch cap of two; a review-fix relaunch beyond it needs `--relaunch-reason`, or the launcher refuses without starting a worker.
 - Admission refuses new ticket work when open pull requests plus live reservations exceed ten across the three repositories; review fixes on open pull requests are still admitted.
 - `orbit-api` auto-deploys to Render on every push to `main`; there is no deploy workflow to read, so a UI change that needs a new API response waits a deploy cycle after the API merge.
+- The worker launcher reads `.claude/orchestrator.json` from the orchestrating checkout, which runs on `redesign/main`. A launcher change merged on `main` reaches workers only after the `#556` sync carries it. Codex workers start with `--disable apps --ignore-user-config` once it does, which also skips the user-level Codex hooks in `$CODEX_HOME/hooks.json`.
+- A worker's final report does not always use the `## Test evidence`, `## Assumptions`, `## Manual steps` and one-lane-per-line `## Review harness` shape that `merge-review-batch-body.mjs` reads, and its log prints the final message twice. Rebuild the report in that shape from the last copy before merging it into a pull request body.
+- Count Codex hook events as `hook: <Event>` lines (`LC_ALL=C grep -a`); the bare word "hook" also matches source text in the log.
 - Keep decision logs with times in the scratchpad, outside the repository. Tracked specs, prompts and skill output carry rules and current state without session history, dates, attribution or machine paths.
 
 ## Current state
 
 The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository.
 
-Shipped on `main` and live: the Supabase egress fixes (Today reads only its page's logs, streak and achievement reads use projected dates, the schedulers read only the columns they use, the connection pools stay warm), bulk delete removes whole subtrees, checklists reset on flexible habits and general habits refuse end dates, clearer localized create errors, cascade un-select, and every ad path deleted from the app. Android 1.3.34 is on the open track; 1.3.35 is the first build without AdMob, and it ships once the open `main` fixes merge. Both AdMob ad units are removed, so no install is served an ad; the Play ads declaration reads no ads, and the listing shows only in-app purchases. `redesign/main` in `orbit-api` carries every `main` commit through the warm-pool fix; `redesign/main` in `orbit-ui-mobile` gained the Astra read blocks, the Perfil Support entry into Astra, the 320px layout guard, the account-safe onboarding flush, and the parity-label delivery check.
+Shipped on `main` and live: the Supabase egress fixes (Today reads only its page's logs, streak and achievement reads use projected dates, the schedulers read only the columns they use, the connection pools stay warm), identical bulk log or skip calls in one chat turn both apply, notifications poll every 15 minutes only while visible and mobile refreshes them when a push arrives, Codex workers start with no account apps or user MCP servers (reaches workers after the next `#556` sync), bulk delete removes whole subtrees, and every ad path is deleted from the app. Android 1.3.34 is on the open track; 1.3.35 is the first build without AdMob, and it ships once the open `main` fixes merge. The pre-deploy Today query shapes show no new calls since the egress deploys; the remaining egress per active user is not measured yet.
 
 Open pull requests:
 
-- `orbit-ui-mobile` `#1172` (`#216`, base `main`): review fix committed in the ticket worktree and not pushed (truthful delete copy, plural toast, offline Undo, parent and child restore, response evidence). Merge its report into the body, resolve the three threads, push.
-- `orbit-ui-mobile` `#1171` (`#556` sync, base `redesign/main`): review fix commits exist in the ticket worktree and are not pushed (merges of `redesign/main`, Expo runtime evidence, sweep). Merge the report into the body, resolve the thread, push.
-- `orbit-ui-mobile` `#1170` (`#24` Stage 3 part 1): review fixes pushed; merging `redesign/main` into it conflicts in both `block-frame.tsx` files and `sonar-project.properties` (after `#681`). Needs a worker to merge and re-verify.
-- `orbit-ui-mobile` `#1168` (`#632`): approved and green at its head, but conflicts with `redesign/main`. Merge the base, test, push, and merge after a fresh approval.
-- `orbit-api` `#595` (`#751`): review fix pushed (single logs respect the flexible window, main merged); CI and review pending.
-- `orbit-api` `#594` (`#740`): delivered; CI and first review pending. Production has 1 live habit with the mixed reminder shape its migration folds; after deploy that count must be 0 and the habit keeps its local time.
+- `orbit-ui-mobile` `#1176` (`#758`, base `main`): six Pullfrog P1s in its client-side cache reconciliation and SonarCloud new-code coverage at 43.8%. A review-batch worker was sent to drop the reconciliation (mutations settle from the server) and keep the freshness, reconnect and palette savings; its result is unread. Read the worktree first, then merge the report into the body, resolve the six threads, push.
+- `orbit-ui-mobile` `#1173` (handoff prompt gate, base `redesign/main`, no ticket by owner request): the three Pullfrog P1s are fixed in an unpushed commit in its worktree (every committable `NEXT.md` version is judged, the stop reads the newest committed `NEXT.md` on any branch, the `/sleep` first line is literal), proven by break and restore. Both harnesses exit 0. Still needed before push: the external-interface evidence for the `UserPromptSubmit` payload in the body (the installed Claude Code binary builds it as `hook_event_name:"UserPromptSubmit",prompt:<text>` on top of the common hook fields; capture the full key set), then resolve the three threads and push.
+- `orbit-ui-mobile` `#1172` (`#216`, base `main`): review fix and `main` merged, pushed, threads resolved; waiting on CI and a fresh Pullfrog approval.
+- `orbit-ui-mobile` `#1171` (`#556` sync, base `redesign/main`): pushed with the Expo evidence and a complete Review harness block; checks green; needs a Pullfrog approval at its head. The next sync carries every `main` merge since it (ads removal, the notification poll, the Codex worker isolation, and `#216` once merged).
+- `orbit-ui-mobile` `#1170` (`#24` Stage 3 part 1): base merged and review batch 2 pushed (a changed preview closes an open confirmation and discards a prepared step-up); two of three review-fix attempts used; waiting on CI and review.
+- `orbit-ui-mobile` `#1168` (`#632`): `redesign/main` merged and pushed; checks green; needs a fresh Pullfrog approval.
+- `orbit-api` `#594` (`#740`): review batches 1 and 2 pushed (no implicit offset beside relative clock rules, one push per instant, a legacy empty reminder list clears clock rules, after-due reminders dedupe for users behind UTC); two of three attempts used; waiting on CI and review. Production has 1 live habit with the mixed reminder shape its migration folds (due 18:00 with same-day 17:00, 17:45 and 18:00 reminders and a 15-minute offset, America/Sao_Paulo); after deploy that count must be 0 and the habit keeps those local times.
 
 Waiting on the owner: the on-device three-dot menu check (`#134`) and the chat keyboard (`#214`) on the next Android build. Nothing else.

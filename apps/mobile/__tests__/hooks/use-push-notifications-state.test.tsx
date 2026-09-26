@@ -21,16 +21,22 @@ const mocks = vi.hoisted(() => {
     },
     constants: {
       appOwnership: 'standalone',
-      expoGoConfig: null,
+      executionEnvironment: 'standalone',
+      expoGoConfig: { name: 'Orbit' },
       expoConfig: {},
       easConfig: {},
     },
     device: {
       isDevice: true,
     },
+    expoGo: false,
     auth,
   }
 })
+
+vi.mock('expo', () => ({
+  isRunningInExpoGo: () => mocks.expoGo,
+}))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
@@ -197,6 +203,8 @@ describe('usePushNotifications', () => {
     mocks.appState.listener = null
     mocks.auth.isAuthenticated = true
     mocks.auth.user = { userId: 'user-1' }
+    mocks.expoGo = false
+    mocks.constants.executionEnvironment = 'standalone'
     notificationsModule = await import('expo-notifications')
     vi.mocked(notificationsModule.setNotificationHandler).mockClear()
     vi.mocked(notificationsModule.setNotificationChannelAsync).mockReset()
@@ -242,6 +250,87 @@ describe('usePushNotifications', () => {
 
     expect(latestResult?.registrationStatus).toBe('disabled')
     expect(latestResult?.isEnabled).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('loads native notifications in a standalone embedded-manifest build', async () => {
+    const moduleLoader = require('node:module') as {
+      _load: (request: string, ...args: unknown[]) => unknown
+    }
+    const originalLoad = moduleLoader._load
+    moduleLoader._load = (request, ...args) =>
+      request === 'expo-notifications' ? notificationsModule : originalLoad(request, ...args)
+
+    try {
+      vi.resetModules()
+      pushNotificationsModule = await import('@/hooks/use-push-notifications')
+      usePushNotifications = pushNotificationsModule.usePushNotifications
+      PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
+    } finally {
+      moduleLoader._load = originalLoad
+    }
+
+    await renderHarness()
+
+    expect(latestResult?.isSupported).toBe(true)
+    expect(latestResult?.registrationStatus).toBe('permission-undetermined')
+    expect(notificationsModule.getPermissionsAsync).toHaveBeenCalled()
+    expect(notificationsModule.requestPermissionsAsync).not.toHaveBeenCalled()
+
+    await pushNotificationsModule.unsubscribePushToken()
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.unsubscribe, expect.anything())
+  })
+
+  it('loads native notifications in a development client', async () => {
+    mocks.constants.executionEnvironment = 'storeClient'
+    const moduleLoader = require('node:module') as {
+      _load: (request: string, ...args: unknown[]) => unknown
+    }
+    const originalLoad = moduleLoader._load
+    moduleLoader._load = (request, ...args) =>
+      request === 'expo-notifications' ? notificationsModule : originalLoad(request, ...args)
+
+    try {
+      vi.resetModules()
+      pushNotificationsModule = await import('@/hooks/use-push-notifications')
+      usePushNotifications = pushNotificationsModule.usePushNotifications
+      PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
+    } finally {
+      moduleLoader._load = originalLoad
+    }
+
+    await renderHarness()
+
+    expect(latestResult?.isSupported).toBe(true)
+    expect(notificationsModule.getPermissionsAsync).toHaveBeenCalled()
+  })
+
+  it('keeps Expo Go unsupported without loading native notifications', async () => {
+    mocks.constants.executionEnvironment = 'storeClient'
+    mocks.expoGo = true
+    const moduleLoader = require('node:module') as {
+      _load: (request: string, ...args: unknown[]) => unknown
+    }
+    const originalLoad = moduleLoader._load
+    const loadNotifications = vi.fn(() => notificationsModule)
+    moduleLoader._load = (request, ...args) =>
+      request === 'expo-notifications' ? loadNotifications() : originalLoad(request, ...args)
+
+    try {
+      vi.resetModules()
+      pushNotificationsModule = await import('@/hooks/use-push-notifications')
+      usePushNotifications = pushNotificationsModule.usePushNotifications
+      PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
+    } finally {
+      moduleLoader._load = originalLoad
+    }
+
+    await renderHarness()
+
+    expect(latestResult?.isSupported).toBe(false)
+    expect(latestResult?.registrationStatus).toBe('unsupported')
+    expect(loadNotifications).not.toHaveBeenCalled()
+    expect(notificationsModule.getPermissionsAsync).not.toHaveBeenCalled()
     expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
@@ -371,6 +460,66 @@ describe('usePushNotifications', () => {
     expect(latestResult?.registrationStatus).toBe('permission-denied')
     expect(latestResult?.permissionCanAskAgain).toBe(false)
     expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('refreshes permission and registration after returning from Android Settings', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('denied', false),
+    )
+
+    await renderHarness()
+    expect(latestResult?.isSupported).toBe(true)
+    expect(latestResult?.registrationStatus).toBe('permission-denied')
+
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+    await TestRenderer.act(async () => {
+      mocks.appState.listener?.('active')
+      await Promise.resolve()
+    })
+
+    expect(latestResult?.isSupported).toBe(true)
+    expect(latestResult?.registrationStatus).toBe('registered')
+    expect(latestResult?.isEnabled).toBe(true)
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.anything())
+  })
+
+  it('reports token and backend failures as supported retryable states', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+    vi.mocked(notificationsModule.getDevicePushTokenAsync).mockResolvedValue({
+      type: 'fcm',
+      data: '',
+    })
+
+    await renderHarness()
+    await TestRenderer.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1600))
+    })
+    expect(latestResult?.isSupported).toBe(true)
+    expect(latestResult?.registrationStatus).toBe('token-missing')
+    expect(latestResult?.isEnabled).toBe(false)
+
+    vi.mocked(notificationsModule.getDevicePushTokenAsync).mockResolvedValue({
+      type: 'fcm',
+      data: 'native-token',
+    })
+    mocks.apiClient.mockRejectedValue(new Error('offline'))
+    await TestRenderer.act(async () => {
+      await latestResult?.refreshPermissionStatus()
+    })
+    expect(latestResult?.registrationStatus).toBe('sync-failed')
+    expect(latestResult?.isSupported).toBe(true)
+    expect(latestResult?.isEnabled).toBe(false)
+
+    mocks.apiClient.mockResolvedValue(undefined)
+    await TestRenderer.act(async () => {
+      await latestResult?.refreshPermissionStatus()
+    })
+    expect(latestResult?.registrationStatus).toBe('registered')
+    expect(latestResult?.isEnabled).toBe(true)
   })
 
   it('prompts for permission and registers once the user grants it', async () => {
