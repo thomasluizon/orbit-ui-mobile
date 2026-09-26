@@ -1315,7 +1315,7 @@
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com o assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
-      "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes), o identificador de publicidade do seu dispositivo (usado pelo Google AdMob para exibir anúncios a usuários gratuitos) e diagnósticos de falhas com identificadores pessoais removidos"
+      "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos"
     },
     "howWeUse": {
       "title": "Como usamos seus dados",
@@ -1332,7 +1332,6 @@
       "openai": "OpenAI - para recursos de chat com IA e resumos diários",
       "resend": "Resend - para e-mails transacionais",
       "googlePlay": "Google Play Billing - para compras de assinatura no Android",
-      "admob": "Google AdMob - exibe anúncios a usuários gratuitos (sem Pro) e usa o identificador de publicidade do seu dispositivo",
       "sentry": "Sentry - para diagnósticos de falhas e erros, com identificadores pessoais removidos",
       "posthog": "PostHog (nuvem nos Estados Unidos): para análises de uso do produto vinculadas a um identificador da conta e a detalhes do plano; não enviamos conteúdo de hábitos nem do chat",
       "vercel": "Vercel: para hospedagem web, análise de tráfego e medição de desempenho"
@@ -1918,12 +1917,6 @@
         "free": "Não",
         "pro": "Incluso",
         "tooltip": "Importe eventos do Google Calendar como hábitos com um toque. Mantenha suas rotinas e o seu calendário em sincronia."
-      },
-      "adFree": {
-        "label": "Sem anúncios",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Tire todos os anúncios do app para acompanhar seus hábitos sem distração."
       }
     },
     "convert": {
@@ -2030,12 +2023,6 @@
       "notSignedIn": "Entre na sua conta de novo antes de comprar.",
       "nothingToRestore": "Não encontramos nenhuma compra anterior para restaurar."
     }
-  },
-  "ads": {
-    "watchForMessages": "Assistir a um anúncio e ganhar +5 mensagens de IA",
-    "rewardGranted": "+5 mensagens de IA adicionadas!",
-    "rewardFailed": "O anúncio não foi até o fim",
-    "dailyLimitReached": "recompensas diárias"
   },
   "errors": {
     "fetchHabits": "Não foi possível carregar os hábitos",

@@ -1315,7 +1315,7 @@
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
       "preferences": "Preferences: language, timezone, color scheme, and notification settings",
-      "device": "Device data: a push notification token (to deliver reminders), your device advertising identifier (used by Google AdMob to show ads to free users), and crash diagnostics with personal identifiers removed"
+      "device": "Device data: a push notification token (to deliver reminders) and crash diagnostics with personal identifiers removed"
     },
     "howWeUse": {
       "title": "How We Use Your Data",
@@ -1332,7 +1332,6 @@
       "openai": "OpenAI - for AI chat features and daily summaries",
       "resend": "Resend - for transactional emails",
       "googlePlay": "Google Play Billing - for subscription purchases on Android",
-      "admob": "Google AdMob - shows ads to free (non-Pro) users and uses your device advertising identifier",
       "sentry": "Sentry - for crash and error diagnostics, with personal identifiers removed",
       "posthog": "PostHog (US Cloud): for product analytics linked to an account identifier and plan details; we do not send habit or chat content",
       "vercel": "Vercel: for web hosting, traffic analytics, and performance measurement"
@@ -1918,12 +1917,6 @@
         "free": "No",
         "pro": "Included",
         "tooltip": "Import events from Google Calendar as habits with one tap. Keep your routines and calendar in sync."
-      },
-      "adFree": {
-        "label": "Ad-free experience",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "Remove all ads from the mobile app for a distraction-free habit tracking experience."
       }
     },
     "convert": {
@@ -2030,12 +2023,6 @@
       "notSignedIn": "Please sign in again before purchasing.",
       "nothingToRestore": "No previous purchase found to restore."
     }
-  },
-  "ads": {
-    "watchForMessages": "Watch ad for +5 AI messages",
-    "rewardGranted": "+5 AI messages added!",
-    "rewardFailed": "Ad not completed",
-    "dailyLimitReached": "daily rewards"
   },
   "errors": {
     "fetchHabits": "Failed to load habits",

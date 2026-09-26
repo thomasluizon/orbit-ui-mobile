@@ -34,7 +34,6 @@ export default function PrivacyPage() {
       t('privacy.thirdParty.openai'),
       t('privacy.thirdParty.resend'),
       t('privacy.thirdParty.googlePlay'),
-      t('privacy.thirdParty.admob'),
       t('privacy.thirdParty.sentry'),
       t('privacy.thirdParty.posthog'),
       t('privacy.thirdParty.vercel'),
