@@ -1,4 +1,49 @@
+import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
+import { resolve } from "node:path"
 import { T, run } from "./_harness.mjs"
+
+const repositoryRoot = resolve(fileURLToPath(new URL("../../", import.meta.url)))
+const repositoryText = (path) => readFileSync(resolve(repositoryRoot, path), "utf8")
+
+function checkProdReadinessInventory() {
+  const skill = repositoryText(".claude/skills/prod-readiness/SKILL.md")
+  const workflow = repositoryText(".claude/workflows/prod-readiness.mjs")
+  const rubric = repositoryText(".claude/skills/pr-review/rubric.md")
+  const table = skill.match(/\| # \| Inventory item \| Kind \| Owner of the analysis \|[\s\S]*?(?=\n\n)/)?.[0] ?? ""
+  const rows = [...table.matchAll(/^\| (\d+) \| ([^|]+) \| ([^|]+) \|/gm)]
+    .map(([, number, name, kind]) => ({ number: Number(number), name: name.trim(), kind: kind.trim() }))
+  const opsSource = workflow.split("const OPS_CHECKS = [")[1]?.split("const A11Y_LADDER")[0] ?? ""
+  const workflowOps = [...opsSource.matchAll(/check: '([^']+)'/g)].map(([, check]) => check)
+  const tableOps = rows.filter(({ kind, name }) => kind === "ops check" && !["Backups", "Paid-API cost caps + spend alerts"].includes(name))
+    .map(({ name }) => name.toLowerCase().replace(/ readiness$/, "").replaceAll(" ", "-"))
+  const output = skill.match(/^\*\*Inventory \((\d+)\)\*\*: (.+)$/m)
+  const outputNames = output?.[2].split(" · ").map((item) => item.split(" {")[0]) ?? []
+  const inventoryNumbers = new Map(rows.map(({ name, number }) => [name, number]))
+  const whereValues = [...workflow.matchAll(/^\s*where: `([^`]+)`/gm)].map(([, value]) => value)
+  const numberedReferences = [skill, workflow, rubric].map((source) =>
+    [...source.matchAll(/inventory item (\d+)/g)].map(([, number]) => Number(number)))
+  const expectedReferences = [
+    ["Concurrency", "Accessibility (static WCAG 2.2 AA)", "Dependency freshness", "Architecture drift", "Architecture drift"],
+    ["Concurrency"],
+    ["Concurrency"],
+  ].map((names) => names.map((name) => inventoryNumbers.get(name)))
+
+  T("prod-readiness: inventory rows stay sequential", rows.length > 0 && rows.every((row, index) => row.number === index + 1))
+  T("prod-readiness: workflow ops checks match the active inventory", JSON.stringify(workflowOps) === JSON.stringify(tableOps),
+    `workflow=${workflowOps.join(",")} inventory=${tableOps.join(",")}`)
+  T("prod-readiness: Phase 4 names every inventory item in order", Number(output?.[1]) === rows.length &&
+    JSON.stringify(outputNames) === JSON.stringify(rows.map(({ name }) => name)),
+    `output=${outputNames.join(",")} inventory=${rows.map(({ name }) => name).join(",")}`)
+  T("prod-readiness: every finder where path uses forward slashes", whereValues.length === workflowOps.length + 2 &&
+    whereValues.every((value) => !value.includes("\\")), whereValues.filter((value) => value.includes("\\")).join("\n"))
+  T("prod-readiness: numbered item references match the inventory", JSON.stringify(numberedReferences) === JSON.stringify(expectedReferences),
+    `references=${JSON.stringify(numberedReferences)} inventory=${JSON.stringify(expectedReferences)}`)
+  T("prod-readiness: shared-resource review reaches the canonical checklist", inventoryNumbers.has("Concurrency") &&
+    skill.includes(`### Concurrency checklist (inventory item ${inventoryNumbers.get("Concurrency")})`) &&
+    workflow.includes(`Concurrency checklist (inventory item ${inventoryNumbers.get("Concurrency")})`) &&
+    rubric.includes(`\`.claude/skills/prod-readiness/SKILL.md\` inventory item ${inventoryNumbers.get("Concurrency")}`))
+}
 
 const assertionCount = (result) => {
   const match = result.stdout.match(/Assertions: (\d+) \| Elapsed: \d+\.\d{3}s/)
@@ -11,6 +56,7 @@ const talliedRows = (result) => {
 }
 
 export async function cases() {
+  checkProdReadinessInventory()
   const focused = run("test-tools.mjs", ["--only", "bounded-process"])
   T("test-tools.mjs: --only runs the named case module", focused.status === 0, focused.stderr || focused.stdout)
   T(

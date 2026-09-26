@@ -56,7 +56,8 @@ invent a finding to fill a dimension.
 Does it do what the ticket says, across every boundary it crosses? Follow the data flow (request shape in,
 handler, response shape out, consumer reads it) and name any mismatch. Check the boundaries (empty list,
 zero, null, first and last item, timezone edges), that loading, error, and empty states are all handled,
-and any concurrency or ordering assumption the diff silently relies on.
+and any concurrency or ordering assumption the diff silently relies on. For shared-resource
+writes, apply the Concurrency checklist in `.claude/skills/prod-readiness/SKILL.md` inventory item 13.
 
 ### 2. Dead / stale code
 
