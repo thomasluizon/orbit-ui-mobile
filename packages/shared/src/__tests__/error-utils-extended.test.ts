@@ -72,6 +72,11 @@ describe('createApiClientError', () => {
 })
 
 describe('habit request input caps', () => {
+  it.each([createHabitRequestSchema, updateHabitRequestSchema])('preserves an accepted intervalWeeks field', (schema) => {
+    expect(schema.safeParse({ title: 'Test', isBadHabit: false, intervalWeeks: 2 }).data)
+      .toMatchObject({ intervalWeeks: 2 })
+  })
+
   it.each([createHabitRequestSchema, updateHabitRequestSchema])('rejects descriptions beyond 10,000 characters', (schema) => {
     const result = schema.safeParse({ title: 'Test', description: 'x'.repeat(10001), isBadHabit: false })
     expect(result.success).toBe(false)
@@ -212,6 +217,16 @@ describe('translateErrorKey (extended)', () => {
 
 
 describe('getFriendlyErrorKey (extended coverage)', () => {
+  it.each(['SOCIAL_DISABLED', 'BLOCKED', 'NOT_CHALLENGE_PARTICIPANT'])('uses the generic fallback for an unlocalized API 403 code %s', (code) => {
+    expect(getFriendlyErrorKey(new ApiClientError(403, 'Denied', { code }), 'errors.createHabit'))
+      .toBe('errors.createHabit')
+    expect(getFriendlyErrorKey(new ApiClientError(403, 'Title is required', { code }), 'errors.createHabit', 'habit'))
+      .toBe('errors.createHabit')
+  })
+  it('uses the edge key for a code-free 403 even when its body resembles validation', () => {
+    expect(getFriendlyErrorKey(new ApiClientError(403, 'Title is required'), 'errors.createHabit', 'habit'))
+      .toBe('errors.api.edgeBlocked')
+  })
   it.each([
     [403, undefined, 'errors.api.edgeBlocked'],
     [400, 'VALIDATION_ERROR', 'toast.errors.validation'],

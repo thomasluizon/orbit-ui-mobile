@@ -505,6 +505,19 @@ describe('mobile habit hooks', () => {
     expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
   })
 
+  it('preserves intervalWeeks in queued create and update requests', async () => {
+    const create = useCreateHabit() as unknown as MutationConfig<unknown, CreateHabitRequest, unknown>
+    const update = useUpdateHabit() as unknown as MutationConfig<unknown, { habitId: string; data: { title: string; isBadHabit: boolean; intervalWeeks: number } }, unknown>
+    await create.mutationFn({ title: 'Test', intervalWeeks: 2 })
+    await update.mutationFn({ habitId: 'habit-1', data: { title: 'Test', isBadHabit: false, intervalWeeks: 2 } })
+    expect(mocks.runQueuedMutation).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      mutation: expect.objectContaining({ payload: expect.objectContaining({ intervalWeeks: 2 }) }),
+    }))
+    expect(mocks.runQueuedMutation).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      mutation: expect.objectContaining({ payload: expect.objectContaining({ intervalWeeks: 2 }) }),
+    }))
+  })
+
   it('rejects an overlong update description before queuing or sending', async () => {
     const mutation = useUpdateHabit() as unknown as MutationConfig<
       void,

@@ -389,6 +389,16 @@ function getPayGateErrorKey(normalizedMessage: string): string {
   return 'errors.api.payGate'
 }
 
+function getForbiddenErrorKey(status: number | undefined, code: string | undefined, fallbackKey: string): string | null {
+  if (status !== 403) return null
+  if (!code) return 'errors.api.edgeBlocked'
+  return ERROR_CODE_TO_KEY[code] ? null : fallbackKey
+}
+
+function isRateLimit(status: number | undefined, normalizedMessage: string): boolean {
+  return status === 429 || normalizedMessage.includes('please wait')
+}
+
 export function getFriendlyErrorKey(
   err: unknown,
   fallbackKey: string,
@@ -400,14 +410,17 @@ export function getFriendlyErrorKey(
   const normalizedMessage = normalizeMessage(message)
 
   if (code === 'PAY_GATE') return getPayGateErrorKey(normalizedMessage)
-  if (code === 'TOO_MANY_ATTEMPTS' || status === 429 || normalizedMessage.includes('please wait')) {
-    return 'toast.errors.tooManyRequests'
-  }
+  if (code === 'TOO_MANY_ATTEMPTS') return 'toast.errors.tooManyRequests'
   if (code === 'INVALID_VERIFICATION_CODE') return 'auth.errors.invalidCode'
   if (code === 'CODE_EXPIRED') return 'auth.errors.codeExpired'
   if (code === 'ALREADY_LOGGED') return 'habits.errors.alreadyLogged'
   if (code === 'MAX_DEPTH_REACHED') return 'habits.errors.maxDepthReached'
   if (code === 'CIRCULAR_REFERENCE') return 'habits.errors.circularReference'
+  const forbiddenKey = getForbiddenErrorKey(status, code, fallbackKey)
+  if (forbiddenKey) return forbiddenKey
+  if (isRateLimit(status, normalizedMessage)) {
+    return 'toast.errors.tooManyRequests'
+  }
   if (
     code === 'HABIT_NOT_FOUND' ||
     code === 'GOAL_NOT_FOUND' ||
@@ -425,8 +438,6 @@ export function getFriendlyErrorKey(
   if (contextualKey) return contextualKey
 
   if (code && ERROR_CODE_TO_KEY[code]) return ERROR_CODE_TO_KEY[code]
-
-  if (status === 403) return 'errors.api.edgeBlocked'
 
   return fallbackKey
 }
