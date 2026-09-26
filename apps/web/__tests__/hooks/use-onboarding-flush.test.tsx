@@ -80,7 +80,7 @@ describe('useOnboardingFlush', () => {
     applyOnboardingMock.mockResolvedValue({ applied: true })
     await seedPendingDraft()
     useOnboardingDraftStore.setState({ pushPermissionGranted: true })
-    const rendered = renderHook(() => useOnboardingFlush(), { wrapper })
+    renderHook(() => useOnboardingFlush(), { wrapper })
     expect(applyOnboardingMock).toHaveBeenCalledTimes(1)
 
     await replaceAccountWith('user-2')
@@ -88,19 +88,17 @@ describe('useOnboardingFlush', () => {
     useOnboardingDraftStore.setState({ pushPermissionGranted: true })
     await act(async () => { finishApply({ applied: true }); await Promise.resolve() })
 
-    expect(subscribePushMock).not.toHaveBeenCalled()
-    expect(useOnboardingDraftStore.getState().habits[0]?.title).toBe('Walk')
-    expect(patchProfileMock).not.toHaveBeenCalled()
-
-    rendered.rerender()
     await waitFor(() => expect(applyOnboardingMock).toHaveBeenCalledTimes(2))
     await waitFor(() => expect(patchProfileMock).toHaveBeenCalledTimes(1))
+    expect(subscribePushMock).toHaveBeenCalledTimes(1)
+    expect(subscribePushMock).toHaveBeenCalledWith({ endpoint: 'https://push.example/subscription' }, 'user-2')
   })
 
   it('drops a completed apply when the same account enters a new session', async () => {
     holdAccount('user-1')
     let finishApply!: (value: { applied: boolean }) => void
-    applyOnboardingMock.mockReturnValue(new Promise((resolve) => { finishApply = resolve }))
+    applyOnboardingMock.mockReturnValueOnce(new Promise((resolve) => { finishApply = resolve }))
+    applyOnboardingMock.mockResolvedValue({ applied: true })
     await seedPendingDraft()
     renderHook(() => useOnboardingFlush(), { wrapper })
 
@@ -108,8 +106,8 @@ describe('useOnboardingFlush', () => {
     await seedPendingDraft()
     await act(async () => { finishApply({ applied: true }); await Promise.resolve() })
 
-    expect(patchProfileMock).not.toHaveBeenCalled()
-    expect(useOnboardingDraftStore.getState().hasPendingAnswers()).toBe(true)
+    await waitFor(() => expect(applyOnboardingMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(patchProfileMock).toHaveBeenCalledTimes(1))
   })
 
   it('keeps the new account draft when registration finishes after replacement', async () => {
@@ -124,6 +122,7 @@ describe('useOnboardingFlush', () => {
 
     await replaceAccountWith('user-2')
     useOnboardingDraftStore.getState().bufferHabit({ title: 'Walk', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    profileState.hasCompletedOnboarding = true
     await act(async () => { finishRegistration(); await Promise.resolve() })
 
     expect(useOnboardingDraftStore.getState().habits[0]?.title).toBe('Walk')

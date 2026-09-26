@@ -5,6 +5,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { setAccountId } from '@/lib/account-scope'
+import { advanceSessionEpoch } from '@/lib/session-epoch'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -134,6 +135,7 @@ describe('useOnboardingFlush', () => {
     const isCurrent = mocks.applyOnboarding.mock.calls[0]?.[0]
     if (!isCurrent) throw new Error('expected an account guard')
     expect(isCurrent()).toBe(false)
+    mocks.profile.hasCompletedOnboarding = true
     await TestRenderer.act(async () => {
       finishApply({ applied: true, createdHabitCount: 1, createdGoal: false, loggedFirstHabit: false })
       await Promise.resolve()
@@ -143,6 +145,44 @@ describe('useOnboardingFlush', () => {
     expect(mocks.requestPermissionOutcome).not.toHaveBeenCalled()
     expect(mocks.draftState.reset).not.toHaveBeenCalled()
     expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['replacement', 'user-2'],
+    ['same-account recovery', 'user-1'],
+  ])('restarts a pending draft after %s settles an obsolete apply', async (_transition, accountId) => {
+    let finishApply!: (value: { applied: boolean; createdHabitCount: number; createdGoal: boolean; loggedFirstHabit: boolean }) => void
+    mocks.applyOnboarding.mockReturnValueOnce(new Promise((resolve) => { finishApply = resolve }))
+
+    function Harness() {
+      useOnboardingFlush()
+      return null
+    }
+
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Harness />)
+      await Promise.resolve()
+    })
+    expect(mocks.applyOnboarding).toHaveBeenCalledTimes(1)
+
+    setAccountId(accountId)
+    advanceSessionEpoch()
+    await TestRenderer.act(async () => {
+      tree.update(<Harness />)
+      await Promise.resolve()
+    })
+    expect(mocks.applyOnboarding).toHaveBeenCalledTimes(1)
+
+    await TestRenderer.act(async () => {
+      finishApply({ applied: true, createdHabitCount: 1, createdGoal: false, loggedFirstHabit: false })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mocks.applyOnboarding).toHaveBeenCalledTimes(2)
+    expect(mocks.draftState.reset).toHaveBeenCalledTimes(1)
+    expect(mocks.queryClient.setQueryData).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the new account draft when permission finishes after replacement', async () => {
@@ -161,6 +201,7 @@ describe('useOnboardingFlush', () => {
     })
     expect(mocks.requestPermissionOutcome).toHaveBeenCalledTimes(1)
     setAccountId('user-2')
+    mocks.profile.hasCompletedOnboarding = true
     await TestRenderer.act(async () => {
       finishPermission('granted')
       await Promise.resolve()

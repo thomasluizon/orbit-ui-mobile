@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import * as Sentry from '@sentry/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
@@ -34,6 +34,7 @@ export function useOnboardingFlush(): void {
   const pushPermissionGranted = useOnboardingDraftStore((state) => state.pushPermissionGranted)
   const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
   const runningRef = useRef(false)
+  const [retryGeneration, setRetryGeneration] = useState(0)
 
   const shouldFlush =
     hydrated && hasPendingAnswers && !pushRegistrationFailed && !!profile && !profile.hasCompletedOnboarding
@@ -79,6 +80,7 @@ export function useOnboardingFlush(): void {
       })
       .finally(() => {
         runningRef.current = false
+        if (!stillCurrent()) setRetryGeneration((generation) => generation + 1)
       })
-  }, [patchProfile, pushPermissionGranted, queryClient, shouldFlush, showPersistentError, t])
+  }, [patchProfile, pushPermissionGranted, queryClient, retryGeneration, shouldFlush, showPersistentError, t])
 }

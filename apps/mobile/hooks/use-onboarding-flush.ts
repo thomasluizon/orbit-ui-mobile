@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, goalKeys, profileKeys, gamificationKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -30,6 +30,7 @@ export function useOnboardingFlush(): void {
   const pushPermissionGranted = useOnboardingDraftStore((state) => state.pushPermissionGranted)
   const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
   const runningRef = useRef(false)
+  const [retryGeneration, setRetryGeneration] = useState(0)
 
   const shouldFlush =
     isAuthenticated &&
@@ -81,6 +82,7 @@ export function useOnboardingFlush(): void {
         captureError(error)
       } finally {
         runningRef.current = false
+        if (!stillCurrent()) setRetryGeneration((generation) => generation + 1)
       }
     }
 
@@ -89,5 +91,5 @@ export function useOnboardingFlush(): void {
     return () => {
       cancelled = true
     }
-  }, [applyOnboarding, pushPermissionGranted, queryClient, requestPermissionOutcome, shouldFlush])
+  }, [applyOnboarding, pushPermissionGranted, queryClient, requestPermissionOutcome, retryGeneration, shouldFlush])
 }
