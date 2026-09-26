@@ -52,9 +52,9 @@ describe('GoalList', () => {
     ])
   })
 
-  /* WHY: closing must NOT unmount the drawer - tearing down its presented
-     TrueSheet mid-dismissal wedges later RN Modals and drops the onDidDismiss
-     that runs scheduled exit actions (Ask Astra -> /chat).
+  /* WHY: Keep the drawer mounted until native dismissal finishes so onDidDismiss
+     can run scheduled exit actions (Ask Astra -> /chat). Unmounting the
+     presented TrueSheet during dismissal prevents that callback from running.
      https://sheet.lodev09.com/guides/navigation */
   it('keeps the detail drawer mounted through close so the native sheet can finish dismissing', () => {
     const tree = renderGoalList([createMockGoal({ id: 'goal-1', position: 0 })])
