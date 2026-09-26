@@ -8,7 +8,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } 
 import { setTimeout as wait } from "node:timers/promises"
 
 import { dashFindings } from "./check-dashes.mjs"
-import { ADMISSION_REFUSED_EXIT, checkAdmission } from "./lib/admission.mjs"
+import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import {
   CodexTimeoutError,
   ReceiptLockTimeoutError,
@@ -499,10 +499,17 @@ try {
   console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", counts: { openPullRequests: null, queuedRuns: null }, limits: { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }, error: redactSecrets(error.message) }))
   process.exit(ADMISSION_REFUSED_EXIT)
 }
-const admission = await checkAdmission({ config, repositoryKey, branch: admissionBranch, environment: githubAuth.environment })
+const admission = await checkAdmission({ config, repositoryKey, branch: admissionBranch, environment: githubAuth.environment, worktree })
 if (!admission.admitted) {
   console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
   process.exit(ADMISSION_REFUSED_EXIT)
+}
+process.on("exit", () => releaseAdmission(admission.reservationId))
+for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
+  process.once(signal, () => {
+    releaseAdmission(admission.reservationId)
+    process.exit(exitCode)
+  })
 }
 
 const remoteTimeoutMs = config.timeouts.gitRemoteSeconds * 1000

@@ -2258,6 +2258,7 @@
     "offline": "Reconnect to the internet and try again.",
     "api": {
       "accountChanged": "Your account changed. Reload this page before trying again.",
+      "reload": "Reload",
       "noPermission": "You don't have permission to do that.",
       "sessionExpired": "Your session expired. Please sign in again.",
       "duplicateTag": "You already have a tag with that name.",
