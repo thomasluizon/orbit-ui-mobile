@@ -110,6 +110,12 @@ describe('habit server actions', () => {
       expect(JSON.parse(init.body)).toEqual({ title: 'Exercise' })
     })
 
+    it('preserves intervalWeeks in a create request', async () => {
+      mockApiResponse({ id: 'new-habit' })
+      await createHabit({ title: 'Exercise', intervalWeeks: 2 })
+      expect(JSON.parse(mockFetch.mock.calls[0]![1].body)).toMatchObject({ intervalWeeks: 2 })
+    })
+
     it('includes auth headers', async () => {
       mockApiResponse({ id: 'new-habit' })
 
@@ -128,6 +134,11 @@ describe('habit server actions', () => {
 
 
   describe('updateHabit', () => {
+    it('preserves intervalWeeks in an update request', async () => {
+      mock204()
+      await updateHabit('h-1', { title: 'Updated', isBadHabit: false, intervalWeeks: 2 })
+      expect(JSON.parse(mockFetch.mock.calls[0]![1].body)).toMatchObject({ intervalWeeks: 2 })
+    })
     it('sends PUT to /api/habits/:id', async () => {
       mock204()
 

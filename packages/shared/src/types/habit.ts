@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { habitLogSchema } from './calendar'
+import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
 
 export const frequencyUnitSchema = z.enum(['Day', 'Week', 'Month', 'Year'])
 
@@ -232,11 +233,12 @@ export const normalizedHabitSchema = baseHabitFieldsSchema.extend({
 export type NormalizedHabit = z.infer<typeof normalizedHabitSchema>
 
 export const createHabitRequestSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
+  title: z.string().max(MAX_HABIT_TITLE_LENGTH),
+  description: z.string().max(MAX_HABIT_DESCRIPTION_LENGTH).optional(),
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
+  intervalWeeks: z.number().optional(),
   days: z.array(z.string()).optional(),
   isBadHabit: z.boolean().optional(),
   isGeneral: z.boolean().optional(),
@@ -279,11 +281,12 @@ export const habitSetupSuggestionSchema = z.object({
 export type HabitSetupSuggestion = z.infer<typeof habitSetupSuggestionSchema>
 
 export const updateHabitRequestSchema = z.object({
-  title: z.string(),
-  description: z.string().optional(),
+  title: z.string().max(MAX_HABIT_TITLE_LENGTH),
+  description: z.string().max(MAX_HABIT_DESCRIPTION_LENGTH).optional(),
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.optional(),
   frequencyQuantity: z.number().optional(),
+  intervalWeeks: z.number().optional(),
   days: z.array(z.string()).optional(),
   isBadHabit: z.boolean(),
   isGeneral: z.boolean().optional(),

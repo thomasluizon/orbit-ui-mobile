@@ -559,7 +559,7 @@ export function ChatComposerBar({
           )}
         </div>
 
-        {limitLocked && (
+        {!hasProAccess && limitLocked && (
           <div
             role="status"
             aria-live="polite"

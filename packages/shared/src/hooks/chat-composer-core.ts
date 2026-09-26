@@ -119,6 +119,9 @@ export function classifySendFailure(input: SendFailureInput): SendFailureClassif
   const upgrade = resolveUpgradeEntitlementDenial(input)
   const reason = input.reason?.trim() ?? ''
 
+  if (input.status === 403 && input.code === 'PAY_GATE' && reason.toLowerCase().includes('daily ai message limit')) {
+    return { kind: 'limit', reason, upgrade }
+  }
   if (upgrade.shouldUpgrade) {
     return { kind: 'upgrade', reason, upgrade }
   }
