@@ -79,9 +79,13 @@ export async function sessionAwareFetch(
 ): Promise<Response> {
   const method = init?.method?.toUpperCase() ?? 'GET'
   const origin = getAccountEventOrigin()
-  const headers = new Headers(init?.headers)
-  if (origin && method !== 'GET' && method !== 'HEAD') headers.set('X-Orbit-Event-Origin', origin)
-  const response = await fetch(input, { ...init, headers })
+  let requestInit = init
+  if (origin && method !== 'GET' && method !== 'HEAD') {
+    const headers = new Headers(init?.headers)
+    headers.set('X-Orbit-Event-Origin', origin)
+    requestInit = { ...init, headers }
+  }
+  const response = await fetch(input, requestInit)
   await applySessionRefreshFailure(response)
   return response
 }
