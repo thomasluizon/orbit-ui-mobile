@@ -116,6 +116,8 @@ vi.mock('@/components/ui/pill-button', () => ({
     ),
 }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
+  KeyboardAwareView: (props: { children: React.ReactNode }) =>
+    React.createElement('KeyboardAwareView', props, props.children),
   KeyboardAwareFlatList: (props: {
     data: ChatMessage[]
     renderItem: (entry: { item: ChatMessage }) => React.ReactNode
@@ -189,6 +191,16 @@ describe('ChatScreen composer recoveries', () => {
     mocks.composer.streamingMessageId = null
     mocks.keyboardDidShow = null
     mocks.keyboardDidHide = null
+  })
+
+  it.each([true, false])('keeps the composer inside Android keyboard avoidance when suggestions are %s', async (showSuggestions) => {
+    mocks.composer.showSuggestions = showSuggestions
+    const tree = await renderScreen()
+    const avoidingView = findByType(tree.root, 'KeyboardAwareView')
+
+    expect(avoidingView).toBeDefined()
+    expect(findByType(avoidingView!, 'Composer')).toBeDefined()
+    expect(mocks.keyboardDidShow).toBeNull()
   })
 
   it('keeps the at-limit composer free of rewarded recovery', async () => {
@@ -299,25 +311,6 @@ describe('ChatScreen composer recoveries', () => {
     })
 
     expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
-  })
-
-  it('keeps the composer above the Android keyboard and restores it when the keyboard closes', async () => {
-    const tree = await renderScreen()
-    const composerContainer = () => tree.root.findAll((node) => {
-      const style = node.props.style
-      return typeof style === 'object' && style !== null && 'marginBottom' in style && 'paddingBottom' in style
-    })[0]
-
-    expect(composerContainer()?.props.style).toMatchObject({ marginBottom: 0, paddingBottom: 20 })
-    TestRenderer.act(() => {
-      mocks.keyboardDidShow?.({ endCoordinates: { height: 300 } })
-    })
-    expect(composerContainer()?.props.style).toMatchObject({ marginBottom: 290, paddingBottom: 20 })
-
-    TestRenderer.act(() => {
-      mocks.keyboardDidHide?.()
-    })
-    expect(composerContainer()?.props.style).toMatchObject({ marginBottom: 0, paddingBottom: 20 })
   })
 
   afterEach(async () => {
