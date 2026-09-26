@@ -185,7 +185,8 @@ export const postApiAuthSendCodeBodyLanguageDefault = `en`;
 
 export const PostApiAuthSendCodeBody = zod.object({
   "email": zod.string(),
-  "language": zod.string().default(postApiAuthSendCodeBodyLanguageDefault)
+  "language": zod.string().default(postApiAuthSendCodeBodyLanguageDefault),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiAuthSendCodeResponse = zod.unknown()
@@ -195,7 +196,8 @@ export const postApiAuthOperationsSendCodeBodyLanguageDefault = `en`;
 
 export const PostApiAuthOperationsSendCodeBody = zod.object({
   "email": zod.string(),
-  "language": zod.string().default(postApiAuthOperationsSendCodeBodyLanguageDefault)
+  "language": zod.string().default(postApiAuthOperationsSendCodeBodyLanguageDefault),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiAuthOperationsSendCodeResponse = zod.unknown()
@@ -207,7 +209,8 @@ export const PostApiAuthVerifyCodeBody = zod.object({
   "email": zod.string(),
   "code": zod.string(),
   "language": zod.string().default(postApiAuthVerifyCodeBodyLanguageDefault),
-  "referralCode": zod.string().nullish()
+  "referralCode": zod.string().nullish(),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiAuthVerifyCodeResponse = zod.unknown()
@@ -219,7 +222,8 @@ export const PostApiAuthOperationsVerifyCodeBody = zod.object({
   "email": zod.string(),
   "code": zod.string(),
   "language": zod.string().default(postApiAuthOperationsVerifyCodeBodyLanguageDefault),
-  "referralCode": zod.string().nullish()
+  "referralCode": zod.string().nullish(),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiAuthOperationsVerifyCodeResponse = zod.unknown()
@@ -1378,7 +1382,8 @@ export const postOauthSendCodeBodyLanguageDefault = `en`;
 
 export const PostOauthSendCodeBody = zod.object({
   "email": zod.string(),
-  "language": zod.string().default(postOauthSendCodeBodyLanguageDefault)
+  "language": zod.string().default(postOauthSendCodeBodyLanguageDefault),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostOauthSendCodeResponse = zod.unknown()
@@ -1390,7 +1395,8 @@ export const PostOauthVerifyCodeBody = zod.object({
   "email": zod.string(),
   "code": zod.string(),
   "language": zod.string().default(postOauthVerifyCodeBodyLanguageDefault),
-  "referralCode": zod.string().nullish()
+  "referralCode": zod.string().nullish(),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostOauthVerifyCodeResponse = zod.unknown()
@@ -1422,7 +1428,75 @@ export const PostOauthTokenBody = zod.object({
 export const PostOauthTokenResponse = zod.unknown()
 
 
-export const GetApiProfileResponse = zod.unknown()
+export const getApiProfileResponseAiMessagesUsedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiProfileResponseAiMessagesLimitRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiProfileResponseWeekStartDayRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiProfileResponseTotalXpRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiProfileResponseLevelRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiProfileResponseAdRewardsClaimedTodayRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiProfileResponseCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiProfileResponseLongestStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiProfileResponseStreakFreezesAvailableRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const getApiProfileResponseUses24HourClockDefault = true;
+export const getApiProfileResponseProactiveAstraEnabledDefault = false;
+
+export const GetApiProfileResponse = zod.object({
+  "userId": zod.uuid(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "timeZone": zod.string().nullable(),
+  "aiMemoryEnabled": zod.boolean(),
+  "aiSummaryEnabled": zod.boolean(),
+  "hasCompletedOnboarding": zod.boolean(),
+  "hasCompletedTour": zod.boolean(),
+  "hasCreatedFirstHabit": zod.boolean(),
+  "hasLoggedFirstHabit": zod.boolean(),
+  "hasTriedAstra": zod.boolean(),
+  "hasCompletedOnboardingChecklist": zod.boolean(),
+  "language": zod.string().nullable(),
+  "plan": zod.string(),
+  "hasProAccess": zod.boolean(),
+  "isTrialActive": zod.boolean(),
+  "trialEndsAt": zod.iso.datetime({"offset":true}).nullable(),
+  "planExpiresAt": zod.iso.datetime({"offset":true}).nullable(),
+  "aiMessagesUsed": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseAiMessagesUsedRegExpTwo)]),
+  "aiMessagesLimit": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseAiMessagesLimitRegExpTwo)]),
+  "hasImportedCalendar": zod.boolean(),
+  "hasSeenImportPrompt": zod.boolean(),
+  "hasGoogleConnection": zod.boolean(),
+  "subscriptionInterval": zod.string().nullable(),
+  "subscriptionSource": zod.string().nullable(),
+  "isLifetimePro": zod.boolean(),
+  "weekStartDay": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseWeekStartDayRegExpTwo)]),
+  "totalXp": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseTotalXpRegExpTwo)]),
+  "level": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseLevelRegExpTwo)]),
+  "levelTitle": zod.string(),
+  "adRewardsClaimedToday": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseAdRewardsClaimedTodayRegExpTwo)]),
+  "currentStreak": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseCurrentStreakRegExpTwo)]),
+  "longestStreak": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseLongestStreakRegExpTwo)]),
+  "streakFreezesAvailable": zod.union([zod.int(),zod.stringFormat('int32', getApiProfileResponseStreakFreezesAvailableRegExpTwo)]),
+  "themePreference": zod.string().nullable(),
+  "colorScheme": zod.string().nullable(),
+  "googleCalendarAutoSyncEnabled": zod.boolean(),
+  "googleCalendarAutoSyncStatus": zod.int(),
+  "googleCalendarLastSyncedAt": zod.iso.datetime({"offset":true}).nullable(),
+  "canViewGamification": zod.boolean(),
+  "handle": zod.string().nullable(),
+  "socialOptIn": zod.boolean(),
+  "uses24HourClock": zod.boolean().default(getApiProfileResponseUses24HourClockDefault),
+  "publicProfile": zod.union([zod.null(),zod.object({
+  "enabled": zod.boolean(),
+  "slug": zod.string().nullable(),
+  "shareUrl": zod.string().nullable(),
+  "showStreak": zod.boolean(),
+  "showLevel": zod.boolean(),
+  "showAchievements": zod.boolean(),
+  "showTopHabits": zod.boolean()
+})]).optional(),
+  "proactiveAstraEnabled": zod.boolean().default(getApiProfileResponseProactiveAstraEnabledDefault),
+  "marketingEmailConsent": zod.boolean().nullish(),
+  "lastCompletionDate": zod.iso.date().nullish()
+})
 
 
 export const PutApiProfileTimezoneBody = zod.object({
@@ -1808,7 +1882,8 @@ export const postApiWaitlistBodyLanguageDefault = `en`;
 
 export const PostApiWaitlistBody = zod.object({
   "email": zod.string(),
-  "language": zod.string().default(postApiWaitlistBodyLanguageDefault)
+  "language": zod.string().default(postApiWaitlistBodyLanguageDefault),
+  "turnstileToken": zod.string().nullish()
 })
 
 export const PostApiWaitlistResponse = zod.unknown()
