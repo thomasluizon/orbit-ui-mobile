@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 
 import { T, root, realOrchestratorConfig, stage, toolPath } from "./_harness.mjs"
@@ -85,6 +85,17 @@ export const cases = async () => {
 
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
+  const relativeRepos = { ...real, repos: { ui: ".", api: "../orbit-api", landing: "../orbit-landing-page" } }
+  const relativeConfig = configUrl("relative-repositories", JSON.stringify(relativeRepos))
+  const fixtureRoot = dirname(dirname(relativeConfig.pathname))
+  const resolvedRepos = readOrchestratorConfig(relativeConfig).repos
+  T(
+    `${NAME}: relative repository paths resolve from the primary checkout`,
+    resolvedRepos.ui === fixtureRoot &&
+      resolvedRepos.api === resolve(fixtureRoot, "../orbit-api") &&
+      resolvedRepos.landing === resolve(fixtureRoot, "../orbit-landing-page"),
+    JSON.stringify(resolvedRepos),
+  )
   for (const name of ["maxOpenPullRequests", "maxQueuedRuns"]) {
     const invalid = { ...real, caps: { ...real.caps, [name]: 0 } }
     const message = thrown(() => readOrchestratorConfig(configUrl(`invalid-${name}`, JSON.stringify(invalid))))

@@ -155,6 +155,9 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   }
   nonEmptyString(config.repos[cloudRepositoryKey], `repos.${cloudRepositoryKey}`)
   validateTickets(config.tickets)
+  const commonDir = runGit(dirname(configPath), ["rev-parse", "--path-format=absolute", "--git-common-dir"])
+  const primaryRoot = commonDir.ok ? dirname(commonDir.stdout) : resolve(dirname(configPath), "..")
+  config.repos = Object.fromEntries(Object.entries(config.repos).map(([key, path]) => [key, typeof path === "string" ? resolve(primaryRoot, path) : path]))
   return config
 }
 

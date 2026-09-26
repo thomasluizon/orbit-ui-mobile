@@ -24,6 +24,7 @@ import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_li
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
+import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -240,6 +241,11 @@ mkdirSync(join(mainCheckout, ".git", "worktrees", "feat"), { recursive: true })
 mkdirSync(linkedWorktree, { recursive: true })
 writeFileSync(join(linkedWorktree, ".git"), `gitdir: ${join(mainCheckout, ".git", "worktrees", "feat")}\n`)
 mkdirSync(join(linkedWorktree, "named-dir"), { recursive: true })
+mkdirSync(join(linkedWorktree, ".claude"), { recursive: true })
+writeFileSync(join(linkedWorktree, ".claude", "orchestrator.json"), JSON.stringify({ repos: { ui: ".", api: "../orbit-api", landing: "../orbit-landing-page" } }))
+T("repo roots: linked worktree resolves configured siblings from the primary checkout",
+  declaredRepoRoots(linkedWorktree),
+  [linkedWorktree, mainCheckout, join(root, "orbit-api"), join(root, "orbit-landing-page")])
 T("engine: a cwd inside a linked worktree allows", checkEngineInvocation("codex exec", { cwd: linkedWorktree, repoRoots: [mainCheckout] }), null)
 T("engine: the main checkout is not a linked worktree", blocks(checkEngineInvocation("codex exec", { cwd: mainCheckout, repoRoots: [mainCheckout] })), true)
 const stagingMain = join(root, "staging-main")

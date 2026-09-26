@@ -52,13 +52,14 @@ export function owningRepository(startPath) {
   return null
 }
 
-/** The hook's own repository plus every absolute path in orchestrator.json's `repos` map. */
+/** The hook's own repository plus the configured sibling repositories. */
 export function declaredRepoRoots(hookRepoRoot) {
   try {
     const config = JSON.parse(readFileSync(resolve(hookRepoRoot, ".claude", "orchestrator.json"), "utf8"))
+    const primaryRoot = owningRepository(hookRepoRoot)?.root ?? hookRepoRoot
     const configured = Object.values(config?.repos ?? {}).filter(
-      (repoPath) => typeof repoPath === "string" && (win32.isAbsolute(repoPath) || posix.isAbsolute(repoPath)),
-    )
+      (repoPath) => typeof repoPath === "string",
+    ).map((repoPath) => resolve(primaryRoot, repoPath))
     return [hookRepoRoot, ...configured]
   } catch {
     return [hookRepoRoot]
