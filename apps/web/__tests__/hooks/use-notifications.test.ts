@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query'
 import React from 'react'
 import {
   useNotifications,
@@ -92,6 +92,73 @@ describe('useNotifications', () => {
 
     expect(result.current.notifications).toEqual([])
     expect(result.current.unreadCount).toBe(0)
+  })
+
+  it('limits requests during one visible idle hour', async () => {
+    mockNotificationsResponse({ items: [], unreadCount: 0 })
+    vi.useFakeTimers()
+    const handle = renderHook(() => useNotifications(), { wrapper: createWrapper() })
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+      })
+      expect(mockFetch).toHaveBeenCalledTimes(5)
+    } finally {
+      handle.unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps a fresh list across five foregrounds within one minute', async () => {
+    mockNotificationsResponse({ items: [], unreadCount: 0 })
+    const handle = renderHook(() => useNotifications(), { wrapper: createWrapper() })
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+
+    for (let foreground = 0; foreground < 5; foreground += 1) {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' })
+      await act(async () => document.dispatchEvent(new Event('visibilitychange')))
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
+      await act(async () => document.dispatchEvent(new Event('visibilitychange')))
+    }
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    handle.unmount()
+    Reflect.deleteProperty(document, 'visibilityState')
+  })
+
+  it('refetches a stale list when the page becomes visible', async () => {
+    mockNotificationsResponse({ items: [], unreadCount: 0 })
+    vi.useFakeTimers()
+    const handle = renderHook(() => useNotifications(), { wrapper: createWrapper() })
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      await act(async () => focusManager.setFocused(false))
+      await act(async () => { await vi.advanceTimersByTimeAsync(61 * 1000) })
+      await act(async () => focusManager.setFocused(true))
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+    } finally {
+      handle.unmount()
+      focusManager.setFocused(undefined)
+      vi.useRealTimers()
+    }
+  })
+
+  it('pauses polling while the page is hidden', async () => {
+    mockNotificationsResponse({ items: [], unreadCount: 0 })
+    vi.useFakeTimers()
+    const handle = renderHook(() => useNotifications(), { wrapper: createWrapper() })
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      await act(async () => focusManager.setFocused(false))
+      await act(async () => { await vi.advanceTimersByTimeAsync(60 * 60 * 1000) })
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    } finally {
+      handle.unmount()
+      focusManager.setFocused(undefined)
+      vi.useRealTimers()
+    }
   })
 
 })
