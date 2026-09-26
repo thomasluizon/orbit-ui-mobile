@@ -46,7 +46,8 @@ import { CapacityNotice } from '@/components/ui/capacity-notice'
 
 export default function StepUpScreen() {
   const accountGeneration = useAccountGeneration()
-  return <StepUpScreenContent key={accountGeneration} />
+  const accountId = useAuthStore((state) => state.user?.userId ?? null)
+  return <StepUpScreenContent key={`${accountGeneration}:${accountId ?? 'none'}`} />
 }
 
 function StepUpScreenContent() {

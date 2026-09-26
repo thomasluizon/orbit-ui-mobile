@@ -11,6 +11,7 @@ import { useLogout } from '@/hooks/use-logout'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface, getStepUpStorageKey } from '@orbit/shared/utils'
 import StepUpScreen from '@/app/step-up'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 import {
   clearSessionAndResetAuth,
@@ -376,12 +377,26 @@ describe('mobile auth store security paths', () => {
     expect(codeInput().props.value).toBe('123456')
     expect(confirmButton().props.disabled).toBe(false)
 
+    let releaseCacheClear!: () => void
+    const pendingCacheClear = new Promise<void>((resolve) => {
+      releaseCacheClear = resolve
+    })
+    clearPersistedQueryCacheMock.mockReturnValueOnce(pendingCacheClear)
+    const accountGeneration = getAccountGeneration()
+    let replacementLogin!: Promise<(() => boolean) | null>
     await TestRenderer.act(async () => {
-      await useAuthStore.getState().login('second-token', null, userTwo)
+      replacementLogin = useAuthStore.getState().login('second-token', null, userTwo)
+      await vi.waitFor(() => expect(useAuthStore.getState().user?.userId).toBe('user-2'))
     })
 
+    expect(getAccountGeneration()).toBe(accountGeneration)
     expect(codeInput().props.value).toBe('')
     expect(confirmButton().props.disabled).toBe(true)
+    await TestRenderer.act(async () => {
+      releaseCacheClear()
+      await replacementLogin
+    })
+    expect(codeInput().props.value).toBe('')
     TestRenderer.act(() => tree.unmount())
     vi.restoreAllMocks()
   })
