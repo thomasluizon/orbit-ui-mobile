@@ -24,8 +24,9 @@ A tool here is something an agent invokes without reading its source. That only 
 
 A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** An editable checklist cannot prove completion.
 
-Every gate is registered in `gate-charter.json`. A pull request gate may fail only for changed files.
-A whole-tree scan reports findings without failing. A committed inventory declares its regeneration
+Every gate is registered in `gate-charter.json`. A pull request gate normally fails only for changed files.
+The dash and Sonar path inventories block across the whole tree so a deleted file cannot retain an exemption.
+Other whole-tree scans report findings without failing. A committed inventory declares its regeneration
 command, and every numeric threshold names the source that owns it. `check-gate-charter.mjs` enforces
 the closed registry across check tools, local ESLint rules, session hooks and `guards.yml` jobs.
 

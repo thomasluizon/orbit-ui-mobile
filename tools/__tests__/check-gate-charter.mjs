@@ -68,6 +68,24 @@ export const cases = () => {
     { status: 1, stderr: /changed-files job has a blocking run that is not scoped to the pull request diff/ },
   )
 
+  const blockingInventory = completeCharter()
+  blockingInventory[".github/workflows/guards.yml#dashes"] = entry({ scope: "whole-tree-blocking" })
+  const inventoryWorkflow = `${scopedGuardWorkflow}  dashes:\n    steps:\n      - run: node tools/check-dashes.mjs --check-baseline\n`
+  check(
+    "check-gate-charter.mjs",
+    "accepts the blocking dash inventory",
+    ["--root", stageRepository("blocking-inventory", blockingInventory, { guardWorkflow: inventoryWorkflow })],
+    { status: 0 },
+  )
+  check(
+    "check-gate-charter.mjs",
+    "rejects a blocking inventory without its check",
+    ["--root", stageRepository("missing-inventory-run", blockingInventory, {
+      guardWorkflow: inventoryWorkflow.replace("node tools/check-dashes.mjs --check-baseline", "echo skipped"),
+    })],
+    { status: 1, stderr: /whole-tree-blocking job must run its path inventory as a blocking step/ },
+  )
+
   const timelessJob = yaml.load(readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8")).jobs.timeless
   const timelessWorkflow = (job) => yaml.dump({ jobs: { existing: job } })
   check(

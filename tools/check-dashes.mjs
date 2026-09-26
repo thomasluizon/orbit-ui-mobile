@@ -87,12 +87,12 @@ const HOW_TO_FIX =
 const USAGE = `usage: check-dashes.mjs --files <path>... | --check-baseline | --write-baseline | --text "<string>"
 
   --files <path>...   check exactly these files (exit 1 on any hit above the baseline)
-  --check-baseline    full tree vs tools/dash-baseline.json (exit 1 on growth)
+  --check-baseline    full tree vs tools/dash-baseline.json (exit 1 on growth or missing files)
   --write-baseline    regenerate tools/dash-baseline.json
   --text "<string>"   check a string, for PR titles and bodies (exit 1 on any hit)
   --help, -h          print this usage and exit 0
 
-exit codes: 0 clean, 1 a banned dash, 2 usage error`
+exit codes: 0 clean, 1 a banned dash or missing baseline file, 2 usage error`
 
 const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 
@@ -141,10 +141,17 @@ if (isMain) {
     }
     const baseline = existsSync(BASELINE_PATH) ? JSON.parse(readFileSync(BASELINE_PATH, "utf8")) : {}
     const grew = Object.entries(current).filter(([file, count]) => count > (baseline[file] ?? 0))
+    const missing = Object.keys(baseline).filter((file) => !existsSync(resolve(REPO_ROOT, file)))
+    if (missing.length) {
+      console.error("Dash baseline names missing files:")
+      for (const file of missing) console.error(`  ${file}`)
+    }
     if (grew.length) {
       console.error("Dash count grew beyond the baseline:")
       for (const [file, count] of grew) console.error(`  ${file}: ${count} (baseline ${baseline[file] ?? 0})`)
       console.error(HOW_TO_FIX)
+    }
+    if (missing.length || grew.length) {
       process.exit(1)
     }
     process.exit(0)
