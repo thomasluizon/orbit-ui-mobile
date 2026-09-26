@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync, readdirSync } from "node:fs"
+import { existsSync, readdirSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { performance } from "node:perf_hooks"
 import { fileURLToPath } from "node:url"
@@ -54,6 +54,7 @@ const CASE_MODULES = [
   ["check-push-target.mjs", "check-push-target"],
   ["check-review-harness.mjs", "check-review-harness"],
   ["check-root-allowlist.mjs", "check-root-allowlist"],
+  ["check-sonar-paths.mjs", "check-sonar-paths"],
   ["check-workspace-overrides.mjs", "check-workspace-overrides"],
   ["materialize-cloud-result.mjs", "materialize-cloud-result"],
   ["merge-review-batch-body.mjs", "merge-review-batch-body"],
@@ -188,6 +189,7 @@ const INVALID_INPUT = {
   "check-lint-severity.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-review-harness.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-root-allowlist.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-sonar-paths.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-workspace-overrides.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "comment-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "compose-prompt.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -247,32 +249,6 @@ T(
   `every tools/lib/ module has a case module (${libraries.length} modules)`,
   uncoveredLibraries.length === 0,
   `no CASE_MODULES row for: ${uncoveredLibraries.map((file) => `lib/${file}`).join(", ")}\n     A library has no CLI, so a case module is the only coverage it can carry.`,
-)
-
-const repositoryRoot = join(TOOLS_DIR, "..")
-const sonarProperties = readFileSync(join(repositoryRoot, "sonar-project.properties"), "utf8")
-const missingSonarPaths = []
-for (const line of sonarProperties.split(/\r?\n/)) {
-  const separator = line.indexOf("=")
-  if (separator === -1) continue
-  const setting = line.slice(0, separator).trim()
-  if (!/^sonar\.(?:sources|tests|(?:.*\.)?(?:exclusions|inclusions))$/.test(setting)) continue
-  for (const path of line.slice(separator + 1).split(",").map((part) => part.trim())) {
-    if (!path || /[*?{}]/.test(path)) continue
-    if (!existsSync(join(repositoryRoot, path))) missingSonarPaths.push(`${setting}: ${path}`)
-  }
-}
-T(
-  "literal Sonar source, test, inclusion, and exclusion paths exist",
-  missingSonarPaths.length === 0,
-  `sonar-project.properties names missing paths:\n     ${missingSonarPaths.join("\n     ")}`,
-)
-const dashBaseline = JSON.parse(readFileSync(join(TOOLS_DIR, "dash-baseline.json"), "utf8"))
-const staleDashEntries = Object.keys(dashBaseline).filter((path) => !existsSync(join(repositoryRoot, path)))
-T(
-  "dash baseline names existing files",
-  staleDashEntries.length === 0,
-  `tools/dash-baseline.json names missing paths:\n     ${staleDashEntries.join("\n     ")}`,
 )
 
 console.log("\n# universal contract (tools/CONVENTIONS.md)")

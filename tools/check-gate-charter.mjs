@@ -15,7 +15,13 @@ const USAGE = `usage: check-gate-charter.mjs [--root <repository>]
 
 exit codes: 0 charter complete, 1 charter violation, 2 usage or configuration error`
 
-const ALLOWED_SCOPES = new Set(["changed-files", "whole-tree-advisory"])
+const ALLOWED_SCOPES = new Set(["changed-files", "whole-tree-advisory", "whole-tree-blocking"])
+const BLOCKING_INVENTORIES = new Set([
+  ".github/workflows/guards.yml#dashes",
+  ".github/workflows/guards.yml#sonar-paths",
+  "tools/check-dashes.mjs",
+  "tools/check-sonar-paths.mjs",
+])
 const REQUIRED_FIELDS = ["scope", "snapshot", "constants"]
 
 function parseArguments(argv) {
@@ -284,7 +290,10 @@ function validateEntry(id, entry) {
     if (!REQUIRED_FIELDS.includes(field)) problems.push(`${id}: unknown field ${field}`)
   }
   if (!ALLOWED_SCOPES.has(entry.scope)) {
-    problems.push(`${id}: scope must be changed-files or whole-tree-advisory`)
+    problems.push(`${id}: scope must be changed-files, whole-tree-advisory, or whole-tree-blocking`)
+  }
+  if (entry.scope === "whole-tree-blocking" && !BLOCKING_INVENTORIES.has(id)) {
+    problems.push(`${id}: whole-tree-blocking is reserved for path inventories`)
   }
   if (entry.snapshot !== "none" && (typeof entry.snapshot !== "string" || entry.snapshot.trim() === "")) {
     problems.push(`${id}: snapshot must be none or a regeneration command`)
@@ -349,6 +358,11 @@ function run(repositoryRoot) {
       if (guardJob && charter[id]?.scope === "whole-tree-advisory" &&
           !guardJobIsAdvisory(guardJobs[guardJob])) {
         problems.push(`${id}: whole-tree-advisory job must make its reporting step continue-on-error`)
+      }
+      if (guardJob && charter[id]?.scope === "whole-tree-blocking" &&
+          !runSteps(guardJobs[guardJob]).some((step) => step["continue-on-error"] !== true &&
+            step.run.includes(`node tools/check-${guardJob === "dashes" ? "dashes.mjs --check-baseline" : "sonar-paths.mjs"}`))) {
+        problems.push(`${id}: whole-tree-blocking job must run its path inventory as a blocking step`)
       }
     }
   }

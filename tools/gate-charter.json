@@ -70,7 +70,7 @@
     "constants": "none"
   },
   ".github/workflows/guards.yml#dashes": {
-    "scope": "changed-files",
+    "scope": "whole-tree-blocking",
     "snapshot": "node tools/check-dashes.mjs --write-baseline",
     "constants": "none"
   },
@@ -121,6 +121,11 @@
   },
   ".github/workflows/guards.yml#root-allowlist": {
     "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#sonar-paths": {
+    "scope": "whole-tree-blocking",
     "snapshot": "none",
     "constants": "none"
   },
@@ -390,7 +395,7 @@
     "constants": "none"
   },
   "tools/check-dashes.mjs": {
-    "scope": "changed-files",
+    "scope": "whole-tree-blocking",
     "snapshot": "node tools/check-dashes.mjs --write-baseline",
     "constants": "none"
   },
@@ -451,6 +456,11 @@
   },
   "tools/check-root-allowlist.mjs": {
     "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-sonar-paths.mjs": {
+    "scope": "whole-tree-blocking",
     "snapshot": "none",
     "constants": "none"
   },

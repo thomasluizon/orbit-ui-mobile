@@ -133,13 +133,7 @@ jobs:
           xargs -0 --no-run-if-empty node tools/check-dashes.mjs --files \
             < "$RUNNER_TEMP/changed-paths-present.nul"
       - name: Baseline only shrinks
-        run: |
-          if [ '${{ github.event_name }}' != 'pull_request' ] || \
-             grep -Eq '^tools/(check-dashes\.mjs|dash-baseline\.json)$' "$RUNNER_TEMP/changed-paths.txt"; then
-            node tools/check-dashes.mjs --check-baseline
-          else
-            echo "Dash baseline skipped: no baseline input changed."
-          fi
+        run: node tools/check-dashes.mjs --check-baseline
       - name: PR title and body carry no dashes
         if: github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot'
         env:
@@ -151,6 +145,17 @@ jobs:
           PR_TITLE=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.title')
           PR_BODY=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""')
           node tools/check-dashes.mjs --text "$PR_TITLE $PR_BODY"
+
+  sonar-paths:
+    name: Sonar Paths
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Sonar paths exist
+        run: node tools/check-sonar-paths.mjs
 
   mobile-fonts:
     name: Mobile Font Guard
