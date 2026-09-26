@@ -271,7 +271,7 @@ function jsxTag(opening) {
 }
 
 function textTag(tag) {
-  return tag === "Text" || tag.endsWith(".Text") || /^(?:a|button|div|h[1-6]|label|li|p|span|strong)$/.test(tag)
+  return tag === "Text" || tag.endsWith(".Text") || /^(?:motion\.)?(?:a|button|div|h[1-6]|label|li|p|span|strong)$/.test(tag)
 }
 
 function classifiedRole(node, source, matchIndex, graphicTags) {
