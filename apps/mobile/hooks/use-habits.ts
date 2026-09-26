@@ -1152,16 +1152,16 @@ export function useBulkDeleteHabits() {
           const queuedByHabit = new Map(result.queuedDeletes.map(({ habitId, mutationId }) => [habitId, mutationId]))
           const locallyRestored = new Set<string>()
           const serverRestoreIds = new Set<string>()
-          for (const item of deleted) {
+          await Promise.all(deleted.map(async (item) => {
             const mutationId = queuedByHabit.get(item.habitId)
             if (!mutationId) {
               serverRestoreIds.add(item.habitId)
-              continue
+              return
             }
             const outcome = await cancelQueuedDeleteForUndo(mutationId)
             if (outcome !== 'replayed') locallyRestored.add(item.habitId)
             if (outcome === 'replayed' || outcome === 'uncertain') serverRestoreIds.add(item.habitId)
-          }
+          }))
           for (const [key, snapshot] of context.previousLists) {
             if (!snapshot || locallyRestored.size === 0) continue
             queryClient.setQueryData<HabitScheduleItem[]>(key, (current) =>

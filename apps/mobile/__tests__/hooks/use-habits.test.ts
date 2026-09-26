@@ -2021,7 +2021,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 
-  it('offers Undo for successful bulk deletes and restores only those habits', () => {
+  it('offers Undo for successful bulk deletes and restores only those habits', async () => {
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
       unknown,
       string[],
@@ -2040,7 +2040,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitsDeleted:{"count":2}', expect.any(Function))
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
-    expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2)
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2))
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('habit-1')
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('habit-3')
   })
@@ -2080,7 +2080,7 @@ describe('mobile habit hooks', () => {
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
-    expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(1))
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('parent')
   })
 
@@ -2154,6 +2154,7 @@ describe('mobile habit hooks', () => {
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
     expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
+    expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-2')
     finishReplay()
     await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalled())
     expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('parent')
