@@ -791,6 +791,8 @@
       "screenTitle": "Hábito",
       "loading": "Carregando hábito",
       "loadError": "Não foi possível carregar este hábito.",
+      "dayHabitsLoading": "Carregando os hábitos deste dia",
+      "dayHabitsLoadError": "Não foi possível carregar os hábitos deste dia.",
       "retry": "Tentar novamente",
       "rename": "Renomear hábito",
       "saveName": "Salvar nome",
@@ -1472,7 +1474,6 @@
       "confirmInstruction": "Digite ORBIT abaixo para confirmar.",
       "confirmLabel": "Confirmação",
       "confirmPlaceholder": "ORBIT",
-      "confirmButton": "Recomeçar minha conta",
       "processing": "Recomeçando...",
       "errorGeneric": "Algo deu errado. Tente de novo."
     },

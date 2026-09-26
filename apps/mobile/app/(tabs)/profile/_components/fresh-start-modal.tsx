@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -45,61 +45,11 @@ async function removeScopedTrialExpiredFlag(accountId: string | null): Promise<v
   await AsyncStorage.multiRemove(keys)
 }
 
-function AmberPillButton({
-  label,
-  onPress,
-  disabled = false,
-}: Readonly<{
-  label: string
-  onPress: () => void
-  disabled?: boolean
-}>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      style={({ pressed }) => [
-        dangerPillStyles.base,
-        { backgroundColor: tokens.statusOverdue },
-        disabled ? dangerPillStyles.disabled : null,
-        pressed && !disabled ? dangerPillStyles.pressed : null,
-      ]}
-    >
-      <Text style={[dangerPillStyles.label, { color: tokens.fgOnOverdue }]}>
-        {label}
-      </Text>
-    </Pressable>
-  )
+function accountStillCurrent(accountGeneration: number, accountId: string | null): boolean {
+  const auth = useAuthStore.getState()
+  return getAccountGeneration() === accountGeneration &&
+    auth.sessionPhase === 'signed-in' && (auth.user?.userId ?? null) === accountId
 }
-
-const dangerPillStyles = StyleSheet.create({
-  base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 999,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    width: '100%',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  label: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 16,
-  },
-})
 
 interface FreshStartModalProps {
   open: boolean
@@ -135,11 +85,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   async function handleResetAccount() {
     const resetAccount = getAccountGeneration()
     const accountId = useAuthStore.getState().user?.userId ?? null
-    const isCurrentAccount = () => {
-      const auth = useAuthStore.getState()
-      return getAccountGeneration() === resetAccount &&
-        auth.sessionPhase === 'signed-in' && (auth.user?.userId ?? null) === accountId
-    }
+    const isCurrentAccount = () => accountStillCurrent(resetAccount, accountId)
     if (!isResetConfirmed || accountId === null || !isCurrentAccount()) return
     setResetLoading(true)
     setResetError('')
@@ -208,6 +154,9 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
   const deletedItems = buildFreshStartDeletedItems(t)
   const preservedItems = buildFreshStartPreservedItems(t)
+  const confirmButtonLabel = resetLoading
+    ? t('profile.freshStart.processing')
+    : t('profile.freshStart.button')
 
   return (
     <>
@@ -283,10 +232,13 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             </View>
 
             <View style={styles.modalActions}>
-              <AmberPillButton
-                label={t('common.continue')}
-                onPress={() => setResetStep('confirm')}
-              />
+              <PillButton
+                variant="caution"
+                accessibleName={t('common.continue')}
+                onClick={() => setResetStep('confirm')}
+              >
+                {t('common.continue')}
+              </PillButton>
               <PillButton variant="ghost" onClick={() => closeSheet()}>
                 {t('common.cancel')}
               </PillButton>
@@ -328,17 +280,16 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
               </Text>
             ) : null}
             <View style={styles.modalActions}>
-              <AmberPillButton
-                label={
-                  resetLoading
-                    ? t('profile.freshStart.processing')
-                    : t('profile.freshStart.confirmButton')
-                }
+              <PillButton
+                variant="caution"
+                accessibleName={confirmButtonLabel}
                 disabled={!isResetConfirmed || resetLoading}
-                onPress={() => {
+                onClick={() => {
                   void handleResetAccount()
                 }}
-              />
+              >
+                {confirmButtonLabel}
+              </PillButton>
               <PillButton variant="ghost" disabled={resetLoading} onClick={() => closeSheet()}>
                 {t('common.cancel')}
               </PillButton>

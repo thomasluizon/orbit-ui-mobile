@@ -6,6 +6,7 @@ import { StatusRing } from '@/components/ui/status-ring'
 
 interface CheckCircleProps {
   state: HabitStatus
+  unavailable?: boolean
   onToggle: () => void
   disabled: boolean
   ariaLabel: string
@@ -13,7 +14,7 @@ interface CheckCircleProps {
   size?: number
 }
 
-export function CheckCircle({ state, onToggle, disabled, ariaLabel, disabledReason, size = 30 }: Readonly<CheckCircleProps>) {
+export function CheckCircle({ state, unavailable = false, onToggle, disabled, ariaLabel, disabledReason, size = 30 }: Readonly<CheckCircleProps>) {
   const previousState = useRef(state)
   const [justCompleted, setJustCompleted] = useState(false)
   const reasonId = useId()
@@ -46,7 +47,9 @@ export function CheckCircle({ state, onToggle, disabled, ariaLabel, disabledReas
       style={{ opacity: disabled ? 0.4 : 1 }}
     >
       <span aria-hidden="true" className={justCompleted ? 'animate-check-pop' : undefined}>
-        <StatusRing status={state} size={size} label={ariaLabel} />
+        {unavailable
+          ? <span data-status="unavailable" className="block shrink-0 rounded-full bg-[var(--bg-well)]" style={{ width: size, height: size }} />
+          : <StatusRing status={state} size={size} label={ariaLabel} />}
       </span>
       {disabled && disabledReason ? <span id={reasonId} className="sr-only">{disabledReason}</span> : null}
     </button>

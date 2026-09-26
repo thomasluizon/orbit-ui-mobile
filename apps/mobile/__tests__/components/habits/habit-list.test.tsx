@@ -1789,6 +1789,7 @@ describe('HabitList', () => {
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(1)
     expect(tree.root.findByType('FlatList').props.removeClippedSubviews).toBeFalsy()
+    expect(tree.root.findByType('FlatList').props.keyboardShouldPersistTaps).toBe('handled')
   })
 
   it('explains filtered empty drills and offers Show completed when it can reveal children', () => {

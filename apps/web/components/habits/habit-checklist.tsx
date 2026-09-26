@@ -23,6 +23,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
+import { useChecklistItemKeys } from '@/hooks/use-checklist-item-keys'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { CheckRow } from '@/components/ui/check-row'
 import { Proposed } from '@/components/ui/proposed'
@@ -55,6 +56,7 @@ export function HabitChecklist({
   const newItemInputId = useId()
   const dndContextId = useId()
   const [newItemText, setNewItemText] = useAccountScopedState('')
+  const sortableIds = useChecklistItemKeys(items)
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
@@ -64,8 +66,6 @@ export function HabitChecklist({
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
-
-  const sortableIds = items.map((_, i) => `checklist-${i}`)
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {

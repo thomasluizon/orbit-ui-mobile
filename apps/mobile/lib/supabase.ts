@@ -33,3 +33,9 @@ export function getSupabaseClient(): SupabaseClient {
   }
   return client
 }
+
+export async function clearSupabaseSession(): Promise<void> {
+  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0]
+  globalThis.localStorage.removeItem(`sb-${projectRef}-auth-token`)
+  await getSupabaseClient().auth.signOut({ scope: 'local' }).catch(() => {})
+}

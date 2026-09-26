@@ -6,7 +6,9 @@ import {
   buildHabitQueryString,
   buildUrlWithQuery,
   fetchAllPaginatedItems,
+  habitListQueryFilters,
   normalizeHabitQueryData,
+  shouldFetchAllHabitPages,
   sortNormalizedHabits,
 } from '@orbit/shared/utils'
 import type {
@@ -43,15 +45,16 @@ function withDefaultPageSize(filters: HabitsFilter): HabitsFilter {
   return { ...filters, pageSize: 200 }
 }
 
-export function useHabits(filters: HabitsFilter) {
+export function useHabits(filters: HabitsFilter, options: { completeDay?: boolean } = {}) {
+  const completeDay = options.completeDay ?? false
   const query = useQuery({
-    queryKey: habitKeys.list(filters as Record<string, unknown>),
+    queryKey: habitKeys.list(habitListQueryFilters(filters, completeDay)),
     queryFn: async (): Promise<HabitScheduleItem[]> => {
       const requestFilters = withDefaultPageSize(filters)
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
       const firstPage = await apiClient<PaginatedResponse<HabitScheduleItem>>(firstQuery)
 
-      if (requestFilters.dateFrom || firstPage.totalPages <= 1) {
+      if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
         return firstPage.items
       }
 

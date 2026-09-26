@@ -5,6 +5,8 @@ import * as auth from '@/stores/auth-store'
 import * as queue from '@/lib/offline-queue'
 import { cancelScheduledFlush, flushQueuedMutations } from '@/lib/offline-mutations'
 
+vi.mock('@/lib/supabase', () => ({ clearSupabaseSession: vi.fn(async () => {}) }))
+
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))

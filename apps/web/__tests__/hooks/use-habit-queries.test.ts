@@ -204,6 +204,28 @@ describe('useHabits (query hook)', () => {
     expect(mockFetch.mock.calls[1]?.[0]).toBe('/api/habits?page=2&pageSize=200')
   })
 
+  it('loads a scheduled detail parent from page two while keeping ordinary day lists on page one', async () => {
+    const firstPage = { items: [makeScheduleItem({ id: 'other' })], page: 1, pageSize: 1, totalCount: 2, totalPages: 2 }
+    const secondPage = { items: [makeScheduleItem({ id: 'parent', children: [{
+      id: 'child', title: 'Child', description: null, frequencyUnit: null, frequencyQuantity: null,
+      isBadHabit: false, isCompleted: false, isGeneral: false, isFlexible: false, days: [],
+      dueDate: '2025-01-01', dueTime: null, dueEndTime: null, endDate: null, position: 0,
+      checklistItems: [], tags: [], children: [], hasSubHabits: false, isLoggedInRange: false, instances: [],
+    }] })], page: 2, pageSize: 1, totalCount: 2, totalPages: 2 }
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(firstPage) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(secondPage) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(firstPage) })
+    const filters = { dateFrom: '2025-01-01', dateTo: '2025-01-01' }
+    const wrapper = createWrapper()
+    const detail = renderHook(() => useHabits(filters, undefined, { completeDay: true }), { wrapper })
+    await waitFor(() => expect(detail.result.current.isSuccess).toBe(true))
+    expect(detail.result.current.getChildren('parent').map((child) => child.id)).toEqual(['child'])
+    const ordinary = renderHook(() => useHabits(filters), { wrapper })
+    await waitFor(() => expect(ordinary.result.current.isSuccess).toBe(true))
+    expect(ordinary.result.current.getChildren('parent')).toEqual([])
+    expect(mockFetch).toHaveBeenCalledTimes(3)
+  })
+
   it('uses a larger page size for all-view habit lists', async () => {
     mockFetch.mockResolvedValue({
       ok: true,

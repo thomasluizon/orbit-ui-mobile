@@ -9,6 +9,7 @@ import { ChevronUp, ChevronDown, X, Copy, Plus, RotateCcw } from '@/components/u
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
+import { useChecklistItemKeys } from '@/hooks/use-checklist-item-keys'
 import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -267,10 +268,10 @@ export function HabitChecklist({
   )
   const [newItemText, setNewItemText] = useState('')
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const editableItemKeys = useChecklistItemKeys(items)
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
-  const editableItemKeys = items.map((_, index) => `checklist-${index}`)
 
   const addItem = useCallback(() => {
     const text = newItemText.trim()
@@ -532,7 +533,7 @@ function createStyles(tokens: AppTokens) {
     fontSize: 14,
     color: tokens.fg1,
     paddingVertical: 4,
-    paddingHorizontal: 0,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'transparent',
   },

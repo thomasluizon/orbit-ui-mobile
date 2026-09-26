@@ -61,6 +61,32 @@ export interface HabitDetailChildDateModel {
   completionReadOnly: boolean
 }
 
+export function getHabitDetailChildUnavailableReasonKey(
+  isError: boolean,
+  isLoading: boolean,
+  hasData: boolean,
+): 'habits.detail.dayHabitsLoadError' | 'habits.detail.dayHabitsLoading' | 'calendar.dayCell.notScheduled' {
+  if (isError) return 'habits.detail.dayHabitsLoadError'
+  if (isLoading || !hasData) return 'habits.detail.dayHabitsLoading'
+  return 'calendar.dayCell.notScheduled'
+}
+
+export function getHabitDetailChildCompletionReason(
+  scopedChild: NormalizedHabit | undefined,
+  boundaryReason: string | undefined,
+  unavailableReason: string,
+): string | undefined {
+  return scopedChild ? boundaryReason : unavailableReason
+}
+
+export function getAvailableHabitDetailScopedChild(
+  scopedChild: NormalizedHabit | undefined,
+  isError: boolean,
+  isLoading: boolean,
+): NormalizedHabit | undefined {
+  return isError || isLoading ? undefined : scopedChild
+}
+
 function monthDifference(date: Date, anchor: Date): number {
   return (date.getFullYear() - anchor.getFullYear()) * 12 + date.getMonth() - anchor.getMonth()
 }

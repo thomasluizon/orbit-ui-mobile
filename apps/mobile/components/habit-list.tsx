@@ -203,6 +203,7 @@ const SKELETON_KEYS = [
   'skeleton-4',
   'skeleton-5',
 ]
+const KEYBOARD_SHOULD_PERSIST_TAPS = 'handled'
 
 interface ParentSettlementPrompt {
   habit: NormalizedHabit
@@ -539,7 +540,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       showCompleted,
       recentlyCompletedIds,
     })
-
     const isAncestorSelected = useCallback(
       (habitId: string): boolean => {
         let current = habitsById.get(habitId)?.parentId ?? null
@@ -1726,6 +1726,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             data={SKELETON_KEYS}
+            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={(item) => item}
             renderItem={renderSkeletonItem}
             ListHeaderComponent={listHeaderComponent}
@@ -1748,6 +1749,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             data={[]}
+            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={() => 'load-error'}
             renderItem={undefined}
             ListHeaderComponent={listHeaderComponent}
@@ -1780,6 +1782,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             data={[]}
+            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={() => 'all-done'}
             renderItem={undefined}
             ListHeaderComponent={listHeaderComponent}
@@ -1813,6 +1816,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           <FlatList
             ref={allViewListRef}
             data={dateGroups}
+            keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={(item) => item.key}
             renderItem={renderGroupSection}
             ListHeaderComponent={listHeaderComponent}
@@ -1841,6 +1845,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <DraggableFlatList
           ref={scrollContainerRef}
           data={activeDragItems}
+          keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           extraData={listExtraData}
