@@ -22,6 +22,7 @@ afterEach(() => vi.useRealTimers())
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
+const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
@@ -266,7 +267,7 @@ vi.mock('@/hooks/use-habits', () => ({
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
-    profile: { hasProAccess: true },
+    profile: { hasProAccess: true, timeZone: accountDate.timeZone },
   }),
 }))
 
@@ -486,6 +487,7 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 
 describe('HabitList', () => {
   beforeEach(() => {
+    accountDate.timeZone = undefined
     capturedDrillOptions = undefined
     vi.clearAllMocks()
     sheetTestControls.defer(false)
@@ -522,6 +524,34 @@ describe('HabitList', () => {
     mockDrillState.drillError = null
     mockHabitsData.totalCount = 0
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('blocks an account-old completion before it enters the offline queue', () => {
+    vi.setSystemTime(new Date('2026-09-11T10:30:00Z'))
+    accountDate.timeZone = 'Pacific/Kiritimati'
+    const habit = createMockHabit({ id: 'account-window', title: 'Read' })
+    seedHabits([habit])
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{ dateFrom: '2026-09-04', dateTo: '2026-09-04' }}
+          selectedDate={new Date('2026-09-04T12:00:00Z')}
+          showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const row = tree!.root.findAllByType(HabitRow).find(
+      (node: { props: { habit: NormalizedHabit } }) => node.props.habit.id === habit.id,
+    )!
+    expect(row.props.today).toBe('2026-09-12')
+    const ring = tree!.root.findAll(
+      (node: { props: Record<string, unknown> }) =>
+        node.props.accessibilityHint === 'habits.todayBoundary.readOnly' &&
+        node.props.accessibilityRole === 'button',
+    )[0]
+    expect(ring.props.disabled).toBe(true)
+    TestRenderer.act(() => ring.props.onPress())
+    expect(logMutateAsync).not.toHaveBeenCalled()
   })
 
   it('does not carry recent completion feedback into another selected date', () => {
@@ -1013,7 +1043,7 @@ describe('HabitList', () => {
   it('logs a habit immediately from the card action', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
-    const selectedDate = new Date('2026-04-08T09:00:00Z')
+    const selectedDate = new Date('2026-09-05T09:00:00Z')
 
     let tree: any
 
@@ -1039,7 +1069,7 @@ describe('HabitList', () => {
 
     expect(logMutateAsync).toHaveBeenCalledWith({
       habitId: 'habit-1',
-      date: '2026-04-08',
+      date: '2026-09-05',
       intent: 'log',
     })
   })

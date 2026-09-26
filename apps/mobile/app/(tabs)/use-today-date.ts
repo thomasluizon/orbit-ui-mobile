@@ -10,6 +10,7 @@ import {
   formatLocaleDate,
   millisecondsUntilNextDay,
 } from '@orbit/shared/utils'
+import { useProfile } from '@/hooks/use-profile'
 
 function getMillisecondsUntilNextLocalMidnight(): number {
   const now = new Date()
@@ -70,11 +71,12 @@ export function useCurrentDate(timeZone?: string | null): string {
 
 export function useTodayDate(): TodayDate {
   const { i18n } = useTranslation()
+  const { profile } = useProfile()
   const router = useRouter()
   const { date } = useLocalSearchParams<{ date?: string | string[] }>()
   const dateParam = Array.isArray(date) ? date[0] : date
   const pinnedDateStr = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null
-  const today = useCurrentDate()
+  const today = useCurrentDate(profile?.timeZone)
   const selectedDateStr = pinnedDateStr ?? today
   const selectedDate = useMemo(
     () => new Date(`${selectedDateStr}T00:00:00`),

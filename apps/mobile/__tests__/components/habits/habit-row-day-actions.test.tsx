@@ -114,4 +114,52 @@ describe('mobile habit row on an old day', () => {
     expect(ring.props.disabled).toBe(true)
     expect(ring.props.accessibilityHint).toBe(completionReason)
   })
+
+  it('blocks a day outside the account window before sending a completion', () => {
+    vi.setSystemTime(new Date('2026-09-11T10:30:00Z'))
+    const onLog = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <I18nextProvider i18n={i18n}>
+          <HabitRow habit={createMockHabit({ title: 'Read' })}
+            selectedDate={new Date('2026-09-04T12:00:00Z')}
+            today="2026-09-12" actions={{ onLog }} />
+        </I18nextProvider>,
+      )
+    })
+
+    const ring = tree!.root.findAllByProps({
+      accessibilityLabel: `${i18n.t('habits.statusDot.empty')}, ${i18n.t('habits.logHabit')}: Read`,
+    }).find((node: TestNode) => node.props.accessibilityRole === 'button')!
+    expect(ring.props.disabled).toBe(true)
+    expect(ring.props.accessibilityHint).toBe(i18n.t('habits.todayBoundary.readOnly'))
+    TestRenderer.act(() => ring.props.onPress())
+    expect(onLog).not.toHaveBeenCalled()
+  })
+
+  it('enables a scheduled child on the account today with its matching status', () => {
+    vi.setSystemTime(new Date('2026-09-11T10:30:00Z'))
+    const onLog = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <I18nextProvider i18n={i18n}>
+          <HabitRow habit={createMockHabit({
+            title: 'Read', frequencyUnit: 'Day', scheduledDates: ['2026-09-12'],
+          })} selectedDate={new Date('2026-09-12T12:00:00Z')}
+          today="2026-09-12" depth={1} completionReadOnly={false}
+          actions={{ onLog }} />
+        </I18nextProvider>,
+      )
+    })
+
+    const ring = tree!.root.findAllByProps({
+      accessibilityLabel: `${i18n.t('habits.statusDot.empty')}, ${i18n.t('habits.logHabit')}: Read`,
+    }).find((node: TestNode) => node.props.accessibilityRole === 'button')!
+    expect(ring.props.disabled).toBe(false)
+    expect(ring.props.accessibilityHint).toBeUndefined()
+    TestRenderer.act(() => ring.props.onPress())
+    expect(onLog).toHaveBeenCalledOnce()
+  })
 })

@@ -27,13 +27,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import {
   buildHabitDateBuckets,
+  canLogHabitOnDate,
   computeHabitReorderPositions,
   computeParentSettlementDecision,
   computeParentPromptProgress,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   formatAPIDate,
+  formatAPIDateInTimeZone,
   getHabitEmptyStateKey,
+  getTodayBoundary,
   hasAncestorInSet,
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
@@ -53,6 +56,7 @@ import {
   useMoveHabitParent,
 } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
+import { useCurrentDate } from '@/app/(tabs)/use-today-date'
 import { useAdMob } from '@/hooks/use-ad-mob'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
@@ -405,6 +409,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const router = useRouter()
     const pathname = usePathname()
     const { profile } = useProfile()
+    const accountTimeZone = profile?.timeZone
+    const todayStr = useCurrentDate(accountTimeZone)
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(
       () => createTokensV2(currentScheme, currentTheme),
@@ -446,7 +452,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         habitsQuery.data?.childrenByParent ?? new Map<string, string[]>(),
       [habitsQuery.data?.childrenByParent],
     )
-    const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
+    const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : todayStr
 
     const logMutation = useLogHabit()
     const logMutateAsync = logMutation.mutateAsync
@@ -622,8 +628,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const dateGroups = useMemo<HabitListDateGroup[]>(() => {
       if (view !== 'all') return []
 
-      const today = formatAPIDate(new Date())
-      return buildHabitDateBuckets(visibleHabits, today).map((bucket) => ({
+      return buildHabitDateBuckets(visibleHabits, todayStr).map((bucket) => ({
         ...bucket,
         label:
           bucket.key === '__overdue__'
@@ -631,7 +636,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             : formatDateGroupLabel(bucket.key, deviceLocale, t),
       }))
     // react-doctor-disable-next-line exhaustive-deps -- deviceLocale is the extracted i18n.language and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    }, [deviceLocale, t, view, visibleHabits])
+    }, [deviceLocale, t, todayStr, view, visibleHabits])
 
     const allLoadedIds = useMemo(() => {
       return collectVisibleHabitTreeIds(visibleHabits, getVisibleChildren)
@@ -1132,6 +1137,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const handleDirectToggle = useCallback(
       async (habitId: string, intent: 'log' | 'unlog') => {
+        const currentDate = new Date()
+        const accountToday = accountTimeZone === undefined
+          ? formatAPIDate(currentDate)
+          : formatAPIDateInTimeZone(currentDate, accountTimeZone)
+        const boundary = getTodayBoundary(selectedDateStr, accountToday)
+        const habit = habitsById.get(habitId)
+        if (boundary === 'read-only' || (!selectedDate && selectedDateStr !== accountToday) ||
+          (boundary === 'future' && (!habit || !canLogHabitOnDate(habit, selectedDateStr, accountToday)))) return
         const toggleKey = `${habitId}:${selectedDateStr}`
         const pendingToggleKeys = pendingToggleKeysRef.current
         if (pendingToggleKeys.has(toggleKey)) return
@@ -1158,8 +1171,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [
         clearRecentlyCompleted,
         handleLogged,
+        habitsById,
         logMutateAsync,
         markRecentlyCompleted,
+        accountTimeZone,
         refetch,
         selectedDate,
         selectedDateStr,
@@ -1167,6 +1182,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const skipHabit = useCallback(async (habit: NormalizedHabit) => {
+      const currentDate = new Date()
+      const accountToday = accountTimeZone === undefined
+        ? formatAPIDate(currentDate)
+        : formatAPIDateInTimeZone(currentDate, accountTimeZone)
+      const boundary = getTodayBoundary(selectedDateStr, accountToday)
+      if (boundary === 'read-only' || (boundary === 'future' &&
+        !canLogHabitOnDate(habit, selectedDateStr, accountToday))) return
       const habitId = habit.id
       const date = selectedDateStr
       const settlementData = promptDataRef.current
@@ -1191,6 +1213,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
     }, [
       markRecentlyCompleted,
+      accountTimeZone,
       recordHabitResolution,
       selectedDateStr,
       settleParentAutomatically,
@@ -1495,6 +1518,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             key={habit.id}
             habit={habit}
             selectedDate={selectedDate}
+            today={todayStr}
             depth={depth === 0 ? 0 : 1}
             panelStart={options?.panelStart}
             panelEnd={options?.panelEnd}
@@ -1516,6 +1540,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       },
       [
         selectedDate,
+        todayStr,
         collapsedIds,
         getChildrenProgress,
         isSelectMode,
