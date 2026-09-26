@@ -30,7 +30,20 @@ The goal is a production release with an empty ticket board. Complete the redesi
 - Turnstile enforcement starts only after web and Android sign-in send a token.
 - Keep locale out of auth and deep-link URLs.
 - `/handoff` ends its session after committing the spec and one `NEXT.md`. `/wrap-up` runs `/progress`, `/questions`, then `/handoff`.
-- Admin merges require explicit `/merge-prs` invocation for an approved frozen set. The earlier unattended API merge instruction is superseded by this guardrail.
+- The orchestrator merges a pull request with `gh pr merge --squash --match-head-commit <sha>` after the exact head has green checks, a Pullfrog approval submitted after its push, and zero unresolved threads. Redesign-only work merges to `redesign/main`; other work merges to `main`. Deploy an `orbit-api` merge to `main`.
+- Admin merges happen only inside `/merge-prs` after the owner invokes it for an approved frozen set. Never use a direct merge API.
+- Launch Codex workers about 90 seconds apart, never several in the same second. Never pipe a launcher into `head`, because its final line dies on EPIPE.
+- Start a waiter only as a background task. A trailing `&` does not wake the session.
+- Check every colour, size and shape a worker adds against `DESIGN.md` before pushing. Read the worker's diff for gate edits before pushing (D95).
+- After `merge-review-batch-body.mjs`, grep the body for superseded design claims that survived the merge.
+- Link tickets in `orbit-api` and `orbit-landing-page` pull request bodies as `thomasluizon/orbit-tickets#N`; a bare `#N` points to that repository's issues.
+- When a pull request body edit re-runs Guards, its concurrency group cancels the push's run. Read `gh run list --commit <sha>` before calling a check red.
+- A pull request behind `redesign/main` may merge at its approved head after the merge result passes locally: both type checks, three Vitest suites and i18n usage for `orbit-ui-mobile`; `dotnet build` and `dotnet test` for `orbit-api` (D115).
+- Until `#697` merges, count a Pullfrog approval only if submitted after the head's push time. Read that time from the `GET /repos/{owner}/{repo}/activity?ref=refs/heads/<branch>` entry whose `after` is the head.
+- Pullfrog and Codex share one OpenAI allowance. When exhausted, use Claude headless through the same launcher under `.claude/skills/orchestrate/SKILL.md` §5.4.1, never a subagent.
+- Keep `CODEX_HOME` short enough for the macOS 104-byte socket limit; a longer path fails with `path must be shorter than SUN_LEN`.
+- The beta fleet permits a simpler deploy order while the owner is the only user, including relaxing deploy-API-first. Keep the full code contract.
+- `#74` owns existing copy. Never revisit the redesign gate's timing because of how many screens remain.
 
 ## The order
 
@@ -51,6 +64,7 @@ Reconcile the open board with these batches before each handoff. Place each new 
 - `#714` UI redesign/main gate port
 - `#715` API redesign/main cleanup
 - `#716` Landing redesign/main cleanup
+- `#717` Make the bounded-process tree-kill test deterministic under load
 - Place any cleanup ticket named in a later orchestrator comment here before the other Batch 0b work.
 
 These are the gates every later batch runs through. Re-read each ticket against the tree before building it, and never
@@ -254,6 +268,7 @@ Milestone "562 Astra" and every Astra or MCP tool ticket not already in Batch 1.
 - `#114` Partition the anonymous auth and waitlist rate limits by IP as well as email
 - `#115` Cancel the Stripe and Play subscription when a user confirms account deletion
 - `#568` Make destructive EF schema changes safe across rolling deploys
+- `#718` Drop the habit-log slip insert trigger and make `IsSlip` non-nullable after the `#665` deploy replaces old instances
 - `#621` Stop controllerActions reading as enforcement, because 51 capabilities declare it and nothing reads it at request time
 - `#623` Give BuildLegacyMatchKey one definition, because the writer and the reader each carry their own copy
 - `#626` Make the calendar reconciler and the suggestion writer agree on an unrepresentable projection
@@ -309,6 +324,10 @@ The ADRs live in the brain vault under `2 Areas/20-29 Orbit Engineering/Decision
 - Android's key map emits arrow keys but no Home or End key names.
 - `Harness Calibration` hashes complete normalized file content. Reseed after changing calibrated files and reconsider the verdict.
 - `local/*` lint rules run at `error` with zero violations. Do not restore a suppression baseline or weaken a rule. Sweep callers before changing a shared primitive.
+- A closed allowlist only shrinks. When a fix removes suppressions, lower `orbit-api` `tools/suppression-allowlist.json` to the observed count.
+- Put parity mirror hook pairs in `sonar.cpd.exclusions`. Shared logic belongs in a React-free core in `packages/shared`; each app keeps only its React wiring.
+- SonarCloud's API refuses pull requests targeting `redesign/main`. Read its gate from the check run's `output.summary`.
+- Run the `orbit-api` suite with `LANG` unset and with `LC_ALL=en_US.UTF-8` to catch host-culture formatting.
 - Run both harness suites after `.claude/**` changes: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`.
 - Pullfrog readiness depends on the last review of the exact head and the newest `pullfrog-approval` check. Review body findings count even when unresolved thread count is zero.
 - A `parity:exempt` label does not change a run created before the label. Trigger a fresh pull request event after applying it.
