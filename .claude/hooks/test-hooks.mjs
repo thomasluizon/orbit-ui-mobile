@@ -320,7 +320,7 @@ T("engine: a path containing .claude is not the claude binary", engine("cat .cla
 
 console.log("\n# forbid-worker-browser (_lib/rules-worker.mjs)")
 // Only launcher workers are barred from browsers; the owner may use the dev server.
-const worker = (command, options) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" }, repoRoots: [], ...options })
+const worker = (command, options) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" }, cwd: repoRoot, repoRoots: [], ...options })
 for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo start", "npx playwright test", "maestro test flow.yaml", "curl http://localhost:3920/login", "adb shell input tap 1 1"]) {
   T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)
 }
@@ -345,7 +345,26 @@ for (const command of ["rg -n playwright .", 'grep -rn "npm run dev" tools/', "c
 T("worker-browser: npx playwright still blocks through the runner prefix", blocks(worker("npx playwright test")), true)
 T("worker-browser: pnpm dlx cypress still blocks", blocks(worker("pnpm dlx cypress run")), true)
 T("worker-browser: a dev script under a runner still blocks", blocks(worker("npm run dev -- --port 4000")), true)
-T("worker-browser: an unrelated npm script named dev-docs allows", worker("npm run dev:docs"), null)
+T("worker-browser: a missing script fails closed", blocks(worker("npm run dev:docs")), true)
+for (const command of [
+  "npm run test:layout -w apps/web",
+  "npm run test:layout --workspace=@orbit/web",
+  "npm -w apps/web run test:layout",
+  "npm run test:layout --workspace apps/web",
+  "npm run-script test:layout -w @orbit/web",
+  "npx npm run test:layout -w apps/web",
+  "pnpm run test:layout -w apps/web",
+  "pnpm --filter @orbit/web run test:layout",
+  "yarn workspace @orbit/web run test:layout",
+]) {
+  T(`worker-browser: package script ${command} blocks`, blocks(worker(command)), true)
+}
+const scriptChainRoot = join(root, "script-chain")
+mkdirSync(scriptChainRoot, { recursive: true })
+writeFileSync(join(scriptChainRoot, "package.json"), JSON.stringify({ scripts: { "test:chain": "npm run test:layout", "test:layout": "playwright test --project=layout", "test:cycle": "npm run test:cycle" } }))
+T("worker-browser: a script reaching Playwright through npm run blocks", blocks(worker("npm run test:chain", { cwd: scriptChainRoot })), true)
+T("worker-browser: a recursive script fails closed", blocks(worker("npm run test:cycle", { cwd: scriptChainRoot })), true)
+T("worker-browser: an allowed mobile Vitest script passes", worker("npm test -w @orbit/mobile"), null)
 T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
 
 console.log("\n# forbid-node-modules-write (_lib/rules-dependencies.mjs)")
@@ -968,7 +987,8 @@ T(
 const BROWSER = "forbid-worker-browser.mjs"
 T("adapter worker-browser: a worker starting a dev server -> 2", runHook(BROWSER, bash("npm run dev"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: a worker running playwright -> 2", runHook(BROWSER, bash("npx playwright test"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
-T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter worker-browser: a workspace layout script -> 2", runHook(BROWSER, bash("npm run test:layout -w apps/web", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(BROWSER, bash("npm run dev")), 0)
 
 // This one is wired to Write, Edit and MultiEdit as well as both shells, because an agent edits a
