@@ -368,6 +368,7 @@ export {
   findHabitInTree,
   getTomorrowDateString,
   optimisticPatchHabit,
+  optimisticRemoveHabits,
   withChildren,
 } from './habit-optimistic'
 export type { HabitTreeNode } from './habit-optimistic'

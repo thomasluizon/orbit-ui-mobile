@@ -6,12 +6,17 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
+import {
+  habitKeys, goalKeys, gamificationKeys, profileKeys,
+  updateHabitListsForDate, invalidateHabitDependents,
+} from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
   buildOptimisticSkipPatch,
   findHabitInList,
+  formatAPIDate,
   normalizeHabits,
+  optimisticRemoveHabits,
 } from '@orbit/shared/utils'
 import {
   optimisticPatchHabit,
@@ -101,10 +106,8 @@ export function useLogHabit() {
       })
 
       if (!date) {
-        queryClient.setQueriesData<HabitScheduleItem[]>(
-          { queryKey: habitKeys.lists() },
-          (old) => old ? optimisticToggleCompletion(old, habitId) : old,
-        )
+        updateHabitListsForDate(queryClient, formatAPIDate(new Date()),
+          (items) => optimisticToggleCompletion(items, habitId))
       }
 
       return { previousLists }
@@ -169,10 +172,9 @@ export function useLogHabit() {
       }
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+    onSettled: (_response, error, { habitId }) => {
+      if (error) return
+      invalidateHabitDependents(queryClient, habitId)
     },
   })
 }
@@ -192,15 +194,11 @@ export function useSkipHabit() {
       })
 
       if (!date) {
-        queryClient.setQueriesData<HabitScheduleItem[]>(
-          { queryKey: habitKeys.lists() },
-          (old) => {
-            if (!old) return old
-            const habit = findHabitInList(old, habitId)
-            if (!habit) return old
-            return optimisticPatchHabit(old, habitId, buildOptimisticSkipPatch(habit))
-          },
-        )
+        updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
+          const habit = findHabitInList(items, habitId)
+          if (!habit) return items
+          return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit))
+        })
       }
 
       return { previousLists }
@@ -214,13 +212,10 @@ export function useSkipHabit() {
       }
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+    onSettled: (_response, error, { habitId }) => {
+      if (error) return
+      invalidateHabitDependents(queryClient, habitId)
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
-      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }
@@ -237,8 +232,8 @@ export function useCreateHabit() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
@@ -269,20 +264,18 @@ export function useUpdateHabit() {
       }
     },
 
-    onSettled: (_data, _err, { habitId }) => {
-      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+    onSettled: (_response, error, { habitId }) => {
+      if (error) return
+      invalidateHabitDependents(queryClient, habitId)
+      void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
     },
   })
 }
 
 function invalidateHabitDeleteQueries(queryClient: ReturnType<typeof useQueryClient>): void {
   void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-  void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
+  void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
   void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
 }
@@ -315,12 +308,27 @@ export function useDeleteHabit() {
   return useAccountScopedMutation({
     mutationFn: (habitId: string) => deleteHabitAction(habitId),
 
+    onMutate: async (habitId) => {
+      await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      const previousLists = snapshotHabitLists(queryClient)
+      updateHabitLists(queryClient, (items) => optimisticRemoveHabits(items, [habitId]))
+      return { previousLists }
+    },
+
+    onError: (_error, _habitId, context) => {
+      if (!context?.previousLists) return
+      restoreHabitLists(queryClient, context.previousLists)
+    },
+
     onSuccess: (_data, habitId) => {
       showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
     },
 
-    onSettled: () => {
-      invalidateHabitDeleteQueries(queryClient)
+    onSettled: (_response, error, habitId) => {
+      if (error) return
+      invalidateHabitDependents(queryClient, habitId)
+      void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
   })
 }

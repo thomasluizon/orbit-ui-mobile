@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { habitKeys } from '@orbit/shared/query'
+import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 
 import {
   useHabits,
@@ -21,6 +21,7 @@ interface CapturedQuery {
   refetchInterval?: () => number | false
   refetchOnWindowFocus?: boolean
   refetchOnReconnect?: boolean | 'always'
+  staleTime?: number
   select?: (data: unknown) => unknown
 }
 
@@ -100,7 +101,28 @@ describe('useHabits refetch behavior', () => {
     renderHookCapture(() => useHabits({ dateFrom: '2025-01-01', dateTo: '2025-01-01' }))
     expect(lastQuery().refetchInterval).toBeUndefined()
     expect(lastQuery().refetchOnWindowFocus).toBe(true)
-    expect(lastQuery().refetchOnReconnect).toBe('always')
+    expect(lastQuery().refetchOnReconnect).toBe(true)
+    expect(lastQuery().staleTime).toBe(5 * 60 * 1000)
+    expect(QUERY_STALE_TIMES.habits).toBe(5 * 60 * 1000)
+  })
+
+  it('requests only the first search page from a 450-habit account', async () => {
+    mocks.apiClient.mockResolvedValue({ items: [], page: 1, pageSize: 50, totalCount: 450, totalPages: 3 })
+    renderHookCapture(() => useHabits({ search: 'run', page: 1, pageSize: 50 }))
+
+    await lastQuery().queryFn()
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits?search=run&page=1&pageSize=50')
+  })
+
+  it('continues through all pages for unbounded search', async () => {
+    mocks.apiClient
+      .mockResolvedValueOnce({ items: [{ id: 'first' }], page: 1, pageSize: 200, totalCount: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [{ id: 'second' }], page: 2, pageSize: 200, totalCount: 2, totalPages: 2 })
+    renderHookCapture(() => useHabits({ search: 'run' }))
+
+    expect(await lastQuery().queryFn()).toEqual([{ id: 'first' }, { id: 'second' }])
+    expect(mocks.apiClient).toHaveBeenCalledTimes(2)
   })
 })
 

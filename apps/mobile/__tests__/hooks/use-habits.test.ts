@@ -437,7 +437,7 @@ describe('mobile habit hooks', () => {
     vi.useRealTimers()
   })
 
-  it('queues an optimistic habit create offline and skips invalidation', async () => {
+  it('queues a habit create offline without changing server lists or count', async () => {
     mocks.state.entries = [
       { key: habitKeys.list({}), value: [makeHabit()] },
       {
@@ -472,17 +472,10 @@ describe('mobile habit hooks', () => {
       dateTo: '2025-01-01',
     })))?.value as HabitScheduleItem[]
     const count = mocks.state.entries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(habitKeys.count()))?.value as number
-    const optimisticHabit = list.find((habit) => habit.id === 'offline-habit-1')
-
     expect(request.__offlineTempId).toBe('offline-habit-1')
-    expect(list.map((habit) => habit.id)).toEqual(['habit-1', 'offline-habit-1'])
-    expect(todayList.map((habit) => habit.id)).toEqual(['habit-today-1', 'offline-habit-1'])
-    expect(optimisticHabit).toMatchObject({
-      dueDate: '2025-01-01',
-      scheduledDates: ['2025-01-01'],
-      instances: [{ date: '2025-01-01', status: 'Pending', logId: null }],
-    })
-    expect(count).toBe(3)
+    expect(list.map((habit) => habit.id)).toEqual(['habit-1'])
+    expect(todayList.map((habit) => habit.id)).toEqual(['habit-today-1'])
+    expect(count).toBe(2)
     expect(mocks.setLastCreatedHabitId).toHaveBeenCalledWith('offline-habit-1')
     expect(mocks.invalidateHabitMutationQueries).not.toHaveBeenCalled()
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
@@ -492,6 +485,24 @@ describe('mobile habit hooks', () => {
       }),
       queuedResultFactory: expect.any(Function),
     }))
+  })
+
+  it('leaves created habit membership and count to the server', async () => {
+    seedHabitState(Array.from({ length: 200 }, (_, index) => makeHabit({ id: `habit-${index}` })), 450)
+    mocks.state.tempIds = ['temporary-habit']
+    const mutation = useCreateHabit() as unknown as MutationConfig<
+      { id: string }, CreateHabitRequest & { __offlineTempId?: string },
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]; tempId: string }
+    >
+    const request: CreateHabitRequest & { __offlineTempId?: string } = { title: 'New habit', isGeneral: true }
+    const context = await mutation.onMutate?.(request)
+    mutation.onSuccess?.({ id: 'created-habit' }, request, context)
+    mutation.onSettled?.({ id: 'created-habit' }, null, request, context)
+
+    expect(mocks.queryClient.getQueryData(habitKeys.list({}))).toHaveLength(200)
+    expect(mocks.queryClient.getQueryData(habitKeys.count())).toBe(450)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
   })
 
   it('rejects an overlong create description before queuing or sending', async () => {
@@ -531,7 +542,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.runQueuedMutation).not.toHaveBeenCalled()
   })
 
-  it('falls back to today for optimistic offline creates when the payload dueDate is an empty string', async () => {
+  it('keeps an empty dueDate in the queued create request without changing cached lists', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-02-14T12:00:00Z'))
 
@@ -552,14 +563,10 @@ describe('mobile habit hooks', () => {
       const result = await mutation.mutationFn(request)
       mutation.onSettled?.(result, null, request, context)
 
-      const list = getHabitList()
-      const optimisticHabit = list.find((habit) => habit.id === 'offline-habit-2')
-
-      expect(optimisticHabit).toMatchObject({
-        dueDate: '2025-02-14',
-        scheduledDates: ['2025-02-14'],
-        instances: [{ date: '2025-02-14', status: 'Pending', logId: null }],
-      })
+      expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
+      expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+        mutation: expect.objectContaining({ clientEntityId: 'offline-habit-2' }),
+      }))
     } finally {
       vi.useRealTimers()
     }
@@ -823,7 +830,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 
-  it('reconciles a completion without refetching response-backed or AI summary families', () => {
+  it('refetches lists after completion without refreshing unrelated families', () => {
     seedHabitState([makeHabit({ id: 'habit-1' })])
     const mutation = useLogHabit() as unknown as MutationConfig<
       LogHabitResponse,
@@ -839,12 +846,41 @@ describe('mobile habit hooks', () => {
     mutation.onSettled?.(response, null, { habitId: 'habit-1' }, undefined)
 
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
     })
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it('refetches lists after a skip without refetching the habit count', () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })])
+    const mutation = useSkipHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      unknown
+    >
+
+    mutation.onSettled?.(undefined, null, { habitId: 'habit-1' }, undefined)
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+  })
+
+  it('refetches Today after an earlier overdue occurrence is logged', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', dueDate: '2025-01-01', isOverdue: true })])
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      LogHabitResponse, { habitId: string; date?: string }, unknown
+    >
+
+    mutation.onSettled?.({ logId: 'log-overdue', isFirstCompletionToday: false, currentStreak: 1 }, null,
+      { habitId: 'habit-1', date: '2025-01-01' }, undefined)
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 
   /**
@@ -1047,6 +1083,17 @@ describe('mobile habit hooks', () => {
     expect(getHabitList()[0]?.title).toBe('Exercise')
   })
 
+  it('refetches lists when schedule days change', () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })])
+    const mutation = useUpdateHabit() as unknown as MutationConfig<
+      unknown, { habitId: string; data: { title: string; isBadHabit: boolean; days: string[] } }, unknown
+    >
+
+    mutation.onSettled?.({}, null, { habitId: 'habit-1', data: { title: 'Exercise', isBadHabit: false, days: ['Monday', 'Wednesday'] } }, undefined)
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+  })
+
   it('reorders habit positions optimistically and restores them on failure', async () => {
     seedHabitState(
       [
@@ -1078,7 +1125,7 @@ describe('mobile habit hooks', () => {
     expect(byId('habit-2')?.position).toBe(1)
   })
 
-  it('optimistically deletes a habit, decrements the count, and restores both on failure', async () => {
+  it('optimistically deletes a habit and leaves the count to the server', async () => {
     seedHabitState([makeHabit({ id: 'habit-1' }), makeHabit({ id: 'habit-2' })], 2)
 
     const mutation = useDeleteHabit() as unknown as MutationConfig<
@@ -1089,7 +1136,7 @@ describe('mobile habit hooks', () => {
 
     const context = await mutation.onMutate?.('habit-1')
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-2'])
-    expect(getCount()).toBe(1)
+    expect(getCount()).toBe(2)
 
     mutation.onError?.(new Error('Delete failed'), 'habit-1', context)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
