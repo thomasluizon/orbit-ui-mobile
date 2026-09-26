@@ -28,7 +28,7 @@ after the head's push time** (`gh api "repos/<owner>/<repo>/activity?ref=refs/he
 | item | state at handoff | disposition |
 |---|---|---|
 | `ui#1123` (`#697` review freshness) | round 2 committed `c31f89b4`, UNPUSHED; my revert of the worker's `bounded-process.mjs` edit is in it; harness NOT rerun after the revert | run `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`, put the evidence from the worker's `/tmp/ticket-697-pr-evidence.md` in the body (replace the check-suite block), resolve thread `PRRT_kwDOR5Siws6mODIH` after re-reading its id with `list-bot-threads.mjs`, push. File the `bounded-process.mjs` flake as its own ticket. Then the `main` backport of `list-bot-threads.mjs` |
-| `ui#1126` (`#705` React out of shared) | approved at `977d8de8`; fix batch worker was RUNNING at handoff (log in `worker-705-b1.out`, worktree `orca/workspaces/orbit-ui-mobile/ticket-705-shared-react-hooks`), 10 unpushed commits incl. `90628b6c` | read the worktree: finish or salvage the batch (logic into shared cores, app hooks wiring only, manifest regenerated), then body, push, fresh review. SonarCloud was 39.8% duplication |
+| `ui#1126` (`#705` React out of shared) | approved at `977d8de8`; fix batch worker EXITED just after the handoff, result unread (log path in `.git/orbit-worker-launches`, worktree `orca/workspaces/orbit-ui-mobile/ticket-705-shared-react-hooks`), 10 unpushed commits incl. `90628b6c` | read the worktree: finish or salvage the batch (logic into shared cores, app hooks wiring only, manifest regenerated), then body, push, fresh review. SonarCloud was 39.8% duplication |
 | `api#569` (`#704` explicit culture) | approved at `2d16f4a2`; batch 2 committed `692cc740` (architecture) and `ba4d30f0` (coverage tests), UNPUSHED | merge the worker report into the body, push, confirm SonarCloud new coverage >= 80% and `drift` green, merge to `main` |
 | `api#574` (`#665` slip at write time) | CHANGES_REQUESTED: "A rolling deployment can permanently record slips as completions; the migration and writer transition need coordination" | review batch on the migration and writer transition (expand-contract), then merge to `main` |
 | `api#571` (`#706` record pages) | batch 1 pushed `36a8900f`; waiter finished at handoff, result unread | read CI and review; merge to `orbit-api` `redesign/main`; then relaunch `#681` on `feature/ticket-681-astra-read-blocks` (clean) |
@@ -47,7 +47,13 @@ after the head's push time** (`gh api "repos/<owner>/<repo>/activity?ref=refs/he
 1. Land what is ready: `api#573`, `ui#1127`, `ui#1125`, `ui#1111` (each after the freshness and merge-result checks).
 2. Push the three unpushed batches: `ui#1123`, `api#569`, `ui#1126` (after its worker's result is read).
 3. Clear `api#574` and `api#571`; then relaunch `#681`.
-4. Then the board by leverage (`node tools/plan-queue.mjs --board`): live defects on `main` first (start with
-   `#330`, Android push broken in release builds, High), redesign work to `redesign/main`.
+4. Then follow the spec's `## The order: the batches to a production release`, batch by batch, never the
+   board's leverage ranking: what is left of Batch 0b (harness) and Batch 0c (live Android defects on `main`),
+   then Batch 1 (close the redesign) until `node tools/redesign-coverage.mjs` passes and every screen ticket is
+   closed, then STOP at THE REDESIGN GATE (internal Play build for Thomas; never merge `redesign/main` to `main`).
+   That section was placed on 2026-09-19. Before starting, put every open ticket filed after that date into one
+   batch in the spec, by the section's own rules (a live defect on `main`, such as `#330` Android push broken in
+   release builds, goes in Batch 0c), and commit that update. `plan-queue.mjs` is only for dependency order and
+   deferrals inside a batch.
 
 Every identifier here came from a previous session. Treat each as a lead to verify.
