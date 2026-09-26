@@ -34,7 +34,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, resolveReviewVerdict, reviewChecksFor, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { headActivityArgv, headActivityBoundary, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, resolveReviewVerdict, reviewChecksFor, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --ticket <file>
 
@@ -112,6 +112,7 @@ let liveTicket
 let liveCiGreen = false
 let reviewVerdict = null
 let reviewComplete = true
+let reviewReason = null
 try {
   const repository = repositorySlug(repoRoot)
   const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
@@ -129,6 +130,16 @@ try {
   if (live === null || live.number !== prNumber) {
     fail(`the pull request read for ${prNumber} did not return the confirmed number/base/head/draft/rollup shape`)
   }
+  const activityRead = live.headRepository === live.repositoryName ? await runBounded(
+    process.env.GH_BIN || "gh",
+    headActivityArgv(live.repositoryName, live.headRefName),
+    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+  ) : null
+  let activities = null
+  if (activityRead?.status === 0 && !activityRead.error && !activityRead.timedOut) {
+    try { activities = JSON.parse(activityRead.stdout) } catch { /* An invalid page cannot prove a review current. */ }
+  }
+  live.headActivityBoundary = headActivityBoundary(activities, live.headRefOid, live.headRefName, live.repositoryName, live.headRepository)
   const requiredRead = await runBounded(
     process.env.GH_BIN || "gh",
     ["api", `repos/${repository}/branches/${encodeURIComponent(live.baseRefName)}/protection/required_status_checks`],
@@ -175,6 +186,7 @@ try {
   })
   reviewVerdict = resolved.verdict
   reviewComplete = resolved.complete
+  reviewReason = resolved.reason ?? null
   // verify-delivery.mjs builds this set from the same function against the same verdict, so the
   // cached `ci.pass` this tool honours below can never disagree with the live reading here.
   liveCiGreen = matchesDelivery && live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks, reviewSatisfiedOutOfBand(reviewVerdict))
@@ -219,7 +231,7 @@ const receipt = {
     // there, and the receipt says which.
     // Which evidence carried the review axis, so a receipt that leaned on the fallback says so
     // rather than reading like an ordinary green (#440).
-    review: { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null, complete: reviewComplete },
+    review: { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null, complete: reviewComplete, reason: reviewReason },
   },
   behindBy: liveComparison.behind_by,
   draft: live.isDraft,

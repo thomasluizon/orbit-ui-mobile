@@ -95,8 +95,9 @@ const requiredFrom = (nodes) => nodes.map((node) => ({ context: node.name ?? nod
 
 /** The envelope the confirmed GraphQL query returns, keyed exactly like the live #716 response. */
 const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
-  data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid,
-    commits: { nodes: [{ commit: { oid: headRefOid, checkSuites: { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: "2026-08-01T00:00:01Z" }] } } }] },
+  data: { repository: { nameWithOwner: "useorbitai/orbit-ui-mobile", pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid,
+    headRefName: BRANCH, headRepository: { nameWithOwner: "useorbitai/orbit-ui-mobile" },
+    commits: { nodes: [{ commit: { oid: headRefOid } }] },
     isDraft, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: reviews }, statusCheckRollup: { contexts: { nodes } } } } },
 })
 
@@ -122,6 +123,8 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
     { match: "api graphql", stdout: JSON.stringify(state), stdoutSequence: states?.map((entry) => JSON.stringify(entry)), sequenceFile },
+    { match: "/activity?", stdout: JSON.stringify([{ activity_type: "push", actor: { login: "<actor>" }, after: headRefOid,
+      before: "base-sha", id: 1, node_id: "<activity-id>", ref: `refs/heads/${BRANCH}`, timestamp: "2026-08-01T00:00:01Z" }]) },
     { match: `branches/${encodeURIComponent(baseRefName)}/protection/required_status_checks`, stdout: protectionResponse ?? JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }), exit: protectionExit },
     { match: "api repos/", stdout: JSON.stringify(comparison) },
   ])

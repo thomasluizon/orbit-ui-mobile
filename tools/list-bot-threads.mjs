@@ -28,6 +28,7 @@ import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { headActivityArgv, headActivityBoundary } from "./lib/readiness-receipt.mjs"
 
 /**
  * The login as GraphQL spells it, because this tool reads GraphQL and nothing else. The two GitHub
@@ -80,7 +81,7 @@ an APPROVED review with an ABSENT check is REVIEWED, because an unprotected base
 and the exact-head approval is its evidence. Triage a non-null reviewBody like a thread.
 
 A review pinned to an older head is NOT accepted. A review submitted no later than the current
-head's first GitHub check suite is stale too, even when GitHub reports the later head's oid on it.
+head's GitHub branch push is stale too, even when GitHub reports the later head's oid on it.
 
 A draft pull request is read exactly like any other one, because Pullfrog reviews drafts too.
 
@@ -183,9 +184,10 @@ try {
 
 const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String){
   repository(owner:$owner,name:$repo){
+    nameWithOwner
     pullRequest(number:$pr){
-      number isDraft baseRefOid headRefOid
-      commits(last:1){nodes{commit{oid checkSuites(first:100){totalCount pageInfo{hasNextPage} nodes{createdAt}}}}}
+      number isDraft baseRefOid headRefOid headRefName headRepository{nameWithOwner}
+      commits(last:1){nodes{commit{oid}}}
       reviews(last:50){nodes{id author{login} state submittedAt body commit{oid}}}
       comments(last:100){nodes{createdAt url}}
       statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion startedAt completedAt checkSuite{app{databaseId}}}}}}
@@ -231,6 +233,7 @@ const readPullRequest = async () => {
     if (payload.errors?.length) fail(2, `gh api graphql reported: ${payload.errors.map((entry) => entry.message).join("; ")}`)
     const node = payload.data?.repository?.pullRequest
     if (!node) fail(2, `gh api graphql returned no pull request ${pullRequest}`)
+    node.repositoryName = payload.data.repository.nameWithOwner ?? null
     const headCommit = node.commits?.nodes?.[0]?.commit
     if (headCommit?.oid !== node.headRefOid) fail(2, "gh api graphql returned no head commit")
     const pageInfo = node.reviewThreads?.pageInfo
@@ -258,6 +261,12 @@ const readPullRequest = async () => {
     pages += 1
   }
   first.reviewThreads = { nodes, pageInfo, pages, complete: true }
+  let activities = null
+  if (first.headRepository?.nameWithOwner === first.repositoryName) {
+    const activityResponse = await gh(headActivityArgv(first.repositoryName, first.headRefName), "gh api repository activity")
+    try { activities = JSON.parse(activityResponse) } catch { /* An invalid page cannot prove a review current. */ }
+  }
+  first.headActivityBoundary = headActivityBoundary(activities, first.headRefOid, first.headRefName, first.repositoryName, first.headRepository?.nameWithOwner)
   return first
 }
 
@@ -340,25 +349,14 @@ progress("REVIEW_STATE_READ", node, startedAt, deadline)
  * still names the OLD commit. Accepting it would report REVIEWED for code Pullfrog never saw, which
  * is the very defect this tool exists to remove: the harness reading a stale approval as a current
  * one. The oid check alone misses GitHub repointing a review onto a later merge commit, so the
- * submission must follow GitHub's first check suite for that head.
+ * submission must follow GitHub's activity timestamp for that branch transition.
  */
 const COMPLETED_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
-/** GitHub stamps both values. An incomplete suite page cannot establish the earliest creation. */
-const suiteBoundaryOf = (payload) => {
-  const suites = payload.commits?.nodes?.[0]?.commit?.checkSuites
-  if (!Array.isArray(suites?.nodes) || !Number.isInteger(suites.totalCount) ||
-      typeof suites.pageInfo?.hasNextPage !== "boolean" || suites.pageInfo.hasNextPage ||
-      suites.totalCount !== suites.nodes.length) return { time: null, reason: "the head check suites page is incomplete" }
-  if (suites.nodes.length === 0) return { time: null, reason: "the head has no check suites" }
-  const times = suites.nodes.map((suite) => Date.parse(suite?.createdAt ?? ""))
-  if (times.some((time) => !Number.isFinite(time))) return { time: null, reason: "a head check suite has an unparseable createdAt" }
-  return { time: Math.min(...times), reason: null }
-}
 const currentHeadReviews = (payload) => {
-  const boundary = suiteBoundaryOf(payload).time
+  const boundary = payload.headActivityBoundary?.time
   return (payload.reviews?.nodes ?? [])
     .filter((review) => review.author?.login === botLogin)
-    .filter((review) => review.commit?.oid === payload.headRefOid && boundary !== null && submittedAtOf(review) > boundary)
+    .filter((review) => review.commit?.oid === payload.headRefOid && Number.isFinite(boundary) && submittedAtOf(review) > boundary)
     .sort((left, right) => submittedAtOf(left) - submittedAtOf(right))
 }
 
@@ -520,12 +518,12 @@ if (!review) {
   const asked = requested
     ? '"@pullfrog review" WAS posted on this run and no review arrived inside the budget, so the absence is the reviewer\'s, not ours'
     : 'no "@pullfrog review" was posted on this run, so the reviewer may simply never have been triggered'
-  const suiteBoundary = suiteBoundaryOf(node)
-  const note = suiteBoundary.reason
-    ? `${suiteBoundary.reason}; no review can be proven current. ${asked}`
+  const activityBoundary = node.headActivityBoundary
+  const note = activityBoundary.reason
+    ? `${activityBoundary.reason}; no review can be proven current. ${asked}`
     : stale && stale.commit?.oid !== node.headRefOid
     ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
-    : stale && stale.commit?.oid === node.headRefOid && submittedAtOf(stale) <= suiteBoundary.time
+    : stale && stale.commit?.oid === node.headRefOid && submittedAtOf(stale) <= activityBoundary.time
       ? `the newest ${botLogin} review predates head ${node.headRefOid}; GitHub reported the later head on that review. ${asked}`
     : `no completed ${botLogin} review of this head arrived; ${asked}; do not report this pull request as clean`
   console.log(

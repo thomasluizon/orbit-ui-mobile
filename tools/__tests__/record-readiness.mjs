@@ -92,9 +92,9 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const approvedAtHead = [botReview("APPROVED", HEAD)]
   const writeDelivery = (baseRefName = "main", nodes = [greenCheck, approval]) => {
     const evidence = JSON.parse(readFileSync(delivery, "utf8"))
-    const observed = pullRequestStateFromGraphQl({ data: { repository: { pullRequest: {
-      number: 700, baseRefName, baseRefOid: BASE, headRefOid: HEAD, isDraft: false,
-      commits: { nodes: [{ commit: { oid: HEAD, checkSuites: { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: "2026-08-07T10:00:01Z" }] } } }] },
+    const observed = pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "thomasluizon/orbit-ui-mobile", pullRequest: {
+      number: 700, baseRefName, baseRefOid: BASE, headRefOid: HEAD, headRefName: "fix/example", headRepository: { nameWithOwner: "thomasluizon/orbit-ui-mobile" }, isDraft: false,
+      commits: { nodes: [{ commit: { oid: HEAD } }] },
       reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: approvedAtHead },
       statusCheckRollup: { contexts: { nodes } },
     } } } })
@@ -106,16 +106,21 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0, ticketStatus = "In Review", options = {}) => ({
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-      { match: "api graphql", stdout: JSON.stringify({ data: { repository: { pullRequest: {
+      { match: "api graphql", stdout: JSON.stringify({ data: { repository: { nameWithOwner: "thomasluizon/orbit-ui-mobile", pullRequest: {
         number: 700,
         baseRefName: options.baseRefName ?? "main",
         baseRefOid,
         headRefOid,
-        commits: { nodes: [{ commit: { oid: headRefOid, checkSuites: options.checkSuites ?? { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: "2026-08-07T10:00:01Z" }] } } }] },
+        headRefName: "fix/example",
+        headRepository: { nameWithOwner: options.headRepository ?? "thomasluizon/orbit-ui-mobile" },
+        commits: { nodes: [{ commit: { oid: headRefOid } }] },
         isDraft: options.isDraft ?? false,
         reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: options.reviews ?? approvedAtHead },
         statusCheckRollup: { contexts: { nodes: options.statusCheckRollup ?? [greenCheck, approval] } },
       } } } }) },
+      { match: "/activity?", stdout: JSON.stringify(options.activities ?? [{ activity_type: "push", actor: { login: "<actor>" },
+        after: headRefOid, before: BASE, id: 1, node_id: "<activity-id>", ref: "refs/heads/fix/example",
+        timestamp: options.pushTime ?? "2026-08-07T10:00:01Z" }]) },
       /**
        * The real payload carries BOTH lists, and only `checks` names the app that must provide each
        * check. Confirmed live on 2026-08-12 against the `main` protection of this repository.
@@ -193,21 +198,25 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     JSON.stringify(fallbackReceipt.ci.review))
   unprotectedCase(
     "PR 1107's repointed approval predating the head leaves the review axis stale",
-    { statusCheckRollup: [greenCheck], checkSuites: { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: "2026-09-26T02:48:45Z" }] },
+    { statusCheckRollup: [greenCheck], pushTime: "2026-09-26T02:48:44Z",
       reviews: [botReview("APPROVED", HEAD, "2026-09-25T21:50:13Z")] },
     { status: 1, stdout: /CI_STALE/ }, HEAD, [greenCheck],
   )
   unprotectedCase(
-    "an approval after the commit but before the first suite cannot clear the review axis",
-    { statusCheckRollup: [greenCheck],
+    "an approval after the push but before the first suite clears the review axis",
+    { statusCheckRollup: [greenCheck], pushTime: "2026-08-07T09:59:59Z",
       reviews: [botReview("APPROVED", HEAD, "2026-08-07T10:00:00Z")] },
-    { status: 1, stdout: /CI_STALE/ }, HEAD, [greenCheck],
+    { status: 0, stdout: /"verdict": "READY"/ }, HEAD, [greenCheck],
   )
   unprotectedCase(
-    "an approval with no head check suites cannot clear the review axis",
-    { statusCheckRollup: [greenCheck], checkSuites: { totalCount: 0, pageInfo: { hasNextPage: false }, nodes: [] }, reviews: approvedAtHead },
+    "an approval with no matching head activity cannot clear the review axis",
+    { statusCheckRollup: [greenCheck], activities: [], reviews: approvedAtHead },
     { status: 1, stdout: /CI_STALE/ }, HEAD, [greenCheck],
   )
+  const missingActivityReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+  T(`${TOOL}: the stale review axis names missing head activity`,
+    missingActivityReceipt.ci.review?.verdict === null && /no matching head activity/.test(missingActivityReceipt.ci.review.reason ?? ""),
+    JSON.stringify(missingActivityReceipt.ci.review))
   unprotectedCase(
     "the approval CHECK absent and only a COMMENTED review at the head cannot reach READY",
     { statusCheckRollup: [greenCheck], reviews: [botReview("COMMENTED", HEAD)] },
