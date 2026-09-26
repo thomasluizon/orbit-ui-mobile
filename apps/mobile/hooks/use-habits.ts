@@ -803,6 +803,9 @@ export function useBulkCreateHabits() {
 
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const restoreHabit = useRestoreHabit()
+  const showUndoToast = useUndoToast()
 
   return useMutation<
     BulkDeleteResponse,
@@ -843,6 +846,16 @@ export function useBulkDeleteHabits() {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
       adjustHabitCount(queryClient, context.deletedCount)
+    },
+
+    onSuccess: (result) => {
+      const deletedIds = result.results.flatMap((item) =>
+        item.status === 'Success' ? [item.habitId] : [],
+      )
+      if (deletedIds.length === 0) return
+      showUndoToast(t(deletedIds.length === 1 ? 'undo.habitDeleted' : 'undo.habitsDeleted'), () => {
+        for (const habitId of deletedIds) restoreHabit.mutate(habitId)
+      })
     },
 
     onSettled: (data, error) =>

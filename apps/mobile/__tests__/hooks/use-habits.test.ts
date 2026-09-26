@@ -86,7 +86,11 @@ const mocks = vi.hoisted(() => {
     queryClient,
     useQuery: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
-    useMutation: vi.fn((config: unknown) => config),
+    useMutation: vi.fn((config: unknown) => ({
+      ...(config as object),
+      mutate: mocks.restoreHabitMutate,
+    })),
+    restoreHabitMutate: vi.fn(),
     runQueuedMutation: vi.fn(({ queuedResult, queuedResultFactory }: {
       queuedResult?: unknown
       queuedResultFactory?: (mutationId: string) => unknown
@@ -343,6 +347,7 @@ describe('mobile habit hooks', () => {
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
     mocks.showUndoToast.mockClear()
+    mocks.restoreHabitMutate.mockClear()
   })
 
   it('counts every bulk-completed habit toward the review floor at mutate time', async () => {
@@ -1182,6 +1187,40 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('Bulk delete failed'), ['habit-1', 'habit-2'], context)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2', 'habit-3'])
     expect(getCount()).toBe(3)
+  })
+
+  it('offers Undo for successful bulk deletes and restores only those habits', () => {
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { status: 'Success' | 'Failed'; habitId: string }[] },
+      string[],
+      unknown
+    >
+    mutation.onSuccess?.({
+      results: [
+        { status: 'Success', habitId: 'habit-1' },
+        { status: 'Failed', habitId: 'habit-2' },
+        { status: 'Success', habitId: 'habit-3' },
+      ],
+    }, ['habit-1', 'habit-2', 'habit-3'], undefined)
+
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitsDeleted', expect.any(Function))
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2)
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('habit-1')
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('habit-3')
+  })
+
+  it('does not offer Undo when no bulk delete succeeds', () => {
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { status: 'Success' | 'Failed'; habitId: string }[] },
+      string[],
+      unknown
+    >
+    mutation.onSuccess?.({
+      results: [{ status: 'Failed', habitId: 'habit-1' }],
+    }, ['habit-1'], undefined)
+    expect(mocks.showUndoToast).not.toHaveBeenCalled()
   })
 
   it('optimistically completes only same-day bulk skips and restores them on failure', async () => {

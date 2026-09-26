@@ -493,9 +493,22 @@ export function useBulkCreateHabits() {
 
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const restoreHabit = useRestoreHabit()
+  const showUndoToast = useUndoToast()
 
   return useAccountScopedMutation({
     mutationFn: (habitIds: string[]) => bulkDeleteHabitsAction(habitIds),
+
+    onSuccess: (result) => {
+      const deletedIds = result.results.flatMap((item) =>
+        item.status === 'Success' ? [item.habitId] : [],
+      )
+      if (deletedIds.length === 0) return
+      showUndoToast(t(deletedIds.length === 1 ? 'undo.habitDeleted' : 'undo.habitsDeleted'), () => {
+        for (const habitId of deletedIds) restoreHabit.mutate(habitId)
+      })
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })

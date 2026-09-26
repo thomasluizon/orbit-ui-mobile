@@ -57,6 +57,22 @@ describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
 
+  it('offers Undo after deleting habits or a goal in both locales', () => {
+    for (const [locale, undoLabel, permanence] of [
+      [en, 'Undo', /cannot be undone/i],
+      [ptBR, 'Desfazer', /não dá para desfazer/i],
+    ] as const) {
+      for (const message of [
+        locale.habits.deleteConfirmMessage,
+        ...locale.habits.bulkDeleteMessage.split(' | '),
+        locale.goals.detail.deleteConfirm,
+      ]) {
+        expect(message).toContain(undoLabel)
+        expect(message).not.toMatch(permanence)
+      }
+    }
+  })
+
   it('describes the Astra daily limit without promising an upgrade removes it', () => {
     expect(en.chat.limitReachedError).toContain('tomorrow')
     expect(ptBR.chat.limitReachedError).toContain('amanhã')
