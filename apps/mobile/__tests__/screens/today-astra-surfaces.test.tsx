@@ -43,6 +43,84 @@ vi.mock('@/hooks/use-notifications', () => ({
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
+vi.mock('@/hooks/use-habits', () => ({
+  EMPTY_HABITS_BY_ID: new Map(),
+  useHabits: () => ({
+    data: { habitsById: mocks.noHabits ? new Map() : new Map([[mocks.habit.id, mocks.habit]]) },
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}))
+vi.mock('@/components/habit-list', () => ({
+  HabitList: React.forwardRef((props: Record<string, unknown>, _ref) => {
+    mocks.habitListProps = props
+    return React.createElement(
+      React.Fragment,
+      null,
+      props.listHeader as React.ReactNode,
+      React.createElement('HabitList'),
+    )
+  }),
+}))
+vi.mock('@/components/habits/selection-tray', () => ({ SelectionTray: () => null }))
+vi.mock('@/components/ui/capacity-notice', () => ({ CapacityNotice: () => null }))
+vi.mock('@/components/today/today-date-control', () => ({ TodayDateControl: () => null }))
+vi.mock('@/components/today/today-modals', () => ({ TodayModals: () => null }))
+vi.mock('@/components/today/today-astra', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/today/today-astra')>()
+  return {
+    TodayAstra: (props: { isTodaySelected: boolean; suppressed: boolean }) =>
+      React.createElement(React.Fragment, null,
+        React.createElement('TodayAstraMock', { suppressed: props.suppressed }),
+        React.createElement(original.TodayAstra, props),
+      ),
+  }
+})
+vi.mock('@/components/ui/trial-banner', () => ({ TrialBanner: () => null }))
+vi.mock('@/app/(tabs)/use-today-motion', () => ({
+  useTodayMotion: () => ({
+    dayAnimatedStyle: {},
+    refetchAnimatedStyle: {},
+    bulkBarAnimatedStyle: {},
+    renderBulkActionBar: false,
+  }),
+}))
+vi.mock('@/components/shell/shell-composer-slot', () => ({ useShellComposerSlot: () => {} }))
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/theme')>(),
+  createTokensV2: () => ({ bg: '#111111', fg1: '#ffffff', fg2: '#eeeeee', fg3: '#aaaaaa' }),
+}))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }),
+}))
+vi.mock('@/app/(tabs)/use-today-date', () => ({
+  useTodayDate: () => ({
+    dateStr: '2026-08-29',
+    today: '2026-08-29',
+    selectedDate: new Date('2026-08-29T12:00:00Z'),
+    dayName: 'Saturday',
+    numericDate: '29',
+    nextDisabled: true,
+    goToPreviousDay: vi.fn(),
+    goToToday: vi.fn(),
+    goToNextDay: vi.fn(),
+  }),
+}))
+vi.mock('@/app/(tabs)/use-today-selection', () => ({
+  useTodaySelection: () => ({
+    selectedCount: 0,
+    allSelected: false,
+    handleSelectAll: vi.fn(),
+    handleDeselectAll: vi.fn(),
+    handleOpenBulkLog: vi.fn(),
+    handleOpenBulkSkip: vi.fn(),
+    handleOpenBulkDelete: vi.fn(),
+    clearSelection: vi.fn(),
+    handleToggleSelectMode: vi.fn(),
+  }),
+}))
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 

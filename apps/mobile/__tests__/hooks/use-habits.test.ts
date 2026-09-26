@@ -2085,16 +2085,18 @@ describe('mobile habit hooks', () => {
   })
 
   it('cancels a queued offline bulk delete before Undo restores locally', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
     const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
       unknown,
       string[],
       unknown
     >
-    mutation.onSuccess?.({
-      results: [{ status: 'Success', habitId: 'habit-1' }],
-      offlineFailureIds: [],
+    const context = await mutation.onMutate?.(['habit-1'])
+    const result = await mutation.mutationFn(['habit-1'])
+    expect(result).toMatchObject({
       queuedDeletes: [{ habitId: 'habit-1', mutationId: 'mutation-1' }],
-    }, ['habit-1'], { previousLists: [], deletedCount: 1 })
+    })
+    mutation.onSuccess?.(result, ['habit-1'], context)
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => Promise<void>
     await performUndo()
     expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1')

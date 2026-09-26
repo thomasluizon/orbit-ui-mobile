@@ -156,7 +156,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
 })
 
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showToast: mocks.showToast }),
+  useAppToast: () => ({ showToast: mocks.showToast, showQueued: vi.fn() }),
 }))
 
 vi.mock('@/stores/ui-store', () => ({

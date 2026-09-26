@@ -64,6 +64,76 @@ vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => false,
   useProfile: () => ({ profile: null }),
 }))
+vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
+vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => 0 }))
+vi.mock('@/lib/theme', () => ({
+  createTokensV2: () => ({ bg: '#111111', fg1: '#ffffff', hairline: '#222222', primary: '#c4530f' }),
+}))
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({
+    currentScheme: 'orange',
+    currentTheme: 'dark',
+    surfaces: {
+      elevated: { backgroundColor: '#18181b' },
+      screen: { backgroundColor: '#111111' },
+    },
+  }),
+}))
+vi.mock('@/lib/motion', () => ({
+  mobileMotion: { presets: { 'route-push': { enterDuration: 200 } } },
+}))
+vi.mock('@/lib/orbit-widget', () => ({ syncWidgetTheme: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/lib/back-navigation', () => ({
+  dismissOrFallback: vi.fn(),
+  getAndroidBackFallbackRoute: () => null,
+}))
+vi.mock('@/lib/overlay-stack', () => ({ dismissTopOverlay: () => false }))
+vi.mock('@/lib/upgrade-route', () => ({ buildUpgradeHref: () => '/upgrade' }))
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      astraConversationOpen: false,
+      enqueueCelebration: vi.fn(),
+      setAstraConversationOpen: vi.fn(),
+      setShowCreateModal: vi.fn(),
+      todayFabHidden: false,
+    }),
+}))
+vi.mock('@/stores/referral-prompt-store', () => ({
+  useReferralPromptStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({
+      armConsentPrompt: vi.fn(),
+      armMilestoneSharePrompt: vi.fn(),
+      armReferralPrompt: vi.fn(),
+      armReviewPrompt: vi.fn(),
+    }),
+}))
+vi.mock('@orbit/shared/stores', () => ({
+  MARKETING_CONSENT_MILESTONE_KEY: 'marketing-consent',
+  getMilestoneShareAchievementKey: vi.fn(),
+  getMilestoneShareStreakKey: vi.fn(),
+  getReferralLevelMilestone: vi.fn(),
+  getReviewMomentLevelKey: vi.fn(),
+}))
+vi.mock('@orbit/shared/utils', () => ({
+  formatAPIDate: () => '2026-09-14',
+  isShareableAchievement: () => false,
+}))
+vi.mock('@/stores/review-reminder-store', () => ({
+  isReviewMomentEligible: () => false,
+  useReviewReminderStore: { getState: () => ({}) },
+}))
+vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
+  useLiveOnboardingActions: () => ({}),
+}))
+vi.mock('@/stores/onboarding-draft-store', () => ({
+  useOnboardingDraftStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({ hasPendingAnswers: () => false, onboardingLocallyDone: true }),
+}))
+vi.mock('@/hooks/use-onboarding-flush', () => ({ useOnboardingFlush: vi.fn() }))
+vi.mock('@/hooks/use-retained-onboarding-guard', () => ({
+  useRetainedOnboardingGuard: () => false,
+}))
 
 vi.mock('@/components/navigation/notification-delete-notice', () => ({
   NotificationDeleteNotice: () => {
