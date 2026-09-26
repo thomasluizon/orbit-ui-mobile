@@ -16,9 +16,11 @@ vi.mock('@/stores/tour-store', () => ({
 }))
 
 import { useCoachTour } from '@/hooks/use-coach-tour'
+import { setAccountId } from '@/lib/account-scope'
 
 describe('useCoachTour', () => {
   beforeEach(() => {
+    setAccountId(null)
     vi.useFakeTimers()
     startCoachTour.mockClear()
     storeState.isActive = false
@@ -38,15 +40,25 @@ describe('useCoachTour', () => {
     vi.advanceTimersByTime(700)
 
     expect(startCoachTour).toHaveBeenCalledTimes(1)
-    expect(localStorage.getItem('orbit_coach_tour_seen')).toBe('true')
+    expect(localStorage.getItem('orbit_coach_tour_seen:signed-out')).toBe('true')
   })
 
   it('does not start again once it has been seen', () => {
-    localStorage.setItem('orbit_coach_tour_seen', 'true')
+    localStorage.setItem('orbit_coach_tour_seen:signed-out', 'true')
     renderHook(() => useCoachTour())
     vi.advanceTimersByTime(700)
 
     expect(startCoachTour).not.toHaveBeenCalled()
+  })
+
+  it('starts for a new account after another account saw the tour', () => {
+    setAccountId('account-a')
+    localStorage.setItem('orbit_coach_tour_seen', 'true')
+    setAccountId('account-b')
+    renderHook(() => useCoachTour())
+    vi.advanceTimersByTime(700)
+
+    expect(startCoachTour).toHaveBeenCalledTimes(1)
   })
 
   it('does not start before onboarding is complete', () => {

@@ -405,9 +405,6 @@
   "components/gamification/welcome-back-toast.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
     }
   },
   "components/goals/create-goal-modal.tsx": {
@@ -909,7 +906,7 @@
   },
   "components/ui/trial-expired-modal.tsx": {
     "local/spacing-scale": {
-      "count": 4
+      "count": 3
     }
   },
   "components/ui/update-available-banner.tsx": {

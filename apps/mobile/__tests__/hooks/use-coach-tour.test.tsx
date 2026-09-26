@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types'
+import { useCoachTour } from '@/hooks/use-coach-tour'
+import { setAccountId } from '@/lib/account-scope'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -17,9 +19,10 @@ vi.mock('expo-router', () => ({
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: vi.fn(async (key: string) => asyncStore[key] ?? null),
-    setItem: vi.fn(async (key: string, value: string) => {
+    getItem: vi.fn((key: string) => Promise.resolve(asyncStore[key] ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
       asyncStore[key] = value
+      return Promise.resolve()
     }),
   },
 }))
@@ -32,8 +35,6 @@ vi.mock('@/stores/tour-store', () => ({
   useTourStore: { getState: () => storeState },
 }))
 
-import { useCoachTour } from '@/hooks/use-coach-tour'
-
 function HookHost() {
   useCoachTour()
   return null
@@ -41,6 +42,7 @@ function HookHost() {
 
 describe('useCoachTour (mobile)', () => {
   beforeEach(() => {
+    setAccountId(null)
     vi.useFakeTimers()
     startCoachTour.mockClear()
     storeState.isActive = false
@@ -62,17 +64,29 @@ describe('useCoachTour (mobile)', () => {
     await vi.advanceTimersByTimeAsync(700)
 
     expect(startCoachTour).toHaveBeenCalledTimes(1)
-    expect(asyncStore['orbit_coach_tour_seen']).toBe('true')
+    expect(asyncStore['orbit_coach_tour_seen:signed-out']).toBe('true')
   })
 
   it('does not start again once it has been seen', async () => {
-    asyncStore['orbit_coach_tour_seen'] = 'true'
+    asyncStore['orbit_coach_tour_seen:signed-out'] = 'true'
     TestRenderer.act(() => {
       TestRenderer.create(<HookHost />)
     })
     await vi.advanceTimersByTimeAsync(700)
 
     expect(startCoachTour).not.toHaveBeenCalled()
+  })
+
+  it('starts for a new account after another account saw the tour', async () => {
+    setAccountId('account-a')
+    asyncStore['orbit_coach_tour_seen'] = 'true'
+    setAccountId('account-b')
+    TestRenderer.act(() => {
+      TestRenderer.create(<HookHost />)
+    })
+    await vi.advanceTimersByTimeAsync(700)
+
+    expect(startCoachTour).toHaveBeenCalledTimes(1)
   })
 
   it('does not start before onboarding is complete', async () => {

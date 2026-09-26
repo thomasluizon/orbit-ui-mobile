@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import React from 'react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -56,8 +57,12 @@ const retroState = {
   setPeriod: vi.fn(),
   generate: vi.fn(),
 }
+let retrospectiveHookMounts = 0
 vi.mock('@/hooks/use-retrospective', () => ({
-  useRetrospective: () => retroState,
+  useRetrospective: () => {
+    const [data] = React.useState(() => retrospectiveHookMounts++ === 0 ? retroState.data : null)
+    return { ...retroState, data }
+  },
 }))
 
 const mockOpenCustomerPortal = vi.fn()
@@ -74,9 +79,12 @@ vi.mock('@/components/ui/offline-unavailable-state', () => ({
 }))
 
 import RetrospectivePage from '@/app/(app)/retrospective/page'
+import { setAccountId } from '@/lib/account-scope'
 
 describe('RetrospectivePage', () => {
   beforeEach(() => {
+    retrospectiveHookMounts = 0
+    setAccountId(null)
     mockIsOnline = true
     mockHasPro = true
     mockIsYearly = true
@@ -102,6 +110,15 @@ describe('RetrospectivePage', () => {
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'retrospective.generate' })).toBeDisabled()
+  })
+
+  it('reads only the new account retrospective cache', () => {
+    setAccountId('account-b')
+    mockIsOnline = false
+    const readStorage = vi.spyOn(Storage.prototype, 'getItem')
+    render(<RetrospectivePage />)
+    expect(readStorage).toHaveBeenCalledWith('orbit_retrospective_cache_week_v2:account-b')
+    readStorage.mockRestore()
   })
 
   it('redirects non-pro users to the upgrade screen once the profile is loaded', () => {
@@ -144,10 +161,23 @@ describe('RetrospectivePage', () => {
     retroState.data = { summary: 'A great week' }
     render(<RetrospectivePage />)
 
-    const stored = Object.keys(localStorage).find((key) => key.endsWith('_v2'))
+    const stored = Object.keys(localStorage).find((key) => key.endsWith('_v2:signed-out'))
     expect(stored).toBeDefined()
     expect(JSON.parse(localStorage.getItem(stored as string) ?? '{}')).toMatchObject({
       summary: 'A great week',
     })
+  })
+
+  it('does not persist account A retrospective under account B while mounted', () => {
+    setAccountId('account-a')
+    mockIsYearly = false
+    retroState.data = { summary: 'A private recap' }
+    const page = render(<RetrospectivePage />)
+    expect(localStorage.getItem('orbit_retrospective_cache_week_v2:account-a')).not.toBeNull()
+
+    act(() => setAccountId('account-b'))
+    page.rerender(<RetrospectivePage />)
+
+    expect(localStorage.getItem('orbit_retrospective_cache_week_v2:account-b')).toBeNull()
   })
 })

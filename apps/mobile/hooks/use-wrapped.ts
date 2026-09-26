@@ -11,6 +11,8 @@ import {
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { useReportEvent } from '@/hooks/use-gamification'
+import { accountStorageKey } from '@/lib/account-storage-key'
+import { useAccountId } from '@/lib/account-scope'
 
 const WRAPPED_YEAR_SEEN_STORAGE_KEY = 'orbit_wrapped_year_seen'
 
@@ -23,6 +25,7 @@ interface UseWrappedOptions {
 export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions = {}) {
   const { enabled = true, active = false } = options
   const { mutate: reportEvent } = useReportEvent()
+  const accountId = useAccountId()
 
   const query = useQuery({
     queryKey: gamificationKeys.recap(period),
@@ -41,15 +44,16 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
       return
     }
     let cancelled = false
-    void AsyncStorage.getItem(WRAPPED_YEAR_SEEN_STORAGE_KEY).then((seen) => {
+    const storageKey = accountStorageKey(WRAPPED_YEAR_SEEN_STORAGE_KEY)
+    void AsyncStorage.getItem(storageKey).then((seen) => {
       if (cancelled || seen) return
-      void AsyncStorage.setItem(WRAPPED_YEAR_SEEN_STORAGE_KEY, '1')
+      void AsyncStorage.setItem(storageKey, '1')
       reportEvent(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
     })
     return () => {
       cancelled = true
     }
-  }, [active, period, query.data, reportEvent])
+  }, [accountId, active, period, query.data, reportEvent])
 
   return {
     recap,

@@ -65,3 +65,4 @@ export {
   type TourUIState,
   type UIStoreState,
 } from './ui-store'
+export { createAccountScope, type AccountScope } from './account-scope'

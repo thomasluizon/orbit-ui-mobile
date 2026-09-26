@@ -168,6 +168,6 @@ describe('usePreferenceControls', () => {
     expect(result.current.showGeneralOnToday).toBe(false)
     act(() => result.current.toggleShowGeneral())
     expect(result.current.showGeneralOnToday).toBe(true)
-    expect(localStorage.getItem('orbit_show_general_on_today')).toBe('true')
+    expect(localStorage.getItem('orbit_show_general_on_today:signed-out')).toBe('true')
   })
 })

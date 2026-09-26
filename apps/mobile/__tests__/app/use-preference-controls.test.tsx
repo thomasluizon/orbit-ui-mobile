@@ -5,6 +5,7 @@ import { habitKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 
 import { usePreferenceControls } from '@/app/use-preference-controls'
+import { setAccountId } from '@/lib/account-scope'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -16,11 +17,11 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   applyScheme: vi.fn(),
   applyTheme: vi.fn(),
-  performQueuedApiMutation: vi.fn(async () => undefined),
-  invalidateQueries: vi.fn(async () => {}),
-  getItem: vi.fn(async (_key: string): Promise<string | null> => null),
-  setItem: vi.fn(async (_key: string, _value: string) => {}),
-  removeItem: vi.fn(async (_key: string) => {}),
+  performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
+  invalidateQueries: vi.fn(() => Promise.resolve()),
+  getItem: vi.fn((_key: string): Promise<string | null> => Promise.resolve(null)),
+  setItem: vi.fn((_key: string, _value: string) => Promise.resolve()),
+  removeItem: vi.fn((_key: string) => Promise.resolve()),
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -104,7 +105,7 @@ function makeProfile(overrides: Partial<Profile>): Profile {
 
 interface CapturedMutation {
   mutationFn: (variables: unknown) => Promise<unknown>
-  onMutate?: (variables: unknown) => Promise<unknown> | unknown
+  onMutate?: (variables: unknown) => unknown
   onError?: (error: unknown, variables: unknown, context: unknown) => void
   onSettled?: (
     data: unknown,
@@ -120,6 +121,7 @@ function asMutation(mutation: unknown): CapturedMutation {
 
 describe('usePreferenceControls', () => {
   beforeEach(() => {
+    setAccountId(null)
     mocks.profile = undefined
     mocks.language = 'en'
     mocks.patchProfile.mockClear()
@@ -291,7 +293,7 @@ describe('usePreferenceControls', () => {
     await TestRenderer.act(async () => {
       await hook.current.handleShowGeneralToggle(true)
     })
-    expect(mocks.setItem).toHaveBeenCalledWith('orbit_show_general_on_today', 'true')
+    expect(mocks.setItem).toHaveBeenCalledWith('orbit_show_general_on_today:signed-out', 'true')
     expect(hook.current.showGeneralOnToday).toBe(true)
 
     mocks.setItem.mockRejectedValueOnce(new Error('disk full'))
@@ -315,6 +317,25 @@ describe('usePreferenceControls', () => {
 
     const hook = await renderControls()
 
+    expect(hook.current.showGeneralOnToday).toBe(false)
+  })
+
+  it('discards A storage completion after B preference loads', async () => {
+    let resolveA!: (value: string | null) => void
+    setAccountId('account-a')
+    mocks.getItem.mockImplementation((key: string) => key.endsWith(':account-a')
+      ? new Promise<string | null>((resolve) => { resolveA = resolve })
+      : Promise.resolve(null))
+    const hook = await renderControls()
+
+    setAccountId('account-b')
+    await hook.rerender()
+    expect(hook.current.showGeneralOnToday).toBe(false)
+
+    await TestRenderer.act(async () => {
+      resolveA('true')
+      await Promise.resolve()
+    })
     expect(hook.current.showGeneralOnToday).toBe(false)
   })
 })

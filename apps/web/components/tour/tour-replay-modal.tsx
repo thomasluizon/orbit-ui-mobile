@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { PillButton } from '@/components/ui/pill-button'
 import { useTourStore } from '@/stores/tour-store'
+import { accountStorageKey } from '@/lib/account-storage-key'
 import { resetTour } from '@/lib/actions/profile'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
@@ -40,7 +41,7 @@ interface TourReplayModalProps {
 
 function getSectionCompletion(): Record<TourSection, boolean> {
   try {
-    const stored = localStorage.getItem('orbit_tour_sections:v1')
+    const stored = localStorage.getItem(accountStorageKey('orbit_tour_sections:v1'))
     if (stored) return JSON.parse(stored) as Record<TourSection, boolean>
   } catch {
   }

@@ -12,6 +12,7 @@ import { COACH_MARK_SECTIONS } from '@orbit/shared/types'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { reportAccountChangedIfNeeded } from '@/lib/client-action'
+import { accountStorageKey } from '@/lib/account-storage-key'
 
 /**
  * Composes TourSpotlight + TourTooltip. The spotlight scrim stays mounted for
@@ -63,7 +64,7 @@ export function TourOverlay() {
     })
     try {
       localStorage.setItem(
-        'orbit_tour_sections:v1',
+        accountStorageKey('orbit_tour_sections:v1'),
         JSON.stringify({
           habits: true,
           goals: true,

@@ -8,7 +8,7 @@ import {
 } from '../types/onboarding'
 import { isRecord } from '../utils/is-record'
 
-export const ONBOARDING_DRAFT_STORAGE_VERSION = 1
+export const ONBOARDING_DRAFT_STORAGE_VERSION = 2
 
 type OnboardingDraftSet = (
   partial:
@@ -22,6 +22,7 @@ type OnboardingDraftGet = () => OnboardingDraftState
 export type OnboardingWeekStartDay = 0 | 1
 
 export interface PersistedOnboardingDraft {
+  accountKey?: string | null
   step: number
   habits: ApplyOnboardingHabit[]
   firstLog: ApplyOnboardingFirstLog | null
@@ -32,6 +33,8 @@ export interface PersistedOnboardingDraft {
 }
 
 export interface OnboardingDraftState extends PersistedOnboardingDraft {
+  accountKey: string | null
+  setAccountScope: (accountKey: string | null, preserveAnonymousDraft?: boolean) => void
   setStep: (step: number) => void
   bufferHabit: (habit: ApplyOnboardingHabit) => number
   bufferFirstLog: (habitIndex: number, date: string) => void
@@ -44,8 +47,9 @@ export interface OnboardingDraftState extends PersistedOnboardingDraft {
   reset: () => void
 }
 
-function createInitialDraft(): PersistedOnboardingDraft {
+function createInitialDraft(): PersistedOnboardingDraft & { accountKey: string | null } {
   return {
+    accountKey: null,
     step: 0,
     habits: [],
     firstLog: null,
@@ -60,6 +64,7 @@ export function getPersistedOnboardingDraft(
   state: OnboardingDraftState,
 ): PersistedOnboardingDraft {
   return {
+    accountKey: state.accountKey,
     step: state.step,
     habits: state.habits.map((habit) => ({ ...habit })),
     firstLog: state.firstLog ? { ...state.firstLog } : null,
@@ -72,7 +77,7 @@ export function getPersistedOnboardingDraft(
 
 export function migrateOnboardingDraft(
   persistedState: unknown,
-): PersistedOnboardingDraft {
+): PersistedOnboardingDraft & { accountKey: string | null } {
   const initial = createInitialDraft()
   if (!isRecord(persistedState)) return initial
 
@@ -86,6 +91,7 @@ export function migrateOnboardingDraft(
   const goalResult = createGoalRequestSchema.safeParse(persistedState.goal)
 
   return {
+    accountKey: typeof persistedState.accountKey === 'string' ? persistedState.accountKey : null,
     step: typeof persistedState.step === 'number' ? persistedState.step : 0,
     habits,
     firstLog: firstLogResult.success ? firstLogResult.data : null,
@@ -120,6 +126,14 @@ export function createOnboardingDraftState(
 ): OnboardingDraftState {
   return {
     ...createInitialDraft(),
+
+    setAccountScope: (accountKey, preserveAnonymousDraft = false) => set((state) => {
+      if (state.accountKey === accountKey) return {}
+      if (state.accountKey === null && accountKey !== null && preserveAnonymousDraft) {
+        return { accountKey }
+      }
+      return { ...createInitialDraft(), accountKey }
+    }),
 
     setStep: (step) => set({ step }),
 

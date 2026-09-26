@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
-import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
+import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
@@ -116,13 +116,13 @@ export function usePreferenceControls() {
 
   const [showGeneralOnToday, setShowGeneralOnToday] = useState<boolean>(() => {
     if (typeof localStorage === 'undefined') return false
-    return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
+    return readShowGeneralOnToday()
   })
 
   function toggleShowGeneral() {
     const next = !showGeneralOnToday
     setShowGeneralOnToday(next)
-    localStorage.setItem('orbit_show_general_on_today', String(next))
+    writeShowGeneralOnToday(next)
   }
 
   return {

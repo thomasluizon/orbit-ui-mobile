@@ -15,6 +15,8 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { openCustomerPortal } from '@/lib/actions/subscription'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { accountStorageKey } from '@/lib/account-storage-key'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
 import { RetrospectiveLockedStates } from './_components/retrospective-locked-states'
 import { RetrospectiveView } from './_components/retrospective-view'
 
@@ -23,6 +25,11 @@ const CACHE_VERSION_SUFFIX = '_v2'
 const emptySubscribe = () => () => {}
 
 export default function RetrospectivePage() {
+  const accountId = useAccountId()
+  return <AccountRetrospectivePage key={accountId ?? 'signed-out'} accountId={accountId} />
+}
+
+function AccountRetrospectivePage({ accountId }: Readonly<{ accountId: string | null }>) {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
@@ -52,7 +59,7 @@ export default function RetrospectivePage() {
   )
 
   const [portalError, setPortalError] = useState('')
-  const cacheKey = getRetrospectiveCacheKey(period) + CACHE_VERSION_SUFFIX
+  const cacheKey = accountStorageKey(getRetrospectiveCacheKey(period) + CACHE_VERSION_SUFFIX)
 
   const cachedRaw = useSyncExternalStore(
     emptySubscribe,
@@ -77,9 +84,9 @@ export default function RetrospectivePage() {
   }, [hasProAccess, profile, router])
 
   useEffect(() => {
-    if (!data) return
+    if (!data || getAccountId() !== accountId) return
     globalThis.localStorage.setItem(cacheKey, JSON.stringify(data))
-  }, [cacheKey, data])
+  }, [accountId, cacheKey, data])
 
   const displayedData = data ?? (!isOnline && !isLoading ? cachedData : null)
   const displayedFromCache =

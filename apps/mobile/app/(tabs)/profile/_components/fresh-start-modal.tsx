@@ -22,6 +22,7 @@ import {
 import * as offlineQueue from '@/lib/offline-queue'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { clearPersistedQueryCache } from '@/lib/query-client'
+import { accountStorageKey } from '@/lib/account-storage-key'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -154,7 +155,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
       await Promise.all([
         clearChecklistTemplates(),
-        AsyncStorage.removeItem('orbit_trial_expired_seen'),
+        AsyncStorage.removeItem(accountStorageKey('orbit_trial_expired_seen')),
       ])
       queryClient.clear()
       await clearPersistedQueryCache()

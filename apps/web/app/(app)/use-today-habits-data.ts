@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { isToday } from 'date-fns'
 import { useTranslations } from 'next-intl'
-import { computeDayProgress, parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
+import { computeDayProgress } from '@orbit/shared/utils'
+import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import type { HabitFrequencyFilter } from '@orbit/shared/stores'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { useUIStore } from '@/stores/ui-store'
@@ -14,14 +15,12 @@ import {
 } from '@/hooks/use-habits'
 import { buildTodayFilters } from './today-model'
 
-const SHOW_GENERAL_STORAGE_KEY = 'orbit_show_general_on_today'
-
 function subscribeToShowGeneral() {
   return () => {}
 }
 
 function getShowGeneralClientSnapshot() {
-  return parseShowGeneralOnTodayPreference(localStorage.getItem(SHOW_GENERAL_STORAGE_KEY))
+  return readShowGeneralOnToday()
 }
 
 function getShowGeneralServerSnapshot() {

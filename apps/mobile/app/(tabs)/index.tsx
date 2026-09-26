@@ -9,7 +9,6 @@ import {
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, StyleSheet, View } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isToday } from "date-fns";
@@ -17,7 +16,6 @@ import { useTranslation } from "react-i18next";
 import {
   computeDayProgress,
   formatAPIDate,
-  parseShowGeneralOnTodayPreference,
 } from "@orbit/shared/utils";
 import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
 import type { Goal } from "@orbit/shared/types/goal";
@@ -31,6 +29,7 @@ import {
 import { useTags } from "@/hooks/use-tags";
 import { useCoachTour } from "@/hooks/use-coach-tour";
 import { useUIStore } from "@/stores/ui-store";
+import { getAccountId, useAccountId } from "@/lib/account-scope";
 import { useReferralPromptStore } from "@/stores/referral-prompt-store";
 import { type HabitListHandle } from "@/components/habit-list";
 import { BulkActionBarV2 } from "@/components/habits/bulk-action-bar-v2";
@@ -54,6 +53,7 @@ import { useTodayDate } from "./use-today-date";
 import { useTodayMotion } from "./use-today-motion";
 import { useTodaySelection } from "./use-today-selection";
 import { useTodaySearch } from "./use-today-search";
+import { readShowGeneralOnToday } from "@/lib/show-general-on-today-storage";
 import { TodayModals } from "./today-modals";
 
 export { resolveBulkActionBarEnterShift } from "./today-model";
@@ -91,6 +91,7 @@ export default function TodayScreen() {
 
   const { showInterstitialIfDue } = useAdMob();
   const { profile } = useProfile();
+  const accountId = useAccountId();
   const { tags } = useTags();
   useCoachTour();
 
@@ -220,14 +221,16 @@ export default function TodayScreen() {
   );
 
   useEffect(() => {
-    AsyncStorage.getItem("orbit_show_general_on_today")
+    let active = true;
+    readShowGeneralOnToday()
       .then((storedValue) => {
-        setShowGeneralOnToday(parseShowGeneralOnTodayPreference(storedValue));
+        if (active && getAccountId() === accountId) setShowGeneralOnToday(storedValue);
       })
       .catch(() => {
-        setShowGeneralOnToday(false);
+        if (active && getAccountId() === accountId) setShowGeneralOnToday(false);
       });
-  }, []);
+    return () => { active = false; };
+  }, [accountId]);
 
   const frequencyOptions = useMemo<{ key: FreqKey; label: string }[]>(
     () => [

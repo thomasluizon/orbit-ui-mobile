@@ -9,6 +9,7 @@ import {
 } from '@orbit/shared/utils/retrospective'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { sessionAwareFetch } from '@/lib/api-fetch'
+import { getAccountId } from '@/lib/account-scope'
 
 export type { RetrospectivePeriod } from '@orbit/shared/utils/retrospective'
 
@@ -26,9 +27,10 @@ export function useRetrospective() {
   const requestIdRef = useRef(0)
 
   const generate = useCallback(async () => {
+    const accountId = getAccountId()
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
-    const isStale = () => requestIdRef.current !== requestId
+    const isStale = () => requestIdRef.current !== requestId || getAccountId() !== accountId
 
     setIsLoading(true)
     setError(null)

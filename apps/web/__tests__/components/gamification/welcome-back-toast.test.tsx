@@ -37,14 +37,14 @@ describe('WelcomeBackToast', () => {
 
   it('renders nothing when last visit was recent (< 24h)', () => {
     mockProfile = { currentStreak: 5 }
-    localStorage.setItem('orbit_last_visit', String(Date.now() - 1000))
+    localStorage.setItem('orbit_last_visit:signed-out', String(Date.now() - 1000))
     const { container } = render(<WelcomeBackToast />)
     expect(container.innerHTML).toBe('')
   })
 
   it('renders nothing when streak is 0', () => {
     mockProfile = { currentStreak: 0 }
-    localStorage.setItem('orbit_last_visit', String(Date.now() - 48 * 60 * 60 * 1000))
+    localStorage.setItem('orbit_last_visit:signed-out', String(Date.now() - 48 * 60 * 60 * 1000))
     const { container } = render(<WelcomeBackToast />)
     expect(container.innerHTML).toBe('')
   })
@@ -52,7 +52,7 @@ describe('WelcomeBackToast', () => {
   it('saves current time as last visit', () => {
     mockProfile = { currentStreak: 5 }
     render(<WelcomeBackToast />)
-    const saved = localStorage.getItem('orbit_last_visit')
+    const saved = localStorage.getItem('orbit_last_visit:signed-out')
     expect(saved).toBeTruthy()
     expect(Number(saved)).toBeGreaterThan(0)
   })

@@ -5,6 +5,7 @@ import {
   createMockProfile,
 } from "@orbit/shared/__tests__/factories";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
+import { setAccountId } from "@/lib/account-scope";
 import { computeHabitCardStatus } from "@orbit/shared/utils";
 
 import TodayScreen, {
@@ -147,6 +148,7 @@ function defaultUseHabitsReturn() {
 }
 const mockRouterPush = vi.fn();
 const mockRouterNavigate = vi.fn();
+const todayStorageGetItem = vi.hoisted(() => vi.fn((_key: string) => Promise.resolve<string | null>(null)));
 let mockProfile = createMockProfile({
   hasProAccess: false,
   aiSummaryEnabled: false,
@@ -154,7 +156,7 @@ let mockProfile = createMockProfile({
 
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
-    getItem: vi.fn(() => Promise.resolve(null)),
+    getItem: todayStorageGetItem,
   },
 }));
 
@@ -469,6 +471,9 @@ function getHabitsHeader(tree: RenderedTree): React.ReactElement<Record<string, 
 
 describe("TodayScreen", () => {
   beforeEach(() => {
+    setAccountId(null);
+    todayStorageGetItem.mockReset();
+    todayStorageGetItem.mockResolvedValue(null);
     vi.clearAllMocks();
     useHabitsMock.mockImplementation(defaultUseHabitsReturn);
     vi.useRealTimers();
@@ -500,6 +505,26 @@ describe("TodayScreen", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it("ignores A Today preference when its read settles after B", async () => {
+    let resolveA!: (value: string | null) => void;
+    setAccountId("account-a");
+    todayStorageGetItem.mockImplementation((key: string) => key.endsWith(":account-a")
+      ? new Promise<string | null>((resolve) => { resolveA = resolve; })
+      : Promise.resolve(null));
+    await renderTodayScreen();
+
+    await TestRenderer.act(async () => {
+      setAccountId("account-b");
+      await Promise.resolve();
+    });
+    await TestRenderer.act(async () => {
+      resolveA("true");
+      await Promise.resolve();
+    });
+
+    expect(useHabitsMock.mock.lastCall?.[0]).toMatchObject({ includeGeneral: undefined });
   });
 
   it("passes the shared habits header through the habit list and removes the nestable scroll container", async () => {

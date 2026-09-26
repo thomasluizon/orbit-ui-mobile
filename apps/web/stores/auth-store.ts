@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
-import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { startAccountScopedSession } from '@/lib/account-scoped-state'
 import { withSessionCookieLock } from '@/lib/session-cookie-lock'
 import { getQueryClient } from '@/lib/query-client'
 import { clearSupabaseSession } from '@/lib/supabase'
@@ -26,6 +26,7 @@ function reloadWhenCookieReplacesAccount(
     accountSwitchPending = true
     accountGeneration += 1
     getQueryClient().clear()
+    startAccountScopedSession(heldAccountId, cookieAccountId)
     if ('location' in globalThis) globalThis.location.reload()
   }
   return true
@@ -105,6 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     accountSwitchPending = false
     accountGeneration += 1
     getQueryClient().clear()
+    startAccountScopedSession(get().heldAccountId, loginResponse.userId, true)
     sessionRecoveryUser = null
     set({
       isAuthenticated: true,
@@ -128,6 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
         getQueryClient().clear()
+        startAccountScopedSession(get().heldAccountId, accountId)
       }
       const user = get().user?.userId === accountId
         ? get().user
@@ -143,12 +146,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'inactive') {
+      startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
       getQueryClient().clear()
       clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
+        heldAccountId: null,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -179,6 +184,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
         getQueryClient().clear()
+        startAccountScopedSession(get().heldAccountId, accountId)
       }
       const user = get().user?.userId === accountId
         ? get().user
@@ -192,12 +198,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
       getQueryClient().clear()
       clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
+        heldAccountId: null,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -219,6 +227,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (get().heldAccountId !== accountId) {
         accountGeneration += 1
         getQueryClient().clear()
+        startAccountScopedSession(get().heldAccountId, accountId)
       }
       const user = get().user?.userId === accountId
         ? get().user
@@ -232,12 +241,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      startAccountScopedSession(get().heldAccountId, null)
       accountGeneration += 1
       getQueryClient().clear()
       clearSupabaseSession()
       sessionRecoveryUser = null
       set({
         isAuthenticated: false,
+        heldAccountId: null,
         user: null,
         expiresAt: null,
         sessionRefreshFailed: false,
@@ -281,6 +292,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     accountSwitchPending = false
     accountGeneration += 1
     getQueryClient().clear()
+    startAccountScopedSession(get().heldAccountId, null)
     sessionRecoveryUser = null
     set({
       isAuthenticated: false,
@@ -289,7 +301,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       expiresAt: null,
       sessionRefreshFailed: false,
     })
-    useOnboardingDraftStore.getState().reset()
 
     if (loginsWaitingForLogout === 0 && 'location' in globalThis) {
       globalThis.location.href = '/login'

@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as SecureStore from 'expo-secure-store'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { markPendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { API } from '@orbit/shared/api'
 import { profileKeys } from '@orbit/shared/query'
@@ -18,9 +19,31 @@ import {
   whenProfileHydrated,
 } from '@/stores/auth-store'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { canPromptEngagement, MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { useUIStore } from '@/stores/ui-store'
+import { useTourStore } from '@/stores/tour-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
+import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
+import { accountStorageKey } from '@/lib/account-storage-key'
 
 const TestRenderer = require('react-test-renderer')
 const clearSupabaseSessionMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
+const asyncStorageEntries = vi.hoisted(() => new Map<string, string>())
+
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: vi.fn((key: string) => Promise.resolve(asyncStorageEntries.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
+      asyncStorageEntries.set(key, value)
+      return Promise.resolve()
+    }),
+    removeItem: vi.fn((key: string) => {
+      asyncStorageEntries.delete(key)
+      return Promise.resolve()
+    }),
+  },
+}))
 
 vi.mock('@/lib/supabase', () => ({ clearSupabaseSession: clearSupabaseSessionMock }))
 
@@ -175,6 +198,96 @@ function renderHookValue<T>(hook: () => T): T {
 }
 
 describe('mobile auth store security paths', () => {
+  it('asks the replacement account for marketing consent', async () => {
+    await useAuthStore.getState().login('first-token', null, {
+      userId: 'account-a', email: 'a@example.com', name: 'A',
+    })
+    useEngagementPromptStore.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, '2026-09-01T00:00:00Z')
+    await useAuthStore.getState().login('second-token', null, {
+      userId: 'account-b', email: 'b@example.com', name: 'B',
+    })
+
+    expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(true)
+  })
+
+  it('keeps B scoped stores after A login hydration finishes last', async () => {
+    let releaseA!: (value: string | null) => void
+    const originalGetItem = vi.mocked(AsyncStorage.getItem).getMockImplementation()!
+    vi.mocked(AsyncStorage.getItem).mockImplementation((key: string) => key === 'orbit-referral-prompt-store:account-a'
+      ? new Promise<string | null>((resolve) => { releaseA = resolve })
+      : originalGetItem(key))
+    const accountA = { userId: 'account-a', email: 'a@example.com', name: 'A' }
+    const accountB = { userId: 'account-b', email: 'b@example.com', name: 'B' }
+
+    try {
+      const firstLogin = useAuthStore.getState().login('first-token', null, accountA)
+      await vi.waitFor(() => expect(releaseA).toBeTypeOf('function'))
+      await useAuthStore.getState().login('second-token', null, accountB)
+      useUIStore.getState().setFilters({ search: 'B filter' })
+      useOnboardingDraftStore.getState().bufferColorScheme('blue')
+
+      releaseA(null)
+      await firstLogin
+
+      expect(useAuthStore.getState().user?.userId).toBe('account-b')
+      expect(useUIStore.persist.getOptions().name).toBe('orbit-ui-store:account-b')
+      expect(useEngagementPromptStore.persist.getOptions().name).toBe('orbit-referral-prompt-store:account-b')
+      expect(useUIStore.getState().activeFilters).toEqual({ search: 'B filter' })
+      expect(useOnboardingDraftStore.getState().colorScheme).toBe('blue')
+    } finally {
+      vi.mocked(AsyncStorage.getItem).mockImplementation(originalGetItem)
+    }
+  })
+
+  it('drops a persisted draft from another account on a cold session', async () => {
+    useOnboardingDraftStore.setState({ accountKey: 'account-a', colorScheme: 'purple' })
+    getTokenMock.mockResolvedValue(makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'account-b'))
+
+    await useAuthStore.getState().checkAuth()
+    expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
+  })
+
+  it('resets account state and restores each account prompt record', async () => {
+    const accountA = { userId: 'account-a', email: 'a@example.com', name: 'A' }
+    const accountB = { userId: 'account-b', email: 'b@example.com', name: 'B' }
+    await useAuthStore.getState().login('first-token', null, accountA)
+    useEngagementPromptStore.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, '2026-09-01T00:00:00Z')
+    useUIStore.getState().setFilters({ search: 'previous' })
+    useUIStore.getState().selectAllHabits(['habit-a'])
+    useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
+    useOnboardingDraftStore.getState().bufferColorScheme('purple')
+    useTourStore.getState().startFullTour()
+    useAppToastStore.getState().showInfo('Account A')
+    await writeShowGeneralOnToday(true)
+
+    await useAuthStore.getState().login('second-token', null, accountB)
+
+    expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
+    expect(useUIStore.getState().activeFilters).toEqual({})
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+    expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
+    expect(useTourStore.getState().isActive).toBe(false)
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+    expect(await readShowGeneralOnToday()).toBe(false)
+    expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(true)
+
+    await useAuthStore.getState().login('third-token', null, accountA)
+    expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(false)
+    expect(await readShowGeneralOnToday()).toBe(true)
+  })
+
+  it.each(['orbit_trial_expired_seen', 'orbit_wrapped_year_seen', 'orbit_tour_sections', 'orbit_last_visit'])(
+    'isolates %s when the account changes', async (baseKey) => {
+      await useAuthStore.getState().login('first-token', null, {
+        userId: 'account-a', email: 'a@example.com', name: 'A',
+      })
+      asyncStorageEntries.set(accountStorageKey(baseKey), '1')
+      await useAuthStore.getState().login('second-token', null, {
+        userId: 'account-b', email: 'b@example.com', name: 'B',
+      })
+      expect(asyncStorageEntries.get(accountStorageKey(baseKey))).toBeUndefined()
+    },
+  )
   it('deletes a pending OAuth attempt when another account signs in', async () => {
     await markPendingGoogleAuthSession(10)
     expect(await SecureStore.getItemAsync('google_auth_attempt')).not.toBeNull()
@@ -198,6 +311,7 @@ describe('mobile auth store security paths', () => {
   })
 
   beforeEach(() => {
+    asyncStorageEntries.clear()
     replaceMock.mockReset()
     getTokenMock.mockReset()
     setTokenMock.mockReset()

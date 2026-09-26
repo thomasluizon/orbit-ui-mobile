@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useRetrospective } from '@/hooks/use-retrospective'
 import type { RetrospectiveResponse } from '@orbit/shared/utils/retrospective'
+import { setAccountId } from '@/lib/account-scope'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -53,6 +54,7 @@ function buildResponse(
 
 describe('useRetrospective', () => {
   beforeEach(() => {
+    setAccountId(null)
     mockFetch.mockReset()
   })
 
@@ -247,5 +249,22 @@ describe('useRetrospective', () => {
 
     expect(result.current.data).toEqual(fresh)
     expect(result.current.fromCache).toBe(true)
+  })
+
+  it('discards a generation response after account replacement', async () => {
+    let resolveResponse!: (response: { ok: boolean; json: () => Promise<RetrospectiveResponse> }) => void
+    mockFetch.mockReturnValue(new Promise((resolve) => { resolveResponse = resolve }))
+    setAccountId('account-a')
+    const { result } = renderHook(() => useRetrospective())
+
+    let generation!: Promise<void>
+    await act(async () => { generation = result.current.generate() })
+    setAccountId('account-b')
+    await act(async () => {
+      resolveResponse({ ok: true, json: () => Promise.resolve(buildResponse()) })
+      await generation
+    })
+
+    expect(result.current.data).toBeNull()
   })
 })

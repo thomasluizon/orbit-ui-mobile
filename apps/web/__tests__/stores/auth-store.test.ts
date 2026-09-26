@@ -2,6 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { fetchAuthEndpoint } from '@/app/(auth)/login/login-form-helpers'
 import type { LoginResponse } from '@orbit/shared/types/auth'
+import { canPromptEngagement, MARKETING_CONSENT_MILESTONE_KEY } from '@orbit/shared/stores'
+import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
+import { useUIStore } from '@/stores/ui-store'
+import { useTourStore } from '@/stores/tour-store'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { useChatStore } from '@/stores/chat-store'
+import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
+import { readAppNavigationHistory, updateAppNavigationHistory } from '@/lib/app-navigation-history'
+import { accountStorageKey } from '@/lib/account-storage-key'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -68,6 +77,52 @@ describe('auth store', () => {
     })
   })
 
+  it('asks the replacement account for marketing consent', () => {
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+    useEngagementPromptStore.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, '2026-09-01T00:00:00Z')
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
+
+    expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(true)
+  })
+
+  it('resets account state and restores each account prompt record', () => {
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+    useEngagementPromptStore.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, '2026-09-01T00:00:00Z')
+    useUIStore.getState().setFilters({ search: 'previous' })
+    useUIStore.getState().selectAllHabits(['habit-a'])
+    useUIStore.getState().enqueueCelebration('streak', { streak: 7 })
+    useOnboardingDraftStore.getState().bufferColorScheme('purple')
+    useTourStore.getState().startFullTour()
+    useChatStore.setState({ isTyping: true })
+    writeShowGeneralOnToday(true)
+    updateAppNavigationHistory('/habits/habit-a', 'init')
+
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
+
+    expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
+    expect(useUIStore.getState().activeFilters).toEqual({})
+    expect(useUIStore.getState().activeCelebration).toBeNull()
+    expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
+    expect(useTourStore.getState().isActive).toBe(false)
+    expect(useChatStore.getState().isTyping).toBe(false)
+    expect(readShowGeneralOnToday()).toBe(false)
+    expect(readAppNavigationHistory().entries).toEqual([])
+    expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(true)
+
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+    expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(false)
+    expect(readShowGeneralOnToday()).toBe(true)
+  })
+
+  it.each(['orbit_trial_expired_seen', 'orbit_wrapped_year_seen', 'orbit_tour_sections:v1', 'orbit_last_visit'])(
+    'isolates %s when the account changes', (baseKey) => {
+      useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+      localStorage.setItem(accountStorageKey(baseKey), '1')
+      useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
+      expect(localStorage.getItem(accountStorageKey(baseKey))).toBeNull()
+    },
+  )
+
   it('holds the account from a cold session read', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
@@ -78,6 +133,18 @@ describe('auth store', () => {
     await useAuthStore.getState().checkSession()
 
     expect(getHeldAccountId()).toBe('account-a')
+  })
+
+  it('drops a persisted draft from another account on a cold session', async () => {
+    useOnboardingDraftStore.setState({ accountKey: 'account-a', colorScheme: 'purple' })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, accountId: 'account-b' }),
+    })
+
+    await useAuthStore.getState().checkSession()
+    expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
   })
 
   it('keeps the previous account until a cross-tab replacement reloads the page', async () => {
