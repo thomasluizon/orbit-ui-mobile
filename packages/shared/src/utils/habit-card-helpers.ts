@@ -1,7 +1,9 @@
 import type { NormalizedHabit } from '../types/habit'
 import { differenceInCalendarDays } from 'date-fns'
-import { formatAPIDate, parseAPIDate } from './dates'
+import { formatAPIDate, formatAPIDateInTimeZone, parseAPIDate, resolveHabitDetailRouteDate } from './dates'
 import { hasHabitScheduleOnDate, isWithinOverdueWindow } from './habits'
+import { getDayOffset } from './today-date'
+import { MAX_INSTANCE_HORIZON_DAYS } from '../api/constants'
 import { formatLocaleDate } from './locale-format'
 
 export type HabitCardStatus = 'completed' | 'pending' | 'overdue' | 'due-today' | 'future'
@@ -109,6 +111,29 @@ export function canLogHabitOnDate(
     if (!isOverdueToday) return false
   }
   return true
+}
+
+export function getHabitLogDateDecision(
+  habit: (Parameters<typeof canLogHabitOnDate>[0] & Pick<NormalizedHabit, 'createdAtUtc' | 'parentId'>) | null | undefined,
+  date: string,
+  today: string,
+  timeZone: string | null | undefined,
+  confirmed = false,
+): 'write' | 'confirm' | 'block' {
+  if (!habit || resolveHabitDetailRouteDate(date) !== date || !isWithinOverdueWindow(date, today) || (date > today && habit.frequencyUnit !== null)) return 'block'
+  const createdDate = formatAPIDateInTimeZone(new Date(habit.createdAtUtc), timeZone)
+  return (habit.parentId !== null && date < today) || date < createdDate || getDayOffset(date, today) > MAX_INSTANCE_HORIZON_DAYS
+    ? confirmed ? 'write' : 'confirm'
+    : 'write'
+}
+
+export function getHabitLogDateConfirmationKeys(intent?: 'log' | 'unlog'): {
+  message: 'habits.detail.logDateConfirmUnlogMessage' | 'habits.detail.logDateConfirmMessage'
+  action: 'habits.detail.logDateConfirmUnlog' | 'habits.detail.logDateConfirmLog'
+} {
+  return intent === 'unlog'
+    ? { message: 'habits.detail.logDateConfirmUnlogMessage', action: 'habits.detail.logDateConfirmUnlog' } as const
+    : { message: 'habits.detail.logDateConfirmMessage', action: 'habits.detail.logDateConfirmLog' } as const
 }
 
 /**

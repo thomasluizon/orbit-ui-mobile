@@ -242,6 +242,8 @@ export type {
 } from './habit-form-helpers'
 export {
   canLogHabitOnDate,
+  getHabitLogDateDecision,
+  getHabitLogDateConfirmationKeys,
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
