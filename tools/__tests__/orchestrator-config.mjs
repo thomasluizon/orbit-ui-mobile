@@ -107,19 +107,47 @@ export const cases = async () => {
   gitPrimary("commit", "-qm", "config")
   const linkedResult = gitPrimary("worktree", "add", "--detach", linked)
   T(`${NAME}: test linked worktree was created outside the primary parent`, linkedResult.status === 0, linkedResult.stderr)
+  const command = 'import { readOrchestratorConfig } from "./tools/lib/orchestrator-config.mjs"; const { ui, api } = readOrchestratorConfig().repos; console.log(JSON.stringify({ ui, api }))'
   if (linkedResult.status === 0) {
-    const resolved = readOrchestratorConfig(pathToFileURL(join(linked, ".claude", "orchestrator.json")))
-    T(`${NAME}: a relocated worktree still uses primary sibling roots`, resolved.repos.ui === primary && resolved.repos.api === resolve(primary, "../orbit-api"), JSON.stringify(resolved.repos))
+    const printed = spawnSync(process.execPath, ["--input-type=module", "-e", command], { cwd: linked, encoding: "utf8" })
+    T(`${NAME}: resolver command succeeds in a relocated worktree`, printed.status === 0, printed.stderr)
+    if (printed.status === 0) {
+      const roots = JSON.parse(printed.stdout)
+      T(`${NAME}: resolver command prints primary sibling roots`, roots.ui === primary && roots.api === resolve(primary, "../orbit-api"), printed.stdout)
+    }
   }
   for (const workflow of ["audit.mjs", "prod-readiness.mjs"]) {
     const source = readFileSync(resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../../.claude/workflows", workflow), "utf8")
-    T(`${NAME}: ${workflow} loads the shared repo resolver`, source.includes("await import(pathToFileURL(join(process.cwd(), 'tools/lib/orchestrator-config.mjs')).href)") && source.includes("const { ui: UI, api: API } = readOrchestratorConfig().repos"))
-    if (linkedResult.status === 0) {
-      const setup = source.match(/const \{ pathToFileURL \} = await import\('node:url'\)[\s\S]*?const \{ ui: UI, api: API \} = readOrchestratorConfig\(\)\.repos/)?.[0]
-      const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-      const roots = setup && await new AsyncFunction("process", `${setup}\nreturn { UI, API }`)({ cwd: () => linked })
-      T(`${NAME}: ${workflow} resolves a relocated worktree's primary siblings`, roots?.UI === primary && roots?.API === resolve(primary, "../orbit-api"), JSON.stringify(roots))
+    T(`${NAME}: ${workflow} has no runtime import or process access`, !/import\(|process\./.test(source), "workflow scripts cannot access Node APIs")
+    const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
+    const execute = new AsyncFunction("args", "phase", source.replace(/^export const meta =/, "const meta ="))
+    const stopped = async (args) => {
+      try {
+        await execute(args, () => { throw new Error("workflow started") })
+        return null
+      } catch (error) {
+        return error.message
+      }
     }
+    for (const [label, roots] of [
+      ["missing", undefined],
+      ["missing UI", { api: resolve(primary, "../orbit-api") }],
+      ["missing API", { ui: primary }],
+      ["relative UI", { ui: ".", api: resolve(primary, "../orbit-api") }],
+      ["relative API", { ui: primary, api: "../orbit-api" }],
+    ]) {
+      const message = await stopped({ kind: "security", roots })
+      T(`${NAME}: ${workflow} rejects ${label} roots before starting`, /roots.*absolute/.test(message ?? ""), message)
+    }
+    const started = await stopped({ kind: "security", roots: { ui: primary, api: resolve(primary, "../orbit-api") } })
+    T(`${NAME}: ${workflow} starts with absolute roots`, started === "workflow started", started)
+  }
+  const readiness = readFileSync(resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../../.claude/workflows/prod-readiness.mjs"), "utf8")
+  T(`${NAME}: prod-readiness forwards roots to every child audit`, readiness.includes("roots: parsedArgs.roots"), "child audits require the same absolute roots")
+  const skillsRoot = resolve(dirname(toolPath("lib/orchestrator-config.mjs")), "../../.claude/skills")
+  for (const skill of ["audit-security", "audit-tests", "audit-performance", "audit-code-quality", "prod-readiness"]) {
+    const instructions = readFileSync(join(skillsRoot, skill, "SKILL.md"), "utf8")
+    T(`${NAME}: ${skill} resolves and passes roots`, instructions.includes(command) && instructions.includes("roots: { ui, api }"), "the skill must run the shared resolver before its workflow")
   }
   const engineName = real.worker
   const engine = real.workers[engineName]
