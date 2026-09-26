@@ -91,7 +91,10 @@ vi.mock('@/app/(tabs)/use-today-motion', () => ({
   }),
 }))
 vi.mock('@/components/shell/shell-composer-slot', () => ({ useShellComposerSlot: () => {} }))
-vi.mock('@/lib/theme', () => ({ createTokensV2: () => ({ bg: '#111111', fg1: '#ffffff', fg2: '#eeeeee', fg3: '#aaaaaa' }) }))
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/theme')>(),
+  createTokensV2: () => ({ bg: '#111111', fg1: '#ffffff', fg2: '#eeeeee', fg3: '#aaaaaa' }),
+}))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }),
 }))
