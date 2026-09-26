@@ -96,7 +96,7 @@ const requiredFrom = (nodes) => nodes.map((node) => ({ context: node.name ?? nod
 /** The envelope the confirmed GraphQL query returns, keyed exactly like the live #716 response. */
 const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
   data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid,
-    commits: { nodes: [{ commit: { oid: headRefOid, committedDate: "2026-08-01T00:00:00Z" } }] },
+    commits: { nodes: [{ commit: { oid: headRefOid, checkSuites: { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: "2026-08-01T00:00:01Z" }] } } }] },
     isDraft, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: reviews }, statusCheckRollup: { contexts: { nodes } } } } },
 })
 

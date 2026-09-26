@@ -94,7 +94,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     const evidence = JSON.parse(readFileSync(delivery, "utf8"))
     const observed = pullRequestStateFromGraphQl({ data: { repository: { pullRequest: {
       number: 700, baseRefName, baseRefOid: BASE, headRefOid: HEAD, isDraft: false,
-      commits: { nodes: [{ commit: { oid: HEAD, committedDate: "2026-08-07T10:00:00Z" } }] },
+      commits: { nodes: [{ commit: { oid: HEAD, checkSuites: { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: "2026-08-07T10:00:01Z" }] } } }] },
       reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: approvedAtHead },
       statusCheckRollup: { contexts: { nodes } },
     } } } })
@@ -111,7 +111,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
         baseRefName: options.baseRefName ?? "main",
         baseRefOid,
         headRefOid,
-        commits: { nodes: [{ commit: { oid: headRefOid, committedDate: options.headCommittedDate ?? "2026-08-07T10:00:00Z" } }] },
+        commits: { nodes: [{ commit: { oid: headRefOid, checkSuites: options.checkSuites ?? { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: "2026-08-07T10:00:01Z" }] } } }] },
         isDraft: options.isDraft ?? false,
         reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: options.reviews ?? approvedAtHead },
         statusCheckRollup: { contexts: { nodes: options.statusCheckRollup ?? [greenCheck, approval] } },
@@ -193,8 +193,19 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     JSON.stringify(fallbackReceipt.ci.review))
   unprotectedCase(
     "PR 1107's repointed approval predating the head leaves the review axis stale",
-    { statusCheckRollup: [greenCheck], headCommittedDate: "2026-09-26T02:48:29Z",
+    { statusCheckRollup: [greenCheck], checkSuites: { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: "2026-09-26T02:48:45Z" }] },
       reviews: [botReview("APPROVED", HEAD, "2026-09-25T21:50:13Z")] },
+    { status: 1, stdout: /CI_STALE/ }, HEAD, [greenCheck],
+  )
+  unprotectedCase(
+    "an approval after the commit but before the first suite cannot clear the review axis",
+    { statusCheckRollup: [greenCheck],
+      reviews: [botReview("APPROVED", HEAD, "2026-08-07T10:00:00Z")] },
+    { status: 1, stdout: /CI_STALE/ }, HEAD, [greenCheck],
+  )
+  unprotectedCase(
+    "an approval with no head check suites cannot clear the review axis",
+    { statusCheckRollup: [greenCheck], checkSuites: { totalCount: 0, pageInfo: { hasNextPage: false }, nodes: [] }, reviews: approvedAtHead },
     { status: 1, stdout: /CI_STALE/ }, HEAD, [greenCheck],
   )
   unprotectedCase(

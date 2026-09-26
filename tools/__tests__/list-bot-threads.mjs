@@ -34,6 +34,13 @@ const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", reviewId = "PRR_kwDOR5Siws8AAAAB
 const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
 const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
 const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
+/** PR 1107's suite counts and times, read from GitHub on 2026-09-26. */
+const REPOINTED_SUITES = { totalCount: 22, pageInfo: { hasNextPage: false }, nodes: [
+  ...Array.from({ length: 8 }, () => ({ createdAt: "2026-09-26T02:48:45Z" })),
+  ...Array.from({ length: 11 }, () => ({ createdAt: "2026-09-26T02:48:48Z" })),
+  { createdAt: "2026-09-26T02:49:39Z" },
+  { createdAt: "2026-09-26T03:14:49Z" }, { createdAt: "2026-09-26T03:14:49Z" },
+] }
 
 const approvalCheck = (status = "COMPLETED", conclusion = "SUCCESS", startedAt = "2026-08-12T20:36:00Z") => ({
   __typename: "CheckRun", name: "pullfrog-approval", status, conclusion, startedAt,
@@ -41,7 +48,7 @@ const approvalCheck = (status = "COMPLETED", conclusion = "SUCCESS", startedAt =
   checkSuite: { app: { databaseId: 1768019 } },
 })
 
-const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], checks = [approvalCheck()], headRefOid = HEAD, headCommittedDate = "2026-08-04T22:00:00Z", pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
+const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], checks = [approvalCheck()], headRefOid = HEAD, checkSuites = { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: "2026-08-04T22:01:00Z" }] }, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
   JSON.stringify({
     data: {
       repository: {
@@ -50,7 +57,7 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], c
           isDraft,
           baseRefOid: BASE,
           headRefOid,
-          commits: { nodes: [{ commit: { oid: headRefOid, committedDate: headCommittedDate } }] },
+          commits: { nodes: [{ commit: { oid: headRefOid, checkSuites } }] },
           statusCheckRollup: { contexts: { nodes: checks } },
           reviews: { nodes: reviews },
           comments: { nodes: comments },
@@ -328,6 +335,8 @@ export const cases = () => {
     )
   }
   T(`${TOOL}: the query selects check run identity, status, conclusion, and time`, ["statusCheckRollup", "checkSuite{app{databaseId}}", "status", "conclusion", "startedAt", "completedAt"].every((field) => querySource.includes(field)), querySource)
+  T(`${TOOL}: the query selects the complete head check suite page and creation times`,
+    querySource.includes("checkSuites(first:100){totalCount pageInfo{hasNextPage} nodes{createdAt}}"), querySource)
   T(`${TOOL}: the query selects each thread's owning review`, querySource.includes("pullRequestReview{id}"), querySource)
 
   const REQUEST_URL = "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-2026081201"
@@ -509,7 +518,7 @@ export const cases = () => {
   /** GitHub's PR 1107 reports the old review with the later merge head's oid. */
   const repointed = readPr(payload({
     headRefOid: "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
-    headCommittedDate: "2026-09-26T02:48:29Z",
+    checkSuites: REPOINTED_SUITES,
     reviews: [botReview("APPROVED", "2026-09-25T21:50:13Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
   }))
   T(`${TOOL}: PR 1107's repointed older review is NO_REVIEW`,
@@ -518,22 +527,38 @@ export const cases = () => {
     repointed.stdout || repointed.stderr)
   const reviewedAfterMerge = readPr(payload({
     headRefOid: "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
-    headCommittedDate: "2026-09-26T02:48:29Z",
+    checkSuites: REPOINTED_SUITES,
     reviews: [botReview("APPROVED", "2026-09-26T02:59:43Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
   }))
   T(`${TOOL}: PR 1107's later real review is REVIEWED`, reviewedAfterMerge.status === 0 && parsed(reviewedAfterMerge)?.verdict === "REVIEWED", reviewedAfterMerge.stdout || reviewedAfterMerge.stderr)
-  const fiveSecondSkew = readPr(payload({
-    headRefOid: "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
-    headCommittedDate: "2026-09-26T02:48:29Z",
-    reviews: [botReview("APPROVED", "2026-09-26T02:48:24Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  const beforeSuite = readPr(payload({
+    checkSuites: REPOINTED_SUITES,
+    reviews: [botReview("APPROVED", "2026-09-26T02:48:44Z")],
   }))
-  T(`${TOOL}: five seconds of committer clock skew keeps a real review`, fiveSecondSkew.status === 0 && parsed(fiveSecondSkew)?.verdict === "REVIEWED", fiveSecondSkew.stdout || fiveSecondSkew.stderr)
-  const beyondSkew = readPr(payload({
+  T(`${TOOL}: a repointed approval after the commit but before the first suite is NO_REVIEW`,
+    beforeSuite.status === 1 && parsed(beforeSuite)?.verdict === "NO_REVIEW", beforeSuite.stdout || beforeSuite.stderr)
+  const atSuiteTime = readPr(payload({
     headRefOid: "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
-    headCommittedDate: "2026-09-26T02:48:29Z",
-    reviews: [botReview("APPROVED", "2026-09-26T02:48:23Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+    checkSuites: REPOINTED_SUITES,
+    reviews: [botReview("APPROVED", "2026-09-26T02:48:45Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
   }))
-  T(`${TOOL}: six seconds before the head is stale`, beyondSkew.status === 1 && parsed(beyondSkew)?.verdict === "NO_REVIEW", beyondSkew.stdout || beyondSkew.stderr)
+  T(`${TOOL}: a review submitted exactly when the first suite was created is NO_REVIEW`, atSuiteTime.status === 1 && parsed(atSuiteTime)?.verdict === "NO_REVIEW", atSuiteTime.stdout || atSuiteTime.stderr)
+  const noSuites = readPr(payload({
+    headRefOid: "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf",
+    checkSuites: { totalCount: 0, pageInfo: { hasNextPage: false }, nodes: [] },
+    reviews: [botReview("APPROVED", "2026-09-26T02:59:43Z", "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf")],
+  }))
+  T(`${TOOL}: no head check suites means NO_REVIEW with a reason`, noSuites.status === 1 && parsed(noSuites)?.verdict === "NO_REVIEW" && /no check suites/.test(parsed(noSuites)?.note ?? ""), noSuites.stdout || noSuites.stderr)
+  const truncatedSuites = readPr(payload({
+    checkSuites: { totalCount: 101, pageInfo: { hasNextPage: true }, nodes: [{ createdAt: "2026-08-04T22:01:00Z" }] },
+    reviews: [botReview()],
+  }))
+  T(`${TOOL}: a truncated head check suite page cannot prove a review current`, truncatedSuites.status === 1 && /incomplete/.test(parsed(truncatedSuites)?.note ?? ""), truncatedSuites.stdout || truncatedSuites.stderr)
+  const invalidSuiteTime = readPr(payload({
+    checkSuites: { totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ createdAt: null }] },
+    reviews: [botReview()],
+  }))
+  T(`${TOOL}: an unparseable suite time cannot prove a review current`, invalidSuiteTime.status === 1 && /unparseable/.test(parsed(invalidSuiteTime)?.note ?? ""), invalidSuiteTime.stdout || invalidSuiteTime.stderr)
   /**
    * NO_REVIEW is ambiguous unless it says whether anyone asked, and the two readings justify
    * different actions: a reviewer that was asked and stayed silent is evidence about the reviewer,

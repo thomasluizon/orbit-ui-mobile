@@ -66,7 +66,7 @@ const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name:
       baseRefOid
       headRefOid
       isDraft
-      commits(last: 1) { nodes { commit { oid committedDate } } }
+      commits(last: 1) { nodes { commit { oid checkSuites(first: 100) { totalCount pageInfo { hasNextPage } nodes { createdAt } } } } }
       reviews(last: 50, author: "pullfrog[bot]") {
         totalCount
         pageInfo { hasPreviousPage startCursor }
@@ -250,17 +250,22 @@ const normalizeReviewNode = (node) => {
  * Newest, never first. Pullfrog often submits TWO reviews seconds apart, COMMENTED then APPROVED: on
  * PR 832 they arrived at 05:44:04Z and 05:44:39Z. A reader that returns on the first one reports
  * COMMENTED and hides a real approval, so this sorts by `submittedAt` and takes the last. GitHub
- * can repoint a review onto a later merge head, so the review must also follow its commit date.
+ * can repoint a review onto a later merge head, so the review must follow GitHub's first check suite.
  */
-/** Git commits use a committer clock while GitHub stamps review submission. Allow five seconds
- * between those clocks; neither API promises a bound, so this is a narrow policy allowance. */
-const COMMIT_CLOCK_SKEW_MS = 5_000
+const suiteBoundaryOf = (suites) => {
+  if (!Array.isArray(suites?.nodes) || !Number.isInteger(suites.totalCount) ||
+      typeof suites.pageInfo?.hasNextPage !== "boolean" || suites.pageInfo.hasNextPage ||
+      suites.totalCount !== suites.nodes.length) return null
+  if (suites.nodes.length === 0) return null
+  const times = suites.nodes.map((suite) => Date.parse(suite?.createdAt ?? ""))
+  return times.every((time) => Number.isFinite(time)) ? Math.min(...times) : null
+}
 
-export const reviewAppVerdictAtHead = (reviews, headOid, headCommittedDate) => {
-  const headTime = Date.parse(headCommittedDate ?? "")
-  if (!Array.isArray(reviews) || typeof headOid !== "string" || headOid === "" || !Number.isFinite(headTime)) return null
+export const reviewAppVerdictAtHead = (reviews, headOid, headCheckSuites) => {
+  const headTime = suiteBoundaryOf(headCheckSuites)
+  if (!Array.isArray(reviews) || typeof headOid !== "string" || headOid === "" || headTime === null) return null
   const atHead = reviews.filter((review) => review.isBot && review.login === REVIEW_APP_LOGIN && review.commitOid === headOid &&
-    review.submittedAt !== null && Number.isFinite(Date.parse(review.submittedAt)) && Date.parse(review.submittedAt) >= headTime - COMMIT_CLOCK_SKEW_MS)
+    review.submittedAt !== null && Number.isFinite(Date.parse(review.submittedAt)) && Date.parse(review.submittedAt) > headTime)
   if (atHead.length === 0) return null
   return atHead.reduce((newest, review) => (String(review.submittedAt ?? "") >= String(newest.submittedAt ?? "") ? review : newest))
 }
@@ -379,7 +384,7 @@ export const MAX_REVIEW_PAGES = 4
  * ends the walk as INCOMPLETE rather than as an absence, for the same reason.
  */
 export const resolveReviewVerdict = async (state, fetchOlderPage) => {
-  const verdict = reviewAppVerdictAtHead(state?.reviews, state?.headRefOid, state?.headCommittedDate)
+  const verdict = reviewAppVerdictAtHead(state?.reviews, state?.headRefOid, state?.headCheckSuites)
   if (verdict) return { verdict, complete: true, pagesRead: 0 }
   let truncated = state?.reviewsTruncated === true
   let cursor = state?.reviewsStartCursor ?? null
@@ -388,7 +393,7 @@ export const resolveReviewVerdict = async (state, fetchOlderPage) => {
     const page = await fetchOlderPage(cursor)
     pagesRead += 1
     if (!page) return { verdict: null, complete: false, pagesRead }
-    const found = reviewAppVerdictAtHead(page.reviews, state?.headRefOid, state?.headCommittedDate)
+    const found = reviewAppVerdictAtHead(page.reviews, state?.headRefOid, state?.headCheckSuites)
     if (found) return { verdict: found, complete: true, pagesRead }
     truncated = page.truncated
     cursor = page.startCursor
@@ -417,7 +422,7 @@ export const pullRequestStateFromGraphQl = (payload) => {
   const { number, baseRefName, baseRefOid, headRefOid, isDraft } = pullRequest
   if (!Number.isInteger(number) || typeof baseRefName !== "string" || typeof baseRefOid !== "string" || typeof headRefOid !== "string" || typeof isDraft !== "boolean") return null
   const headCommit = pullRequest.commits?.nodes?.[0]?.commit
-  if (headCommit?.oid !== headRefOid || !Number.isFinite(Date.parse(headCommit?.committedDate))) return null
+  if (headCommit?.oid !== headRefOid) return null
   const nodes = pullRequest.statusCheckRollup === null ? [] : pullRequest.statusCheckRollup?.contexts?.nodes
   if (!Array.isArray(nodes)) return null
   const statusCheckRollup = []
@@ -472,7 +477,7 @@ export const pullRequestStateFromGraphQl = (payload) => {
   const reviewsTruncated = reviewsConnection === null || reviewsConnection === undefined ? false : truncationOf(reviewsConnection)
   if (reviewsTruncated === null) return null
   const reviewsStartCursor = typeof reviewsConnection?.pageInfo?.startCursor === "string" ? reviewsConnection.pageInfo.startCursor : null
-  return { number, baseRefName, baseRefOid, headRefOid, headCommittedDate: headCommit.committedDate, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
+  return { number, baseRefName, baseRefOid, headRefOid, headCheckSuites: headCommit.checkSuites, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
 }
 
 /**
