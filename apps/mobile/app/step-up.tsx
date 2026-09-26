@@ -35,6 +35,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAccountGeneration } from '@/hooks/use-session-reset'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -43,6 +44,11 @@ import { PillButton } from '@/components/ui/pill-button'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 
 export default function StepUpScreen() {
+  const accountGeneration = useAccountGeneration()
+  return <StepUpScreenContent key={accountGeneration} />
+}
+
+function StepUpScreenContent() {
   const { t } = useTranslation()
   const router = useRouter()
   const params = useLocalSearchParams<{ operation?: string | string[] }>()

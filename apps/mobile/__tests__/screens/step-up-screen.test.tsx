@@ -7,6 +7,7 @@ import {
 } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
 import StepUpScreen from '@/app/step-up'
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -205,6 +206,47 @@ describe('mobile step up screen', () => {
     expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
     await enterCode(tree)
     expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(false)
+  })
+
+  it('drops a typed code and disables confirm after the account changes', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(false)
+
+    await TestRenderer.act(async () => {
+      advanceAccountGeneration()
+      await Promise.resolve()
+    })
+
+    expect(findInput(tree.root).props.value).toBe('')
+    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
+  })
+
+  it('drops the previous account deletion date after the account changes', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+    await confirm(tree)
+    expect(findText(tree.root, 'local:2026-09-04T03:00:00Z').length).toBeGreaterThan(0)
+
+    await TestRenderer.act(async () => {
+      advanceAccountGeneration()
+      await Promise.resolve()
+    })
+
+    expect(findText(tree.root, 'local:2026-09-04T03:00:00Z')).toHaveLength(0)
+    expect(findButton(tree.root, 'stepUp.confirm').props.disabled).toBe(true)
+  })
+
+  it('keeps typed code when the session changes without an account change', async () => {
+    const tree = await renderScreen()
+    await enterCode(tree)
+
+    await TestRenderer.act(async () => {
+      advanceSessionEpoch()
+      await Promise.resolve()
+    })
+
+    expect(findInput(tree.root).props.value).toBe('123456')
   })
 
   it('blocks editing and exposes the confirm loading state while checking', async () => {
