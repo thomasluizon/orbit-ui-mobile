@@ -38,10 +38,9 @@ export type ProfileNavIconKey =
 
 export type ProfileNavHintMode = 'static' | 'gamificationProfile'
 
-export interface ProfileNavItem {
+interface ProfileNavItemBase {
   id: string
   section: ProfileNavSection
-  route: string
   iconKey: ProfileNavIconKey
   titleKey: string
   hintKey: string | null
@@ -51,6 +50,11 @@ export interface ProfileNavItem {
   entitlementRequirement: UpgradeEntitlementRequirement | null
   entitlementMode: UpgradeEntitlementMode | null
 }
+
+export type ProfileNavItem = ProfileNavItemBase & (
+  | { route: string; action?: never }
+  | { route: null; action: 'openSupport' }
+)
 
 export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
@@ -95,7 +99,8 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'support',
     section: 'features',
-    route: '/support',
+    route: null,
+    action: 'openSupport',
     iconKey: 'support',
     titleKey: 'profile.support.title',
     hintKey: 'profile.support.description',

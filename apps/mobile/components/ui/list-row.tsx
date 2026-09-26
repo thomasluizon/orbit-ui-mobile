@@ -1,5 +1,5 @@
 import Animated from 'react-native-reanimated'
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
@@ -21,11 +21,11 @@ function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolea
   return <Text style={[styles.value, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
 
-export function ListRow(props: Readonly<ListRowProps>) {
+export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { accessibilityLabel, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, disabled = false, onClick, readOnly = false } = props
+  const { ref, accessibilityLabel, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, disabled = false, onClick, readOnly = false } = props
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
@@ -51,7 +51,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {readOnly || !onClick ? (
         <View style={bodyStyle}>{body}</View>
       ) : (
-        <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={[bodyStyle, getDisabledStyle(disabled)]}>{body}</Pressable>
+        <Pressable ref={ref} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={[bodyStyle, getDisabledStyle(disabled)]}>{body}</Pressable>
       )}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.action}>

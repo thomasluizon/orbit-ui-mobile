@@ -7,6 +7,7 @@ import { dismissTopOverlay } from '@/lib/overlay-stack'
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
+  sendAccessibilityEvent: vi.fn(),
   openSettings: vi.fn(),
   setAstraConversationOpen: vi.fn(),
   router: { push: vi.fn() },
@@ -55,6 +56,10 @@ vi.mock('react-native', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native')>()
   return {
     ...actual,
+    AccessibilityInfo: {
+      ...actual.AccessibilityInfo,
+      sendAccessibilityEvent: mocks.sendAccessibilityEvent,
+    },
     Linking: { openSettings: (...arguments_: unknown[]) => mocks.openSettings(...arguments_) },
     Platform: { ...actual.Platform, OS: 'android' },
     Keyboard: {
@@ -99,7 +104,15 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({
 }))
 vi.mock('@/components/habits/habit-detail-drawer', () => ({ HabitDetailDrawer: () => null }))
 vi.mock('@/components/ui/app-bar', () => ({
-  AppBar: (props: Record<string, unknown>) => React.createElement('AppBar', props),
+  AppBar: (props: Record<string, unknown>) => React.createElement(
+    'AppBar',
+    props,
+    React.createElement('Text', {
+      ref: props.titleRef,
+      accessibilityRole: 'header',
+      testID: 'conversation-title',
+    }, props.title as string),
+  ),
 }))
 vi.mock('@/components/ui/astra-avatar', () => ({ AstraMark: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({ OfflineUnavailableState: () => null }))
@@ -299,6 +312,22 @@ describe('ChatScreen composer recoveries', () => {
     })
 
     expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
+  })
+
+  it('moves Android accessibility focus to the conversation header on open', async () => {
+    const titleNode = { testID: 'conversation-title' }
+    let tree!: TestTree
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <AstraConversation chat={mocks.composer as never} />,
+        { createNodeMock: ({ props }: { props: { testID?: string } }) =>
+          props.testID === 'conversation-title' ? titleNode : null },
+      )
+      await Promise.resolve()
+    })
+    mountedTrees.push(tree)
+
+    expect(mocks.sendAccessibilityEvent).toHaveBeenCalledWith(titleNode, 'focus')
   })
 
   it('keeps the composer above the Android keyboard and restores it when the keyboard closes', async () => {

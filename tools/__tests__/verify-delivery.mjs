@@ -8,12 +8,15 @@ const BRANCH = "feature/orb-200-delivery"
 const ISSUE = "ORB-200"
 let testedToolPath = null
 
-const stageDelivery = (label, { commit = true, push = true, dirty = [] } = {}) => {
+const stageDelivery = (label, { commit = true, push = true, dirty = [], changedPaths = ["worked.txt"] } = {}) => {
   const repo = stageRepo(`verify-delivery-${label}`)
   if (!repo || repo.git(["switch", "-q", "-c", BRANCH]).status !== 0) return null
   if (commit) {
-    writeFileSync(join(repo.path, "worked.txt"), `${label}\n`)
-    if (repo.git(["add", "worked.txt"]).status !== 0 || repo.git(["commit", "-q", "-m", `${label} the ticket's real work`]).status !== 0) return null
+    for (const path of changedPaths) {
+      mkdirSync(dirname(join(repo.path, path)), { recursive: true })
+      writeFileSync(join(repo.path, path), `${label}\n`)
+    }
+    if (repo.git(["add", ...changedPaths]).status !== 0 || repo.git(["commit", "-q", "-m", `${label} the ticket's real work`]).status !== 0) return null
   }
   if (push && repo.git(["push", "-q", "-u", "origin", BRANCH]).status !== 0) return null
   for (const path of dirty) {
@@ -33,11 +36,13 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
   number,
   url: `https://github.com/useorbitai/orbit-ui-mobile/pull/${number}`,
   headRefOid,
+  baseRefName: "main",
   additions,
   deletions,
   changedFiles,
   title: `${ISSUE} do the thing`,
   body: `Implements ${ISSUE}.`,
+  labels: [],
 })
 
 const GITHUB_ACTIONS_APP = 15368
@@ -83,7 +88,7 @@ const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")
 
-const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [], runs, rerunCountFile, rerunExit = 0, rerunStderr = "", rerunHangPidFile, rerunOverflowBytes } = {}) => {
+const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [], runs, rerunCountFile, rerunExit = 0, rerunStderr = "", rerunHangPidFile, rerunOverflowBytes, ciReadMarker } = {}) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -93,6 +98,12 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
   const required = requiredChecks ?? requiredFrom(nodes)
   const state = prState(nodes, headRefOid, false, reviews)
   state.data.repository.pullRequest.baseRefName = baseRefName
+  try {
+    const pullRequests = JSON.parse(stdout)
+    if (Array.isArray(pullRequests)) stdout = JSON.stringify(pullRequests.map((pullRequest) => ({ ...pullRequest, baseRefName })))
+  } catch {
+    /* malformed-output tests retain their original response */
+  }
   return orcaEnv([
     /**
      * Only the repository label is asserted from the ticket, so a whole-board read here is pure
@@ -102,7 +113,7 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }), removePath: boardReadMarker },
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
-    { match: "api graphql", stdout: JSON.stringify(state), stdoutSequence: states?.map((entry) => JSON.stringify(entry)), sequenceFile },
+    { match: "api graphql", stdout: JSON.stringify(state), stdoutSequence: states?.map((entry) => JSON.stringify(entry)), sequenceFile, removePath: ciReadMarker },
     { match: "/activity?", stdout: JSON.stringify([{ activity_type: "push", actor: { login: "<actor>" }, after: headRefOid,
       before: "base-sha", id: 1, node_id: "<activity-id>", ref: `refs/heads/${BRANCH}`, timestamp: "2026-08-01T00:00:01Z" }]) },
     { match: `branches/${encodeURIComponent(baseRefName)}/protection/required_status_checks`, stdout: protectionResponse ?? JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }), exit: protectionExit },
@@ -115,6 +126,24 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
 
 const verdictOf = (fixture, stdout, expected, status, name) =>
   check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { path: testedToolPath, env: ghPlan(stdout) })
+
+/** `gh pr view 1163 --json baseRefName,headRefOid` returned these two keys:
+ * {"baseRefName":"redesign/main","headRefOid":"<commit SHA>"}. Fixture heads come from real Git commits. */
+const REDESIGN_BASE = "redesign/main"
+const stageRedesignParity = (label, uiCommitOn) => {
+  const repo = stageRepo(`verify-delivery-${label}`)
+  if (!repo || repo.git(["branch", REDESIGN_BASE]).status !== 0) return null
+  if (uiCommitOn === REDESIGN_BASE && repo.git(["switch", "-q", REDESIGN_BASE]).status !== 0) return null
+  const uiPath = "apps/mobile/components/Message.tsx"
+  mkdirSync(dirname(join(repo.path, uiPath)), { recursive: true })
+  writeFileSync(join(repo.path, uiPath), "mobile change\n")
+  if (repo.git(["add", uiPath]).status !== 0 || repo.git(["commit", "-q", "-m", "mobile change"]).status !== 0) return null
+  if (repo.git(["switch", "-q", "-c", BRANCH]).status !== 0) return null
+  writeFileSync(join(repo.path, "worked.txt"), "non-UI work\n")
+  if (repo.git(["add", "worked.txt"]).status !== 0 || repo.git(["commit", "-q", "-m", "non-UI work"]).status !== 0 ||
+      repo.git(["push", "-q", "-u", "origin", BRANCH]).status !== 0) return null
+  return { ...repo, head: repo.git(["rev-parse", "HEAD"]).stdout.trim() }
+}
 
 export const cases = () => {
   check(TOOL, "refuses a missing issue", ["--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue requires ORB-N, #N, or N/ })
@@ -265,6 +294,39 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   verdictOf(unpushed, JSON.stringify([pullRequest(unpushed.head)]), "UNPUSHED", 1, "a commit that never reached origin is UNPUSHED")
 
   const pushed = stageDelivery("pushed")
+  T(`${TOOL}: alternate base staged for PR state fixtures`, pushed.git(["branch", REDESIGN_BASE, "main"]).status === 0)
+  const mobileOnly = stageDelivery("mobile-only", { changedPaths: ["apps/mobile/components/Message.tsx"] })
+  const parityCiReadMarker = stage("verify-delivery/parity-ci-read", "must remain")
+  check(
+    TOOL,
+    "a one-sided mobile change without parity:exempt is a delivery defect before CI",
+    ["--issue", ISSUE, "--worktree", mobileOnly.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "MISSING_PARITY_LABEL"[\s\S]*"parityLabel": \{[\s\S]*"pass": false/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(mobileOnly.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { ciReadMarker: parityCiReadMarker }) },
+  )
+  T(`${TOOL}: a missing parity label is reported before CI is read`, existsSync(parityCiReadMarker))
+  verdictOf(mobileOnly, JSON.stringify([{ ...pullRequest(mobileOnly.head), labels: [{ name: "parity:exempt" }] }]), "DELIVERED", 0, "a labeled one-sided mobile change is deliverable")
+  const webOnly = stageDelivery("web-only", { changedPaths: ["apps/web/components/Message.tsx"] })
+  verdictOf(webOnly, JSON.stringify([pullRequest(webOnly.head)]), "MISSING_PARITY_LABEL", 1, "a one-sided web change also needs parity:exempt")
+  const mirrored = stageDelivery("mirrored", { changedPaths: ["apps/web/components/Message.tsx", "apps/mobile/components/Message.tsx"] })
+  verdictOf(mirrored, JSON.stringify([pullRequest(mirrored.head)]), "DELIVERED", 0, "a mirrored change needs no parity label")
+  const nonUiAgainstRedesign = stageRedesignParity("non-ui-redesign", REDESIGN_BASE)
+  const mobileAgainstRedesign = stageRedesignParity("mobile-redesign", "main")
+  T(`${TOOL}: divergent base fixtures staged`, Boolean(nonUiAgainstRedesign && mobileAgainstRedesign))
+  if (nonUiAgainstRedesign && mobileAgainstRedesign) {
+    for (const [fixture, expected, name] of [
+      [nonUiAgainstRedesign, "DELIVERED", "a non-UI PR against redesign/main ignores its base's mobile commit"],
+      [mobileAgainstRedesign, "MISSING_PARITY_LABEL", "a mobile PR against redesign/main needs the label even when main has the change"],
+    ]) {
+      check(TOOL, name, ["--issue", ISSUE, "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"],
+        { status: expected === "DELIVERED" ? 0 : 1, stdout: new RegExp(`"verdict": "${expected}"`) },
+        { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(fixture.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { baseRefName: REDESIGN_BASE }) })
+    }
+    check(TOOL, "an explicit base that disagrees with the PR is an error",
+      ["--issue", ISSUE, "--worktree", mobileAgainstRedesign.path, "--branch", BRANCH, "--repo", "ui", "--base", "main"],
+      { status: 2, stderr: /--base main disagrees with pull request #200 base redesign\/main/ },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(mobileAgainstRedesign.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { baseRefName: REDESIGN_BASE }) })
+  }
   const ghDescendantPidFile = stage("verify-delivery/gh-descendant.pid", "")
   const hangingGh = run(
     TOOL,

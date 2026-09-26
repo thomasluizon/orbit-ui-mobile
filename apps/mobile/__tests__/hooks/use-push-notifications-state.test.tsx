@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => {
   return {
     storage: new Map<string, string>(),
     setAstraConversationOpen: vi.fn(),
-    apiClient: vi.fn(() => Promise.resolve(undefined)),
+    apiClient: vi.fn((_path: string, _options?: { isCurrent?: () => boolean }) => Promise.resolve(undefined)),
     router: {
       push: vi.fn(),
     },
@@ -246,6 +246,9 @@ describe('usePushNotifications', () => {
   })
 
   it('re-registers for the new account when it switches while a registration is in flight', async () => {
+    const { setAccountId } = await import('@/lib/account-scope')
+    const { advanceSessionEpoch } = await import('@/lib/session-epoch')
+    setAccountId('user-1')
     vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
       createPermissionResponse('granted'),
     )
@@ -258,7 +261,7 @@ describe('usePushNotifications', () => {
         }),
     )
 
-    await renderHarness()
+    const renderer = await renderHarness()
     await TestRenderer.act(async () => {
       for (let i = 0; i < 10; i++) await Promise.resolve()
     })
@@ -267,8 +270,11 @@ describe('usePushNotifications', () => {
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
 
     mocks.auth.user = { userId: 'user-2' }
+    setAccountId('user-2')
+    advanceSessionEpoch()
 
     await TestRenderer.act(async () => {
+      renderer.update(<PushNotificationsProvider><Harness /></PushNotificationsProvider>)
       resolveFirstSubscribe?.()
       for (let i = 0; i < 10; i++) await Promise.resolve()
     })
@@ -391,6 +397,123 @@ describe('usePushNotifications', () => {
     )
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(latestResult?.isEnabled).toBe(true)
+  })
+
+  it('drops registration when the account changes while the API loads its token', async () => {
+    const { setAccountId } = await import('@/lib/account-scope')
+    setAccountId('user-1')
+    let finishTokenLoad!: () => void
+    let backendPostSent = false
+    mocks.apiClient.mockImplementationOnce(async (_path: string, options?: { isCurrent?: () => boolean }) => {
+      await new Promise<void>((resolve) => { finishTokenLoad = resolve })
+      if (options?.isCurrent?.() === false) throw new Error('Account changed')
+      backendPostSent = true
+    })
+    await renderHarness()
+    await flush()
+
+    let registration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      registration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    mocks.auth.user = { userId: 'user-2' }
+    setAccountId('user-2')
+    await TestRenderer.act(async () => {
+      finishTokenLoad()
+      await registration
+    })
+
+    expect(backendPostSent).toBe(false)
+  })
+
+  it('registers again for the same user after the session changes mid-registration', async () => {
+    const { setAccountId } = await import('@/lib/account-scope')
+    const { advanceSessionEpoch } = await import('@/lib/session-epoch')
+    setAccountId('user-1')
+    let finishFirstToken!: () => void
+    vi.mocked(notificationsModule.getDevicePushTokenAsync).mockReturnValueOnce(
+      new Promise((resolve) => { finishFirstToken = () => resolve({ type: 'fcm', data: 'old-token' }) }),
+    )
+    await renderHarness()
+    await flush()
+
+    let firstRegistration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      firstRegistration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalledTimes(1))
+
+    advanceSessionEpoch()
+    let secondRegistration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      secondRegistration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalledTimes(2))
+    await TestRenderer.act(async () => { expect(await secondRegistration).toBe('granted') })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+    await TestRenderer.act(async () => {
+      finishFirstToken()
+      expect(await firstRegistration).toBe('failed')
+    })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(latestResult?.registrationStatus).toBe('registered')
+  })
+
+  it('keeps the replacement registration loading when the obsolete request finishes first', async () => {
+    const { setAccountId } = await import('@/lib/account-scope')
+    const { advanceSessionEpoch } = await import('@/lib/session-epoch')
+    setAccountId('user-1')
+    let finishFirstToken!: () => void
+    let finishSecondToken!: () => void
+    vi.mocked(notificationsModule.getDevicePushTokenAsync)
+      .mockReturnValueOnce(new Promise((resolve) => {
+        finishFirstToken = () => resolve({ type: 'fcm', data: 'old-token' })
+      }))
+      .mockReturnValueOnce(new Promise((resolve) => {
+        finishSecondToken = () => resolve({ type: 'fcm', data: 'new-token' })
+      }))
+    await renderHarness()
+    await flush()
+
+    let firstRegistration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      firstRegistration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalledTimes(1))
+
+    advanceSessionEpoch()
+    let secondRegistration!: Promise<unknown>
+    await TestRenderer.act(async () => {
+      secondRegistration = latestResult!.requestPermissionOutcome()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalledTimes(2))
+
+    await TestRenderer.act(async () => {
+      finishFirstToken()
+      expect(await firstRegistration).toBe('failed')
+    })
+    expect(latestResult?.isLoading).toBe(true)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+
+    await TestRenderer.act(async () => {
+      finishSecondToken()
+      expect(await secondRegistration).toBe('granted')
+    })
+    expect(latestResult?.isLoading).toBe(false)
+    expect(latestResult?.registrationStatus).toBe('registered')
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
   })
 
   it('requests signed-out permission without registering the device', async () => {

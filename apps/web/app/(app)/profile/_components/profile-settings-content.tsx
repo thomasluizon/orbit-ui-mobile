@@ -40,6 +40,7 @@ import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
+import { useUIStore } from '@/stores/ui-store'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { isStepUpVerified } from '@/lib/step-up-storage'
@@ -186,10 +187,10 @@ function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePick
   )
 }
 
-function buildMoreRows({ profile, t }: RowContext) {
+function buildMoreRows({ profile, t }: RowContext, openSupport: () => void) {
   const navigationRows = PROFILE_NAV_ITEMS.map((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
-    const href = redirectsToUpgrade ? '/upgrade' : item.route
+    const href = redirectsToUpgrade ? '/upgrade' : item.route ?? undefined
     return (
       <ListRow
         key={item.id}
@@ -199,6 +200,7 @@ function buildMoreRows({ profile, t }: RowContext) {
         trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
         chevron={!redirectsToUpgrade}
         href={href}
+        onClick={item.action === 'openSupport' ? openSupport : undefined}
       />
     )
   })
@@ -238,6 +240,7 @@ export function ProfileSettingsContent({
   const router = useRouter()
   const mounted = useIsClient()
   const logout = useAuthStore((state) => state.logout)
+  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const preferenceControls = usePreferenceControls()
   const {
     isExporting,
@@ -281,7 +284,7 @@ export function ProfileSettingsContent({
         acceptVariant="secondary"
       />,
     ],
-    more: buildMoreRows(context),
+    more: buildMoreRows(context, () => setAstraConversationOpen(true, 'support')),
     ending: buildEndingRows({
       context,
       onDeleteAccount: () => setShowDeleteAccount(true),
