@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
@@ -31,7 +31,9 @@ CI_FAILING, CI_PENDING, or DELIVERED.
 
 A cancelled current-head Actions run is rerun once when a run from the same pull request
 branch and workflow, created for an ancestor head, finished later. The report records
-the rerun and treats its cancelled checks as pending while GitHub registers the attempt.
+the run ID, original attempt, and request outcome. An accepted request stays pending
+until the new attempt completes. A failed request or missing outcome is CI_FAILING
+and is never requested again.
 
 An unprotected base has no required checks. Delivery needs a nonempty rollup
 observed unchanged for at least 60 seconds in this invocation (use --wait-ci),
@@ -123,11 +125,11 @@ try {
 }
 const run = async (file, args, cwd, input) => {
   const result = await runBounded(file, args, { cwd, env: file === GH ? githubAuth.environment : process.env, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 32 * 1024 * 1024, input })
-  if (result.timedOut) return { ok: false, stdout: result.stdout, error: `${file} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated` }
-  if (result.overflowed) return { ok: false, stdout: result.stdout, error: `${file} exceeded the 32 MiB output bound; the complete child process tree was terminated` }
+  if (result.timedOut) return { ok: false, stdout: result.stdout, status: result.status, stderr: result.stderr, error: `${file} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated` }
+  if (result.overflowed) return { ok: false, stdout: result.stdout, status: result.status, stderr: result.stderr, error: `${file} exceeded the 32 MiB output bound; the complete child process tree was terminated` }
   if (result.error || result.status !== 0) {
     const detail = result.stderr || result.stdout || result.error?.message || `exit ${result.status}`
-    return { ok: false, stdout: result.stdout, error: redactSecrets(detail.trim(), githubAuth.secrets) }
+    return { ok: false, stdout: result.stdout, status: result.status, stderr: redactSecrets(result.stderr, githubAuth.secrets), error: redactSecrets(detail.trim(), githubAuth.secrets) }
   }
   return { ok: true, stdout: result.stdout }
 }
@@ -444,11 +446,33 @@ while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < 
   rollup = await readRollup()
 }
 
-const cancelledRunIds = [...new Set(rollup.failing
-  .filter((check) => check.conclusion === "CANCELLED" && check.runId !== null)
-  .map((check) => Number(check.runId)))]
+const rerunDirectory = join(gitDirectoryOf(worktree), "orbit-ci-reruns")
+const markerPath = (runId) => join(rerunDirectory, `${pullRequest.number}-${runId}.json`)
+const readMarker = (runId) => {
+  const path = markerPath(runId)
+  if (!existsSync(path)) return null
+  let marker
+  try { marker = JSON.parse(readFileSync(path, "utf8")) } catch { fail(2, `rerun record for ${runId} is unreadable`) }
+  if (marker.runId !== runId || marker.headSha !== localHead) fail(2, `rerun record for ${runId} does not match the current head`)
+  return marker
+}
+const writeOutcome = (runId, marker) => {
+  const path = markerPath(runId)
+  const stagedPath = `${path}.${process.pid}`
+  writeFileSync(stagedPath, JSON.stringify(marker))
+  renameSync(stagedPath, path)
+}
+const checksByRunId = new Map()
+for (const check of [...rollup.failing, ...rollup.pending]) {
+  if (check.runId !== null) checksByRunId.set(Number(check.runId), check)
+}
+const candidateRunIds = [...new Set([
+  ...rollup.failing.filter((check) => check.conclusion === "CANCELLED" && check.runId !== null)
+    .map((check) => Number(check.runId)),
+  ...[...checksByRunId.keys()].filter((runId) => existsSync(markerPath(runId))),
+])]
 const reruns = []
-if (cancelledRunIds.length > 0) {
+if (candidateRunIds.length > 0) {
   const listedRuns = await run(GH, ["run", "list", "--branch", pullRequestState.headRefName,
     "--event", "pull_request", "--limit", "1000", "--repo", repositoryFromUrl,
     "--json", "attempt,conclusion,createdAt,databaseId,event,headBranch,headSha,number,startedAt,status,updatedAt,url,workflowDatabaseId,workflowName"], githubCwd)
@@ -457,12 +481,17 @@ if (cancelledRunIds.length > 0) {
   try { runs = JSON.parse(listedRuns.stdout) } catch { fail(2, "gh run list returned unparseable JSON") }
   if (!Array.isArray(runs)) fail(2, "gh run list did not return an array")
 
-  for (const runId of cancelledRunIds) {
+  for (const runId of candidateRunIds) {
+    let marker = readMarker(runId)
     const current = runs.find((entry) => entry.databaseId === runId &&
-      entry.headSha === localHead && entry.headBranch === pullRequestState.headRefName &&
-      entry.event === "pull_request" && entry.status === "completed" &&
-      entry.conclusion === "cancelled" && entry.attempt === 1)
-    if (!current || !Number.isInteger(current.workflowDatabaseId)) continue
+      entry.headSha === localHead && entry.headBranch === pullRequestState.headRefName && entry.event === "pull_request")
+    if (marker) {
+      reruns.push({ ...marker, workflow: current?.workflowName ?? null, currentAttempt: current?.attempt ?? null,
+        currentStatus: current?.status ?? null, currentConclusion: current?.conclusion ?? null })
+      continue
+    }
+    if (!current || !Number.isInteger(current.workflowDatabaseId) || current.status !== "completed" ||
+      current.conclusion !== "cancelled" || current.attempt !== 1) continue
     const currentCreated = Date.parse(current.createdAt)
     const currentEnded = Date.parse(current.updatedAt)
     if (!Number.isFinite(currentCreated) || !Number.isFinite(currentEnded)) continue
@@ -478,44 +507,70 @@ if (cancelledRunIds.length > 0) {
     }
     if (!olderRun) continue
 
-    const marker = join(gitDirectoryOf(worktree), "orbit-ci-reruns", `${pullRequest.number}-${runId}.json`)
-    mkdirSync(join(gitDirectoryOf(worktree), "orbit-ci-reruns"), { recursive: true })
+    mkdirSync(rerunDirectory, { recursive: true })
     let requested = false
     try {
-      writeFileSync(marker, JSON.stringify({ runId, headSha: localHead, olderRunId: olderRun.databaseId }), { flag: "wx" })
+      marker = { runId, headSha: localHead, olderRunId: olderRun.databaseId, attempt: current.attempt }
+      writeFileSync(markerPath(runId), JSON.stringify(marker), { flag: "wx" })
       requested = true
     } catch (error) {
       if (error.code !== "EEXIST") throw error
-      const recorded = JSON.parse(readFileSync(marker, "utf8"))
-      if (recorded.runId !== runId || recorded.headSha !== localHead) fail(2, `rerun record for ${runId} does not match the current head`)
+      marker = readMarker(runId)
     }
-    const rerun = { runId, workflow: current.workflowName, headSha: localHead,
-      olderRunId: olderRun.databaseId, outcome: requested ? "REQUESTED" : "ALREADY_REQUESTED" }
     if (requested) {
       const result = await run(GH, ["run", "rerun", String(runId), "--repo", repositoryFromUrl], githubCwd)
-      if (!result.ok) { rerun.outcome = "REQUEST_UNKNOWN"; rerun.error = result.error }
+      marker = result.ok ? { ...marker, outcome: "accepted" } : {
+        ...marker, outcome: "failed", exitCode: result.status,
+        stderr: (result.stderr || result.error).split(/\r?\n/, 1)[0],
+      }
+      writeOutcome(runId, marker)
     }
-    reruns.push(rerun)
+    reruns.push({ ...marker, workflow: current.workflowName, currentAttempt: current.attempt,
+      currentStatus: current.status, currentConclusion: current.conclusion })
   }
 }
 
-const rerunIds = new Set(reruns.filter((entry) => entry.outcome !== "REQUEST_UNKNOWN").map((entry) => String(entry.runId)))
-const stillFailing = rollup.failing.filter((check) => !rerunIds.has(check.runId))
-const rerunPending = rollup.failing.filter((check) => rerunIds.has(check.runId))
-  .map((check) => ({ ...check, reason: "An older-head run of this workflow finished after the current-head run; rerun requested once" }))
+const rerunById = new Map(reruns.map((entry) => [String(entry.runId), entry]))
+const rerunReason = (rerun) => rerun.outcome === "failed" ? "RERUN_REQUEST_FAILED"
+  : rerun.outcome !== "accepted" ? "RERUN_REQUEST_UNKNOWN" : null
+const completedRerun = (rerun) => rerun.outcome === "accepted" &&
+  rerun.currentAttempt > rerun.attempt && rerun.currentStatus === "completed"
+const successfulRerun = (rerun) => completedRerun(rerun) &&
+  ["success", "neutral", "skipped"].includes(rerun.currentConclusion)
+const failingChecks = rollup.failing.flatMap((check) => {
+  const rerun = rerunById.get(check.runId)
+  if (!rerun) return [check]
+  const reason = rerunReason(rerun)
+  if (reason) return [{ ...check, reason }]
+  if (successfulRerun(rerun) || !completedRerun(rerun)) return []
+  return [{ ...check, reason: "RERUN_ATTEMPT_FAILED" }]
+})
+const stillFailing = [...failingChecks, ...reruns.filter((rerun) =>
+  (rerunReason(rerun) || (completedRerun(rerun) && !successfulRerun(rerun))) &&
+  !rollup.failing.some((check) => check.runId === String(rerun.runId)))
+  .map((rerun) => ({ ...checksByRunId.get(rerun.runId),
+    reason: rerunReason(rerun) ?? "RERUN_ATTEMPT_FAILED" }))]
+const rerunPending = rollup.failing.filter((check) => {
+  const rerun = rerunById.get(check.runId)
+  return rerun?.outcome === "accepted" && !completedRerun(rerun)
+}).map((check) => ({ ...check, reason: "Accepted rerun has not completed" }))
+const pending = rollup.pending.filter((check) => {
+  const rerun = rerunById.get(check.runId)
+  return !rerun || (!completedRerun(rerun) && rerunReason(rerun) === null)
+})
 
 checks.ci = {
-  pass: stillFailing.length === 0 && rollup.pending.length === 0 && rerunPending.length === 0,
-  observed: `${rollup.total} checks: ${stillFailing.length} failing, ${rollup.pending.length + rerunPending.length} pending`,
+  pass: stillFailing.length === 0 && pending.length === 0 && rerunPending.length === 0,
+  observed: `${rollup.total} checks: ${stillFailing.length} failing, ${pending.length + rerunPending.length} pending`,
   failing: stillFailing,
-  pending: [...rollup.pending, ...rerunPending],
+  pending: [...pending, ...rerunPending],
   reruns,
   requiredChecks,
   registrationFingerprint: rollup.registrationFingerprint,
   review: rollup.review,
   waitedSeconds: waitCiSeconds,
 }
-if (stillFailing.length > 0 || reruns.some((entry) => entry.outcome === "REQUEST_UNKNOWN")) emit("CI_FAILING")
-if (rollup.pending.length > 0 || rerunPending.length > 0) emit("CI_PENDING")
+if (stillFailing.length > 0 || reruns.some((entry) => rerunReason(entry))) emit("CI_FAILING")
+if (pending.length > 0 || rerunPending.length > 0) emit("CI_PENDING")
 
 emit("DELIVERED")

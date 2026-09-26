@@ -83,7 +83,7 @@ const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")
 
-const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [], runs, rerunCountFile } = {}) => {
+const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [], runs, rerunCountFile, rerunExit = 0, rerunStderr = "" } = {}) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -108,7 +108,7 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     { match: `branches/${encodeURIComponent(baseRefName)}/protection/required_status_checks`, stdout: protectionResponse ?? JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }), exit: protectionExit },
     { match: "api repos/", stdout: JSON.stringify(comparison) },
     ...(runs ? [{ match: "run list --branch", stdout: JSON.stringify(runs) }] : []),
-    ...(rerunCountFile ? [{ match: "run rerun", stdout: "", stdoutSequence: ["", ""], sequenceFile: rerunCountFile }] : []),
+    ...(rerunCountFile ? [{ match: "run rerun", stdout: "", stdoutSequence: ["", ""], sequenceFile: rerunCountFile, exit: rerunExit, stderr: rerunStderr }] : []),
   ])
 }
 
@@ -494,26 +494,91 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
       { behind_by: 0 }, null, { runs: [cancelled, older], rerunCountFile }) })
   T(`${TOOL}: collision invokes exactly one rerun`, existsSync(rerunCountFile) && readFileSync(rerunCountFile, "utf8") === "1", collision.stdout)
   const repeatedCollision = check(TOOL, "the same cancelled run stays pending without a second rerun", ciArgv,
-    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"outcome": "ALREADY_REQUESTED"/ },
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"outcome": "accepted"/ },
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
       { behind_by: 0 }, null, { runs: [cancelled, older], rerunCountFile }) })
   T(`${TOOL}: a second delivery read did not invoke rerun again`, readFileSync(rerunCountFile, "utf8") === "1", repeatedCollision.stdout)
+  const activeAttempt = { ...cancelled, attempt: 2, status: "in_progress", conclusion: "" }
+  const activeCheck = checkRun("Dash Ban", { status: "IN_PROGRESS", conclusion: null, workflow: "Guards",
+    detailsUrl: cancelledCheck.detailsUrl })
+  const activeRerun = check(TOOL, "an accepted rerun remains pending on its active second attempt", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"outcome": "accepted"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [activeCheck],
+      { behind_by: 0 }, null, { runs: [activeAttempt, older], rerunCountFile }) })
+  T(`${TOOL}: an active second attempt requests no second rerun`, readFileSync(rerunCountFile, "utf8") === "1", activeRerun.stdout)
+  const staleRollup = check(TOOL, "an accepted second attempt keeps an old cancelled check pending", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"outcome": "accepted"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
+      { behind_by: 0 }, null, { runs: [activeAttempt, older], rerunCountFile }) })
+  T(`${TOOL}: a stale cancelled rollup requests no second rerun`, readFileSync(rerunCountFile, "utf8") === "1", staleRollup.stdout)
+  check(TOOL, "a completed successful rerun supersedes an old cancelled check", ciArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"currentConclusion": "success"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
+      { behind_by: 0 }, null, { runs: [{ ...activeAttempt, status: "completed", conclusion: "success" }, older], rerunCountFile }) })
+  check(TOOL, "a completed failed rerun reports its own failure", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_ATTEMPT_FAILED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
+      { behind_by: 0 }, null, { runs: [{ ...activeAttempt, status: "completed", conclusion: "failure" }, older], rerunCountFile }) })
+  check(TOOL, "a completed failed rerun overrides a stale active check", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_ATTEMPT_FAILED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [activeCheck],
+      { behind_by: 0 }, null, { runs: [{ ...activeAttempt, status: "completed", conclusion: "failure" }, older], rerunCountFile }) })
+  const failedRunId = cancelledRunId + 10
+  const failedRun = { ...cancelled, databaseId: failedRunId }
+  const failedCheck = checkRun("Dash Ban", { conclusion: "CANCELLED", workflow: "Guards",
+    detailsUrl: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${failedRunId}/job/67890` })
+  const failedRerunCountFile = join(pushed.path, ".git", "failed-rerun-count")
+  check(TOOL, "a failed rerun request reports its exit code and first stderr line", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_REQUEST_FAILED"[\s\S]*"exitCode": 17[\s\S]*"stderr": "request rejected"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [failedCheck],
+      { behind_by: 0 }, null, { runs: [failedRun, older], rerunCountFile: failedRerunCountFile,
+        rerunExit: 17, rerunStderr: "request rejected\nmore detail\n" }) })
+  const repeatedFailure = check(TOOL, "a failed rerun request stays failing on reverification", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_REQUEST_FAILED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [failedCheck],
+      { behind_by: 0 }, null, { runs: [failedRun, older], rerunCountFile: failedRerunCountFile }) })
+  T(`${TOOL}: a failed request is never retried`, readFileSync(failedRerunCountFile, "utf8") === "1", repeatedFailure.stdout)
+  const unknownRunId = cancelledRunId + 20
+  const unknownRun = { ...cancelled, databaseId: unknownRunId }
+  const unknownCheck = checkRun("Dash Ban", { conclusion: "CANCELLED", workflow: "Guards",
+    detailsUrl: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${unknownRunId}/job/67890` })
+  const markerDirectory = join(pushed.path, ".git", "orbit-ci-reruns")
+  mkdirSync(markerDirectory, { recursive: true })
+  writeFileSync(join(markerDirectory, `200-${unknownRunId}.json`), JSON.stringify({
+    runId: unknownRunId, headSha: pushed.head, olderRunId: older.databaseId, attempt: 1,
+  }))
+  check(TOOL, "a crash after the intent marker reports an unknown request outcome", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"[\s\S]*"reason": "RERUN_REQUEST_UNKNOWN"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [unknownCheck],
+      { behind_by: 0 }, null, { runs: [unknownRun, older] }) })
+  const isolatedCancellation = (offset) => {
+    const runId = cancelledRunId + offset
+    return {
+      run: { ...cancelled, databaseId: runId },
+      check: checkRun("Dash Ban", { conclusion: "CANCELLED", workflow: "Guards",
+        detailsUrl: `https://github.com/useorbitai/orbit-ui-mobile/actions/runs/${runId}/job/67890` }),
+    }
+  }
+  const withoutOlder = isolatedCancellation(30)
   check(TOOL, "a cancelled run without a later older-head run remains CI_FAILING", ciArgv,
     { status: 1, stdout: /"verdict": "CI_FAILING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
-      { behind_by: 0 }, null, { runs: [cancelled] }) })
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [withoutOlder.check],
+      { behind_by: 0 }, null, { runs: [withoutOlder.run] }) })
+  const otherWorkflow = isolatedCancellation(40)
   check(TOOL, "a different workflow ending later cannot authorize a rerun", ciArgv,
     { status: 1, stdout: /"verdict": "CI_FAILING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
-      { behind_by: 0 }, null, { runs: [cancelled, { ...older, workflowDatabaseId: 1 }] }) })
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [otherWorkflow.check],
+      { behind_by: 0 }, null, { runs: [otherWorkflow.run, { ...older, workflowDatabaseId: 1 }] }) })
+  const unrelatedHead = isolatedCancellation(50)
   check(TOOL, "an unrelated head ending later cannot authorize a rerun", ciArgv,
     { status: 1, stdout: /"verdict": "CI_FAILING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
-      { behind_by: 0 }, null, { runs: [cancelled, { ...older, headSha: "cccccccccccccccccccccccccccccccccccccccc" }] }) })
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [unrelatedHead.check],
+      { behind_by: 0 }, null, { runs: [unrelatedHead.run, { ...older, headSha: "cccccccccccccccccccccccccccccccccccccccc" }] }) })
+  const olderCancellation = isolatedCancellation(60)
   check(TOOL, "a cancellation of an older head cannot authorize a current-head rerun", ciArgv,
     { status: 1, stdout: /"verdict": "CI_FAILING"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [cancelledCheck],
-      { behind_by: 0 }, null, { runs: [{ ...cancelled, headSha: olderHead }, older] }) })
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [olderCancellation.check],
+      { behind_by: 0 }, null, { runs: [{ ...olderCancellation.run, headSha: olderHead }, older] }) })
 
   const unprotectedResponse = {
     message: "Branch not protected",
