@@ -34,6 +34,7 @@ const {
   mockUseGamificationProfile,
   mockPatchProfile,
   mockRouterPush,
+  mockSetAstraConversationOpen,
   mockProfileState,
   mockSearchParams,
   mockStepUpVerified,
@@ -52,6 +53,7 @@ const {
   mockPatchProfile: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
+  mockSetAstraConversationOpen: vi.fn(),
   mockSearchParams: { current: {} },
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
@@ -135,8 +137,8 @@ vi.mock('@/stores/auth-store', () => {
 })
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: () => void }) => unknown) =>
-    selector({ setAstraConversationOpen: vi.fn() }),
+  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mockSetAstraConversationOpen }) => unknown) =>
+    selector({ setAstraConversationOpen: mockSetAstraConversationOpen }),
 }))
 
 vi.mock('@/hooks/use-offline', () => ({
@@ -444,6 +446,7 @@ describe('ProfileScreen', () => {
     mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
+    mockSetAstraConversationOpen.mockClear()
     vi.mocked(beginStepUpChallenge).mockClear()
     mockAuthState.user.userId = 'user-1'
     mockSearchParams.current = {}
@@ -1247,7 +1250,8 @@ describe('ProfileScreen', () => {
       findRowByLabel(tree, 'profile.support.title').props.onPress?.()
       await Promise.resolve()
     })
-    expect(mockRouterPush).toHaveBeenCalledWith('/support')
+    expect(mockSetAstraConversationOpen).toHaveBeenCalledWith(true, 'support')
+    expect(mockRouterPush).not.toHaveBeenCalled()
     mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
