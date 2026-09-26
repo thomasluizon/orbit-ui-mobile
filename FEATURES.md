@@ -1,8 +1,8 @@
 # Orbit tool inventory
 
 > **At a glance** - counts for deployed Astra and MCP tools.
-> Verified against `thomasluizon/orbit-api` `main` at
-> `fb61d9214db8919d5b80ece4cb885f8788ceaae9` on 2026-09-13.
+> Counts are pinned to `thomasluizon/orbit-api` commit
+> `fb61d9214db8919d5b80ece4cb885f8788ceaae9`; recount after API changes.
 
 ## Astra AI
 

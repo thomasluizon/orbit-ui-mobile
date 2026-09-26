@@ -1,5 +1,5 @@
 > **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults.
-> - Anchor (D68, 2026-08-14): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**, granted 2026-08-16. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
+> - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
 > - Scales: type, spacing (enumerated, gated by `local/spacing-scale`), radius, motion. Ships light AND dark, **two variants, not twelve**; mobile-first 412px shell.
@@ -14,10 +14,10 @@
 
 It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for the `orbit-landing-page` mirror. A rule is cross-platform unless it names a platform.
 
-**Provenance.** The direction is the 2026-08-05 direction ADR, amended by D68 (2026-08-14). The mechanical rules come from the 2026-07-17 harvest of 193 external design skills, plus 45 skill files and one component library read live on 2026-08-15. The implement-or-reject verdict for every one of those inputs is recorded on ticket `#36`, not here: this document is the guidance, and which external source it came from does not change how a surface gets built. Where this document and the granted canvas disagree, **the drawing wins and this prose is the defect** (D42).
+**Authority (D42).** Where this document and the granted canvas disagree below Information architecture and Bans, the drawing wins.
 
-**D42, amended 2026-08-25: there are exactly two sources, this document and the granted canvas.**
-Thomas granted the twenty-one-screen Claude Design export on 2026-08-25. It is committed at
+**D42: there are exactly two sources, this document and the granted canvas.**
+The twenty-one-screen Claude Design export is committed at
 `design/canvas/`, with the design system's 174 token values under
 `design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`.
 
@@ -35,27 +35,18 @@ Thomas granted the twenty-one-screen Claude Design export on 2026-08-25. It is c
 
 Read the drawing for the surface you are building before you read the section here that describes it.
 
-**`design/superseded/reference.html` is STALE and carries no authority** (2026-08-25). It predates the canvas
-and disagrees with it, for instance on `--primary-hover`, where it lightens the accent on hover while
-the canvas darkens it. It is moved to `design/superseded/`; only historical and asset-context
-citations point there, and no authority consumer does. The earlier wording of D42, which scoped
-authority to that page, is withdrawn.
+**`design/superseded/reference.html` carries no authority.** Use the granted canvas.
 
-An export Thomas has NOT granted also carries no authority. The eleven documents from the pass that
-predates `## Information architecture` are quarantined in `design/canvas/superseded/`: they draw a
-habit tracker with a chat tab, still show Goals and Retrospective as separate screens, and one ships
-a habit-limit figure that exists nowhere in the code. Never build from them.
+An export without a grant carries no authority. Never build from `design/canvas/superseded/`.
 
-**Known canvas defect:** `Orbit Calendario.dc.html` draws a `linear-gradient`, which rule 2 makes
-non-authoritative. Filed as `#370` and corrected at source.
+**Canvas precedence:** a `linear-gradient` in `Orbit Calendario.dc.html` is non-authoritative under rule 2. See `#370`.
 
 **Every sentence below changes an implementation choice.** Nothing here is advice.
 
 ## Information architecture
 
 Every other section says how a surface looks. **This one says what a surface is for**, and it wins
-when the two disagree about whether a surface should exist at all. Decided with Thomas in the
-attended session of 2026-08-16, recorded in the vault as D69 and D70.
+when the two disagree about whether a surface should exist at all. This decision is recorded as D69 and D70.
 
 ### The positioning, written as a test
 
@@ -101,23 +92,16 @@ client asks for them deliberately.
 | **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil | composer above the tab bar, on all four |
 | **web** | sidebar, the same four | composer pinned at the bottom of the 740 column, on all four |
 
-**No drawer and no hamburger on either platform.** Material 3's own guidance is to swap the drawer
-for a navigation bar at compact breakpoints, Apple's tab-bar guidance says five or fewer, and the
-measured evidence against hidden navigation has been one-directional since 2016. A composer present
-on every screen is strictly more discoverable than one tab out of four, which is the whole reason
-Astra does not take a slot.
+**No drawer and no hamburger on either platform.** The composer stays visible on every primary screen.
 
 **The conversation renders as an overlay on mobile and as a side panel at the wide breakpoint.** That
 is one feature in two presentations, which the responsive rules already govern. It is **not** a new
 shell divergence.
 
-**The composer sits in the same place on both platforms: pinned to the bottom of the content column**
-(corrected 2026-08-16). It was briefly specified into the web sidebar, and drawn that way it is
-wrong twice over. A 232px rail cannot hold an input, 3 to 6 chips and a send control without every
-one of them shrinking below its own minimum, and putting the front door somewhere the mobile build
-has no equivalent for manufactures a divergence the parity contract does not allow. The sidebar
-carries navigation and identity only: the lockup, the search control, the four destinations, the one
-filled create action, and the account row.
+**The composer sits in the same place on both platforms: pinned to the bottom of the content column.**
+A 232px sidebar cannot hold the input, 3 to 6 chips and send control at their minimum sizes.
+The sidebar carries navigation and identity only: the lockup, search control, four destinations,
+one filled create action, and account row.
 
 **The way in must be visible.** Focus alone is not an affordance, so the Astra glyph at the head of
 the composer is a real button with a 44px target, a hover state and a focus ring, labelled
@@ -146,8 +130,7 @@ for, and building that instead is the defect.
 
 ### The month completion rate has one definition
 
-Decided 2026-08-18, because Calendario computed it and correctly flagged that no endpoint states the
-window, which means the next surface would compute a different number from the same data.
+One client definition is required because no endpoint supplies this window.
 
 **The rate is completions divided by scheduled OCCURRENCES, counting only days that had something
 scheduled**, up to and including today in the current month, and the whole month for a past month
@@ -183,7 +166,7 @@ The **periodic retrospective is delivered here**, on a cadence, and has no navig
 there is nothing worth saying, nothing fires, which is what deletes its empty and no-data states
 structurally rather than by designing them.
 
-**The line replaces itself. It never dismisses and it never persists** (decided 2026-08-16). The slot
+**The line replaces itself. It never dismisses and it never persists.** The slot
 carries the single most relevant thing Astra noticed, and acting on it advances the slot to the next
 thing. There is no dismiss control, because the audience is a person who is already overwhelmed and a
 dismiss control makes the top of the busiest screen one more chore. There is no persistence either,
@@ -273,7 +256,7 @@ Designing any of these is the defect, not the omission.
 
 - **The `/insights` route.** Its figures fold into **Progresso**, at most four of them, each answering one question and built from `StatTile`, `ProgressBar` and `ProgressRing`. One granted bar chart shows the shape of the month window above those figures. The streak surface is itself no longer a destination, so it cannot receive them.
 
-**One chart, granted 2026-09-25.** Neutral bars per day show completion in Progresso and Astra. This grants one `BarChart`, not a chart gallery.
+**One chart.** Neutral bars per day show completion in Progresso and Astra. This grants one `BarChart`, not a chart gallery.
 - **The retrospective's empty, locked and no-data screens.** It is an event now, so they are
   unreachable.
 - **Six of the seven celebration overlays.** One component, four triggers: a streak milestone, a goal
@@ -319,7 +302,7 @@ It does **not** come from a background gradient, a glow, decorative background o
 
 Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `createTokensV2` in `apps/mobile/lib/theme.ts`; shared ramp data in `packages/shared/src/theme/`.
 
-**OKLCH is the derivation space. Hex and `rgba()` are the authored notation.** Derive every value in OKLCH, then write the resolved hex or `rgba()` into the token source. Never author an `oklch()` literal in a shared token or a mobile style: `@react-native/normalize-colors` parses `hex`, `rgb`, `rgba`, `hsl`, `hsla` and `hwb`, and has **no `oklch` branch** (read from the installed package, 2026-08-15), so an `oklch()` token is a runtime failure on Android and breaks the parity contract.
+**OKLCH is the derivation space. Hex and `rgba()` are the authored notation.** Derive every value in OKLCH, then write the resolved hex or `rgba()` into the token source. Never author an `oklch()` literal in a shared token or a mobile style: `@react-native/normalize-colors` parses `hex`, `rgb`, `rgba`, `hsl`, `hsla` and `hwb`, and has **no `oklch` branch**, so an `oklch()` token is a runtime failure on Android and breaks the parity contract.
 
 **A token carrying alpha cannot be contrast-checked on its own.** Its rendered value depends on what sits behind it. Every alpha token below therefore records the hex it resolves to over the canvas, and any surface that can sit over arbitrary content is authored **opaque**.
 
@@ -338,11 +321,12 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 - **`text-box: trim-both cap alphabetic` on badges, chips and pill labels**, so text sits optically centred rather than low. Progressive enhancement; unsupported browsers keep the default leading. Web only.
 - **Light text on a dark surface is compensated on three axes**: add `0.01em` tracking, add `0.05` to the line-height, and add one weight step where the face needs it. This is the legibility check that the maximum-contrast target requires, and it answers the halation risk the direction ADR recorded.
 
-**There is no serif. Cut by Thomas against the rendered reference, 2026-08-15.** Instrument Serif was carried as D68 decision 9's provisional fourth family on warm surfaces. It is dropped, so **the direction ADR's ban on a display serif as a second warmth source stands unamended**, and D68 decision 9 resolves to "cut". Three families is the whole system. A warm surface gets its warmth from space, size and the mark, never from a second face.
+**There is no serif.** D68 decision 9 resolves to "cut". Three families is the whole system.
+A warm surface gets its warmth from space, size and the mark, never from a second face.
 
 ### Spacing (base 4)
 
-**The scale is these ten values and nothing else** (chosen by Thomas against the rendered reference, 2026-08-15):
+**The scale is these ten values and nothing else**:
 
 ```
 0  4  8  12  16  24  32  48  64  96
@@ -427,18 +411,17 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 ```
 
 **The accent fill darkens on hover, and it has to.** `--primary-hover` was `#CD6939`, the fill mixed
-12 percent toward white. Measured 2026-08-17: white on `#CD6939` is **3.70:1**, under the 4.5 text
+12 percent toward white. White on `#CD6939` is **3.70:1**, under the 4.5 text
 floor, on the primary button, which always carries a white label. The fill itself is only **4.57:1**
 with white, so there is no headroom to lighten it by any amount. The hover therefore moves the other
 way, `#B74E12`, and the ladder reads monotonically: rest **4.57**, hover **5.11**, pressed **6.09**.
-This is the one place the design system's own "one step" hover rule was applied without measuring the
-step, and the measurement reversed its direction.
+The hover step must preserve the 4.5 text floor.
 
 **The canvas is near-black, not pure black.** `#09090B` is the measured Pierre value; Linear sits at `#08090a`. White on `#09090B` is 19.90:1 against 21.00:1 on pure black, so the contrast cost is 5% and the halation cost is real. Maximum contrast is a floor plus a legibility check, never "as much as possible".
 
-**The neutral ramp is effectively hueless and stays that way.** Every neutral carries chroma at or below 0.006, which is below the nameable threshold, and holds one hue end to end. A ramp that does not lean on the accent hue does not have to be re-derived the next time the accent moves, which is the cost this redesign just paid.
+**The neutral ramp is effectively hueless and stays that way.** Every neutral carries chroma at or below 0.006, which is below the nameable threshold, and holds one hue end to end. A ramp that does not lean on the accent hue does not have to be re-derived the next time the accent moves, so an accent change does not force a neutral-ramp change.
 
-**`--status-frozen` is retired as a hue.** Measured 2026-08-15: the old `#00D3F3` sits 12.0 degrees from the new accent, inside the 15-degree band where two hues read as one colour, so streak-freeze and done would have looked like the same state. **Frozen renders as a neutral chip plus the snowflake glyph, on a DAY and never on a habit.** This removes a colour from the system, and the no-colour-only rule already required the glyph.
+**`--status-frozen` is retired as a hue.** The old `#00D3F3` sits 12.0 degrees from the new accent, inside the 15-degree band where two hues read as one colour, so streak-freeze and done would have looked like the same state. **Frozen renders as a neutral chip plus the snowflake glyph, on a DAY and never on a habit.** This removes a colour from the system, and the no-colour-only rule already required the glyph.
 
 **`--status-done` is the second status neutralised, on the same precedent.** It was `var(--primary)`, so the brand colour and the completed state were one byte. Three rules in this document already forbade that: derivation rule 6's 15-degree separation, the accent note's "a static element rendered in the accent is as misleading as an interactive one rendered neutral", and "fill exactly one action per view", which a six-habit list with four done broke six times over. **Done now renders as an `--fg-1` disc with a filled check.** The neutral status ranking is done `--fg-1`, frozen `--fg-2`, skip `--fg-3`, empty `--track-empty`, so all four neutral statuses can share one column and stay distinguishable.
 
@@ -474,8 +457,8 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 `--fg-on-primary` are mode-independent**, because the fill is dark and its label is white in both
 variants, so nothing about a white page changes how that button should darken. `--primary-dim` is
 different in kind: it is a mix **with the canvas**, so leaving it unrepointed gave light mode the
-dark-mode value `#261611`, a near-black wash painted onto a white card. That is what a selected
-`PlanCard` rendered in light until 2026-08-17.
+dark-mode value `#261611`, a near-black wash painted onto a white card.
+A selected `PlanCard` must use the light-mode value.
 
 **The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. Its next value, `#946A00`, cleared the canvas but missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint both `ExpiryWarning` mirrors paint session-expiry text on. That tint is DERIVED FROM THIS TOKEN, so it darkens with it and has to be solved together rather than measured once. It is now `#886100` at **hue 81.1**, which clears the accent by **36.3 degrees**, measures 5.36:1 on `#FAFAFA`, and carries white at 5.59:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
 
@@ -485,8 +468,7 @@ floor. The explicit white override measures 5.59:1 on the current fill.
 
 ### Measured contrast, with the remaining limits closed
 
-Measured 2026-08-17 against every surface in the ladder, not just the canvas, because that is where
-the misses are. The widget card and widget well are the flattened surfaces produced by
+Contrast is measured against every reachable surface in the ladder, including raised surfaces. The widget card and widget well are the flattened surfaces produced by
 `apps/mobile/scripts/generate-widget-colors.ts`. `text` uses the 4.5 floor and `graphic` uses 3.0.
 Every scope below is derived from those floors and the measured ratios.
 
@@ -518,14 +500,14 @@ field, a well, an elevated panel or a hovered surface. It clears 4.5:1 on every 
 both modes; where accent is not deliberately rationed, emphasis on a raised surface stays a weight
 step rather than a hue.
 
-**Closed 2026-09-10: light `--status-overdue` text on the well and hover surfaces.** `#946A00`
+**Contrast rule: light `--status-overdue` text on the well and hover surfaces.** `#946A00`
 measured 4.26:1 on the well, 4.11:1 on hover, 4.31:1 on the widget well and 4.12:1 on the 10
-percent overdue tint, all below the 4.5 text floor. Thomas moved it along constant OKLCH hue to
+percent overdue tint, all below the 4.5 text floor. It uses constant OKLCH hue at
 `#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the well, 4.73 on hover,
 4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
 separation from the accent still clears derivation rule 6.
 
-**Closed 2026-09-11: `--status-bad-text` on every surface its consumers reach.** The fill and
+**Contrast rule: `--status-bad-text` on every surface its consumers reach.** The fill and
 graphic token `--status-bad` remains `#FB2C36` dark and `#E7000B` light. Its former duplicate text
 value missed the floor on wells, overlays and hover surfaces. The consumer sweep found text on the
 canvas, card, field, well, opaque overlay, elevated inline step, replacement hover, an elevated
@@ -546,11 +528,9 @@ component contains both, its glyph and words take separate colors. The shared th
 every direct fill-token reference and asserts the mixed warning glyphs take an explicit fill role, so
 a new text consumer cannot silently reuse the fill role and a glyph cannot inherit the text role.
 
-**Closed 2026-09-10, corrected 2026-09-10: `--fg-4` as an empty graphic above the canvas, dark and
-light.** `--fg-4` measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below
-the 3.0 non-text floor. Thomas kept `--fg-4` unchanged and added the dedicated `--track-empty`
-neutral, derived at constant OKLCH hue and chroma from `--fg-4` in each mode. The first derivation
-measured only the flat canvas and replacement hover. The shipped consumers also reach a hover child
+**Contrast rule: `--fg-4` is an empty graphic only on the canvas, dark and light.** `--fg-4` measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below
+the 3.0 non-text floor. `--fg-4` stays unchanged; use the dedicated `--track-empty`
+neutral, derived at constant OKLCH hue and chroma from `--fg-4` in each mode. Consumers also reach a hover child
 inside a card and selection tint over both the canvas and a card. Range endpoints now apply that
 selection tint once, at the range slot, while the cell keeps its primary selected ring.
 
@@ -565,10 +545,7 @@ unreachable rather than derivation inputs. `--status-empty` resolves through the
 The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2.83; light 17.36,
 9.99, 5.54, 3.99 and 3.48 for done, frozen, skip, empty and `--fg-4`.
 
-**Closed 2026-09-09: `--fg-3` on a hovered surface, dark.** It measured **4.40** and missed the 4.5
-text floor, and this document proposed taking `--bg-hover` from alpha 0.14 to 0.12 as the cheapest
-fix. **That proposal was wrong, and the value is now 0.13.** Two rules bound the alpha from opposite
-sides, and only one value satisfies both:
+**Contrast rule: `--fg-3` on a hovered surface, dark.** `--bg-hover` uses alpha 0.13. The text floor and hover-step floor bound it from opposite sides:
 
 | alpha | hover surface | step above `--bg-card` | `--fg-3` on it |
 |---|---|---|---|
@@ -603,8 +580,8 @@ one is a trap, not an authority, so the two never move apart.
 
 ### The accent: warm orange `#C4530F`, granted
 
-**Granted by Thomas on 2026-08-16: warm orange `#C4530F`, hue 45.** Rose `#BF4D8A` is **retired**, and
-emerald was discarded earlier the same week. There is one accent and no shortlist.
+**Granted accent: warm orange `#C4530F`, hue 45.** Rose `#BF4D8A` is **retired**, and
+emerald is also excluded. There is one accent and no shortlist.
 
 The treatment is **a dark fill with white on it**, in both modes. `--primary` is the lightest value at
 which white still clears 4.5 on it, so `--fg-on-primary` is always `#FFFFFF`. The light-fill
@@ -629,7 +606,7 @@ failure.
 | `--primary-text` | **rationed accent text on raised surfaces** | it on every reachable raised surface >= 4.5 |
 | `--fg-on-primary` | whatever sits on the fill | 4.5 on the fill |
 
-**One fill treatment, settled 2026-08-15: a dark fill with white on it.** `--primary` is the lightest value at which white still clears 4.5 on it, and `--fg-on-primary` is always `#FFFFFF`. The light-fill alternative, a bright fill carrying the canvas ink, was rendered and rejected by looking.
+**One fill treatment: a dark fill with white on it.** `--primary` is the lightest value at which white still clears 4.5 on it, and `--fg-on-primary` is always `#FFFFFF`.
 
 Consequences that hold either way:
 
@@ -680,7 +657,7 @@ Consequences that hold either way:
 #### Icons
 
 - **Tabler**, always through the per-platform barrel `@/components/ui/icons`. Never a direct `@tabler/*` or `lucide-*` import: the barrel wraps Tabler to one prop shape so a future set swap is one file. `no-restricted-imports` enforces this.
-- **Sizes are the set's native grid: 16, 20, 24. The default is 24.** Tabler is drawn on a 24 grid (`width="24" height="24"`, read from the source 2026-08-15), so an off-grid size such as 22 renders with fractional scaling and looks soft. Inline with text, size to about 1em to 1.25em so the pair scales together.
+- **Sizes are the set's native grid: 16, 20, 24. The default is 24.** Tabler is drawn on a 24 grid (`width="24" height="24"`), so an off-grid size such as 22 renders with fractional scaling and looks soft. Inline with text, size to about 1em to 1.25em so the pair scales together.
 - **Stroke matches the optical weight of the adjacent text**, on the 24 grid: `1.5` beside 400-weight text at 14 to 16, `2` beside 500 and 600, `2.5` beside 700 or an emphasised standalone glyph. Tabler's own default is 2. One stroke strategy per surface; never mix icon sets on one toolbar.
 - **One SVG, recoloured per state.** Icons use `currentColor` and take their states from colour and opacity, never from separate assets. Strip any hardcoded `fill` on import.
 - **Outline is the default; fill marks the active state.** Use the pair to communicate state, not interchangeably.
@@ -693,7 +670,7 @@ Consequences that hold either way:
 
 Use the semantic roles, not raw sizes.
 
-**thomasluizon/orbit-tickets#421, 2026-09-05: the Pro drawing's type pairs are named roles.**
+**thomasluizon/orbit-tickets#421: the Pro drawing's type pairs are named roles.**
 `display-heading` is Space Grotesk 500, -0.02em, fg-1: 28px/1.18 in the compact
 shell and 34px/1.15 wide. `allowance` is Space Grotesk 600, -0.02em, fg-1, tabular:
 34px/1.05 compact and 44px/1.02 wide. These values come from
@@ -814,7 +791,7 @@ One primitive covers the drawer, sheet, dialog and modal. It presents as a botto
 
 ### The library, per platform
 
-| platform | library | read live 2026-08-15 |
+| platform | library | version and contract |
 |---|---|---|
 | **web** | **`@base-ui/react`**, `Dialog` from the `./dialog` subpath | 1.7.0, MIT, `github.com/mui/base-ui`, peer `react ^19` |
 | **mobile** | **`@lodev09/react-native-true-sheet`** | 3.11.3, already installed |
@@ -899,9 +876,9 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 - **Sub-habit rows:** indent, smaller well, dimmer text. **Zero connector or tree lines.**
 - **The per-row overflow menu stays.**
 - **Habit emoji render in full colour.**
-- **There is no habit colour system. Colour-as-data is dead** (decided 2026-08-16). D30's curated palette of about 8 habit colours and D31's monochrome emoji tinted by that colour are both **rejected**, not deferred. Reason: the accent is rationed to exactly four roles and every status is already unbound from it and rendered in neutrals, so adding 8 more meaning-bearing colours reopens the "the accent does six jobs on one screen" defect this redesign exists to close. A habit is told apart by its emoji, its name and its ring, and by nothing else.
+- **There is no habit colour system. Colour-as-data is dead**. D30's curated palette of about 8 habit colours and D31's monochrome emoji tinted by that colour are both **rejected**, not deferred. Reason: the accent is rationed to exactly four roles and every status is already unbound from it and rendered in neutrals, so adding 8 more meaning-bearing colours reopens the "the accent does six jobs on one screen" defect this redesign exists to close. A habit is told apart by its emoji, its name and its ring, and by nothing else.
 - **A row's status lives in its trailing ring, and never in the accent.** Done is an `--fg-1` disc with a filled check; empty is an `--status-empty` track; overdue takes `--status-overdue`; a bad habit takes `--status-bad`. A day the person cannot log renders the dot dimmed and not tappable, and a parent renders a done-over-total ring instead of a dot. The accent enters this column only on progress toward something unfinished.
-- **A habit row is never frozen and never skipped** (traced from source 2026-08-17). `StreakFreeze` is `(UserId, UsedOnDate)`, so a freeze marks a **day** for a **user** and `Habit` carries no freeze member at all. Frozen renders on the streak day strip inside Progresso and nowhere else. Skipping advances the schedule, so the row leaves the day rather than taking a status; only a flexible habit even writes a log row for it. `--status-frozen` therefore serves the day strip only, and `--status-skip` binds to no habit-row state. This is the specification that produced a frozen habit on the first composed screen, so it is stated as a prohibition rather than an omission. `--status-skip` was deleted with the R5 row work on 2026-08-31 under ticket #50 decision 11, and no new surface may use it.
+- **A habit row is never frozen and never skipped** . `StreakFreeze` is `(UserId, UsedOnDate)`, so a freeze marks a **day** for a **user** and `Habit` carries no freeze member at all. Frozen renders on the streak day strip inside Progresso and nowhere else. Skipping advances the schedule, so the row leaves the day rather than taking a status; only a flexible habit even writes a log row for it. `--status-frozen` therefore serves the day strip only, and `--status-skip` binds to no habit-row state. `--status-skip` binds to no habit-row state, and no new surface may use it.
 - **Never animate the habit list's data while the user is reading or acting on it.**
 
 ## Listing
@@ -953,7 +930,7 @@ A collection whose item count can exceed 20 declares its "too many" behaviour be
 
 - **Strings stay short:** 1 to 2 words on buttons, chips, tabs and labels. Sentences live only in body, description and empty-state copy.
 - **Say it once.** No header restating the intro beneath it. Each element does exactly one job.
-- **Ban supporting copy by default.** Do not add a subtitle, a helper line, or a descriptive sentence beneath a heading, a label, a card, or a settings row. Prefer one concise, self-explanatory heading. Add supporting copy only when Thomas asks for it, or when it genuinely prevents a misunderstanding or an error, and **never** to restate the heading above it. **The form-field carve-out is explicit and survives unchanged:** an input still carries a visible, persistent label, and its helper text still lives in the markup, per "a placeholder is never a field's only label" in **Accessibility**. The two rules are not in conflict, because a field label is not supporting copy.
+- **Ban supporting copy by default.** Do not add a subtitle, a helper line, or a descriptive sentence beneath a heading, a label, a card, or a settings row. Prefer one concise, self-explanatory heading. Add supporting copy only when it is explicitly required, or when it genuinely prevents a misunderstanding or an error, and **never** to restate the heading above it. **The form-field carve-out is explicit and survives unchanged:** an input still carries a visible, persistent label, and its helper text still lives in the markup, per "a placeholder is never a field's only label" in **Accessibility**. The two rules are not in conflict, because a field label is not supporting copy.
 - **Name every control by what the person controls**, never by how the system is built.
 - **A settings toggle is labelled for its ON state.** "Send read receipts", never "Don't send read receipts". Link directly to a referenced setting rather than describing the path to it.
 - **One capitalization policy per element type.** Sentence case is the default. **Store copy in natural case and control presentation with `text-transform`.** Never type UPPERCASE into a string.
@@ -1004,7 +981,7 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 
 - At the desktop breakpoint, content composes **horizontally**. A single stretched mobile column is a defect, not a layout.
 - **The main content column caps at about 740px and is centred.**
-- **The right stats rail is deleted** (2026-08-16, D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. **The width goes to the conversation panel**, which is the wide-breakpoint presentation of the same overlay mobile opens from the composer.
+- **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. **The width goes to the conversation panel**, which is the wide-breakpoint presentation of the same overlay mobile opens from the composer.
 - **Sidebar:** grounded at the bottom with the account chip and a create button above it, on the canvas background with a hairline as its only separation.
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
@@ -1078,7 +1055,7 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 
 **A clickable thing with no hover state is a defect.** A hover transition is feedback, not decoration, so the frequency gate does not suppress it: the gate subtracts animations that play at you, and a hover state answers you. Every interactive element carries one.
 
-**A hover reads slower than a press.** The durations below are deliberately longer than the movement scale: a press is a confirmation and wants to be immediate, while a hover is an invitation and wants to arrive. These values were set by feel against the rendered reference, not derived. Thomas chose the slowest of three rendered options on 2026-08-15.
+**A hover reads slower than a press.** The durations below are deliberately longer than the movement scale: a press is a confirmation and wants to be immediate, while a hover is an invitation and wants to arrive. Use the durations below.
 
 | target | duration | what changes |
 |---|---|---|
@@ -1086,7 +1063,7 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 | a control (button, chip, segmented control, icon button) | **240ms** | fill or label colour only |
 | a link | **380ms** | colour, plus an underline scaling from the leading edge |
 
-- **Hover is its own surface role and is never borrowed from the elevation ladder.** The ladder's steps are sized for stacking, not for being seen against one particular resting surface. Measured 2026-08-15: `--bg-elev` against a resting `--bg-card` is **1.09:1**, which reads as nothing on a near-black canvas; `--bg-hover` is **1.26:1** at its 2026-09-09 value, which reads. **A hover step must clear 1.25:1 against the surface it replaces.** If a role has no token, add the token rather than borrowing one whose value looks right today.
+- **Hover is its own surface role and is never borrowed from the elevation ladder.** The ladder's steps are sized for stacking, not for being seen against one particular resting surface. `--bg-elev` against a resting `--bg-card` is **1.09:1**, which reads as nothing on a near-black canvas; `--bg-hover` is **1.26:1** , which reads. **A hover step must clear 1.25:1 against the surface it replaces.** If a role has no token, add the token rather than borrowing one whose value looks right today.
 - **Only an interactive surface gets a hover state.** A static card that lights up under the pointer advertises a click that does nothing. This is the "controls distinct from content" rule read in the other direction, and it is the more common half to get wrong.
 - **A container suppresses its own hover while the pointer is on an interactive descendant.** Otherwise a button inside a card lights both, and the pointer appears to be in two places at once. On web, `:hover:not(:has(button:hover, a:hover, [role="button"]:hover))`.
 - **Declare the transition on the base rule, never inside `:hover`.** A transition declared inside `:hover` applies on the way in and not on the way out, so the state arrives smoothly and snaps away. That single mistake is most of what makes an interface feel cheap.
@@ -1291,7 +1268,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 
 **Prose is not enforcement.** The rules above split three ways.
 
-**Grant 1 landed on 2026-08-16**, so every row below marked "after grant 1" is now unblocked and owes a pull request. The accent bytes and the spacing scale are both settled, which is what those rules encode.
+The accent bytes and spacing scale are settled. The gate status table below records their enforcement.
 
 **A `local/*` rule ships at `error` with zero violations, or it does not ship.** There is no suppression baseline and no `warn` tier. A rule whose violation set is still open is not ready to land, and recording those violations rather than fixing them turns the gate into a backlog that a constant satisfies forever. The earlier design shipped each rule at `error` over a committed `eslint-suppressions.json` that only had to shrink, and it never did; both baselines and the ratchet that read them are deleted. `tools/check-lint-severity.mjs` backs the required `Lint Severity` context and fails on seven things: an `eslint-suppressions.json` anywhere in the tree, any file a `--suppressions-location` flag names, a `local/*` rule at `warn`, a `local/*` rule at `off` outside the five scoped blocks the tool declares by name, an inventoried ESLint config that is missing, a change to an inventoried config's global ignores or local rule block scopes, and an ESLint config the inventory does not name that carries top-level ignores or a `local/*` rule block. Widening one of those blocks fails too, so the exception list is closed rather than open.
 
