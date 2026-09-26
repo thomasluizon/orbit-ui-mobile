@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
+import { ApiClientError } from '@orbit/shared'
 
 import { CalendarPickerSection } from '@/app/calendar-picker-section'
 import { createStyles } from '@/app/calendar-sync-styles'
@@ -120,6 +121,19 @@ describe('mobile CalendarPickerSection', () => {
       { id: 'cal-1', isSynced: false },
       expect.anything(),
     )
+  })
+
+  it('shows textless recovery when saving a calendar is blocked', () => {
+    mocks.calendars = [buildCalendar()]
+    const found = switches(render(true))
+
+    TestRenderer.act(() => {
+      ;(found[0]!.props.onPress as () => void)()
+      const options = mocks.mutate.mock.calls[0]?.[1] as { onError: (error: unknown) => void }
+      options.onError(new ApiClientError(403, 'Forbidden'))
+    })
+
+    expect(mocks.showError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry')
   })
 
   it('renders the empty state when no calendars are returned', () => {

@@ -59,7 +59,7 @@ export function resolveDisplayedErrorMessage(
       input.queryError,
       input.translate,
       "calendar.fetchError",
-      "generic",
+      "textless",
     )
   }
   return ""

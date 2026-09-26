@@ -48,7 +48,7 @@ export interface DisplayedErrorMessageInput {
 export function resolveDisplayedErrorMessage(input: DisplayedErrorMessageInput): string {
   if (input.wizardStage === 'error') return input.errorMessage
   if (input.isQueryError) {
-    return getFriendlyErrorMessage(input.queryError, input.translate, 'calendar.fetchError', 'generic')
+    return getFriendlyErrorMessage(input.queryError, input.translate, 'calendar.fetchError', 'textless')
   }
   return ''
 }
