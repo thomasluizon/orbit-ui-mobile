@@ -112,6 +112,7 @@ const mocks = vi.hoisted(() => {
 
   const getCurrentConnectivity = vi.fn(() => Promise.resolve(online))
   const captureError = vi.fn()
+  const addDrop = vi.fn()
 
   return {
     queued,
@@ -137,6 +138,7 @@ const mocks = vi.hoisted(() => {
     apiClient,
     getCurrentConnectivity,
     captureError,
+    addDrop,
   }
 })
 
@@ -156,7 +158,7 @@ vi.mock('@/lib/offline-queue', () => ({
 
 vi.mock('@/stores/offline-sync-store', () => ({
   useOfflineSyncStore: {
-    getState: () => ({ addDrop: vi.fn() }),
+    getState: () => ({ addDrop: mocks.addDrop }),
     setState: vi.fn(),
   },
 }))
@@ -216,6 +218,7 @@ describe('offline mutations', () => {
     )
     mocks.getCurrentConnectivity.mockClear()
     mocks.captureError.mockClear()
+    mocks.addDrop.mockClear()
     cancelScheduledFlush()
   })
 
@@ -1493,6 +1496,8 @@ describe('offline mutations', () => {
 
     it('removes an orphan habit from a reorder and sends the remaining positions', async () => {
       mocks.setOnline(true)
+      const drops: string[] = []
+      const unsubscribe = subscribeDroppedMutations((dropped) => drops.push(dropped.id))
       const mutation = {
         ...buildQueuedMutation({
           type: 'reorderHabits',
@@ -1510,13 +1515,14 @@ describe('offline mutations', () => {
       mocks.queued.push(mutation)
 
       const result = await flushQueuedMutations()
+      unsubscribe()
 
       expect(result.succeeded).toBe(1)
+      expect(result.failed).toBe(0)
       expect(result.remaining).toBe(0)
-      expect(result.droppedMutations).toMatchObject([{
-        id: mutation.id,
-        lastError: 'Removed orphan habit IDs from reorder positions',
-      }])
+      expect(result.droppedMutations).toEqual([])
+      expect(drops).toEqual([])
+      expect(mocks.addDrop).not.toHaveBeenCalled()
       expect(mocks.apiClient).toHaveBeenCalledTimes(1)
       expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/reorder', {
         method: 'PUT',
@@ -1524,10 +1530,60 @@ describe('offline mutations', () => {
         idempotencyKey: mutation.id,
       }, undefined)
       expect(mocks.captureError).toHaveBeenCalledTimes(1)
+      expect(mocks.captureError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Offline mutation reorderHabits: pruned orphan positions (1)' }),
+      )
+    })
+
+    it('reports a real failure after pruning an orphan habit from a reorder', async () => {
+      mocks.setOnline(true)
+      const drops: string[] = []
+      const unsubscribe = subscribeDroppedMutations((dropped) => drops.push(dropped.id))
+      const mutation = {
+        ...buildQueuedMutation({
+          type: 'reorderHabits',
+          scope: 'habits',
+          endpoint: '/api/habits/reorder',
+          method: 'PUT',
+          payload: { positions: [
+            { habitId: 'offline-habit-orphan', position: 0 },
+            { habitId: 'habit-2', position: 1 },
+          ] },
+          dedupeKey: 'habits:reorder',
+        }),
+        timestamp: Date.now() - 24 * 60 * 60 * 1000 - 1,
+      }
+      mocks.queued.push(mutation)
+      mocks.apiClient.mockRejectedValueOnce(new Error('400 validation failed'))
+
+      const result = await flushQueuedMutations()
+      unsubscribe()
+
+      expect(result.succeeded).toBe(0)
+      expect(result.failed).toBe(1)
+      expect(result.droppedMutations).toMatchObject([{
+        id: mutation.id,
+        lastError: '400 validation failed',
+      }])
+      expect(drops).toEqual([mutation.id])
+      expect(mocks.addDrop).toHaveBeenCalledTimes(1)
+      expect(mocks.addDrop).toHaveBeenCalledWith(expect.objectContaining({
+        id: mutation.id,
+        lastError: '400 validation failed',
+      }))
+      expect(mocks.captureError).toHaveBeenCalledTimes(2)
+      expect(mocks.captureError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Offline mutation reorderHabits: pruned orphan positions (1)' }),
+      )
+      expect(mocks.captureError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Offline mutation dropped: reorderHabits: 400 validation failed' }),
+      )
     })
 
     it('does not send a reorder when every position is orphaned', async () => {
       mocks.setOnline(true)
+      const drops: string[] = []
+      const unsubscribe = subscribeDroppedMutations((dropped) => drops.push(dropped.id))
       mocks.queued.push({
         ...buildQueuedMutation({
           type: 'reorderHabits',
@@ -1540,9 +1596,12 @@ describe('offline mutations', () => {
       })
 
       const result = await flushQueuedMutations()
+      unsubscribe()
 
       expect(result.remaining).toBe(0)
       expect(result.droppedMutations[0]?.lastError).toBe('No resolvable habit positions remain in reorder')
+      expect(drops).toHaveLength(1)
+      expect(mocks.addDrop).toHaveBeenCalledTimes(1)
       expect(mocks.apiClient).not.toHaveBeenCalled()
     })
 

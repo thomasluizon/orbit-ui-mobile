@@ -740,19 +740,19 @@ function getExpiredOrphanDependencies(
 function removeOrphanReorderPositions(
   mutation: PersistedQueuedMutation,
   orphans: string[],
-): { mutation: PersistedQueuedMutation; dropped: DroppedMutation | null } {
+): PersistedQueuedMutation {
   if (mutation.type !== 'reorderHabits' || !orphans.every((id) => id.startsWith('offline-habit-'))) {
-    return { mutation, dropped: null }
+    return mutation
   }
   const parsed = reorderHabitsRequestSchema.safeParse(mutation.payload)
-  if (!parsed.success) return { mutation, dropped: null }
+  if (!parsed.success) return mutation
   const positions = parsed.data.positions.filter((position) => !orphans.includes(position.habitId))
-  if (positions.length === 0) return { mutation, dropped: null }
+  if (positions.length === 0 || positions.length === parsed.data.positions.length) return mutation
 
-  const dropped = describeDroppedMutation(mutation, 'Removed orphan habit IDs from reorder positions')
   const updated = { ...mutation, payload: { positions } }
   update(mutation.id, { payload: updated.payload })
-  return { mutation: updated, dropped }
+  captureError(new Error(`Offline mutation reorderHabits: pruned orphan positions (${parsed.data.positions.length - positions.length})`))
+  return updated
 }
 
 async function prepareQueuedMutationFlush(
@@ -760,19 +760,16 @@ async function prepareQueuedMutationFlush(
   pendingDependencies: string[],
   touchedScopes: Set<MutationScope>,
 ): Promise<
-  | { mutation: PersistedQueuedMutation; partialDrop: DroppedMutation | null; step?: never }
-  | { step: FlushStepResult; mutation?: never; partialDrop?: never }
+  | { mutation: PersistedQueuedMutation; step?: never }
+  | { step: FlushStepResult; mutation?: never }
 > {
   let mutation = currentMutation
   let dependencies = pendingDependencies
-  let partialDrop: DroppedMutation | null = null
 
   if (dependencies.length > 0) {
     const orphans = getExpiredOrphanDependencies(mutation, dependencies)
     if (orphans.length > 0) {
-      const pruned = removeOrphanReorderPositions(mutation, orphans)
-      mutation = pruned.mutation
-      partialDrop = pruned.dropped
+      mutation = removeOrphanReorderPositions(mutation, orphans)
       dependencies = getPendingOfflineDependencies(mutation)
       if (orphans.some((id) => dependencies.includes(id))) {
         const dropped = await dropQueuedMutation(
@@ -787,10 +784,10 @@ async function prepareQueuedMutationFlush(
     }
     if (dependencies.length > 0) {
       update(mutation.id, { status: 'pending', lastError: null })
-      return { step: { failedDelta: partialDrop ? 1 : 0, stopReason: null, succeededDelta: 0, dropped: partialDrop } }
+      return { step: { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null } }
     }
   }
-  return { mutation, partialDrop }
+  return { mutation }
 }
 
 async function processQueuedMutationFlush(
@@ -812,13 +809,11 @@ async function processQueuedMutationFlush(
   }
 
   let mutation = await resolveMutationReferences(currentMutation)
-  let partialDrop: DroppedMutation | null = null
   const dependencies = getPendingOfflineDependencies(mutation)
   if (dependencies.length > 0) {
     const prepared = await prepareQueuedMutationFlush(mutation, dependencies, touchedScopes)
     if (prepared.step) return prepared.step
     mutation = prepared.mutation
-    partialDrop = prepared.partialDrop
   }
 
   await markMutationSyncing(mutation)
@@ -835,14 +830,14 @@ async function processQueuedMutationFlush(
     )
 
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
-    return { failedDelta: partialDrop ? 1 : 0, stopReason: null, succeededDelta: 1, dropped: partialDrop }
+    return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
   } catch (error: unknown) {
     const failure = await handleFlushFailure(mutation, error, touchedScopes)
     return {
       failedDelta: failure.incrementFailed ? 1 : 0,
       stopReason: failure.stopReason,
       succeededDelta: 0,
-      dropped: failure.dropped ?? partialDrop,
+      dropped: failure.dropped,
     }
   }
 }
