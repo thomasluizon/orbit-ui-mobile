@@ -51,6 +51,16 @@ describe('checklist item keys', () => {
     expect(edited.keys).toEqual(state.keys)
   })
 
+  it('never gives two rows one key when an item returns beside the copy that took its key', () => {
+    const { state, knownKeys } = setup()
+    const copy = { ...original[0]! }
+    const replaced = transition(state, [copy, original[1]!], knownKeys)
+    expect(replaced.keys).toEqual(state.keys)
+    const both = transition(replaced, [original[0]!, copy, original[1]!], knownKeys)
+    expect(new Set(both.keys).size).toBe(3)
+    expect(both.keys.slice(1)).toEqual(state.keys)
+  })
+
   it('issues a new key for an added item', () => {
     const { state, knownKeys } = setup()
     const added = transition(state, [...original, { text: 'Third', isChecked: false }], knownKeys)
