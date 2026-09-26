@@ -14,6 +14,7 @@ import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkHandoffCommit, checkHandoffStop, gitCommitDirectory } from "./_lib/rules-handoff.mjs"
+import { newestCommittedPrompt, promptsForCommit } from "./_lib/handoff-git.mjs"
 import { parseHandoffRequest, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "../../tools/lib/handoff-prompt.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
@@ -1498,12 +1499,15 @@ T("handoff prompt: an attended prompt passes without the sleep block", validateH
 T("handoff prompt: an attended prompt must not start with a slash command", validateHandoffPrompt(goodSleepPrompt, { sleep: false }).length, 1)
 T("handoff prompt: the previous prompt must be given dispositions", validateHandoffPrompt(goodSleepPrompt.replace("## Previous prompt, disposition", "## History"), { sleep: true }).some((item) => item.includes("Previous prompt")), true)
 T("handoff prompt: an unrecorded mode checks only the shared rules", validateHandoffPrompt(goodSleepPrompt, {}), [])
+T("handoff prompt: a blank line before /sleep fails the literal first line", validateHandoffPrompt(`\n${goodSleepPrompt}`, { sleep: true }).some((item) => item.includes("/sleep")), true)
+T("handoff prompt: an indented /sleep fails the literal first line", validateHandoffPrompt(goodSleepPrompt.replace("/sleep\n", "  /sleep\n"), { sleep: true }).some((item) => item.includes("/sleep")), true)
 
-const handoffCommit = (command, request, text) => checkHandoffCommit({ command, cwd: "/repo", request, promptForCommit: () => text })
+const handoffCommit = (command, request, text) => checkHandoffCommit({ command, cwd: "/repo", request, promptsForCommit: () => (text === null ? [] : [text]) })
 T("handoff commit: a sleep request refuses a prompt without /sleep", blocks(handoffCommit("git commit -m docs -- .claude/handoffs/NEXT.md", { sleep: true }, goodSleepPrompt.replace("/sleep\n", "# NEXT\n"))), true)
 T("handoff commit: a sleep request accepts a complete prompt", handoffCommit("git commit -m docs -- .claude/handoffs/NEXT.md", { sleep: true }, goodSleepPrompt), null)
 T("handoff commit: a commit that leaves NEXT.md alone passes", handoffCommit("git commit -m fix -- src/a.ts", { sleep: true }, null), null)
 T("handoff commit: a command that commits nothing passes", handoffCommit("git status --short", { sleep: true }, "anything"), null)
+T("handoff commit: a failing working copy blocks even when the staged prompt passes", blocks(checkHandoffCommit({ command: "git commit -m docs", cwd: "/repo", request: { sleep: true }, promptsForCommit: () => [goodSleepPrompt, attendedPrompt] })), true)
 T("handoff commit: -C names the directory the commit runs in", gitCommitDirectory("git -C /other/repo commit -m x", "/repo"), "/other/repo")
 
 T("handoff stop: a failing prompt committed after the request refuses the stop", blocks(checkHandoffStop({ request: { sleep: true, recordedAt: "2026-01-01T10:00:00Z" }, headPrompt: attendedPrompt, headPromptCommittedAt: "2026-01-01T10:05:00Z" })), true)
@@ -1515,6 +1519,37 @@ mkdirSync(join(handoffRepo, ".git"), { recursive: true })
 recordHandoffRequest("s-handoff", { command: "wrap-up", sleep: true }, "2026-01-01T10:00:00Z", handoffRepo)
 T("handoff request: a recorded request reads back for its session", readHandoffRequest("s-handoff", handoffRepo), { command: "wrap-up", sleep: true, recordedAt: "2026-01-01T10:00:00Z" })
 T("handoff request: another session sees no request", readHandoffRequest("s-other", handoffRepo), null)
+
+const handoffGitRepo = mkdtempSync(join(tmpdir(), "orbit-handoff-git-"))
+const inHandoffRepo = (...args) => spawnSync("git", ["-C", handoffGitRepo, ...args], { encoding: "utf8" })
+inHandoffRepo("init", "-q", "-b", "integration")
+inHandoffRepo("config", "user.email", "hooks@test.invalid")
+inHandoffRepo("config", "user.name", "hooks")
+mkdirSync(join(handoffGitRepo, ".claude", "handoffs"), { recursive: true })
+const handoffFile = join(handoffGitRepo, ".claude", "handoffs", "NEXT.md")
+writeFileSync(handoffFile, attendedPrompt)
+inHandoffRepo("add", ".")
+inHandoffRepo("commit", "-q", "-m", "handoff")
+T("handoff git: an unchanged NEXT.md yields no version to judge", promptsForCommit(handoffGitRepo), [])
+writeFileSync(handoffFile, "# NEXT\n")
+T("handoff git: an unstaged edit yields the working copy", promptsForCommit(handoffGitRepo), ["# NEXT\n"])
+const handoffHook = join(hooksDir, "require-handoff-prompt.mjs")
+const handoffHookRun = (command) => spawnSync(process.execPath, [handoffHook], { input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s-handoff-none", cwd: handoffGitRepo, tool_input: { command } }), encoding: "utf8" }).status
+T("handoff hook: a directory pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- .claude/handoffs"), 2)
+T("handoff hook: a glob pathspec commit of an invalid prompt is refused", handoffHookRun("git commit -m x -- '.claude/*'"), 2)
+inHandoffRepo("add", ".")
+writeFileSync(handoffFile, attendedPrompt)
+T("handoff git: a staged edit and a different working copy yield both versions", promptsForCommit(handoffGitRepo), ["# NEXT\n", attendedPrompt])
+T("handoff hook: an index-only commit of a staged invalid prompt is refused", handoffHookRun("git commit -m x"), 2)
+inHandoffRepo("add", ".")
+T("handoff hook: a commit that leaves a valid prompt passes", handoffHookRun("git commit -m x -- .claude/handoffs"), 0)
+inHandoffRepo("checkout", "-q", "-b", "feature", "HEAD~0")
+inHandoffRepo("checkout", "-q", "integration")
+writeFileSync(handoffFile, goodSleepPrompt)
+spawnSync("git", ["-C", handoffGitRepo, "commit", "-q", "-am", "sleep handoff"], { encoding: "utf8", env: { ...process.env, GIT_COMMITTER_DATE: "2030-01-01T00:00:00Z" } })
+inHandoffRepo("checkout", "-q", "feature")
+T("handoff git: the newest committed prompt is read from another branch", newestCommittedPrompt(handoffGitRepo).text, goodSleepPrompt)
+rmSync(handoffGitRepo, { recursive: true, force: true })
 
 const timelessHook = join(hooksDir, "forbid-stale-text.mjs")
 T("relative sibling roots resolve from the primary checkout", siblingRoots.includes(join(primaryCommonDirectory, "..", "..", "orbit-api")), true)

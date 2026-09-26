@@ -22,16 +22,17 @@ const describe = (missing, mode) =>
 const modeOf = (request) => (request?.sleep ? "--sleep" : request ? "attended" : "unrecorded")
 
 /**
- * A commit that includes NEXT.md must carry a prompt that complies with the recorded request.
- * `promptForCommit` returns the text the commit would record, or null when the commit leaves NEXT.md alone.
+ * Every NEXT.md version a commit could record must comply with the recorded request.
+ * `promptsForCommit` returns those versions for the commit's directory, empty when NEXT.md is unchanged.
  */
-export const checkHandoffCommit = ({ command, cwd, request, promptForCommit }) => {
+export const checkHandoffCommit = ({ command, cwd, request, promptsForCommit }) => {
   const directory = gitCommitDirectory(command, cwd)
   if (!directory) return null
-  const text = promptForCommit(directory, command)
-  if (text === null) return null
-  const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined })
-  return missing.length === 0 ? null : { block: true, message: describe(missing, modeOf(request)) }
+  for (const text of promptsForCommit(directory)) {
+    const missing = validateHandoffPrompt(text, { sleep: request ? request.sleep === true : undefined })
+    if (missing.length > 0) return { block: true, message: describe(missing, modeOf(request)) }
+  }
+  return null
 }
 
 /** After a recorded request, a NEXT.md committed since that request must comply before the session may stop. */
