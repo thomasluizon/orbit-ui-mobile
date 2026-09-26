@@ -4,7 +4,7 @@ import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 
 const storage = vi.hoisted(() => ({
   getItem: vi.fn(() => Promise.resolve(null as string | null)),
-  setItem: vi.fn(() => Promise.resolve()),
+  setItem: vi.fn((_key: string, _value: string) => Promise.resolve()),
   removeItem: vi.fn(() => Promise.resolve()),
 }))
 
@@ -71,5 +71,27 @@ describe('offline sync store', () => {
     useOfflineSyncStore.getState().addDrop(saved)
     await useOfflineSyncStore.persist.rehydrate()
     expect(useOfflineSyncStore.getState().drops).toEqual([saved])
+  })
+
+  it('does not restore a dismissed delete notice after rehydration', async () => {
+    const deleted = drop('deleted')
+    const unrelated = drop('unrelated')
+    useOfflineSyncStore.getState().addDrop(deleted)
+    useOfflineSyncStore.getState().addDrop(unrelated)
+    expect(useOfflineSyncStore.getState().drops.map((entry) => entry.id)).toEqual([
+      'deleted', 'unrelated',
+    ])
+
+    useOfflineSyncStore.getState().dismissDrop(deleted.id)
+    expect(useOfflineSyncStore.getState().drops.map((entry) => entry.id)).toEqual(['unrelated'])
+    const saved = storage.setItem.mock.lastCall?.[1]
+    expect(saved).toBeDefined()
+    if (!saved) throw new Error('Expected a persisted notice snapshot')
+    expect(JSON.parse(saved).state.drops.map((entry: DroppedMutation) => entry.id)).toEqual(['unrelated'])
+
+    useOfflineSyncStore.setState({ drops: [] })
+    storage.getItem.mockResolvedValueOnce(saved)
+    await useOfflineSyncStore.persist.rehydrate()
+    expect(useOfflineSyncStore.getState().drops.map((entry) => entry.id)).toEqual(['unrelated'])
   })
 })

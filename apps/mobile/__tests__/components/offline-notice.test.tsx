@@ -168,9 +168,11 @@ describe('OfflineNotice', () => {
     mocks.store.drops = []
 
     TestRenderer.act(() => action(tree, 'common.syncRetryAction').props.onPress())
+    TestRenderer.act(() => tree.update(<OfflineNotice />))
 
     expect(mocks.enqueue).not.toHaveBeenCalled()
     expect(mocks.store.dismissDrop).not.toHaveBeenCalled()
+    expect(tree.toJSON()).toBeNull()
   })
 
   it('opens habit creation for an orphaned log and dismisses it after recovery', () => {

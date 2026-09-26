@@ -79,6 +79,7 @@ import {
   useReviewReminderStore,
 } from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
@@ -473,7 +474,10 @@ export function useDeleteHabit() {
               void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
               void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
             }
-            if (outcome === 'dropped') restoreHabit.mutate({ habitId, reconcileNotFound: true })
+            if (outcome === 'dropped') {
+              useOfflineSyncStore.getState().dismissDrop(data.queuedMutationId)
+              restoreHabit.mutate({ habitId, reconcileNotFound: true })
+            }
             else if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
           })
           return
@@ -890,6 +894,7 @@ export function useBulkDeleteHabits() {
               void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
             }
             if (outcome === 'dropped') {
+              useOfflineSyncStore.getState().dismissDrop(result.queuedMutationId)
               for (const habitId of restoreIds) restoreHabit.mutate({ habitId, reconcileNotFound: true })
             } else if (outcome === 'replayed' || outcome === 'uncertain') {
               for (const habitId of restoreIds) restoreHabit.mutate(habitId)

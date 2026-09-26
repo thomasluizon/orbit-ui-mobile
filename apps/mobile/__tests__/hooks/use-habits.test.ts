@@ -24,6 +24,16 @@ import {
   useUpdateHabit,
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+
+const storage = vi.hoisted(() => ({
+  getItem: vi.fn(() => Promise.resolve(null as string | null)),
+  setItem: vi.fn(() => Promise.resolve()),
+  removeItem: vi.fn(() => Promise.resolve()),
+}))
+
+vi.mock('@react-native-async-storage/async-storage', () => ({ default: storage }))
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -377,6 +387,8 @@ describe('mobile habit hooks', () => {
     mocks.showUndoToast.mockClear()
     mocks.restoreHabitMutate.mockClear()
     mocks.cancelQueuedDeleteForUndo.mockClear()
+    useOfflineSyncStore.setState({ drops: [] })
+    storage.setItem.mockClear()
   })
 
   it('counts every bulk-completed habit toward the review floor at mutate time', async () => {
@@ -829,6 +841,14 @@ describe('mobile habit hooks', () => {
     >
     const context = await mutation.onMutate?.('habit-1')
     mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('dropped')
+    useOfflineSyncStore.getState().addDrop({
+      id: 'mutation-1', type: 'deleteHabit', lastError: 'response lost',
+      mutation: mocks.buildQueuedMutation({
+        type: 'deleteHabit', scope: 'habits', endpoint: API.habits.delete('habit-1'),
+        method: 'DELETE', payload: null,
+      }),
+    })
+    expect(useOfflineSyncStore.getState().drops.map((drop) => drop.id)).toEqual(['mutation-1'])
     mutation.onSuccess?.({ queued: true, queuedMutationId: 'mutation-1' }, 'habit-1', context)
 
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
@@ -837,6 +857,10 @@ describe('mobile habit hooks', () => {
     await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith({
       habitId: 'habit-1', reconcileNotFound: true,
     }))
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(storage.setItem).toHaveBeenLastCalledWith(
+      '@orbit/offline-sync-notices', expect.stringContaining('"drops":[]'),
+    )
     await vi.waitFor(() => expect(listInvalidationCount()).toBe(2))
     expect(serverHasHabit).toBe(true)
     expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
@@ -1476,6 +1500,14 @@ describe('mobile habit hooks', () => {
     >
     const context = await mutation.onMutate?.(['habit-1', 'habit-2'])
     mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('dropped')
+    useOfflineSyncStore.getState().addDrop({
+      id: 'mutation-1', type: 'bulkDeleteHabits', lastError: 'response lost',
+      mutation: mocks.buildQueuedMutation({
+        type: 'bulkDeleteHabits', scope: 'habits', endpoint: API.habits.bulk,
+        method: 'DELETE', payload: { habitIds: ['habit-1', 'habit-2'] },
+      }),
+    })
+    expect(useOfflineSyncStore.getState().drops.map((drop) => drop.id)).toEqual(['mutation-1'])
     mutation.onSuccess?.({
       results: [
         { status: 'Success', habitId: 'habit-1' },
@@ -1489,6 +1521,10 @@ describe('mobile habit hooks', () => {
     performUndo()
 
     await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2))
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(storage.setItem).toHaveBeenLastCalledWith(
+      '@orbit/offline-sync-notices', expect.stringContaining('"drops":[]'),
+    )
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-1', reconcileNotFound: true })
     expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-2', reconcileNotFound: true })
     await vi.waitFor(() => expect(listInvalidationCount()).toBe(3))
