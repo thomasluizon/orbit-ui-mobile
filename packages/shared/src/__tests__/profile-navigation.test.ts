@@ -16,7 +16,7 @@ describe('profile-navigation', () => {
     ])
   })
 
-  it('keeps only the outbound rows that remain in the profile frame', () => {
+  it('keeps the profile rows and their destinations in display order', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.id)).toEqual([
       'wrapped',
       'android-widget',
@@ -29,9 +29,10 @@ describe('profile-navigation', () => {
       '/wrapped',
       '/advanced',
       '/calendar-sync',
-      '/support',
+      null,
       '/about',
     ])
+    expect(PROFILE_NAV_ITEMS.find((item) => item.id === 'support')?.action).toBe('openSupport')
     expect(PROFILE_NAV_ITEMS.map(({ titleKey, hintKey }) => [titleKey, hintKey])).toEqual([
       ['profile.wrappedTitle', null],
       ['profile.widgetTitle', 'profile.widgetHint'],

@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { useUIStore } from '@/stores/ui-store'
 
 const {
   mockExportUserData,
@@ -170,6 +171,7 @@ import ProfilePage from '@/app/(app)/profile/page'
 
 describe('ProfilePage', () => {
   beforeEach(() => {
+    useUIStore.getState().setAstraConversationOpen(false)
     mockExportUserData.mockReset()
     mockUpdateAiSummary.mockReset()
     mockUpdateProactiveAstra.mockReset()
@@ -244,6 +246,7 @@ describe('ProfilePage', () => {
       'profile.logout',
       'profile.freshStart.button',
       'profile.deleteAccount.button',
+      'profile.support.title',
     ]
 
     for (const name of accessibleNames) {
@@ -253,7 +256,6 @@ describe('ProfilePage', () => {
       'profile.wrappedTitle',
       'profile.widgetTitle',
       'calendar.profileButton',
-      'profile.support.title',
       'profile.sections.aboutHelp',
     ]) {
       expect(screen.getByRole('link', { name: new RegExp(name, 'i') })).toBeInTheDocument()
@@ -312,7 +314,10 @@ describe('ProfilePage', () => {
     const calendarGate = freeMore.getByRole('link', { name: /calendar\.profileButton/i })
     expect(calendarGate).toHaveAttribute('href', '/upgrade')
     expect(calendarGate).not.toHaveAttribute('aria-disabled', 'true')
-    expect(freeMore.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
+    const supportRow = freeMore.getByRole('button', { name: /profile\.support\.title/i })
+    fireEvent.click(supportRow)
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useUIStore.getState().astraEntryPointIntent).toBe('support')
     expect(freeMore.getByRole('link', { name: /profile\.sections\.aboutHelp/i })).toHaveAttribute('href', '/about')
     expect(freeMore.getByText('common.proBadge')).toBeInTheDocument()
 
