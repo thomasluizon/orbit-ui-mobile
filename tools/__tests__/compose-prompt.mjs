@@ -89,6 +89,7 @@ export const cases = () => {
   T(
     `${TOOL}: the local order permits npm ci while banning dependency edits`,
     /`npm ci` is allowed and expected when an installed package is missing/.test(prompt) &&
+      !/NEVER write inside `node_modules`/.test(prompt) &&
       /Never edit installed files by hand/.test(prompt) &&
       /Never\s+run `patch-package`/.test(prompt) &&
       /never stage or commit a\s+path under `node_modules`/.test(prompt) &&
