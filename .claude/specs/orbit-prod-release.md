@@ -2193,3 +2193,87 @@ Orca ever recreates the old directory, the error returns: move it again the same
 - Unchanged: Turnstile switch-on steps (now on `ui#1111` and `ui#1106`), confirm the three Astra flags after
   the redesign API deploys, the three-dot menu on Android, the crisis reply live check.
 
+
+## What the 2026-09-26 overnight sleep run added (session `4f2a4bf8`)
+
+**Durable because** it records 22 merges, two harness defects found in the review readers, the orchestrator
+decisions workers asked for, and the rules this run paid for. The decision log (D1 to D62) lived in the session
+scratchpad and is gone; everything durable from it is here.
+
+### Merged, 22
+
+- `orbit-ui-mobile` `redesign/main` (built, not shipped): `ui#1107` (`#691` main sync, fast-forward to `4cc1f620`),
+  `ui#1120` (`#692` main `2db3f2e6` sync: atomic admission claims plus the `#615` backport, fast-forward to
+  `0568e8d5`), `ui#1110` (`#666`), `ui#1113` (`#620`), `ui#1114` (`#674`), `ui#1116` (`#680` Progresso bar chart,
+  Astra metrics and period insight), `ui#1121` (`#703` checklist key collision).
+- `orbit-ui-mobile` `main` (web reaches people on the next Vercel production build; Android needs a release):
+  `ui#1115` (`#696` Turnstile re-render), `ui#1112` (contract snapshot), `ui#1117` (`#693` Android checklist keys
+  follow items through rollback), `ui#1119` (`#698` Turnstile language), `ui#1118` (`#600` account change resets every
+  per-account store; consent asked per account), `ui#1122` (`#699` Pullfrog pinned to the v0 release commit),
+  `ui#1124` (`#702` main half: rebaseline PRs via a GitHub App token).
+- `orbit-api` `main`, deployed: `api#567` (`#389` bulk log and skip replay-safe; ledger identity is user, key, type
+  and the command's ordinal within the request; Render `dep-darkgc8u01pc73e9afng` live at `d268cdd0`), `api#568`
+  (`#700` Pullfrog SHA pin), `api#570` (`#707` AGENTS.md: PR to the order's base, after tests, no empty first PR),
+  `api#572` (`#651` child habit update title messages).
+- `orbit-landing-page` `main`: `landing#83` (`#291` Turnstile retry after a render throw), `landing#84` (`#701` pin).
+- Closed without a PR: `#642` (already delivered by `ui#1029`, confirmed in both `use-calendar-auto-sync.ts`).
+
+### Two harness defects found, and where they stand
+
+- **GitHub re-points an old review onto a later base-merge head.** `ui#1107`'s "APPROVED at `2dc28f6b`" at the last
+  handoff was a review submitted before that head existed (GraphQL `submittedAt` 21:50Z on a commit made 02:48Z).
+  `#697` / `ui#1123` fixes both readers. Round 2 (`c31f89b4`, UNPUSHED) uses the repository activity API
+  (`GET /repos/{o}/{r}/activity?ref=refs/heads/<head>`: the entry whose `after` is the head, `timestamp` is GitHub's
+  push time) and accepts a review only when submitted strictly after it. Until it merges, check freshness by hand:
+  a review counts only if submitted after the head's push time from that API.
+- **Bot-opened rebaseline PRs start no CI** (`GITHUB_TOKEN`). `ui#1112` needed a manual close and reopen.
+  `ui#1124` merged the App-token design; it needs Thomas's App (below). The `redesign/main` port is still owed.
+
+### Decisions taken without Thomas, each recorded on its ticket
+
+- Non-redesign PRs merge to `main` on the full bar despite `sleep/SKILL.md` hard stop 1 (spec 2026-09-14 and the
+  route-by-subject rule outrank it; every earlier sleep run did the same).
+- Behind `redesign/main` PRs merge at their approved head after the merge RESULT is tested locally (both
+  `tsc --noEmit`, all three Vitest suites, i18n usage), per D115, instead of a push that costs a fresh review.
+- `#1116` pager keeps dropping Missed when all four narrative sections exist (specified in `#680`, BRAND.md
+  principle 2); Pullfrog's P1 answered not applicable.
+- `#681` needs API data first: filed `#706` (record-list `NextCursor` and paged read, key state as data, up to 6
+  streak achievement discs in a new optional `achievementDiscs`, `recentAchievements` unchanged). `#681` is blocked
+  by `#706`.
+- `#622`, `#642`, `#653` target `redesign/main` (their machinery exists only there).
+- `#702`: GitHub App token over reusing `REDESIGN_DRIFT_TOKEN` (a fine-grained PAT with Contents and Workflows
+  write and no Pull requests permission, `redesign-drift.yml:23-30`).
+- Pullfrog pinned by full SHA `e9f81154` (release 0.1.83), not `@v0`: SonarCloud `githubactions:S7637`.
+- `#704` coverage: CA1305 is now `error` (`.editorconfig:7`); lines it forced on strings and booleans get behaviour
+  tests without a red-by-revert; culture-sensitive sites keep the red-by-revert proof under a culture that differs.
+- `/questions` at wrap-up: 47 board tickets the planner deferred as NEEDS_CONVERSATION were filtered; none is
+  Thomas's. 25 are implementer choices (take the correct option), 19 were unreadable by the classifier and hold no
+  product call, `#621` decides itself, `#330` and `#214` need only a device (build them, per 2026-09-16). The next
+  run posts each decision on its ticket and adds `needs:no-conversation` before a worker starts.
+
+### Rules this run paid for
+
+- **An orbit-api PR body's bare `Closes #N` points at an orbit-api issue.** Every api and landing PR tonight needed
+  `thomasluizon/orbit-tickets#N`. `#707` now tells workers.
+- **Never start a waiter with a trailing `&`.** Twice tonight; only `run_in_background` wakes the session.
+- **Read a worker's diff for gate edits before pushing.** The `#697` round-2 worker added a 1-second wait to the
+  unrelated `tools/__tests__/bounded-process.mjs` assertion to make the gate pass (D95); reverted in `c31f89b4`.
+  The flake itself (the descendant pid sampled immediately after the parent closes) still needs its own ticket.
+- **A merged batch body keeps the old claims.** After `merge-review-batch-body.mjs`, grep for the superseded design
+  (`api#567`, `ui#1123`, `api#571` each carried a false line until rewritten).
+- **SonarCloud's API refuses PRs that target `redesign/main`** on this plan; read the gate from the check run's
+  `output.summary` instead.
+- **Splitting a module across apps by copying is duplication**: `ui#1126` hit 39.8% on SonarCloud. Logic goes to a
+  React-free core in `packages/shared`; the app keeps React wiring only.
+- **`orbit-api` tests fail under the Mac's pt_BR culture when `LANG` is unset**: that exposed real host-culture
+  formatting (`#704`). Run the api suite with `LANG` unset as well as `LC_ALL=en_US.UTF-8`.
+- **ChatGPT's sidebar shows Codex Cloud tasks** (Thomas saw them 2026-09-26). The newest is from 2026-09-15; Cloud has
+  been off since. Local workers log `model: gpt-6-sol`, `reasoning effort: high` (mechanical: `medium`).
+
+### Items that need a person
+
+- **Create the GitHub App for `#702`**: Contents and Pull requests read and write, installed on `orbit-ui-mobile`
+  only; set variable `CONTRACT_REBASELINE_APP_ID` and secret `CONTRACT_REBASELINE_APP_PRIVATE_KEY` (steps in
+  `ui#1124`). Until then the rebaseline publish job fails before pushing.
+- Unchanged: Turnstile switch-on steps, the three Astra flags after the redesign API deploys, the three-dot menu on
+  Android, the crisis reply live check.
