@@ -94,6 +94,15 @@ describe('classifySendFailure', () => {
     expect(result.kind).toBe('limit')
   })
 
+  it('classifies a daily Astra 403 PAY_GATE as a limit', () => {
+    const result = classifySendFailure({
+      status: 403,
+      code: 'PAY_GATE',
+      reason: "You've reached your daily AI message limit (5).",
+    })
+    expect(result.kind).toBe('limit')
+  })
+
   it('classifies a premium denial reason as an upgrade', () => {
     const result = classifySendFailure({ status: 403, reason: 'Premium plan required to use AI' })
     expect(result.kind).toBe('upgrade')

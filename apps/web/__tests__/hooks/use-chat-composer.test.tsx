@@ -750,7 +750,7 @@ describe('web useChatComposer streaming send', () => {
 
   it('maps a pre-stream http failure through the same classification', async () => {
     mocks.fetch.mockResolvedValue(
-      Response.json({ error: 'limit reached' }, { status: 403 }),
+      Response.json({ error: "You've reached your daily AI message limit (5).", errorCode: 'PAY_GATE' }, { status: 403 }),
     )
     const { result } = renderHook(() => useChatComposer())
 
@@ -764,6 +764,7 @@ describe('web useChatComposer streaming send', () => {
       content: 'shell.composer.limit.reason:{"allowance":5}',
     })
     expect(result.current.canRetryLastSend).toBe(false)
+    expect(mocks.routerPush).not.toHaveBeenCalledWith('/upgrade')
   })
 
   it('replaces a streamed draft with the daily allowance when the stream reaches the limit', async () => {

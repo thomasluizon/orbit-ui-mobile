@@ -26,6 +26,9 @@ import {
   bulkDeleteResponseSchema,
   bulkLogResultSchema,
   bulkSkipResultSchema,
+  createHabitRequestSchema,
+  updateHabitRequestSchema,
+  validateApiRequest,
 } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { serverAuthMutate } from '@/lib/server-fetch'
@@ -35,10 +38,13 @@ export async function createHabit(
   data: CreateHabitRequest,
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<{ id: string }>> {
-  return wrapServerAction(() => serverAuthMutate(API.habits.create, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }, intendedAccountId))
+  return wrapServerAction(() => {
+    const request = validateApiRequest(data, createHabitRequestSchema)
+    return serverAuthMutate(API.habits.create, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    }, intendedAccountId)
+  })
 }
 
 export async function suggestHabitSetup(
@@ -61,10 +67,13 @@ export async function updateHabit(
   data: UpdateHabitRequest,
   intendedAccountId: string | null,
 ): Promise<ServerActionResult<void>> {
-  return wrapServerAction(() => serverAuthMutate(API.habits.update(habitId), {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }, intendedAccountId))
+  return wrapServerAction(() => {
+    const request = validateApiRequest(data, updateHabitRequestSchema)
+    return serverAuthMutate(API.habits.update(habitId), {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    }, intendedAccountId)
+  })
 }
 
 export async function deleteHabit(

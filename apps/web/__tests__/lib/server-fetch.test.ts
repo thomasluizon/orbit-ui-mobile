@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { serverAuthFetch, serverAuthMutate, serverPublicFetch } from '@/lib/server-fetch'
+import { createHabit, updateHabit } from '@/app/actions/habits'
 import { API } from '@orbit/shared/api'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
@@ -28,29 +29,56 @@ vi.mock('next/headers', () => ({
   cookies: () => Promise.resolve({ get: vi.fn(), set: vi.fn() }),
 }))
 
-vi.mock('@orbit/shared', () => ({
-  createApiClientError: vi.fn((status: number, _payload: unknown, fallbackMessage: string) => {
-    const err = new Error(fallbackMessage)
-    ;(err as Error & { status: number }).status = status
-    ;(err as Error & { name: string }).name = 'ApiClientError'
-    return err
-  }),
-  ApiClientError: class ApiClientError extends Error {
-    status: number
-    code?: string
-    data?: unknown
-    constructor(status: number, message: string, options?: { code?: string; data?: unknown }) {
-      super(message)
-      this.name = 'ApiClientError'
-      this.status = status
-      this.code = options?.code
-      this.data = options?.data
-    }
-  },
-}))
-
 vi.stubGlobal('fetch', mockFetch)
 
+describe('createHabit action error boundary', () => {
+  beforeEach(() => {
+    resolveServerSessionMock.mockReset()
+    mockFetch.mockReset()
+    resolveServerSessionMock.mockResolvedValue({ token: 'test-token', refreshFailed: false })
+  })
+
+  it.each([
+    [400, 'VALIDATION_ERROR', 'Title must be 200 characters or fewer'],
+    [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!'],
+    [429, 'RATE_LIMITED', 'Rate limited'],
+    [500, 'INTERNAL_SERVER_ERROR', 'Server failed'],
+  ])('returns upstream %i details without throwing', async (status, errorCode, message) => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status,
+      json: () => Promise.resolve({ error: message, errorCode }),
+    })
+    await expect(createHabit({ title: 'Test' }, null)).resolves.toMatchObject({
+      ok: false,
+      status,
+      code: errorCode,
+      error: message,
+    })
+  })
+
+  it('returns an uncoded edge 403 from an HTML response', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: () => Promise.reject(new SyntaxError('Unexpected token')),
+    })
+    await expect(createHabit({ title: 'Test' }, null)).resolves.toMatchObject({
+      ok: false,
+      status: 403,
+      error: 'Failed with status 403',
+    })
+  })
+
+  it.each(['create', 'update'])('rejects an overlong %s description before fetch', async (operation) => {
+    const request = { title: 'Test', description: 'x'.repeat(10001), isBadHabit: false }
+    const result = operation === 'create'
+      ? await createHabit(request, null)
+      : await updateHabit('habit-1', request, null)
+    expect(result).toMatchObject({ ok: false, status: 400, code: 'VALIDATION_ERROR' })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+})
 
 describe('serverAuthFetch', () => {
   beforeEach(() => {
