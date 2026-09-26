@@ -322,7 +322,7 @@ The ADRs live in the brain vault under `2 Areas/20-29 Orbit Engineering/Decision
 The open pull request inventory is a snapshot. Refresh it before acting with `gh pr list` in each repository.
 
 - UI redesign: `#1127` account replacement; `#1126` shared hooks; `#1125` account-day gates; `#1123` review head validation; `#1111` Turnstile sign-in.
-- API main: `#574` completion date formatting; `#569` culture formatting.
+- API main: `#574` habit completion date after type changes; `#569` culture formatting.
 - API redesign: `#571` Astra card data and paging.
 - This cleanup is `#711` in Batch 0b. The remaining cleanup tickets are `#708` through `#716` as listed above.
 - The owner must create the GitHub App for `#702` with Contents and Pull requests read/write on `orbit-ui-mobile`, then set `CONTRACT_REBASELINE_APP_ID` and `CONTRACT_REBASELINE_APP_PRIVATE_KEY`.
