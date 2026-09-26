@@ -53,6 +53,7 @@ describe('useUndoToast', () => {
       'undo.action',
       expect.any(Function),
       expect.any(Function),
+      Infinity,
     )
   })
 

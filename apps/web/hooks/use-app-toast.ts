@@ -42,9 +42,10 @@ export function useAppToast() {
       actionLabel?: string,
       onAction?: () => void,
       onClose?: () => void,
+      duration = 6000,
     ): string | number => {
       return toast(message, {
-        duration: actionLabel && onAction ? Infinity : 6000,
+        duration,
         className: 'toast-queued',
         icon: createElement(Clock, { size: 17, strokeWidth: 2.4 }),
         onDismiss: onClose,

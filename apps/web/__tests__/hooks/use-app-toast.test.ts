@@ -42,7 +42,7 @@ describe('useAppToast', () => {
     expect(mockToast).toHaveBeenCalledWith(
       'Queued',
       expect.objectContaining({
-        duration: Infinity,
+        duration: 6000,
         className: 'toast-queued',
         action: {
           label: 'Undo',
@@ -57,6 +57,13 @@ describe('useAppToast', () => {
         className: 'toast-queued',
         action: undefined,
       }),
+    )
+    act(() => {
+      result.current.showQueued('Undo stays available', 'Undo', onUndo, undefined, Infinity)
+    })
+    expect(mockToast).toHaveBeenCalledWith(
+      'Undo stays available',
+      expect.objectContaining({ duration: Infinity }),
     )
   })
 
