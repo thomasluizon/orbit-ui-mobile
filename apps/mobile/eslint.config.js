@@ -66,6 +66,7 @@ const patchedExpoConfig = expoConfigArray.map((c) => {
 })
 
 module.exports = defineConfig([
+  { linterOptions: { reportUnusedDisableDirectives: "error" } },
   ...patchedExpoConfig,
   ...tseslint.configs.recommendedTypeChecked,
   {

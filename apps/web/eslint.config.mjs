@@ -48,6 +48,7 @@ const maxButtonWordControls = [
 ]
 
 export default [
+  { linterOptions: { reportUnusedDisableDirectives: "error" } },
   ...nextConfig,
   ...nextCoreWebVitals,
   ...nextTypeScript,

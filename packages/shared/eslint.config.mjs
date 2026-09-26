@@ -12,6 +12,7 @@ import noUnjustifiedDisable from "../../eslint-rules/no-unjustified-disable.cjs"
 import spacingScale from "../../eslint-rules/spacing-scale.cjs"
 
 export default [
+  { linterOptions: { reportUnusedDisableDirectives: "error" } },
   ...tseslint.configs.recommendedTypeChecked,
   {
     languageOptions: {
