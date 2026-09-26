@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +11,6 @@ import {
 import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
 import {
-  achievementGlyphKey,
   buildGoalMovePositions,
   buildProtectedDayLabels,
   buildStreakWeekDays,
@@ -45,20 +44,11 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { FreezeBank } from '@/components/ui/freeze-bank'
 import {
-  Calendar,
-  Flame,
   Gift,
   Lock,
-  Satellite,
-  Shield,
   Snowflake,
-  Star,
-  Sun,
-  Target,
-  Trophy,
-  Zap,
-  type IconProps,
 } from '@/components/ui/icons'
+import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton } from '@/components/ui/pill-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
@@ -408,27 +398,6 @@ function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
       </WindowFigureGrid>
     </WindowFrame>
   )
-}
-
-const ACHIEVEMENT_GLYPHS: Record<
-  ReturnType<typeof achievementGlyphKey>,
-  ComponentType<IconProps>
-> = {
-  calendar: Calendar,
-  flame: Flame,
-  satellite: Satellite,
-  shield: Shield,
-  star: Star,
-  sun: Sun,
-  target: Target,
-  trophy: Trophy,
-  zap: Zap,
-}
-
-function AchievementMark({ achievement, name, tokens }: Readonly<{ achievement: Achievement; name: string; tokens: AppTokensV2 }>) {
-  const { t } = useTranslation()
-  const Glyph = ACHIEVEMENT_GLYPHS[achievementGlyphKey(achievement.iconKey)]
-  return <View accessibilityRole="image" accessibilityLabel={t(achievement.isEarned ? 'progressScreen.achievements.earnedState' : 'progressScreen.achievements.unearnedState', { name })} style={[styles.achievementMark, achievement.isEarned ? { backgroundColor: tokens.statusDone } : { borderColor: tokens.hairlineStrong, borderWidth: 1.5 }]} testID={`achievement-mark-${achievement.isEarned ? 'earned' : 'unearned'}`}><Glyph size={20} strokeWidth={2} color={achievement.isEarned ? tokens.bg : tokens.fg3} /></View>
 }
 
 function AchievementTile({ achievement, tokens, wide }: Readonly<{ achievement: Achievement; tokens: AppTokensV2; wide: boolean }>) {

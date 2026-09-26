@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { NOTIFICATIONS_REFETCH_INTERVAL, notificationKeys } from '@orbit/shared/query'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import { i18n } from '@/lib/i18n'
+import { apiClient } from '@/lib/api-client'
 
 import {
   useDeleteAllNotifications,
@@ -234,6 +235,29 @@ describe('mobile notification hooks', () => {
     mocks.createQueuedAck.mockClear()
     mocks.isQueuedResult.mockClear()
     mocks.queueOrExecute.mockReset()
+    vi.mocked(apiClient).mockReset()
+  })
+
+  it.each([
+    ['mark one read', () => useMarkNotificationRead(), () => markReadOperation('n-1')],
+    ['mark all read', () => useMarkAllNotificationsRead(), bulkOperation],
+    ['delete one', () => useDeleteNotification(), () => markReadOperation('n-1')],
+    ['delete all', () => useDeleteAllNotifications(), bulkOperation],
+  ] as const)('keeps a %s tied to its account through offline preflight and token loading', async (_name, createMutation, buildOperation) => {
+    const mutation = createMutation() as unknown as MutationConfig<unknown, MarkReadOperation | BulkOperation, unknown>
+    const operation = buildOperation()
+    vi.mocked(apiClient).mockResolvedValue(undefined)
+    mocks.queueOrExecute.mockImplementation(async ({ isCurrent, execute }) => {
+      expect(isCurrent()).toBe(true)
+      await execute({})
+      const requestOptions = vi.mocked(apiClient).mock.lastCall?.[1] as { isCurrent?: () => boolean }
+      expect(requestOptions.isCurrent?.()).toBe(true)
+      session.epoch = 2
+      expect(isCurrent()).toBe(false)
+      expect(requestOptions.isCurrent?.()).toBe(false)
+    })
+
+    await mutation.mutationFn(operation)
   })
 
   it('optimistically marks a notification as read when the mutation is queued offline', async () => {

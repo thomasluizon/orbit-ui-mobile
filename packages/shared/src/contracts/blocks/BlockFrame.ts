@@ -9,6 +9,7 @@ export type BlockFrameItem = {
   readonly id: string
   readonly label: React.ReactNode
   readonly wrapLabel?: boolean
+  readonly wrapMeta?: boolean
   readonly meta?: string
   readonly status?: BlockFrameItemStatus
   readonly statusLabel?: string

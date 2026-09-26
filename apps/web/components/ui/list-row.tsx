@@ -10,7 +10,7 @@ type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
   onClick?: MouseEventHandler<HTMLElement>
 }
 
-function RowBody({ title, wrapTitle, description, icon, value, danger, trailing }: Readonly<Pick<ListRowProps, 'title' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'danger' | 'trailing'>>) {
+function RowBody({ title, wrapTitle, description, icon, value, wrapValue, danger, trailing }: Readonly<Pick<ListRowProps, 'title' | 'wrapTitle' | 'description' | 'icon' | 'value' | 'wrapValue' | 'danger' | 'trailing'>>) {
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return (
@@ -24,7 +24,7 @@ function RowBody({ title, wrapTitle, description, icon, value, danger, trailing 
         <span className={wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
         {description ? <span style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
       </span>
-      {value ? <span className="max-w-[50%] shrink-0 truncate" style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{value}</span> : null}
+      {value ? <span className={`max-w-[50%] shrink-0 ${wrapValue ? 'break-words' : 'truncate'}`} style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{value}</span> : null}
       {trailing ? <span className="flex shrink-0 items-center px-2">{trailing}</span> : null}
     </>
   )

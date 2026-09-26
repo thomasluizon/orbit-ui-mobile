@@ -16,6 +16,11 @@ export const chatClientContextSchema = z.object({
   supportsGoalListCard: z.boolean(),
   supportsMetricsCard: z.boolean().optional(),
   supportsPeriodInsightCard: z.boolean().optional(),
+  supportsDaySummaryCard: z.boolean().optional(),
+  supportsStreakCard: z.boolean().optional(),
+  supportsCalendarCard: z.boolean().optional(),
+  supportsRecordListCard: z.boolean().optional(),
+  supportsAccountRowsCard: z.boolean().optional(),
   entryPointIntent: z.literal('support').optional(),
 })
 
@@ -165,6 +170,10 @@ export const goalListCardItemSchema = z.object({
   target: z.number(),
   unit: z.string(),
   deadline: z.string().nullable().optional(),
+  trackingStatus: z.enum(['on_track', 'at_risk', 'behind', 'no_deadline']).nullable().optional(),
+  progressPercentage: z.number().nullable().optional(),
+  projectedCompletionDate: z.iso.date().nullable().optional(),
+  daysToDeadline: z.number().nullable().optional(),
 })
 
 export type GoalListCardItem = z.infer<typeof goalListCardItemSchema>
@@ -222,6 +231,89 @@ export const periodInsightCardSchema = z.object({
 
 export type PeriodInsightCard = z.infer<typeof periodInsightCardSchema>
 
+export const daySummaryCardSchema = z.object({
+  date: z.iso.date(),
+  due: z.number(),
+  done: z.number(),
+  completionRate: z.number().nullable(),
+  overdueCount: z.number(),
+  currentStreak: z.number(),
+  surfaceId: z.string(),
+})
+
+export type DaySummaryCard = z.infer<typeof daySummaryCardSchema>
+
+const streakAchievementSchema = z.object({
+  id: z.string(),
+  iconKey: z.string(),
+  earnedAt: z.string().nullable(),
+})
+
+export const streakCardSchema = z.object({
+  currentStreak: z.number(),
+  longestStreak: z.number(),
+  level: z.number(),
+  totalXp: z.number(),
+  xpForNextLevel: z.number(),
+  lastActiveDate: z.iso.date().nullable(),
+  isFrozenToday: z.boolean(),
+  recentFreezeDates: z.array(z.iso.date()),
+  recentAchievements: z.array(streakAchievementSchema),
+  surfaceId: z.string(),
+  achievementDiscs: z.array(streakAchievementSchema).nullable().optional(),
+})
+
+export type StreakCard = z.infer<typeof streakCardSchema>
+
+export const calendarCardSchema = z.object({
+  events: z.array(z.object({
+    title: z.string(),
+    start: z.string(),
+    end: z.string().nullable(),
+    isAllDay: z.boolean(),
+  })),
+  sync: z.object({
+    enabled: z.boolean(),
+    status: z.enum(['Idle', 'ReconnectRequired', 'TransientError']),
+    lastSyncedAt: z.string().nullable(),
+  }).nullable().optional(),
+  surfaceId: z.string(),
+})
+
+export type CalendarCard = z.infer<typeof calendarCardSchema>
+
+export const recordListCardSchema = z.object({
+  kind: z.enum(['notifications', 'tags', 'templates', 'keys']),
+  totalCount: z.number(),
+  items: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    detail: z.string().nullable().optional(),
+    date: z.string().nullable().optional(),
+    isRead: z.boolean().nullable().optional(),
+    count: z.number().nullable().optional(),
+    state: z.enum(['active', 'expired', 'revoked']).nullable().optional(),
+  })),
+  surfaceId: z.string().nullable().optional(),
+  nextCursor: z.string().nullable().optional(),
+})
+
+export type RecordListCard = z.infer<typeof recordListCardSchema>
+
+export const accountRowsCardSchema = z.object({
+  kind: z.enum(['profile', 'plan', 'referral']),
+  rows: z.array(z.object({
+    key: z.string(),
+    value: z.string().nullable(),
+    valueType: z.enum(['text', 'date', 'enum', 'boolean', 'count']),
+  })),
+  referralCode: z.string().nullable().optional(),
+  referralLink: z.string().nullable().optional(),
+  surfaceId: z.string(),
+})
+
+export type AccountRowsCard = z.infer<typeof accountRowsCardSchema>
+
 export const chatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'ai']),
@@ -237,6 +329,11 @@ export const chatMessageSchema = z.object({
   goalList: goalListCardSchema.nullable().optional(),
   metricsCard: metricsCardSchema.nullable().optional(),
   periodInsight: periodInsightCardSchema.nullable().optional(),
+  daySummary: daySummaryCardSchema.nullable().optional(),
+  streakCard: streakCardSchema.nullable().optional(),
+  calendarCard: calendarCardSchema.nullable().optional(),
+  recordList: recordListCardSchema.nullable().optional(),
+  accountRows: accountRowsCardSchema.nullable().optional(),
   timestamp: z.date(),
 })
 
@@ -254,6 +351,11 @@ export const chatResponseSchema = z.object({
   goalList: goalListCardSchema.nullable().optional(),
   metricsCard: metricsCardSchema.nullable().optional(),
   periodInsight: periodInsightCardSchema.nullable().optional(),
+  daySummary: daySummaryCardSchema.nullable().optional(),
+  streakCard: streakCardSchema.nullable().optional(),
+  calendarCard: calendarCardSchema.nullable().optional(),
+  recordList: recordListCardSchema.nullable().optional(),
+  accountRows: accountRowsCardSchema.nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

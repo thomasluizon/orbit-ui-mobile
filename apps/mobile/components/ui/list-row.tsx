@@ -17,11 +17,15 @@ function getDisabledStyle(disabled: boolean) {
   return disabled ? styles.disabled : null
 }
 
+function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
+  return <Text style={[styles.value, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
+}
+
 export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { ref, accessibilityLabel, icon, title, wrapTitle, description, value, trailing, danger = false, action, chevron = true, disabled = false, onClick, readOnly = false } = props
+  const { ref, accessibilityLabel, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, disabled = false, onClick, readOnly = false } = props
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
@@ -36,7 +40,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
         <Text numberOfLines={wrapTitle ? undefined : 1} style={[styles.title, { color: titleColor }]}>{title}</Text>
         {description ? <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text> : null}
       </View>
-      {value ? <Text style={[styles.value, { color: tokens.fg3 }]} numberOfLines={1}>{value}</Text> : null}
+      {value ? <RowValue value={value} wrap={wrapValue === true} color={tokens.fg3} /> : null}
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>

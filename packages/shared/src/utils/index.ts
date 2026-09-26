@@ -473,6 +473,7 @@ export { coalesceAgentOperationOutcomes } from './agent-operation-outcomes'
 export type { AgentOperationOutcome } from './agent-operation-outcomes'
 export {
   calculateXpProgress,
+  xpRequiredForLevel,
   deriveGamificationProfileState,
   detectCrossedStreakMilestones,
   detectGamificationMilestones,
