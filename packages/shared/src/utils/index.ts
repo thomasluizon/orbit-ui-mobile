@@ -242,6 +242,7 @@ export type {
 } from './habit-form-helpers'
 export {
   canLogHabitOnDate,
+  getHabitLogDateDecision,
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,

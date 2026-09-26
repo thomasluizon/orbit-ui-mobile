@@ -18,6 +18,7 @@ import {
   getAvailableHabitDetailScopedChild,
   getHabitDetailChildCompletionReason,
   getHabitDetailChildUnavailableReasonKey,
+  getHabitLogDateDecision,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
   isHabitHistoryMonthLoaded,
@@ -269,6 +270,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
+  const [pendingDateLog, setPendingDateLog] = useState<{ habitId: string; intent: 'log' | 'unlog'; date: string } | null>(null)
   const [childToDelete, setChildToDelete] = useState<string | null>(null)
   const pendingToggleKeysRef = useRef(new Set<string>())
   const habit = useMemo(() => detailQuery.data ? mergeHabitDetailWithScopedHabit(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), dateStr, habitsQuery.data?.habitsById.get(habitId)) : null, [allHabitsQuery.data, dateStr, detailQuery.data, habitId, habitsQuery.data])
@@ -327,10 +329,22 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         t('habits.detail.updateError'),
       )
     : Promise.resolve(false)
-  const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog') => {
+  const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog', confirmed = false) => {
     const currentDate = new Date()
     const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
-    if (getTodayBoundary(dateStr, accountToday) === 'read-only') return false
+    const targetHabit = targetHabitId === habitId ? habit
+      : habitsQuery.data?.habitsById.get(targetHabitId) ?? allHabitsQuery.data?.habitsById.get(targetHabitId)
+    const decision = targetHabit
+      ? getHabitLogDateDecision(targetHabit, dateStr, accountToday, profile.timeZone)
+      : 'block'
+    if (decision === 'block') {
+      showError(t('habits.detail.logDateUnavailable'))
+      return false
+    }
+    if (decision === 'confirm' && !confirmed) {
+      setPendingDateLog({ habitId: targetHabitId, intent, date: dateStr })
+      return false
+    }
     const toggleKey = `habit-toggle:${targetHabitId}:${dateStr}`
     const pendingToggleKeys = pendingToggleKeysRef.current
     if (
@@ -418,6 +432,11 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <CreateHabitModal open={createOpen} onClose={() => setCreateOpen(false)} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void setItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
+      <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t('habits.detail.logDateConfirmMessage', { date: pendingDateLog?.date ?? dateStr })} confirmLabel={t('habits.detail.logDateConfirmAction')} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
+        const pending = pendingDateLog
+        setPendingDateLog(null)
+        if (pending?.date === dateStr) void writeLog(pending.habitId, pending.intent, true)
+      }} />
       <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void confirmDelete() }} />
       <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { void confirmChildDelete() }} />
     </FlowShell>

@@ -19,6 +19,7 @@ import {
   getAvailableHabitDetailScopedChild,
   getHabitDetailChildCompletionReason,
   getHabitDetailChildUnavailableReasonKey,
+  getHabitLogDateDecision,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
   isHabitHistoryMonthLoaded,
@@ -294,6 +295,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   const [detailsOpen, setDetailsOpen] = useAccountScopedState(false)
   const [createOpen, setCreateOpen] = useAccountScopedState(false)
   const [confirm, setConfirm] = useAccountScopedState<ConfirmAction>(null)
+  const [pendingDateLog, setPendingDateLog] = useAccountScopedState<{ habitId: string; intent: 'log' | 'unlog'; date: string } | null>(null)
   const [childToDelete, setChildToDelete] = useAccountScopedState<string | null>(null)
   const pendingToggleKeysRef = useRef(new Set<string>())
   useResetOnAccountChange(() => pendingToggleKeysRef.current.clear())
@@ -347,10 +349,22 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         t('habits.detail.updateError'),
       )
     : Promise.resolve(false)
-  const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog') => {
+  const writeLog = async (targetHabitId: string, intent: 'log' | 'unlog', confirmed = false) => {
     const currentDate = new Date()
     const accountToday = formatAPIDateInTimeZone(currentDate, profile.timeZone)
-    if (getTodayBoundary(dateStr, accountToday) === 'read-only') return false
+    const targetHabit = targetHabitId === habitId ? habit
+      : habitsQuery.data?.habitsById.get(targetHabitId) ?? allHabitsQuery.data?.habitsById.get(targetHabitId)
+    const decision = targetHabit
+      ? getHabitLogDateDecision(targetHabit, dateStr, accountToday, profile.timeZone)
+      : 'block'
+    if (decision === 'block') {
+      showError(t('habits.detail.logDateUnavailable'))
+      return false
+    }
+    if (decision === 'confirm' && !confirmed) {
+      setPendingDateLog({ habitId: targetHabitId, intent, date: dateStr })
+      return false
+    }
     const toggleKey = `${targetHabitId}:${dateStr}`
     const pendingToggleKeys = pendingToggleKeysRef.current
     if (pendingToggleKeys.has(toggleKey)) return false
@@ -428,6 +442,11 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void updateItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
+      <ConfirmSheet open={pendingDateLog !== null} title={t('habits.detail.logDateConfirmTitle')} message={t('habits.detail.logDateConfirmMessage', { date: pendingDateLog?.date ?? dateStr })} confirmLabel={t('habits.detail.logDateConfirmAction')} onCancel={() => setPendingDateLog(null)} onConfirm={() => {
+        const pending = pendingDateLog
+        setPendingDateLog(null)
+        if (pending?.date === dateStr) void writeLog(pending.habitId, pending.intent, true)
+      }} />
       <ConfirmSheet open={confirm === 'delete'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void confirmDelete() }} />
       <ConfirmSheet open={confirm === 'delete-child'} title={t('habits.deleteConfirmTitle')} message={t('habits.deleteConfirmMessage')} confirmLabel={t('habits.deleteHabit')} destructive onCancel={() => { setConfirm(null); setChildToDelete(null) }} onConfirm={() => { void confirmChildDelete() }} />
     </FlowShell>

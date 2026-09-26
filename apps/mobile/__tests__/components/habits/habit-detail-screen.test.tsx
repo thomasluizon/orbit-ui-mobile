@@ -1046,6 +1046,37 @@ describe('HabitDetailScreen', () => {
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.logError')
   })
 
+  it.each(['2020-01-01', '2030-01-01'])('rejects an outside date before offline queueing: %s', async (date) => {
+    mocks.log.mockImplementation(({ habitId }: { habitId: string }) => performQueuedApiMutation({
+      type: 'logHabit', scope: 'habits', endpoint: `/api/habits/${habitId}/log`,
+      method: 'POST', payload: { date }, entityType: 'habit', targetEntityId: habitId,
+      dedupeKey: `habit-toggle:${habitId}:${date}`,
+    }))
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date={date} />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'header-log' }).props.onPress()
+      await Promise.resolve()
+    })
+    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.logDateUnavailable')
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(getQueuedMutations()).toEqual([])
+  })
+
+  it('asks before logging a date before the habit existed', async () => {
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
+    mocks.logs = []
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />) })
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
+    expect(mocks.log).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-27', intent: 'log' })
+  })
+
   it('contains and reports a checklist failure', async () => {
     mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
     mocks.checklist.mockRejectedValueOnce(new Error('checklist failed'))

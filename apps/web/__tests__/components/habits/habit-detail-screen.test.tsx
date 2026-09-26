@@ -898,6 +898,17 @@ describe('HabitDetailScreen', () => {
     expect(mocks.showError).toHaveBeenCalledWith('habits.detail.logError')
   })
 
+  it('asks before logging a date before the habit existed', async () => {
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
+    mocks.logs = []
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />)
+    fireEvent.click(screen.getByRole('button', { name: 'log' }))
+    expect(mocks.log).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateConfirmTitle'))
+    await act(async () => Promise.resolve())
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-27', intent: 'log' })
+  })
+
   it('contains and reports a checklist failure', async () => {
     mocks.detail = { ...makeDetail(), checklistItems: [{ text: 'First', isChecked: false }] }
     mocks.checklist.mockRejectedValueOnce(new Error('checklist failed'))
