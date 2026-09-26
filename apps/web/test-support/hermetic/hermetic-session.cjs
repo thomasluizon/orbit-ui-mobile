@@ -8,10 +8,7 @@ function encodeSegment(value) {
 }
 
 /**
- * Mints an unsigned, far-future-`exp` JWT. The BFF never verifies the signature
- * (it only base64url-decodes `exp`), so this authenticates the hermetic session
- * with no signing key and no prod OTP. Minted at runtime to avoid secret-scanner
- * false positives on a committed token.
+ * The BFF only decodes `exp`; runtime minting avoids a committed token.
  * @returns {string} an unsigned JWT the BFF accepts for the hermetic session.
  */
 function mintHermeticJwt() {

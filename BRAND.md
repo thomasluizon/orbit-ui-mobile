@@ -46,7 +46,7 @@ and acts on a routine, rather than an optional destination outside the main expe
 
 ## Relationship to marketing
 
-The stated buyer does not need an ADHD diagnosis. Marketing may use the founder’s ADHD story, and store search metadata keeps its ADHD keywords. Those
+The stated buyer does not need an ADHD diagnosis. Marketing speaks from the founder’s ADHD story, and store search metadata keeps its ADHD keywords. Those
 keywords answer what someone searched for; they do not redefine who qualifies for Orbit.
 
 ADHD may support the story, but the standing promise names the friction. "ADHD-friendly" may be a

@@ -42,11 +42,7 @@ export function useResetOnAccountChange(reset: () => void): void {
   }, [accountGeneration])
 }
 
-/**
- * A `useState` that returns to its initial value the moment the tab moves to another
- * account. Nine rounds of `#1019` each closed one surface and left the next one open,
- * because the reset is a second thing to remember and the state is the first.
- */
+/** Reset local state when the tab changes accounts, including state a caller may forget to clear. */
 export function useAccountScopedState<S>(
   initialState: S | (() => S),
 ): [S, Dispatch<SetStateAction<S>>] {

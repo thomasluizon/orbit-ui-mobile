@@ -1,23 +1,19 @@
 # Orbit brand assets
 
-> **At a glance** - the two real marks and the three type families. `SETUP.md` beside this file holds
-> the Claude Design setup fields and the import checklist.
+> **At a glance** - the two marks and the three type families.
 
-## The marks are FINAL
+## The marks
 
-`orbit-mark.svg` and `astra-mark.svg` replace the draft assets that PR `#735` shipped. Those drafts
-existed only to make the accent decidable and every one of them is deleted. Ticket `#79` owns the
-mark, and these are its output.
+`orbit-mark.svg` and `astra-mark.svg` are the source marks.
 
 | file | what it is |
 |---|---|
 | `orbit-mark.svg` | the Orbit mark. A planet drawn as a ring with an open centre, an orbital band crossing in front low and passing behind at the upper right, and a small solid moon above right |
 | `astra-mark.svg` | the Astra glyph. A letter A carrying the same orbital band and the same solid dot |
 
-**They are told apart by silhouette, not by a detail.** Orbit is a hollow ring; Astra is a solid
-letterform. That distinction survives at 16px, which the old glyph's "circle with a core" did not.
-It supersedes `DESIGN.md`'s "anything with a core is Astra, anything empty in the middle is Orbit",
-which was written for the draft geometry.
+**They are told apart by silhouette.** Orbit is a hollow ring; Astra is a solid
+letterform. That distinction survives at 16px. Use these shapes when applying the mark rule in
+`DESIGN.md`.
 
 Each file is one `fill-rule="evenodd"` path plus, on Orbit, the moon. Both paint with
 `fill="currentColor"` and carry no hex at all, so one file serves every colour the mark is drawn
@@ -35,25 +31,11 @@ Native `<Image source>` puts the file in its own document, where the surrounding
 reach it and the mark renders black. That is why `DESIGN.md` states the rule as "one SVG, recoloured
 per state ... strip any hardcoded `fill` on import": a mark that has to take `--fg-1`, white on an
 accent tile, and the accent itself cannot be an external image. A surface that genuinely needs a
-flat file takes a baked raster from `#80` instead, not one of these two.
+flat file takes a baked raster instead of one of these two.
 
-## Provenance
+The marks were generated privately under a paid Recraft plan with commercial rights.
 
-Generated on Recraft with a paid Basic plan, so both carry full commercial rights and were generated
-privately. Free tier output would have been Recraft owned, public and unlicensed, and could not have
-shipped. This is D68's decision 10 pipeline, with one correction recorded below.
-
-The Orbit mark needed one repair. Its source art carried a thin white crescent inside the planet, and
-the fix merges that sliver into the planet's interior and emits a single hole boundary. Cutting it as
-a second even-odd subpath does not work: overlapping holes XOR back to filled and the sliver returns
-as a hairline.
-
-**D68 names the wrong package.** Its pipeline calls for "the free `logo-generator` Claude skill",
-but the package with that name requires a `GEMINI_API_KEY` and is not free. The zero cost native SVG
-skill is `rknall/claude-skills@svg-logo-designer`. Neither was used in the end, because a diffusion
-model cannot hold exact geometry and Recraft's native vector model can.
-
-## The variants, built by `#365`
+## The variants
 
 | file | what it is |
 |---|---|
@@ -61,11 +43,8 @@ model cannot hold exact geometry and Recraft's native vector model can.
 | `orbit-mark-accent.svg` | the accent treatment: the granted 1024 drawing with `var(--primary)` on the moon and `currentColor` everywhere else |
 | `orbit-lockup.svg` | the horizontal lockup, 28 mark, 12 gap, 22 wordmark, 89.3955 by 17.8827 (exact: 89.395502773 by 17.882739221) |
 
-**There is no 24 grid variant, and there will not be one.** `#365` originally ordered one and this
-list originally promised one. `DESIGN.md:267` overrules both: "Asset sizes are enumerated: 16, 48,
-128, 512. The mark is neither type nor an icon, so it answers to neither the type scale nor the 24
-icon grid." A mark sized to the Tabler grid is a mark being treated as an icon, which is the thing
-that sentence exists to stop. Detail on `#365`.
+**There is no 24 grid variant.** `DESIGN.md` enumerates 16, 48, 128, and 512 as asset sizes.
+The mark is neither type nor an icon, so it does not follow the type scale or the 24 icon grid.
 
 **Pick by size, not by taste.** Below roughly 20px use the 16 pair; above that use the 1024
 originals. The redraw is a simplification, so blowing a 16 up to 128 shows geometry that was chosen
@@ -88,8 +67,7 @@ side bearing, so placing the text origin 12 from the mark would have left a 13.1
 consumer's to add. A logo file that carries its own padding cannot be aligned to anything.
 
 Both numbers are solved from the curve extrema, not measured off a render. A pixel measurement
-rounds to the render grid: the first attempt cropped at 24.300 while the `O`'s overshoot reaches
-24.292, and clipped 0.008 of it at every scale.
+rounds to the render grid and can clip the `O`'s overshoot at 24.292.
 
 **`tools/check-lockup-crop.mjs` holds this.** It parses the committed file, re-solves the bounds and
 fails if any edge is off by more than 1e-6. It runs in `guards.yml` and on pre-commit. The gate reads

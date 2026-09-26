@@ -193,12 +193,7 @@ describe('translateErrorKey (extended)', () => {
     expect(translateErrorKey(translate, '')).toBeNull()
   })
 })
-/**
- * Builds the body `orbit-api` sends for a coded failure: `ErrorResponse` serializes exactly
- * `error` and `errorCode`, and `LocalizedErrorResultFilter` swaps `error` for the localized copy
- * selected by `errorCode`. The English sentences below are read from `ErrorCopy` on
- * `thomasluizon/orbit-api` PR 532 (`feature/ticket-75-emails`).
- */
+/** Model the API response with `error` and `errorCode` for coded failures. */
 function codedError(errorCode: string, error: string) {
   return createApiClientError(400, { error, errorCode }, 'Request failed')
 }
@@ -456,12 +451,7 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
 })
 
 
-/**
- * orbit-api PR 532 rewrites the English sentence behind every error code, so a form error can no
- * longer be recognised by its prose. Each case below sends the REWRITTEN sentence with its code
- * and expects the specific key, never the caller's fallback. Remove the code entry and the case
- * returns `errors.generic`, which is the defect this suite exists to catch.
- */
+/** Error codes must select the form message even when the English sentence changes. */
 describe('getFriendlyErrorKey resolves a rewritten form error by its code', () => {
   it('resolves TITLE_REQUIRED to the habit key in a habit context', () => {
     const err = codedError('TITLE_REQUIRED', 'Give this a title.')

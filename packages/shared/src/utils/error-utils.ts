@@ -284,11 +284,7 @@ function matchesIncludes(msg: string, includes: MessageRule['includes']): boolea
   return includes.every((s) => msg.includes(s))
 }
 
-/**
- * Every rule in `CONTEXTUAL_RULES` names its own field, so the walk runs first and the title
- * fallback answers only what no rule claims. Any rule added below would have hit the same
- * wall, which is why the order is the fix rather than a sub-habit test inside the fallback.
- */
+/** Apply contextual rules before title fallback so named fields retain their specific message. */
 function getContextualMessageKey(
   normalizedMessage: string,
   context: FriendlyErrorContext,

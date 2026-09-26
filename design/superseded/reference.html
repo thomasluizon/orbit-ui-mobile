@@ -42,13 +42,8 @@
   --p-l-hair:rgba(9,9,11,0.08); --p-l-hair-ghost:rgba(9,9,11,0.10); --p-l-hair-strong:rgba(9,9,11,0.16);
   --p-l-fg1:#1A1A1D; --p-l-fg2:#424247; --p-l-fg3:#68686D; --p-l-fg4:#89898D;
 
-  /* --- primitives: the three candidate accents ------------------------
-     One treatment only: a DARK fill with white on it. Each fill is the
-     lightest value at which white still clears 4.5, and each clears 3.0 on
-     the canvas as a graphic. Each -text value clears 4.5 on the canvas, and
-     each -lmtext value clears 4.5 on #FAFAFA.
-     Rose sits at hue 350, not 15: at 15 it was 10 degrees from the
-     destructive red, so the primary CTA and the delete button read alike. */
+  /* Historical candidate accents. Each dark fill clears white text contrast;
+     each text variant clears canvas contrast. Rose at hue 350 avoids red. */
   --p-rose-dark:#BF4D8A;    --p-rose-text:#C2508C;    --p-rose-rgb:191,77,138;    --p-rose-lmtext:#BB4986;
   --p-orange-dark:#C4530F;  --p-orange-text:#C85716;  --p-orange-rgb:196,83,15;   --p-orange-lmtext:#C15109;
   --p-on-fill:#FFFFFF;
@@ -111,7 +106,7 @@
   --fs-xs:12px; --fs-sm:14px; --fs-base:16px; --fs-md:17px; --fs-lg:20px;
   --fs-xl:22px; --fs-2xl:28px; --fs-3xl:34px; --fs-4xl:44px; --fs-5xl:60px;
 
-  /* --- spacing: candidate A, chosen 2026-08-15 ------------------------ */
+  /* --- spacing --------------------------------------------------------- */
   --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px;
   --s-6:32px; --s-7:48px; --s-8:64px; --s-9:96px;
   --pad-card:var(--s-5);   /* a card breathes: 24, not 16 */
@@ -377,7 +372,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 </head>
 <body>
 <div style="background:#C4530F;color:#FFFFFF;padding:24px;font-family:system-ui,sans-serif;font-size:16px;line-height:1.55">
-  <strong style="font-size:20px;display:block;margin-bottom:8px">Grant 1 landed on 2026-08-16. The accent is warm orange <code>#C4530F</code>.</strong>
+  <strong style="font-size:20px;display:block;margin-bottom:8px">The accent is warm orange <code>#C4530F</code>.</strong>
   Rose <code>#BF4D8A</code> is <strong>retired</strong>. Every rose swatch and every side-by-side comparison
   below is <strong>historical</strong>: this page was the artefact for making the choice, and the choice is made.
   Read the rose halves as a record of what was rejected, never as a live option.<br><br>
@@ -406,7 +401,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
 <div class="wrap">
 
   <header style="margin-bottom:var(--s-7)">
-    <p class="sec-n" style="margin-bottom:var(--s-2)">ORBIT DESIGN REFERENCE &middot; TICKET 0 &middot; 2026-08-15</p>
+    <p class="sec-n" style="margin-bottom:var(--s-2)">ORBIT DESIGN REFERENCE</p>
     <h1 style="font-family:var(--font-display);font-size:var(--fs-4xl);line-height:1.05;letter-spacing:-.02em;margin-bottom:var(--s-3)">
       Spacious, near-black, one accent.
     </h1>
@@ -415,7 +410,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
       and the prose is the defect. Everything is hoverable: move the pointer over rows, cards, buttons
       and links to see the transition canon.
     </p>
-    <p class="note">Settled: spacing A &middot; no serif &middot; XP as a row &middot; a dark fill with white text &middot; slow hover, 240ms on a control and 380ms on a surface. Open: orange or rose, and the exact warm-orange byte, which is settled on the Claude Design canvas.</p>
+    <p class="note">This reference is superseded. Use <code>DESIGN.md</code> for current spacing, type, accent, and motion rules.</p>
   </header>
 
   <!-- ================= 1. THE ACCENT ================= -->
@@ -1000,7 +995,7 @@ code,.mono{font-family:var(--font-mono);font-size:var(--fs-xs);letter-spacing:.0
   </section>
 
   <footer class="sec">
-    <p class="note">Derived 2026-08-15 for ticket 0. Zero network requests: fonts are embedded as data URIs.
+    <p class="note">Zero network requests: fonts are embedded as data URIs.
       Every sample consumes a token declared in the single <code>:root</code> block.</p>
   </footer>
 </div>

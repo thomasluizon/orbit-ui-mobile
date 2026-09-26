@@ -15,11 +15,7 @@ const ACCOUNT_SIGNAL_CHANNEL = 'orbit-account-signal'
  */
 const SENTINEL_ACCOUNT = 'sentinel-account'
 
-/**
- * Stands in for a second tab, holding its channel open for the whole file. A channel closed in the
- * turn it posted delivers nothing, which is the defect the module itself was carrying, so a helper
- * that opens and closes one per message would reproduce it here.
- */
+/** Keep the second tab's channel open so posted messages can be delivered. */
 let otherTab: BroadcastChannel | null = null
 
 function getOtherTab(): BroadcastChannel {

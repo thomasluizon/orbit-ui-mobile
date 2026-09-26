@@ -169,11 +169,7 @@ export default [
       "local/no-decorative-glow": "error",
       "local/no-raw-gradient": "error",
 
-      // Staged at `warn`: pre-existing violations that are NOT bundle 5's de-decoration work.
-      // Each needs its own judgement call (a11y fix, motion fix, perf rewrite, React 19
-      // migration), so they are surfaced rather than silenced, and flip to `error` per rule as
-      // its backlog is cleared. Counts + the to-do list are in the bundle 4a report on #539.
-      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+      // Local rules fail immediately when violated.
       "local/animate-presence-exit": "error",
       "local/no-dynamic-tailwind-class": "error",
       "local/no-scroll-listener-motion": "error",

@@ -206,7 +206,7 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors): MarkedStyle
 /**
  * The single mobile markdown renderer for chat messages and habit/goal descriptions. Wraps
  * react-native-marked (same `marked` engine as web for parsing parity), themes it with the
- * navy+violet tokens, and never opens unsafe link schemes.
+ * current theme tokens, and never opens unsafe link schemes.
  */
 export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>) {
   const { currentScheme, currentTheme } = useAppTheme()

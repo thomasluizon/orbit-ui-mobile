@@ -15,12 +15,7 @@ export interface AccountScopedFlagState {
   adoptsLegacy: boolean
 }
 
-/**
- * Reads a once-per-account flag across the rename, so the fix costs nobody a notice they
- * already dismissed. The legacy key names no account, and the account signed in now is the
- * only one this device can attribute it to, so that account inherits it and the key is then
- * consumed.
- */
+/** Attribute an unscoped legacy flag to the signed-in account before consuming it. */
 export function readAccountScopedFlag(
   scopedValue: string | null,
   legacyValue: string | null,

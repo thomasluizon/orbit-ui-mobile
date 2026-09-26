@@ -9,10 +9,7 @@ vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
-/**
- * vi.hoisted, because vi.mock is hoisted above the static import and a plain `const` would not be
- * initialized when the factory runs. The dynamic imports this file used to carry hid that ordering.
- */
+/** `vi.mock` runs before static imports, so these mocks must be hoisted too. */
 const { resolveServerSessionMock, mockFetch } = vi.hoisted(() => ({
   resolveServerSessionMock: vi.fn(),
   mockFetch: vi.fn(),
