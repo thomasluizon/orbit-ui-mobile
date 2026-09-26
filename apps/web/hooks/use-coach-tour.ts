@@ -3,12 +3,13 @@
 import { useEffect, useRef } from 'react'
 import { useTourStore } from '@/stores/tour-store'
 import { useProfile } from '@/hooks/use-profile'
+import { accountStorageKey } from '@/lib/account-storage-key'
 
 const COACH_TOUR_SEEN_KEY = 'orbit_coach_tour_seen'
 
 function readCoachTourSeen(): boolean {
   try {
-    return localStorage.getItem(COACH_TOUR_SEEN_KEY) === 'true'
+    return localStorage.getItem(accountStorageKey(COACH_TOUR_SEEN_KEY)) === 'true'
   } catch {
     return false
   }
@@ -16,7 +17,7 @@ function readCoachTourSeen(): boolean {
 
 function markCoachTourSeen() {
   try {
-    localStorage.setItem(COACH_TOUR_SEEN_KEY, 'true')
+    localStorage.setItem(accountStorageKey(COACH_TOUR_SEEN_KEY), 'true')
   } catch {
     return
   }

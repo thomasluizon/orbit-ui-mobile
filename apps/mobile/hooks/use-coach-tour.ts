@@ -3,6 +3,8 @@ import { useFocusEffect } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTourStore } from '@/stores/tour-store'
 import { useProfile } from '@/hooks/use-profile'
+import { accountStorageKey } from '@/lib/account-storage-key'
+import { useAccountId } from '@/lib/account-scope'
 
 const COACH_TOUR_SEEN_KEY = 'orbit_coach_tour_seen'
 
@@ -13,11 +15,12 @@ const COACH_TOUR_SEEN_KEY = 'orbit_coach_tour_seen'
  */
 export function useCoachTour() {
   const { profile } = useProfile()
-  const triggered = useRef(false)
+  const accountId = useAccountId()
+  const triggeredAccountId = useRef<string | null>(null)
 
   useFocusEffect(
     useCallback(() => {
-      if (triggered.current) return
+      if (triggeredAccountId.current === accountId && accountId !== null) return
       if (!profile?.hasCompletedOnboarding || profile.hasCompletedTour) return
       if (useTourStore.getState().isActive) return
 
@@ -25,11 +28,12 @@ export function useCoachTour() {
       const timer = setTimeout(() => {
         void (async () => {
           try {
-            const raw = await AsyncStorage.getItem(COACH_TOUR_SEEN_KEY)
+            const storageKey = accountStorageKey(COACH_TOUR_SEEN_KEY)
+            const raw = await AsyncStorage.getItem(storageKey)
             if (cancelled || raw === 'true') return
             if (useTourStore.getState().isActive) return
-            triggered.current = true
-            await AsyncStorage.setItem(COACH_TOUR_SEEN_KEY, 'true')
+            triggeredAccountId.current = accountId
+            await AsyncStorage.setItem(storageKey, 'true')
             useTourStore.getState().startCoachTour()
           } catch {
             return
@@ -41,6 +45,6 @@ export function useCoachTour() {
         cancelled = true
         clearTimeout(timer)
       }
-    }, [profile?.hasCompletedOnboarding, profile?.hasCompletedTour]),
+    }, [accountId, profile]),
   )
 }

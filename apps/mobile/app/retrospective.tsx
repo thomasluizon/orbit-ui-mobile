@@ -26,6 +26,8 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useOffline } from '@/hooks/use-offline'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { accountStorageKey } from '@/lib/account-storage-key'
+import { useAccountId } from '@/lib/account-scope'
 import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
@@ -36,6 +38,7 @@ import { styles } from './retrospective-styles'
 const CACHE_VERSION_SUFFIX = '_v2'
 
 export default function RetrospectiveScreen() {
+  useAccountId()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
@@ -66,7 +69,7 @@ export default function RetrospectiveScreen() {
     null,
   )
   const [isCacheLoading, setIsCacheLoading] = useState(true)
-  const cacheKey = getRetrospectiveCacheKey(period) + CACHE_VERSION_SUFFIX
+  const cacheKey = accountStorageKey(getRetrospectiveCacheKey(period) + CACHE_VERSION_SUFFIX)
 
   useEffect(() => {
     if (!profile) return

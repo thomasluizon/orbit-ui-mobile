@@ -15,6 +15,7 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { openCustomerPortal } from '@/lib/actions/subscription'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { accountStorageKey } from '@/lib/account-storage-key'
 import { RetrospectiveLockedStates } from './_components/retrospective-locked-states'
 import { RetrospectiveView } from './_components/retrospective-view'
 
@@ -52,7 +53,7 @@ export default function RetrospectivePage() {
   )
 
   const [portalError, setPortalError] = useState('')
-  const cacheKey = getRetrospectiveCacheKey(period) + CACHE_VERSION_SUFFIX
+  const cacheKey = accountStorageKey(getRetrospectiveCacheKey(period) + CACHE_VERSION_SUFFIX)
 
   const cachedRaw = useSyncExternalStore(
     emptySubscribe,

@@ -74,9 +74,11 @@ vi.mock('@/components/ui/offline-unavailable-state', () => ({
 }))
 
 import RetrospectivePage from '@/app/(app)/retrospective/page'
+import { setAccountId } from '@/lib/account-scope'
 
 describe('RetrospectivePage', () => {
   beforeEach(() => {
+    setAccountId(null)
     mockIsOnline = true
     mockHasPro = true
     mockIsYearly = true
@@ -102,6 +104,15 @@ describe('RetrospectivePage', () => {
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'retrospective.generate' })).toBeDisabled()
+  })
+
+  it('reads only the new account retrospective cache', () => {
+    setAccountId('account-b')
+    mockIsOnline = false
+    const readStorage = vi.spyOn(Storage.prototype, 'getItem')
+    render(<RetrospectivePage />)
+    expect(readStorage).toHaveBeenCalledWith('orbit_retrospective_cache_week_v2:account-b')
+    readStorage.mockRestore()
   })
 
   it('redirects non-pro users to the upgrade screen once the profile is loaded', () => {
@@ -144,7 +155,7 @@ describe('RetrospectivePage', () => {
     retroState.data = { summary: 'A great week' }
     render(<RetrospectivePage />)
 
-    const stored = Object.keys(localStorage).find((key) => key.endsWith('_v2'))
+    const stored = Object.keys(localStorage).find((key) => key.endsWith('_v2:signed-out'))
     expect(stored).toBeDefined()
     expect(JSON.parse(localStorage.getItem(stored as string) ?? '{}')).toMatchObject({
       summary: 'A great week',
