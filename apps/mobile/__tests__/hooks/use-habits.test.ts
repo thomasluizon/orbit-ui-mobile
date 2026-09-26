@@ -91,6 +91,7 @@ const mocks = vi.hoisted(() => {
       mutate: mocks.restoreHabitMutate,
     })),
     restoreHabitMutate: vi.fn(),
+    cancelQueuedDeleteForUndo: vi.fn(() => Promise.resolve('cancelled' as const)),
     runQueuedMutation: vi.fn(({ queuedResult, queuedResultFactory }: {
       queuedResult?: unknown
       queuedResultFactory?: (mutationId: string) => unknown
@@ -172,6 +173,7 @@ vi.mock('@/lib/offline-mutations', () => ({
   isQueuedResult: mocks.isQueuedResult,
   queueOrExecute: mocks.queueOrExecute,
   withQueuedMarker: mocks.withQueuedMarker,
+  cancelQueuedDeleteForUndo: mocks.cancelQueuedDeleteForUndo,
 }))
 
 vi.mock('@/lib/orbit-widget', () => ({
@@ -348,6 +350,7 @@ describe('mobile habit hooks', () => {
     mocks.showError.mockClear()
     mocks.showUndoToast.mockClear()
     mocks.restoreHabitMutate.mockClear()
+    mocks.cancelQueuedDeleteForUndo.mockClear()
   })
 
   it('counts every bulk-completed habit toward the review floor at mutate time', async () => {
@@ -755,6 +758,21 @@ describe('mobile habit hooks', () => {
     mutation.onSuccess?.(undefined, 'habit-1', undefined)
 
     expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function))
+  })
+
+  it('cancels an offline single delete before Undo restores the habit locally', async () => {
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string }, string, { previousLists: [] }
+    >
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' },
+      'habit-1',
+      { previousLists: [] },
+    )
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1'))
+    expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
   })
 
   it('restores a habit through the queued path, targets the restore endpoint, and confirms', async () => {
@@ -1203,7 +1221,7 @@ describe('mobile habit hooks', () => {
       ],
     }, ['habit-1', 'habit-2', 'habit-3'], undefined)
 
-    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitsDeleted', expect.any(Function))
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitsDeleted:{"count":2}', expect.any(Function))
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
     expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2)
@@ -1221,6 +1239,54 @@ describe('mobile habit hooks', () => {
       results: [{ status: 'Failed', habitId: 'habit-1' }],
     }, ['habit-1'], undefined)
     expect(mocks.showUndoToast).not.toHaveBeenCalled()
+  })
+
+  it('restores a selected parent once when the response reports its child', () => {
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { status: 'Success'; habitId: string; cascadedHabitIds: string[] }[] },
+      string[],
+      unknown
+    >
+    mutation.onSuccess?.({
+      results: [
+        { status: 'Success', habitId: 'parent', cascadedHabitIds: ['child'] },
+        { status: 'Success', habitId: 'child', cascadedHabitIds: [] },
+      ],
+    }, ['parent', 'child'], undefined)
+
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(1)
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith('parent')
+  })
+
+  it('cancels a queued offline bulk delete before Undo restores locally', async () => {
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { status: 'Success'; habitId: string }[]; queued: true; queuedMutationId: string },
+      string[],
+      unknown
+    >
+    mutation.onSuccess?.({
+      results: [{ status: 'Success', habitId: 'habit-1' }],
+      queued: true,
+      queuedMutationId: 'mutation-1',
+    }, ['habit-1'], { previousLists: [], deletedCount: 1 })
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => Promise<void>
+    await performUndo()
+    expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1')
+    expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
+  })
+
+  it('shows the singular bulk Undo toast for one deleted habit', () => {
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { status: 'Success'; habitId: string }[] }, string[], unknown
+    >
+    mutation.onSuccess?.({
+      results: [{ status: 'Success', habitId: 'habit-1' }],
+    }, ['habit-1'], undefined)
+    expect(mocks.showUndoToast).toHaveBeenCalledWith(
+      'undo.habitsDeleted:{"count":1}', expect.any(Function),
+    )
   })
 
   it('optimistically completes only same-day bulk skips and restores them on failure', async () => {

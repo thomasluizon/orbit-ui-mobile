@@ -84,7 +84,11 @@ const mocks = vi.hoisted(() => {
     queryClient,
     useQuery: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
-    useMutation: vi.fn((config: unknown) => config),
+    useMutation: vi.fn((config: unknown) => ({
+      ...(config as object),
+      mutate: mocks.restoreGoalMutate,
+    })),
+    restoreGoalMutate: vi.fn(),
     buildQueuedMutation: vi.fn((options) => ({
       id: 'mutation-1',
       timestamp: Date.now(),
@@ -108,6 +112,7 @@ const mocks = vi.hoisted(() => {
       (value as { queued?: boolean }).queued === true
     )),
     queueOrExecute: vi.fn(),
+    cancelQueuedDeleteForUndo: vi.fn(() => Promise.resolve('cancelled' as const)),
     withQueuedMarker: vi.fn((value: Record<string, unknown>, mutationId: string) => ({
       ...value,
       queued: true as const,
@@ -137,6 +142,7 @@ vi.mock('@/lib/offline-mutations', () => ({
   createQueuedAck: mocks.createQueuedAck,
   isQueuedResult: mocks.isQueuedResult,
   queueOrExecute: mocks.queueOrExecute,
+  cancelQueuedDeleteForUndo: mocks.cancelQueuedDeleteForUndo,
   withQueuedMarker: mocks.withQueuedMarker,
 }))
 
@@ -272,6 +278,8 @@ describe('mobile goal hooks', () => {
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
     mocks.showUndoToast.mockClear()
+    mocks.restoreGoalMutate.mockClear()
+    mocks.cancelQueuedDeleteForUndo.mockClear()
   })
 
   it('inserts an optimistic temp goal and skips invalidation when the create is queued', async () => {
@@ -389,6 +397,19 @@ describe('mobile goal hooks', () => {
     mutation.onSuccess?.(undefined, 'goal-1', undefined)
 
     expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.goalDeleted', expect.any(Function))
+  })
+
+  it('cancels an offline goal delete before Undo restores the goal locally', async () => {
+    const mutation = useDeleteGoal() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string }, string, { previousLists: [] }
+    >
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' }, 'goal-1', { previousLists: [] },
+    )
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1'))
+    expect(mocks.restoreGoalMutate).not.toHaveBeenCalled()
   })
 
   it('restores a goal through the queued path, targets the restore endpoint, and confirms', async () => {

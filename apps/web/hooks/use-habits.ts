@@ -12,6 +12,7 @@ import {
   buildOptimisticSkipPatch,
   findHabitInList,
   normalizeHabits,
+  plural,
 } from '@orbit/shared/utils'
 import {
   optimisticPatchHabit,
@@ -501,12 +502,13 @@ export function useBulkDeleteHabits() {
     mutationFn: (habitIds: string[]) => bulkDeleteHabitsAction(habitIds),
 
     onSuccess: (result) => {
-      const deletedIds = result.results.flatMap((item) =>
-        item.status === 'Success' ? [item.habitId] : [],
-      )
-      if (deletedIds.length === 0) return
-      showUndoToast(t(deletedIds.length === 1 ? 'undo.habitDeleted' : 'undo.habitsDeleted'), () => {
-        for (const habitId of deletedIds) restoreHabit.mutate(habitId)
+      const deleted = result.results.filter((item) => item.status === 'Success')
+      if (deleted.length === 0) return
+      const cascadedIds = new Set(deleted.flatMap((item) => item.cascadedHabitIds ?? []))
+      const restoreIds = deleted.map((item) => item.habitId).filter((id) => !cascadedIds.has(id))
+      const message = plural(t('undo.habitsDeleted', { count: deleted.length }), deleted.length)
+      showUndoToast(message, () => {
+        for (const habitId of restoreIds) restoreHabit.mutate(habitId)
       })
     },
 

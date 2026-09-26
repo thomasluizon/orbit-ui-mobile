@@ -16,7 +16,9 @@ describe('mobile i18n interpolation', () => {
   it('matches web plural selection for scoped bulk and calendar copy', () => {
     expect(
       plural(i18n.t('habits.bulkDeleteMessage', { count: 1 }), 1),
-    ).toBe('Delete 1 habit? Select Undo in the message that appears to restore it.')
+    ).toBe('This removes 1 habit and any sub-habits. You can undo it from the message that appears.')
+    expect(plural(i18n.t('undo.habitsDeleted', { count: 1 }), 1)).toBe('1 habit deleted')
+    expect(plural(i18n.t('undo.habitsDeleted', { count: 2 }), 2)).toBe('2 habits deleted')
     expect(
       plural(i18n.t('habits.bulkLogMessage', { count: 2 }), 2),
     ).toBe('Log 2 selected habits as complete? Already completed habits will be skipped.')
