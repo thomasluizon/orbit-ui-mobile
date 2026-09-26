@@ -5,7 +5,7 @@ import React from 'react'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
-import { useAssignTags, useCreateTag, useDeleteTag, useRestoreTag, useSuggestTags, useUpdateTag } from '@/hooks/use-tags'
+import { useAssignTags, useCreateTag, useDeleteTag, useRestoreTag, useSuggestTags, useTags, useUpdateTag } from '@/hooks/use-tags'
 
 const mockShowQueued = vi.fn()
 const mockShowSuccess = vi.fn()
@@ -84,6 +84,17 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
 describe('web tag hooks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('leaves Today with no tags when the list query rejects', async () => {
+    const { getTags } = await import('@/lib/actions/tags')
+    vi.mocked(getTags).mockRejectedValue(new Error('Unexpected API response shape for /api/tags'))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    const { result } = renderHook(() => useTags(), { wrapper: createWrapper(queryClient) })
+
+    await waitFor(() => expect(queryClient.getQueryState(tagKeys.lists())?.status).toBe('error'))
+    expect(result.current.tags).toEqual([])
   })
 
   it('creates a tag optimistically and remaps the temp id on success', async () => {
