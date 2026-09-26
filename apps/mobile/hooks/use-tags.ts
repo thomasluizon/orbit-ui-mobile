@@ -3,6 +3,7 @@ import { habitKeys, tagKeys , QUERY_STALE_TIMES } from '@orbit/shared/query'
 
 import { API } from '@orbit/shared/api'
 import type { HabitScheduleItem, SuggestTagsResponse } from '@orbit/shared/types/habit'
+import { tagListSchema, type Tag } from '@orbit/shared/types/tag'
 import {
   appendTag,
   mapHabitTagReferences,
@@ -24,11 +25,7 @@ import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 
-export interface Tag {
-  id: string
-  name: string
-  color: string
-}
+export type { Tag } from '@orbit/shared/types/tag'
 
 type TagQueryClient = ReturnType<typeof useQueryClient>
 type TagMutationContext = {
@@ -149,7 +146,7 @@ function setOptimisticAssignedTags(
 export function useTags() {
   const query = useQuery({
     queryKey: tagKeys.lists(),
-    queryFn: () => apiClient<Tag[]>(API.tags.list),
+    queryFn: () => apiClient(API.tags.list, {}, tagListSchema),
     staleTime: QUERY_STALE_TIMES.tags,
   })
 

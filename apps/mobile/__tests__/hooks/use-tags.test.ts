@@ -3,6 +3,8 @@ import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
 import type { HabitScheduleItem, SuggestTagsResponse } from '@orbit/shared/types/habit'
+import { tagListSchema } from '@orbit/shared/types/tag'
+import { validateApiResponse } from '@orbit/shared/utils'
 
 import {
   useAssignTags,
@@ -310,8 +312,11 @@ describe('mobile tag hooks', () => {
 
   it('exposes the tag list query and fetches through the api client', async () => {
     const { apiClient } = await import('@/lib/api-client')
+    const tags = [{ id: 'tag-1', name: 'Health', color: '#00ff00' }]
+    vi.mocked(apiClient).mockImplementation((path, _options, schema) =>
+      Promise.resolve().then(() => validateApiResponse(tags, schema, path)))
     mocks.useQuery.mockReturnValue({
-      data: [{ id: 'tag-1', name: 'Health', color: '#00ff00' }],
+      data: tags,
       isLoading: false,
       isFetching: true,
     })
@@ -322,8 +327,34 @@ describe('mobile tag hooks', () => {
     expect(result.isFetching).toBe(true)
 
     const options = mocks.useQuery.mock.calls[0]![0] as { queryFn: () => Promise<unknown> }
-    await options.queryFn()
-    expect(apiClient).toHaveBeenCalledWith(API.tags.list)
+    await expect(options.queryFn()).resolves.toEqual(tags)
+    expect(apiClient).toHaveBeenCalledWith(API.tags.list, {}, tagListSchema)
+  })
+
+  it('rejects a wrapped tag list response and leaves Today with no tags', async () => {
+    const { apiClient } = await import('@/lib/api-client')
+    vi.mocked(apiClient).mockImplementation((path, _options, schema) =>
+      Promise.resolve().then(() => validateApiResponse({ ok: true, data: [] }, schema, path)))
+    mocks.useQuery.mockReturnValue({ data: undefined, isLoading: false, isFetching: false })
+
+    const result = useTags()
+    const options = mocks.useQuery.mock.calls[0]![0] as { queryFn: () => Promise<unknown> }
+
+    await expect(options.queryFn()).rejects.toThrow('Unexpected API response shape for /api/tags')
+    expect(result.tags).toEqual([])
+  })
+
+  it('accepts an empty tag list response', async () => {
+    const { apiClient } = await import('@/lib/api-client')
+    vi.mocked(apiClient).mockImplementation((path, _options, schema) =>
+      Promise.resolve().then(() => validateApiResponse([], schema, path)))
+    mocks.useQuery.mockReturnValue({ data: [], isLoading: false, isFetching: false })
+
+    const result = useTags()
+    const options = mocks.useQuery.mock.calls[0]![0] as { queryFn: () => Promise<unknown> }
+
+    await expect(options.queryFn()).resolves.toEqual([])
+    expect(result.tags).toEqual([])
   })
 
   it('optimistically appends a created tag then swaps its temp id for the server id', async () => {
@@ -387,7 +418,7 @@ describe('mobile tag hooks', () => {
 
     const renamedTag = mocks.state.tags[0]?.value.find((tag) => tag.id === 'tag-1')
     expect(renamedTag).toEqual({ id: 'tag-1', name: 'Wellbeing', color: '#123456' })
-    const habitTag = mocks.state.habits[0]?.value[0]?.tags?.find((tag) => tag.id === 'tag-1')
+    const habitTag = mocks.state.habits[0]?.value[0]?.tags.find((tag) => tag.id === 'tag-1')
     expect(habitTag).toMatchObject({ name: 'Wellbeing', color: '#123456' })
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
   })

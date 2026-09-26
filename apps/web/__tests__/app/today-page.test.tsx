@@ -9,6 +9,10 @@ const { useHabitsMock } = vi.hoisted(() => ({
   useHabitsMock: vi.fn(),
 }))
 
+const mockTags = vi.hoisted(() => ({
+  value: [] as { id: string; name: string; color: string }[],
+}))
+
 const dateParamState = { value: null as string | null }
 
 const uiState = {
@@ -106,7 +110,7 @@ vi.mock('@/hooks/use-gamification', () => ({
 
 vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({
-    tags: [],
+    tags: mockTags.value,
   }),
 }))
 
@@ -208,6 +212,7 @@ function renderPage() {
 describe('TodayPage bulk parent prompts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockTags.value = []
     useHabitsMock.mockImplementation(defaultUseHabitsReturn)
     vi.useRealTimers()
     mockRouterPush.mockReset()
@@ -236,6 +241,14 @@ describe('TodayPage bulk parent prompts', () => {
     renderPage()
     expect(screen.getByTestId('today-utility-row')).toBeInTheDocument()
     expect(screen.getByTestId('habit-list')).toBeInTheDocument()
+  })
+
+  it('renders a chip for a valid tag list', () => {
+    mockTags.value = [{ id: 'tag-1', name: 'Health', color: '#00ff00' }]
+
+    renderPage()
+
+    expect(screen.getByRole('button', { name: 'Health' })).toBeInTheDocument()
   })
 
   it('suppresses descendant successes when bulk log finishes', async () => {
