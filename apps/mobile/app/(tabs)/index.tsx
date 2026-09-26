@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import {
-  getTodayBoundary,
-  parseShowGeneralOnTodayPreference,
-} from '@orbit/shared/utils'
+import { getTodayBoundary } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
@@ -28,6 +24,8 @@ import { useProfile } from '@/hooks/use-profile'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getAccountId, useAccountId } from '@/lib/account-scope'
+import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 
 function getBoundaryMessageKey(
   boundary: ReturnType<typeof getTodayBoundary>,
@@ -63,6 +61,7 @@ function TodayScreenContent() {
     [currentScheme, currentTheme],
   )
   const date = useTodayDate()
+  const accountId = useAccountId()
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
@@ -77,12 +76,6 @@ function TodayScreenContent() {
   const showCreateModal = useUIStore((state) => state.showCreateModal)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
-
-  useEffect(() => {
-    AsyncStorage.getItem('orbit_show_general_on_today')
-      .then((value) => setShowGeneralOnToday(parseShowGeneralOnTodayPreference(value)))
-      .catch(() => setShowGeneralOnToday(false))
-  }, [])
 
   const filters = useMemo<HabitsFilter>(() => ({
     dateFrom: date.dateStr,
@@ -110,12 +103,22 @@ function TodayScreenContent() {
 
   useFocusEffect(
     useCallback(() => {
+      let active = true
+      setShowGeneralOnToday(false)
+      readShowGeneralOnToday()
+        .then((saved) => {
+          if (active && getAccountId() === accountId) setShowGeneralOnToday(saved)
+        })
+        .catch(() => {
+          if (active && getAccountId() === accountId) setShowGeneralOnToday(false)
+        })
       setTodayFocused(true)
       return () => {
+        active = false
         clearSelection()
         setTodayFocused(false)
       }
-    }, [clearSelection]),
+    }, [accountId, clearSelection]),
   )
 
   useEffect(() => {

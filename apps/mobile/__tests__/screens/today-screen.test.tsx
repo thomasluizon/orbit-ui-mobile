@@ -11,6 +11,7 @@ import {
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import TodayScreen from '@/app/(tabs)/index'
 import { useUIStore } from '@/stores/ui-store'
+import { setAccountId } from '@/lib/account-scope'
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   composerEnabled: [] as boolean[],
   astraOwnership: [] as boolean[],
   profileReady: true,
+  habitFilters: [] as { includeGeneral?: boolean }[],
   date: {
     today: '2026-04-08',
     selectedDate: new Date('2026-04-08T00:00:00'),
@@ -97,9 +99,12 @@ vi.mock('@/hooks/use-ad-mob', () => ({
 
 vi.mock('@/hooks/use-habits', () => ({
   EMPTY_HABITS_BY_ID: new Map<string, NormalizedHabit>(),
-  useHabits: () => ({
-    data: { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
-  }),
+  useHabits: (filters: { includeGeneral?: boolean }) => {
+    mocks.habitFilters.push(filters)
+    return {
+      data: { habitsById: new Map([[pendingHabit.id, pendingHabit]]) },
+    }
+  },
 }))
 
 vi.mock('@/components/habit-list', () => ({
@@ -234,6 +239,8 @@ describe('Hoje date boundaries', () => {
     mocks.composerEnabled.length = 0
     mocks.astraOwnership.length = 0
     mocks.profileReady = true
+    mocks.habitFilters.length = 0
+    setAccountId(null)
     asyncStorageState.values.clear()
     useUIStore.setState({
       isSelectMode: false,
@@ -253,6 +260,38 @@ describe('Hoje date boundaries', () => {
     mocks.profileReady = true
     await TestRenderer.act(() => { tree.update(<TodayScreen />) })
     expect(tree.root.findAll((node) => String(node.type) === 'PendingRing')).toHaveLength(1)
+  })
+
+  it('loads the account preference when Today gains focus', async () => {
+    setAccountId('account-a')
+    asyncStorageState.values.set('orbit_show_general_on_today:account-a', 'true')
+    asyncStorageState.values.set('orbit_show_general_on_today:account-b', 'false')
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    let blur: void | (() => void)
+    await TestRenderer.act(async () => {
+      blur = mocks.focusCallback?.()
+      await Promise.resolve()
+    })
+
+    expect(mocks.habitFilters.at(-1)?.includeGeneral).toBe(true)
+
+    await TestRenderer.act(async () => {
+      blur?.()
+      setAccountId('account-b')
+      tree.update(<TodayScreen />)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      mocks.focusCallback?.()
+      await Promise.resolve()
+    })
+
+    expect(mocks.habitFilters.at(-1)?.includeGeneral).toBeUndefined()
   })
 
   it('keeps seven days back loggable and marks the next day read only', () => {
