@@ -227,7 +227,7 @@
     ".claude/skills/validate/SKILL.md": {
       "model": null,
       "effort": "low",
-      "digest": "5022fb8293f45bac",
+      "digest": "11ed72d5b8e3f6a2",
       "calibratedAt": "2026-09-26",
       "verdict": "current: runs lint, type-check and tests across both repos, so low effort is right."
     },

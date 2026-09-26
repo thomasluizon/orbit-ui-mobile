@@ -13,7 +13,7 @@ effort: low
 
 ## Resolve repositories
 
-Run this from either repository. Read the printed roots and use them for every status check and validation command. The current checkout takes priority; the sibling UI checkout is available when starting in the API repository.
+Run this from either repository. Read the printed roots and use them for every status check and validation command. The current checkout takes priority, including a linked worktree; `$CLAUDE_PROJECT_DIR` and the sibling UI checkout are fallbacks when starting in the API repository. The API root resolves from the UI config against the UI repository's primary checkout, because `repos` paths are relative to it.
 
 ```bash
 node <<'NODE'
@@ -24,7 +24,7 @@ const { dirname, join, resolve } = require("node:path")
 const commonDirectory = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).trim()
 const currentRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim()
 const primaryRoot = dirname(commonDirectory)
-const candidates = [process.env.CLAUDE_PROJECT_DIR, currentRoot, primaryRoot, resolve(primaryRoot, "../orbit-ui-mobile")]
+const candidates = [currentRoot, process.env.CLAUDE_PROJECT_DIR, primaryRoot, resolve(primaryRoot, "../orbit-ui-mobile")]
 const uiRoot = candidates.find((candidate) => candidate
   && existsSync(join(candidate, ".claude/orchestrator.json"))
   && existsSync(join(candidate, "apps/web"))
@@ -33,7 +33,8 @@ if (!uiRoot) throw new Error("Could not locate orbit-ui-mobile from this checkou
 
 const config = JSON.parse(readFileSync(join(uiRoot, ".claude/orchestrator.json"), "utf8"))
 if (typeof config.repos?.api !== "string") throw new Error("Missing repos.api in UI orchestrator config")
-const apiRoot = resolve(uiRoot, config.repos.api)
+const uiPrimaryRoot = dirname(execFileSync("git", ["-C", uiRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" }).trim())
+const apiRoot = resolve(uiPrimaryRoot, config.repos.api)
 console.log(JSON.stringify({ uiRoot: resolve(uiRoot), apiRoot }))
 NODE
 ```
