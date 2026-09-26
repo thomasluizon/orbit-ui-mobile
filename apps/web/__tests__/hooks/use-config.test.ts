@@ -73,8 +73,8 @@ describe('useConfig', () => {
 
 describe('isFeatureEnabled', () => {
   it('returns true for enabled feature with no plan restriction', () => {
-    expect(isFeatureEnabled(DEFAULT_CONFIG, 'habits.create', 'free')).toBe(true)
-    expect(isFeatureEnabled(DEFAULT_CONFIG, 'habits.create', 'pro')).toBe(true)
+    expect(isFeatureEnabled(DEFAULT_CONFIG, 'gamification', 'free')).toBe(true)
+    expect(isFeatureEnabled(DEFAULT_CONFIG, 'gamification', 'pro')).toBe(true)
   })
 
   it('returns true for goals when user is Pro', () => {
@@ -94,9 +94,9 @@ describe('isFeatureEnabled', () => {
       ...DEFAULT_CONFIG,
       features: {
         ...DEFAULT_CONFIG.features,
-        'habits.create': { enabled: false, planRequirement: null },
+        'gamification': { enabled: false, planRequirement: null },
       },
     }
-    expect(isFeatureEnabled(config, 'habits.create', 'pro')).toBe(false)
+    expect(isFeatureEnabled(config, 'gamification', 'pro')).toBe(false)
   })
 })
