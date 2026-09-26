@@ -89,8 +89,8 @@ describe('useOnboardingFlush', () => {
     await act(async () => { finishApply({ applied: true }); await Promise.resolve() })
 
     expect(subscribePushMock).not.toHaveBeenCalled()
-    expect(patchProfileMock).not.toHaveBeenCalled()
     expect(useOnboardingDraftStore.getState().habits[0]?.title).toBe('Walk')
+    expect(patchProfileMock).not.toHaveBeenCalled()
 
     rendered.rerender()
     await waitFor(() => expect(applyOnboardingMock).toHaveBeenCalledTimes(2))
@@ -126,8 +126,8 @@ describe('useOnboardingFlush', () => {
     useOnboardingDraftStore.getState().bufferHabit({ title: 'Walk', frequencyUnit: 'Day', frequencyQuantity: 1 })
     await act(async () => { finishRegistration(); await Promise.resolve() })
 
-    expect(patchProfileMock).not.toHaveBeenCalled()
     expect(useOnboardingDraftStore.getState().habits[0]?.title).toBe('Walk')
+    expect(patchProfileMock).not.toHaveBeenCalled()
   })
 
   it('registers a signed-out permission grant after authentication flushes onboarding', async () => {
