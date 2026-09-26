@@ -73,7 +73,7 @@ export function BarChart({ points, label }: Readonly<{ points: readonly BarChart
           {bars.map((bar, index) => {
             const empty = points[index]!.rate == null || points[index]!.rate === 0
             const state = empty ? 'empty' : index === selectedIndex ? 'selected' : 'resting'
-            return <path key={index} d={barChartPath(bar)} data-state={state} fill={empty ? 'var(--track-empty)' : index === selectedIndex ? 'var(--fg-1)' : 'var(--fg-2)'} style={{ transition: 'fill 240ms var(--ease-standard)' }} />
+            return <path key={index} d={barChartPath(bar)} data-state={state} fill={empty ? 'var(--track-empty)' : index === selectedIndex ? 'var(--fg-1)' : 'var(--fg-2)'} className="motion-reduce:!transition-none" style={{ transition: 'fill 240ms var(--ease-standard)' }} />
           })}
         </svg>
       </div>
