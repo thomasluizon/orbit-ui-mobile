@@ -292,6 +292,8 @@ describe('mobile useChatComposer', () => {
     expect(aiMessages).toHaveLength(2)
     expect(aiMessages[1]?.id).not.toBe(firstAiId)
     expect(aiMessages[1]?.content).toBe('Second final')
+    const messageIds = useChatStore.getState().messages.map((message) => message.id)
+    expect(new Set(messageIds).size).toBe(messageIds.length)
   })
 
   it('clears the streamed draft on reset so the final answer is not duplicated', async () => {
