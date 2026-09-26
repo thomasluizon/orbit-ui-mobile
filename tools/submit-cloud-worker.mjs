@@ -8,7 +8,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } 
 import { setTimeout as wait } from "node:timers/promises"
 
 import { dashFindings } from "./check-dashes.mjs"
-import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
+import { ADMISSION_REFUSED_EXIT, bindCloudAdmission, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import {
   CodexTimeoutError,
   ReceiptLockTimeoutError,
@@ -504,10 +504,13 @@ if (!admission.admitted) {
   console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
   process.exit(ADMISSION_REFUSED_EXIT)
 }
-process.on("exit", () => releaseAdmission(admission.reservationId))
+let submissionStarted = false
+process.on("exit", () => {
+  if (!submissionStarted) releaseAdmission(admission.reservationId)
+})
 for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
   process.once(signal, () => {
-    releaseAdmission(admission.reservationId)
+    if (!submissionStarted) releaseAdmission(admission.reservationId)
     process.exit(exitCode)
   })
 }
@@ -705,9 +708,11 @@ const reservation = {
 }
 try {
   persistReceipt(reservation, reservationPath)
+  bindCloudAdmission(admission.reservationId, stateRoot, reservationId)
 } catch (error) {
-  fail(1, `cloud submission reservation could not be persisted: ${error.message}`)
+  fail(1, `cloud submission reservation or admission claim could not be persisted: ${error.message}`)
 }
+submissionStarted = true
 const result = await runCodex(codexCommand, ["cloud", "exec", "--env", environmentId, "--branch", baseSha], {
   cwd: stateRoot,
   input: submittedOrder,
