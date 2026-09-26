@@ -10,7 +10,7 @@ import {
   profileKeys,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { createHabitRequestSchema, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
+import { createHabitRequestSchema, extractBackendErrorCode, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
 import {
   applyLinkedGoalUpdates,
   appendHabitDetailChild,
@@ -92,6 +92,7 @@ import {
   useReviewReminderStore,
 } from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
@@ -110,6 +111,7 @@ type CreateSubHabitMutationInput = {
   __offlineTempId?: string
 }
 type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
+type RestoreHabitInput = string | { habitId: string; reconcileNotFound: true }
 type LogHabitSnapshot = {
   previousLists: HabitListSnapshots
   previousLogs: HabitLog[] | undefined
@@ -620,23 +622,24 @@ export function useRestoreHabit() {
   const { t } = useTranslation()
   const { showSuccess, showError } = useAppToast()
 
-  return useMutation<void | QueuedMarker, Error, string>({
-    mutationFn: (habitId) =>
+  return useMutation<void | QueuedMarker, Error, RestoreHabitInput>({
+    mutationFn: (input) =>
       performQueuedApiMutation<void>({
         type: 'restoreHabit',
         scope: 'habits',
-        endpoint: API.habits.restore(habitId),
+        endpoint: API.habits.restore(typeof input === 'string' ? input : input.habitId),
         method: 'POST',
         payload: null,
         entityType: 'habit',
-        targetEntityId: habitId,
+        targetEntityId: typeof input === 'string' ? input : input.habitId,
       }),
 
     onSuccess: () => {
       showSuccess(t('undo.restored'))
     },
 
-    onError: () => {
+    onError: (error, input) => {
+      if (typeof input !== 'string' && extractBackendErrorCode(error) === 'HABIT_NOT_FOUND') return
       showError(t('undo.restoreFailed'))
     },
 
@@ -708,7 +711,11 @@ export function useDeleteHabit() {
               void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
               void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
             }
-            if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
+            if (outcome === 'dropped') {
+              useOfflineSyncStore.getState().dismissDrop(data.queuedMutationId)
+              restoreHabit.mutate({ habitId, reconcileNotFound: true })
+            }
+            else if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
           })
           return
         }
@@ -1168,6 +1175,7 @@ export function useBulkDeleteHabits() {
           const queuedByHabit = new Map(result.queuedDeletes.map(({ habitId, mutationId }) => [habitId, mutationId]))
           const locallyRestored = new Set<string>()
           const serverRestoreIds = new Set<string>()
+          const droppedRestoreIds = new Set<string>()
           await Promise.all(deleted.map(async (item) => {
             const mutationId = queuedByHabit.get(item.habitId)
             if (!mutationId) {
@@ -1176,6 +1184,11 @@ export function useBulkDeleteHabits() {
             }
             const outcome = await cancelQueuedDeleteForUndo(mutationId)
             if (outcome !== 'replayed') locallyRestored.add(item.habitId)
+            if (outcome === 'dropped') {
+              useOfflineSyncStore.getState().dismissDrop(mutationId)
+              droppedRestoreIds.add(item.habitId)
+              serverRestoreIds.add(item.habitId)
+            }
             if (outcome === 'replayed' || outcome === 'uncertain') serverRestoreIds.add(item.habitId)
           }))
           for (const [key, snapshot] of context.previousLists) {
@@ -1190,7 +1203,11 @@ export function useBulkDeleteHabits() {
           }
           const selectedDescendants = selectedDescendantsInSnapshots(context.previousLists, serverRestoreIds)
           for (const habitId of serverRestoreIds) {
-            if (!selectedDescendants.has(habitId)) restoreHabit.mutate(habitId)
+            if (!selectedDescendants.has(habitId)) {
+              restoreHabit.mutate(droppedRestoreIds.has(habitId)
+                ? { habitId, reconcileNotFound: true }
+                : habitId)
+            }
           }
         })()
       })

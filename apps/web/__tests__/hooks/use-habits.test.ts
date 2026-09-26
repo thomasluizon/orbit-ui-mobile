@@ -883,7 +883,7 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'edited-habit' })
+      await result.current.mutateAsync({ habitId: 'edited-habit', intent: 'log' })
     })
 
     expect(queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp).toBe(125)
