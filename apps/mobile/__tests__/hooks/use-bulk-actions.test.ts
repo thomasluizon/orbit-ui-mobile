@@ -1,8 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
-import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitListHandle } from '@/components/habit-list'
 
 const TestRenderer = require('react-test-renderer')
@@ -19,22 +17,69 @@ vi.mock('@/hooks/use-habits', () => ({
 
 type BulkActions = ReturnType<typeof useBulkActions>
 
-function renderBulkActions(selectedHabitIds: Set<string>, habits: NormalizedHabit[] = []) {
+function renderBulkActions(selectedHabitIds: Set<string>) {
   const onSuccess = vi.fn()
   const habitListRef = {
-    current: { markRecentlyCompleted: vi.fn(), checkAndPromptParentLog: vi.fn() },
+    current: { settleBulkHabitResolutions: vi.fn() },
   } as unknown as React.RefObject<HabitListHandle | null>
-  const habitsById = new Map(habits.map((habit) => [habit.id, habit]))
   const captured: { current: BulkActions | null } = { current: null }
   function Probe() {
-    captured.current = useBulkActions({ selectedHabitIds, habitsById, habitListRef, onSuccess })
+    captured.current = useBulkActions({
+      selectedHabitIds,
+      selectedDateStr: '2026-09-25',
+      habitListRef,
+      onSuccess,
+    })
     return null
   }
   TestRenderer.act(() => {
     TestRenderer.create(React.createElement(Probe))
   })
-  return { captured, onSuccess }
+  return { captured, onSuccess, habitListRef }
 }
+
+describe('useBulkActions replay acknowledgement', () => {
+  beforeEach(() => {
+    bulkLog.mutateAsync.mockReset()
+    bulkSkip.mutateAsync.mockReset()
+  })
+
+  it.each([
+    ['log', bulkLog, 'confirmBulkLog'],
+    ['skip', bulkSkip, 'confirmBulkSkip'],
+  ] as const)('keeps queued bulk %s pending until the server confirms it', async (
+    mode, mutation, action,
+  ) => {
+    mutation.mutateAsync.mockResolvedValueOnce({
+      queued: true,
+      queuedMutationId: 'mutation-1',
+      results: [{ index: 0, status: 'Success', habitId: 'child' }],
+    })
+    const { captured, habitListRef } = renderBulkActions(new Set(['child']))
+
+    await TestRenderer.act(async () => { await captured.current![action]() })
+
+    expect(mutation.mutateAsync).toHaveBeenCalledWith([
+      { habitId: 'child', date: '2026-09-25' },
+    ])
+    expect(habitListRef.current?.settleBulkHabitResolutions).not.toHaveBeenCalled()
+  })
+
+  it('settles only accepted bulk log items', async () => {
+    bulkLog.mutateAsync.mockResolvedValueOnce({ results: [
+      { index: 0, status: 'Success', habitId: 'accepted' },
+      { index: 1, status: 'Failed', habitId: 'rejected' },
+    ] })
+    const { captured, habitListRef } = renderBulkActions(new Set(['accepted', 'rejected']))
+
+    await TestRenderer.act(async () => { await captured.current!.confirmBulkLog() })
+
+    expect(habitListRef.current?.settleBulkHabitResolutions).toHaveBeenCalledWith(
+      [{ habitId: 'accepted', date: '2026-09-25' }],
+      'log',
+    )
+  })
+})
 
 describe('useBulkActions confirmBulkDelete', () => {
   beforeEach(() => {
@@ -54,12 +99,7 @@ describe('useBulkActions confirmBulkDelete', () => {
   })
 
   it('sends only selected habits when deleting a parent with an excluded child', async () => {
-    const habits = [
-      createMockHabit({ id: 'parent', parentId: null }),
-      createMockHabit({ id: 'child-a', parentId: 'parent' }),
-      createMockHabit({ id: 'child-b', parentId: 'parent' }),
-    ]
-    const { captured } = renderBulkActions(new Set(['parent', 'child-b']), habits)
+    const { captured } = renderBulkActions(new Set(['parent', 'child-b']))
 
     await TestRenderer.act(async () => {
       await captured.current!.confirmBulkDelete()

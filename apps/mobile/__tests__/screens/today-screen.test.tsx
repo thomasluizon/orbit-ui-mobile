@@ -120,6 +120,7 @@ const bulkLogMutateAsync = vi.fn();
 const bulkSkipMutateAsync = vi.fn();
 const markRecentlyCompleted = vi.fn();
 const checkAndPromptParentLog = vi.fn();
+const settleBulkHabitResolutions = vi.fn();
 const mockHabitsData: {
   habitsById: Map<string, NormalizedHabit>;
   childrenByParent: Map<string, string[]>;
@@ -136,6 +137,7 @@ const habitListHandle = {
   expandAll: vi.fn(),
   markRecentlyCompleted,
   checkAndPromptParentLog,
+  settleBulkHabitResolutions,
   refetch: vi.fn(),
   scrollToOffset: vi.fn(),
 };
@@ -609,7 +611,7 @@ describe("TodayScreen", () => {
     ).toBe(12);
   });
 
-  it("dedupes descendant successes before prompting parent logs for bulk actions", async () => {
+  it("passes confirmed bulk results to hierarchy settlement", async () => {
     const root = createMockHabit({
       id: "root",
       title: "Root",
@@ -641,8 +643,8 @@ describe("TodayScreen", () => {
 
     bulkLogMutateAsync.mockResolvedValue({
       results: [
-        { habitId: parent.id, status: "Success" },
-        { habitId: child.id, status: "Success" },
+        { index: 0, habitId: parent.id, status: "Success" },
+        { index: 1, habitId: child.id, status: "Success" },
       ],
     });
 
@@ -664,10 +666,13 @@ describe("TodayScreen", () => {
       await onConfirm();
     });
 
-    expect(markRecentlyCompleted).toHaveBeenCalledWith("parent");
-    expect(markRecentlyCompleted).toHaveBeenCalledWith("child");
-    expect(checkAndPromptParentLog).toHaveBeenCalledTimes(1);
-    expect(checkAndPromptParentLog).toHaveBeenCalledWith("parent");
+    expect(settleBulkHabitResolutions).toHaveBeenCalledWith(
+      [
+        { habitId: parent.id, date: expect.any(String) },
+        { habitId: child.id, date: expect.any(String) },
+      ],
+      "log",
+    );
   });
 
   it("routes free users to upgrade when they select goals", () => {
@@ -1099,11 +1104,11 @@ describe("TodayScreen overdue bulk selection", () => {
     expect(bulkDialogs.every((dialog) => dialog.props.open === false)).toBe(true);
   });
 
-  it("dispatches a bulk log for a selected overdue habit without a date", async () => {
+  it("dispatches a dated bulk log for a selected overdue habit", async () => {
     const overdue = seedOverdueHabit();
     uiState.selectedHabitIds = new Set([overdue.id]);
     bulkLogMutateAsync.mockResolvedValue({
-      results: [{ habitId: overdue.id, status: "Success" }],
+      results: [{ index: 0, habitId: overdue.id, status: "Success" }],
     });
 
     const tree = await renderTodayScreen();
@@ -1124,14 +1129,16 @@ describe("TodayScreen overdue bulk selection", () => {
       await onConfirm();
     });
 
-    expect(bulkLogMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);
+    expect(bulkLogMutateAsync).toHaveBeenCalledWith([
+      { habitId: overdue.id, date: "2026-04-07" },
+    ]);
   });
 
-  it("dispatches a bulk skip for a selected overdue habit without a date", async () => {
+  it("dispatches a dated bulk skip for a selected overdue habit", async () => {
     const overdue = seedOverdueHabit();
     uiState.selectedHabitIds = new Set([overdue.id]);
     bulkSkipMutateAsync.mockResolvedValue({
-      results: [{ habitId: overdue.id, status: "Success" }],
+      results: [{ index: 0, habitId: overdue.id, status: "Success" }],
     });
 
     const tree = await renderTodayScreen();
@@ -1152,7 +1159,9 @@ describe("TodayScreen overdue bulk selection", () => {
       await onConfirm();
     });
 
-    expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);
+    expect(bulkSkipMutateAsync).toHaveBeenCalledWith([
+      { habitId: overdue.id, date: "2026-04-07" },
+    ]);
   });
 });
 
