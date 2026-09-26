@@ -225,96 +225,98 @@ These stay until he changes them. Keep his words.
 
 ## The order: the batches to a production release
 
-**Re-read live on 2026-09-19 and rebuilt from the board, not from the previous ordering.** 103 open
-tickets across the three repositories, down from 231 on 2026-09-17. By repository: 78 `repo:ui`, 24
-`repo:api`, 1 `repo:landing`. By milestone: 96 carry none, 3 `562 Astra`, 2 `Harness Context and
-Calibration`, 1 `539 Redesign`, 1 `Launch`.
+**Rebuilt on 2026-09-26 from the live board, every open ticket placed exactly once.** 169 open tickets.
+The previous placement (2026-09-19) listed 109 references, of which only 32 were still open, and 137 open
+tickets sat in no batch. That gap is why the 2026-09-25 handoffs fell back to the board's leverage ranking;
+no decision was ever behind it. Re-derive the open set with
+`gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400`, and **place every newly filed
+ticket into one batch below in the same session that files it.**
 
-**Every open ticket appears in exactly one batch below.** A batch ships before the next one starts,
-because each removes a reason the next would have to be redone. Inside a batch, order is free.
-
-**Twenty tickets were filed on 2026-09-18 into 09-19 and are placed here for the first time**:
-`#610`, `#611`, `#612`, `#613`, `#615`, `#616`, `#618`, `#619`, `#620`, `#621`, `#622`, `#623`,
-`#624`, `#625`, `#626`, `#627`, `#628`, `#631`, `#632`, and `#614`. Three more were filed and then
-cancelled the same night: `#586`, `#629` and `#630`, all killed when Thomas decided a widget row
-should only open the app.
+**A batch ships before the next one starts**, because each removes a reason the next would have to be
+redone. Inside a batch, order is free: `plan-queue.mjs` supplies dependency order and deferrals there, never
+the batch order. A pull request already open counts as in flight in its batch and is driven to merge first.
 
 ### Batch 0a: DONE
 
-`#585` is closed. `node tools/test-tools.mjs` now takes `--only <name>`, which is what made every
-harness ticket below affordable to verify. It still carries `#627`.
+`#585` closed; `node tools/test-tools.mjs` takes `--only <name>`.
 
 ### Batch 0b: the harness, before the redesign
 
-**Thomas moved this ahead of the redesign on 2026-09-17: "i want this batch before the redesign."**
+**Thomas moved this ahead of the redesign on 2026-09-17: "i want this batch before the redesign."** These are
+the gates every later batch runs through. Re-read each ticket against the tree before building it, and never
+file a harness ticket as a substitute for a fix.
 
-Still open from the original list: `#575`, `#560`, `#559`, `#558`, `#556`, `#546`, `#544`, `#542`,
-`#541`, `#530`, `#528`, `#525`, `#521`, `#455`, `#598`.
+- `#556` redesign/main no longer contains main, and the staleness guard blocks every orchestrator tool
+- `#616` Delete the three dead local/max-button-words disable directives
+- `#655` Detect caller and StyleSheet graphic surfaces in scope guard
+- `#656` Classify motion paragraph color as text in surface scope guard
+- `#661` Rerun a required check that an out-of-order concurrency admission cancelled on the current head
+- `#662` Make the spacing-scale evaluator follow control-flow reachability and logical-expression values
+- `#664` Keep optional response removals failing the OpenAPI gate after the oasdiff-action upgrade (orbit-api PR 530)
+- `#697` Reject a Pullfrog review that GitHub re-pointed onto a later base-merge head (`ui#1123` open)
+- `#702` Contract rebaseline pull requests start no required checks because GITHUB_TOKEN opens them (`main` half merged (`ui#1124`); `redesign/main` port and Thomas's App owed)
+- `#535` Layout guard covers no 320px width and no Wrapped page, so reflow findings cannot be proven
+- `#686` Correct the refuted all-Modals-wedge claim in the mobile guidance
+- `#180` Give the audits a concurrency dimension, and reach it from pr-review
+- `#190` Workflow-drift proposer that stages candidates for /lesson
+- `#230` API gate parity, part 2: clear the 95 hand written pragmas and 7 SuppressMessage
+- `#234` Delete FEATURES.md and repoint its seven consumers at the generated artifact
+- `#299` sonar-project.properties keeps 27 exclusions naming deleted social files
+- `#303` The audit equivalence corpus does not hold its change-one-change-both claim
+- `#304` resolvePerformanceMeasurement silently keeps the last duplicate queryId
+- `#306` measurementFinderFailed is dead by construction in audit.mjs
+- `#307` Align the inlined applyMeasuredQueryContexts guard with its lib sibling
 
-**New, and three of them cost real time on 2026-09-18 into 09-19:**
+### Batch 0c: live defects in the shipped product, on `main`
 
-- **`#627`** — two `create-worktree` cases use one number as both the kill deadline and the pass
-  budget, so they fail inside the full gate and pass 9 of 9 alone. Measured both ways. **Take this
-  first in the batch**: it makes every other ticket here verifiable without a false red.
-- **`#624`** — the order generator never tells a worker to commit per layer, never says pushing is
-  not delivering, and never says the pull request body is part of the work. Three workers stopped one
-  step short of delivery in one night, once with 84 files staged and zero commits.
-- **`#610`** — `salvage-worker` reports a green suite as failed, because `spawn` cannot start a
-  `.cmd` on Windows and four outcomes share one exit code. **Pull request 1033 is open and has never
-  been reviewed.**
-- **`#611`** — refuse a worker launch into an occupied worktree.
-- **`#613`**, **`#618`**, **`#619`** — three gates that do not gate: two never run their check on a
-  pull request, an eslint `ignores` entry silences a `local/*` rule with both gates green, and seven
-  `guards.yml` predicates skip green when the base ref fails to resolve.
+Defects a person hits in the shipped build today (web on `main`, Android from `main`, the `orbit-api`
+`main` deploy). They target `main` under D99 and the route-by-subject rule; an Android fix is followed by
+`/android-release` to the open track.
 
-**Why it earns the front, unchanged:** these are the gates every batch below runs THROUGH, and
-several are lying. A batch that runs on gates which do not gate produces work nobody can trust.
-
-Two standing rules for this batch: **re-read each ticket against the tree before building it**,
-because several describe a state the last two weeks already changed; and a harness ticket is never
-filed as a substitute for fixing something.
-
-### Batch 0c, shipping now: the live Android defects
-
-`#574` (measure the habit list's render counts, then cut them), `#563` (three Android checklist
-defects), `#557` (Android says you were signed out while the session is alive), `#500` (a dismissed
-reminder can still be presented), `#495` and `#493` and `#499` and `#501` (the widget: reintroduced
-size-keyed RemoteViews, the previous account's rows held on screen, an unannounced refresh spinner,
-and a colour generator run on an undeclared file).
-
-**Why first:** these are defects a person hits in the shipped build today. They target `main` under
-D99, and a release follows with `/android-release` to the open track. Everything else in this spec is
-work nobody outside this machine can see yet.
+- `#330` Restore Android push notifications in standalone builds (High: push is off in every standalone Android build)
+- `#134` Habit row three-dot menu does not reliably open on Android (fix shipped in Android 1.3.32 (`#633`); verify on a device, then close)
+- `#214` Android software keyboard covers the Astra chat input
+- `#297` A continuously foregrounded Today view never reflects a change made from another device
+- `#178` Un-selecting a cascade-selected sub-habit does nothing
+- `#216` Fix the UI claims that are not true, starting with delete cannot be undone
+- `#684` Return a distinct error code at the habit ceiling (API first: unblocks `#30`)
+- `#30` Preserve upstream error shape through web mutation Server Actions instead of masking to 500 (after `#684` deploys)
+- `#565` Root-cause the Today-page non-array map failure
+- `#566` Resolve orphan offline IDs before reorder mutations expire
+- `#567` Keep handled Astra daily-limit responses out of web Sentry
+- `#654` Mobile chat stream IDs collide within one millisecond
+- `#704` orbit-api formats numbers and dates with the host culture, so English text gets pt-BR decimals and months (`api#569` open)
+- `#665` Record whether a habit log was a slip when it is written, so lastCompletionDate survives a habit type change (`api#574` open, changes requested)
+- `#323` Google sign-in retries the losing user insert after a concurrent first login
+- `#390` Restore deferred bulk mutations and settle parents from the replay once the API is idempotent (`#389` is live (`api#567`), so the UI can queue bulk writes again)
+- `#225` Three habit-model defects: checklist never resets on a flexible habit, dead EndDate on general, the reminder rule is not an invariant
+- `#253` use-habits.ts follow-ups from ORB-183: XP guard, its deleted test, and two lost WHY comments
 
 ### Batch 1: close the redesign
 
-**The account-change family is the spine of this batch and it is nearly done.** In dependency order:
+Every ticket whose work lands on `redesign/main` in either code repository, including the API halves the
+redesign screens wait on. **This batch ends** when `node tools/redesign-coverage.mjs` reports a valid mapping
+AND every screen ticket closes against its own acceptance criteria.
 
-1. **`#612`** — web overlays keep the previous account's content. **Pull request 1029 is open at
-   `a0f53299` with a P1**: its own round 3 broke a cold load of `/step-up`, so 13 tests fail with an
-   empty body. Round 4 is written at `.claude/handoffs/` and six dirty files are preserved in
-   `ticket-612-web-overlays`.
-2. **`#615`** — gate every web Server Action write by the account that formed it. **Pull request 1030
-   is open** and took the type narrowing that makes a mutating call impossible to write without an
-   account. Needs a re-review at its round 2 head.
-3. **`#600`** — the stores, the twin of `#612`.
-4. **`#622`** — detect an account replacement on the step-up route. Related to `#612`'s P1 and worth
-   reading together.
-5. **`#625`** — an onboarding flush that finishes under the next account.
-6. **`#631`** — **the most serious thing filed all night.** The browser keeps the last Google
-   signer's Supabase session, `supabase.auth.signOut()` appears nowhere in `apps/web`, and the public
-   `/auth-callback` accepts `INITIAL_SESSION`, so a later visit silently signs that browser back in
-   as them. Verified on all three legs.
-
-Then the remaining screen and polish tickets: `#620`, `#616` (closes with `#615`'s pull request),
-`#603`, `#602`, `#608`, `#609`, `#604`, `#587`, `#593`, `#518`, `#519`, `#531`, `#549`, `#463`,
-`#464`, `#465`, `#466`, `#458`, `#535`, `#572`, `#589`, `#592`, `#516`, `#527`, `#530`, `#533`,
-`#497`.
-
-Then **Thomas's own three**, which only he can close: `#217`, `#318`, `#320`.
-
-**This batch ends** when `node tools/redesign-coverage.mjs` reports a valid mapping AND every screen
-ticket closes against its own acceptance criteria.
+- `#675` Send a Turnstile token from web and Android sign-in (`ui#1111` open)
+- `#653` Use the account day for Today habit logging gates (`ui#1125` open)
+- `#622` Detect an account replacement on the step-up route (`ui#1127` open)
+- `#705` Move the runtime React hooks out of packages/shared on redesign/main before the import boundary lint arrives (`ui#1126` open)
+- `#706` Page Astra record list cards past ten rows, send key state as data, and include unearned achievements in the streak card (`api#571` open (orbit-api `redesign/main`))
+- `#607` Stop selling Pro for an accent colour that no longer varies (`api#573` open (orbit-api `redesign/main`))
+- `#681` Render the goal, day, streak, calendar, record list and account blocks in Astra (blocked by `#706`)
+- `#24` Chat surface UX: localized tool-result cards and the preview, confirm, edit pattern for bulk and destructive intents (Stage 3 (per-item edit and reject in the preview) unblocks `#682`)
+- `#682` Show diff rows in Astra previews, a thinking trace, and follow-up chips (blocked by `#24` Stage 3)
+- `#625` Abandon an onboarding flush whose account changed mid-flight, instead of writing to the next account
+- `#497` Collapse the six colour schemes to the one granted accent, UI half
+- `#533` Point Perfil's Support row at the Astra conversation (`#532` is closed, so it is unblocked)
+- `#464` Resolve the support and legal defects found by the #462 sweep
+- `#589` Import a fortnightly weekday calendar event instead of refusing it, and stop mapping INTERVAL onto frequencyQuantity
+- `#592` Convert a timed UNTIL in the event's own timezone once the API projects it
+- `#614` Let a long sub-habit title render its own message, not the habit one
+- `#632` Gate a habit log against an implausible date arriving from a deep link
+- `#647` Measure and reduce the 60-row All-to-Today view switch cost
+- `#393` Restore the Today screen's main-thread headroom so the LCP budget holds on a slow runner
 
 ### THE REDESIGN GATE, between batch 1 and batch 2a
 
@@ -330,50 +332,150 @@ required context back to `Lint Severity` when that pull request is ready to merg
 `gh api -X PATCH repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks
 --input <json>` with `{strict: true, checks: [{context, app_id}]}` (`app_id` 15368 for Actions).
 
-### Batch 2a: the API contracts the UI is already waiting on
+### Batch 2a: the API contracts the UI is waiting on
 
-`#526` (calendar events report the account timezone day and time), `#591` (project the recurrence
-timezone so a UNTIL bound converts), `#588` (the bulk habit endpoint drops IntervalWeeks), `#606`
-(give every FluentValidation rule an error code and localized copy), `#628` (the standalone
-sub-habit validator sends the plain habit message; **`#614` is blocked on it**), `#505` (the streak
-read exposes no repairable gap), `#483` (yearly gap repair needs the streak window widened), `#571`
-(record whether a freeze was spent automatically or by hand), `#454` and `#471` (descendant search),
-`#532` (a Support conversation cannot reach the support tool).
+API first, deploy, then the UI half in 2b.
 
-**Two are already built and waiting on a deploy**: `api#521` and `api#534` are both APPROVED and need
-Thomas to merge and deploy by hand on or after 2026-09-22.
+- `#483` Yearly gap repair needs the streak engine's own window widened
+- `#606` Give every FluentValidation rule an error code and localized copy
+- `#387` Add a from and to range to the habit logs endpoint so a habit's full history is readable
+- `#394` Expose the stable recurrence origin on the habit detail response
+- `#385` Return the discount-aware billed amount on the billing details response
+- `#179` Add a bulk reparent endpoint so a selected set of habits moves in one request
+- `#257` Add optional habitIds to the shared create-goal contract
+- `#259` Test create_goal enforces MaxHabitsPerGoal on the Astra path
+- `#28` Make the referral reward platform-agnostic Pro days with an atomic idempotent grant
 
 ### Batch 2b: every remaining ticket that changes what a person sees
 
-`#614` (blocked on `#628`), `#632` (gate a habit log against an implausible date from a deep link;
-**low priority, and confirm the deep link reaches the screen before building anything**), `#567`,
-`#566`, `#565`, `#569`, `#607`.
+Includes the packaging changes (milestone "Packaging: caps, quotas and tiers") and the PostHog flags and
+analytics work.
+
+- `#395` Anchor habit history on the stable recurrence origin once the API exposes it (after `#394` deploys)
+- `#386` Show the billed charge on the subscription screen once the API returns it (after `#385` deploys)
+- `#181` Bulk-move selected habits, and open the move picker at the habit's current position (after `#179` deploys)
+- `#62` Show and explain the Pro-days referral reward on the surfaces users actually see (after `#28` deploys)
+- `#222` Linking a habit becomes the primary route into creating a goal
+- `#195` Habit-limit paywall copy removed; new at-capacity state
+- `#196` AI quota copy becomes daily across web and mobile
+- `#197` Retrospective unlocks on any Pro plan; remove the yearlyPro entitlement
+- `#199` Remove rewarded ads from the client, the AdMob SDK and the privacy policy (with `#200`)
+- `#200` Remove the rewarded-ad backend and its DTO field
+- `#237` Sub-habits leave Pro: remove the server gate and unseed the flag
+- `#238` Sub-habits leave Pro (UI): drop the matrix row and the copy that sells depth (with `#237`)
+- `#82` Migrate feature flags to a PostHog-backed provider behind a switch (expand phase)
+- `#83` Add PostHog client analytics to the web and mobile apps
+- `#84` Add an analytics opt-out preference toggle on web and mobile
+- `#213` Define the retention cohort and stand up the recurring read
+- `#25` Consume PostHog feature flags on web and mobile and wire the Astra kill switch
 
 ### Batch 3: the landing page and the Play listing, together
 
-`#509` is the only open `repo:landing` ticket. The Play listing work is done: `#34` is fully closed.
+- `#78` Redesign the landing page against the new canon (L2)
+- `#204` Fix the landing today: real numbers, drop the payer stat, drop the badge and the two missing spaces
+- `#209` Landing pricing and FAQ copy realigned to the new packaging
+- `#212` Add llms.txt to the landing for the AI crawlers robots.txt already invites
+- `#269` Waitlist Turnstile can render two widgets into one container, orphaning the first
+- `#270` A transient Turnstile script-load failure disables the waitlist form with no retry path
+- `#271` Waitlist Turnstile receives pt-BR where Cloudflare documents pt-br, so the widget may render in English
+- `#272` PUBLIC_TURNSTILE_SITE_KEY is undocumented, so a build without it silently disables waitlist signups
+- `#273` Turnstile error-callback fights its own auto-retry, forcing a reset loop on any persistent widget error
+- `#274` Turnstile flexible size overflows its clipped card below a 374px viewport
+- `#275` Missing Turnstile sitekey re-announces the same error to screen readers on every keystroke
+- `#276` Turnstile widget keeps its first language and does not follow the runtime language toggle
+- `#277` Recovered Turnstile challenge leaves stale failure copy above an enabled submit button
+- `#278` Turnstile init hangs silently when the script loads but never executes: no load fallback, no timeout
+- `#280` Landing analytics consent cannot be withdrawn once granted: no manage-consent affordance
+- `#282` A CTA click between consent grant and PostHog readiness is silently dropped
+- `#285` Fixing the Lighthouse blocklist silently dropped the accessibility gate from the waitlist-confirmed page
+- `#286` The 404 Lighthouse carve-out records what it excludes but not the measurement that justifies it
+- `#292` A failed Turnstile script load re-appends a script tag on every input event, with no backoff or attempt cap
+- `#313` Turnstile error codes are discarded, so a hard failure like 400020 reaches no log and no human
+- `#328` Move goals to the free plan on the landing pricing table
+- `#249` BRAND.md copy and format cleanups from the ORB-209 review
 
 ### Batch 4: the component-library migration
 
-D101, and strictly after the redesign ships: `#576`, `#577`, `#578`, `#579`, `#580`, `#581`.
+D101, and strictly after the redesign ships.
+
+- `#576` Put a headless behaviour layer under our primitives: rn-primitives on mobile, Radix on web, one shape
+- `#577` Rebuild the anchored menus and popovers on the headless layer, both platforms
+- `#578` Rebuild the confirm and general dialogs on the headless layer, both platforms
+- `#579` Rebuild the select and the pickers on the headless layer, both platforms
+- `#580` Rebuild the toast, tabs and form controls on the headless layer, both platforms
+- `#581` Build the Astra chat surface from beautifului.dev, on both platforms where it can run
 
 ### Batch 5: Astra
 
-`#582`, `#583`, `#584`, plus `#513` and `#514` on the MCP surface, and `#599`, whose **pull request
-534 is APPROVED after five rounds** and waits on the same 2026-09-22 deploy.
+Milestone "562 Astra" and every Astra or MCP tool ticket not already in Batch 1.
+
+- `#16` Cut Astra chat input tokens roughly 35 percent via tool gating, schema trim, and a smaller history window
+- `#17` Harden MCP auth and wire content moderation into the chat and MCP input paths
+- `#18` Bound per-user AI spend and close the residual MCP authz gaps: tool-boundary scope check, ownership map, idempotency, distributed OAuth code store
+- `#19` Execute Astra bulk intents server side on the full matching set and report the true affected count
+- `#21` Constrain Astra free text answers to tool returned facts
+- `#23` Localize Astra tool result card text via structured message keys in the contract
+- `#26` Build the Astra prompt to behavior eval harness and gate launch on it
+- `#48` Ground the Astra daily summary in real multi-day adherence data
+- `#49` Localize the Astra action-chip labels for UpdateChecklist and the other unmapped tool types
+- `#201` Persist Astra conversations so failures are debuggable
+- `#202` Astra builds an invalid payload for date-specific tasks
+- `#236` Astra tells free users that XP, levels and streak freezes are Pro. They are not.
+- `#244` Astra crashes the chat turn when asked to log a habit already logged for that date
+- `#245` The agent audit write commits the caller's uncommitted work and loses the row when it matters
+- `#246` Astra cannot unmark a habit: add unlog_habit
+- `#247` Astra logs habits that are not due, because its habit listing never says so
+- `#248` The habit list does not refresh after Astra unmarks a habit
+- `#254` Chat habit-tool follow-ups from ORB-23: unproven ownership scoping, changed failure contract, test gaps
+- `#260` CanSendAiMessage is orphaned after the atomic reservation migration
+- `#264` Every added limiter test calls TryApplyMcpRateLimitsAsync directly, so removing the new middleware invocation leaves the suite green while restoring an unbounded MCP endpoint.
+- `#265` The new get_retrospective AI classification has no rate-limit regression test, so deleting or misspelling that entry leaves every test green and gives the AI tool the general limit.
+- `#396` Register an AI tool for the proactive Astra setting so Astra can change it
+- `#418` Let Astra retry a rejected tool call safely, without trusting the model to identify the retry
+- `#514` Extend the #318 capability inventory to the MCP surface and to field level, and file the gaps
+- `#582` Move Astra to the current cheap model tier and send a per-user prompt cache key
+- `#583` Make every Astra tool schema strict, with enums for every closed set of values
+- `#584` Emit one PostHog LLM analytics event per Astra model call
 
 ### Batch 6: security, correctness and the deletions
 
-`#529` (listing and revoking API keys need step-up; **built, inert, and it needs
-`RequireApiKeyCreationStepUp` flipped to `true` only AFTER `api#534` deploys**), `#621`
-(`controllerActions` reads as enforcement on 51 capabilities and enforces nothing), `#623`
-(`BuildLegacyMatchKey` duplicated in the calendar writer and reader), `#626` (the calendar
-reconciler disagrees with its own writer), `#564` and `#568` (Hangfire stream writes, destructive EF
-schema changes).
+- `#101` Cut the access token lifetime to 15 minutes and make logout actually revoke it
+- `#102` Close the account enumeration timing split in the user provisioning path
+- `#114` Partition the anonymous auth and waitlist rate limits by IP as well as email
+- `#115` Cancel the Stripe and Play subscription when a user confirms account deletion
+- `#568` Make destructive EF schema changes safe across rolling deploys
+- `#621` Stop controllerActions reading as enforcement, because 51 capabilities declare it and nothing reads it at request time
+- `#623` Give BuildLegacyMatchKey one definition, because the writer and the reader each carry their own copy
+- `#626` Make the calendar reconciler and the suggestion writer agree on an unrepresentable projection
+- `#660` Refuse access tokens without a session claim once pre-deploy tokens have expired
+- `#685` Delete the colour-scheme write path once no supported client writes it (ORBIT-API-5)
+- `#687` Confirm MCP over OAuth enforces the same Pro gate as API keys
+- `#218` Delete the social layer (API), part 1: challenges and accountability
+- `#235` Delete AI memory (API): UserFacts, AiFactExtractionBatches, the batch poller, 3 chat tools, 3 MCP tools and the Pro gate
+- `#239` Delete the social layer (API), part 2: friend graph, feed, cheers, blocks, reports, public profile and the drop migration
+- `#227` Habit model: split StartDate from NextDueDate and replace the three flags with enum HabitSchedule
+- `#205` Behaviour test suite for Google Calendar import and auto-sync
+- `#250` Drop the hard-coded Supabase URL fallback from the web CSP builder
+- `#251` Re-exclude _next/static and _next/image from the web proxy matcher
+- `#206` Serve a real robots.txt on the web app and stop the auth proxy swallowing root text files
+- `#208` Turn on 3D Secure for the Stripe card flow
+- `#262` The end-date reactivation gate is not exercised through UpdateHabitCommandHandler, so removing the new handler call would leave all added tests green and allow at-cap reactivation through PUT /api/habits/{id}.
+- `#255` Parent-prompt follow-ups from ORB-86: isFlexible check, re-prompt guard cleared on every fetch, frozen test clock
+- `#279` The privacy policy discloses no cookie or consent information, so the landing consent banner cannot obtain informed consent
+- `#301` Sweep the 13 surviving social references ORB-201 part 1 left behind
+- `#302` Legacy buddies-tab notifications fall to the default glyph after ORB-201 part 1
 
 ### Batch 7: the production readiness run
 
-Unchanged. `/audit-prod-readiness`, then fix what it finds, then ship.
+`/prod-readiness`, then fix what it finds, then ship. The launch chores that are Thomas's own
+(`#33` demo clips, `#89` account migration) sit here too.
+
+- `#315` Run /prod-readiness once the board is clear
+- `#31` Triage and root-cause every open orbit-api Sentry issue
+- `#32` Triage and root-cause the open web and mobile Sentry issues
+- `#33` Record the 7 demo clips and 2 landing videos
+- `#89` Map and migrate every third-party account onto contact@useorbit.org
+- `#311` Recheck the image-size advisories once a fixed version ships
 
 ## How the work runs
 

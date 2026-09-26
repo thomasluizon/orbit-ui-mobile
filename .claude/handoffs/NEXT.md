@@ -48,12 +48,11 @@ after the head's push time** (`gh api "repos/<owner>/<repo>/activity?ref=refs/he
 2. Push the three unpushed batches: `ui#1123`, `api#569`, `ui#1126` (after its worker's result is read).
 3. Clear `api#574` and `api#571`; then relaunch `#681`.
 4. Then follow the spec's `## The order: the batches to a production release`, batch by batch, never the
-   board's leverage ranking: what is left of Batch 0b (harness) and Batch 0c (live Android defects on `main`),
-   then Batch 1 (close the redesign) until `node tools/redesign-coverage.mjs` passes and every screen ticket is
-   closed, then STOP at THE REDESIGN GATE (internal Play build for Thomas; never merge `redesign/main` to `main`).
-   That section was placed on 2026-09-19. Before starting, put every open ticket filed after that date into one
-   batch in the spec, by the section's own rules (a live defect on `main`, such as `#330` Android push broken in
-   release builds, goes in Batch 0c), and commit that update. `plan-queue.mjs` is only for dependency order and
-   deferrals inside a batch.
+   board's leverage ranking. It was rebuilt on 2026-09-26 with all 169 open tickets, each in exactly one batch:
+   Batch 0b (20 harness tickets), then Batch 0c (18 live defects on `main`, `#330` Android push first), then
+   Batch 1 (19 redesign tickets, including the open PRs above) until `node tools/redesign-coverage.mjs` passes and
+   every screen ticket is closed, then STOP at THE REDESIGN GATE (internal Play build for Thomas; never merge
+   `redesign/main` to `main`). `plan-queue.mjs` is only for dependency order and deferrals inside a batch. Place
+   every ticket you file into one batch in the same session.
 
 Every identifier here came from a previous session. Treat each as a lead to verify.
