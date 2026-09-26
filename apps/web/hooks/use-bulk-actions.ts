@@ -40,10 +40,9 @@ export function useBulkActions({
   }, [habitsById, habitListRef])
 
   const confirmBulkDelete = useCallback(async () => {
-    const ids = Array.from(selectedHabitIds)
-    if (ids.length === 0) return
+    if (selectedHabitIds.size === 0) return
     try {
-      await bulkDelete.mutateAsync(ids)
+      await bulkDelete.mutateAsync(Array.from(selectedHabitIds))
     } catch {
     } finally {
       onSuccess()

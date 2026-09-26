@@ -348,18 +348,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       recentlyCompletedIds,
     }, view)
 
-    const isAncestorSelected = useCallback(
-      (habitId: string): boolean => {
-        let current = habitsById.get(habitId)?.parentId ?? null
-        while (current) {
-          if (selectedIds.has(current)) return true
-          current = habitsById.get(current)?.parentId ?? null
-        }
-        return false
-      },
-      [habitsById, selectedIds],
-    )
-
     const recentlyCompletedTimersRef = useRef(
       new Map<string, ReturnType<typeof setTimeout>>(),
     )
@@ -1176,7 +1164,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 toggleSelectionCascade(
                   habit.id,
                   getDescendantIds,
-                  isAncestorSelected,
                 )
               },
               onDetail: () => onDetailHabit?.(habit),
@@ -1184,7 +1171,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 toggleSelectionCascade(
                   habit.id,
                   getDescendantIds,
-                  isAncestorSelected,
                 ),
               onLongPressCard: options?.onLongPressCard,
             }}
@@ -1224,7 +1210,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         toggleSelectMode,
         toggleSelectionCascade,
         getDescendantIds,
-        isAncestorSelected,
         onDetailHabit,
         onEditHabit,
       ],

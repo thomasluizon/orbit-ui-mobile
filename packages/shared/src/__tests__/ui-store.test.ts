@@ -65,7 +65,6 @@ describe("shared ui store", () => {
     toggleSelectionCascade(
       "parent",
       () => ["child-1", "child-2"],
-      () => false,
     );
 
     expect(store.getState().selectedHabitIds).toEqual(
@@ -75,7 +74,6 @@ describe("shared ui store", () => {
     toggleSelectionCascade(
       "parent",
       () => ["child-1", "child-2"],
-      () => false,
     );
 
     expect(store.getState().selectedHabitIds.size).toBe(0);

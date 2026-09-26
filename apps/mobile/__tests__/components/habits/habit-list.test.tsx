@@ -1721,7 +1721,6 @@ describe('HabitList', () => {
     expect(toggleSelectionCascade).toHaveBeenCalledWith(
       'overdue-1',
       expect.any(Function),
-      expect.any(Function),
     )
   })
 
