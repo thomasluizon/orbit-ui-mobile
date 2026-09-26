@@ -363,7 +363,8 @@
         "apps/web/components/calendar/calendar-week-view.tsx",
         "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
-        "apps/web/hooks/use-calendar-data.ts"
+        "apps/web/hooks/use-calendar-data.ts",
+        "apps/web/hooks/use-calendar-entry-mutation-lock.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -388,7 +389,8 @@
         "apps/web/components/calendar/calendar-week-view.tsx",
         "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
-        "apps/web/hooks/use-calendar-data.ts"
+        "apps/web/hooks/use-calendar-data.ts",
+        "apps/web/hooks/use-calendar-entry-mutation-lock.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -413,7 +415,8 @@
         "apps/web/components/calendar/calendar-week-view.tsx",
         "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
-        "apps/web/hooks/use-calendar-data.ts"
+        "apps/web/hooks/use-calendar-data.ts",
+        "apps/web/hooks/use-calendar-entry-mutation-lock.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -438,7 +441,8 @@
         "apps/web/components/calendar/calendar-week-view.tsx",
         "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
-        "apps/web/hooks/use-calendar-data.ts"
+        "apps/web/hooks/use-calendar-data.ts",
+        "apps/web/hooks/use-calendar-entry-mutation-lock.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -5739,6 +5743,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
+        "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
       "state": "default",
@@ -5764,6 +5769,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
+        "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
       "state": "default",
@@ -5789,6 +5795,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
+        "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
       "state": "default",
@@ -5814,6 +5821,7 @@
         "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
+        "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
       "state": "default",

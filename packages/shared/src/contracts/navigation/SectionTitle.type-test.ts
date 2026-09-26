@@ -1,4 +1,3 @@
-import type { ReactElement, ReactNode } from 'react'
 import type { SectionTitleProps } from './SectionTitle'
 
 type Keys<T> = T extends unknown ? keyof T : never
@@ -12,11 +11,11 @@ type IsExactWidth<T, U> =
 type Assert<T extends true> = T
 
 export type SectionTitleTypeContract = [
-  Assert<IsExactWidth<SectionTitleProps['children'], ReactNode>>,
+  Assert<IsExactWidth<SectionTitleProps['children'], React.ReactNode>>,
   Assert<IsExactWidth<SectionTitleProps['eyebrow'], string | undefined>>,
   Assert<IsExact<{ children: 'Habits' }, SectionTitleProps>>,
   Assert<IsExact<{ children: 'Habits'; eyebrow: 'Today' }, SectionTitleProps>>,
-  Assert<IsExact<{ children: ReactElement }, SectionTitleProps>>,
+  Assert<IsExact<{ children: React.ReactElement }, SectionTitleProps>>,
   Assert<Exclude<Keys<SectionTitleProps>, 'children' | 'eyebrow'> extends never ? true : false>,
   Assert<Exclude<'children' | 'eyebrow', Keys<SectionTitleProps>> extends never ? true : false>,
   // @ts-expect-error section titles have no subtitle
@@ -30,7 +29,7 @@ export type SectionTitleTypeContract = [
   // @ts-expect-error inset spacing belongs to the primitive
   Assert<IsExact<{ children: 'Habits'; inset: 16 }, SectionTitleProps>>,
   // @ts-expect-error eyebrows carry words rather than nodes
-  Assert<IsExact<{ children: 'Habits'; eyebrow: ReactElement }, SectionTitleProps>>,
+  Assert<IsExact<{ children: 'Habits'; eyebrow: React.ReactElement }, SectionTitleProps>>,
   // @ts-expect-error section titles require heading content
   Assert<IsExact<{ eyebrow: 'Today' }, SectionTitleProps>>,
 ]

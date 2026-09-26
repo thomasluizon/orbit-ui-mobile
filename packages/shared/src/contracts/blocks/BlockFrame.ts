@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 export type BlockFrameState = 'loading' | 'resting' | 'acting' | 'partiallyFailed' | 'stale'
 
@@ -8,12 +7,12 @@ export type BlockFrameStatusLabels = Readonly<Record<BlockFrameItemStatus, strin
 
 export type BlockFrameItem = {
   readonly id: string
-  readonly label: ReactNode
+  readonly label: React.ReactNode
   readonly wrapLabel?: boolean
   readonly meta?: string
   readonly status?: BlockFrameItemStatus
   readonly statusLabel?: string
-  readonly control?: ReactNode
+  readonly control?: React.ReactNode
   readonly proposed?: boolean
   readonly irreversible?: boolean
 }
@@ -37,11 +36,11 @@ type BlockFrameItemEditArm =
 type BlockFrameCommon = {
   readonly title: string
   readonly wrapTitle?: boolean
-  readonly count?: ReactNode
+  readonly count?: React.ReactNode
   readonly items: readonly BlockFrameItem[]
-  readonly body?: ReactNode
-  readonly risk?: ReactNode
-  readonly actions?: ReactNode
+  readonly body?: React.ReactNode
+  readonly risk?: React.ReactNode
+  readonly actions?: React.ReactNode
   readonly irreversibleLabel?: string
   readonly confirmNote?: string
   readonly proposedLabel?: string

@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 /**
  * AN ICON-ONLY BUTTON CANNOT RENDER WITHOUT ITS NAME, discriminated in the type the same way
@@ -31,7 +30,7 @@ export interface LabelledButtonProps extends ButtonBase {
 
 /** Icon-only: a glyph and nothing readable, so the name is required and comes from the caller. */
 export interface IconOnlyButtonProps extends ButtonBase {
-  children: ReactNode
+  children: React.ReactNode
   iconOnly: true
   label: string
   accessibleName?: never

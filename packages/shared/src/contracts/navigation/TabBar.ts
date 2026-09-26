@@ -1,9 +1,8 @@
-import type { ReactNode } from 'react'
 
 export type TabBarItem = {
   id: string
   label: string
-  icon?: (state: { active: boolean }) => ReactNode
+  icon?: (state: { active: boolean }) => React.ReactNode
 }
 
 export type TabBarProps = {

@@ -2,6 +2,7 @@ export * from './action-chips'
 export * from './message-actions'
 export * from './message-bubble'
 export * from './pending-operation-card'
+export * from './pending-operation-card-view'
 export * from './related-surfaces'
 export * from './sse-stream'
 

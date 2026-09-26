@@ -38,10 +38,8 @@ import {
   getFriendlyErrorMessage,
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
-import {
-  getCalendarEntryMutationKey,
-  useCalendarEntryMutationLock,
-} from '@orbit/shared/hooks'
+import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
+import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useAccountScopedState } from '@/hooks/use-session-reset'

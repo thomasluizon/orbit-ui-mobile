@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { InfoCardProps } from './InfoCard'
 
 type Keys<T> = T extends unknown ? keyof T : never
@@ -12,8 +11,8 @@ type IsExactWidth<T, U> =
 type Assert<T extends true> = T
 
 export type InfoCardTypeContract = [
-  Assert<IsExactWidth<InfoCardProps['icon'], ReactNode>>,
-  Assert<IsExactWidth<InfoCardProps['children'], ReactNode>>,
+  Assert<IsExactWidth<InfoCardProps['icon'], React.ReactNode>>,
+  Assert<IsExactWidth<InfoCardProps['children'], React.ReactNode>>,
   Assert<IsExact<{ icon: 'i'; children: 'Details' }, InfoCardProps>>,
   // @ts-expect-error info cards have one visual treatment
   Assert<IsExact<{ variant: 'quiet' }, InfoCardProps>>,

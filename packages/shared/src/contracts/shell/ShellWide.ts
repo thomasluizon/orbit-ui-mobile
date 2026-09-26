@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 /** One sidebar destination. A destination with no id or no label does not compile. */
 export interface ShellWideItem {
@@ -17,7 +16,7 @@ type ConversationSlot =
     }
   | {
       /** The panel's CONTENT. Takes authored markup as readily as a pre-built node. */
-      conversation: ReactNode
+      conversation: React.ReactNode
       /** Omit it and presence means open. Pass it to hold markup permanently and toggle openness. */
       conversationOpen?: boolean
       /** The panel's accessible name, in the screen's locale. The shell ships no words. */
@@ -51,12 +50,12 @@ type PaletteControl =
     }
 
 interface ShellWideBase {
-  children?: ReactNode
+  children?: React.ReactNode
   /** PINNED above the main scroller, spanning the pane beside the sidebar. Same slot and same
    *  component as Shell412's header, so a detail screen behaves identically at both widths. */
-  header?: ReactNode
+  header?: React.ReactNode
   /** TRANSIENT PINNED CHROME, directly ABOVE the pinned bottom slot and never in its place. */
-  notice?: ReactNode
+  notice?: React.ReactNode
 }
 
 /** A destination: the sidebar is present, and the pinned bottom slot of the 740 column is the
@@ -77,7 +76,7 @@ export type ShellWideNavProps = ShellWideBase &
     account?: string
     /** Astra's front door, pinned to the bottom of the 740 main column, matching the mobile
      *  placement. THE COMPOSER AND NOTHING ELSE: transient chrome goes in `notice`, above it. */
-    composer?: ReactNode
+    composer?: React.ReactNode
     /** Rejected on a destination: a flow's forward action exists only where `nav` is false. */
     action?: never
   }
@@ -98,7 +97,7 @@ export type ShellWideNoNavProps = ShellWideBase &
     paletteHint?: never
     navLabel?: never
     /** The flow's ONE pinned forward action, at the bottom of the 740 column. */
-    action?: ReactNode
+    action?: React.ReactNode
     /** Rejected on a flow: a flow is not a destination, so it has no front door to pin. */
     composer?: never
   }

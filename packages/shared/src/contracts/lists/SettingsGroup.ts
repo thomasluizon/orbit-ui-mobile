@@ -1,9 +1,8 @@
-import type { ReactNode } from 'react'
 
 export interface SettingsGroupItem {
   label: string
   value?: string
-  trailing?: ReactNode
+  trailing?: React.ReactNode
   onClick?: () => void
 }
 

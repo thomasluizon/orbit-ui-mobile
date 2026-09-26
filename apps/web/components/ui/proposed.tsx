@@ -2,7 +2,7 @@ import {
   PROPOSED_RADIUS,
   type ProposedProps,
 } from '@orbit/shared/contracts/blocks'
-import { tintProposedChildren, type ProposedTintAdapter } from '@orbit/shared/utils'
+import { tintProposedChildren, type ProposedTintAdapter } from './proposed-tint'
 import { cloneElement, Fragment, type CSSProperties } from 'react'
 
 const proposedColorClass = 'text-[var(--fg-3)]'

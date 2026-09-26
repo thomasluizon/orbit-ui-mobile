@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { ShellWideItem, ShellWideProps } from './ShellWide'
 
 type Keys<T> = T extends unknown ? keyof T : never
@@ -13,9 +12,9 @@ type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
 
 type ExpectedBase = {
-  children?: ReactNode
-  header?: ReactNode
-  notice?: ReactNode
+  children?: React.ReactNode
+  header?: React.ReactNode
+  notice?: React.ReactNode
 }
 type ExpectedPlainConversation = {
   conversation?: undefined
@@ -23,7 +22,7 @@ type ExpectedPlainConversation = {
   conversationLabel?: never
 }
 type ExpectedConversation = {
-  conversation: ReactNode
+  conversation: React.ReactNode
   conversationOpen?: boolean
   conversationLabel: string
 }
@@ -46,7 +45,7 @@ type ExpectedNav = {
   onSelect?: (id: string) => void
   navLabel: string
   account?: string
-  composer?: ReactNode
+  composer?: React.ReactNode
   action?: never
 }
 type ExpectedFlow = {
@@ -61,7 +60,7 @@ type ExpectedFlow = {
   paletteLabel?: never
   paletteHint?: never
   navLabel?: never
-  action?: ReactNode
+  action?: React.ReactNode
   composer?: never
 }
 
@@ -83,22 +82,22 @@ type NavCreatePaletteVariant = Extract<
 >
 type NavConversationPlainVariant = Extract<
   ShellWideProps,
-  { nav?: true; conversation: ReactNode; onCreate?: undefined; onPalette?: undefined }
+  { nav?: true; conversation: React.ReactNode; onCreate?: undefined; onPalette?: undefined }
 >
 type NavConversationPaletteVariant = Extract<
   ShellWideProps,
-  { nav?: true; conversation: ReactNode; onCreate?: undefined; onPalette: () => void }
+  { nav?: true; conversation: React.ReactNode; onCreate?: undefined; onPalette: () => void }
 >
 type NavConversationCreateVariant = Extract<
   ShellWideProps,
-  { nav?: true; conversation: ReactNode; onCreate: () => void; onPalette?: undefined }
+  { nav?: true; conversation: React.ReactNode; onCreate: () => void; onPalette?: undefined }
 >
 type NavConversationCreatePaletteVariant = Extract<
   ShellWideProps,
-  { nav?: true; conversation: ReactNode; onCreate: () => void; onPalette: () => void }
+  { nav?: true; conversation: React.ReactNode; onCreate: () => void; onPalette: () => void }
 >
 type FlowPlainVariant = Extract<ShellWideProps, { nav: false; conversation?: undefined }>
-type FlowConversationVariant = Extract<ShellWideProps, { nav: false; conversation: ReactNode }>
+type FlowConversationVariant = Extract<ShellWideProps, { nav: false; conversation: React.ReactNode }>
 
 type Destinations = ShellWideItem[]
 /** The smallest sidebar that is a state: destinations, a current one, and a landmark name. */
@@ -106,16 +105,16 @@ type Sidebar = { items: Destinations; activeId: 'hoje'; navLabel: 'Navigation' }
 
 type WithCreate = Sidebar & { onCreate: () => void; createLabel: 'Novo habito' }
 type WithPalette = Sidebar & { onPalette: () => void; paletteLabel: 'Buscar'; paletteHint: 'Ctrl K' }
-type WithConversation = Sidebar & { conversation: ReactNode; conversationLabel: 'Conversa' }
-type Furnished = Sidebar & { onSelect: (id: string) => void; account: 'a@b.c'; composer: ReactNode }
+type WithConversation = Sidebar & { conversation: React.ReactNode; conversationLabel: 'Conversa' }
+type Furnished = Sidebar & { onSelect: (id: string) => void; account: 'a@b.c'; composer: React.ReactNode }
 
 type CreateWithoutWord = Sidebar & { onCreate: () => void }
 type PaletteWithoutWord = Sidebar & { onPalette: () => void }
 type HintWithoutEntry = Sidebar & { paletteHint: 'Ctrl K' }
-type DestinationWithAction = Sidebar & { action: ReactNode }
-type ConversationWithoutName = Sidebar & { conversation: ReactNode }
+type DestinationWithAction = Sidebar & { action: React.ReactNode }
+type ConversationWithoutName = Sidebar & { conversation: React.ReactNode }
 type OpenWithoutConversation = Sidebar & { conversationOpen: true }
-type SidebarWithTabBar = Sidebar & { tabBar: ReactNode }
+type SidebarWithTabBar = Sidebar & { tabBar: React.ReactNode }
 type ItemWithoutId = { items: [{ label: 'Hoje' }]; activeId: 'hoje'; navLabel: 'Navigation' }
 type ItemWithoutLabel = { items: [{ id: 'hoje' }]; activeId: 'hoje'; navLabel: 'Navigation' }
 
@@ -133,10 +132,10 @@ export type ShellWideTypeContract = [
   Assert<IsExactWidth<ShellWideItem['id'], string>>,
   Assert<IsExactWidth<ShellWideItem['label'], string>>,
   Assert<IsExactWidth<ShellWideItem['icon'], string | undefined>>,
-  Assert<IsExactWidth<ShellWideProps['children'], ReactNode>>,
-  Assert<IsExactWidth<ShellWideProps['header'], ReactNode>>,
-  Assert<IsExactWidth<ShellWideProps['notice'], ReactNode>>,
-  Assert<IsExactWidth<ShellWideProps['conversation'], ReactNode>>,
+  Assert<IsExactWidth<ShellWideProps['children'], React.ReactNode>>,
+  Assert<IsExactWidth<ShellWideProps['header'], React.ReactNode>>,
+  Assert<IsExactWidth<ShellWideProps['notice'], React.ReactNode>>,
+  Assert<IsExactWidth<ShellWideProps['conversation'], React.ReactNode>>,
   Assert<IsExactWidth<ShellWideProps['conversationOpen'], boolean | undefined>>,
   Assert<IsExactWidth<ShellWideProps['conversationLabel'], string | undefined>>,
   Assert<IsExactWidth<ShellWideProps['onCreate'], (() => void) | undefined>>,
@@ -150,14 +149,14 @@ export type ShellWideTypeContract = [
   Assert<IsExactWidth<ShellWideProps['onSelect'], ((id: string) => void) | undefined>>,
   Assert<IsExactWidth<ShellWideProps['navLabel'], string | undefined>>,
   Assert<IsExactWidth<ShellWideProps['account'], string | undefined>>,
-  Assert<IsExactWidth<ShellWideProps['composer'], ReactNode>>,
-  Assert<IsExactWidth<ShellWideProps['action'], ReactNode>>,
+  Assert<IsExactWidth<ShellWideProps['composer'], React.ReactNode>>,
+  Assert<IsExactWidth<ShellWideProps['action'], React.ReactNode>>,
   Assert<IsExact<Sidebar, ShellWideProps>>,
   Assert<IsExact<Furnished, ShellWideProps>>,
   Assert<IsExact<WithCreate, ShellWideProps>>,
   Assert<IsExact<WithPalette, ShellWideProps>>,
   Assert<IsExact<WithConversation, ShellWideProps>>,
-  Assert<IsExact<{ nav: false; action: ReactNode }, ShellWideProps>>,
+  Assert<IsExact<{ nav: false; action: React.ReactNode }, ShellWideProps>>,
   Assert<IsExact<{ nav: false }, ShellWideProps>>,
   // @ts-expect-error a sidebar with no destinations is not a state
   Assert<IsExact<{ activeId: 'hoje'; navLabel: 'Navigation' }, ShellWideProps>>,
@@ -182,7 +181,7 @@ export type ShellWideTypeContract = [
   // @ts-expect-error the account row renders inside the sidebar
   Assert<IsExact<{ nav: false; account: 'a@b.c' }, ShellWideProps>>,
   // @ts-expect-error a flow cannot pin Astra's front door
-  Assert<IsExact<{ nav: false; composer: ReactNode }, ShellWideProps>>,
+  Assert<IsExact<{ nav: false; composer: React.ReactNode }, ShellWideProps>>,
   // @ts-expect-error conversation content requires its accessible name
   Assert<IsExact<ConversationWithoutName, ShellWideProps>>,
   // @ts-expect-error openness is not a state a shell without a conversation has

@@ -1,11 +1,10 @@
-import type { ReactNode } from 'react'
 
 export interface RadioRowBase {
   label: string
   description?: string
   selected?: boolean
   onSelect?: () => void
-  leading?: ReactNode
+  leading?: React.ReactNode
   depth?: number
   meta?: string
   tag?: string

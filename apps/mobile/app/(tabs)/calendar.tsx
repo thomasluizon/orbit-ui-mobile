@@ -51,10 +51,8 @@ import {
   type CalendarMonthDisplayState,
   getFriendlyErrorMessage,
 } from "@orbit/shared/utils";
-import {
-  getCalendarEntryMutationKey,
-  useCalendarEntryMutationLock,
-} from "@orbit/shared/hooks";
+import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
+import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { Profile } from "@orbit/shared/types/profile";
 import { useCalendarData, useCalendarRange, useLogHabit } from "@/hooks/use-habits";

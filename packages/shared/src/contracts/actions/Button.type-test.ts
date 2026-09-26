@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { ButtonProps } from './Button'
 
 type Keys<T> = T extends unknown ? keyof T : never
@@ -31,7 +30,7 @@ type ExpectedLabelledVariant = ExpectedButtonBase & {
   label?: never
 }
 type ExpectedIconOnlyVariant = ExpectedButtonBase & {
-  children: ReactNode
+  children: React.ReactNode
   iconOnly: true
   label: string
   accessibleName?: never
@@ -46,7 +45,7 @@ export type ButtonTypeContract = [
   Assert<IsExactWidth<ButtonProps['disabled'], boolean | undefined>>,
   Assert<IsExactWidth<ButtonProps['onClick'], (() => void) | undefined>>,
   Assert<IsExactWidth<ButtonProps['formId'], string | undefined>>,
-  Assert<IsExactWidth<ButtonProps['children'], ReactNode>>,
+  Assert<IsExactWidth<ButtonProps['children'], React.ReactNode>>,
   Assert<IsExactWidth<ButtonProps['accessibleName'], string | undefined>>,
   Assert<IsExactWidth<ButtonProps['iconOnly'], true | undefined>>,
   Assert<IsExactWidth<ButtonProps['label'], string | undefined>>,

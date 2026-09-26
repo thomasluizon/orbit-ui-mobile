@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { SettingsGroupItem, SettingsGroupProps } from './SettingsGroup'
 
 type IsExactWidth<T, U> =
@@ -30,7 +29,7 @@ type Children = Accepts<{ items: []; children: 'separator' }, SettingsGroupProps
 export type SettingsGroupTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<SettingsGroupItem['label'], string>>,
   Assert<IsExactWidth<SettingsGroupItem['value'], string | undefined>>,
-  Assert<IsExactWidth<SettingsGroupItem['trailing'], ReactNode>>,
+  Assert<IsExactWidth<SettingsGroupItem['trailing'], React.ReactNode>>,
   Assert<IsExactWidth<SettingsGroupItem['onClick'], (() => void) | undefined>>,
   Assert<IsExactWidth<SettingsGroupProps['items'], SettingsGroupItem[]>>,
 ]

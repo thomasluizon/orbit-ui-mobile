@@ -1,4 +1,3 @@
-import type { RefObject } from 'react'
 
 export interface MenuItem {
   id: string
@@ -20,7 +19,7 @@ interface MenuBaseProps {
 
 export interface AutomaticMenuProps extends MenuBaseProps {
   presentation?: 'auto'
-  anchorRef?: RefObject<unknown>
+  anchorRef?: React.RefObject<unknown>
   wideFrom?: number
 }
 
@@ -32,7 +31,7 @@ export interface SheetMenuProps extends MenuBaseProps {
 
 export interface AnchoredMenuProps extends MenuBaseProps {
   presentation: 'anchored'
-  anchorRef: RefObject<unknown>
+  anchorRef: React.RefObject<unknown>
   wideFrom?: never
 }
 

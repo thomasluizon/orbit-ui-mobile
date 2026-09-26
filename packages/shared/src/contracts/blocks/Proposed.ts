@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 export type ProposedScope = 'field' | 'row' | 'block'
 
@@ -17,5 +16,5 @@ export type ProposedProps = {
    * elements recurse through fragments, arrays, and their children without taking an
    * inheritable color themselves. 3.
    */
-  readonly children: ReactNode
+  readonly children: React.ReactNode
 }

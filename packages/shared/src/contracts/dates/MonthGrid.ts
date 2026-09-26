@@ -1,8 +1,7 @@
-import type { ReactNode } from 'react'
 
 export interface MonthGridProps {
   weekdayLabels?: string[]
-  children?: ReactNode
+  children?: React.ReactNode
   gap?: string | number
   label?: string
   minimumDayGridHeight?: number

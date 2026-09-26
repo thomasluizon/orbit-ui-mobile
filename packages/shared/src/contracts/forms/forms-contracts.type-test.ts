@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type {
   CheckboxProps,
   CheckRowProps,
@@ -48,7 +47,7 @@ type ExpectedSingleLineVariant = {
   name?: string
   onSubmit?: () => void
   onBlur?: () => void
-  trailing?: ReactNode
+  trailing?: React.ReactNode
   multiline?: never
   rows?: never
 }
@@ -174,7 +173,7 @@ export type FormContractAssertionsWidthAssertions = [
   Assert<IsExactWidth<InputProps['focusRequest'], number | undefined>>,
   Assert<IsExactWidth<InputProps['name'], string | undefined>>,
   Assert<IsExactWidth<InputProps['onSubmit'], (() => void) | undefined>>,
-  Assert<IsExactWidth<InputProps['trailing'], ReactNode>>,
+  Assert<IsExactWidth<InputProps['trailing'], React.ReactNode>>,
   Assert<IsExactWidth<InputProps['multiline'], true | undefined>>,
   Assert<IsExactWidth<InputProps['rows'], number | undefined>>,
   Assert<IsExactWidth<OtpInputProps['length'], number | undefined>>,

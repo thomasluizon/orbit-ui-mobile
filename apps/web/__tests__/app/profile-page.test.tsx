@@ -65,7 +65,7 @@ vi.mock('@/lib/step-up-storage', () => ({
   },
 }))
 
-vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
+vi.mock('@/hooks/use-shell-notice-slot', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useShellNoticeSlot: mockShellNoticeSlot,
 }))

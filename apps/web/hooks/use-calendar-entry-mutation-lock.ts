@@ -1,11 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-
-interface PendingCalendarEntryMutation {
-  checked: boolean
-  settled: boolean
-}
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { canStartCalendarEntryMutation, pendingCalendarEntryStates, reconciledCalendarEntryMutations, type PendingCalendarEntryMutation } from '@orbit/shared/hooks'
 
 interface CalendarEntryMutationLock {
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -16,38 +12,31 @@ interface CalendarEntryMutationLock {
   ) => Promise<unknown> | null
 }
 
-export function getCalendarEntryMutationKey(date: string, habitId: string): string {
-  return `${date}:${habitId}`
-}
-
 export function useCalendarEntryMutationLock(
   sourceEntryStates: ReadonlyMap<string, boolean>,
 ): CalendarEntryMutationLock {
   const sourceEntryStatesRef = useRef(sourceEntryStates)
-  sourceEntryStatesRef.current = sourceEntryStates
+  useLayoutEffect(() => {
+    sourceEntryStatesRef.current = sourceEntryStates
+  }, [sourceEntryStates])
   const pendingEntryMutationsRef = useRef(new Map<string, PendingCalendarEntryMutation>())
   const [pendingEntryStates, setPendingEntryStates] = useState<ReadonlyMap<string, boolean>>(
     () => new Map(),
   )
 
   const publishPendingEntryStates = useCallback(() => {
-    setPendingEntryStates(new Map(
-      [...pendingEntryMutationsRef.current].map(([entryKey, mutation]) => [
-        entryKey,
-        mutation.checked,
-      ]),
-    ))
+    setPendingEntryStates(pendingCalendarEntryStates(pendingEntryMutationsRef.current))
   }, [])
 
   const releaseReconciledEntries = useCallback(() => {
-    let released = false
-    for (const [entryKey, mutation] of pendingEntryMutationsRef.current) {
-      if (mutation.settled && sourceEntryStatesRef.current.get(entryKey) === mutation.checked) {
-        pendingEntryMutationsRef.current.delete(entryKey)
-        released = true
-      }
+    const remaining = reconciledCalendarEntryMutations(
+      pendingEntryMutationsRef.current,
+      sourceEntryStatesRef.current,
+    )
+    if (remaining.size !== pendingEntryMutationsRef.current.size) {
+      pendingEntryMutationsRef.current = remaining
+      publishPendingEntryStates()
     }
-    if (released) publishPendingEntryStates()
   }, [publishPendingEntryStates])
 
   useEffect(() => {
@@ -59,9 +48,7 @@ export function useCalendarEntryMutationLock(
     checked: boolean,
     mutation: () => Promise<unknown>,
   ): Promise<unknown> | null => {
-    if (pendingEntryMutationsRef.current.has(entryKey)) return null
-    const sourceChecked = sourceEntryStatesRef.current.get(entryKey)
-    if (sourceChecked === undefined) return null
+    if (!canStartCalendarEntryMutation(pendingEntryMutationsRef.current, sourceEntryStates, entryKey)) return null
 
     pendingEntryMutationsRef.current.set(entryKey, {
       checked,
@@ -84,7 +71,7 @@ export function useCalendarEntryMutationLock(
         throw error
       },
     )
-  }, [publishPendingEntryStates, releaseReconciledEntries])
+  }, [publishPendingEntryStates, releaseReconciledEntries, sourceEntryStates])
 
   return { pendingEntryStates, startEntryMutation }
 }

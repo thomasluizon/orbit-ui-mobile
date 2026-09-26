@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 type PagerBase = {
   index: number
@@ -15,7 +14,7 @@ type PagerOwnForward = PagerBase & {
 }
 
 type PagerReplacedForward = PagerBase & {
-  forwardSlot: ReactNode
+  forwardSlot: React.ReactNode
   forwardLabel?: never
   onForward?: never
 }

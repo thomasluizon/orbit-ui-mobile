@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import type { BadgeProps } from './Badge'
 
 type Keys<T> = T extends unknown ? keyof T : never
@@ -13,7 +12,7 @@ type Assert<T extends true> = T
 
 export type BadgeTypeContract = [
   Assert<IsExactWidth<BadgeProps['variant'], 'solid' | 'outline' | undefined>>,
-  Assert<IsExactWidth<BadgeProps['children'], ReactNode>>,
+  Assert<IsExactWidth<BadgeProps['children'], React.ReactNode>>,
   Assert<IsExact<{ children: 'Label' }, BadgeProps>>,
   Assert<IsExact<{ variant: 'solid'; children: 'Label' }, BadgeProps>>,
   Assert<IsExact<{ variant: 'outline'; children: 'Label' }, BadgeProps>>,

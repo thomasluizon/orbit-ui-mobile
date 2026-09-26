@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 
 type InputBase = {
   label: string
@@ -18,7 +17,7 @@ type InputBase = {
   name?: string
   onSubmit?: () => void
   onBlur?: () => void
-  trailing?: ReactNode
+  trailing?: React.ReactNode
 }
 
 type SingleLineInput = {
