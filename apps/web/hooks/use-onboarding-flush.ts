@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import * as Sentry from '@sentry/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { habitKeys, goalKeys, profileKeys, gamificationKeys } from '@orbit/shared/query'
 import { applyOnboarding } from '@/lib/actions/onboarding'
 import { getHeldAccountId } from '@/stores/auth-store'
-import { getAccountGeneration } from '@/lib/session-epoch'
+import { getAccountGeneration, getSessionEpoch } from '@/lib/session-epoch'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useProfile } from '@/hooks/use-profile'
@@ -34,6 +34,7 @@ export function useOnboardingFlush(): void {
   const pushPermissionGranted = useOnboardingDraftStore((state) => state.pushPermissionGranted)
   const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
   const runningRef = useRef(false)
+  const [retryGeneration, setRetryGeneration] = useState(0)
 
   const shouldFlush =
     hydrated && hasPendingAnswers && !pushRegistrationFailed && !!profile && !profile.hasCompletedOnboarding
@@ -45,8 +46,10 @@ export function useOnboardingFlush(): void {
     const store = useOnboardingDraftStore.getState()
     const intendedAccountId = getHeldAccountId()
     const accountGeneration = getAccountGeneration()
+    const sessionEpoch = getSessionEpoch()
     const stillCurrent = () => getHeldAccountId() === intendedAccountId
       && getAccountGeneration() === accountGeneration
+      && getSessionEpoch() === sessionEpoch
 
     let onboardingApplied = false
     void applyOnboarding(store.buildApplyPayload(), intendedAccountId)
@@ -59,6 +62,7 @@ export function useOnboardingFlush(): void {
         }
         if (!stillCurrent()) return
         store.reset()
+        if (!stillCurrent()) return
         patchProfile({ hasCompletedOnboarding: true })
         void queryClient.invalidateQueries({ queryKey: habitKeys.all })
         void queryClient.invalidateQueries({ queryKey: goalKeys.all })
@@ -76,6 +80,7 @@ export function useOnboardingFlush(): void {
       })
       .finally(() => {
         runningRef.current = false
+        if (!stillCurrent()) setRetryGeneration((generation) => generation + 1)
       })
-  }, [patchProfile, pushPermissionGranted, queryClient, shouldFlush, showPersistentError, t])
+  }, [patchProfile, pushPermissionGranted, queryClient, retryGeneration, shouldFlush, showPersistentError, t])
 }

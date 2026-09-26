@@ -62,6 +62,7 @@
     "deleteAllError": "Couldn't clear the alerts. Try again.",
     "markAllRead": "Mark all",
     "markAsRead": "Mark read",
+    "markRead": "Mark {title} as read",
     "deleteAll": "Clear all",
     "deleteAllConfirmTitle": "Delete all alerts?",
     "deleteAllConfirmDescription": "All alerts leave the list. There is no way to undo this.",
@@ -1249,10 +1250,80 @@
       "progress": "{current} / {target} {unit}",
       "percentage": "{pct}%",
       "deadline": "Due {date}",
+      "projected": "Projected {date} at this pace",
       "empty": "No goals yet. A goal starts from a habit, or from an ask right here.",
       "done": "{name} is done",
       "ring": "Progress of {name}",
       "progressLink": "See it on Progress"
+    },
+    "daySummary": {
+      "title": "Today",
+      "doneOfDue": "{done} of {due} done",
+      "nothingDue": "Nothing due today",
+      "overdue": "Overdue",
+      "streak": "Current streak",
+      "ring": "{done} of {due} done today",
+      "open": "Open Today"
+    },
+    "streakCard": {
+      "title": "Your streak and XP",
+      "days": "Recent streak days",
+      "current": "Current streak",
+      "xp": "{current} of {next} XP",
+      "open": "See it on Progress"
+    },
+    "calendarCard": {
+      "title": "Calendar",
+      "allDay": "All day",
+      "empty": "No events here yet.",
+      "sync": "Calendar sync",
+      "syncState": {
+        "Idle": "Up to date",
+        "ReconnectRequired": "Reconnect your calendar",
+        "TransientError": "Sync failed. Try again later",
+        "disabled": "Sync is off"
+      },
+      "open": "Open Calendar"
+    },
+    "recordList": {
+      "title": { "notifications": "Alerts", "tags": "Tags", "templates": "Checklist templates", "keys": "API keys" },
+      "count": "{shown} of {total}",
+      "empty": "Nothing here yet.",
+      "unread": "Unread",
+      "templateCount": "{count} items",
+      "templateLimit": "Templates with more than 20 items open in the checklist editor.",
+      "keyState": { "active": "Active", "expired": "Expired", "revoked": "Revoked" },
+      "markReadError": "Couldn't mark that alert read. Try again.",
+      "moreError": "Couldn't load more records. Try again.",
+      "more": "Show more",
+      "filter": "Filter shown",
+      "noMatches": "No loaded records match “{query}”.",
+      "clearFilter": "Clear filter",
+      "open": { "notifications": "Open Alerts", "tags": "Open Tags", "templates": "Open Templates", "keys": "Open Profile" }
+    },
+    "account": {
+      "title": { "profile": "Your profile", "plan": "Your plan", "referral": "Your referral" },
+      "row": {
+        "name": "Name", "email": "Email", "language": "Language", "timeZone": "Time zone",
+        "weekStartDay": "Week starts", "themePreference": "Theme", "aiSummary": "Daily summary",
+        "plan": "Plan", "trialEnd": "Trial ends", "planExpiry": "Plan ends", "interval": "Interval",
+        "source": "Provider", "lifetime": "Lifetime access", "astraAllowance": "Astra messages used",
+        "successfulReferrals": "Successful referrals", "pendingReferrals": "Pending referrals",
+        "maxReferrals": "Referral limit", "rewardType": "Reward", "discountPercent": "Discount"
+      },
+      "value": {
+        "language": { "en": "English", "pt-BR": "Português (Brasil)" },
+        "weekStartDay": { "0": "Sunday", "1": "Monday" },
+        "themePreference": { "dark": "Dark", "light": "Light" },
+        "plan": { "Free": "Free", "Pro": "Pro" },
+        "interval": { "monthly": "Monthly", "yearly": "Yearly" },
+        "source": { "stripe": "Stripe", "play": "Google Play" },
+        "rewardType": { "discount": "Discount" }
+      },
+      "yes": "Yes", "no": "No", "notSet": "Not set", "unknown": "Unknown",
+      "code": "Referral code", "copy": "Copy", "copied": "Copied", "share": "Share",
+      "copyError": "Couldn't copy the code. Try again.", "shareError": "Couldn't share the link. Try again.",
+      "open": "Open Profile"
     },
     "preview": {
       "proposed": "Proposed by Astra",

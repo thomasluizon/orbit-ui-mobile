@@ -16,7 +16,9 @@ The goal is a production release with an empty ticket board. Complete the redesi
 - Orbit has no ads; Orbit Pro is the only monetization. Ad code anywhere is dead code to delete, never a product option or a question.
 - Supabase egress is the first priority until it is fixed: the project hit its monthly egress quota. Measure egress per query shape, rank by bytes, and fix the largest waste first (N+1 calls where one bulk call serves, over-fetching rows or columns, unbounded list queries, polling) with before and after evidence. A plan upgrade does not replace the optimization.
 - Android fixes merged to `main` ship to the open track through `/android-release`; the owner approved releasing them.
-- Route redesign-only work to `redesign/main`; route shipped defects, harness work, CI and security work to `main`. If a shared fix depends on redesign code, land it on `redesign/main` and backport it to `main`.
+- Route redesign-only work to `redesign/main`; route shipped defects, performance and egress fixes, harness work, CI and security work to `main`. If a shared fix depends on redesign code, land it on `redesign/main` and backport it to `main`.
+- Keep `redesign/main` synced with `main` in both code repositories: #556 carries `orbit-ui-mobile` and #746 carries `orbit-api`. Sync pull requests merge by squash, so `main` never becomes an ancestor of `redesign/main`; each sync cherry-picks with `-x` only the `main` commits added since the last one, skipping any already carried, and changes no behaviour beyond carrying them.
+- Do console and dashboard steps yourself through the `claude-in-chrome` skill (Play Console, AdMob, Cloudflare, Render, Supabase): a manual step is the run's work unless it needs the owner's password, 2FA, payment or a legal identity choice. A Play Data safety change waits until the build it describes is live.
 - Keep `redesign/main` unprotected. The whole redesign receives one closed Play INTERNAL build and one owner review before merging to `main`; do not request an earlier gate.
 - Use the configured local worker cap. Relaunch killed workers after checking their worktrees for commits.
 - Written authorization covers the requested scope. Ask again only if scope or inputs change.
@@ -72,16 +74,20 @@ already open pull requests to merge.
 4. The batch ends when the top ranked shapes are fixed or proven necessary, and the remaining egress
    per active user is recorded in the Current state section.
 
+The four root causes (#742 Today log window, #743 streak and achievement projections, #744 scheduler
+projections, #745 warm connection pools) are merged on `main`. What remains:
+
+- `#745` Record the Supavisor `Connection authenticated` count for the 24 hours after its deploy (the before count is on the ticket), then close it
+- Measure per-shape deltas from `pg_stat_statements` against the snapshot of the top 60 shapes taken before the deploys (query ids, calls and rows are on #742), and record the remaining egress per active user in `## Current state`
+
 ### Batch 0b: the harness, before the redesign
 
 These are the gates every later batch runs through. Re-read each ticket against the tree before building it, and never
 file a harness ticket as a substitute for a fix.
 
 - `#556` The standing `main` into `redesign/main` sync; the next sync carries every `main` merge since the last one
+- `#746` The standing `orbit-api` `main` into `redesign/main` sync; the next sync carries every `main` merge since the last one
 - `#702` Contract rebaseline pull requests start no required checks because GITHUB_TOKEN opens them (App set up and verified; closes when the next rebaseline pull request shows every required context)
-- `#535` Layout guard covers no 320px width and no Wrapped page, so reflow findings cannot be proven
-- `#736` Make workers apply parity:exempt when they claim the exemption
-- `#735` Tell api workers to regenerate the architecture map before delivery (after `#736`; both edit `tools/compose-prompt.mjs`)
 
 ### Batch 0c: live defects in the shipped product, on `main`
 
@@ -89,14 +95,11 @@ Defects a person hits in the shipped build today (web on `main`, Android from `m
 `main` deploy). They target `main` under D99 and the route-by-subject rule; an Android fix is followed by
 `/android-release` to the open track.
 
-- `#739` Bulk delete removes each habit's whole subtree, like single delete (blocks `#178`)
-- `#178` Un-selecting a cascade-selected sub-habit does nothing (merges after `#739` deploys)
-- `#30` Preserve upstream error shape through web mutation Server Actions instead of masking to 500
-- `#567` Keep handled Astra daily-limit responses out of web Sentry (closes with `#30`)
-- `#225` Habit-model defects: checklist reset on flexible habits and no end date on general habits (the reminder part moved to `#740`)
 - `#740` Extend the relative reminder model so every reminder keeps its local time, then make it the only model for a habit with a due time
-- `#199` Remove every trace of ads from the client, the AdMob SDK and the privacy policy
-- `#741` Delete every trace of ads from the apps (duplicate of `#199`: fold its scope into `#199` and close it)
+- `#751` Identical bulk log or skip calls in one chat request lose the second mutation (`orbit-api` PR 595)
+- `#752` Add after-due and day-before wall-clock reminders to the web and mobile editors (after `#740` deploys)
+- `#754` Give actionable 403 guidance for textless actions
+- `#755` Resolve the Play foreground service permissions declaration
 - `#200` Remove the rewarded-ad backend and its DTO field
 - `#297` A continuously foregrounded Today view never reflects a change made from another device (real-time push; API design first)
 - `#566` Resolve orphan offline IDs before reorder mutations expire (merged; closes after seven days without ORBIT-MOBILE-5 on the carrying release)
@@ -112,13 +115,11 @@ Every ticket whose work lands on `redesign/main` in either code repository, incl
 redesign screens wait on. **This batch ends** when `node tools/redesign-coverage.mjs` reports a valid mapping
 AND every screen ticket closes against its own acceptance criteria.
 
-- `#681` Render the goal, day, streak, calendar, record list and account blocks in Astra
-- `#738` Support edited and reduced pending operation previews before confirmation (`orbit-api` `redesign/main`; blocks `#24`)
+- `#747` Expose a fresh pending-operation preview after a stale revision (`orbit-api` `redesign/main`; completes `#24` Stage 3)
+- `#748` Expose typed editable values in pending-operation previews (`orbit-api` `redesign/main`; completes `#24` Stage 3)
+- `#750` Expose child habit creation time in detail and schedule responses (`orbit-api`; lets `#632` stop confirming every past child date)
 - `#24` Chat surface UX: Stage 3, per-item edit and reject in the preview (unblocks `#682`)
 - `#682` Show diff rows in Astra previews, a thinking trace, and follow-up chips (blocked by `#24` Stage 3)
-- `#625` Abandon an onboarding flush whose account changed mid-flight, instead of writing to the next account
-- `#533` Point Perfil's Support row at the Astra conversation
-- `#464` Resolve the support and legal defects found by the #462 sweep
 - `#632` Gate a habit log against an implausible date arriving from a deep link
 - `#214` Android software keyboard covers the Astra chat input (Stage 1 shipped on `main`; Stage 2 gives the redesign shell composer one inset owner)
 - `#497` Collapse the six colour schemes to the one granted accent, UI half
@@ -252,6 +253,7 @@ Milestone "562 Astra" and every Astra or MCP tool ticket not already in Batch 1.
 - `#114` Partition the anonymous auth and waitlist rate limits by IP as well as email
 - `#115` Cancel the Stripe and Play subscription when a user confirms account deletion
 - `#568` Make destructive EF schema changes safe across rolling deploys
+- `#753` Drop the legacy AdMob privacy disclosure once 1.3.35 is the minimum supported version
 - `#732` Remove the legacy bulk replay lookup once the `#727` deploy has aged past the 30-day idempotency retention window
 - `#718` Drop the habit-log slip insert trigger and make `IsSlip` non-nullable after the `#665` deploy replaces old instances
 - `#621` Stop controllerActions reading as enforcement, because 51 capabilities declare it and nothing reads it at request time
@@ -349,19 +351,15 @@ Current operational rules above take precedence when a record conflicts.
 
 The inventory below is a snapshot. Refresh it before acting with `gh pr list` in each repository.
 
-Shipped on `main` and waiting for the Android open-track release: standalone push notifications and the enable prompt, account settings kept after an expired-token cold start, the Astra chat input kept above the keyboard, unique chat message IDs, and offline reorders that survive a restart. The API on `main` has idempotent Astra bulk retries, the Google first-login race fix, English validation messages under any server locale, a distinct `HABIT_LIMIT_REACHED` code, and no committed architecture map. `redesign/main` carries every `main` merge up to the cold-start fix. The harness gained the timeless-text gate in all three repositories, stale config path checks, a concurrency audit dimension, cancelled-check reruns, and a scoped `--layout-guard` worker flag.
+Shipped on `main` and live: the Supabase egress fixes (Today reads only its page's logs, streak and achievement reads use projected dates, the schedulers read only the columns they use, the connection pools stay warm), bulk delete removes whole subtrees, checklists reset on flexible habits and general habits refuse end dates, clearer localized create errors, cascade un-select, and every ad path deleted from the app. Android 1.3.34 is on the open track; 1.3.35 is the first build without AdMob, and it ships once the open `main` fixes merge. Both AdMob ad units are removed, so no install is served an ad; the Play ads declaration reads no ads, and the listing shows only in-app purchases. `redesign/main` in `orbit-api` carries every `main` commit through the warm-pool fix; `redesign/main` in `orbit-ui-mobile` gained the Astra read blocks, the Perfil Support entry into Astra, the 320px layout guard, the account-safe onboarding flush, and the parity-label delivery check.
 
 Open pull requests:
 
-- `orbit-api` `#587` (`#739` subtree bulk delete): approved at its head, green, ready to merge.
-- `orbit-ui-mobile` `#1161` (`#30`, closes `#567`): approved, green, behind `main`; test the merge result, then merge. Replace its `Copy for owner review` section with a `/second-opinion` approval first.
-- `orbit-ui-mobile` `#1160` (`#178`): review fix pushed; merges after `#739` is merged and deployed.
-- `orbit-api` `#586` (`#225`): its review fix never launched (branch launch cap). Relaunch with `--relaunch-reason` to drop the reminder fold and keep the checklist and end-date fixes, then merge after review.
-- `orbit-ui-mobile` `#1162` (`#535`): the review fix is committed in the ticket's worktree and not pushed; merge its report into the body, resolve its thread, push.
-- `orbit-ui-mobile` `#1163` (`#736`): review fix composed (diff parity against the pull request's real base) and not launched.
-- `orbit-ui-mobile` `#1164` (`#464`), `#1165` (`#533`), `#1166` (`#625`): delivered; CI and review pending.
-- `orbit-api` `#588` (`#738`, base `redesign/main`): delivered; CI and review pending.
+- `orbit-ui-mobile` `#1172` (`#216`, base `main`): review fix committed in the ticket worktree and not pushed (truthful delete copy, plural toast, offline Undo, parent and child restore, response evidence). Merge its report into the body, resolve the three threads, push.
+- `orbit-ui-mobile` `#1171` (`#556` sync, base `redesign/main`): review fix commits exist in the ticket worktree and are not pushed (merges of `redesign/main`, Expo runtime evidence, sweep). Merge the report into the body, resolve the thread, push.
+- `orbit-ui-mobile` `#1170` (`#24` Stage 3 part 1): review fixes pushed; merging `redesign/main` into it conflicts in both `block-frame.tsx` files and `sonar-project.properties` (after `#681`). Needs a worker to merge and re-verify.
+- `orbit-ui-mobile` `#1168` (`#632`): approved and green at its head, but conflicts with `redesign/main`. Merge the base, test, push, and merge after a fresh approval.
+- `orbit-api` `#595` (`#751`): review fix pushed (single logs respect the flexible window, main merged); CI and review pending.
+- `orbit-api` `#594` (`#740`): delivered; CI and first review pending. Production has 1 live habit with the mixed reminder shape its migration folds; after deploy that count must be 0 and the habit keeps its local time.
 
-Workers and local work: `#681` was running on `feature/ticket-681-astra-read-blocks` with local commits and no pull request yet. `#632`'s worktree and prompt are ready on `fix/ticket-632-deep-link-date-gate`; its launch was refused by admission.
-
-Waiting on the owner: device checks after the Android release (the three-dot menu of `#134` and the keyboard of `#214`), and the Cloudflare secret that Turnstile enforcement needs.
+Waiting on the owner: the on-device three-dot menu check (`#134`) and the chat keyboard (`#214`) on the next Android build. Nothing else.

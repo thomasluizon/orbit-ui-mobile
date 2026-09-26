@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 
@@ -35,6 +35,7 @@ import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { requestWebPushPermission } from '@/hooks/use-push-notification-preferences'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getHeldAccountId } from '@/stores/auth-store'
+import { holdAccount, recoverSameAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -42,9 +43,10 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 async function seedPendingDraft() {
-  useOnboardingDraftStore.getState().reset()
-  useOnboardingDraftStore.getState().bufferHabit({ title: 'Read', frequencyUnit: 'Day', frequencyQuantity: 1 })
   await useOnboardingDraftStore.persist.rehydrate()
+  useOnboardingDraftStore.getState().reset()
+  useOnboardingDraftStore.getState().setAccountScope(getHeldAccountId(), true)
+  useOnboardingDraftStore.getState().bufferHabit({ title: 'Read', frequencyUnit: 'Day', frequencyQuantity: 1 })
 }
 
 function installPushEnvironment() {
@@ -61,11 +63,70 @@ function installPushEnvironment() {
 
 describe('useOnboardingFlush', () => {
   beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+    holdAccount('user-1')
     applyOnboardingMock.mockReset()
     patchProfileMock.mockReset()
     captureExceptionMock.mockReset()
     subscribePushMock.mockReset()
     profileState.hasCompletedOnboarding = false
+  })
+
+  it('drops a completed apply after account replacement and allows the new account to flush', async () => {
+    installPushEnvironment()
+    holdAccount('user-1')
+    let finishApply!: (value: { applied: boolean }) => void
+    applyOnboardingMock.mockReturnValueOnce(new Promise((resolve) => { finishApply = resolve }))
+    applyOnboardingMock.mockResolvedValue({ applied: true })
+    await seedPendingDraft()
+    useOnboardingDraftStore.setState({ pushPermissionGranted: true })
+    renderHook(() => useOnboardingFlush(), { wrapper })
+    expect(applyOnboardingMock).toHaveBeenCalledTimes(1)
+
+    await replaceAccountWith('user-2')
+    useOnboardingDraftStore.getState().bufferHabit({ title: 'Walk', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    useOnboardingDraftStore.setState({ pushPermissionGranted: true })
+    await act(async () => { finishApply({ applied: true }); await Promise.resolve() })
+
+    await waitFor(() => expect(applyOnboardingMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(patchProfileMock).toHaveBeenCalledTimes(1))
+    expect(subscribePushMock).toHaveBeenCalledTimes(1)
+    expect(subscribePushMock).toHaveBeenCalledWith({ endpoint: 'https://push.example/subscription' }, 'user-2')
+  })
+
+  it('drops a completed apply when the same account enters a new session', async () => {
+    holdAccount('user-1')
+    let finishApply!: (value: { applied: boolean }) => void
+    applyOnboardingMock.mockReturnValueOnce(new Promise((resolve) => { finishApply = resolve }))
+    applyOnboardingMock.mockResolvedValue({ applied: true })
+    await seedPendingDraft()
+    renderHook(() => useOnboardingFlush(), { wrapper })
+
+    await recoverSameAccount('user-1')
+    await seedPendingDraft()
+    await act(async () => { finishApply({ applied: true }); await Promise.resolve() })
+
+    await waitFor(() => expect(applyOnboardingMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(patchProfileMock).toHaveBeenCalledTimes(1))
+  })
+
+  it('keeps the new account draft when registration finishes after replacement', async () => {
+    installPushEnvironment()
+    let finishRegistration!: () => void
+    subscribePushMock.mockReturnValue(new Promise<void>((resolve) => { finishRegistration = resolve }))
+    applyOnboardingMock.mockResolvedValue({ applied: true })
+    await seedPendingDraft()
+    useOnboardingDraftStore.setState({ pushPermissionGranted: true })
+    renderHook(() => useOnboardingFlush(), { wrapper })
+    await waitFor(() => expect(subscribePushMock).toHaveBeenCalledTimes(1))
+
+    await replaceAccountWith('user-2')
+    useOnboardingDraftStore.getState().bufferHabit({ title: 'Walk', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    profileState.hasCompletedOnboarding = true
+    await act(async () => { finishRegistration(); await Promise.resolve() })
+
+    expect(useOnboardingDraftStore.getState().habits[0]?.title).toBe('Walk')
+    expect(patchProfileMock).not.toHaveBeenCalled()
   })
 
   it('registers a signed-out permission grant after authentication flushes onboarding', async () => {
@@ -79,6 +140,8 @@ describe('useOnboardingFlush', () => {
     renderHook(() => useOnboardingFlush(), { wrapper })
 
     await waitFor(() => expect(subscribePushMock).toHaveBeenCalledWith({ endpoint: 'https://push.example/subscription' }, getHeldAccountId()))
+    await waitFor(() => expect(patchProfileMock).toHaveBeenCalledWith({ hasCompletedOnboarding: true }))
+    expect(useOnboardingDraftStore.getState().hasPendingAnswers()).toBe(false)
   })
 
   it('retains the draft and exposes deferred registration failure', async () => {

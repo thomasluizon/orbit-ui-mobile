@@ -122,6 +122,7 @@ export const API = {
     send: '/api/chat',
     stream: '/api/chat/stream',
     transcribe: '/api/chat/transcribe',
+    records: '/api/chat/records',
   },
 
   ai: {

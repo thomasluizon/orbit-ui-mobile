@@ -124,6 +124,11 @@ vi.mock('@/components/chat/operation-outcomes', () => ({
   OperationOutcomes: (props: Record<string, unknown>) =>
     require('react').createElement('OperationOutcomes', props),
 }))
+vi.mock('@/components/chat/day-summary-card', () => ({ DaySummaryCard: () => null }))
+vi.mock('@/components/chat/streak-card', () => ({ StreakCard: () => null }))
+vi.mock('@/components/chat/calendar-card', () => ({ CalendarCard: () => null }))
+vi.mock('@/components/chat/record-list-card', () => ({ RecordListCard: () => null }))
+vi.mock('@/components/chat/account-rows-card', () => ({ AccountRowsCard: () => null }))
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {

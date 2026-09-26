@@ -3,6 +3,7 @@ import { useOverlayBack } from "@/hooks/use-overlay-back";
 import {
   View,
   Text,
+  AccessibilityInfo,
   Pressable,
   Linking,
   KeyboardAvoidingView,
@@ -43,6 +44,13 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const insets = useSafeAreaInsets();
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
+  const titleRef = useRef<Text>(null);
+
+  useEffect(() => {
+    if (Platform.OS === "android" && titleRef.current) {
+      AccessibilityInfo.sendAccessibilityEvent(titleRef.current, "focus");
+    }
+  }, []);
 
   const {
     flatListRef,
@@ -152,6 +160,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <AppBar
+          titleRef={titleRef}
           onBack={closeConversation}
           backLabel={t("common.closeConversation")}
           title={t("chat.title")}

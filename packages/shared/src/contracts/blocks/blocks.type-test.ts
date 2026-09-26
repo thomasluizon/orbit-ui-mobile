@@ -16,6 +16,7 @@ type ExpectedBlockFrameItem = {
   readonly id: string
   readonly label: React.ReactNode
   readonly wrapLabel?: boolean
+  readonly wrapMeta?: boolean
   readonly meta?: string
   readonly status?: 'done' | 'acting' | 'failed'
   readonly statusLabel?: string
@@ -72,6 +73,7 @@ export type BlockContractWidthAssertions = [
   Assert<IsExactWidth<BlockFrameItem['id'], string>>,
   Assert<IsExactWidth<BlockFrameItem['label'], React.ReactNode>>,
   Assert<IsExactWidth<BlockFrameItem['wrapLabel'], boolean | undefined>>,
+  Assert<IsExactWidth<BlockFrameItem['wrapMeta'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['meta'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['status'], 'done' | 'acting' | 'failed' | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['statusLabel'], string | undefined>>,

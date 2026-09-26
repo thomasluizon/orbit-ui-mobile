@@ -5,7 +5,6 @@ import {
   useId,
   useMemo,
   useState,
-  type ComponentType,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
@@ -16,7 +15,6 @@ import { useRouter } from 'next/navigation'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import type { Goal } from '@orbit/shared/types/goal'
 import {
-  achievementGlyphKey,
   buildGoalMovePositions,
   buildProtectedDayLabels,
   buildStreakWeekDays,
@@ -49,20 +47,11 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { FreezeBank } from '@/components/ui/freeze-bank'
 import {
-  Calendar,
-  Flame,
   Gift,
   Lock,
-  Satellite,
-  Shield,
   Snowflake,
-  Star,
-  Sun,
-  Target,
-  Trophy,
-  Zap,
-  type IconProps,
 } from '@/components/ui/icons'
+import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
@@ -489,41 +478,6 @@ function WindowSection() {
         {topHabit ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.topHabitEmpty')} label={t('progressScreen.window.topHabit')} />}
       </WindowFigureGrid>
     </WindowFrame>
-  )
-}
-
-const ACHIEVEMENT_GLYPHS: Record<
-  ReturnType<typeof achievementGlyphKey>,
-  ComponentType<IconProps>
-> = {
-  calendar: Calendar,
-  flame: Flame,
-  satellite: Satellite,
-  shield: Shield,
-  star: Star,
-  sun: Sun,
-  target: Target,
-  trophy: Trophy,
-  zap: Zap,
-}
-
-function AchievementMark({ achievement, name }: Readonly<{ achievement: Achievement; name: string }>) {
-  const t = useTranslations()
-  const Glyph = ACHIEVEMENT_GLYPHS[achievementGlyphKey(achievement.iconKey)]
-  return (
-    <span
-      role="img"
-      aria-label={t(achievement.isEarned ? 'progressScreen.achievements.earnedState' : 'progressScreen.achievements.unearnedState', { name })}
-      className="inline-flex size-8 shrink-0 items-center justify-center rounded-full"
-      data-state={achievement.isEarned ? 'earned' : 'unearned'}
-      style={achievement.isEarned ? { background: 'var(--status-done)' } : { boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)' }}
-    >
-      <Glyph
-        size={20}
-        strokeWidth={2}
-        color={achievement.isEarned ? 'var(--bg)' : 'var(--fg-3)'}
-      />
-    </span>
   )
 }
 

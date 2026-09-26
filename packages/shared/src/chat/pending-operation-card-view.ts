@@ -64,6 +64,7 @@ export interface PendingOperationFrame<Node> {
     irreversible: boolean
     proposed?: boolean
     wrapLabel?: boolean
+    wrapMeta?: boolean
     control?: Node
   }[]
   proposedLabel?: string
@@ -193,6 +194,7 @@ function previewRows<Node>(
       irreversible: destructive && card.status == null,
       proposed: card.status == null && !edited,
       wrapLabel: true,
+      wrapMeta: true,
       control: card.status == null && !revision.stale ? render.removeItem(
         `${labels.remove} ${item.entityName}`,
         card.busy || revision.busy,

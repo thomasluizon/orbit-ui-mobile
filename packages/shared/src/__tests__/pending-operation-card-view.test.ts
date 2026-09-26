@@ -90,7 +90,7 @@ describe('pending operation card view', () => {
     renderPendingOperationCard({ card, labels, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
     expect(record.frame?.items.map((item) => item.id)).toEqual(['habit-1', 'habit-2'])
     expect(record.frame?.items.every((item) => item.label !== '')).toBe(true)
-    expect(record.frame?.items[0]).toMatchObject({ proposed: true, meta: 'date: 2026-09-26 · reminder_enabled: Yes' })
+    expect(record.frame?.items[0]).toMatchObject({ proposed: true, wrapLabel: true, wrapMeta: true, meta: 'date: 2026-09-26 · reminder_enabled: Yes' })
     expect(record.frame?.actions).toBe('Approve|Edit item|Reject')
     expect(record.buttons.map(({ label }) => label)).toContain('Reject')
     record.buttons.find(({ label }) => label === 'Remove Run')?.onClick()

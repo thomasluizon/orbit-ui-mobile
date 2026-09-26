@@ -76,7 +76,9 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
    in settings. See **The proactive line** below.
 
 **The remit is curated.** Astra owns habits, sub-habits, checklists, tags, goals, calendar, schedule,
-notifications, metrics and feature explanation. **Billing, API-key management and account deletion
+notifications, metrics, feature explanation, and read-only record rows for API keys, profile, plan,
+and referral. Key rows show name, prefix, dates, and state. Plan rows describe the current plan
+without prices or upgrade actions. **Billing management, API-key management and account deletion
 are not reachable from the chat surface.** API-key management and account deletion are the only two
 step-up operations in the product and are settings a person taps once. Billing is not a step-up
 operation because the Stripe customer portal authenticates the person itself. It remains a provider

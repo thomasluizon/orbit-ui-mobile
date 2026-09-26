@@ -13,6 +13,7 @@ export interface ListRowBase {
   accessibilityLabel?: string
   description?: string
   value?: string
+  wrapValue?: boolean
   trailing?: React.ReactNode
   danger?: boolean
   chevron?: boolean
