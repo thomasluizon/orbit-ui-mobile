@@ -6,6 +6,16 @@ import appConfig from '../../app.json'
 const require = createRequire(import.meta.url)
 const withAudio = require('expo-audio/app.plugin.js').default
 
+function pluginOptions(name: string): Record<string, unknown> {
+  const entry = appConfig.expo.plugins.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === name,
+  )
+  if (!Array.isArray(entry) || typeof entry[1] !== 'object') {
+    throw new Error(`${name} plugin configuration is missing`)
+  }
+  return entry[1]
+}
+
 describe('Android foreground services', () => {
   it('does not register background audio permissions or services', async () => {
     expect(appConfig.expo.android.blockedPermissions).toEqual(
@@ -16,21 +26,13 @@ describe('Android foreground services', () => {
       ]),
     )
 
-    const plugin = appConfig.expo.plugins.find(
-      (entry) => Array.isArray(entry) && entry[0] === 'expo-audio',
-    )
+    const audioOptions = pluginOptions('expo-audio')
+    expect(audioOptions.enableBackgroundPlayback).toBe(false)
 
-    expect(plugin).toBeDefined()
-    if (!Array.isArray(plugin)) throw new Error('expo-audio plugin configuration is missing')
-    expect(plugin[1].enableBackgroundPlayback).toBe(false)
+    const recordingOptions = pluginOptions('@siteed/audio-studio')
+    expect(recordingOptions.enableBackgroundAudio).toBe(false)
 
-    const recordingPlugin = appConfig.expo.plugins.find(
-      (entry) => Array.isArray(entry) && entry[0] === '@siteed/audio-studio',
-    )
-    if (!Array.isArray(recordingPlugin)) throw new Error('audio-studio plugin configuration is missing')
-    expect(recordingPlugin[1].enableBackgroundAudio).toBe(false)
-
-    const configured = withAudio({ name: 'Orbit', slug: 'orbit' }, plugin[1])
+    const configured = withAudio({ name: 'Orbit', slug: 'orbit' }, audioOptions)
 
     expect(configured.android?.permissions ?? []).toContain('android.permission.RECORD_AUDIO')
     expect(configured.android?.permissions ?? []).not.toContain('android.permission.FOREGROUND_SERVICE')
