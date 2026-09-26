@@ -301,6 +301,8 @@ describe('web useChatComposer streaming send', () => {
     const [, request] = mocks.fetch.mock.calls[0]!
     const context = JSON.parse((request.body as FormData).get('clientContext') as string)
     expect(context).not.toHaveProperty('entryPointIntent')
+    expect(context.supportsMetricsCard).toBe(true)
+    expect(context.supportsPeriodInsightCard).toBe(true)
 
   })
 
@@ -358,7 +360,10 @@ describe('web useChatComposer streaming send', () => {
       frame('{"type":"started"}'),
       frame('{"type":"delta","text":"Hel"}'),
       frame('{"type":"delta","text":"lo"}'),
-      finalFrame(makeChatResponse({ aiMessage: 'Hello!', correlationId: 'trace-1' })),
+      finalFrame(makeChatResponse({ aiMessage: 'Hello!', correlationId: 'trace-1', metricsCard: {
+        period: 'week', completionRate: 50, totalCompletions: 1, totalScheduled: 2,
+        activeDays: 1, currentStreak: 1, bestStreak: 1, hasData: true, surfaceId: 'progress',
+      } })),
     ))
     const { result } = renderHook(() => useChatComposer())
 
@@ -372,6 +377,7 @@ describe('web useChatComposer streaming send', () => {
       role: 'ai',
       content: 'Hello!',
       correlationId: 'trace-1',
+      metricsCard: { completionRate: 50 },
     })
     expect(useChatStore.getState().isTyping).toBe(false)
     expect(result.current.canRetryLastSend).toBe(false)

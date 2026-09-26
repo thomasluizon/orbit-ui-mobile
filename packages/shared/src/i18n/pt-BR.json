@@ -1043,6 +1043,15 @@
       "more": "Mais"
     }
   },
+  "charts": {
+    "bar": {
+      "date": "Data",
+      "rate": "Taxa",
+      "completed": "Concluídos",
+      "readout": "{done} de {scheduled}",
+      "nothingScheduled": "Nada programado"
+    }
+  },
   "chat": {
     "title": "Astra",
     "offline": {
@@ -1196,6 +1205,40 @@
       "overdue": "Atrasado",
       "general": "Geral",
       "empty": "Nenhum hábito para mostrar"
+    },
+    "metrics": {
+      "title": "Seu progresso",
+      "habitTitle": "Progresso de {name}",
+      "completionRate": "Taxa de conclusão",
+      "daysLogged": "Dias com registro",
+      "topHabit": "Hábito mais constante",
+      "currentStreak": "Sequência atual",
+      "longestStreak": "Maior sequência",
+      "monthlyRate": "Taxa mensal",
+      "empty": "Ainda não houve atividade neste período.",
+      "noFigure": "Ainda não há número",
+      "chartLabel": "Conclusão por dia",
+      "progressLink": "Ver no Progresso",
+      "habitLink": "Ver o hábito"
+    },
+    "insight": {
+      "title": "Visão do período",
+      "overview": "Visão geral",
+      "highlights": "O que foi bem",
+      "missed": "O que faltou",
+      "trends": "O que mudou",
+      "suggestion": "Próximo passo",
+      "completionRate": "Taxa de conclusão",
+      "daysLogged": "Dias com registro",
+      "currentStreak": "Sequência atual",
+      "bestStreak": "Maior sequência",
+      "topHabit": "Mais constante",
+      "needsAttention": "Precisa de atenção",
+      "chartLabel": "Conclusão neste período",
+      "pageAnnounce": "Página {n} de {total}: {title}",
+      "previous": "Anterior",
+      "next": "Próximo",
+      "progressLink": "Ver no Progresso"
     },
     "goalList": {
       "title": "Suas metas",
@@ -2482,6 +2525,7 @@
       "reorderHint": "Segure e arraste para reordenar, ou use as ações de mover"
     },
     "window": {
+      "chartLabel": "Últimos 30 dias",
       "completionRate": "Taxa de conclusão",
       "activeDays": "Dias com registro",
       "bestWeekday": "Melhor dia da semana",

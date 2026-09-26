@@ -1043,6 +1043,15 @@
       "more": "More"
     }
   },
+  "charts": {
+    "bar": {
+      "date": "Date",
+      "rate": "Rate",
+      "completed": "Completed",
+      "readout": "{done} of {scheduled}",
+      "nothingScheduled": "Nothing scheduled"
+    }
+  },
   "chat": {
     "title": "Astra",
     "offline": {
@@ -1196,6 +1205,40 @@
       "overdue": "Overdue",
       "general": "General",
       "empty": "No habits to show"
+    },
+    "metrics": {
+      "title": "Your progress",
+      "habitTitle": "Progress for {name}",
+      "completionRate": "Completion rate",
+      "daysLogged": "Days logged",
+      "topHabit": "Most consistent habit",
+      "currentStreak": "Current streak",
+      "longestStreak": "Longest streak",
+      "monthlyRate": "Monthly rate",
+      "empty": "No activity in this period yet.",
+      "noFigure": "No figure yet",
+      "chartLabel": "Completion by day",
+      "progressLink": "See it on Progress",
+      "habitLink": "See the habit"
+    },
+    "insight": {
+      "title": "Period insight",
+      "overview": "Overview",
+      "highlights": "What went well",
+      "missed": "What slipped",
+      "trends": "What changed",
+      "suggestion": "Next step",
+      "completionRate": "Completion rate",
+      "daysLogged": "Days logged",
+      "currentStreak": "Current streak",
+      "bestStreak": "Longest streak",
+      "topHabit": "Most consistent",
+      "needsAttention": "Needs attention",
+      "chartLabel": "Completion in this period",
+      "pageAnnounce": "Page {n} of {total}: {title}",
+      "previous": "Previous",
+      "next": "Next",
+      "progressLink": "See it on Progress"
     },
     "goalList": {
       "title": "Your goals",
@@ -2482,6 +2525,7 @@
       "reorderHint": "Hold and drag to reorder, or use the move actions"
     },
     "window": {
+      "chartLabel": "Last 30 days",
       "completionRate": "Completion rate",
       "activeDays": "Days logged",
       "bestWeekday": "Best day of the week",

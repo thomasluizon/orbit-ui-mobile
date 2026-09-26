@@ -63,6 +63,12 @@ afterEach(() => {
 })
 
 describe('BlockFrame on mobile', () => {
+  it('renders a body without a zero count when there are no rows', () => {
+    const tree = render(<BlockFrame {...frame({ items: [], body: <Text>Nothing logged</Text> })} />)
+    expect(textValues(tree)).toContain('Nothing logged')
+    expect(textValues(tree)).not.toContain(0)
+  })
+
   it('renders an interactive row label outside a native Text container', () => {
     const onPress = vi.fn()
     const tree = render(<BlockFrame {...frame({ items: [{

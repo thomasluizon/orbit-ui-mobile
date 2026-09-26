@@ -90,6 +90,19 @@ export const retrospectiveHabitStatSchema = z.object({
   isOneTime: z.boolean().optional(),
 })
 
+export const completionSeriesSchema = z.object({
+  granularity: z.enum(['day', 'week']),
+  points: z.array(z.object({
+    startDate: z.iso.date(),
+    endDate: z.iso.date(),
+    scheduled: z.number(),
+    completed: z.number(),
+    completionRate: z.number().nullable(),
+  })),
+})
+
+export type CompletionSeries = z.infer<typeof completionSeriesSchema>
+
 export const retrospectiveMetricsSchema = z.object({
   completionRate: z.number(),
   totalCompletions: z.number(),
@@ -102,6 +115,7 @@ export const retrospectiveMetricsSchema = z.object({
   weeklyConsistency: z.array(z.number()),
   topHabits: z.array(retrospectiveHabitStatSchema),
   needsAttention: z.array(retrospectiveHabitStatSchema),
+  completionSeries: completionSeriesSchema.nullable().optional(),
 })
 
 export const retrospectiveResponseSchema = z.object({
