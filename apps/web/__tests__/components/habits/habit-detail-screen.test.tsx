@@ -955,7 +955,23 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByTestId('child-child-1'))
     expect(mocks.log).not.toHaveBeenCalled()
     expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('habits.detail.logDateUnavailable')
+    expect(screen.getByTestId('child-child-1').parentElement?.parentElement).toHaveTextContent('habits.detail.logDateUnavailable')
+  })
+
+  it.each([
+    ['child-1', 'habit-1'],
+    ['grandchild-1', 'child-1'],
+  ])('blocks a direct %s detail log before its own creation', (targetId, parentId) => {
+    const schedule = makeHabitScheduleItem()
+    const child = schedule.children[0]!
+    schedule.children = [{ ...child, createdAtUtc: '2026-08-29T08:00:00Z', children: [{ ...child, id: 'grandchild-1', createdAtUtc: '2026-08-29T08:00:00Z', children: [] }] }]
+    mocks.allHabits = normalizeHabitQueryData([schedule]).habitsById
+    mocks.detail = { ...makeDetail(), id: targetId, createdAtUtc: '2026-08-29T08:00:00Z', children: [] }
+    render(<HabitDetailScreen habitId={targetId} parentId={parentId} date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'log' }))
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('confirm-habits.detail.logDateConfirmTitle')).not.toBeInTheDocument()
+    expect(screen.getByText('habits.detail.logDateUnavailable')).toBeInTheDocument()
   })
 
   it('logs a child date after its own creation without confirmation', async () => {
