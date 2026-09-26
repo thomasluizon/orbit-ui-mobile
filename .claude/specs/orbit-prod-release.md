@@ -2111,3 +2111,85 @@ lived in the session scratchpad and is gone; everything durable from it is here.
 - After the redesign `orbit-api` deploy of `api#564`: confirm `astra_change_preview_disabled`,
   `astra_tool_steps_disabled` and `astra_follow_ups_disabled` are absent or false in `AppFeatureFlags`.
 - Unchanged: tap the three-dot menu on Android 1.3.32+ then close `#134`; live-check the crisis reply.
+
+## What the 2026-09-25 night sleep run added (session `160fb698`)
+
+**Durable because** it records 11 merges, the Pullfrog effort fix, three worker decisions Thomas never had
+to make, the Codex home move on the Mac, and the rules this run paid for. The decision log (D1 to D53) lived
+in the session scratchpad and is gone; everything durable from it is here.
+
+### Merged this session, 11
+
+- `orbit-ui-mobile` `main`: `ui#1106` (`#675` Turnstile on web and Android sign-in, inert until the site keys
+  are set) as `1b5a32b3`, `#1046` (`#635` Pullfrog pin) as `314d5574`, `#1108` (`#694` lint fails when
+  `packages/shared` imports React, React Native or Next, including any non-literal dynamic `import()`) as
+  `773c0a44`.
+- `orbit-ui-mobile` `redesign/main`: `ui#1049` (`#559`, `#648` spacing rule) as `d6e7a3b4`, `#1109` (`#688` a
+  stale Google callback no longer erases the newer attempt; empty-id and non-numeric markers are malformed) as
+  `f2ca0c49`.
+- `orbit-api` `main`, deployed (Render `dep-darfa6rtqb8s738sj9jg` live at `8c4cc611`,
+  `https://api.useorbit.org/health` 200; the raw onrender.com host 404s on `/health`, probe the custom
+  domain): `api#566` (`#695` relative reminders fire at the real instant, including "N days before" and
+  offsets past midnight; a repeated fall-back hour fires at its first occurrence and a spring-forward gap
+  fires when the clock passes it), `#565` (dead Pullfrog inputs removed).
+- `orbit-api` `redesign/main`: `api#563` (`#678` every Astra read card; an off-cadence log credits the
+  oldest unresolved occurrence on the historical anchor) as `d3ff79a7`, `#564` (`#679` bulk previews with
+  real before/after values windowed at the first difference, relative reminders shown as "N min before
+  due", tool steps, follow-ups, one directive parser for cards and follow-ups in any order) as `1bb4e85a`.
+- `orbit-landing-page` `main`: `landing#80` (`#637` Pullfrog pin) as `32de3c93`.
+
+### Pullfrog runs at medium effort, and the setting lives in Pullfrog, not the workflow
+
+- The app-dispatch payload carries model and effort and outranks action inputs (`utils/payload.ts:320-326`
+  at `405f60c2`). Effort is set with `npx pullfrog@0.1.82 config set effort 0.25 --repo <owner/repo>`, read
+  back `0.25` on all three repos; on GPT-6 Sol's offered ladder (low, medium, high, xhigh, max) 0.25 is
+  medium (`effort.ts` `resolveRung`). A live ui run logged `» effort:  medium`. The workflows set no
+  `model`/`effort` input any more; the SHA pin and `PULLFROG_FORCE_LOCAL_CLI` stay because published 0.1.82
+  resolves `gpt-sol` to `gpt-5.6-sol`.
+- Pullfrog's reviewer runs on org secrets `CODEX_AUTH_JSON` (a Codex ChatGPT login) and
+  `CLAUDE_CODE_OAUTH_TOKEN` (`npx pullfrog@0.1.82 secret list --org thomasluizon`), so it shares Thomas's
+  Codex allowance.
+
+### Decisions taken without Thomas, each posted on its ticket
+
+- `#620`: the fresh-start confirm button reuses "Fresh Start" / "Recomeçar"; the 3-word "Reset my account"
+  key is deleted (`local/max-button-words`).
+- `#680`: the period insight pager shows Highlights, Trends, Suggestion, then Missed only if a page is free
+  (BRAND.md principle 2).
+- `#688`: a Google auth marker with an empty attempt id is malformed and cleared.
+- `ui#1110`: an unavailable child completion draws the DESIGN.md not-scheduled well (`--bg-well`, ring
+  size), never a new visual; Habit Detail reads its day with every page (`completeDay`), Today keeps page 1.
+
+### The Codex home on this Mac moved (2026-09-25, Thomas asked for the fix)
+
+Codex 0.157 starts a background app-server whose socket lives under the canonical `CODEX_HOME`; Orca's
+`~/Library/Application Support/orca/codex-runtime-home/home` made that path 132 bytes against macOS's 104
+(`path must be shorter than SUN_LEN`). Codex canonicalizes `CODEX_HOME`, so the real directory is now
+`~/.orca-codex-home` and the old path is a symlink to it (socket path 92 bytes, a test bind succeeds). If
+Orca ever recreates the old directory, the error returns: move it again the same way.
+
+### Rules this run paid for
+
+- **Never start several Codex workers in the same second**, and never pipe a launcher into `head` (its final
+  line dies on EPIPE). Space Codex launches about 90 seconds apart.
+- **A body edit re-runs Guards and the concurrency group cancels the push's run**; the rollup then shows
+  CANCELLED rows beside a green rerun. Read `gh run list --commit <sha>` before calling it red.
+- **A closed allowlist is ratcheted, not relaxed**: when a fix removes suppressions,
+  `tools/suppression-allowlist.json` in orbit-api drops to the observed count.
+- **Parity mirror hook pairs go in `sonar.cpd.exclusions`** (Sonar counted the two 22-line
+  `use-checklist-item-keys.ts` hooks as 3.3% duplication).
+- **A worker's invented visual is a review finding**: check every new colour, size or shape a worker adds
+  against DESIGN.md before pushing.
+- **`ui#1107` lands by fast-forward only**, so no other `redesign/main` merge may land between its approval
+  and the fast-forward, or it needs another sync round.
+
+### Filed this session
+
+- `#695` (merged as `api#566`), `#696` (the Turnstile re-render bug `ui#1106` shipped on `main`; fix is
+  `ui#1115`).
+
+### Items that need a person
+
+- Unchanged: Turnstile switch-on steps (now on `ui#1111` and `ui#1106`), confirm the three Astra flags after
+  the redesign API deploys, the three-dot menu on Android, the crisis reply live check.
+
