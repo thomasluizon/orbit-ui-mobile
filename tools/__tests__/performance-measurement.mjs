@@ -4,7 +4,7 @@ import { runInNewContext } from "node:vm"
 import * as fc from "fast-check"
 
 import { REPO_ROOT, T } from "./_harness.mjs"
-import { GENERATED_END, GENERATED_START } from "../generate-performance-workflow.mjs"
+import { GENERATED_END, GENERATED_START, generatedPerformanceSource } from "../generate-performance-workflow.mjs"
 import {
   applyMeasuredQueryContexts,
   attachPerformanceMetrics,
@@ -666,6 +666,30 @@ export const cases = async () => {
     "performance-measurement: the module and generated workflow agree on every corpus query",
     divergent.length === 0,
     `diverged on: ${JSON.stringify(divergent)}`,
+  )
+  const moduleSource = readFileSync(join(REPO_ROOT, "tools", "lib", "performance-measurement.mjs"), "utf8")
+  const moduleFunctions = generatedPerformanceSource(moduleSource)
+  const promptFrom = (source, sample) => runInNewContext(
+    `${source}\nperformanceMeasurementPrompt(${JSON.stringify(sample)})`,
+  )
+  const promptCorpus = [measurement, codeOnly, promptOverflowMeasurement]
+  const promptDifference = (moduleCopy, workflowCopy) => promptCorpus.some((sample) =>
+    promptFrom(moduleCopy, sample) !== promptFrom(workflowCopy, sample))
+  T(
+    "performance-measurement: both copies produce the same mapping prompt across the corpus",
+    !promptDifference(moduleFunctions, measurementFunctions),
+  )
+  const originalField = "backgroundBudgetBytes: measurement.thresholds.backgroundBudgetBytes,"
+  const changedField = "backgroundBudgetBytes: measurement.thresholds.backgroundBudgetBytes + 1,"
+  const changedModule = moduleFunctions.replace(originalField, changedField)
+  const changedWorkflow = measurementFunctions.replace(originalField, changedField)
+  T(
+    "performance-measurement: editing the module prompt alone breaks equivalence",
+    changedModule !== moduleFunctions && promptDifference(changedModule, measurementFunctions),
+  )
+  T(
+    "performance-measurement: editing the workflow prompt alone breaks equivalence",
+    changedWorkflow !== measurementFunctions && promptDifference(moduleFunctions, changedWorkflow),
   )
   const distinct = probe('SELECT DISTINCT h."Id", h."UserId" FROM "Habits" h')
   T("performance-measurement: DISTINCT is not counted as a column", distinct.fromLib.projectionColumns === 2, String(distinct.fromLib.projectionColumns))
