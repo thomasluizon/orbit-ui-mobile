@@ -36,6 +36,7 @@ describe('Astra account rows on web', () => {
   it('copies the referral code and shares its link without a destination chip', async () => {
     render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123', referralLink: 'https://example.com/r/ORBIT123' }} />)
     expect(screen.getByText('ORBIT123')).not.toHaveClass('truncate')
+    expect(screen.getByText('ORBIT123')).toHaveAttribute('translate', 'no')
     fireEvent.click(screen.getByRole('button', { name: 'chat.account.copy' }))
     await waitFor(() => expect(mocks.writeText).toHaveBeenCalledWith('ORBIT123'))
     expect(await screen.findByRole('status')).toHaveTextContent('chat.account.copied')
