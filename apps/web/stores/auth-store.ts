@@ -106,7 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     accountSwitchPending = false
     accountGeneration += 1
     getQueryClient().clear()
-    startAccountScopedSession(get().heldAccountId, loginResponse.userId)
+    startAccountScopedSession(get().heldAccountId, loginResponse.userId, true)
     sessionRecoveryUser = null
     set({
       isAuthenticated: true,

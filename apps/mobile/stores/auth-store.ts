@@ -246,9 +246,10 @@ async function runSessionTeardown(
   if (!(await runSessionTeardownStep(epoch, clearOfflineState))) return null
 
   useChatStore.getState().clearMessages()
+  const onboardingLocallyDone = useOnboardingDraftStore.getState().onboardingLocallyDone
   if (!(await runSessionTeardownStep(epoch, () => startAccountScopedSession(null)))) return null
   useReviewReminderStore.getState().setAccountScope(null)
-  resetOnboardingDraftForSignOut()
+  if (onboardingLocallyDone) useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   if (!isCurrentSessionTeardown(epoch)) return null
   useAuthStore.setState({ user: null })
   return teardown
@@ -290,20 +291,6 @@ function isTransientNetworkError(error: unknown): boolean {
     message.includes('load failed') ||
     message.includes('timed out')
   )
-}
-
-function resetOnboardingDraftForSignOut(): void {
-  const onboardingLocallyDone = useOnboardingDraftStore.getState().onboardingLocallyDone
-  useOnboardingDraftStore.getState().reset()
-  if (onboardingLocallyDone) {
-    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
-  }
-}
-
-function shouldResetOnboardingDraftForLogin(previousAccountId: string | null, accountId: string): boolean {
-  if (previousAccountId && previousAccountId !== accountId) return true
-  const draft = useOnboardingDraftStore.getState()
-  return draft.onboardingLocallyDone && draft.habits.length === 0
 }
 
 /**
@@ -497,11 +484,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await clearOfflineState()
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
       useChatStore.getState().clearMessages()
-      await startAccountScopedSession(user.userId)
+      const preserveAnonymousDraft = previousAccountId === null
+        && useOnboardingDraftStore.getState().habits.length > 0
+      await startAccountScopedSession(user.userId, preserveAnonymousDraft)
       if (!isCurrentSessionEpoch(ownership.epoch)) return null
-      if (shouldResetOnboardingDraftForLogin(previousAccountId, user.userId)) {
-        useOnboardingDraftStore.getState().reset()
-      }
       useReviewReminderStore.getState().setAccountScope(user.userId)
       let hydratedUser = user
 

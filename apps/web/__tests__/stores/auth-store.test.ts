@@ -135,6 +135,18 @@ describe('auth store', () => {
     expect(getHeldAccountId()).toBe('account-a')
   })
 
+  it('drops a persisted draft from another account on a cold session', async () => {
+    useOnboardingDraftStore.setState({ accountKey: 'account-a', colorScheme: 'purple' })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ expiresAt: Date.now() + 3600000, accountId: 'account-b' }),
+    })
+
+    await useAuthStore.getState().checkSession()
+    expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
+  })
+
   it('keeps the previous account until a cross-tab replacement reloads the page', async () => {
     const previousLocation = globalThis.location
     const reload = vi.fn()

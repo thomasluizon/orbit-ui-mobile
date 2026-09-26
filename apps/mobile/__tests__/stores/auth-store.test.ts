@@ -209,6 +209,14 @@ describe('mobile auth store security paths', () => {
     expect(canPromptEngagement(useEngagementPromptStore.getState(), MARKETING_CONSENT_MILESTONE_KEY, '2026-09-26T00:00:00Z')).toBe(true)
   })
 
+  it('drops a persisted draft from another account on a cold session', async () => {
+    useOnboardingDraftStore.setState({ accountKey: 'account-a', colorScheme: 'purple' })
+    getTokenMock.mockResolvedValue(makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'account-b'))
+
+    await useAuthStore.getState().checkAuth()
+    expect(useOnboardingDraftStore.getState().colorScheme).toBeNull()
+  })
+
   it('resets account state and restores each account prompt record', async () => {
     const accountA = { userId: 'account-a', email: 'a@example.com', name: 'A' }
     const accountB = { userId: 'account-b', email: 'b@example.com', name: 'B' }
