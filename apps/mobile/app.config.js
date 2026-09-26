@@ -107,6 +107,11 @@ module.exports = () => {
 
   return {
     ...baseConfig,
+    android: {
+      ...baseConfig.android,
+      // WHY: Pin the Android keyboard window mode for bottom inputs.
+      softwareKeyboardLayoutMode: "resize",
+    },
     plugins: withAndroidReleaseBuildFixesPlugin(
       withAdMobPlugin(baseConfig.plugins, {
         androidAppId: adMobOptions.androidAppId ?? TEST_ANDROID_APP_ID,
