@@ -390,6 +390,9 @@ export default function SupportScreen() {
       void forgetStoredSupportDraft()
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
+      AccessibilityInfo.announceForAccessibility(
+        `${t('profile.support.failureTitle')} ${t('profile.support.failureBody')}`,
+      )
     } finally {
       setSending(false)
     }
