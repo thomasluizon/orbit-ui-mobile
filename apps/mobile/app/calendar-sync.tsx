@@ -268,7 +268,7 @@ export default function CalendarSyncScreen() {
         { enabled },
         {
           onError: (err: unknown) => {
-            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
           },
         },
       )
@@ -283,7 +283,7 @@ export default function CalendarSyncScreen() {
     }
     runSyncNowMutation.mutate(undefined, {
       onError: (err: unknown) => {
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
       },
     })
   }, [isOnline, runSyncNowMutation, showError, t])
@@ -351,7 +351,7 @@ export default function CalendarSyncScreen() {
         })
       }
     } catch (err: unknown) {
-      setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
+      setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'textless'))
       setWizardStage('error')
     }
   }, [
@@ -386,7 +386,7 @@ export default function CalendarSyncScreen() {
       try {
         await dismissSuggestion.mutateAsync({ id: suggestionId })
       } catch (err: unknown) {
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
       }
     },
     [dismissSuggestion, showError, t],
