@@ -17,9 +17,11 @@ import {
   findHabitInList,
   formatAPIDate,
   normalizeHabits,
+  plural,
 } from '@orbit/shared/utils'
 import type {
   HabitScheduleItem,
+  HabitScheduleChild,
   HabitDetail,
   HabitFullDetail,
   LogHabitResponse,
@@ -41,6 +43,7 @@ import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { GamificationProfile } from '@orbit/shared/types/gamification'
 import {
+  cancelQueuedDeleteForUndo,
   createTempEntityId,
   isQueuedResult,
   type QueuedMarker,
@@ -89,6 +92,22 @@ type CreateSubHabitMutationInput = {
   __offlineTempId?: string
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
+
+function selectedDescendantsInSnapshots(
+  snapshots: HabitListSnapshots,
+  selectedIds: Set<string>,
+): Set<string> {
+  const descendants = new Set<string>()
+  const visit = (habit: HabitScheduleItem | HabitScheduleChild, selectedAncestor: boolean) => {
+    const selected = selectedIds.has(habit.id)
+    if (selected && selectedAncestor) descendants.add(habit.id)
+    for (const child of habit.children) visit(child, selectedAncestor || selected)
+  }
+  for (const [, habits] of snapshots) {
+    for (const habit of habits ?? []) visit(habit, false)
+  }
+  return descendants
+}
 
 export {
   EMPTY_CHILDREN_BY_PARENT,
@@ -443,8 +462,21 @@ export function useDeleteHabit() {
       restoreHabitLists(queryClient, context.previousLists)
     },
 
-    onSuccess: (_data, habitId) => {
-      showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
+    onSuccess: (data, habitId, context) => {
+      showUndoToast(t('undo.habitDeleted'), () => {
+        if (isQueuedResult(data)) {
+          void cancelQueuedDeleteForUndo(data.queuedMutationId).then((outcome) => {
+            if (outcome !== 'replayed') {
+              restoreHabitLists(queryClient, context.previousLists)
+              void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+              void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
+            }
+            if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
+          })
+          return
+        }
+        restoreHabit.mutate(habitId)
+      })
     },
 
     onSettled: (data, error, habitId) =>
@@ -791,6 +823,9 @@ export function useBulkCreateHabits() {
 
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const restoreHabit = useRestoreHabit()
+  const showUndoToast = useUndoToast()
 
   return useMutation<
     BulkDeleteResponse,
@@ -831,6 +866,33 @@ export function useBulkDeleteHabits() {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
       adjustHabitCount(queryClient, context.deletedCount)
+    },
+
+    onSuccess: (result, _habitIds, context) => {
+      const deleted = result.results.filter((item) => item.status === 'Success')
+      if (deleted.length === 0) return
+      const cascadedIds = new Set(deleted.flatMap((item) => item.cascadedHabitIds ?? []))
+      const selectedIds = new Set(deleted.map((item) => item.habitId))
+      const selectedDescendants = selectedDescendantsInSnapshots(context.previousLists, selectedIds)
+      const restoreIds = deleted.map((item) => item.habitId)
+        .filter((id) => !cascadedIds.has(id) && !selectedDescendants.has(id))
+      const message = plural(t('undo.habitsDeleted', { count: deleted.length }), deleted.length)
+      showUndoToast(message, () => {
+        if (isQueuedResult(result)) {
+          void cancelQueuedDeleteForUndo(result.queuedMutationId).then((outcome) => {
+            if (outcome !== 'replayed') {
+              restoreHabitLists(queryClient, context.previousLists)
+              adjustHabitCount(queryClient, context.deletedCount)
+              void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+            }
+            if (outcome === 'replayed' || outcome === 'uncertain') {
+              for (const habitId of restoreIds) restoreHabit.mutate(habitId)
+            }
+          })
+          return
+        }
+        for (const habitId of restoreIds) restoreHabit.mutate(habitId)
+      })
     },
 
     onSettled: (data, error) =>

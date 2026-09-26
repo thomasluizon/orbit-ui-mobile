@@ -449,6 +449,7 @@ const bulkDeleteItemResultSchema = z.object({
   status: bulkItemStatusSchema,
   habitId: z.string(),
   error: z.string().nullable(),
+  cascadedHabitIds: z.array(z.string()).nullable().optional(),
 })
 
 export const bulkDeleteResponseSchema = z.object({

@@ -16,7 +16,8 @@ const mockShowQueued = vi.fn()
 const mockSetStreakCelebration = vi.fn()
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key,
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
@@ -1422,6 +1423,76 @@ describe('useBulkDeleteHabits', () => {
     })
 
     expect(mockedBulkDelete).toHaveBeenCalledWith(['h-1', 'h-2'])
+  })
+
+  it('offers Undo for successful bulk deletes and restores only those habits', async () => {
+    mockShowQueued.mockReset()
+    const { bulkDeleteHabits, restoreHabit } = await import('@/lib/actions/habits')
+    vi.mocked(restoreHabit).mockReset()
+    vi.mocked(bulkDeleteHabits).mockResolvedValue({
+      results: [
+        { index: 0, status: 'Success', habitId: 'h-1', error: null },
+        { index: 1, status: 'Failed', habitId: 'h-2', error: 'Failed' },
+        { index: 2, status: 'Success', habitId: 'h-3', error: null },
+      ],
+    })
+    vi.mocked(restoreHabit).mockResolvedValue(undefined)
+
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
+    await act(async () => {
+      await result.current.mutateAsync(['h-1', 'h-2', 'h-3'])
+    })
+
+    expect(mockShowQueued).toHaveBeenCalledWith(
+      'undo.habitsDeleted:{"count":2}', 'undo.action', expect.any(Function), expect.any(Function),
+    )
+    const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    await act(async () => { performUndo() })
+    await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1')
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-3')
+  })
+
+  it('does not offer Undo when no bulk delete succeeds', async () => {
+    mockShowQueued.mockReset()
+    const { bulkDeleteHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkDeleteHabits).mockResolvedValue({
+      results: [{ index: 0, status: 'Failed', habitId: 'h-1', error: 'Failed' }],
+    })
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
+    await act(async () => { await result.current.mutateAsync(['h-1']) })
+    expect(mockShowQueued).not.toHaveBeenCalled()
+  })
+
+  it('restores a selected parent once when the response reports its child', async () => {
+    mockShowQueued.mockReset()
+    const { bulkDeleteHabits, restoreHabit } = await import('@/lib/actions/habits')
+    vi.mocked(restoreHabit).mockReset().mockResolvedValue(undefined)
+    vi.mocked(bulkDeleteHabits).mockResolvedValue({
+      results: [
+        { index: 0, status: 'Success', habitId: 'parent', error: null, cascadedHabitIds: ['child'] },
+        { index: 1, status: 'Success', habitId: 'child', error: null, cascadedHabitIds: [] },
+      ],
+    })
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
+    await act(async () => { await result.current.mutateAsync(['parent', 'child']) })
+    const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    await act(async () => { performUndo() })
+    await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('parent')
+  })
+
+  it('shows the singular bulk Undo toast for one deleted habit', async () => {
+    mockShowQueued.mockReset()
+    const { bulkDeleteHabits } = await import('@/lib/actions/habits')
+    vi.mocked(bulkDeleteHabits).mockResolvedValue({
+      results: [{ index: 0, status: 'Success', habitId: 'h-1', error: null }],
+    })
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper: createWrapper() })
+    await act(async () => { await result.current.mutateAsync(['h-1']) })
+    expect(mockShowQueued).toHaveBeenCalledWith(
+      'undo.habitsDeleted:{"count":1}', 'undo.action', expect.any(Function), expect.any(Function),
+    )
   })
 })
 

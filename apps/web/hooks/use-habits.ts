@@ -16,6 +16,7 @@ import {
   findHabitInList,
   formatAPIDate,
   normalizeHabits,
+  plural,
   optimisticRemoveHabits,
 } from '@orbit/shared/utils'
 import {
@@ -501,9 +502,23 @@ export function useBulkCreateHabits() {
 
 export function useBulkDeleteHabits() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const restoreHabit = useRestoreHabit()
+  const showUndoToast = useUndoToast()
 
   return useAccountScopedMutation({
     mutationFn: (habitIds: string[]) => bulkDeleteHabitsAction(habitIds),
+
+    onSuccess: (result) => {
+      const deleted = result.results.filter((item) => item.status === 'Success')
+      if (deleted.length === 0) return
+      const cascadedIds = new Set(deleted.flatMap((item) => item.cascadedHabitIds ?? []))
+      const restoreIds = deleted.map((item) => item.habitId).filter((id) => !cascadedIds.has(id))
+      const message = plural(t('undo.habitsDeleted', { count: deleted.length }), deleted.length)
+      showUndoToast(message, () => {
+        for (const habitId of restoreIds) restoreHabit.mutate(habitId)
+      })
+    },
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
