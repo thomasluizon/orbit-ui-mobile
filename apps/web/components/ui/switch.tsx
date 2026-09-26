@@ -2,12 +2,13 @@
 
 import type { SwitchProps } from '@orbit/shared/contracts/forms'
 
-export function Switch({ label, checked, onChange }: Readonly<SwitchProps>) {
+export function Switch({ label, checked, disabled = false, onChange }: Readonly<SwitchProps>) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      disabled={disabled}
       aria-label={label}
       onClick={() => onChange(!checked)}
       data-checked={checked ? '' : undefined}

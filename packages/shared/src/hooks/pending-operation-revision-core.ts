@@ -16,17 +16,27 @@ export type RevisePendingOperation = (
 const structuredFields = new Set([
   'frequency_quantity', 'interval_weeks', 'days', 'is_bad_habit',
   'is_general', 'is_flexible', 'checklist_items', 'sub_habits',
+  'reminder_times', 'scheduled_reminders',
 ])
+const listFields = new Set(['checklist_items', 'sub_habits', 'reminder_times', 'scheduled_reminders'])
+
+export function isPendingOperationEditableField(field: { field: string; valueType: string }): boolean {
+  return field.valueType !== 'action' && !listFields.has(field.field)
+}
 
 function editedValue(field: string, value: string): unknown {
-  if (field.startsWith('is_') || field === 'enabled') return JSON.parse(value.toLowerCase())
+  if (field.startsWith('is_') || field === 'enabled' || field === 'reminder_enabled') {
+    if (value !== 'true' && value !== 'false') throw new Error('Invalid boolean')
+    return value === 'true'
+  }
+  if (field === 'days') return value.split(',').map((day) => day.trim()).filter(Boolean)
   if (structuredFields.has(field)) return JSON.parse(value)
   return value === '' && field !== 'title' ? null : value
 }
 
 export function pendingOperationDraft(item: PendingOperationItem): Record<string, string> {
   return Object.fromEntries(item.fields
-    .filter((field) => field.valueType !== 'action')
+    .filter(isPendingOperationEditableField)
     .map((field) => [field.field, field.newValue ?? '']))
 }
 
@@ -35,7 +45,8 @@ export function pendingOperationEdits(
   draft: Readonly<Record<string, string>>,
 ): Record<string, unknown> {
   return Object.fromEntries(item.fields
-    .filter((field) => field.valueType !== 'action' && draft[field.field] !== (field.newValue ?? ''))
+    .filter((field) => isPendingOperationEditableField(field)
+      && draft[field.field] !== (field.newValue ?? ''))
     .map((field) => [field.field, editedValue(field.field, draft[field.field] ?? '')]))
 }
 

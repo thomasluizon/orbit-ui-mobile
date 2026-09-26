@@ -116,7 +116,6 @@ type CheckRowWithNodeValue = Exact<CheckRowBase & { value: { badge: true } }, Ch
 
 type SwitchBase = { label: 'Reminders'; checked: true; onChange: (checked: boolean) => void }
 type Switch = Exact<SwitchBase, SwitchProps>
-// @ts-expect-error unavailable state belongs to the surrounding row
 type DisabledSwitch = Exact<SwitchBase & { disabled: true }, SwitchProps>
 // @ts-expect-error failure belongs to the surrounding form
 type ErrorSwitch = Exact<SwitchBase & { error: 'Failed' }, SwitchProps>
@@ -205,6 +204,7 @@ export type FormContractAssertionsWidthAssertions = [
   Assert<IsExactWidth<SwitchProps['label'], string>>,
   Assert<IsExactWidth<SwitchProps['checked'], boolean>>,
   Assert<IsExactWidth<SwitchProps['onChange'], (checked: boolean) => void>>,
+  Assert<IsExactWidth<SwitchProps['disabled'], boolean | undefined>>,
   Assert<IsExactWidth<TimeFieldProps['label'], string | undefined>>,
   Assert<IsExactWidth<TimeFieldProps['value'], ExpectedTime24 | ''>>,
   Assert<IsExactWidth<TimeFieldProps['onChange'], (value: ExpectedTime24) => void>>,

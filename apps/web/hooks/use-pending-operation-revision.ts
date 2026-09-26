@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import type { PendingAgentOperation, PendingOperationItem } from '@orbit/shared/types/ai'
 import {
   pendingOperationDraft, pendingOperationEdits, pendingOperationRevisionRequest,
+  isPendingOperationEditableField,
   type RevisePendingOperation,
 } from '@orbit/shared/hooks'
 
@@ -20,8 +21,8 @@ export function usePendingOperationRevision(
   const editingItem = items.find((item) => item.itemId === editingItemId)
   const canRevise = Boolean(onRevise && operation.previewFingerprint && operation.items)
 
-  const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }) => {
-    if (!onRevise || !operation.previewFingerprint || busy) return
+  const revise = useCallback(async (selected: readonly PendingOperationItem[], edits?: { itemId: string; values: Record<string, unknown> }): Promise<boolean> => {
+    if (!onRevise || !operation.previewFingerprint || busy) return false
     setBusy(true)
     setError(undefined)
     try {
@@ -29,13 +30,20 @@ export function usePendingOperationRevision(
       if (!response.ok) {
         setStale(response.stale === true)
         setError(response.error)
+        return false
       } else if (response.result.cancelled) {
         setRejected(true)
+        return true
       } else if (response.result.preview) {
         setOperation((current) => ({ ...current, ...response.result.preview }))
-        setEditingItemId(undefined)
         setStale(false)
+        return true
       }
+      setError('invalid')
+      return false
+    } catch {
+      setError('invalid')
+      return false
     } finally {
       setBusy(false)
     }
@@ -43,23 +51,23 @@ export function usePendingOperationRevision(
 
   const startEdit = useCallback((itemId: string) => {
     const item = items.find((entry) => entry.itemId === itemId)
-    if (!item) return
+    if (!item || !item.fields.some(isPendingOperationEditableField)) return
     setDraft(pendingOperationDraft(item))
     setEditingItemId(itemId)
     setError(undefined)
   }, [items])
 
-  const saveEdit = useCallback(async () => {
-    if (!editingItem) return
+  const saveEdit = useCallback(async (): Promise<boolean> => {
+    if (!editingItem) return false
     try {
       const values = pendingOperationEdits(editingItem, draft)
       if (Object.keys(values).length === 0) {
-        setEditingItemId(undefined)
-        return
+        return true
       }
-      await revise(items, { itemId: editingItem.itemId, values })
+      return await revise(items, { itemId: editingItem.itemId, values })
     } catch {
       setError('invalid')
+      return false
     }
   }, [draft, editingItem, items, revise])
 

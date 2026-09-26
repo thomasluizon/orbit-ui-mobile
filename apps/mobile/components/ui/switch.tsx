@@ -3,16 +3,17 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
-export function Switch({ label, checked, onChange }: Readonly<SwitchProps>) {
+export function Switch({ label, checked, disabled = false, onChange }: Readonly<SwitchProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
     <Pressable
       onPress={() => onChange(!checked)}
+      disabled={disabled}
       accessibilityRole="switch"
       accessibilityLabel={label}
-      accessibilityState={{ checked }}
+      accessibilityState={{ checked, disabled }}
       data-checked={checked ? '' : undefined}
       style={styles.control}
     >

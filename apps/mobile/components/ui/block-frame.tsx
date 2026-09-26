@@ -35,6 +35,8 @@ type FrameRowProps = Readonly<{
 
 type StatusLabels = Readonly<Record<BlockFrameItemStatus, string>>
 
+const metaLines = (wrap: boolean | undefined) => wrap ? undefined : 1
+
 function StatusView({ status, label, tokens }: Readonly<{
   status: BlockFrameItemStatus
   label: string
@@ -78,7 +80,7 @@ function FrameRow(props: FrameRowProps) {
             {item.label}
           </Text>
         ) : <View style={styles.rowLabelNode}>{item.label}</View>}
-        {item.meta ? <Text numberOfLines={1} style={[styles.meta, { color: tokens.fg3 }]}>{item.meta}</Text> : null}
+        {item.meta ? <Text numberOfLines={metaLines(item.wrapLabel)} style={[styles.meta, { color: tokens.fg3 }]}>{item.meta}</Text> : null}
         {item.irreversible && props.irreversibleLabel ? (
           <IrreversibleMark label={props.irreversibleLabel} tokens={tokens} />
         ) : null}

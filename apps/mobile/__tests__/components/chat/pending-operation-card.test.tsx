@@ -80,7 +80,7 @@ describe('PendingOperationCard (mobile)', () => {
       preview: { changes: [], changeTargetCount: 2, items: [firstItem, secondItem], previewFingerprint: 'preview-2' },
     } })
     const { tree, handlers } = renderCard(preview, revise)
-    TestRenderer.act(() => tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.edit' })[0].props.onPress())
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-27'))
     await TestRenderer.act(async () => {
       press(tree, 'common.save').props.onPress()

@@ -12,9 +12,9 @@ import {
 import { buildPendingOperationCardLabels, type PendingOperationCardLabels } from '../chat/pending-operation-card'
 
 const labels: PendingOperationCardLabels = {
-  approve: 'Approve', cancel: 'Cancel', confirm: 'Confirm',
+  approve: 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Confirm',
   edit: 'Edit item', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
-  rejected: 'Declined:', save: 'Save', invalid: 'Invalid', stale: 'Stale', fieldLabels: {},
+  rejected: 'Declined:', save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
   confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
   pendingTitle: 'Pending operation', risk: 'Destructive',
@@ -57,6 +57,7 @@ function createRenderers() {
     editSheet: () => 'edit-sheet',
     removeItem: (label, _disabled, onClick) => { record.buttons.push({ label, onClick }); return label },
     notice: (message) => message,
+    actionRow: (...children) => children.join('|'),
     fragment: (...children) => children.filter(Boolean).join('|'),
   }
   return { record, render }
@@ -71,6 +72,7 @@ describe('pending operation card view', () => {
       items: [
         { itemId: 'habit-1', entityId: 'habit-1', entityName: 'Run', stateFingerprint: 'state-1', fields: [
           { entityId: 'habit-1', entityName: 'Run', field: 'date', oldValue: null, newValue: '2026-09-26', valueType: 'date' },
+          { entityId: 'habit-1', entityName: 'Run', field: 'reminder_enabled', oldValue: 'false', newValue: 'true', valueType: 'boolean' },
         ] },
         { itemId: 'habit-2', entityId: 'habit-2', entityName: 'Read', stateFingerprint: 'state-2', fields: [
           { entityId: 'habit-2', entityName: 'Read', field: 'date', oldValue: null, newValue: '2026-09-26', valueType: 'date' },
@@ -88,6 +90,8 @@ describe('pending operation card view', () => {
     renderPendingOperationCard({ card, labels, onVerifyStepUp: vi.fn(), pendingOperation: operation, render })
     expect(record.frame?.items.map((item) => item.id)).toEqual(['habit-1', 'habit-2'])
     expect(record.frame?.items.every((item) => item.label !== '')).toBe(true)
+    expect(record.frame?.items[0]).toMatchObject({ proposed: true, meta: 'date: 2026-09-26 · reminder_enabled: Yes' })
+    expect(record.frame?.actions).toBe('Approve|Edit item|Reject')
     expect(record.buttons.map(({ label }) => label)).toContain('Reject')
     record.buttons.find(({ label }) => label === 'Remove Run')?.onClick()
     expect(card.revision.rejectItem).toHaveBeenCalledWith('habit-1')
