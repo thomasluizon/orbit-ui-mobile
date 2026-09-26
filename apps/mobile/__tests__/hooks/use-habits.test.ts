@@ -1992,8 +1992,9 @@ describe('mobile habit hooks', () => {
       ambiguousIds: ['habit-1', 'habit-2'],
       offlineFailureIds: [],
       hasConfirmedSuccess: false,
+      queuedIds: [],
     })
-    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
     expect(useReviewReminderStore.getState().completionCount).toBe(0)
 
     seedHabitState([
@@ -2016,8 +2017,9 @@ describe('mobile habit hooks', () => {
       results: [],
       ambiguousIds: ['habit-1', 'habit-2'],
       offlineFailureIds: [],
+      queuedIds: [],
     })
-    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
+    expect(getHabitList().every((habit) => !habit.isCompleted)).toBe(true)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 
@@ -2119,10 +2121,30 @@ describe('mobile habit hooks', () => {
       queuedDeletes: [{ habitId: 'habit-1', mutationId: 'mutation-1' }],
     }, ['habit-1'], context)
 
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
+
     const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
     performUndo()
     await vi.waitFor(() => expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1']))
-    expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('habit-1')
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('habit-1'))
+  })
+
+  it('restores rejected bulk deletes while keeping accepted items removed', async () => {
+    seedHabitState([makeHabit({ id: 'accepted' }), makeHabit({ id: 'rejected' })], 2)
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { status: 'Success' | 'Failed'; habitId: string }[]; offlineFailureIds: string[]; queuedDeletes: { habitId: string; mutationId: string }[] },
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+    >
+    const context = await mutation.onMutate?.(['accepted', 'rejected'])
+    expect(getHabitList()).toEqual([])
+
+    mutation.onSuccess?.({ results: [
+      { status: 'Success', habitId: 'accepted' },
+      { status: 'Failed', habitId: 'rejected' },
+    ], offlineFailureIds: [], queuedDeletes: [] }, ['accepted', 'rejected'], context)
+
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['rejected'])
   })
 
   it('restores a selected parent once after its queued bulk delete replays', async () => {

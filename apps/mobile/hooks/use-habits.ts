@@ -122,6 +122,10 @@ type OfflineBulkMutationOutcome<TResponse> = TResponse & {
 
 type BulkLogMutationOutcome = OfflineBulkMutationOutcome<BulkLogResult> & {
   hasConfirmedSuccess: boolean
+  queuedIds: string[]
+}
+type BulkSkipMutationOutcome = OfflineBulkMutationOutcome<BulkSkipResult> & {
+  queuedIds: string[]
 }
 type BulkDeleteMutationOutcome = OfflineBulkMutationOutcome<BulkDeleteResponse> & {
   queuedDeletes: { habitId: string; mutationId: string }[]
@@ -1137,6 +1141,7 @@ export function useBulkDeleteHabits() {
         result.results.flatMap((item) => item.status === 'Failed' ? [item.habitId] : []),
       )
       for (const habitId of result.offlineFailureIds) failedIds.add(habitId)
+      for (const queued of result.queuedDeletes) failedIds.add(queued.habitId)
       if (failedIds.size > 0) {
         for (const [key, snapshot] of context.previousLists) {
           if (!snapshot) continue
@@ -1203,6 +1208,7 @@ export function useBulkLogHabits() {
       const results: BulkLogResult['results'] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
+      const queuedIds: string[] = []
       let hasConfirmedSuccess = false
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
@@ -1225,6 +1231,7 @@ export function useBulkLogHabits() {
               queuedMutationId: mutationId,
             }),
           })
+          if (isQueuedResult(response)) queuedIds.push(...chunk.map((item) => item.habitId))
           if (!isQueuedResult(response) && response.results.some((result) => result.status === 'Success')) {
             hasConfirmedSuccess = true
           }
@@ -1238,7 +1245,7 @@ export function useBulkLogHabits() {
           }
         }
       }
-      return { results, ambiguousIds, offlineFailureIds, hasConfirmedSuccess }
+      return { results, ambiguousIds, offlineFailureIds, hasConfirmedSuccess, queuedIds }
     },
 
     onMutate: async (items) => {
@@ -1271,10 +1278,13 @@ export function useBulkLogHabits() {
         data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
       )
       for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
+      for (const habitId of data.ambiguousIds) failedIds.add(habitId)
+      for (const habitId of data.queuedIds) failedIds.add(habitId)
       restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
 
       for (const result of data.results) {
         if (result.status !== 'Success') continue
+        if (data.queuedIds.includes(result.habitId)) continue
         const item = variables[result.index]
         if (!item) continue
         useReviewReminderStore
@@ -1295,7 +1305,7 @@ export function useBulkSkipHabits() {
   const queryClient = useQueryClient()
 
   return useMutation<
-    OfflineBulkMutationOutcome<BulkSkipResult>,
+    BulkSkipMutationOutcome,
     Error,
     BulkSkipItemRequest[],
     { previousLists: HabitListSnapshots }
@@ -1304,6 +1314,7 @@ export function useBulkSkipHabits() {
       const results: BulkSkipResult['results'] = []
       const ambiguousIds: string[] = []
       const offlineFailureIds: string[] = []
+      const queuedIds: string[] = []
       for (let index = 0; index < items.length; index += 100) {
         const chunk = items.slice(index, index + 100)
         try {
@@ -1324,6 +1335,7 @@ export function useBulkSkipHabits() {
               queuedMutationId: mutationId,
             }),
           })
+          if (isQueuedResult(response)) queuedIds.push(...chunk.map((item) => item.habitId))
           results.push(...response.results.map((result) => ({ ...result, index: result.index + index })))
         } catch (error: unknown) {
           const failedIds = chunk.map((item) => item.habitId)
@@ -1334,7 +1346,7 @@ export function useBulkSkipHabits() {
           }
         }
       }
-      return { results, ambiguousIds, offlineFailureIds }
+      return { results, ambiguousIds, offlineFailureIds, queuedIds }
     },
 
     onMutate: async (items) => {
@@ -1364,6 +1376,8 @@ export function useBulkSkipHabits() {
         data.results.flatMap((result) => result.status === 'Failed' ? [result.habitId] : []),
       )
       for (const habitId of data.offlineFailureIds) failedIds.add(habitId)
+      for (const habitId of data.ambiguousIds) failedIds.add(habitId)
+      for (const habitId of data.queuedIds) failedIds.add(habitId)
       restoreHabitCompletionForIds(queryClient, context.previousLists, failedIds)
     },
 
