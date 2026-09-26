@@ -62,16 +62,16 @@ describe('habit request budget on mobile', () => {
       expect(mocks.apiClient).toHaveBeenCalledTimes(4)
 
       await TestRenderer.act(async () => {
-        finalizeHabitMutation(queryClient, { logId: 'log-1' }, null, { habitId: 'h-1', includeLists: false })
+        finalizeHabitMutation(queryClient, { logId: 'log-1' }, null, { habitId: 'h-1', includeCount: false })
         await Promise.resolve()
       })
-      expect(mocks.apiClient).toHaveBeenCalledTimes(4)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(5)
 
       await TestRenderer.act(async () => {
-        finalizeHabitMutation(queryClient, undefined, null, { habitId: 'h-1', includeLists: false })
+        finalizeHabitMutation(queryClient, undefined, null, { habitId: 'h-1', includeCount: false })
         await Promise.resolve()
       })
-      expect(mocks.apiClient).toHaveBeenCalledTimes(4)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(6)
     } finally {
       renderer?.unmount()
       queryClient.clear()

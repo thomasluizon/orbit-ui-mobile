@@ -580,8 +580,8 @@ interface HabitInvalidationOptions {
   includeGoals?: boolean
   includeGamification?: boolean
   includeProfile?: boolean
-  includeCount?: boolean
   includeLists?: boolean
+  includeCount?: boolean
 }
 
 export function invalidateHabitMutationQueries(
@@ -603,7 +603,7 @@ export function invalidateHabitMutationQueries(
     invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.lists() }))
   }
 
-  if (options?.includeCount) {
+  if (options?.includeCount !== false) {
     invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.count() }))
   }
 

@@ -64,23 +64,6 @@ export function buildCachedCreatedHabit(
   }
 }
 
-function acceptsCreatedHabit(filters: HabitsFilter, habit: HabitScheduleItem): boolean {
-  if (filters.search || filters.tagIds?.length || filters.frequencyUnit || filters.isCompleted !== undefined) return false
-  if (filters.isGeneral && !habit.isGeneral) return false
-  if (filters.dateFrom && !habit.isGeneral && !includesDate(filters, habit.dueDate)) return false
-  if (filters.dateFrom && habit.isGeneral && !filters.includeGeneral) return false
-  return true
-}
-
-export function insertCreatedHabitIntoLists(queryClient: QueryClient, habit: HabitScheduleItem): void {
-  for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
-    if (!items) continue
-    const filters = key[2] as HabitsFilter
-    if (!acceptsCreatedHabit(filters, habit) || items.some((item) => item.id === habit.id)) continue
-    queryClient.setQueryData(key, [...items, habit])
-  }
-}
-
 function includesDate(filters: HabitsFilter, date: string): boolean {
   if (!filters.dateFrom) return true
   return filters.dateFrom <= date && (!filters.dateTo || date <= filters.dateTo)
@@ -97,16 +80,8 @@ export function updateHabitListsForDate(
   }
 }
 
-export function invalidateHabitDateLists(queryClient: QueryClient, date: string, reconciledId?: string): void {
-  for (const [key, items] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
-    const filters = key[2] as HabitsFilter
-    if (filters.dateFrom && includesDate(filters, date) && !items?.some((item) => item.id === reconciledId)) {
-      void queryClient.invalidateQueries({ queryKey: key })
-    }
-  }
-}
-
 export function invalidateHabitDependents(queryClient: QueryClient, habitId: string): void {
+  void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
   void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
   void queryClient.invalidateQueries({ queryKey: habitKeys.logs(habitId) })

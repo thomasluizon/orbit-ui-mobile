@@ -8,8 +8,7 @@ import {
 import { useTranslations } from 'next-intl'
 import {
   habitKeys, goalKeys, gamificationKeys, profileKeys,
-  updateHabitListsForDate, invalidateHabitDateLists, invalidateHabitDependents,
-  buildCachedCreatedHabit, insertCreatedHabitIntoLists,
+  updateHabitListsForDate, invalidateHabitDependents,
 } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
@@ -173,9 +172,8 @@ export function useLogHabit() {
       }
     },
 
-    onSettled: (_response, error, { habitId, date }) => {
+    onSettled: (_response, error, { habitId }) => {
       if (error) return
-      if (date) invalidateHabitDateLists(queryClient, date)
       invalidateHabitDependents(queryClient, habitId)
     },
   })
@@ -214,9 +212,8 @@ export function useSkipHabit() {
       }
     },
 
-    onSettled: (_response, error, { habitId, date }) => {
+    onSettled: (_response, error, { habitId }) => {
       if (error) return
-      if (date) invalidateHabitDateLists(queryClient, date)
       invalidateHabitDependents(queryClient, habitId)
     },
   })
@@ -228,14 +225,13 @@ export function useCreateHabit() {
   return useAccountScopedMutation({
     mutationFn: (data: CreateHabitRequest) => createHabitAction(data),
 
-    onSuccess: (result, request) => {
+    onSuccess: (result) => {
       useUIStore.getState().setLastCreatedHabitId(result.id)
-      insertCreatedHabitIntoLists(queryClient, buildCachedCreatedHabit(queryClient, result.id, request))
-      queryClient.setQueryData<number>(habitKeys.count(), (old) => old === undefined ? old : old + 1)
-      invalidateHabitDateLists(queryClient, request.dueDate || formatAPIDate(new Date()), result.id)
     },
 
     onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
@@ -267,16 +263,17 @@ export function useUpdateHabit() {
       }
     },
 
-    onSettled: (_response, error, { habitId, data }) => {
+    onSettled: (_response, error, { habitId }) => {
       if (error) return
-      if (data.dueDate) invalidateHabitDateLists(queryClient, data.dueDate)
       invalidateHabitDependents(queryClient, habitId)
+      void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
     },
   })
 }
 
 function invalidateHabitDeleteQueries(queryClient: ReturnType<typeof useQueryClient>): void {
   void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+  void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
   void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
@@ -291,7 +288,6 @@ export function useRestoreHabit() {
     mutationFn: (habitId: string) => restoreHabitAction(habitId),
 
     onSuccess: () => {
-      queryClient.setQueryData<number>(habitKeys.count(), (old) => old === undefined ? old : old + 1)
       invalidateHabitDeleteQueries(queryClient)
       showSuccess(t('undo.restored'))
     },
@@ -315,14 +311,12 @@ export function useDeleteHabit() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
       const previousLists = snapshotHabitLists(queryClient)
       updateHabitLists(queryClient, (items) => optimisticRemoveHabits(items, [habitId]))
-      queryClient.setQueryData<number>(habitKeys.count(), (old) => old === undefined ? old : Math.max(0, old - 1))
       return { previousLists }
     },
 
     onError: (_error, _habitId, context) => {
       if (!context?.previousLists) return
       restoreHabitLists(queryClient, context.previousLists)
-      queryClient.setQueryData<number>(habitKeys.count(), (old) => old === undefined ? old : old + 1)
     },
 
     onSuccess: (_data, habitId) => {
@@ -332,6 +326,7 @@ export function useDeleteHabit() {
     onSettled: (_response, error, habitId) => {
       if (error) return
       invalidateHabitDependents(queryClient, habitId)
+      void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
   })

@@ -193,14 +193,10 @@ describe('finalizeHabitMutation', () => {
     expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
-  it('invalidates the habit count only when includeCount is set (parity with web create/delete/bulk)', () => {
-    const withCount = { invalidateQueries: vi.fn(async () => {}) }
-    finalizeHabitMutation(withCount as never, { ok: true }, null, { includeCount: true })
-    expect(withCount.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
-
-    const withoutCount = { invalidateQueries: vi.fn(async () => {}) }
-    finalizeHabitMutation(withoutCount as never, { ok: true }, null, { includeGoals: true })
-    expect(withoutCount.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+  it('invalidates the habit count so the server reconciles it', () => {
+    const queryClient = { invalidateQueries: vi.fn(async () => {}) }
+    finalizeHabitMutation(queryClient as never, { ok: true }, null, { includeGoals: true })
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
   })
 
   it('still refetches on a plain (non-queued) online error so the cache reconciles', () => {

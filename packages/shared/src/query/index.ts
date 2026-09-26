@@ -23,8 +23,6 @@ export {
 
 export {
   updateHabitListsForDate,
-  invalidateHabitDateLists,
   invalidateHabitDependents,
   buildCachedCreatedHabit,
-  insertCreatedHabitIntoLists,
 } from './habit-cache'

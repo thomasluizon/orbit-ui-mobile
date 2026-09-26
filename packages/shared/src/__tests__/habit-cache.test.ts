@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { QueryClient } from '@tanstack/query-core'
 import { createMockHabit } from './factories'
 import { habitKeys } from '../query/keys'
-import { invalidateHabitDateLists, updateHabitListsForDate } from '../query/habit-cache'
+import { updateHabitListsForDate } from '../query/habit-cache'
 import type { HabitScheduleItem } from '../types/habit'
 
 describe('habit list cache targeting', () => {
@@ -21,10 +21,5 @@ describe('habit list cache targeting', () => {
     expect(queryClient.getQueryData<HabitScheduleItem[]>(allKey)?.[0]?.isCompleted).toBe(true)
     expect(queryClient.getQueryData<HabitScheduleItem[]>(yesterdayKey)?.[0]?.isCompleted).toBe(false)
 
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-    invalidateHabitDateLists(queryClient, '2025-01-02')
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: todayKey })
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: yesterdayKey })
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: allKey })
   })
 })
