@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import { RecordListCard } from '@/components/chat/record-list-card'
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), markRead: vi.fn(), fetchJson: vi.fn(), generation: 0 }))
+const mocks = vi.hoisted(() => ({ push: vi.fn(), markRead: vi.fn(), fetchJson: vi.fn(), generation: 0, onAccountChange: null as null | (() => void) }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('next-intl', () => ({ useLocale: () => 'en-US', useTranslations: () => (key: string, values?: Record<string, unknown>) => values ? `${key}:${JSON.stringify(values)}` : key }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: mocks.markRead }) }))
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: mocks.fetchJson }))
-vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation, subscribeToAccountGeneration: () => () => {} }))
+vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation, subscribeToAccountGeneration: (callback: () => void) => { mocks.onAccountChange = callback; return () => { mocks.onAccountChange = null } } }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ state, count, items, body, actions }: BlockFrameProps) => <section data-state={state}><p>{count}</p>{body}{items.map((item) => <div data-testid="record-row" key={item.id}>{item.label}{item.meta}{item.control}</div>)}{actions}</section> }))
 
 describe('Astra record list on web', () => {
@@ -44,5 +44,18 @@ describe('Astra record list on web', () => {
   it('does not show a chip for tags', () => {
     render(<RecordListCard recordList={{ kind: 'tags', totalCount: 1, items: [{ id: 'tag-1', title: 'Focus' }] }} />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('can page again after switching accounts during a pending page', async () => {
+    let resolveFirst: (value: unknown) => void = () => {}
+    mocks.fetchJson.mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
+    mocks.fetchJson.mockResolvedValue({ kind: 'keys', totalCount: 30, items: [], nextCursor: null })
+    render(<RecordListCard recordList={{ kind: 'keys', totalCount: 30, items: [{ id: 'k1', title: 'Key' }], nextCursor: 'cursor' }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.recordList.more' }))
+    expect(mocks.fetchJson).toHaveBeenCalledTimes(1)
+    act(() => { mocks.generation++; mocks.onAccountChange?.() })
+    fireEvent.click(screen.getByRole('button', { name: 'chat.recordList.more' }))
+    expect(mocks.fetchJson).toHaveBeenCalledTimes(2)
+    await act(async () => { resolveFirst({ kind: 'keys', totalCount: 30, items: [], nextCursor: null }); await Promise.resolve() })
   })
 })

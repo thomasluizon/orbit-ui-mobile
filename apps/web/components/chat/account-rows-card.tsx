@@ -19,8 +19,8 @@ function ReferralCodeRow({ code, copied, onCopy }: Readonly<{ code: string; copi
     <span className="min-w-0 flex-1 break-all font-mono text-sm text-[var(--fg-1)]">{code}</span>
     <button type="button" onClick={onCopy} className="flex min-h-11 items-center gap-2 rounded-[8px] px-2 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)]">
       <span className="relative inline-flex size-5">
-        <Copy aria-hidden="true" size={20} className={`absolute inset-0 transition-[transform,opacity] duration-200 motion-reduce:transition-none ${copied ? hiddenIcon : shownIcon}`} />
-        <Check aria-hidden="true" size={20} className={`absolute inset-0 transition-[transform,opacity] duration-200 motion-reduce:transition-none ${copied ? shownIcon : hiddenIcon}`} />
+        <Copy aria-hidden="true" size={20} className={`absolute inset-0 transition-[transform,opacity] duration-200 motion-reduce:scale-100 motion-reduce:transition-[opacity] ${copied ? hiddenIcon : shownIcon}`} />
+        <Check aria-hidden="true" size={20} className={`absolute inset-0 transition-[transform,opacity] duration-200 motion-reduce:scale-100 motion-reduce:transition-[opacity] ${copied ? shownIcon : hiddenIcon}`} />
       </span>
       {t(copied ? 'chat.account.copied' : 'chat.account.copy')}
     </button>

@@ -1296,7 +1296,7 @@
       "markReadError": "Não foi possível marcar o aviso como lido. Tente de novo.",
       "moreError": "Não foi possível carregar mais registros. Tente de novo.",
       "more": "Mostrar mais",
-      "filter": "Filtrar registros carregados",
+      "filter": "Filtrar exibidos",
       "noMatches": "Nenhum registro carregado corresponde à busca.",
       "open": { "notifications": "Abrir Avisos", "tags": "Abrir Etiquetas", "templates": "Abrir Modelos", "keys": "Abrir Perfil" }
     },

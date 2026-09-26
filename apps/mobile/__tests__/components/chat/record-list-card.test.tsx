@@ -6,11 +6,11 @@ import { RecordListCard } from '@/components/chat/record-list-card'
 import { renderedText } from '../../support/react-test-renderer'
 
 const TestRenderer = require('react-test-renderer')
-const mocks = vi.hoisted(() => ({ push: vi.fn(), markRead: vi.fn(), apiClient: vi.fn(), generation: 0 }))
+const mocks = vi.hoisted(() => ({ push: vi.fn(), markRead: vi.fn(), apiClient: vi.fn(), generation: 0, onAccountChange: null as null | (() => void) }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-notifications', () => ({ useMarkNotificationRead: () => ({ mutateAsync: mocks.markRead }) }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
-vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation, subscribeToAccountGeneration: () => () => {} }))
+vi.mock('@/lib/session-epoch', () => ({ getAccountGeneration: () => mocks.generation, subscribeToAccountGeneration: (callback: () => void) => { mocks.onAccountChange = callback; return () => { mocks.onAccountChange = null } } }))
 vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ state, count, items, body, actions }: BlockFrameProps) => <View testID={`frame-${state}`}><Text>{count}</Text>{body}{items.map((item) => <View testID="record-row" key={item.id}>{item.label}{item.meta ? <Text>{item.meta}</Text> : null}{item.control}</View>)}{actions}</View> }))
 vi.mock('@/lib/theme', async (importOriginal) => {
@@ -58,5 +58,19 @@ describe('Astra record list on mobile', () => {
   it('shows no tag destination chip', () => {
     const tree = render(<RecordListCard recordList={{ kind: 'tags', totalCount: 1, items: [{ id: 'tag-1', title: 'Focus' }] }} />)
     expect(tree.root.findAll((node: any) => node.type === Pressable)).toHaveLength(0)
+  })
+
+  it('can page again after switching accounts during a pending page', async () => {
+    let resolveFirst: (value: unknown) => void = () => {}
+    mocks.apiClient.mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve }))
+    mocks.apiClient.mockResolvedValue({ kind: 'keys', totalCount: 30, items: [], nextCursor: null })
+    const tree = render(<RecordListCard recordList={{ kind: 'keys', totalCount: 30, items: [{ id: 'k1', title: 'Key' }], nextCursor: 'cursor' }} />)
+    const more = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.recordList.more'))[0]
+    TestRenderer.act(() => more.props.onPress())
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    TestRenderer.act(() => { mocks.generation++; mocks.onAccountChange?.() })
+    TestRenderer.act(() => more.props.onPress())
+    expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+    await TestRenderer.act(async () => { resolveFirst({ kind: 'keys', totalCount: 30, items: [], nextCursor: null }); await Promise.resolve() })
   })
 })
