@@ -86,7 +86,7 @@ async function assertSubscriptionOutcome(main: Locator, state: string, messages:
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const subscriptionState of ['free', 'trial'] as const) {
-    for (const width of [412, 640] as const) {
+    for (const width of [320, 412, 640] as const) {
       test.describe(`${locale} ${subscriptionState} at ${width}px`, () => {
         test.use({ appLocale: locale, subscriptionState, viewport: { width, height: 1400 } })
 
@@ -142,7 +142,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
 
           const allowance = main.getByRole('region', { name: messages.upgrade.convert.allowanceLabel })
             .getByText(messages.upgrade.convert.freeAllowance, { exact: true })
-          await expect(allowance).toHaveCSS('font-size', width === 412 ? '34px' : '44px')
+          await expect(allowance).toHaveCSS('font-size', width < 640 ? '34px' : '44px')
         })
       })
     }
