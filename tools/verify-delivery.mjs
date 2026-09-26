@@ -17,7 +17,7 @@ const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path>
   --branch <name>     branch the worker pushed (required)
   --repo <key>        repository key from .claude/orchestrator.json (required); GitHub is
                       queried with that repository's owner-scoped token
-  --base <ref>        base the commit count is taken against (default: main)
+  --base <ref>        explicit base override; must match the pull request's base
   --wait-ci <s>       seconds to observe registering or still-running checks before
                       reporting CI_PENDING (default: 0, report immediately)
   --command-timeout-seconds <s>
@@ -67,7 +67,7 @@ const issueArgument = argOf("--issue")
 const worktree = argOf("--worktree")
 const branch = argOf("--branch")
 const repoKey = argOf("--repo")
-const base = argOf("--base") ?? "main"
+const baseOverride = argOf("--base")
 const waitCiRaw = argOf("--wait-ci") ?? "0"
 const waitCiSeconds = Number(waitCiRaw)
 if (!Number.isFinite(waitCiSeconds) || waitCiSeconds < 0) fail(2, `${USAGE}\n\n--wait-ci requires a non-negative number of seconds`)
@@ -77,7 +77,7 @@ const safeValue = (value) => typeof value === "string" && value.length > 0 && !v
 if (!safeValue(issueArgument)) fail(2, `${USAGE}\n\n--issue requires ORB-N, #N, or N`)
 if (!safeValue(worktree)) fail(2, `${USAGE}\n\n--worktree requires a path`)
 if (!safeValue(branch)) fail(2, `${USAGE}\n\n--branch requires a branch name`)
-if (!safeValue(base)) fail(2, `${USAGE}\n\n--base requires a ref`)
+if (baseOverride !== null && !safeValue(baseOverride)) fail(2, `${USAGE}\n\n--base requires a ref`)
 if (!safeValue(repoKey)) fail(2, `${USAGE}\n\n--repo requires a repository key`)
 
 let worktreePresent = false
@@ -179,6 +179,23 @@ checks.cleanTree = {
   allDiscardable: dirtyEntries.length > 0 && sourcePaths.length === 0,
 }
 
+const listed = await run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,baseRefName,additions,deletions,title,body,changedFiles,labels"], githubCwd)
+if (!listed.ok) fail(2, `gh pr list --head ${branch} failed: ${listed.error}`)
+let pullRequests
+try {
+  pullRequests = JSON.parse(listed.stdout)
+} catch {
+  fail(2, `gh pr list --head ${branch} returned unparseable JSON: ${listed.stdout.trim().slice(0, 240) || "empty output"}`)
+}
+if (!Array.isArray(pullRequests)) fail(2, `gh pr list --head ${branch} did not return an array`)
+const [pullRequest] = pullRequests
+if (pullRequest && !safeValue(pullRequest.baseRefName)) fail(2, `gh pr list reported no baseRefName for pull request #${pullRequest.number}`)
+if (pullRequest && baseOverride !== null && baseOverride !== pullRequest.baseRefName) {
+  fail(2, `--base ${baseOverride} disagrees with pull request #${pullRequest.number} base ${pullRequest.baseRefName}`)
+}
+/** No pull request can supply a base yet. Preserve the NO_COMMIT verdict for an empty branch. */
+const base = pullRequest?.baseRefName ?? baseOverride ?? "main"
+
 /**
  * ALWAYS evaluated, dirty tree or not. A finished deliverable and a worker that did nothing produced
  * the same one-key report until this stopped short-circuiting, and on an unattended night that is the
@@ -203,16 +220,6 @@ const localOnly = ahead.ok ? Number(ahead.stdout.trim()) : `origin/${branch} doe
 checks.pushed = { pass: localOnly === 0, observed: localOnly }
 if (!checks.pushed.pass) emit("UNPUSHED")
 
-const listed = await run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions,title,body,changedFiles,labels"], githubCwd)
-if (!listed.ok) fail(2, `gh pr list --head ${branch} failed: ${listed.error}`)
-let pullRequests
-try {
-  pullRequests = JSON.parse(listed.stdout)
-} catch {
-  fail(2, `gh pr list --head ${branch} returned unparseable JSON: ${listed.stdout.trim().slice(0, 240) || "empty output"}`)
-}
-if (!Array.isArray(pullRequests)) fail(2, `gh pr list --head ${branch} did not return an array`)
-const [pullRequest] = pullRequests
 checks.prCount = {
   pass: pullRequests.length === 1,
   observed: pullRequests.length,
@@ -256,8 +263,11 @@ const fileCount = pullRequest.changedFiles
 
 checks.sizeAdvisory = { changedFiles: fileCount, additions: pullRequest.additions, deletions: pullRequest.deletions, diffLines: size, blocking: false }
 
-const changed = await git(["diff", "--name-only", "-z", `${base}...HEAD`, "--", "apps/web/", "apps/mobile/"])
-if (!changed.ok) fail(2, `git diff --name-only ${base}...HEAD failed in ${worktree}: ${changed.error}`)
+const merged = await git(["merge-base", base, "HEAD"])
+if (!merged.ok) fail(2, `git merge-base ${base} HEAD failed in ${worktree}: ${merged.error}`)
+const mergeBase = merged.stdout.trim()
+const changed = await git(["diff", "--name-only", "-z", `${mergeBase}..HEAD`, "--", "apps/web/", "apps/mobile/"])
+if (!changed.ok) fail(2, `git diff --name-only ${mergeBase}..HEAD failed in ${worktree}: ${changed.error}`)
 const changedPaths = changed.stdout.split("\0").filter(Boolean)
 const webPaths = changedPaths.filter((path) => /^apps\/web\/(app|components|hooks|stores|lib)\//.test(path))
 const mobilePaths = changedPaths.filter((path) => /^apps\/mobile\/(app|components|hooks|stores|lib)\//.test(path))
@@ -268,6 +278,8 @@ const oneSided = (webPaths.length > 0) !== (mobilePaths.length > 0)
 const hasParityLabel = pullRequest.labels.some((label) => label.name === "parity:exempt")
 checks.parityLabel = {
   pass: !oneSided || hasParityLabel,
+  baseBranch: base,
+  mergeBase,
   platform: oneSided ? (webPaths.length > 0 ? "web" : "mobile") : null,
   changedPaths: oneSided ? (webPaths.length > 0 ? webPaths : mobilePaths) : [],
   observed: hasParityLabel ? "parity:exempt" : "label absent",
