@@ -1,9 +1,7 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import {
   View,
-  KeyboardAvoidingView,
-  Keyboard,
   Platform,
   type ListRenderItem,
 } from "react-native";
@@ -25,7 +23,7 @@ import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { AstraMark } from "@/components/ui/astra-avatar";
-import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
+import { KeyboardAwareFlatList, KeyboardAwareView } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/app/chat.styles";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -92,7 +90,6 @@ export default function ChatScreen() {
   } = useChatComposer({ isOnline, offlineTitle });
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
-  const [keyboardInset, setKeyboardInset] = useState(0);
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
@@ -106,24 +103,6 @@ export default function ChatScreen() {
     rewardMessage,
     watchAdForMessages,
   } = useChatReward();
-
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-
-    const showSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
-      const nextInset = Math.max(0, event.endCoordinates.height - insets.bottom);
-      setKeyboardInset(nextInset);
-    });
-
-    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
-      setKeyboardInset(0);
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, [insets.bottom]);
 
   const habitDetailQuery = useHabitDetail(selectedHabitId);
   const detailHabit = useMemo(
@@ -192,9 +171,8 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={["top"]}>
-      <KeyboardAvoidingView
+      <KeyboardAwareView
         style={styles.keyboardAvoid}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <AppBar
@@ -236,11 +214,7 @@ export default function ChatScreen() {
           tokens={tokens}
           styles={styles}
           paddingBottom={Math.max(16, insets.bottom + 12)}
-          marginBottom={
-            Platform.OS === "android" && keyboardInset > 0
-              ? keyboardInset + 10
-              : 0
-          }
+          marginBottom={0}
           hasMessages={messages.length > 0}
           isOnline={isOnline}
           offlineTitle={offlineTitle}
@@ -295,7 +269,7 @@ export default function ChatScreen() {
           }}
           onUpgrade={() => router.push("/upgrade")}
         />
-      </KeyboardAvoidingView>
+      </KeyboardAwareView>
 
       <HabitDetailDrawer
         open={!!selectedHabitId}
