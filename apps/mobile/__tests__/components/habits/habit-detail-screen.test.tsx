@@ -65,6 +65,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, string>) => {
       if (key === 'habits.detail.loggedAt') return `${values?.date}, logged at ${values?.time}`
+      if (key === 'habits.detail.logDateConfirmMessage') return `${values?.date}: ${values?.name}`
       if (key === 'habits.detail.askAstraSeedDefault') return `${key}:${JSON.stringify({ title: values?.title })}`
       return key
     },
@@ -230,8 +231,8 @@ vi.mock('@/components/ui/app-bar', () => ({
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, title, onConfirm }: { open: boolean; title: string; onConfirm: () => void }) => open
-    ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, onConfirm })
+  ConfirmSheet: ({ open, title, message, confirmLabel, onConfirm }: { open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void }) => open
+    ? React.createElement('ConfirmSheet', { testID: `confirm-${title}`, title, message, confirmLabel, onConfirm })
     : null,
 }))
 vi.mock('@/components/ui/error-state', () => ({
@@ -1058,7 +1059,7 @@ describe('HabitDetailScreen', () => {
       tree!.root.findByProps({ testID: 'header-log' }).props.onPress()
       await Promise.resolve()
     })
-    expect(mocks.showError).toHaveBeenCalledWith('habits.detail.logDateUnavailable')
+    expect(tree!.root.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === 'habits.detail.logDateUnavailable')).toBe(true)
     expect(mocks.log).not.toHaveBeenCalled()
     expect(getQueuedMutations()).toEqual([])
   })
@@ -1070,11 +1071,32 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />) })
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
     expect(mocks.log).not.toHaveBeenCalled()
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.message).toContain('August 27, 2026')
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.confirmLabel).toBe('habits.detail.logDateConfirmLog')
     await TestRenderer.act(async () => {
       tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' }).props.onConfirm()
       await Promise.resolve()
     })
     expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-27', intent: 'log' })
+  })
+
+  it('replaces checklist confirmation with the unusual-date confirmation', async () => {
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z', checklistItems: [{ text: 'First', isChecked: false }] }
+    mocks.checklist.mockResolvedValue(undefined)
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />) })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'habit-checklist' }).props.onToggle(0)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.checklistCompleteTitle' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.checklistCompleteTitle' })).toHaveLength(0)
+    expect(tree!.root.findAllByProps({ testID: 'confirm-habits.detail.logDateConfirmTitle' })).toHaveLength(1)
+    expect(mocks.log).not.toHaveBeenCalled()
   })
 
   it('contains and reports a checklist failure', async () => {

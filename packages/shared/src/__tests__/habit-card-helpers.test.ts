@@ -329,6 +329,9 @@ describe('getHabitLogDateDecision', () => {
     const oneTime = createMockHabit({ createdAtUtc: '2025-01-09T12:00:00Z', frequencyUnit: null })
     expect(getHabitLogDateDecision(oneTime, '2025-01-08', today, 'UTC')).toBe('confirm')
     expect(getHabitLogDateDecision(oneTime, '2025-05-01', today, 'UTC')).toBe('confirm')
+    expect(getHabitLogDateDecision(oneTime, '2025-01-08', today, 'UTC', true)).toBe('write')
+    expect(getHabitLogDateDecision(recurring, '2025-01-11', today, 'UTC', true)).toBe('block')
+    expect(getHabitLogDateDecision(undefined, today, today, 'UTC', true)).toBe('block')
   })
 })
 

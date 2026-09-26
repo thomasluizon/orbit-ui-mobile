@@ -114,15 +114,16 @@ export function canLogHabitOnDate(
 }
 
 export function getHabitLogDateDecision(
-  habit: Parameters<typeof canLogHabitOnDate>[0] & Pick<NormalizedHabit, 'createdAtUtc'>,
+  habit: (Parameters<typeof canLogHabitOnDate>[0] & Pick<NormalizedHabit, 'createdAtUtc'>) | null | undefined,
   date: string,
   today: string,
   timeZone: string | null | undefined,
+  confirmed = false,
 ): 'write' | 'confirm' | 'block' {
-  if (resolveHabitDetailRouteDate(date) !== date || !isWithinOverdueWindow(date, today) || (date > today && habit.frequencyUnit !== null)) return 'block'
+  if (!habit || resolveHabitDetailRouteDate(date) !== date || !isWithinOverdueWindow(date, today) || (date > today && habit.frequencyUnit !== null)) return 'block'
   const createdDate = formatAPIDateInTimeZone(new Date(habit.createdAtUtc), timeZone)
   return date < createdDate || getDayOffset(date, today) > MAX_INSTANCE_HORIZON_DAYS
-    ? 'confirm'
+    ? confirmed ? 'write' : 'confirm'
     : 'write'
 }
 
