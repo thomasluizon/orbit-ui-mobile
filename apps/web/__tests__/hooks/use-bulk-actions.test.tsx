@@ -46,6 +46,14 @@ describe('useBulkActions selection payloads', () => {
     expect(mutations.bulkDelete).toHaveBeenCalledWith(['parent', 'child-b'])
   })
 
+  it('does not send a delete request when nothing is selected', async () => {
+    const { result } = renderBulkActions(new Set(), [])
+
+    await act(async () => { await result.current.confirmBulkDelete() })
+
+    expect(mutations.bulkDelete).not.toHaveBeenCalled()
+  })
+
   it('sends only selected habits to log and skip', async () => {
     const { result } = renderBulkActions(new Set(['parent', 'child-b']), [])
 
