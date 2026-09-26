@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { isPushNotificationSupported, subscribeToPushNotifications } from './use-push-notification-preferences'
+import { ensurePushSubscription, isPushNotificationSupported } from './use-push-notification-preferences'
 
 function readPermission(): NotificationPermission | null {
   return isPushNotificationSupported() ? Notification.permission : null
@@ -18,7 +18,7 @@ export function useReminderPermission(reminderEnabled: boolean, onToggleReminder
     onToggleReminder()
     if (reminderEnabled || permission === null || permission === 'denied') return
 
-    void subscribeToPushNotifications()
+    void ensurePushSubscription()
       .then((snapshot) => setPermission(snapshot.permission || readPermission()))
       .catch(() => setPermission(readPermission()))
   }

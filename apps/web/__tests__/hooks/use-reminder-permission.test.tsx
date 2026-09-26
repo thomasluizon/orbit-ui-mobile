@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/hooks/use-push-notification-preferences', () => ({
-  subscribeToPushNotifications: mocks.subscribe,
+  ensurePushSubscription: mocks.subscribe,
   isPushNotificationSupported: mocks.supported,
 }))
 
