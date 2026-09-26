@@ -4,6 +4,8 @@ import { useTranslations } from 'next-intl'
 import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
 import { AppSelect } from '@/components/ui/app-select'
 import { Switch } from '@/components/ui/switch'
+import Link from 'next/link'
+import { useReminderPermission } from '@/hooks/use-reminder-permission'
 
 interface ReminderSectionProps {
   reminderEnabled: boolean
@@ -22,6 +24,7 @@ export function ReminderSection({
   const [showCustomInput, setShowCustomInput] = useState(false)
   const [customValue, setCustomValue] = useState<number | null>(null)
   const [customUnit, setCustomUnit] = useState<'min' | 'hours' | 'days'>('min')
+  const permission = useReminderPermission(reminderEnabled, onToggleReminder)
 
   const reminderUnitOptions = useMemo(() => [
     { value: 'min', label: t('habits.form.reminderUnitMin') },
@@ -73,10 +76,18 @@ export function ReminderSection({
         </div>
         <Switch
           checked={reminderEnabled}
-          onChange={onToggleReminder}
+          onChange={permission.toggleReminder}
           label={t('habits.form.reminder')}
         />
       </div>
+      <p role="status" className="text-xs leading-[1.5] text-[var(--fg-3)] empty:hidden">
+        {permission.showNotice ? <>
+          {t('habits.form.reminderPermissionNeeded')}{' '}
+          <Link href="/preferences" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--fg-2)]">
+            {t('habits.form.reminderSettingsAction')}
+          </Link>
+        </> : null}
+      </p>
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">

@@ -9,6 +9,7 @@ vi.mock('@/lib/actions/notifications', () => ({
 }))
 
 import {
+  ensurePushSubscription,
   getPushStatusMessageKey,
   getPushStatusTone,
   loadPushNotificationState,
@@ -233,6 +234,41 @@ describe('use-push-notification-preferences helpers', () => {
 
     await expect(subscribeToPushNotifications()).rejects.toThrow()
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an existing subscription when a reminder is turned on', async () => {
+    const existingSubscription = createMockSubscription('https://example.com/working')
+    const { subscribe } = setupPushEnvironment({ permission: 'granted', existingSubscription })
+    mockSubscribePush.mockResolvedValue(undefined)
+
+    const result = await ensurePushSubscription()
+
+    expect(existingSubscription.unsubscribe).not.toHaveBeenCalled()
+    expect(subscribe).not.toHaveBeenCalled()
+    expect(mockSubscribePush).toHaveBeenCalledWith(existingSubscription.toJSON(), null)
+    expect(result.status).toBe('registered')
+  })
+
+  it('leaves an existing subscription subscribed when re-sending it fails', async () => {
+    const existingSubscription = createMockSubscription('https://example.com/working')
+    const { subscribe } = setupPushEnvironment({ permission: 'granted', existingSubscription })
+    mockSubscribePush.mockRejectedValue(new Error('Server error'))
+
+    await expect(ensurePushSubscription()).rejects.toThrow('Server error')
+    expect(existingSubscription.unsubscribe).not.toHaveBeenCalled()
+    expect(subscribe).not.toHaveBeenCalled()
+  })
+
+  it('registers a new subscription for a reminder when the browser holds none', async () => {
+    const nextSubscription = createMockSubscription('https://example.com/current')
+    const { subscribe } = setupPushEnvironment({ permission: 'granted', subscribeResult: nextSubscription })
+    mockSubscribePush.mockResolvedValue(undefined)
+
+    const result = await ensurePushSubscription()
+
+    expect(subscribe).toHaveBeenCalledTimes(1)
+    expect(mockSubscribePush).toHaveBeenCalledTimes(1)
+    expect(result.status).toBe('registered')
   })
 
   it('unsubscribes the current subscription and reports not-registered', async () => {
