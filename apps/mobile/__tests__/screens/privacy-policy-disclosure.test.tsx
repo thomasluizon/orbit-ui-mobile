@@ -75,4 +75,13 @@ describe('PrivacyScreen disclosures', () => {
     expect(rendersText(tree!.root, en.privacy.retention.syncRecords)).toBe(true)
     expect(rendersText(tree!.root, en.privacy.retention.afterDeletion)).toBe(true)
   })
+
+  it('shows the legacy AdMob disclosure', () => {
+    let tree: { root: TestNode } | undefined
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<PrivacyScreen />)
+    })
+
+    expect(rendersText(tree!.root, en.privacy.thirdParty.admob)).toBe(true)
+  })
 })

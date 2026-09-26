@@ -99,6 +99,7 @@ export default function PrivacyScreen() {
           <PrivacyBulletList
             lines={[
               t('privacy.thirdParty.google'),
+              t('privacy.thirdParty.admob'),
               t('privacy.thirdParty.stripe'),
               t('privacy.thirdParty.firebase'),
               t('privacy.thirdParty.openai'),

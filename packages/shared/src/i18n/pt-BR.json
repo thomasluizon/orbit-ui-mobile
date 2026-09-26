@@ -1327,6 +1327,7 @@
       "title": "Serviços de terceiros",
       "intro": "Usamos os seguintes serviços para operar o Orbit:",
       "google": "Google OAuth - para autenticação",
+      "admob": "Google AdMob: o Orbit para Android antes da versão 1.3.35 podia mostrar anúncios para usuários do plano gratuito e podia usar o identificador de publicidade do seu dispositivo para isso. A versão 1.3.35 e as posteriores não mostram anúncios.",
       "stripe": "Stripe - para processamento de pagamentos de assinatura",
       "firebase": "Firebase Cloud Messaging - para notificações push",
       "openai": "OpenAI - para recursos de chat com IA e resumos diários",

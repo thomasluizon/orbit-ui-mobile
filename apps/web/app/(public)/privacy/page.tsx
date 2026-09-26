@@ -29,6 +29,7 @@ export default function PrivacyPage() {
     { label: t('privacy.thirdParty.title'), body: [
       t('privacy.thirdParty.intro'),
       t('privacy.thirdParty.google'),
+      t('privacy.thirdParty.admob'),
       t('privacy.thirdParty.stripe'),
       t('privacy.thirdParty.firebase'),
       t('privacy.thirdParty.openai'),

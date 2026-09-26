@@ -104,6 +104,13 @@ describe('privacy policy disclosures', () => {
     expect(ptBR.privacy.thirdParty.vercel).toContain('Vercel')
   })
 
+  it('discloses AdMob only for older Android versions in both locales', () => {
+    expect(en.privacy.thirdParty.admob).toBe('Google AdMob: Orbit for Android before version 1.3.35 could show ads to free users and could use your device advertising identifier for them. Version 1.3.35 and later show no ads.')
+    expect(ptBR.privacy.thirdParty.admob).toBe('Google AdMob: o Orbit para Android antes da versão 1.3.35 podia mostrar anúncios para usuários do plano gratuito e podia usar o identificador de publicidade do seu dispositivo para isso. A versão 1.3.35 e as posteriores não mostram anúncios.')
+    expect(en.privacy.dataCollected.device).not.toContain('advertising identifier')
+    expect(ptBR.privacy.dataCollected.device).not.toContain('identificador de publicidade')
+  })
+
   it.each([
     ['English', en.privacy.retention],
     ['Portuguese', ptBR.privacy.retention],
