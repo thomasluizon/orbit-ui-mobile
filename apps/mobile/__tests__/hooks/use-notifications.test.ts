@@ -250,42 +250,15 @@ describe('mobile notification hooks', () => {
     handle.unmount()
   })
 
-  it('polls the notification list on an interval and stops on unmount', () => {
-    vi.useFakeTimers()
-    try {
-      const handle = renderHook(() => useNotifications())
-      expect(mocks.appState.listener).toBeTypeOf('function')
-
-      mocks.queryClient.invalidateQueries.mockClear()
-      vi.advanceTimersByTime(NOTIFICATIONS_REFETCH_INTERVAL)
-      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
-        queryKey: notificationKeys.lists(),
-      })
-
-      handle.unmount()
-      mocks.queryClient.invalidateQueries.mockClear()
-      vi.advanceTimersByTime(NOTIFICATIONS_REFETCH_INTERVAL * 3)
-      expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
-      expect(mocks.appState.removeCount).toBe(1)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('refetches immediately when the app returns to the foreground', () => {
+  it('uses focused query polling and leaves foreground refetching to the query client', () => {
     const handle = renderHook(() => useNotifications())
-
-    mocks.queryClient.invalidateQueries.mockClear()
-    mocks.appState.listener?.('active')
-
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: notificationKeys.lists(),
-    })
-
-    mocks.queryClient.invalidateQueries.mockClear()
-    mocks.appState.listener?.('background')
+    expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({
+      refetchInterval: NOTIFICATIONS_REFETCH_INTERVAL,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: true,
+    }))
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
-
+    expect(mocks.appState.listener).toBeNull()
     handle.unmount()
   })
 

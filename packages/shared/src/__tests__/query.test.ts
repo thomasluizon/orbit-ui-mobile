@@ -232,8 +232,8 @@ describe('QUERY_STALE_TIMES', () => {
     expect(QUERY_STALE_TIMES.profile).toBe(5 * 60 * 1000)
   })
 
-  it('habits is 30 seconds', () => {
-    expect(QUERY_STALE_TIMES.habits).toBe(30 * 1000)
+  it('habits is 5 minutes', () => {
+    expect(QUERY_STALE_TIMES.habits).toBe(5 * 60 * 1000)
   })
 
   it('goals is 1 minute', () => {

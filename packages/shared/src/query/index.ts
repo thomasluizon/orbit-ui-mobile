@@ -20,3 +20,8 @@ export {
   QUERY_STALE_TIMES,
   NOTIFICATIONS_REFETCH_INTERVAL,
 } from './options'
+
+export {
+  updateHabitListsForDate,
+  invalidateHabitDependents,
+} from './habit-cache'

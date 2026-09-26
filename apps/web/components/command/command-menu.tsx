@@ -11,6 +11,7 @@ import { useHabits, useLogHabit, useSkipHabit } from '@/hooks/use-habits'
 import { CommandRow } from './command-row'
 import { CommandHabitItems } from './command-habit-items'
 import { buildCommandHabitList } from './build-command-habit-list'
+import { formatAPIDate } from '@orbit/shared/utils'
 
 type CommandPage = 'log' | 'skip'
 
@@ -76,7 +77,10 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
   const [pages, setPages] = useState<CommandPage[]>([])
   const activePage = pages.at(-1) ?? null
 
-  const { data, isPending, isSuccess } = useHabits({})
+  const today = formatAPIDate(new Date())
+  const todayQuery = useHabits({ dateFrom: today, dateTo: today, includeOverdue: true })
+  const searchQuery = useHabits({ search: search.trim(), page: 1, pageSize: 50 }, search.trim().length > 0)
+  const { data, isPending, isSuccess } = search.trim() ? searchQuery : todayQuery
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
   const habitEntries = useMemo(() => (data ? buildCommandHabitList(data) : []), [data])

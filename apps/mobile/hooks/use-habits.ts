@@ -7,6 +7,7 @@ import {
   goalKeys,
   gamificationKeys,
   profileKeys,
+  updateHabitListsForDate,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { createHabitRequestSchema, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
@@ -152,7 +153,8 @@ export function useLogHabit() {
       const previousLists = snapshotHabitLists(queryClient)
 
       if (!date) {
-        updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
+        updateHabitListsForDate(queryClient, formatAPIDate(new Date()),
+          (items) => optimisticToggleCompletion(items, habitId))
       }
 
       useReviewReminderStore
@@ -238,7 +240,9 @@ export function useLogHabit() {
 
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
+    onSettled: (data, error, { habitId }) => {
+      finalizeHabitMutation(queryClient, data, error, { habitId, includeCount: false })
+    },
   })
 }
 
@@ -268,7 +272,7 @@ export function useSkipHabit() {
       const previousLists = snapshotHabitLists(queryClient)
 
       if (!date) {
-        updateHabitLists(queryClient, (items) => {
+        updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
           const habit = findHabitInList(items, habitId)
           if (!habit) return items
           return optimisticPatchHabit(items, habitId, buildOptimisticSkipPatch(habit))
@@ -286,12 +290,9 @@ export function useSkipHabit() {
       }
     },
 
-    onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error, {
-        includeGoals: true,
-        includeProfile: true,
-        includeGamification: true,
-      }),
+    onSettled: (data, error, { habitId }) => {
+      finalizeHabitMutation(queryClient, data, error, { habitId, includeCount: false, includeGoals: true })
+    },
   })
 }
 
@@ -331,18 +332,12 @@ export function useCreateHabit() {
       const previousLists = snapshotHabitLists(queryClient)
       const tempId = createTempEntityId('habit')
       data.__offlineTempId = tempId
-      const optimisticHabit = buildOptimisticHabit(queryClient, tempId, data)
-
-      updateHabitLists(queryClient, (items) => optimisticInsertHabit(items, optimisticHabit))
-      adjustHabitCount(queryClient, 1)
-
       return { previousLists, tempId }
     },
 
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, -1)
     },
 
     onSuccess: (result) => {
@@ -350,7 +345,7 @@ export function useCreateHabit() {
     },
 
     onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error, { includeCount: true }),
+      finalizeHabitMutation(queryClient, data, error),
   })
 }
 
@@ -394,8 +389,9 @@ export function useUpdateHabit() {
       }
     },
 
-    onSettled: (data, error, { habitId }) =>
-      finalizeHabitMutation(queryClient, data, error, { habitId }),
+    onSettled: (result, error, { habitId }) => {
+      finalizeHabitMutation(queryClient, result, error, { habitId })
+    },
   })
 }
 
@@ -425,10 +421,7 @@ export function useRestoreHabit() {
     },
 
     onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error, {
-        includeGoals: true,
-        includeCount: true,
-      }),
+      finalizeHabitMutation(queryClient, data, error, { includeGoals: true }),
   })
 }
 
@@ -460,7 +453,6 @@ export function useDeleteHabit() {
 
       const previousLists = snapshotHabitLists(queryClient)
       updateHabitLists(queryClient, (items) => optimisticRemoveHabits(items, [habitId]))
-      adjustHabitCount(queryClient, -1)
 
       return { previousLists }
     },
@@ -468,7 +460,6 @@ export function useDeleteHabit() {
     onError: (_err, _vars, context) => {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
-      adjustHabitCount(queryClient, 1)
     },
 
     onSuccess: (data, habitId, context) => {
@@ -488,11 +479,8 @@ export function useDeleteHabit() {
       })
     },
 
-    onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error, {
-        includeGoals: true,
-        includeCount: true,
-      }),
+    onSettled: (data, error, habitId) =>
+      finalizeHabitMutation(queryClient, data, error, { habitId, includeGoals: true }),
   })
 }
 
@@ -829,7 +817,7 @@ export function useBulkCreateHabits() {
     },
 
     onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error, { includeCount: true }),
+      finalizeHabitMutation(queryClient, data, error),
   })
 }
 
@@ -910,7 +898,6 @@ export function useBulkDeleteHabits() {
     onSettled: (data, error) =>
       finalizeHabitMutation(queryClient, data, error, {
         includeGoals: true,
-        includeCount: true,
       }),
   })
 }

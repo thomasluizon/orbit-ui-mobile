@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, focusManager, onlineManager } from '@tanstack/react-query'
 import React from 'react'
-import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useHabits, useTotalHabitCount, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
+import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
@@ -167,6 +168,62 @@ describe('useHabits', () => {
     mockFetch.mockReset()
   })
 
+  it('counts Today requests for a 450-habit account across focus, reconnect, and mutations', async () => {
+    const { logHabit, skipHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-1', isFirstCompletionToday: false, currentStreak: 1 })
+    vi.mocked(skipHabit).mockResolvedValue(undefined)
+    const date = formatAPIDate(new Date())
+    const clock = vi.spyOn(Date, 'now')
+    let now = Date.now()
+    clock.mockImplementation(() => now)
+    focusManager.setFocused(true)
+    onlineManager.setOnline(true)
+    mockFetch.mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => url.includes('/count')
+        ? { count: 450 }
+        : { ...makePaginatedResponse([makeScheduleItem({ id: 'h-1', dueDate: date, scheduledDates: [date] })]), totalCount: 450, totalPages: 3 },
+    }))
+    const queryClient = createQueryClient()
+    const filters = { dateFrom: date, dateTo: date, includeOverdue: true }
+    const wrapper = createWrapper(queryClient)
+    const today = renderHook(() => ({ habits: useHabits(filters), count: useTotalHabitCount(), log: useLogHabit(), skip: useSkipHabit() }), { wrapper })
+    try {
+      await waitFor(() => expect(today.result.current.habits.isSuccess).toBe(true))
+      await waitFor(() => expect(today.result.current.count).toBe(450))
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+
+      now += 60_000
+      await act(async () => { focusManager.setFocused(false); focusManager.setFocused(true) })
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+
+      now += 9 * 60_000
+      await act(async () => { focusManager.setFocused(false); focusManager.setFocused(true) })
+      await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(4))
+
+      await act(async () => { onlineManager.setOnline(false); onlineManager.setOnline(true) })
+      expect(mockFetch).toHaveBeenCalledTimes(4)
+
+      await act(async () => { await today.result.current.log.mutateAsync({ habitId: 'h-1' }) })
+      expect(mockFetch).toHaveBeenCalledTimes(5)
+      await act(async () => { await today.result.current.skip.mutateAsync({ habitId: 'h-1' }) })
+      expect(mockFetch).toHaveBeenCalledTimes(6)
+
+      const firstPalette = renderHook(() => useHabits(filters), { wrapper })
+      await waitFor(() => expect(firstPalette.result.current.isSuccess).toBe(true))
+      firstPalette.unmount()
+      const secondPalette = renderHook(() => useHabits(filters), { wrapper })
+      await waitFor(() => expect(secondPalette.result.current.isSuccess).toBe(true))
+      secondPalette.unmount()
+      expect(mockFetch).toHaveBeenCalledTimes(6)
+    } finally {
+      today.unmount()
+      clock.mockRestore()
+      focusManager.setFocused(undefined)
+      onlineManager.setOnline(true)
+    }
+  })
+
   it('fetches and normalizes habits', async () => {
     const items = [
       makeScheduleItem({ id: 'h-1', title: 'Exercise', position: 1 }),
@@ -307,7 +364,7 @@ describe('useLogHabit', () => {
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
   })
 
-  it('reconciles habit data without refetching response-backed or AI summary families', async () => {
+  it('refetches lists after a completion without refreshing unrelated families', async () => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-x',
@@ -326,6 +383,7 @@ describe('useLogHabit', () => {
     })
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
@@ -333,6 +391,20 @@ describe('useLogHabit', () => {
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
+  it('refetches Today after resolving an earlier overdue occurrence', async () => {
+    const { logHabit } = await import('@/lib/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({ logId: 'log-overdue', isFirstCompletionToday: false, currentStreak: 1 })
+    const queryClient = createQueryClient()
+    const todayKey = habitKeys.list({ dateFrom: '2025-01-02', dateTo: '2025-01-02', includeOverdue: true })
+    queryClient.setQueryData(todayKey, [makeScheduleItem({ id: 'h-1', dueDate: '2025-01-01', isOverdue: true })])
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useLogHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => { await result.current.mutateAsync({ habitId: 'h-1', date: '2025-01-01' }) })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 
   it('passes date to logHabit action', async () => {
@@ -418,7 +490,7 @@ describe('useSkipHabit', () => {
     expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', undefined)
   })
 
-  it('invalidates lists, summary, goals, gamification, and profile on settle (parity with mobile)', async () => {
+  it('refreshes skip lists, linked goals and dependents without unrelated families', async () => {
     const { skipHabit } = await import('@/lib/actions/habits')
     vi.mocked(skipHabit).mockResolvedValue(undefined)
 
@@ -433,11 +505,12 @@ describe('useSkipHabit', () => {
     })
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('passes date to skipHabit action', async () => {
@@ -499,6 +572,28 @@ describe('useCreateHabit', () => {
     mockFetch.mockReset()
   })
 
+  it('leaves general habit count and full pages to the server after create', async () => {
+    const { createHabit } = await import('@/lib/actions/habits')
+    vi.mocked(createHabit).mockResolvedValue({ id: 'new-h' })
+    const date = formatAPIDate(new Date())
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.count(), 450)
+    const fullPage = Array.from({ length: 200 }, (_, index) => makeScheduleItem({ id: `h-${index}` }))
+    queryClient.setQueryData(habitKeys.list({}), fullPage)
+    queryClient.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date }), [makeScheduleItem({ id: 'h-1' })])
+    const { result } = renderHook(() => useCreateHabit(), { wrapper: createWrapper(queryClient) })
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    await act(async () => { await result.current.mutateAsync({ title: 'New Habit', dueDate: date, isGeneral: true }) })
+
+    expect(queryClient.getQueryData(habitKeys.count())).toBe(450)
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))).toHaveLength(200)
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({ dateFrom: date, dateTo: date }))).toHaveLength(1)
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('calls createHabit action with request data', async () => {
     const { createHabit } = await import('@/lib/actions/habits')
     const mockedCreateHabit = vi.mocked(createHabit)
@@ -533,6 +628,20 @@ describe('useDeleteHabit', () => {
     })
 
     expect(mockedDeleteHabit).toHaveBeenCalledWith('h-1')
+  })
+
+  it('refetches the habit count from the server after a delete', async () => {
+    const { deleteHabit } = await import('@/lib/actions/habits')
+    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useDeleteHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => {
+      await result.current.mutateAsync('h-1')
+    })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
   })
 
   it('shows an undo snackbar on successful delete and restores when undone', async () => {
@@ -576,6 +685,7 @@ describe('useRestoreHabit', () => {
 
     const { useRestoreHabit } = await import('@/hooks/use-habits')
     const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.count(), 449)
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useRestoreHabit(), {
       wrapper: createWrapper(queryClient),
@@ -589,6 +699,7 @@ describe('useRestoreHabit', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    expect(queryClient.getQueryData(habitKeys.count())).toBe(449)
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')
@@ -910,6 +1021,22 @@ describe('useUpdateHabit', () => {
     })
 
     expect(mockedUpdateHabit).toHaveBeenCalledWith('h-1', { title: 'Updated Exercise', isBadHabit: false })
+  })
+
+  it('refetches all lists when schedule days change', async () => {
+    const { useUpdateHabit } = await import('@/hooks/use-habits')
+    const { updateHabit } = await import('@/lib/actions/habits')
+    vi.mocked(updateHabit).mockResolvedValue(undefined)
+    const queryClient = createQueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useUpdateHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'h-1', data: { title: 'Exercise', isBadHabit: false, days: ['Monday', 'Wednesday'] } })
+    })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
   })
 
   it('optimistically patches emoji changes', async () => {

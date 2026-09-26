@@ -1,6 +1,6 @@
 export const QUERY_STALE_TIMES = {
   profile: 5 * 60 * 1000,
-  habits: 30 * 1000,
+  habits: 5 * 60 * 1000,
   goals: 60 * 1000,
   gamification: 5 * 60 * 1000,
   subscriptionPlans: 60 * 60 * 1000,
@@ -11,4 +11,4 @@ export const QUERY_STALE_TIMES = {
 } as const
 
 /** Polling interval for notification badge/list updates while the app is active. */
-export const NOTIFICATIONS_REFETCH_INTERVAL = 5 * 60 * 1000
+export const NOTIFICATIONS_REFETCH_INTERVAL = 15 * 60 * 1000
