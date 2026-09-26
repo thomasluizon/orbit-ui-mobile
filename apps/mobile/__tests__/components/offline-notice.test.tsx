@@ -45,7 +45,6 @@ vi.mock('@/lib/offline-mutations', () => ({
   getMutationScope: (type: string) => type.includes('Habit') || type === 'bulkLogHabits'
     ? 'habits'
     : 'profile',
-  isAutomaticReplayBlocked: (type: string) => type === 'bulkLogHabits',
   hasPendingOfflineDependencies: (queuedMutation: DroppedMutation['mutation']) =>
     Boolean(queuedMutation.targetEntityId?.startsWith('offline-')) ||
     queuedMutation.endpoint.includes('offline-'),
@@ -189,14 +188,14 @@ describe('OfflineNotice', () => {
     expect(mocks.store.dismissDrop).toHaveBeenCalledWith(orphanedDrop.id)
   })
 
-  it('routes blocked bulk recovery for review and allows dismissal', () => {
-    const blockedDrop = drop({ type: 'bulkLogHabits' })
-    mocks.store.drops = [blockedDrop]
+  it('requeues dropped bulk recovery and allows dismissal', () => {
+    const bulkDrop = drop({ type: 'bulkLogHabits' })
+    mocks.store.drops = [bulkDrop]
     const tree = render()
 
-    TestRenderer.act(() => action(tree, 'common.syncReviewAction').props.onPress())
-    expect(mocks.push).toHaveBeenCalledWith('/')
-    expect(mocks.store.dismissDrop).toHaveBeenCalledWith(blockedDrop.id)
+    TestRenderer.act(() => action(tree, 'common.syncRetryAction').props.onPress())
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ type: 'bulkLogHabits' }))
+    expect(mocks.store.dismissDrop).toHaveBeenCalledWith(bulkDrop.id)
 
     const dismiss = tree.root.findAll(
       (node: { props: Record<string, unknown> }) =>

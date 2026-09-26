@@ -316,6 +316,98 @@ describe('HabitList', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it.each(['immediate', 'replay'] as const)(
+    'skips an already confirmed parent but considers its ancestor on %s settlement',
+    async (source) => {
+      const grandparent = createMockHabit({
+        id: 'grandparent', title: 'Grandparent', hasSubHabits: true,
+        instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      })
+      const parent = createMockHabit({
+        id: 'parent', title: 'Parent', parentId: 'grandparent', hasSubHabits: true,
+        instances: [{ date: TODAY, status: 'Pending', logId: null }],
+      })
+      const child = createMockHabit({ id: 'child', parentId: 'parent', isCompleted: false })
+      seedHabits([grandparent, parent, child])
+      const ref = React.createRef<HabitListHandle>()
+      let tree: any
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <HabitList ref={ref} view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+        )
+      })
+      const items = [
+        { habitId: 'parent', date: TODAY },
+        { habitId: 'child', date: TODAY },
+      ]
+      if (source === 'immediate') {
+        TestRenderer.act(() => ref.current?.settleBulkHabitResolutions(items, 'log'))
+      } else {
+        await TestRenderer.act(async () => {
+          await notifyBulkReplaySuccess({ mutationId: 'parent-child', type: 'bulkLogHabits', items })
+        })
+      }
+      const dialogs = tree.root.findAllByType('ConfirmDialog')
+        .filter((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
+      expect(dialogs).toHaveLength(1)
+      expect(dialogs[0].props.description).toContain('"Grandparent"')
+      TestRenderer.act(() => tree.unmount())
+    },
+  )
+
+  it('does not settle an undated upgraded replay on another selected day', async () => {
+    const parent = createMockHabit({
+      id: 'legacy-parent', title: 'Parent', hasSubHabits: true,
+      instances: [{ date: TOMORROW, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({ id: 'legacy-child', parentId: 'legacy-parent', isCompleted: false })
+    seedHabits([parent, child])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} selectedDate={new Date(`${TOMORROW}T12:00:00Z`)}
+          showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+    await TestRenderer.act(async () => {
+      await notifyBulkReplaySuccess({
+        mutationId: 'legacy-undated', type: 'bulkLogHabits', items: [{ habitId: 'legacy-child' }],
+      })
+    })
+    expect(tree.root.findAllByType('ConfirmDialog')
+      .filter((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle')))
+      .toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('settles a present accepted child when a sibling is unavailable', async () => {
+    const parent = createMockHabit({
+      id: 'partial-parent', title: 'Parent', hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({ id: 'present-child', parentId: 'partial-parent', isCompleted: false })
+    seedHabits([parent, child])
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+    await TestRenderer.act(async () => {
+      await notifyBulkReplaySuccess({
+        mutationId: 'partially-visible', type: 'bulkLogHabits',
+        items: [
+          { habitId: 'present-child', date: TODAY },
+          { habitId: 'missing-child', date: TODAY },
+        ],
+      })
+    })
+    const dialogs = tree.root.findAllByType('ConfirmDialog')
+      .filter((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
+    expect(dialogs).toHaveLength(1)
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('hides one-time tasks completed before the selected day when completed items are shown', () => {
     visibilityMockState.useRealTodayVisibility = true
     const dueToday = createMockHabit({

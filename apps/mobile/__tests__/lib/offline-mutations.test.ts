@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => {
   const queued: PersistedQueuedMutation[] = []
   const resolvedIds = new Map<string, string>()
   let online = false
+  let accountId = 'test-account'
 
   function replaceIdInValue(value: unknown, oldId: string, newId: string): unknown {
     if (value === oldId) return newId
@@ -122,6 +123,10 @@ const mocks = vi.hoisted(() => {
     setOnline(value: boolean) {
       online = value
     },
+    setAccountId(value: string) {
+      accountId = value
+    },
+    getAccountId: () => accountId,
     enqueue,
     getAll,
     getById,
@@ -148,7 +153,7 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
-vi.mock('@/lib/account-scope', () => ({ getAccountId: () => 'test-account' }))
+vi.mock('@/lib/account-scope', () => ({ getAccountId: mocks.getAccountId }))
 
 vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
@@ -199,6 +204,7 @@ describe('offline mutations', () => {
     mocks.queued.length = 0
     mocks.resolvedIds.clear()
     mocks.setOnline(false)
+    mocks.setAccountId('test-account')
 
     mocks.enqueue.mockClear()
     mocks.getAll.mockClear()
@@ -315,6 +321,28 @@ describe('offline mutations', () => {
       expect(mocks.queued).toHaveLength(0)
     },
   )
+
+  it('binds an in-flight bulk response to the account that began its flush', async () => {
+    mocks.setOnline(true)
+    mocks.queued.push(buildQueuedMutation({
+      type: 'bulkLogHabits', scope: 'habits', endpoint: '/api/habits/bulk/log',
+      method: 'POST', payload: { items: [{ habitId: 'child', date: '2026-09-25' }] },
+    }))
+    let finishResponse!: (value: unknown) => void
+    mocks.apiClient.mockImplementation(() => new Promise((resolve) => { finishResponse = resolve }))
+    const flush = flushQueuedMutations()
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    mocks.setAccountId('account-b')
+    const listenerB = vi.fn(() => true)
+    const unsubscribeB = subscribeBulkReplaySuccesses(listenerB)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    finishResponse({ results: [{
+      index: 0, status: 'Success', habitId: 'child', logId: null, error: null,
+    }] })
+    await flush
+    expect(listenerB).not.toHaveBeenCalled()
+    unsubscribeB()
+  })
 
   it.each(['bulkLogHabits', 'bulkSkipHabits'] as const)(
     'reuses the %s key after the first response is lost',

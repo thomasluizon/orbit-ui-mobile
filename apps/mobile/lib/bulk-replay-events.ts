@@ -9,13 +9,20 @@ export interface BulkReplaySuccess {
   items: { habitId: string; date?: string }[]
 }
 
-type BulkReplaySuccessListener = (success: BulkReplaySuccess) => boolean
-const listeners = new Set<BulkReplaySuccessListener>()
-let pending: BulkReplaySuccess[] = []
-let loadedAccountId: string | null = null
-let loading: Promise<void> | null = null
-let writing: Promise<void> = Promise.resolve()
-let delivering: Promise<void> = Promise.resolve()
+type BulkReplaySuccessListener = (
+  success: BulkReplaySuccess,
+) => boolean | readonly BulkReplaySuccess['items'][number][]
+
+interface AccountReplayState {
+  accountId: string
+  pending: BulkReplaySuccess[]
+  listeners: Set<BulkReplaySuccessListener>
+  loading: Promise<void> | null
+  writing: Promise<void>
+  delivering: Promise<void>
+}
+
+const accounts = new Map<string, AccountReplayState>()
 
 const storedSuccessSchema = z.array(z.object({
   mutationId: z.string(),
@@ -27,64 +34,98 @@ function storageKey(accountId: string): string {
   return `@orbit/bulk-replay-successes:${accountId}`
 }
 
-async function loadPending(): Promise<void> {
-  const accountId = getAccountId()
-  if (!accountId) throw new Error('Cannot persist bulk replay without account')
-  if (loadedAccountId === accountId) return loading ?? Promise.resolve()
-  loadedAccountId = accountId
-  pending = []
-  loading = (async () => {
-    const stored = await AsyncStorage.getItem(storageKey(accountId))
-    if (stored) pending = storedSuccessSchema.parse(JSON.parse(stored))
-  })().catch((error: unknown) => {
-    loadedAccountId = null
-    loading = null
-    throw error
-  })
-  await loading
+function getState(accountId: string): AccountReplayState {
+  let state = accounts.get(accountId)
+  if (!state) {
+    state = {
+      accountId,
+      pending: [],
+      listeners: new Set(),
+      loading: null,
+      writing: Promise.resolve(),
+      delivering: Promise.resolve(),
+    }
+    accounts.set(accountId, state)
+  }
+  return state
 }
 
-function persistPending(): Promise<void> {
-  const accountId = loadedAccountId
-  if (!accountId) return Promise.resolve()
-  const serialized = JSON.stringify(pending)
-  writing = writing.catch(captureError).then(() =>
-    AsyncStorage.setItem(storageKey(accountId), serialized),
+function loadPending(state: AccountReplayState): Promise<void> {
+  if (!state.loading) {
+    state.loading = (async () => {
+      const stored = await AsyncStorage.getItem(storageKey(state.accountId))
+      if (stored) state.pending = storedSuccessSchema.parse(JSON.parse(stored))
+    })().catch((error: unknown) => {
+      accounts.delete(state.accountId)
+      throw error
+    })
+  }
+  return state.loading
+}
+
+function persistPending(state: AccountReplayState): Promise<void> {
+  const serialized = JSON.stringify(state.pending)
+  state.writing = state.writing.catch(captureError).then(() =>
+    AsyncStorage.setItem(storageKey(state.accountId), serialized),
   )
-  return writing
+  return state.writing
 }
 
-async function deliverPending(listener: BulkReplaySuccessListener): Promise<void> {
-  for (const success of [...pending]) {
-    if (!listeners.has(listener)) return
+async function deliverPending(
+  state: AccountReplayState,
+  listener: BulkReplaySuccessListener,
+): Promise<void> {
+  for (const success of [...state.pending]) {
+    if (!state.listeners.has(listener) || getAccountId() !== state.accountId) return
+    let handled: ReturnType<BulkReplaySuccessListener>
     try {
-      if (!listener(success)) continue
+      handled = listener(success)
     } catch (error) {
       captureError(error)
       continue
     }
-    pending.splice(pending.indexOf(success), 1)
-    await persistPending()
+    if (handled === false) continue
+    const index = state.pending.indexOf(success)
+    if (index < 0) continue
+    if (handled === true || handled.length === 0) state.pending.splice(index, 1)
+    else state.pending[index] = { ...success, items: [...handled] }
+    await persistPending(state)
   }
 }
 
-function scheduleDelivery(listener: BulkReplaySuccessListener): Promise<void> {
-  delivering = delivering.catch(captureError).then(() => deliverPending(listener))
-  return delivering
+function scheduleDelivery(
+  state: AccountReplayState,
+  listener: BulkReplaySuccessListener,
+): Promise<void> {
+  state.delivering = state.delivering.catch(captureError)
+    .then(() => deliverPending(state, listener))
+  return state.delivering
 }
 
 export function subscribeBulkReplaySuccesses(listener: BulkReplaySuccessListener): () => void {
-  listeners.add(listener)
-  void loadPending().then(() => scheduleDelivery(listener)).catch(captureError)
-  return () => { listeners.delete(listener) }
+  const accountId = getAccountId()
+  if (!accountId) {
+    captureError(new Error('Cannot subscribe to bulk replay without account'))
+    return () => {}
+  }
+  const state = getState(accountId)
+  state.listeners.add(listener)
+  void loadPending(state).then(() => scheduleDelivery(state, listener)).catch(captureError)
+  return () => { state.listeners.delete(listener) }
 }
 
-export async function notifyBulkReplaySuccess(success: BulkReplaySuccess): Promise<void> {
-  await loadPending()
-  pending.push(success)
-  await persistPending()
-  for (const listener of listeners) {
-    await scheduleDelivery(listener)
-    if (!pending.includes(success)) break
+export async function notifyBulkReplaySuccess(
+  success: BulkReplaySuccess,
+  accountId: string | null = getAccountId(),
+): Promise<void> {
+  if (!accountId) throw new Error('Cannot persist bulk replay without account')
+  const state = getState(accountId)
+  await loadPending(state)
+  state.pending.push(success)
+  await persistPending(state)
+  if (getAccountId() !== accountId) return
+  for (const listener of state.listeners) {
+    await scheduleDelivery(state, listener)
+    if (!state.pending.some((event) => event.mutationId === success.mutationId)) break
   }
 }

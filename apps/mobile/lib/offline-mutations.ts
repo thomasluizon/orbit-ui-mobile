@@ -27,6 +27,7 @@ import { z } from 'zod'
 import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { apiClient } from './api-client'
+import { getAccountId } from './account-scope'
 import { notifyBulkReplaySuccess } from './bulk-replay-events'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
@@ -105,12 +106,6 @@ function notifyDroppedMutation(dropped: DroppedMutation): void {
   useOfflineSyncStore.getState().addDrop(dropped)
   captureError(new Error(`Offline mutation dropped: ${dropped.type}: ${dropped.lastError}`))
   for (const listener of droppedMutationListeners) listener(dropped)
-}
-
-const AUTOMATIC_REPLAY_BLOCKED_TYPES = new Set<string>()
-
-export function isAutomaticReplayBlocked(type: string): boolean {
-  return AUTOMATIC_REPLAY_BLOCKED_TYPES.has(type)
 }
 
 export function subscribeFlushResults(listener: FlushResultListener): () => void {
@@ -631,7 +626,11 @@ function serializeMutationPayload(payload: unknown): string | undefined {
   return payload === undefined || payload === null ? undefined : JSON.stringify(payload)
 }
 
-async function reportBulkReplaySuccess(mutation: PersistedQueuedMutation, response: unknown): Promise<void> {
+async function reportBulkReplaySuccess(
+  mutation: PersistedQueuedMutation,
+  response: unknown,
+  accountId: string | null,
+): Promise<void> {
   if (mutation.type !== 'bulkLogHabits' && mutation.type !== 'bulkSkipHabits') return
   const itemSchema = mutation.type === 'bulkLogHabits'
     ? bulkLogItemRequestSchema
@@ -645,7 +644,7 @@ async function reportBulkReplaySuccess(mutation: PersistedQueuedMutation, respon
     return result.status === 'Success' && item?.habitId === result.habitId ? [item] : []
   })
   if (items.length > 0) {
-    await notifyBulkReplaySuccess({ mutationId: mutation.id, type: mutation.type, items })
+    await notifyBulkReplaySuccess({ mutationId: mutation.id, type: mutation.type, items }, accountId)
   }
 }
 
@@ -859,15 +858,7 @@ async function processQueuedMutationFlush(
   if (!currentMutation) {
     return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
   }
-
-  if (isAutomaticReplayBlocked(currentMutation.type)) {
-    const dropped = await dropQueuedMutation(
-      currentMutation,
-      'Automatic replay is blocked for this mutation while offline',
-      touchedScopes,
-    )
-    return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
-  }
+  const accountId = getAccountId()
 
   let mutation = await resolveMutationReferences(currentMutation)
   const dependencies = getPendingOfflineDependencies(mutation)
@@ -894,7 +885,7 @@ async function processQueuedMutationFlush(
       getMutationResponseSchema(mutation.type),
     )
 
-    await reportBulkReplaySuccess(mutation, response)
+    await reportBulkReplaySuccess(mutation, response, accountId)
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
     return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
   } catch (error: unknown) {

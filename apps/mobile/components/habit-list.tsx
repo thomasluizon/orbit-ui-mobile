@@ -724,19 +724,22 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       const promptedParents = new Set<string>()
       for (const id of completedIds) {
         const parentId = promptDataRef.current?.habitsById.get(id)?.parentId
-        if (!parentId || promptedParents.has(parentId)) continue
+        if (!parentId || completedIds.has(parentId) || promptedParents.has(parentId)) continue
         promptedParents.add(parentId)
         checkAndPromptParentLog(id, completedIds)
       }
     }, [checkAndPromptParentLog, markRecentlyCompleted, selectedDateStr])
 
     useEffect(() => subscribeBulkReplaySuccesses((success) => {
-      if (success.items.some((item) => item.date && item.date !== selectedDateStr)) return false
-      if (success.items.some((item) => !promptDataRef.current?.habitsById.has(item.habitId))) {
-        return false
+      const available = promptDataRef.current?.habitsById
+      const matched = success.items.filter((item) =>
+        item.date === selectedDateStr && available?.has(item.habitId))
+      const remaining = success.items.filter((item) =>
+        item.date && (item.date !== selectedDateStr || !available?.has(item.habitId)))
+      if (matched.length > 0) {
+        settleBulkHabitResolutions(matched, success.type === 'bulkLogHabits' ? 'log' : 'skip')
       }
-      settleBulkHabitResolutions(success.items, success.type === 'bulkLogHabits' ? 'log' : 'skip')
-      return true
+      return remaining.length === success.items.length ? false : remaining
     }), [habitsById, selectedDateStr, settleBulkHabitResolutions])
 
     const handleLogged = useCallback(
