@@ -48,6 +48,8 @@ describe('Astra record list on mobile', () => {
     await TestRenderer.act(async () => { more.props.onPress(); await Promise.resolve() })
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(20)
     const filter = tree.root.findByProps({ accessibilityLabel: 'chat.recordList.filter' })
+    const filterTrigger = tree.root.findAll((node: any) => node.type === Pressable && renderedText(node.props.children) === 'chat.recordList.filter')[0]
+    expect(filterTrigger.props.style.minHeight).toBeGreaterThanOrEqual(44)
     TestRenderer.act(() => filter.props.onChangeText('Key 3'))
     expect(tree.root.findAll((node: any) => node.type === View && node.props?.testID === 'record-row')).toHaveLength(2)
     const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.recordList.open.keys'))[0]
