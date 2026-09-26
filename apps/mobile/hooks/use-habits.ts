@@ -148,6 +148,7 @@ export function useLogHabit() {
       }),
 
     onMutate: ({ habitId, date }) => {
+      /** Start canceling refetches without delaying the optimistic completion. */
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
@@ -218,7 +219,7 @@ export function useLogHabit() {
         void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       }
 
-      if (response.xpEarned || response.newAchievementIds?.length) {
+      if (!loggedHabit?.isBadHabit && (response.xpEarned || response.newAchievementIds?.length)) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
@@ -271,6 +272,7 @@ export function useSkipHabit() {
 
       const previousLists = snapshotHabitLists(queryClient)
 
+      /** Recurring skips complete the current occurrence; one-time skips postpone it. */
       if (!date) {
         updateHabitListsForDate(queryClient, formatAPIDate(new Date()), (items) => {
           const habit = findHabitInList(items, habitId)

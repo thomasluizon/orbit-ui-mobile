@@ -815,6 +815,8 @@ describe('useLogHabit onSuccess', () => {
       habitId: 'bad-habit',
       isFirstCompletionToday: true,
       celebrates: false,
+      xpEarned: 25,
+      expectedXp: 100,
     },
     {
       name: 'celebrates a good top-level habit completion',
@@ -822,6 +824,8 @@ describe('useLogHabit onSuccess', () => {
       habitId: 'good-habit',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 25,
+      expectedXp: 125,
     },
     {
       name: 'celebrates a good sub-habit completion',
@@ -832,6 +836,20 @@ describe('useLogHabit onSuccess', () => {
       habitId: 'good-child',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 0,
+      expectedXp: 100,
+    },
+    {
+      name: 'does not bank XP for a bad sub-habit completion',
+      habits: [makeScheduleItem({
+        id: 'parent-1',
+        children: [makeScheduleChild({ id: 'bad-child', isBadHabit: true })],
+      })],
+      habitId: 'bad-child',
+      isFirstCompletionToday: true,
+      celebrates: false,
+      xpEarned: 25,
+      expectedXp: 100,
     },
     {
       name: 'does not celebrate an unresolvable habit completion',
@@ -839,6 +857,8 @@ describe('useLogHabit onSuccess', () => {
       habitId: 'missing-habit',
       isFirstCompletionToday: true,
       celebrates: false,
+      xpEarned: 25,
+      expectedXp: 125,
     },
     {
       name: 'does not celebrate a repeat completion',
@@ -846,18 +866,22 @@ describe('useLogHabit onSuccess', () => {
       habitId: 'good-habit',
       isFirstCompletionToday: false,
       celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
-  ])('$name', async ({ habits, habitId, isFirstCompletionToday, celebrates }) => {
+  ])('$name', async ({ habits, habitId, isFirstCompletionToday, celebrates, xpEarned, expectedXp }) => {
     const { logHabit } = await import('@/lib/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-streak',
       isFirstCompletionToday,
       currentStreak: 3,
+      xpEarned,
     })
 
     const queryClient = createQueryClient()
     queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), habits)
     queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const { result } = renderHook(() => useLogHabit(), {
       wrapper: createWrapper(queryClient),
     })
@@ -874,6 +898,7 @@ describe('useLogHabit onSuccess', () => {
     expect(
       queryClient.getQueryData<{ currentStreak: number }>(profileKeys.detail())?.currentStreak,
     ).toBe(celebrates ? 3 : 1)
+    expect(queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp).toBe(expectedXp)
   })
 
   it('completes successfully with streak response', async () => {

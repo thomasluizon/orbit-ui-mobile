@@ -991,6 +991,8 @@ describe('mobile habit hooks', () => {
       habitId: 'bad-habit',
       isFirstCompletionToday: true,
       celebrates: false,
+      xpEarned: 25,
+      expectedXp: 100,
     },
     {
       name: 'celebrates a good top-level habit completion',
@@ -998,6 +1000,8 @@ describe('mobile habit hooks', () => {
       habitId: 'good-habit',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 25,
+      expectedXp: 125,
     },
     {
       name: 'celebrates a good sub-habit completion',
@@ -1008,6 +1012,20 @@ describe('mobile habit hooks', () => {
       habitId: 'good-child',
       isFirstCompletionToday: true,
       celebrates: true,
+      xpEarned: 0,
+      expectedXp: 100,
+    },
+    {
+      name: 'does not bank XP for a bad sub-habit completion',
+      habits: [makeHabit({
+        id: 'parent-1',
+        children: [makeChild({ id: 'bad-child', isBadHabit: true })],
+      })],
+      habitId: 'bad-child',
+      isFirstCompletionToday: true,
+      celebrates: false,
+      xpEarned: 25,
+      expectedXp: 100,
     },
     {
       name: 'does not celebrate an unresolvable habit completion',
@@ -1015,6 +1033,8 @@ describe('mobile habit hooks', () => {
       habitId: 'missing-habit',
       isFirstCompletionToday: true,
       celebrates: false,
+      xpEarned: 25,
+      expectedXp: 125,
     },
     {
       name: 'does not celebrate a repeat completion',
@@ -1022,10 +1042,13 @@ describe('mobile habit hooks', () => {
       habitId: 'good-habit',
       isFirstCompletionToday: false,
       celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
     },
-  ])('$name', ({ habits, habitId, isFirstCompletionToday, celebrates }) => {
+  ])('$name', ({ habits, habitId, isFirstCompletionToday, celebrates, xpEarned, expectedXp }) => {
     seedHabitState(habits)
     mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
       { habitId: string; date?: string },
@@ -1035,6 +1058,7 @@ describe('mobile habit hooks', () => {
       logId: 'log-streak',
       isFirstCompletionToday,
       currentStreak: 3,
+      xpEarned,
     }
 
     mutation.onSuccess?.(response, { habitId }, undefined)
@@ -1046,6 +1070,8 @@ describe('mobile habit hooks', () => {
     }
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
     expect(profile.currentStreak).toBe(celebrates ? 3 : 1)
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(expectedXp)
   })
 
   it('skips all celebrations when a completion is queued offline', () => {
