@@ -114,7 +114,8 @@ describe('buildCreateHabitRequest', () => {
     expect(result.dueTime).toBe('09:00')
     expect(result.dueEndTime).toBe('10:00')
     expect(result.reminderEnabled).toBe(true)
-    expect(result.reminderTimes).toEqual([15, 30])
+    expect(result.relativeReminders).toEqual([{ minutesBefore: 15 }, { minutesBefore: 30 }])
+    expect(result).not.toHaveProperty('reminderTimes')
   })
 
   it('includes scheduled reminders when no dueTime but reminders enabled', () => {

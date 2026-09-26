@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
+import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 
 vi.mock('@/components/ui/app-select', () => ({
   AppSelect: ({
@@ -45,6 +46,16 @@ function renderSection(overrides?: Partial<Props>) {
 }
 
 describe('ReminderSection', () => {
+  it('adds an after-due choice to the relative request', () => {
+    const props = renderSection({ reminderTimes: [15] })
+    fireEvent.click(screen.getByText('habits.form.reminderAdd'))
+    fireEvent.click(screen.getByText('habits.form.reminder15minAfter'))
+    expect(props.onReminderTimesChange).toHaveBeenCalledWith([15, -15])
+    const form = { ...buildEmptyHabitFormValues('2025-03-10'), dueTime: '09:00', reminderEnabled: true }
+    const request = buildCreateHabitRequest(form, [15, -15], [], [], [])
+    expect(request.relativeReminders).toEqual([{ minutesBefore: 15 }, { minutesBefore: -15 }])
+  })
+
   it('collapses the body when reminders are disabled', () => {
     renderSection({ reminderEnabled: false })
     expect(screen.queryByText('habits.form.reminderAdd')).toBeNull()

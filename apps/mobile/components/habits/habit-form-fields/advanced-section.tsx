@@ -29,7 +29,6 @@ interface AdvancedSectionProps {
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
   onToggleReminder: (nextEnabled: boolean) => void;
-  hasScheduledReminders: boolean;
   onValidationError: (message: string) => void;
   selectedGoalIds: string[];
   atGoalLimit: boolean;
@@ -52,7 +51,6 @@ export function AdvancedSection({
   reminderTimes,
   onReminderTimesChange,
   onToggleReminder,
-  hasScheduledReminders,
   onValidationError,
   selectedGoalIds,
   atGoalLimit,
@@ -83,7 +81,13 @@ export function AdvancedSection({
   function reminderLabel(minutes: number): string {
     const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes);
     if (preset) return t(preset.key);
-    if (minutes < 60) return `${minutes} ${t("habits.form.reminderMinutes")}`;
+    if (minutes < 0) {
+      const after = -minutes;
+      if (after % 60 !== 0) return `${after} ${t("habits.form.reminderMinutesAfter")}`;
+      const hours = Math.floor(after / 60);
+      return `${hours} ${t(hours === 1 ? "habits.form.reminderHourAfter" : "habits.form.reminderHoursAfter")}`;
+    }
+    if (minutes < 60 || minutes % 60 !== 0) return `${minutes} ${t("habits.form.reminderMinutes")}`;
     if (minutes < 1440) {
       const h = Math.floor(minutes / 60);
       return `${h} ${t(h === 1 ? "habits.form.reminderHour" : "habits.form.reminderHours")}`;
@@ -201,10 +205,25 @@ export function AdvancedSection({
           onReminderTimesChange={onReminderTimesChange}
           onToggleReminder={() => onToggleReminder(!reminderEnabled)}
           reminderLabel={reminderLabel}
-        />
+          scheduledReminderCount={scheduledReminders.length}
+          onValidationError={onValidationError}
+        >
+          <ScheduledReminderSection
+            tokens={tokens}
+            reminderEnabled={reminderEnabled}
+            scheduledReminders={scheduledReminders}
+            onToggleReminder={() => onToggleReminder(!reminderEnabled)}
+            onSetScheduledReminders={(reminders) =>
+              setValue("scheduledReminders", reminders, { shouldDirty: true })
+            }
+            onValidationError={onValidationError}
+            nested
+            offsetReminderCount={reminderTimes.length}
+          />
+        </ReminderSection>
       )}
 
-      {!isGeneral && (!dueTime || hasScheduledReminders) && (
+      {!isGeneral && !dueTime && (
         <ScheduledReminderSection
           tokens={tokens}
           reminderEnabled={reminderEnabled}
@@ -214,7 +233,6 @@ export function AdvancedSection({
             setValue("scheduledReminders", reminders, { shouldDirty: true })
           }
           onValidationError={onValidationError}
-          nested={!!dueTime}
         />
       )}
 

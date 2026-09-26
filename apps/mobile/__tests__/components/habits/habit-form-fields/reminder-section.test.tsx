@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
+import { HABIT_REMINDER_PRESETS, buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
 
@@ -73,10 +73,20 @@ function press(tree: TestTree, node: TestNode) {
 }
 
 function buttons(tree: TestTree): TestNode[] {
-  return tree.root.findAll((node) => node.props?.accessibilityRole === 'button')
+  return tree.root.findAll((node) => node.props.accessibilityRole === 'button')
 }
 
 describe('ReminderSection', () => {
+  it('adds an after-due choice to the relative request', () => {
+    const { tree, onReminderTimesChange } = renderSection({ reminderTimes: [15] })
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminderAdd')!)
+    press(tree, buttons(tree).find((node) => descendantText(node) === 'habits.form.reminder15minAfter')!)
+    expect(onReminderTimesChange).toHaveBeenCalledWith([15, -15])
+    const form = { ...buildEmptyHabitFormValues('2025-03-10'), dueTime: '09:00', reminderEnabled: true }
+    const request = buildCreateHabitRequest(form, [15, -15], [], [], [])
+    expect(request.relativeReminders).toEqual([{ minutesBefore: 15 }, { minutesBefore: -15 }])
+  })
+
   it('hides the reminder body while the toggle is off', () => {
     const { tree } = renderSection({ reminderEnabled: false, reminderTimes: [60] })
     expect(tree.root.findAll((node) => descendantText(node) === '60m')).toHaveLength(0)
@@ -115,7 +125,7 @@ describe('ReminderSection', () => {
       (node) => descendantText(node) === 'habits.form.reminderAdd',
     )
     press(tree, addButton!)
-    const preset = HABIT_REMINDER_PRESETS[0]!
+    const preset = HABIT_REMINDER_PRESETS[0]
     const presetButton = buttons(tree).find(
       (node) => descendantText(node) === preset.key,
     )

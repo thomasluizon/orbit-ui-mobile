@@ -119,6 +119,7 @@ function cloneTopLevelHabit(node: HabitTreeNode): HabitScheduleItem {
     reminderEnabled: 'reminderEnabled' in node ? node.reminderEnabled : false,
     reminderTimes: 'reminderTimes' in node ? node.reminderTimes : [],
     scheduledReminders: 'scheduledReminders' in node ? node.scheduledReminders : [],
+    relativeReminders: 'relativeReminders' in node ? node.relativeReminders : [],
     slipAlertEnabled: 'slipAlertEnabled' in node ? node.slipAlertEnabled : false,
     tags: node.tags,
     children,
@@ -457,6 +458,7 @@ export function buildOptimisticHabit(
     reminderEnabled: data.reminderEnabled ?? false,
     reminderTimes: data.reminderTimes ?? [],
     scheduledReminders: data.scheduledReminders ?? [],
+    relativeReminders: data.relativeReminders ?? [],
     slipAlertEnabled: data.slipAlertEnabled ?? false,
     tags: findCachedTags(queryClient, data.tagIds),
     children: [],
@@ -543,6 +545,7 @@ export function buildOptimisticDuplicateHabit(
       reminderEnabled: 'reminderEnabled' in source ? source.reminderEnabled : undefined,
       reminderTimes: 'reminderTimes' in source ? source.reminderTimes : undefined,
       scheduledReminders: 'scheduledReminders' in source ? source.scheduledReminders : undefined,
+      relativeReminders: 'relativeReminders' in source ? source.relativeReminders ?? undefined : undefined,
       slipAlertEnabled: 'slipAlertEnabled' in source ? source.slipAlertEnabled : undefined,
       checklistItems: source.checklistItems,
       tagIds: source.tags.map((tag) => tag.id),
@@ -596,6 +599,13 @@ export function buildOptimisticHabitPatch(
   setHabitPatchField(
     patch,
     data,
+    'relativeReminders',
+    'relativeReminders',
+    data.relativeReminders ?? [],
+  )
+  setHabitPatchField(
+    patch,
+    data,
     'slipAlertEnabled',
     'slipAlertEnabled',
     data.slipAlertEnabled ?? false,
@@ -624,6 +634,7 @@ export function buildOptimisticHabitPatch(
     patch.reminderEnabled = false
     patch.reminderTimes = []
     patch.scheduledReminders = []
+    patch.relativeReminders = []
     patch.dueTime = null
     patch.dueEndTime = null
     patch.endDate = null

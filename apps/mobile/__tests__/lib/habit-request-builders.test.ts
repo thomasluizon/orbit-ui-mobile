@@ -55,7 +55,7 @@ describe('mobile habit request builders', () => {
       dueTime: '09:00',
       dueEndTime: '10:00',
       reminderEnabled: true,
-      reminderTimes: [15, 30],
+      relativeReminders: [{ minutesBefore: 15 }, { minutesBefore: 30 }],
       tagIds: ['tag-1'],
       goalIds: ['goal-1'],
       subHabits: ['Sub 1', 'Sub 2'],

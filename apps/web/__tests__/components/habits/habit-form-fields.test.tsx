@@ -1471,7 +1471,7 @@ describe('HabitFormFields', () => {
   })
 
 
-  it('surfaces both reminder sections for a due-timed habit that also holds scheduled reminders (#447 Bug 3)', () => {
+  it('shows legacy clock reminders inside the timed reminder editor', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     formHelpers.form.watch = vi.fn((field: string) => {
       const defaults: Record<string, unknown> = {
@@ -1500,16 +1500,15 @@ describe('HabitFormFields', () => {
         onToggleGoal={vi.fn()}
         reminderTimes={[15]}
         onReminderTimesChange={vi.fn()}
-        hasScheduledReminders
       />,
     )
     expect(screen.getByText('habits.form.reminder')).toBeDefined()
-    expect(screen.getByText('habits.form.scheduledReminder')).toBeDefined()
+    expect(screen.getByText('habits.form.reminderAddTime')).toBeDefined()
     expect(screen.getByText(/scheduledReminderSameDayAt/)).toBeDefined()
     expect(screen.getAllByRole('switch')).toHaveLength(1)
   })
 
-  it('hides the scheduled reminder section for a plain due-timed habit', () => {
+  it('offers clock reminders for a plain due-timed habit', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     formHelpers.form.watch = vi.fn((field: string) => {
       const defaults: Record<string, unknown> = {
@@ -1541,7 +1540,7 @@ describe('HabitFormFields', () => {
       />,
     )
     expect(screen.getByText('habits.form.reminder')).toBeDefined()
-    expect(screen.queryByText('habits.form.scheduledReminder')).toBeNull()
+    expect(screen.getByText('habits.form.reminderAddTime')).toBeDefined()
   })
 
   it('sets isBadHabit from the habit type segmented toggle', () => {

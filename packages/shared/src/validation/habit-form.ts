@@ -181,10 +181,16 @@ export function validateReminderSelection(
   if (!reminderEnabled) return null
 
   if (dueTime) {
-    if (reminderTimes.length === 0) {
+    if (reminderTimes.length + scheduledReminders.length === 0) {
       return 'habits.form.reminderMinimumOne'
     }
-    return null
+    if (reminderTimes.length + scheduledReminders.length > 15) {
+      return 'habits.form.relativeReminderMax'
+    }
+    if (reminderTimes.some((minutes) => !Number.isInteger(minutes) || minutes < -1439 || minutes > 10080)) {
+      return 'habits.form.invalidRelativeReminder'
+    }
+    return validateScheduledReminders(scheduledReminders)
   }
 
   if (scheduledReminders.length === 0) {

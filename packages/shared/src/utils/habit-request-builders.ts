@@ -4,6 +4,7 @@ import type {
   NormalizedHabit,
   RescheduleSuggestion,
   UpdateHabitRequest,
+  RelativeReminderTime,
 } from '../types/habit'
 import type { HabitFormData } from '../validation'
 
@@ -42,13 +43,25 @@ function applyReminderFields(
     req.dueTime = data.dueTime
     if (data.dueEndTime) req.dueEndTime = data.dueEndTime
     req.reminderEnabled = data.reminderEnabled
-    req.reminderTimes = reminderTimes
+    req.relativeReminders = data.reminderEnabled
+      ? buildRelativeReminders(reminderTimes, data.scheduledReminders)
+      : []
     return
   }
   if (data.reminderEnabled && data.scheduledReminders.length > 0) {
     req.reminderEnabled = true
     req.scheduledReminders = data.scheduledReminders
   }
+}
+
+function buildRelativeReminders(
+  reminderTimes: number[],
+  scheduledReminders: HabitFormData['scheduledReminders'],
+): RelativeReminderTime[] {
+  return [
+    ...reminderTimes.map((minutesBefore) => ({ minutesBefore })),
+    ...scheduledReminders.map(({ when, time }) => ({ when, time })),
+  ]
 }
 
 export function buildSubHabitRequest(
@@ -125,16 +138,14 @@ function applyUpdateReminderFields(
   request: UpdateHabitRequest,
   data: HabitFormData,
   reminderTimes: number[],
-  hasScheduledReminders: boolean,
 ): void {
   if (data.dueTime) {
     request.dueTime = data.dueTime
     request.dueEndTime = data.dueEndTime || undefined
     request.reminderEnabled = data.reminderEnabled
-    request.reminderTimes = data.reminderEnabled ? reminderTimes : []
-    if (hasScheduledReminders) {
-      request.scheduledReminders = data.reminderEnabled ? data.scheduledReminders : []
-    }
+    request.relativeReminders = data.reminderEnabled
+      ? buildRelativeReminders(reminderTimes, data.scheduledReminders)
+      : []
     return
   }
   if (data.reminderEnabled && data.scheduledReminders.length > 0) {
@@ -188,7 +199,6 @@ export function buildUpdateHabitRequest(
   originalEndDate: string,
   reminderTimes: number[],
   selectedGoalIds: string[],
-  hasScheduledReminders = false,
 ): UpdateHabitRequest {
   const request: UpdateHabitRequest = {
     title: data.title,
@@ -201,7 +211,7 @@ export function buildUpdateHabitRequest(
 
   if (!data.isGeneral) {
     applyUpdateScheduleFields(request, data, isOneTime, originalEndDate)
-    applyUpdateReminderFields(request, data, reminderTimes, hasScheduledReminders)
+    applyUpdateReminderFields(request, data, reminderTimes)
   }
 
   request.slipAlertEnabled = data.isBadHabit ? data.slipAlertEnabled : false

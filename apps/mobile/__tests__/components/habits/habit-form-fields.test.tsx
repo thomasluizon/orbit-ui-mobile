@@ -525,7 +525,7 @@ describe('HabitFormFields (mobile)', () => {
     expect(hasText('habits.form.tags')).toBe(true)
   })
 
-  it('surfaces both reminder sections for a due-timed habit that also holds scheduled reminders (#447 Bug 3)', () => {
+  it('shows legacy clock reminders inside the timed reminder editor', () => {
     const formHelpers = createMockFormHelpers({
       dueTime: '09:00',
       reminderEnabled: true,
@@ -545,7 +545,6 @@ describe('HabitFormFields (mobile)', () => {
           onUpgrade={vi.fn()}
           reminderTimes={[15]}
           onReminderTimesChange={vi.fn()}
-          hasScheduledReminders
           defaultExpanded
         />,
       )
@@ -557,7 +556,7 @@ describe('HabitFormFields (mobile)', () => {
       ).length > 0
 
     expect(hasText('habits.form.reminder')).toBe(true)
-    expect(hasText('habits.form.scheduledReminder')).toBe(true)
+    expect(hasText('habits.form.reminderAddTime')).toBe(true)
     expect(
       tree.root.findAllByProps({
         accessibilityLabel: 'habits.form.scheduledReminder',
@@ -565,7 +564,7 @@ describe('HabitFormFields (mobile)', () => {
     ).toHaveLength(0)
   })
 
-  it('hides the scheduled reminder section for a plain due-timed habit', () => {
+  it('offers clock reminders for a plain due-timed habit', () => {
     const formHelpers = createMockFormHelpers({
       dueTime: '09:00',
       reminderEnabled: true,
@@ -596,7 +595,7 @@ describe('HabitFormFields (mobile)', () => {
       ).length > 0
 
     expect(hasText('habits.form.reminder')).toBe(true)
-    expect(hasText('habits.form.scheduledReminder')).toBe(false)
+    expect(hasText('habits.form.reminderAddTime')).toBe(true)
   })
 
   it('advances the frequency carousel to the next card when the next arrow is pressed', () => {
