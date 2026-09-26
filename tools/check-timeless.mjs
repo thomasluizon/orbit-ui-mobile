@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync, realpathSync } from "node:fs"
+import { createRequire } from "node:module"
 import { dirname, extname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -16,8 +17,10 @@ const date = /\b(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\b/
 const session = new RegExp("\\bses" + "sion[\\s:_-]*[a-f0-9]{8,}\\b", "i")
 const prose = new Set([".md", ".mdx", ".txt"])
 const js = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".cs"])
+const typedJs = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"])
 const html = new Set([".html", ".htm", ".svg", ".xml", ".astro"])
 const hash = new Set([".yml", ".yaml", ".sh", ".bash", ".zsh", ".toml", ".properties", ".editorconfig", ".gitignore"])
+const parsers = new Map()
 
 function git(args, cwd = ROOT) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
@@ -25,7 +28,52 @@ function git(args, cwd = ROOT) {
   return result.stdout
 }
 
-function comments(text, path) {
+function typescript(root) {
+  if (!parsers.has(root)) {
+    const require = createRequire(join(root, "package.json"))
+    try { parsers.set(root, require("typescript")) }
+    catch (error) {
+      if (error.code !== "MODULE_NOT_FOUND") throw error
+      parsers.set(root, null)
+    }
+  }
+  return parsers.get(root)
+}
+
+function parsedComments(text, path, parser) {
+  const extension = extname(path).toLowerCase()
+  const scriptKind = extension === ".jsx" ? parser.ScriptKind.JSX
+    : extension === ".tsx" ? parser.ScriptKind.TSX
+      : extension === ".ts" ? parser.ScriptKind.TS : parser.ScriptKind.JS
+  const source = parser.createSourceFile(path, text, parser.ScriptTarget.Latest, true, scriptKind)
+  const found = [], seen = new Set(), literalSpans = []
+  const collect = (position) => {
+    for (const range of [
+      ...(parser.getLeadingCommentRanges(text, position) ?? []),
+      ...(parser.getTrailingCommentRanges(text, position) ?? []),
+    ]) {
+      if (seen.has(range.pos)) continue
+      seen.add(range.pos)
+      const line = parser.getLineAndCharacterOfPosition(source, range.pos).line + 1
+      const value = text.slice(range.pos, range.end)
+      found.push({ line, position: range.pos, text: value, length: value.split("\n").length, singleLine: range.kind === parser.SyntaxKind.SingleLineCommentTrivia })
+    }
+  }
+  const visit = (node) => {
+    if ([parser.SyntaxKind.JsxText, parser.SyntaxKind.StringLiteral, parser.SyntaxKind.NoSubstitutionTemplateLiteral,
+      parser.SyntaxKind.RegularExpressionLiteral, parser.SyntaxKind.TemplateHead, parser.SyntaxKind.TemplateMiddle,
+      parser.SyntaxKind.TemplateTail].includes(node.kind)) literalSpans.push([node.getStart(source), node.getEnd()])
+    if (node.kind !== parser.SyntaxKind.JsxText) collect(node.getFullStart())
+    collect(node.getEnd())
+    if (node.kind === parser.SyntaxKind.JsxExpression) collect(node.getStart(source) + 1)
+    parser.forEachChild(node, visit)
+  }
+  visit(source)
+  collect(source.endOfFileToken.getFullStart())
+  return found.filter((item) => !literalSpans.some(([start, end]) => item.position >= start && item.position < end))
+}
+
+function comments(text, path, root) {
   const extension = extname(path).toLowerCase()
   const lines = text.split("\n")
   const found = []
@@ -46,70 +94,40 @@ function comments(text, path) {
       }
     })
   } else if (js.has(extension)) {
-    const jsx = extension === ".jsx" || extension === ".tsx"
-    let state = "code", start = 0, value = "", previous = "", jsxDepth = 0, jsxClosing = false
-    const expressions = []
-    for (let i = 0, line = 1; i < text.length; i++) {
-      const char = text[i], next = text[i + 1]
-      if (state === "line") {
-        if (char === "\n") { found.push({ line: start, text: value, length: 1 }); state = "code"; value = ""; line++ }
-        else value += char
-        continue
-      }
-      if (state === "block") {
-        if (char === "*" && next === "/") { found.push({ line: start, text: value, length: line - start + 1 }); i++; state = "code"; value = "" }
-        else { value += char; if (char === "\n") line++ }
-        continue
-      }
-      if (state === "jsx-text") {
-        if (char === "<") { state = "jsx-tag"; jsxClosing = next === "/" }
-        else if (char === "{") { expressions.push({ returnTo: state, depth: 1 }); state = "code" }
-        if (char === "\n") line++
-        continue
-      }
-      if (state === "jsx-tag") {
-        if (char === "'" || char === '"') { state = "jsx-quote"; value = char; continue }
-        if (char === "{") { expressions.push({ returnTo: state, depth: 1 }); state = "code"; continue }
-        if (char === ">") {
-          if (jsxClosing) jsxDepth--
-          else if (text[i - 1] !== "/") jsxDepth++
-          state = jsxDepth > 0 ? "jsx-text" : "code"
+    const parser = typedJs.has(extension) ? typescript(root) : null
+    if (parser) found.push(...parsedComments(text, path, parser))
+    else {
+      if (extension === ".jsx" || extension === ".tsx") throw new Error(`TypeScript is required to check ${path}`)
+      let state = "code", start = 0, value = "", previous = ""
+      for (let i = 0, line = 1; i < text.length; i++) {
+        const char = text[i], next = text[i + 1]
+        if (state === "line") {
+          if (char === "\n") { found.push({ line: start, text: value, length: 1, singleLine: true }); state = "code"; value = ""; line++ }
+          else value += char
+          continue
         }
-        if (char === "\n") line++
-        continue
+        if (state === "block") {
+          if (char === "*" && next === "/") { found.push({ line: start, text: value, length: line - start + 1 }); i++; state = "code"; value = "" }
+          else { value += char; if (char === "\n") line++ }
+          continue
+        }
+        if (state !== "code") {
+          if (char === "\\") { i++; if (text[i] === "\n") line++; continue }
+          if (char === state) state = "code"
+          if (char === "\n") line++
+          continue
+        }
+        if (char === "\n") { line++; continue }
+        if (char === "'" || char === '"' || char === "`") { state = char; continue }
+        if (char === "/" && next === "/") { state = "line"; start = line; value = ""; i++; continue }
+        if (char === "/" && next === "*") { state = "block"; start = line; value = ""; i++; continue }
+        if (char === "/" && /[=(:,!\[{?]|\breturn$/.test(previous)) { state = "/"; continue }
+        if (!/\s/.test(char)) previous = char
       }
-      if (state === "jsx-quote") {
-        if (char === "\\") { i++; if (text[i] === "\n") line++; continue }
-        if (char === value) { state = "jsx-tag"; value = "" }
-        if (char === "\n") line++
-        continue
-      }
-      if (state !== "code") {
-        if (char === "\\") { i++; if (text[i] === "\n") line++; continue }
-        if (char === state) state = "code"
-        if (char === "\n") line++
-        continue
-      }
-      if (char === "\n") { line++; continue }
-      if (expressions.length && char === "{") { expressions.at(-1).depth++; continue }
-      if (expressions.length && char === "}") {
-        const expression = expressions.at(-1)
-        if (--expression.depth === 0) { state = expression.returnTo; expressions.pop() }
-        continue
-      }
-      if (jsx && char === "<" && /[A-Za-z/>]/.test(next ?? "") &&
-        (/[=({[,!?:>]/.test(previous) || /\b(?:return|yield)\s*$/.test(text.slice(0, i)))) {
-        state = "jsx-tag"; jsxClosing = next === "/"; continue
-      }
-      if (char === "'" || char === '"' || char === "`") { state = char; continue }
-      if (char === "/" && next === "/") { state = "line"; start = line; value = ""; i++; continue }
-      if (char === "/" && next === "*") { state = "block"; start = line; value = ""; i++; continue }
-      if (char === "/" && /[=(:,!\[{?]|\breturn$/.test(previous)) { state = "/"; continue }
-      if (!/\s/.test(char)) previous = char
+      if (state === "line" || state === "block") found.push({ line: start, text: value, length: lines.length - start + 1, singleLine: state === "line" })
     }
-    if (state === "line" || state === "block") found.push({ line: start, text: value, length: lines.length - start + 1 })
     let group = []
-    for (const item of found.filter((item) => item.length === 1).sort((a, b) => a.line - b.line)) {
+    for (const item of found.filter((item) => item.length === 1 && (item.singleLine ?? item.text.startsWith("//"))).sort((a, b) => a.line - b.line)) {
       if (group.length && item.line !== group.at(-1).line + 1) { if (group.length > 6) found.push({ line: group[0].line, text: group.map((part) => part.text).join("\n"), length: group.length, block: true }); group = [] }
       group.push(item)
     }
@@ -118,7 +136,7 @@ function comments(text, path) {
   return found
 }
 
-function findings(path, content) {
+function findings(path, content, root = ROOT) {
   if (content.includes("\0")) return []
   const lines = content.split("\n"), results = []
   for (let index = 0; index < lines.length; index++) {
@@ -130,7 +148,7 @@ function findings(path, content) {
   }
   const sections = prose.has(extname(path).toLowerCase())
     ? lines.map((text, index) => ({ line: index + 1, text, length: 1 }))
-    : comments(content, path)
+    : comments(content, path, root)
   for (const section of sections) {
     for (const [rule, pattern] of [["dated-anecdote", date], ["dated-anecdote", session]]) {
       for (const hit of section.text.matchAll(new RegExp(pattern.source, pattern.flags + "g"))) {
@@ -232,7 +250,7 @@ function hook() {
   const proposed = isWrite ? input.content
     : edits.reduce((body, edit) => body.replace(String(edit.old_string ?? ""), String(edit.new_string ?? "")), current)
   const lines = proposed.split("\n")
-  const results = findings(path, proposed).filter((item) => {
+  const results = findings(path, proposed, root).filter((item) => {
     if (item.rule === "comment-length") return lines.slice(item.line - 1, item.end).some((line) => added.has(line))
     return added.has(lines[item.line - 1])
   })

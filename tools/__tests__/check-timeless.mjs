@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -77,21 +77,38 @@ export const cases = () => {
   git(safe, "add", "sample.json")
   T("string, regex, JSON, and six comment lines pass", run(safe, ["--all"]).status === 0)
   const jsx = fixture("jsx-text", "sample.tsx", "export const Sample = () => <span>clean</span>\n")
+  symlinkSync(join(checker, "..", "..", "node_modules"), join(jsx, "node_modules"), "dir")
+  const writeJsx = (content) => run(jsx, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: join(jsx, "sample.tsx"), content }, cwd: jsx }))
   const rendered = `export const Sample = () => <span>// ${date}</span>\n`
-  T("JSX text with a date passes Write hook", run(jsx, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: join(jsx, "sample.tsx"), content: rendered }, cwd: jsx })).status === 0)
+  T("JSX text with a date passes Write hook", writeJsx(rendered).status === 0)
   writeFileSync(join(jsx, "sample.tsx"), rendered)
   git(jsx, "add", "sample.tsx")
   T("JSX text with a date passes all and staged", run(jsx, ["--all"]).status === 0 && run(jsx, ["--staged"]).status === 0)
   const jsxComment = `export const Sample = () => <span>{/* ${date} */}</span>\n`
-  T("a real JSX comment fails Write hook", run(jsx, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: join(jsx, "sample.tsx"), content: jsxComment }, cwd: jsx })).status === 2)
+  T("a real JSX comment fails Write hook", writeJsx(jsxComment).status === 2)
   const jsxExpression = `export const Sample = () => <span>{value && (\n// ${date}\nvalue)}</span>\n`
-  T("a comment inside a JSX expression fails Write hook", run(jsx, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: join(jsx, "sample.tsx"), content: jsxExpression }, cwd: jsx })).status === 2)
+  T("a comment inside a JSX expression fails Write hook", writeJsx(jsxExpression).status === 2)
   const jsxAttribute = `export const Sample = () => <span title="// ${date}">clean</span>\n`
-  T("JSX attribute strings pass Write hook", run(jsx, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: join(jsx, "sample.tsx"), content: jsxAttribute }, cwd: jsx })).status === 0)
+  T("JSX attribute strings pass Write hook", writeJsx(jsxAttribute).status === 0)
+  const nestedTernary = `export const Sample = () => <div>{ok ? <span>x</span> : /* ${date} */ null}</div>\n`
+  T("a comment after nested JSX in a ternary fails Write hook", writeJsx(nestedTernary).status === 2)
+  const nestedMap = `export const Sample = () => <div>{items.map(item => <span>{item}</span> /* ${date} */)}</div>\n`
+  T("a comment after nested JSX in a map callback fails Write hook", writeJsx(nestedMap).status === 2)
+  const nestedAttribute = `export const Sample = () => <div title={ok ? <span>x</span> : /* ${date} */ null}>clean</div>\n`
+  T("a comment after nested JSX in an attribute expression fails Write hook", writeJsx(nestedAttribute).status === 2)
+  const parserLiterals = `export const Sample = () => <span>{"${date}"}{/${date}/.test(value)}</span>\n`
+  T("the TypeScript parser ignores dates in strings and regex literals", writeJsx(parserLiterals).status === 0)
+  const sixLines = Array.from({ length: 6 }, (_, index) => `// reason ${index}`).join("\n")
+  T("six TypeScript comment lines pass", writeJsx(`${sixLines}\n${rendered}`).status === 0)
+  T("seven TypeScript comment lines fail", writeJsx(`${sixLines}\n// reason 6\n${rendered}`).status === 2)
   writeFileSync(join(jsx, "sample.tsx"), jsxComment)
   git(jsx, "add", "sample.tsx")
   T("a real JSX comment fails all and staged", run(jsx, ["--all"]).status === 1 && run(jsx, ["--staged"]).status === 1)
   rmSync(jsx, { recursive: true, force: true })
+  const noParser = fixture("jsx-without-parser", "sample.tsx", "export const Sample = () => <span>clean</span>\n")
+  const missingParser = run(noParser, ["--all"])
+  T("TSX without TypeScript fails closed", missingParser.status === 2 && /TypeScript/.test(missingParser.stderr))
+  rmSync(noParser, { recursive: true, force: true })
 
   const scoped = fixture("directory-scope", "design/canvas/example.md", `Ask ${owner} on ${date}.\n`)
   const scopedAllowlist = ["owner-name", "dated-anecdote"].map((rule) => ({ path: "design/canvas/", rule, match: null, scope: "directory", exclude: ["design/canvas/tools/"], reason: "granted export" }))
