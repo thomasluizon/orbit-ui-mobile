@@ -20,8 +20,9 @@ afterEach(() => {
 it('posts widget state and tokens through the native bridge', () => {
   const postMessage = vi.fn()
   window.ReactNativeWebView = { postMessage }
-  render(<TurnstileBridge siteKey="mobile-site-key" />)
+  render(<TurnstileBridge siteKey="mobile-site-key" language="pt-BR" />)
   expect(widget.props?.siteKey).toBe('mobile-site-key')
+  expect(widget.props?.language).toBe('pt-BR')
   expect(widget.props?.resetKey).toBe(0)
 
   const onStateChange = widget.props?.onStateChange as (state: string) => void
@@ -40,4 +41,8 @@ it('renders the bridge only when a site key is supplied', async () => {
   expect(await TurnstileBridgePage({ searchParams: Promise.resolve({}) })).toBeNull()
   const page = await TurnstileBridgePage({ searchParams: Promise.resolve({ siteKey: 'site-key' }) })
   expect(page?.props.siteKey).toBe('site-key')
+  const portuguese = await TurnstileBridgePage({ searchParams: Promise.resolve({ siteKey: 'site-key', language: 'pt-BR' }) })
+  expect(portuguese?.props.language).toBe('pt-BR')
+  const unsupported = await TurnstileBridgePage({ searchParams: Promise.resolve({ siteKey: 'site-key', language: 'fr' }) })
+  expect(unsupported?.props.language).toBeUndefined()
 })

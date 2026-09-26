@@ -16,12 +16,12 @@ export function TurnstileWidget({
   resetKey: number
   onToken: (token: string | null) => void
 }>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const [state, setState] = useState<WidgetState>('loading')
   const [attempt, setAttempt] = useState(0)
-  const bridgeUrl = `https://app.useorbit.org/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}`
+  const bridgeUrl = `https://app.useorbit.org/turnstile-bridge?siteKey=${encodeURIComponent(siteKey)}&language=${encodeURIComponent(i18n.language)}`
 
   function onMessage(event: WebViewMessageEvent) {
     let message: unknown
