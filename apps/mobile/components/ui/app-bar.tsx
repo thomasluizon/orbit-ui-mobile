@@ -1,10 +1,11 @@
+import type { Ref } from 'react'
 import type { NavHeaderProps } from '@orbit/shared/contracts/navigation'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronLeft } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function AppBar({ title, onBack, backLabel, action }: Readonly<NavHeaderProps>) {
+export function AppBar({ title, onBack, backLabel, action, titleRef }: Readonly<NavHeaderProps & { titleRef?: Ref<Text> }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
@@ -17,7 +18,7 @@ export function AppBar({ title, onBack, backLabel, action }: Readonly<NavHeaderP
           </Pressable>
         )}
       </View>
-      <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
+      <Text ref={titleRef} accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       <View style={styles.action}>{action}</View>
     </View>
   )

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from 'react'
+import { AccessibilityInfo, Platform, type View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -199,12 +200,17 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
   )
 }
 
-function buildMoreRows({ profile, router, t, tokens }: RowContext, openSupport: () => void) {
+function MoreRows({ context: { profile, router, t, tokens }, openSupport, supportFocusRef }: Readonly<{
+  context: RowContext
+  openSupport: () => void
+  supportFocusRef: Ref<View>
+}>) {
   const navigationRows = PROFILE_NAV_ITEMS.map((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
     return (
       <ListRow
         key={item.id}
+        ref={item.action === 'openSupport' ? supportFocusRef : undefined}
         icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
         title={t(item.titleKey)}
         description={item.hintKey ? t(item.hintKey) : undefined}
@@ -225,10 +231,7 @@ function buildMoreRows({ profile, router, t, tokens }: RowContext, openSupport: 
     )
   })
 
-  return [
-    ...navigationRows,
-    <ShareCardEntryButton key="share" />,
-  ]
+  return <>{navigationRows}<ShareCardEntryButton /></>
 }
 
 interface EndingRowsOptions {
@@ -260,6 +263,23 @@ export function ProfileSettingsContent({
   const router = useRouter()
   const logout = useLogout()
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
+  const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
+  const supportFocusRef = useRef<View>(null)
+  const returnFocusToSupport = useRef(false)
+  const supportFocusCallback = useCallback((node: View | null) => {
+    supportFocusRef.current = node
+  }, [])
+  const openSupport = useCallback(() => {
+    returnFocusToSupport.current = true
+    setAstraConversationOpen(true, 'support')
+  }, [setAstraConversationOpen])
+  useEffect(() => {
+    if (astraConversationOpen || !returnFocusToSupport.current) return
+    returnFocusToSupport.current = false
+    if (Platform.OS === 'android' && supportFocusRef.current) {
+      AccessibilityInfo.sendAccessibilityEvent(supportFocusRef.current, 'focus')
+    }
+  }, [astraConversationOpen])
   const preferenceControls = usePreferenceControls()
   const tokens = useMemo(
     () => createTokensV2(preferenceControls.currentScheme, preferenceControls.currentTheme),
@@ -302,7 +322,7 @@ export function ProfileSettingsContent({
     notifications: [
       <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
     ],
-    more: buildMoreRows(context, () => setAstraConversationOpen(true, 'support')),
+    more: <MoreRows context={context} openSupport={openSupport} supportFocusRef={supportFocusCallback} />,
     ending: buildEndingRows({
       context,
       onDeleteAccount: () => setShowDeleteAccount(true),
