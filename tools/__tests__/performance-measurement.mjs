@@ -380,6 +380,22 @@ export const cases = async () => {
   const codeOnly = resolvePerformanceMeasurement({ status: "unavailable", reason: "permission denied for pg_stat_statements" })
   T("performance-measurement: unreadable production views produce CODE_ONLY", codeOnly.verdict === "CODE_ONLY")
   T("performance-measurement: the code-only verdict retains the named reason", codeOnly.reason === "permission denied for pg_stat_statements", codeOnly.reason)
+  const moduleUnavailable = applyMeasuredQueryContexts(codeOnly, measuredMappings())
+  let workflowUnavailable
+  let workflowUnavailableError
+  try {
+    workflowUnavailable = runInNewContext(
+      `${measurementFunctions}\napplyMeasuredQueryContexts(measurement, mappings)`,
+      { measurement: codeOnly, mappings: measuredMappings() },
+    )
+  } catch (error) {
+    workflowUnavailableError = error.message
+  }
+  T(
+    "performance-measurement: both copies preserve an unavailable measurement",
+    moduleUnavailable === codeOnly && workflowUnavailable === codeOnly,
+    workflowUnavailableError ?? JSON.stringify({ moduleUnavailable, workflowUnavailable }),
+  )
   const malformed = resolvePerformanceMeasurement({ status: "available", windowDays: 0, queryStats: [] })
   T("performance-measurement: malformed measurement fails to code-only instead of passing", malformed.verdict === "CODE_ONLY" && malformed.reason.includes("windowDays"), malformed.reason)
 
