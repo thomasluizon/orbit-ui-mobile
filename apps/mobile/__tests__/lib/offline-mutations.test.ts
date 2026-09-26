@@ -21,6 +21,7 @@ import {
   resumeOfflineReplay,
   runQueuedMutation,
   subscribeDroppedMutations,
+  subscribeBulkReplaySuccesses,
   subscribeFlushResults,
   subscribeReplayState,
   withQueuedMarker,
@@ -31,6 +32,7 @@ const mocks = vi.hoisted(() => {
   const queued: PersistedQueuedMutation[] = []
   const resolvedIds = new Map<string, string>()
   let online = false
+  let accountId = 'test-account'
 
   function replaceIdInValue(value: unknown, oldId: string, newId: string): unknown {
     if (value === oldId) return newId
@@ -103,7 +105,7 @@ const mocks = vi.hoisted(() => {
   const persistQueryCache = vi.fn(() => Promise.resolve())
   const invalidateQueries = vi.fn(() => Promise.resolve())
 
-  const apiClient = vi.fn((endpoint: string): Promise<{ id: string } | null> => {
+  const apiClient = vi.fn((endpoint: string, _options?: { idempotencyKey?: string }): Promise<unknown> => {
     if (endpoint === '/api/habits') {
       return Promise.resolve({ id: 'habit-1' })
     }
@@ -121,6 +123,10 @@ const mocks = vi.hoisted(() => {
     setOnline(value: boolean) {
       online = value
     },
+    setAccountId(value: string) {
+      accountId = value
+    },
+    getAccountId: () => accountId,
     enqueue,
     getAll,
     getById,
@@ -146,6 +152,8 @@ const mocks = vi.hoisted(() => {
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
+
+vi.mock('@/lib/account-scope', () => ({ getAccountId: mocks.getAccountId }))
 
 vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
@@ -196,6 +204,7 @@ describe('offline mutations', () => {
     mocks.queued.length = 0
     mocks.resolvedIds.clear()
     mocks.setOnline(false)
+    mocks.setAccountId('test-account')
 
     mocks.enqueue.mockClear()
     mocks.getAll.mockClear()
@@ -268,6 +277,113 @@ describe('offline mutations', () => {
       undefined,
     )
   })
+
+  it.each(['bulkLogHabits', 'bulkSkipHabits'] as const)(
+    'replays %s with its original key and reports only validated successes',
+    async (type) => {
+      const request = {
+        type,
+        scope: 'habits' as const,
+        endpoint: `/api/habits/bulk/${type === 'bulkLogHabits' ? 'log' : 'skip'}`,
+        method: 'POST' as const,
+        payload: { items: [
+          { habitId: 'accepted', date: '2026-09-25' },
+          { habitId: 'rejected', date: '2026-09-25' },
+        ] },
+      }
+      const queuedAck = await runQueuedMutation({
+        mutation: request,
+        execute: () => Promise.reject(new Error('should stay offline')),
+      })
+      expect(queuedAck).toMatchObject({ queued: true })
+      const mutation = mocks.queued[0]!
+      mocks.setOnline(true)
+      mocks.apiClient.mockResolvedValue({ results: [
+        { index: 0, status: 'Success', habitId: 'accepted', logId: null, error: null },
+        { index: 1, status: 'Failed', habitId: 'rejected', logId: null, error: 'Rejected' },
+      ] })
+      const listener = vi.fn(() => true)
+      const unsubscribe = subscribeBulkReplaySuccesses(listener)
+
+      await flushQueuedMutations()
+      unsubscribe()
+
+      expect(mocks.apiClient).toHaveBeenCalledWith(
+        mutation.endpoint,
+        expect.objectContaining({ idempotencyKey: mutation.id }),
+        expect.anything(),
+      )
+      expect(listener).toHaveBeenCalledWith({
+        mutationId: mutation.id,
+        type,
+        items: [{ habitId: 'accepted', date: '2026-09-25' }],
+      })
+      expect(mocks.queued).toHaveLength(0)
+    },
+  )
+
+  it('binds an in-flight bulk response to the account that began its flush', async () => {
+    mocks.setOnline(true)
+    mocks.queued.push(buildQueuedMutation({
+      type: 'bulkLogHabits', scope: 'habits', endpoint: '/api/habits/bulk/log',
+      method: 'POST', payload: { items: [{ habitId: 'child', date: '2026-09-25' }] },
+    }))
+    let finishResponse!: (value: unknown) => void
+    mocks.apiClient.mockImplementation(() => new Promise((resolve) => { finishResponse = resolve }))
+    const flush = flushQueuedMutations()
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    mocks.setAccountId('account-b')
+    const listenerB = vi.fn(() => true)
+    const unsubscribeB = subscribeBulkReplaySuccesses(listenerB)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    finishResponse({ results: [{
+      index: 0, status: 'Success', habitId: 'child', logId: null, error: null,
+    }] })
+    await flush
+    expect(listenerB).not.toHaveBeenCalled()
+    unsubscribeB()
+  })
+
+  it.each(['bulkLogHabits', 'bulkSkipHabits'] as const)(
+    'reuses the %s key after the first response is lost',
+    async (type) => {
+      mocks.setOnline(true)
+      const serverWrites = new Set<string>()
+      let firstKey: string | null = null
+      const result = await runQueuedMutation({
+        mutation: {
+          type, scope: 'habits', method: 'POST',
+          endpoint: `/api/habits/bulk/${type === 'bulkLogHabits' ? 'log' : 'skip'}`,
+          payload: { items: [{ habitId: 'child', date: '2026-09-25' }] },
+        },
+        execute: () => {
+          firstKey = consumePendingIdempotencyKey()
+          if (firstKey) serverWrites.add(firstKey)
+          return Promise.reject(new TypeError('Network request failed'))
+        },
+      })
+      expect(result).toMatchObject({ queued: true })
+      expect(mocks.queued).toHaveLength(1)
+      const queuedId = mocks.queued[0]!.id
+      mocks.apiClient.mockImplementation((_endpoint: string, options?: { idempotencyKey?: string }) => {
+        if (options?.idempotencyKey) serverWrites.add(options.idempotencyKey)
+        return Promise.resolve({ results: [{
+          index: 0, status: 'Success', habitId: 'child', logId: null, error: null,
+        }] })
+      })
+
+      await flushQueuedMutations()
+
+      expect(firstKey).toBe(queuedId)
+      expect(mocks.apiClient).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ idempotencyKey: queuedId }),
+        expect.anything(),
+      )
+      expect(serverWrites.size).toBe(1)
+      expect(mocks.queued).toHaveLength(0)
+    },
+  )
 
   it('removes an offline bulk delete before reconnect so replay cannot delete the undone habits', async () => {
     const mutation = buildQueuedMutation({

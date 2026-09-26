@@ -15,10 +15,20 @@ import type {
   QueuedMutation,
 } from '@orbit/shared/types/sync'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
-import { reorderHabitsRequestSchema, type HabitScheduleItem } from '@orbit/shared/types/habit'
+import {
+  bulkLogItemRequestSchema,
+  bulkLogResultSchema,
+  bulkSkipItemRequestSchema,
+  bulkSkipResultSchema,
+  reorderHabitsRequestSchema,
+  type HabitScheduleItem,
+} from '@orbit/shared/types/habit'
+import { z } from 'zod'
 import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { apiClient } from './api-client'
+import { getAccountId } from './account-scope'
+import { notifyBulkReplaySuccess } from './bulk-replay-events'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
   count,
@@ -35,6 +45,8 @@ import { setPendingIdempotencyKey } from './idempotency-key'
 import { persistQueryCache, queryClient } from './query-client'
 import { captureError } from './sentry'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+
+export { subscribeBulkReplaySuccesses } from './bulk-replay-events'
 
 type InvalidationQueryKey = readonly unknown[]
 
@@ -94,15 +106,6 @@ function notifyDroppedMutation(dropped: DroppedMutation): void {
   useOfflineSyncStore.getState().addDrop(dropped)
   captureError(new Error(`Offline mutation dropped: ${dropped.type}: ${dropped.lastError}`))
   for (const listener of droppedMutationListeners) listener(dropped)
-}
-
-const AUTOMATIC_REPLAY_BLOCKED_TYPES = new Set<string>([
-  'bulkSkipHabits',
-  'bulkLogHabits',
-])
-
-export function isAutomaticReplayBlocked(type: string): boolean {
-  return AUTOMATIC_REPLAY_BLOCKED_TYPES.has(type)
 }
 
 export function subscribeFlushResults(listener: FlushResultListener): () => void {
@@ -623,6 +626,28 @@ function serializeMutationPayload(payload: unknown): string | undefined {
   return payload === undefined || payload === null ? undefined : JSON.stringify(payload)
 }
 
+async function reportBulkReplaySuccess(
+  mutation: PersistedQueuedMutation,
+  response: unknown,
+  accountId: string | null,
+): Promise<void> {
+  if (mutation.type !== 'bulkLogHabits' && mutation.type !== 'bulkSkipHabits') return
+  const itemSchema = mutation.type === 'bulkLogHabits'
+    ? bulkLogItemRequestSchema
+    : bulkSkipItemRequestSchema
+  const payload = z.object({ items: z.array(itemSchema) }).parse(mutation.payload)
+  const results = mutation.type === 'bulkLogHabits'
+    ? bulkLogResultSchema.parse(response).results
+    : bulkSkipResultSchema.parse(response).results
+  const items = results.flatMap((result) => {
+    const item = payload.items[result.index]
+    return result.status === 'Success' && item?.habitId === result.habitId ? [item] : []
+  })
+  if (items.length > 0) {
+    await notifyBulkReplaySuccess({ mutationId: mutation.id, type: mutation.type, items }, accountId)
+  }
+}
+
 function addTouchedScope(
   touchedScopes: Set<MutationScope>,
   mutation: PersistedQueuedMutation,
@@ -833,15 +858,7 @@ async function processQueuedMutationFlush(
   if (!currentMutation) {
     return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
   }
-
-  if (isAutomaticReplayBlocked(currentMutation.type)) {
-    const dropped = await dropQueuedMutation(
-      currentMutation,
-      'Automatic replay is blocked for this mutation while offline',
-      touchedScopes,
-    )
-    return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
-  }
+  const accountId = getAccountId()
 
   let mutation = await resolveMutationReferences(currentMutation)
   const dependencies = getPendingOfflineDependencies(mutation)
@@ -868,6 +885,7 @@ async function processQueuedMutationFlush(
       getMutationResponseSchema(mutation.type),
     )
 
+    await reportBulkReplaySuccess(mutation, response, accountId)
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
     return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
   } catch (error: unknown) {
