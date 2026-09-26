@@ -102,6 +102,7 @@ describe.each([
     expect(layout).toHaveTextContent(document.lastUpdated)
     expect(closingNote).toHaveTextContent(document.contact.title)
     expect(closingNote).toHaveTextContent(document.contact.body)
+    expect(closingNote!.querySelector('p')).toHaveClass('text-base', 'text-[var(--fg-1)]')
 
     const renderedSectionTitles = Array.from(sections!.querySelectorAll('h2')).map(
       (heading) => heading.textContent,

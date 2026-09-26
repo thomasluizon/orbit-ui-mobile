@@ -163,11 +163,10 @@ export default function AboutPage() {
             <p
               data-testid="about-credit"
               style={{
-                color: 'var(--fg-3)',
-                fontSize: 14,
+                color: 'var(--fg-1)',
+                fontSize: 16,
                 lineHeight: 1.55,
                 overflowWrap: 'anywhere',
-                textWrap: 'pretty',
               }}
             >
               {t('about.credit')}

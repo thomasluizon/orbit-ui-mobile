@@ -646,7 +646,9 @@ describe('SupportScreen', () => {
     expect(
       tree.root.findAll((node) => node.props.children === 'profile.support.success'),
     ).toHaveLength(0)
-    expect(mocks.announceForAccessibility).not.toHaveBeenCalled()
+    expect(mocks.announceForAccessibility).toHaveBeenCalledWith(
+      'profile.support.failureTitle profile.support.failureBody',
+    )
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     expect(
       tree.root.findAll((node) => node.props.children === 'profile.support.failureTitle'),
