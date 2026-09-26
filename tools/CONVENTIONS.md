@@ -22,7 +22,7 @@ A tool here is something an agent invokes without reading its source. That only 
 
 ## Gate tools
 
-A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** A checklist an agent can edit is not a gate, it is a suggestion, and #539 proved it (five "done" reports over ~20% of the surfaces, every lint gate green).
+A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** An editable checklist cannot prove completion.
 
 Every gate is registered in `gate-charter.json`. A pull request gate may fail only for changed files.
 A whole-tree scan reports findings without failing. A committed inventory declares its regeneration

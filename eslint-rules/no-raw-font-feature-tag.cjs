@@ -1,19 +1,3 @@
-/**
- * Local ESLint rule: express a typographic feature through its own CSS property.
- *
- * `font-variation-settings: "wght" 600` and `font-weight: 600` are not synonyms.
- * The raw-tag spelling only works while a VARIABLE font is rendering: when a
- * static fallback loads (offline, a failed fetch, a weight the family lacks), the
- * axis is ignored and the text silently renders at the wrong weight. The dedicated
- * property keeps working. Same for `font-feature-settings: "tnum" 1` versus
- * `font-variant-numeric: tabular-nums`, which DESIGN.md mandates for the numeric
- * roles.
- *
- * Only the tags with a dedicated property equivalent are banned. A genuine custom
- * axis with no property (`"GRAD"`, `"XTRA"`, a family's bespoke axis) has nowhere
- * else to go and is not reported.
- */
-
 const TAG_TO_PROPERTY = new Map([
   ['wght', 'font-weight'],
   ['ital', 'font-style: italic'],

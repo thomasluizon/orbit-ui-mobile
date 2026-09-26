@@ -24,12 +24,6 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const reservationDirectory = workerLaunchDirectory
 const lockPath = (repoRoot) => join(gitDirectoryOf(repoRoot), "orbit-admission.lock")
 
-/**
- * GitHub can show a new pull request, or create its Actions runs, after the launcher that opened it
- * has exited. So a released claim keeps holding a queued run, and a pull request until its branch
- * has one, for this window instead of vanishing (reviews of ui#1105). The window, not a guess about
- * GitHub's timing, is where this guard's regress stops (D117).
- */
 export const RELEASE_HOLD_MS = 5 * 60 * 1000
 
 const publishReservation = (directory, name, reservation) => {
@@ -85,13 +79,6 @@ const acquireLock = async (repoRoot, startIdentity, waitMs) => {
   }
 }
 
-/**
- * Only a run created in the last 24 hours counts as queued. Measured 2026-09-25: 8 orbit-ui-mobile
- * runs created 2026-09-13 sit at `status: queued` with zero jobs, and GitHub refuses to remove them
- * (`gh run cancel`: "Cannot cancel a workflow run that is completed"; force-cancel HTTP 409; DELETE
- * HTTP 403). A raw count would carry them forever. The real queue on 2026-09-24 and 25 held a run
- * for about an hour, far inside this window.
- */
 export const QUEUED_RUN_WINDOW_MS = 24 * 60 * 60 * 1000
 
 export const queuedRunsPath = (slug, now) => {
@@ -170,13 +157,6 @@ const cloudTerminalAt = (receipt) => {
   return NaN
 }
 
-/**
- * A claim is published by rename, so a file that does not parse was never a live claim: it is the
- * remains of a write interrupted before this change, and it is removed rather than refusing forever.
- * A claim stops counting toward open pull requests once its branch has one, because GitHub then
- * counts it, but it keeps counting toward queued runs while its launcher lives, because GitHub can
- * show the pull request before its Actions runs exist (review of ui#1105).
- */
 const liveReservations = async (repoRoot, owner, environment, now) => {
   const directory = reservationDirectory(repoRoot)
   const counts = { pullRequests: 0, queuedRuns: 0 }

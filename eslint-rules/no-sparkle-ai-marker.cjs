@@ -1,16 +1,3 @@
-/**
- * Local ESLint rule: no sparkle icon as an AI marker.
- *
- * DESIGN.md "Identity & anchor": identity comes from the orbital logo mark, the
- * Astra orbital glyph "(which replaces the sparkle icon)", and ring indicators,
- * and from nothing else. DESIGN.md "Bans" lists the sparkle as one of the four
- * AI-slop tells.
- *
- * Astra is marked by `AstraGlyph`. A sparkle is the generic industry marker this
- * design system deliberately does not use, so it is banned as a component name,
- * as a barrel import and as an emoji typed into JSX.
- */
-
 const { getElementName } = require('./_jsx-strings.cjs')
 
 const SPARKLE_NAMES = new Set(['Sparkle', 'Sparkles', 'IconSparkles', 'IconSparkle', 'SparklesIcon'])

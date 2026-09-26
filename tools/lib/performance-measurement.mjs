@@ -305,27 +305,6 @@ const analyzeQuery = (entry, index, windowDays, tableByName, thresholds) => {
    * query against it. An empty table has no meaningful fraction, so the metric is unknown. */
   const tableFraction = table && table.liveRows > 0 ? rowsPerCall / table.liveRows : null
   const projectionColumns = queryAnalysis.projectionColumns
-  /**
-   * Egress is what the query SENDS, which is its projection, not the width of the table row.
-   * `bytesPerRow` comes from pg_stats and describes the whole row, so charging every query the full
-   * width overstates a narrow projection in direct proportion to how well it is written:
-   * `select "Id", "UserId" from "Habits"` on a 29-column table was billed about 15x its real
-   * egress, which is exactly backwards for a signal meant to find unbounded reads.
-   *
-   * So this metric is EXACT or it is UNKNOWN, and it is never estimated. Charging the full row width
-   * overstated narrow projections; scaling by the fraction of columns selected then understated them,
-   * because Postgres column widths differ by orders of magnitude and one `text` column can outweigh
-   * twenty `int` ones. Both readings were wrong in a way that moved the top finding and therefore the
-   * readiness verdict, and each replaced the other. Only per-column `pg_stats.avg_width`, which this
-   * input does not carry, could give a real projected width.
-   *
-   * A projection that provably covers the whole row IS the measured row width, so those queries keep
-   * an exact figure. That is the shape that actually causes an egress incident, and the unpaginated
-   * `Habits` read behind the 112% Supabase overage is one of them. A narrower projection reports
-   * `null`, which sorts last in the egress ranking and fires no budget signal, rather than carrying a
-   * number nobody can defend. `unbounded-user-list`, the principal signal, reads `bounded` and is
-   * unaffected either way.
-   */
   const projectedBytesPerRow = bytesPerRow == null || queryAnalysis.projectsRootWholeRow !== true ? null : bytesPerRow
   const monthlyEgressBytes = projectedBytesPerRow == null ? null : rows / windowDays * DAYS_PER_MONTH * projectedBytesPerRow
   const signals = []
@@ -463,18 +442,6 @@ export function measuredHotpathMappingFailure(result, measurement) {
   return null
 }
 
-/**
- * One mapping per measured query, or a refusal that names the disagreement.
- *
- * `new Map(mappings.map(...))` silently kept the LAST entry for a repeated queryId. Two mappings
- * that disagree about executionContext produce opposite signals, `request` raising
- * unbounded-user-list and `background` raising background-sweep-budget, so whichever the agent
- * happened to emit second decided the finding and nothing recorded that there had been a choice.
- *
- * Identical duplicates are merged, because emitting the same mapping twice is noise and not a
- * conflict. Anything that actually disagrees throws, because guessing which one is right is the
- * failure this whole measured path exists to remove.
- */
 function indexMeasuredMappings(mappings) {
   const byQueryId = new Map()
   for (const mapping of mappings) {
@@ -563,26 +530,8 @@ export function performanceMeasurementPrompt(measurement, limit = 20) {
 
 const MEASURED_METRIC_KEYS = ["calls", "rowsPerCall", "bytesPerRow", "callsPerMonth", "monthlyEgressBytes", "tableFraction", "intervalSeconds"]
 
-/**
- * The ONE place a performance finding may acquire a measured metric, applied at EVERY merge.
- *
- * The findings schema lets any finder supply `monthlyEgressBytes`, and the final sorter trusts it.
- * Only the dedicated mapper's findings used to pass through here, so another agent could omit the
- * metric and demote the real highest-egress issue, or invent one and become the top finding that
- * drives ticket priority. Measurement is authoritative; an agent's copy of it is not evidence.
- *
- *   known queryId    overwrite every metric from the measurement, whatever the agent said
- *   unknown queryId  invented or miscopied. Strip the id AND the metrics, keep the prose
- *   no queryId       nothing ties it to a measured statement, so strip any metric it supplied
- */
 export function attachPerformanceMetrics(findings, measurement) {
   if (!measurement) return findings
-  /**
-   * CODE_ONLY is the MOST dangerous path to trust, not the safest. With no measurement there is
-   * nothing to overwrite an agent's numbers with, and the skeptic prompt reads any finding carrying
-   * a `queryId` as normalized production evidence, so an unmeasured run could rank and ticket
-   * invented egress as measured fact. Strip it all.
-   */
   if (measurement.status !== "available") {
     return findings.map((finding) => {
       const stripped = { ...finding }

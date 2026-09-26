@@ -27,8 +27,6 @@ const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d
 const TASK_STATUSES = new Set(["pending", "ready", "applied", "error"])
 const TERMINAL_TASK_STATUSES = new Set(["ready", "applied", "error"])
 const LOCK_RETRY_SIGNAL = new Int32Array(new SharedArrayBuffer(4))
-// Two empties reproduce the fully exhausted retry measured for #490. A success does not erase
-// session evidence because the same run delivered one task while three other tasks were empty.
 export const CLOUD_EMPTY_RESULT_LIMIT = 2
 const CLOUD_CIRCUIT_BREAKER_FILE = "cloud-circuit-breaker.json"
 
@@ -612,7 +610,6 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
     } catch (error) {
       rmSync(candidate, { recursive: true, force: true })
       if (existsSync(lockDirectory)) return "occupied"
-      // Windows can report contention after the owner has removed its directory (thomasluizon/orbit-tickets#419).
       if (options.waitForOwner) {
         waitForRetry()
         return "retry"
@@ -633,17 +630,12 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
     try {
       owner = readCloudLockOwner(lockDirectory)
     } catch (error) {
-      // A failed read proves no stale identity. Retry publication, never reclaim by pathname
-      // (thomasluizon/orbit-tickets#419); token deletion also closes the later reclaim race.
       if (error.code !== "ENOENT") throw error
       if (options.waitForOwner) waitForRetry()
       continue
     }
     observedOwnerPid = owner?.pid
     const liveOwner = processIsAlive(owner?.pid)
-    // Legacy writers reuse owner.json, so no observed PID authorizes a later unlink. Keep it
-    // occupied until its writer releases it; stale cleanup requires quiescing all versions
-    // (thomasluizon/orbit-tickets#419). A second pathname read would leave the same race.
     const legacyOwner = owner && basename(owner.path) === "owner.json"
     if (liveOwner || legacyOwner) {
       if (options.waitForOwner) {

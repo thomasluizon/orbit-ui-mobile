@@ -1,19 +1,3 @@
-/**
- * Local ESLint rule: never disable pinch-zoom.
- *
- * WCAG 1.4.4. `user-scalable=no` / `maximum-scale=1` locks a low-vision user out
- * of the only magnification they have. DESIGN.md's fixed-412px mobile shell makes
- * pinning the viewport a live temptation — if the layout breaks at 200% zoom, the
- * layout is the bug.
- *
- * Matches both spellings the web app can use:
- *  - a raw `<meta name="viewport" content="...">` string, and
- *  - Next.js's `export const viewport = { userScalable: false, maximumScale: 1 }`
- *    (`app/layout.tsx`), which is the form this repo actually ships.
- *
- * Web only — `apps/mobile` has no viewport.
- */
-
 const { collectObjectProperties, collectStaticStrings, getAttribute, getAttributeValueNode, getElementName, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const VIEWPORT_CONTENT_RE = /user-scalable\s*=\s*(?:no|0)|maximum-scale\s*=\s*1(?:\.0+)?(?:\s|,|;|$)/

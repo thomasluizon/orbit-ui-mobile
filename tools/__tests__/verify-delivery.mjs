@@ -8,13 +8,6 @@ const BRANCH = "feature/orb-200-delivery"
 const ISSUE = "ORB-200"
 let testedToolPath = null
 
-/**
- * A real git repository is the whole point: this tool exists because a worker's own report is not
- * evidence, so every fixture below is an artifact on disk that git can be asked about. `commit`
- * false is openai/codex#19945's real shape and the reason the tool exists: the process exits 0, the
- * branch is pushed by setup, and nothing was ever committed. `dirty` takes the paths to leave
- * behind, because WHICH paths are dirty is now part of the verdict.
- */
 const stageDelivery = (label, { commit = true, push = true, dirty = [] } = {}) => {
   const repo = stageRepo(`verify-delivery-${label}`)
   if (!repo || repo.git(["switch", "-q", "-c", BRANCH]).status !== 0) return null
@@ -47,21 +40,9 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
   body: `Implements ${ISSUE}.`,
 })
 
-/**
- * The two app ids are live, read on 2026-08-12 from
- * `gh api repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks`,
- * which pins every workflow check to 15368 (github-actions) and `pullfrog-approval` to 1768019.
- */
 const GITHUB_ACTIONS_APP = 15368
 const PULLFROG_APP = 1768019
 
-/**
- * A CheckRun reports `status` plus `conclusion` and carries its producing app under
- * `checkSuite.app.databaseId`; a StatusContext reports `state` alone and carries no app at all.
- * Both shapes appear here: a rollup fixture carrying only one kind would let a reader that ignores
- * the other pass. Every field NAME below was read off the live GraphQL response for pull request
- * 716 on 2026-08-12 before being written down, per CLAUDE.md standard 8.
- */
 const checkRun = (name, { status = "COMPLETED", conclusion = "SUCCESS", startedAt = "2026-08-06T10:00:00Z", detailsUrl = null, workflow = null, appId = GITHUB_ACTIONS_APP } = {}) => ({
   __typename: "CheckRun",
   name,
@@ -93,7 +74,6 @@ const review = (state, commitOid, { login = "pullfrog", typename = "Bot", submit
  */
 const requiredFrom = (nodes) => nodes.map((node) => ({ context: node.name ?? node.context, app_id: node.checkSuite?.app?.databaseId ?? null }))
 
-/** The envelope the confirmed GraphQL query returns, keyed exactly like the live #716 response. */
 const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
   data: { repository: { nameWithOwner: "useorbitai/orbit-ui-mobile", pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid,
     headRefName: BRANCH, headRepository: { nameWithOwner: "useorbitai/orbit-ui-mobile" },
@@ -193,13 +173,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     noCommit.stdout || noCommit.stderr,
   )
 
-  /**
-   * The ORB-39 pair, and the reason DIRTY_TREE exists. Both worktrees are dirty; one carries the
-   * finished ticket as a commit and one carries nothing. They had the SAME verdict and the same
-   * one-key report, so a morning summary could not tell 221 lines of correct work from a worker that
-   * did nothing, and the recoveries have nothing in common: discard the residue and push, against
-   * re-run the whole ticket.
-   */
   const dirtyNoCommit = stageDelivery("dirty-no-commit", { commit: false, dirty: ["src/half-done.ts"] })
   verdictOf(dirtyNoCommit, JSON.stringify([pullRequest(dirtyNoCommit.head)]), "NO_COMMIT", 1, "no commits and a dirty tree is NO_COMMIT, which now means exactly that")
 
@@ -402,13 +375,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), approval], { behind_by: 0 }, requiredWithApproval) },
   )
 
-  /**
-   * THE protected-base fallback path (#440), and the reason it lives in THIS tool too. The published
-   * `pullfrog-approval` check stopped appearing on the night of 2026-09-06 while the reviews stayed
-   * healthy. record-readiness.mjs already accepted an exact-head approval in its place, but this tool
-   * still recorded the absent context as pending and cached `ci.pass: false`, which record-readiness
-   * honours as a veto, so no receipt on a protected base could ever reach READY.
-   */
   const approvedAtHead = { reviews: [review("APPROVED", pushed.head)] }
   check(
     TOOL,
@@ -506,9 +472,6 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const withChecks = (nodes) => ({ path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, nodes) })
   const ciArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"]
 
-  /** Complete error body read live on 2026-09-05 from
-   * gh api repos/thomasluizon/orbit-ui-mobile/branches/redesign%2Fmain/protection/required_status_checks.
-   * HTTP 404, gh exits nonzero. The protected main response still uses the checks array above. */
   const unprotectedResponse = {
     message: "Branch not protected",
     documentation_url: "https://docs.github.com/rest/branches/branch-protection#get-status-checks-protection",
@@ -557,8 +520,6 @@ if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
   check(TOOL, "an empty rollup remains pending even after the observation window", observedCiArgv,
     { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*No checks reported/ }, onUnprotectedBase([]))
 
-  /** Same 25-check cardinality and mixed CheckRun/StatusContext shape as the live #821 proof in
-   * PR #822; synthetic names and timings exercise registration without depending on live CI. */
   const completeRollup = [...Array.from({ length: 24 }, (_, index) => checkRun(`Gate ${index + 1}`)), statusContext("Vercel", "SUCCESS")]
   check(TOOL, "a complete 25-check unprotected rollup delivers after the observation window", observedCiArgv,
     { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*25 checks: 0 failing, 0 pending[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase(completeRollup))
@@ -670,12 +631,6 @@ if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
   check(TOOL, "GitHub's completed STALE conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([checkRun("Required gate", { conclusion: "STALE" })]))
   check(TOOL, "an unknown completed conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([checkRun("Future gate", { conclusion: "A_FUTURE_VALUE" })]))
 
-  /**
-   * The trap this exists for: a re-run does NOT replace the old entry, so the rollup carries the old
-   * FAILURE and the new SUCCESS under ONE name and ONE producer. Reading every entry leaves the
-   * check permanently red and permanently pending at once, and no re-run could ever clear it.
-   * Measured on #685.
-   */
   check(TOOL, "a re-run supersedes its own failed entry rather than counting twice", ciArgv, { status: 0, stdout: /"verdict": "DELIVERED"/ }, withChecks([
     checkRun("Dash Ban", { conclusion: "FAILURE" }),
     checkRun("Dash Ban", { startedAt: "2026-08-06T11:00:00Z" }),

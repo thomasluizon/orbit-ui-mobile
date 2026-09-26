@@ -60,7 +60,6 @@ const issueProjectItemsQuery = `query IssueProjectItems($o: String!, $r: String!
   }
 }`
 const restIssueFilter = "{number,html_url,title,body,state:(.state|ascii_upcase),state_reason:(if .state_reason==null then null else (.state_reason|ascii_upcase) end),labels:[.labels[]|{name}]}"
-/** Confirmed live with a populated blocked_by response on 2026-08-14. */
 const dependencySampleNumber = 318
 const [repositoryOwner, repositoryName] = config.repository.split("/")
 const commands = {
@@ -151,17 +150,6 @@ const record = (name, command) => {
   }
 }
 
-/**
- * A recording UNIONS with the manifest already on disk instead of replacing it, because every
- * envelope is sampled from one live ticket and that ticket keeps changing. Recording on 2026-08-13
- * flipped issueView's `$.stateReason` from null to string, purely because sample #221 had been
- * closed since the previous run, and every stub of an OPEN ticket then failed against it. A
- * nullable field must stay nullable once both shapes have been seen.
- *
- * This still enters nothing by hand: every type in the union was observed in real gh output at some
- * recording. The cost is that a field GitHub genuinely removes lingers until the manifest is
- * deleted and rebuilt, which is the safe direction for a guard whose job is to refuse inventions.
- */
 const unionPaths = (previous, next) => {
   const merged = { ...next }
   for (const [path, entry] of Object.entries(previous ?? {})) {

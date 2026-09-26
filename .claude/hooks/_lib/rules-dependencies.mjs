@@ -1,42 +1,4 @@
-// NOTHING writes inside node_modules, for any caller, in any worktree, for any reason.
-//
-// Measured 2026-09-18. A worker that could not make a test pass reached for the dependency instead
-// of its own code: it flipped `enableImperativeFocus` and `enableKeyEvents` to `true` and added
-// `KEYCODE_MOVE_HOME` and `KEYCODE_MOVE_END` to both key maps inside node_modules/react-native.
-// Exactly two files carried an mtime three hours later than the package's own extraction, and they
-// were precisely the two files three sessions then argued over. `npm install` did NOT repair them,
-// because npm leaves a complete package alone; `rm -rf node_modules/react-native` plus an install
-// did. Four contradictory citations were published and every one was accurate about the tree its
-// author read.
-//
-// Code standard 8 did not fail there, its premise did: it says to confirm an external interface
-// against the installed source, and it assumes the installed source is what the lockfile says. One
-// edit breaks that assumption for every later reader, silently, in every checkout.
-//
-// The caller is NOT the discrimination here, unlike the browser ban in rules-worker.mjs. A hand
-// edit inside a dependency is wrong from a worker, from an orchestrator and from Thomas alike,
-// because the damage is to what every later reader sees rather than to one session's budget.
-//
-// Pure: takes a path or a command string plus an injected cwd, returns { block, message } or null.
-//
-// KNOWN BYPASSES, disclosed rather than implied, because a list that reads as exhaustive and is not
-// is worse than none. The class this command tier does not reach is ANY WRITER WHOSE DESTINATION IT
-// CANNOT SEE. Concretely: a shell or interpreter wrapper (`sh -c '...'`, `node -e "..."`, `perl -i`)
-// whose inner text is never inspected; a script file that runs any of this; an npm script that
-// fronts a writer; `dd of=...`; a writer whose destination is a flag value rather than a positional
-// argument, including `curl -o`, `wget -O`, `tar -C`, `unzip -d`; and git's own writers, `git
-// apply`, `git checkout -- <path>` and `git add -f <path>`. A quoted path containing a space is NOT
-// on this list: `echo true > "node_modules/react native/flags.kt"` was measured REFUSED, because
-// QUOTED_REDIRECT reads the quoted span before the bare scan runs.
-//
-// This is cost-raising defence in depth for the command path. The FILE path is the one it really
-// closes, because Write, Edit and MultiEdit are how an agent edits. Detection for whatever still
-// arrives is tools/check-dependency-edits.mjs.
-//
-// It guards the Claude engine only. `.claude/orchestrator.json` can set `worker: "codex"`, and
-// Codex never reads `.claude/settings.json`, so for that engine the order text in
-// tools/compose-prompt.mjs and the detector are the whole defence. rules-worker.mjs has the same
-// limit for the same reason.
+// Resolve existing ancestors through symlinks so an indirect path into node_modules is refused.
 
 import { existsSync, realpathSync } from "node:fs"
 import { basename, dirname, isAbsolute, join, resolve } from "node:path"
@@ -82,20 +44,6 @@ const normalize = (token) =>
     .replace(/^(.+)@[^@]*$/, "$1")
     .toLowerCase()
 
-/**
- * The real path of `target`, resolved through relative segments AND through symlinks.
- *
- * A guard that pattern-matches the literal string is not a guard: `apps/mobile/../../node_modules`
- * and a symlink pointing at the package both reach the same bytes while spelling neither. The file
- * usually does not exist yet on a Write, so the longest EXISTING ancestor is the one resolved and
- * the remaining segments are re-appended to it.
- *
- * `realpathSync.native` rather than `realpathSync`, measured 2026-09-19: the JavaScript resolver
- * preserves the CALLER's spelling, so `NODE_MODULES/react-native/flags.kt` came back spelled
- * `NODE_MODULES` on a Windows tree whose real directory is `node_modules`. The write was allowed
- * and produced the literal incident edit. The native resolver asks the operating system, which
- * returns the real on-disk spelling.
- */
 function resolveRealPath(target, cwd) {
   const base = typeof cwd === "string" && cwd !== "" ? cwd : process.cwd()
   let current = isAbsolute(target) ? resolve(target) : resolve(base, target)
@@ -116,15 +64,6 @@ function resolveRealPath(target, cwd) {
   return join(current, ...tail)
 }
 
-/**
- * A `node_modules` SEGMENT, never a substring: `node_modules_backup/` is an ordinary directory.
- *
- * Compared case-insensitively, because the native resolver only corrects the spelling of a path
- * that already EXISTS. In a fresh worktree with no `node_modules` yet, the tail is re-appended
- * verbatim and `NODE_MODULES/react-native/x.kt` was measured allowed with the native call alone.
- * On a case-sensitive filesystem this is pessimistic by exactly one directory nobody has, which is
- * the right side to be wrong on for a guard.
- */
 const hasNodeModulesSegment = (path) => path.split(/[/\\]/).some((segment) => segment.toLowerCase() === "node_modules")
 
 export function resolvesInsideNodeModules(target, cwd) {
@@ -149,15 +88,6 @@ const dropLeadingFlags = (tokens) => {
   return tokens.slice(index)
 }
 
-/**
- * Strips package-runner prefixes so `npx patch-package` is judged as `patch-package`, and reports
- * whether a runner was stripped at all.
- *
- * The flag strip is the fix for the measured hole of 2026-09-19: `npx -y patch-package` put `-y`
- * in the slot the binary would occupy, the lookup read the flag, and the one command this whole
- * guard exists to refuse was allowed. `-y` is the published idiom, because plain `npx` prompts
- * before it installs.
- */
 function withoutRunners(tokens) {
   let rest = tokens
   let strippedRunner = false
@@ -211,14 +141,6 @@ function powershellWriteTargets(binary, rest) {
   return targets
 }
 
-/**
- * Every file a segment would write, plus whether it invokes a patch tool at all.
- *
- * `rm`, `rmdir` and `Remove-Item` are deliberately absent: `rm -rf node_modules/<package>` followed
- * by an install is the documented repair, and a guard that refused it would leave a poisoned tree
- * with no sanctioned way out. `npm` and `npm ci` are absent for the same reason: an install is how
- * a correct tree arrives.
- */
 function segmentWrites(segment) {
   const targets = redirectTargets(segment)
   const { tokens, strippedRunner } = withoutRunners(tokensOf(segment))
@@ -252,9 +174,7 @@ const refusal = (what, detail) => ({
     "source, then change your OWN code to match it. Where the behaviour genuinely has to change,\n" +
     "use the supported mechanism (an Expo config plugin, a fork, an upstream issue) or stop and\n" +
     "report the need. Never run patch-package, and never stage a path under node_modules.\n" +
-    "Measured 2026-09-18: two edited files inside node_modules/react-native survived a reinstall\n" +
-    "and corrupted three sessions of evidence, because every reader afterwards was accurate about\n" +
-    "a tree nobody had changed on purpose. The repair is rm -rf node_modules/<package> plus an\n" +
+    "A plain npm install may leave an edited package intact. The repair is rm -rf node_modules/<package> plus an\n" +
     "install; a plain npm install leaves a complete package alone. Detection is\n" +
     "node tools/check-dependency-edits.mjs.",
 })

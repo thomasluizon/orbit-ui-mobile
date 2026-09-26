@@ -1,21 +1,4 @@
 #!/usr/bin/env node
-/**
- * The calibration pass: the producer of `.claude/calibration.json`, which `check-calibration.mjs`
- * is the consumer of.
- *
- * Every `model`, `effort` and digest in the stamp is READ from the tree, so the committed stamp is
- * the real output of a run rather than a hand-written table. The VERDICTS below are the judgement
- * half, one per file, and they are the only part a person writes.
- *
- * It lives here rather than beside the pull request that first needed it, because a producer kept
- * outside the repository is a producer nobody can rerun: the gate then says "reseed" and names no
- * command that does it.
- *
- * A verdict keeps its OWN `calibratedAt`, and this pass renews that date only for a file whose
- * content, model or effort actually moved. Renewing every date on every run is what let ordinary
- * prompt churn hold the whole stamp permanently under the 90-day alias backstop.
- *
- */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -81,13 +64,13 @@ const VERDICTS = {
   ".claude/skills/android-release/SKILL.md":
     "current: dispatches one workflow with computed version numbers, so low effort is right.",
   ".claude/skills/audit-code-quality/SKILL.md":
-    "undeclared, inherits the session: a judgement-level debt audit that opens tickets, which argues for an explicit high. Left undeclared in this first pass because declaring it changes behaviour and cost, and eleven skills are in the same position; that is the follow-up this pass names rather than a change smuggled into the mechanism.",
+    "undeclared, inherits the session: the debt audit makes judgment calls and opens tickets; an explicit high effort would change cost.",
   ".claude/skills/audit-performance/SKILL.md":
-    "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up.",
+    "undeclared, inherits the session: the performance audit makes judgment calls and opens tickets.",
   ".claude/skills/audit-security/SKILL.md":
-    "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up. This is the one where an inherited low effort would cost the most, because a missed authz hole is not visible in the output.",
+    "undeclared, inherits the session: security findings need judgment because missed authorization gaps may be invisible in output.",
   ".claude/skills/audit-tests/SKILL.md":
-    "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up.",
+    "undeclared, inherits the session: the test audit judges coverage and opens tickets.",
   ".claude/skills/deep-research/SKILL.md":
     "undeclared, inherits the session: it fans out web-researcher subagents that carry their own sonnet/medium tuning, so the orchestrating half inheriting the session is defensible today.",
   ".claude/skills/dev-server/SKILL.md":
@@ -95,7 +78,7 @@ const VERDICTS = {
   ".claude/skills/drift-review/SKILL.md":
     "undeclared, inherits the session: it judges repeated evidence against the current workflow files, but every result remains a staged candidate for human review.",
   ".claude/skills/handoff/SKILL.md":
-    "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, including standing rules. The rule that handoff always ENDS the session needs the same judgement: deciding whether a later request is the explicit do-this-now exception, or more scope for NEXT.md, is exactly the call a lower effort gets wrong.",
+    "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session.",
   ".claude/skills/investigate/SKILL.md":
     "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate.",
   ".claude/skills/lesson/SKILL.md":
@@ -103,23 +86,23 @@ const VERDICTS = {
   ".claude/skills/merge-prs/SKILL.md":
     "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth.",
   ".claude/skills/orchestrate/SKILL.md":
-    "current: high effort, because it plans the queue, enforces admission controls, reviews local work, verifies delivery, and clears review. It must report READY, BLOCKED, CHECKED or merged with evidence, including a validated merge commit SHA. It distinguishes a failed required check from a stale receipt or load-sensitive test, manages the worker engine when an allowance is exhausted, names substitute review openly, and respects merge authority.",
+    "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority.",
   ".claude/skills/prod-readiness/SKILL.md":
-    "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
+    "undeclared, inherits the session: it judges four child audits before producing a launch verdict.",
   ".claude/skills/progress/SKILL.md":
-    "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up. The effort-agnostic rewrite now resolves integration per repository and distinguishes direct ancestry from an unprovable stacked squash boundary, so the answer requires evidence-led judgement rather than table lookup. The base-chain walk now also resolves each candidate in every pull request state and reports a closed unmerged parent as an unresolved chain rather than naming its head as integration, which adds one more judgement the answer cannot look up.",
+    "current: medium effort; it reads live git and ticket state, resolves integration per repository, and distinguishes ancestry from stacked squash boundaries.",
   ".claude/skills/questions/SKILL.md":
-    "current: high effort, because the filter decides what not to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision.",
+    "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision.",
   ".claude/skills/second-opinion/SKILL.md":
     "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call.",
   ".claude/skills/sleep/SKILL.md":
-    "undeclared, inherits the session: it takes every decision alone overnight, including whether configured lanes are available, so explicit high remains the strongest follow-up without guessing it here.",
+    "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available.",
   ".claude/skills/ticket/SKILL.md":
     "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it.",
   ".claude/skills/validate/SKILL.md":
     "current: runs lint, type-check and tests across both repos, so low effort is right.",
   ".claude/skills/wrap-up/SKILL.md":
-    "current: medium effort, because the three skills it invokes each declare their own and carry the heavy judgement. Each step ends the turn on a literal handover line and waits for the owner to say proceed, so the skill must hold their order across three turns and not let --sleep collapse the first two.",
+    "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep.",
   ".agents/skills/merge-prs/SKILL.md":
     "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict: the frontmatter name and description decide whether Codex finds this skill at all, and the body names the one canonical definition both hosts read.",
   ".agents/skills/orchestrate/SKILL.md":
@@ -165,13 +148,6 @@ const config = JSON.parse(readFileSync(join(root, ".claude", "orchestrator.json"
 // The ENGINE comes from config.worker, the same key launch-worker.mjs:129 reads. The invocation comes
 // from resolveWorkerInvocation itself rather than being rebuilt here, so the stamp records the WHOLE
 // vector that launches: engine args, then the selected profile args, then the model.
-/**
- * The canonical resolver, imported from THIS tool's own directory rather than from `--root`. Loading
- * it out of the target tree made the pass unrunnable against any root that is not a full checkout,
- * its own test fixtures included, and it was never the right source anyway: the resolver that decides
- * what a worker launches is the one shipped beside the launcher, not one found next to the files
- * being stamped.
- */
 const workerEngine = config.worker
 // The executable itself, which resolveWorkerInvocation does not return: launch-worker.mjs spawns
 // engine.command and the invocation only describes what is passed TO it.

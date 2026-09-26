@@ -233,8 +233,6 @@ export const cases = async () => {
     const sourcePixels = await pixelsOf(directSourceRender)
     let sourceCanvasMatches = generatedPixels.length === sourcePixels.length
     for (let index = 0; sourceCanvasMatches && index < generatedPixels.length; index += 4) {
-      // Compositing onto a transparent Sharp canvas can round an anti-aliased RGB channel by one;
-      // alpha must match exactly and no colour channel may move beyond that measured rounding.
       sourceCanvasMatches =
         generatedPixels[index + 3] === sourcePixels[index + 3] &&
         Math.abs(generatedPixels[index] - sourcePixels[index]) <= 1 &&

@@ -1,21 +1,5 @@
 name: Guards
 
-# The deterministic replacements for the Claude-session-only PostToolUse hooks
-# (D6): these hold for Codex, Claude, a human, or a bot, because CI
-# is the one layer nothing bypasses. Jobs:
-#   root-allowlist - root entries are deliberate and npm overrides exist only at the root
-#   mobile-styles - mobile styling stays on React Native StyleSheet
-#   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
-#   mobile-fonts - Rubik cannot re-enter the mobile source tree
-#   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
-#   lint-severity - local rules stay blocking and no lint-suppression baseline exists
-#   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
-#   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
-#   performance-workflow - generated measured-performance logic matches its canonical module
-#   calibration - the per-agent and per-skill tuning stamp is current against the running worker model
-#   review-harness - a UI pull request on redesign/main states what the review skills found
-#   surface-manifest - the committed surface inventory still describes the tree, and every surface maps to a group
-#   gate-charter - every blocking gate declares and obeys its pull request scope
 
 on:
   pull_request:
@@ -137,12 +121,6 @@ jobs:
             echo "Dash baseline skipped: no baseline input changed."
           fi
       - name: PR title and body carry no dashes
-        # Human-authored prose only. A bot PR body is machine-copied upstream text
-        # (Dependabot quotes the dependency's own changelog verbatim), which Orbit
-        # neither wrote nor can edit, and which Dependabot regenerates on every
-        # rebase. The file-level dash check above still runs on bot PRs, because
-        # the files they change ARE Orbit's. See orbit-api#425, where a Hangfire
-        # release note's en dashes blocked a security-relevant NuGet bump.
         if: github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -387,13 +365,6 @@ jobs:
   surface-manifest:
     name: Surface Manifest Drift
     runs-on: ubuntu-latest
-    # fetch-depth: 0 is load-bearing twice. The changed-file scope reads
-    # origin/${{ github.base_ref }}...HEAD, and surface-manifest.mjs resolves the pre-redesign
-    # baseline ref 7d7c42c3 with `git rev-parse`, which a shallow checkout cannot answer.
-    #
-    # There is no npm install step and there must not be one: surface-manifest.mjs and
-    # redesign-coverage.mjs import node builtins only, so this job needs node and git and
-    # nothing else.
     steps:
       - uses: actions/checkout@v7
         with:

@@ -1,16 +1,3 @@
-/**
- * Local ESLint rule: no dead `href="#"`.
- *
- * `href="#"` is a link that goes nowhere: it jumps to the top of the page, adds a
- * history entry, and announces itself to a screen reader as a navigation. If the
- * control acts rather than navigates it is a <button>; if it navigates it needs a
- * real destination.
- *
- * An `href="#"` paired with an `onClick` is still reported — that is the classic
- * fake-button link. The click handler does not make it a link, it makes it a
- * button wearing an anchor's semantics.
- */
-
 const { getAttribute, getElementName } = require('./_jsx-strings.cjs')
 
 const LINK_ELEMENTS = new Set(['a', 'Link', 'NextLink'])

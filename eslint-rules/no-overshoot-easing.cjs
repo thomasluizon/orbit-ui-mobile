@@ -1,22 +1,3 @@
-/**
- * Local ESLint rule: no bounce or elastic easing.
- *
- * DESIGN.md "Bans" + "Motion": no bounce or elastic easing — any `cubic-bezier`
- * whose y control points fall outside `[0,1]`. No spring overshoot. Four external
- * skills independently proposed overshoot during the #539 harvest and it was
- * dropped every time; the ban is the settled position.
- *
- * Only the y controls (the 2nd and 4th arguments) are checked. x controls outside
- * [0,1] are INVALID CSS, not overshoot, and are the browser's problem — reporting
- * them here would be a different rule wearing this one's message.
- *
- * Matches any `cubic-bezier(...)` with numeric literal arguments, wherever it
- * appears in a string: a Tailwind `ease-[cubic-bezier(...)]` arbitrary value, a
- * style object's `transitionTimingFunction`, or a shared motion-token value.
- * Also checks four-number arrays with x controls in [0,1], arrays asserted as
- * MotionBezier regardless of x controls, and numeric arguments to `.bezier(...)`.
- */
-
 const CUBIC_BEZIER_RE = /cubic-bezier\s*\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/g
 
 function numericLiteral(node) {

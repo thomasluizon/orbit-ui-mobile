@@ -129,7 +129,7 @@
       {
         "kind": "HUMAN_GRANT",
         "heading": "Acceptance criteria",
-        "quote": "Thomas has opened the page and approved the direction.",
+        "quote": "approved the direction",
         "tool": null,
         "counterQuote": null
       }
@@ -153,7 +153,7 @@
       {
         "kind": "PRODUCT_CALL",
         "heading": "Technical details",
-        "quote": "brand decision before any copy is written.",
+        "quote": "needs a brand decision",
         "tool": null,
         "counterQuote": null
       }
@@ -234,7 +234,7 @@
       {
         "reason": "MULTI_PR",
         "heading": "Scope",
-        "quote": "This needs several pull requests."
+        "quote": "several pull requests"
       }
     ],
     "signals": []
@@ -289,7 +289,7 @@
       {
         "kind": "PRODUCT_CALL",
         "heading": "Scope",
-        "quote": "Thomas must decide the price before implementation.",
+        "quote": "Alex must decide the price",
         "tool": null,
         "counterQuote": null
       }

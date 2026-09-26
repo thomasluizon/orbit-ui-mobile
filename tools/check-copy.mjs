@@ -1,19 +1,4 @@
 #!/usr/bin/env node
-// The copy-register gate (D6): AI-cliche words, placeholder
-// content, and typed-in UPPERCASE in locale string VALUES, plus hardcoded
-// brand-accent colors in source. Replaces the added-text-only PostToolUse
-// hooks (forbid-ai-cliche-copy, forbid-placeholder-content,
-// forbid-typed-uppercase, forbid-hardcoded-brand-color), whose confirmed
-// defect was scanning only the text an edit introduced - a file arriving via
-// checkout, merge, or codegen was never scanned. This scans the FILES.
-//
-// Values-only is the soundness argument for the copy checks: a key like
-// `seamless.title` is not copy; flagging it would be the false positive that
-// makes a gate worse than no gate.
-//
-// Usage:
-//   node tools/check-copy.mjs --check             full scan vs tools/copy-baseline.json (exit 1 on growth)
-//   node tools/check-copy.mjs --write-baseline    regenerate tools/copy-baseline.json
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs"
 import { execFileSync } from "node:child_process"
@@ -34,15 +19,6 @@ const BRAND_COLOR_EXEMPT = [
   /\.(test|spec)\.(ts|tsx)$/,
 ]
 
-// DESIGN.md "Voice" enumerates 25 banned entries, each with a scope column:
-//   microcopy = i18n string values (what this scanner reads)
-//   long-form = the landing page, ADRs and store copy (a different corpus, not scanned here)
-//   both      = everywhere
-// Only the microcopy-visible entries live here. Entry 17 (em/en dash) ships in
-// tools/check-dashes.mjs. Entries 2-6, 12-14 and 16 are long-form structural tells with no
-// microcopy surface. Entries 11, 15 and 24 need cross-string or layout context a per-string
-// scanner cannot see, and stay with the design-reviewer agent.
-// https://github.com/thomasluizon/orbit-tickets/issues/36
 const BANNED_COPY = [
   { entry: 7, kind: "puffery", pattern: /\b(?:crucial|pivotal|vital|essential|game-?chang(?:er|ers|ing))(?!\p{L})/iu },
   { entry: 8, kind: "ai-cliche", pattern: /\b(?:delv(?:e|es|ed|ing)|harness(?:es|ed|ing)?|unlock(?:s|ed|ing)?|elevat(?:e|es|ed|ing)|empower(?:s|ed|ing)?|supercharg(?:e|es|ed|ing)|seamless(?:ly)?|robust|cutting-edge|revolutionar(?:y|ily)|revolutioni[sz](?:e|es|ed|ing))\b/i },

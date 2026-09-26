@@ -154,12 +154,6 @@ export const cases = () => {
     { status: 1, stderr: /lesson\/SKILL\.md declares effort null but the stamp recorded "high"/ },
   )
 
-  /**
-   * THE BODY-ONLY EDIT, which PR #640 proved once and the #188 re-derivation lost. A verdict is a
-   * judgement about what the file ASKS THE MODEL TO DO, so rewriting the prompt invalidates it even
-   * though `model:` and `effort:` never move. Without a content digest this exited 0 and the stale
-   * verdict rode the 90-day age backstop.
-   */
   check(
     TOOL,
     "rewriting a skill's BODY with its model and effort unchanged exits 1",
@@ -435,10 +429,6 @@ export const cases = () => {
     { status: 2, stderr: /calibratedAt must be a YYYY-MM-DD date/ },
   )
 
-  /**
-   * `Date.UTC` NORMALIZES an impossible calendar date rather than refusing it, so the YYYY-MM-DD regex
-   * alone lets `2026-02-31` through as 2026-03-03. Only a round-trip refuses it.
-   */
   check(
     TOOL,
     "a well-formed but impossible calendar date exits 2 instead of being normalized",

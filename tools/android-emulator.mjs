@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/**
- * Brings the Orbit Android emulator to a ready state, creating its AVD when absent.
- *
- * Every setting here is one this repository measured on 2026-08-12, not a default:
- * API 35 (the emulator warns `Guest Angle is still unstable for API > 35`),
- * `hw.keyboard=yes` (avdmanager defaults it to `no`, which ignores the host keyboard),
- * and `-dns-server` (the emulator otherwise inherits the host resolver, which failed
- * to resolve `api.useorbit.org` while every other name resolved).
- */
 
 import { spawn, spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs"
@@ -22,11 +13,6 @@ const VERIFY_HOST = "api.useorbit.org"
 const BOOT_TIMEOUT_SECONDS = 420
 const SHUTDOWN_TIMEOUT_SECONDS = 60
 
-/**
- * Hardware values proven to boot on 2026-08-12. A larger set (6 GB RAM, 6 cores,
- * a 12 GB data partition) crashed the emulator silently right after the hypervisor
- * started, so this stays at the measured set.
- */
 const AVD_SETTINGS = {
   "PlayStore.enabled": "yes",
   "hw.keyboard": "yes",
@@ -253,12 +239,6 @@ function unidentifiedSerials(adb) {
   return (listedSerials(adb) ?? []).filter((serial) => avdNameForSerial(adb, serial) === null)
 }
 
-/**
- * Whether the guest can resolve `host`. A running emulator started without `-dns-server` inherits the
- * host resolver, which is exactly the failure this tool exists to prevent, so reuse is gated on this
- * rather than on the process merely being up. Observed failure text on 2026-08-12:
- * `ping: unknown host api.useorbit.org`, against a success line beginning `PING `.
- */
 function resolvesHost(adb, serial, host) {
   const probe = run(adb, ["-s", serial, "shell", "ping", "-c", "1", "-W", "4", "-I", "wlan0", host])
   return /^PING /m.test(String(probe.stdout ?? ""))

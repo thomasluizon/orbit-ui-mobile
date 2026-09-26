@@ -18,15 +18,6 @@ dist/
 .vscode/
 .idea/
 .claude/worktrees/
-# Plans are the contract source the committed work orders point at (their
-# generatedFrom frontmatter): ignoring the whole dir left every fresh checkout
-# with plan bundles whose Tier and acceptance criteria named a file that did
-# not exist. The *.plan.md files ride the branch; everything else stays local.
-# The ** idiom is load-bearing: git never descends into an excluded DIRECTORY to
-# evaluate a nested negation, so `.claude/plans/*` would have swallowed
-# .claude/plans/completed/ whole - which is exactly where implement/SKILL.md
-# files a finished plan. Re-including the directories is what lets the negation
-# reach the plans inside them.
 .claude/plans/**
 !.claude/plans/**/
 !.claude/plans/**/*.plan.md
@@ -67,7 +58,7 @@ apps/web/e2e/.results/
 temporary screenshots/
 
 # Local diagnostic artifacts stay uncommitted. Visual completion comes from
-# Thomas reviewing the running surface on seeded data, not screenshot files.
+# the owner reviewing the running surface on seeded data, not screenshot files.
 # The surface inventory in .claude/manifests/ stays committed so coverage
 # tooling and later sessions share the same surface list.
 .artifacts/
@@ -112,10 +103,6 @@ error.log
 .orca-*
 .agent-scratch-*
 
-# Generated architecture map (thomasluizon/orbit-tickets#470). Committing a whole-file
-# regeneration and gating on its exact bytes made the pair conflict on every pair of parallel
-# branches; PR 842 alone paid three base merges and three review cycles for it. Produce them with
-# `node tools/arch-map.mjs`, which is the path CLAUDE.md names, or take the CI build artifact.
 /architecture.json
 /architecture.html
 /architecture.mmd

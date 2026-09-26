@@ -1,25 +1,3 @@
-/**
- * Local ESLint rule: every direct child of <AnimatePresence> defines `exit`.
- *
- * A SILENT failure — nothing errors, no warning fires, the element just vanishes
- * instantly while its siblings animate out. Stack-exact: apps/web depends on
- * `motion` ^12, apps/mobile mirrors it via Moti.
- *
- * Only DIRECT children are inspected, because only they are guaranteed to be
- * co-located with their AnimatePresence in one JSX tree.
- *
- * DELIBERATELY NOT IMPLEMENTED — the #539 spec's other half ("an `exit` prop with
- * no <AnimatePresence> ancestor"). It is unsound for this codebase and cannot be
- * made sound with static analysis. AnimatePresence must wrap the CONDITIONAL, so
- * the idiomatic composition puts it at the call site
- * (`<AnimatePresence>{open ? <Bar/> : null}</AnimatePresence>`) while the motion
- * element with `exit` lives inside `Bar` in another file. The ancestor is
- * therefore in a different module by design, and the check fired on exactly the
- * code that is written correctly: both hits in apps/web (`bulk-action-bar-v2`,
- * `notification-bell`) were properly wrapped at their call sites. A gate that
- * fires only on correct code trains people to disable it.
- */
-
 const { getAttribute, getElementName } = require('./_jsx-strings.cjs')
 
 const PRESENCE_ELEMENTS = new Set(['AnimatePresence'])

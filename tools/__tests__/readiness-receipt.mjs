@@ -34,13 +34,6 @@ const BASE_A = "1111111111111111111111111111111111111111"
 const BASE_B = "2222222222222222222222222222222222222222"
 const HEAD_PUSH_TIME = Date.parse("2026-08-01T00:01:00Z")
 
-/**
- * The receipt carries exactly four axes: draft, behindBy, ci and ticket. Pullfrog reviews every
- * pull request in GitHub Actions and publishes `pullfrog-approval`, which is a required status
- * check on both `main` branches, so the review verdict arrives inside the CI axis through
- * readinessCiIsGreen's required contexts. When that check is absent the same verdict is read from
- * the review it publishes instead (#440), which is what `reviewAppVerdictAtHead` resolves.
- */
 const ready = () => ({
   issue: "ORB-701",
   repositoryKey: "ui",
@@ -87,13 +80,6 @@ export const cases = async () => {
   const ticketOffTarget = { ...receipt, ticket: { ...receipt.ticket, status: "In Progress" } }
   T(`${TOOL}: a board status away from the target status is TICKET_STALE`, readinessReport(ticketOffTarget).verdicts.includes("TICKET_STALE"))
 
-  /**
-   * Every identifier below was read off a live response on 2026-08-12, never assumed. `gh api
-   * repos/thomasluizon/orbit-ui-mobile/branches/main/protection/required_status_checks` returned
-   * `{"context":"Unit Tests","app_id":15368}` and `{"context":"pullfrog-approval","app_id":1768019}`,
-   * and the GraphQL rollup of pull request 716 returned `pullfrog-approval` as a CheckRun whose
-   * `checkSuite.app.databaseId` is 1768019 and `Unit Tests` as one whose app is 15368.
-   */
   const GITHUB_ACTIONS_APP = 15368
   const PULLFROG_APP = 1768019
   const requiredUnitTests = { context: "Unit Tests", appId: GITHUB_ACTIONS_APP }
@@ -169,20 +155,6 @@ export const cases = async () => {
   T(`${TOOL}: a protection payload carrying only contexts is refused`, requiredChecksOf({ contexts: ["Unit Tests"] }) === null)
   T(`${TOOL}: a protection check with a non-integer app id is refused`, requiredChecksOf({ checks: [{ context: "Unit Tests", app_id: "15368" }] }) === null)
 
-  /**
-   * The unprotected base, which is where the review axis is easiest to lose. `redesign/main` is not
-   * protected, so the protection read is a confirmed 404 and the required set is EMPTY (#429). An
-   * empty set is a free pass on its own: every check that ran is green, so readiness would clear
-   * with no review at all. `reviewChecksFor` supplies the axis that stops that, and the receipt it
-   * produces is blocked on the CI axis ALONE.
-   *
-   * The skill cites this verdict string rather than describing it. On an unprotected base with no
-   * `pullfrog-approval`, the recorder reports CI_STALE and nothing else, so an operator who reads a
-   * receipt carrying any second verdict is looking at a second, unrelated problem. That matters on a
-   * night when Pullfrog cannot run and a named substitute reviewed the pull request instead: the
-   * recorder verifies no such claim, so the expected receipt is this one and the substitution is
-   * read by a human on the pull request.
-   */
   const unprotected = requiredChecksFromResponse({ status: "404" }, false)
   T(`${TOOL}: an unprotected base has no required checks at all`, JSON.stringify(unprotected) === "[]", JSON.stringify(unprotected))
   T(
@@ -220,16 +192,7 @@ export const cases = async () => {
     JSON.stringify(readinessReport(reviewedOnUnprotected).verdicts),
   )
 
-  /**
-   * The review and rollup envelope came from the 2026-08-12 GraphQL response for pull request 716.
-   * The head check suite selection was added later; its shape was read on pull request 1107 on
-   * 2026-09-26. `workflowRun` is null on the Pullfrog check run, as GitHub returned.
-   *
-   * The `reviews` half is younger than that recording, because the selection did not exist in 2026-08.
-   * It carries `totalCount` and `pageInfo` because the query SELECTS them, and a fixture that omits
-   * what the producer emits is a fixture that tests a response GitHub never sends. Leaving them out
-   * hid the defect where a missing `hasPreviousPage` was read as `false`.
-   */
+  /** Keep the complete selected response shape so absent page fields cannot read as false. */
   const liveEnvelope = {
     data: { repository: { nameWithOwner: "owner/repo", pullRequest: {
       number: 716,
@@ -270,11 +233,7 @@ export const cases = async () => {
     `${TOOL}: Pullfrog's own CHANGES_REQUESTED run keeps that pull request out of green`,
     readinessCiIsGreen(liveState.statusCheckRollup, [{ context: "Unit Tests", appId: 15368 }, { context: "pullfrog-approval", appId: 1768019 }]) === false,
   )
-  /**
-   * A head commit carrying no check at all returns `statusCheckRollup: null`, confirmed on
-   * 2026-08-12 against this repository's root commit 1100e15b. That is an empty rollup, not a
-   * broken read, and it stays not green while a required check is missing from it.
-   */
+  /** An empty rollup cannot satisfy a required check. */
   const emptyState = pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: null } } } })
   T(`${TOOL}: a head commit with no check at all reads as an empty rollup`, Array.isArray(emptyState?.statusCheckRollup) && emptyState.statusCheckRollup.length === 0, JSON.stringify(emptyState))
   T(`${TOOL}: an empty rollup is not green while a check is required`, readinessCiIsGreen(emptyState.statusCheckRollup, [requiredApproval]) === false)
@@ -284,23 +243,10 @@ export const cases = async () => {
     pullRequestStateFromGraphQl({ data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: [] }, statusCheckRollup: { contexts: { nodes: [{ __typename: "SomethingNew" }] } } } } } }) === null,
   )
 
-  /**
-   * `PullRequest.reviews` is NULLABLE, introspected on 2026-09-08: an OBJECT of
-   * `PullRequestReviewConnection`, not NON_NULL. A null therefore reads as an empty list, exactly as a
-   * null `statusCheckRollup` does. An earlier revision refused it, which would have turned a response
-   * the schema permits into an environment error.
-   */
   const nullReviews = pullRequestStateFromGraphQl({
     data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: null, statusCheckRollup: null } } },
   })
   T(`${TOOL}: a null reviews connection reads as an empty list, not a broken read`, Array.isArray(nullReviews?.reviews) && nullReviews.reviews.length === 0, JSON.stringify(nullReviews))
-  /**
-   * Three nullable layers, all introspected on 2026-09-08: `PullRequest.reviews` is a nullable OBJECT,
-   * `PullRequestReviewConnection.nodes` is a bare `LIST(PullRequestReview)`, and its ELEMENTS are bare
-   * objects. Neither the list nor its elements is NON_NULL, so both shapes below are responses the
-   * schema permits, and refusing either aborted the whole read before it could use a present green
-   * check. A null element is simply not the reviewing app, so it is skipped rather than fatal.
-   */
   const nullNodeList = pullRequestStateFromGraphQl({
     data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: null }, statusCheckRollup: null } } },
   })
@@ -320,16 +266,11 @@ export const cases = async () => {
     }) === null,
   )
 
-  /**
-   * The review fallback (#440). Pullfrog stopped publishing the `pullfrog-approval` CHECK during the
-   * night of 2026-09-06 while its reviews stayed healthy, so no receipt could reach READY. The check
-   * is a publication of the review, so an APPROVED review at the exact head stands in for it.
-   */
   const reviewsAtHead = (nodes) => pullRequestStateFromGraphQl({
     data: { repository: { nameWithOwner: "owner/repo", pullRequest: { number: 838, baseRefName: "redesign/main", baseRefOid: BASE_A, headRefOid: HEAD_A, headRefName: "fix/example", headRepository: { nameWithOwner: "owner/repo" }, commits: { nodes: [{ commit: { oid: HEAD_A } }] }, isDraft: false, reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes }, statusCheckRollup: null } } },
   }).reviews
   const botReview = (state, submittedAt, oid) => ({ state, submittedAt, author: { __typename: "Bot", login: "pullfrog" }, commit: { oid } })
-  /** PR 1107's commit, activity, and reviews, read from GitHub on 2026-09-26. */
+  /** Keep real activity and review shapes for the repointed-commit case. */
   const repointedHead = "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf"
   const pushTime = Date.parse("2026-09-26T02:48:44Z")
   const repointedActivity = [{ activity_type: "push", actor: { login: "<actor>" }, after: repointedHead,
@@ -368,11 +309,6 @@ export const cases = async () => {
   T(`${TOOL}: the activity request reads one bounded branch page`,
     headActivityArgv("owner/repo", "fix/example")[1] === "repos/owner/repo/activity?ref=refs%2Fheads%2Ffix%2Fexample&per_page=100")
 
-  /**
-   * The reading-order trap, kept as a case because it is the one that silently hides an approval.
-   * On PR 832 Pullfrog submitted COMMENTED at 05:44:04Z and APPROVED at 05:44:39Z, 35 seconds apart.
-   * A reader that returns on the first review reports COMMENTED.
-   */
   T(
     `${TOOL}: the NEWEST review at the head wins, so a COMMENTED-then-APPROVED pair reads as APPROVED`,
     reviewAppVerdictAtHead(reviewsAtHead([botReview("COMMENTED", "2026-09-06T05:44:04Z", HEAD_A), botReview("APPROVED", "2026-09-06T05:44:39Z", HEAD_A)]), HEAD_A, HEAD_PUSH_TIME)?.state === "APPROVED",
@@ -486,11 +422,6 @@ export const cases = async () => {
     `${TOOL}: an approval context published by the WRONG app is not excused, because it is present`,
     readinessCiIsGreen(wrongAppApprovalRollup, bothRequired, excused) === false,
   )
-  /**
-   * The excuse is keyed by context AND app pin. Keying it by context alone excused a requirement pinned
-   * to a DIFFERENT app, and a review by app 1768019 proves nothing about a check required from 15368.
-   * Reproduced returning true before the fix.
-   */
   T(
     `${TOOL}: an absent context required from ANOTHER app is not excused by this app's review`,
     readinessCiIsGreen(greenRollupWithoutApproval, [{ context: "Unit Tests", appId: 15368 }, { context: REVIEW_APP_CONTEXT, appId: 15368 }], excused) === false,
@@ -567,17 +498,6 @@ export const cases = async () => {
     })?.reviewsTruncated === true && crowded.reviewsTruncated === false,
   )
 
-  /**
-   * The walk. `reviewAppVerdictAtHead` alone returns null both for "this app never reviewed this
-   * head" and for "the window did not reach far enough to see it", and both readers turned that null
-   * into a blocked receipt. That is the false BLOCKED #440 exists to remove, so the two answers are
-   * now told apart: an absence is only PROVEN when the connection says nothing older remains.
-   *
-   * GitHub permits a review's `commit_id` to name a NON-latest pull request commit, so later records
-   * can be pinned to older commits and evict an at-head verdict from a bounded window. Measured on
-   * 2026-09-09: the filtered connection on pull request 786 returns `totalCount: 112` with
-   * `hasPreviousPage: true`, and one commit there carried fourteen reviews inside thirty minutes.
-   */
   const pageOf = (nodes, { hasPreviousPage = false, startCursor = null } = {}) => ({
     data: { repository: { nameWithOwner: "owner/repo", pullRequest: { reviews: { totalCount: nodes.length, pageInfo: { hasPreviousPage, startCursor }, nodes } } } },
   })

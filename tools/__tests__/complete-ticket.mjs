@@ -4,7 +4,6 @@ import { T, check, githubIssueReadPlan, orcaEnv, stage } from "./_harness.mjs"
 
 const TOOL = "complete-ticket.mjs"
 
-/** orbit-tickets#81's rollout line, the step that closed with the ticket and was never surfaced. */
 const ROLLOUT_BODY = "## Rollout / kill switch\n\n* Rollout: merge, deploy to Render, then set `PostHog:ApiKey` in the Render env.\n"
 
 const issue = (state = "OPEN", body = "Ticket body", repoLabel = "repo:ui") => JSON.stringify({
@@ -119,12 +118,6 @@ export const cases = async () => {
   /** Silence is the correct output for the common case: an ordinary ticket gets no comment at all. */
   T(`${TOOL}: a ticket with no rollout section is closed without a comment`, readFileSync(completion.commentCapture, "utf8") === "unwritten")
 
-  /**
-   * The gap this whole path exists for. orbit-tickets#81 closed Done on 2026-08-08 carrying "set
-   * PostHog:ApiKey in the Render env" and nothing in the merge path mentioned it. The key was in
-   * fact already set, so this is a near miss; the instruction still has to reach the ticket,
-   * because the ticket outlives the terminal.
-   */
   const rollout = plan({ body: ROLLOUT_BODY, repoLabel: "repo:api", label: "rollout" })
   check(TOOL, "a rollout step is posted to the ticket and returned", ["--issue", "221"], { status: 0, stdout: /PostHog__ApiKey/ }, { env: orcaEnv(rollout.entries) })
   const posted = readFileSync(rollout.commentCapture, "utf8")
@@ -143,11 +136,6 @@ export const cases = async () => {
   check(TOOL, "a refused comment aborts the completion instead of closing silently", ["--issue", "221"], { status: 1, stderr: /complete-ticket:/ }, { env: orcaEnv(refused.entries) })
   T(`${TOOL}: the ticket was neither set Done nor closed when its step could not be recorded`, existsSync(refused.statusMarker) && existsSync(refused.closeMarker))
 
-  /**
-   * The stranded row. GitHub closes an issue itself when a merge commit names it, which leaves the
-   * board column behind and makes the ordinary path refuse the ticket for being closed. Eleven rows
-   * were stranded that way on 2026-08-22 with no sanctioned route to move them.
-   */
   check(TOOL, "the ordinary path still refuses an already closed ticket", ["--issue", "221"], { status: 1, stderr: /is CLOSED; only an open ticket can complete after merge/ }, {
     env: orcaEnv([
       ...githubIssueReadPlan(closedIssue()),

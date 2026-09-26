@@ -13,11 +13,6 @@ const stageTree = (base, files) => {
   }
 }
 
-/**
- * The two ownership regressions from the #722 review: an unrelated barrel
- * re-export and an unrelated same-file sibling export must contribute NO
- * ownership, or dead keys hide from the sweep behind live neighbours.
- */
 export const cases = () => {
   const fixture = join(root, "arch-map-fixture")
   stageTree(fixture, {
@@ -25,7 +20,7 @@ export const cases = () => {
       a: { live: "live", deadSibling: "dead sibling", barrelStranger: "barrel stranger" },
     }),
     "packages/shared/src/api/endpoints.ts": 'export const API = {\n  ping: "/api/ping",\n} as const\n',
-    "apps/web/app/home/page.tsx": [
+    "apps/web/app/dashboard/page.tsx": [
       "import { Live } from '@/components/kit'",
       "export default function Page() {",
       "  return <Live />",
@@ -62,23 +57,20 @@ export const cases = () => {
   const derived = check(TOOL, "derives the map from a staged tree", [], { status: 0, stdout: /wrote architecture\.json/ }, { env: { ARCH_MAP_ROOT: fixture } })
   if (derived.status !== 0) return
   const map = JSON.parse(readFileSync(join(fixture, "architecture.json"), "utf8"))
-  const home = map.i18nOwnership.byRoute.find((route) => route.routePath === "/home")
+  const dashboard = map.i18nOwnership.byRoute.find((route) => route.routePath === "/dashboard")
 
-  T(`${TOOL}: the requested export's key is owned by the importing route`, home !== undefined && home.keys.includes("a.live"), JSON.stringify(home))
+  T(`${TOOL}: the requested export's key is owned by the importing route`, dashboard !== undefined && dashboard.keys.includes("a.live"), JSON.stringify(dashboard))
   T(
     `${TOOL}: an unrequested same-file sibling export contributes no ownership`,
     map.i18nOwnership.unowned.includes("a.deadSibling"),
-    JSON.stringify({ unowned: map.i18nOwnership.unowned, home }),
+    JSON.stringify({ unowned: map.i18nOwnership.unowned, dashboard }),
   )
   T(
     `${TOOL}: an unrequested barrel re-export contributes no ownership`,
     map.i18nOwnership.unowned.includes("a.barrelStranger"),
-    JSON.stringify({ unowned: map.i18nOwnership.unowned, home }),
+    JSON.stringify({ unowned: map.i18nOwnership.unowned, dashboard }),
   )
 
-  // Provenance (#232). The block is the FIRST key, so a reader sees which tree produced the map
-  // before reading a word of it, and it carries no clock: a wall-clock stamp changes on every run
-  // and a HEAD SHA can never be the SHA of the commit that will contain the file.
   T(`${TOOL}: the provenance block is the first key`, Object.keys(map)[0] === "provenance", JSON.stringify(Object.keys(map)))
   T(
     `${TOOL}: generatedFrom is a 12 hex character input hash and inputFiles counts the reads`,
@@ -106,8 +98,6 @@ export const cases = () => {
     JSON.stringify(Object.keys(content)),
   )
 
-  // The Mermaid emitter (#321). Every edge must reference a declared node id, or the diagram renders
-  // phantom boxes; the cap is asserted so a future restructure cannot quietly exceed the renderer.
   const mermaid = readFileSync(join(fixture, "architecture.mmd"), "utf8")
   T(`${TOOL}: the diagram opens with a flowchart header`, mermaid.startsWith("flowchart LR\n"), mermaid.slice(0, 60))
   T(`${TOOL}: the diagram uses LF line endings`, !mermaid.includes("\r"), "a CRLF diagram makes the determinism comparison flake across operating systems")
@@ -156,7 +146,7 @@ export const cases = () => {
   stageTree(empty, {
     "packages/shared/src/i18n/en.json": JSON.stringify({ a: { live: "live" } }),
     "packages/shared/src/api/endpoints.ts": ['export const API = {', '  ping: "/api/ping",', "} as const", ""].join("\n"),
-    "apps/web/app/home/page.tsx": "export default function Page() {\n  return <p>x</p>\n}\n",
+    "apps/web/app/dashboard/page.tsx": "export default function Page() {\n  return <p>x</p>\n}\n",
   })
   const emptyRun = check(TOOL, "derives a tree with no dependency edges", [], { status: 0 }, { env: { ARCH_MAP_ROOT: empty } })
   if (emptyRun.status === 0) {

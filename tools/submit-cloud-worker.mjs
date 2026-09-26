@@ -634,7 +634,6 @@ if (existingReceipts.length > 0) {
     })
     const ticketRetries = reconciledReceipts.filter((receipt) => receipt.ticket === ticket && receipt.emptyRetryOf)
     const emptyRetrySpent = ticketRetries.length > 0
-    // Clearing an uncertain reservation releases capacity, but leaves its original empty task unfinished (#433).
     const retryParents = new Set(ticketRetries.filter((receipt) => !receipt.released).map((receipt) => receipt.emptyRetryOf))
     const blockers = reconciledReceipts.filter((receipt) => (
       receipt.ticket === ticket && receiptBlocksTicketAdmission(receipt) && !retryParents.has(receipt.taskId)

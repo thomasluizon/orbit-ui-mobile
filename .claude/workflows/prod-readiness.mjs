@@ -9,8 +9,12 @@ export const meta = {
   ],
 }
 
-const UI = '/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile'
-const API = '/Users/thomaslrgregoriogmail.com/Developer/orbit-api'
+const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
+const absolutePath = (path) => typeof path === 'string' && /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(path)
+if (!absolutePath(parsedArgs.roots?.ui) || !absolutePath(parsedArgs.roots?.api)) {
+  throw new Error('prod-readiness workflow requires absolute ui and api roots')
+}
+const { ui: UI, api: API } = parsedArgs.roots
 
 const OPS_SCHEMA = {
   type: 'object',
@@ -71,7 +75,7 @@ const OPS_CHECKS = [
   },
   {
     check: 'staging',
-    where: `deploy/CI workflows in BOTH repos — ${UI}\\.github\\workflows\\promote-prod.yml, smoke-prod.yml, test.yml; ${API}\\.github\\workflows\\*. Discover the real state per repo; do not hardcode a snapshot (the QA env was aborted per #211 and the workflow set drifts)`,
+    where: `deploy/CI workflows in BOTH repos — ${UI}\\.github\\workflows\\promote-prod.yml, smoke-prod.yml, test.yml; ${API}\\.github\\workflows\\*. Discover the current state per repo.`,
     ready: 'a pre-prod gate (smoke + promote) sits between merge and prod',
     gap: 'no staging/QA env or no pre-prod gate (Medium, calibrated)',
   },
@@ -127,7 +131,6 @@ function uiInScope(requestedScope) {
   return !(normalized.includes('/orbit-api/') || /^(?:\.\/)?(?:src|tests)\//.test(normalized))
 }
 
-const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
 const scope = parsedArgs.scope || 'both'
 const performanceMeasurement = parsedArgs.performanceMeasurement || {
   status: 'unavailable',
@@ -140,7 +143,7 @@ log(`prod-readiness · scope ${scope} · running ${AUDIT_KINDS.length} audits + 
 const auditResults = (
   await parallel(AUDIT_KINDS.map((k) => () => workflow(
     { scriptPath: '.claude/workflows/audit.mjs' },
-    { kind: k, scope, measurement: k === 'performance' ? performanceMeasurement : undefined },
+    { kind: k, scope, roots: parsedArgs.roots, measurement: k === 'performance' ? performanceMeasurement : undefined },
   )))
 ).map((r, i) => r || { kind: AUDIT_KINDS[i], failed: true, findings: [], counts: {}, coverage: [], deferred: [] })
 

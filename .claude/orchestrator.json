@@ -94,8 +94,8 @@
     }
   },
   "repos": {
-    "ui": "/Users/thomaslrgregoriogmail.com/Developer/orbit-ui-mobile",
-    "api": "/Users/thomaslrgregoriogmail.com/Developer/orbit-api",
-    "landing": "/Users/thomaslrgregoriogmail.com/Developer/orbit-landing-page"
+    "ui": ".",
+    "api": "../orbit-api",
+    "landing": "../orbit-landing-page"
   }
 }

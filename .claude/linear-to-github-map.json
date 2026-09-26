@@ -1,6 +1,6 @@
 {
   "generatedAt": "2026-08-08T23:00:09.563Z",
-  "note": "Every ORB-N from the Linear ORB team, mapped to the GitHub issue that replaced it. Generated and verified by the one-shot migration tooling on 2026-08-08 (since deleted; this file is the durable artifact). Do not hand edit.",
+  "note": "Maps each ORB-N from Linear to its GitHub issue. Do not hand edit.",
   "source": {
     "tool": "linear",
     "team": "ORB",
@@ -1086,7 +1086,7 @@
     "ORB-122": {
       "number": 128,
       "url": "https://github.com/thomasluizon/orbit-tickets/issues/128",
-      "title": "Gate the rule that a tools/ script is never handed to Thomas as a command to run",
+      "title": "Gate the rule that a tools/ script is never handed to the owner as a command to run",
       "linearState": "Done",
       "linearProject": "Backlog",
       "milestone": null,

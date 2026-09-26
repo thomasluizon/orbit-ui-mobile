@@ -1,17 +1,3 @@
-/**
- * Decide whether to spend a GraphQL call now or wait for the window to refill.
- *
- * WHY, measured twice on 2026-08-09. Eight concurrent `list-bot-threads.mjs` pollers exhausted
- * the 5,000-point per-user GraphQL budget three times in one night (roughly 90 minutes lost), and
- * the same day the require-wake-source Stop hook's live re-verification spent the entire budget
- * again (5,002 points) during an ordinary interactive session. The structural consumers are
- * deleted; this module is the residual self-defence for the one tool that still polls. The
- * decision half is pure so the backoff path is testable without a network or a clock.
- *
- * `gh api rate_limit` is a REST read and spends no GraphQL point, so asking before spending is
- * free. The budget shape it returns: `resources.graphql.remaining` and `.reset` (epoch seconds).
- */
-
 /** Leave headroom so the LAST call before the floor still completes instead of half-failing. */
 export const DEFAULT_MIN_REMAINING = 200
 

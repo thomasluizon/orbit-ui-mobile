@@ -1,17 +1,3 @@
-// Command (Bash and PowerShell) invariants for an orchestrating session: model spend routes
-// through the launcher, and no agent performs an admin merge.
-// Pure: they take the command string plus injected environment and cwd, and return
-// { block, message } or null. The Claude Code PreToolUse orchestrator-guardrails hook calls
-// these on BOTH tools, because the PowerShell tool fires no hook by default and that alone
-// defeats every command guard in this repository.
-//
-// KNOWN BYPASSES, stated rather than implied, because an incomplete disclosed-bypass list is
-// worse than none: it reads as exhaustive. This gate is cost-raising defence in depth and is
-// NEVER the control: another tool that runs a shell with no PreToolUse matcher; a shell wrapper
-// (`sh -c '<command>'`) whose inner text this never inspects; script-file indirection; and the
-// cwd exemption, where an orchestrating session that changes directory into a launcher-created
-// worktree gets the engine exemption. The admin-merge rule takes NO exemption.
-
 import { lstatSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { resolve } from "node:path"
@@ -22,9 +8,6 @@ import { insideLinkedWorktree } from "./repo-roots.mjs"
 /** The launcher exports this into every worker it starts (tools/launch-worker.mjs). */
 const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
 const ENGINE_BINARIES = new Set(["claude", "codex"])
-/** Subcommands that start no model session, so refusing them protects no budget and only breaks
- * ordinary preflight. `codex --version` was refused by the previous revision, which keyed on the
- * binary alone. */
 const ZERO_COST_FLAGS = new Set(["--version", "-v", "--help", "-h", "help", "whoami", "--list", "login", "logout"])
 /** These cloud subcommands only inspect tasks that already exist. */
 const CLOUD_READ_SUBCOMMANDS = new Set(["list", "status", "diff"])
@@ -41,7 +24,6 @@ const PULLS_MERGE_PATH = /repos\/[^/\s"']+\/[^/\s"']+\/pulls\/[^/\s"']+\/merge(?
 const MERGE_MUTATION = /(?<![\w])mergePullRequest(?![\w])/
 const API_CLIENTS = new Set(["gh", "curl", "wget", "http", "https", "httpie"])
 // httpie takes the method as a POSITIONAL argument (`http PUT <url>`), never as a flag, so the
-// flag-shaped PUT_METHOD above cannot match it. Measured 2026-08-04: `http PUT .../pulls/1/merge`
 // was ALLOWED while the byte-identical curl call was blocked. A prohibition with a documented
 // bypass is not a prohibition, and this is the one everything else rests on.
 const HTTPIE_BINARIES = new Set(["http", "https", "httpie"])
@@ -198,12 +180,6 @@ export function invokedBinary(segment) {
     .toLowerCase()
 }
 
-/**
- * Split on shell operators that are NOT inside quotes. Quote-awareness is the whole fix: the
- * previous revision split on a bare /[&|;\n]/, so `grep -rnE 'claude|codex' .` produced a phantom
- * second segment beginning `codex' .`, whose invoked binary resolved to `codex` and blocked a
- * read-only search. A search PATTERN is data, never an invocation.
- */
 export function segmentsOf(command) {
   const source = stripHeredocBodies(command)
   const segments = []
@@ -355,8 +331,6 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
           /^-[^-]*[Au][^-]*$/.test(argument) ||
           (argument.startsWith("--") && BROAD_ADD_LONG_FLAGS.some((flag) => flag.startsWith(argument)))
         ) broad = true
-        // Git accepts unambiguous long-option abbreviations (measured: --pathspec-from-f), so
-        // matching only the documented full spelling leaves the same indirect staging bypass.
         if (argument.startsWith("--pathspec")) broad = true
         continue
       }
@@ -375,28 +349,9 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
   return null
 }
 
-/**
- * The ONE shape CLAUDE.md sanctions inside the canonical `/merge-prs` skill:
- *
- *   gh pr merge <n> --admin --squash --match-head-commit <40 hex>
- *
- * Every part is load bearing. `--squash` is the only merge style this repository uses, and
- * `--match-head-commit` pins the exact approved head, so the override cannot land a raced head or
- * a head that changed after preflight. An admin merge missing either one is still refused.
- */
 const SANCTIONED_ADMIN_MERGE = /(?<![\w-])--squash(?![\w-])/
 const MATCH_HEAD_COMMIT = /(?<![\w-])--match-head-commit[= ]+[0-9a-f]{40}(?![0-9a-f])/i
 
-/**
- * Refuse the admin merge in every shape EXCEPT the one CLAUDE.md sanctions, and with no launcher or
- * worktree exemption. Forbidding only the CLI flag would leave both raw API paths open, which is the
- * exact bypass shape this exists to close, so those stay absolutely forbidden.
- *
- * The exception is written here because the rule previously called the prohibition absolute while
- * CLAUDE.md already carved out `/merge-prs`. A gate that contradicts the policy it cites is a gate
- * somebody eventually works around; implementing the carve out narrowly is safer than leaving the
- * two disagreeing.
- */
 export function checkAdminMerge(command) {
   if (typeof command !== "string") return null
   for (const segment of segmentsOf(command)) {
@@ -421,8 +376,8 @@ export function checkAdminMerge(command) {
 function adminMergeReason(shape) {
   return (
     `${shape} performs an administrator merge, which bypasses the required checks.\n` +
-    "The override exists for Thomas alone. If a merge genuinely needs one, STOP and ask him to\n" +
-    "merge it himself; never perform the override yourself.\n" +
+    "The override exists for the owner alone. If a merge genuinely needs one, STOP and ask the owner to\n" +
+    "merge it; never perform the override yourself.\n" +
     "See the git conventions in CLAUDE.md and the guardrails in AGENTS.md."
   )
 }

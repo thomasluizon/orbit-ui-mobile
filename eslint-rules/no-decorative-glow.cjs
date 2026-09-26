@@ -1,44 +1,3 @@
-/**
- * Local ESLint rule: keep decorative glow out of the UI.
- *
- * DESIGN.md "Bans": the primary-glow shadow token is deleted. Not on the CTA, not
- * on the FAB, not anywhere — a softened glow is still a glow. The token itself is
- * removed by bundle 5; this rule stops it being re-derived by hand from
- * `--primary-rgb` afterwards, which is the reintroduction vector a token deletion
- * alone cannot close.
- *
- * Four matched vectors:
- *  - a reference to the deleted `--primary-glow` / `--primary-glow-hover` CSS
- *    token (web);
- *  - a CALL to mobile's `primaryGlow()` / `primaryGlowHover()` token helper
- *    (`apps/mobile/lib/theme.ts`), which is how the same shadow is spelled on the
- *    RN side — an identifier, never a string, so the token regex cannot see it;
- *  - a hand-rolled glow: any `shadow-[...]` / `boxShadow` value that is not inset,
- *    has a non-zero BLUR, and carries a HUE;
- *  - `glow` on <PillButton> unless explicitly `glow={false}`.
- *
- * The hue test, not a token list, is the rule. DESIGN.md:177: shadows "model real
- * occlusion under a lifted surface... they are never a depth decoration and never
- * carry the accent hue." Every sanctioned shadow (sh-1/sh-2/sh-3, the hairline
- * ring) is pure greyscale, so "shadow with a hue" IS "decorative glow" and needs
- * no enumeration. The previous version tested for `--primary-rgb` specifically,
- * which is why a `color-mix(in srgb, var(--status-frozen) 40%, transparent)` glow
- * shipped in the very PR that bans glow (#560, caught by a reviewer, not by this).
- * Any semantic token, named hue, hsl/oklch function or non-grey rgb/hex counts.
- *
- * An INSET ring is not a glow (`shadow-[inset_0_0_0_1.5px_var(--primary)]` is the
- * sanctioned selected-card treatment), and neither is a zero-blur ring or hairline
- * (`0 0 0 0.5px rgba(255,255,255,.06)`) - the blur is the third length.
- *
- * SCOPE LIMIT (mobile): an ad-hoc RN glow assembled from raw shadow primitives
- * (`shadowColor: tokens.primary` + `shadowRadius` + `shadowOpacity`) is still not
- * matched — a bare colour carries no blur, so it cannot be told from a legitimate
- * elevation shadow without resolving the value. `primaryGlow()` is the canonical
- * seam. Shadow properties are now read in ANY object, not only a JSX `style`
- * attribute, so `StyleSheet.create({ })` and module-level style objects are
- * covered where they were previously invisible.
- */
-
 const { collectStaticStrings, getAttribute, getAttributeValueNode, getElementName, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const GLOW_TOKEN_RE = /--primary-glow/
@@ -56,13 +15,6 @@ const CSS_NAMED_COLORS = new Set([
   'yellow', 'pink', 'gold', 'lime', 'aqua', 'fuchsia', 'maroon', 'navy', 'olive', 'silver',
 ])
 
-/**
- * The blur is the THIRD length in a shadow value. A ring or hairline has blur 0;
- * only a blurred shadow can glow. Color functions are STRIPPED (not truncated at
- * the first paren) before extracting lengths, because CSS also permits the
- * color-first form ("rgba(...) 0 0 40px") and truncation there read zero lengths
- * and silently accepted the glow - found in review of #577.
- */
 function blurRadius(value) {
   const withoutFunctions = String(value).replace(/[a-z-]+\([^()]*(?:\([^()]*\)[^()]*)*\)/gi, ' ')
   const lengths = withoutFunctions.match(LENGTH_RE)
@@ -173,12 +125,6 @@ module.exports = {
         }
 
       },
-      /**
-       * Any shadow property in any object, not only a JSX `style` attribute. The
-       * previous version read `style={{ }}` alone, so a glow inside
-       * `StyleSheet.create({ })` or a module-level style object was never visited
-       * at all - the whole mobile surface was blind to this rule.
-       */
       Property(node) {
         const key = getPropertyKeyName(node)
         if (!key || !SHADOW_STYLE_KEYS.has(key)) return

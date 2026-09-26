@@ -5,16 +5,11 @@ directory. The `.mjs` files in `.claude/hooks/` are thin adapters: read the stdi
 payload, call a `_lib` rule, `exit 2` + stderr on a block. Wired in
 `.claude/settings.json` (`SessionStart` / `PreToolUse` / `PostToolUse`).
 
-Every `PreToolUse` guard is registered on the **PowerShell** tool as well as
-`Bash`. A matcher of `"Bash"` alone leaves the other shell unguarded, which is not
-hypothetical: it defeated every command guard in both repositories until ORB-163.
+Every `PreToolUse` guard is registered on **PowerShell** and `Bash` so either
+shell receives the same checks.
 
-Most of the old hook fleet migrated to deterministic gates (D6)
-(ESLint `local/*` rules, Roslyn `ORBIT0001..0005`, `tools/check-dashes.mjs`,
-`tools/check-copy.mjs`, and the `guards.yml` CI jobs) and was deleted in Phase 3,
-along with the opencode dual-target plugin (D22). What stays here is what only a
-session hook can do: block a command or an edit BEFORE it happens, for rules
-that have no CI equivalent.
+Deterministic checks live in ESLint, Roslyn, and `guards.yml`.
+Session hooks block commands or edits before they happen.
 
 | `_lib` module | rules | Claude Code hook |
 |---|---|---|

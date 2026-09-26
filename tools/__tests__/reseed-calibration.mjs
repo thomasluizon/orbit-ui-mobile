@@ -20,14 +20,6 @@ const write = (path, body) => {
 
 const daysAgo = (days) => new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
 
-/**
- * Every path the pass will glob, derived from the REAL tree rather than written down.
- *
- * The tool refuses a verdict naming a file that is not in the tree, which is the guard that catches a
- * deleted skill whose verdict was left behind. A hand-picked three-file fixture therefore cannot run
- * it at all: 25 of its verdicts would name files the fixture does not have. Deriving the inventory
- * keeps the fixture complete by construction and never churns when a skill is added.
- */
 const inventory = () => {
   const found = []
   for (const name of readdirSync(join(REPO_ROOT, ".claude", "agents")).sort()) {

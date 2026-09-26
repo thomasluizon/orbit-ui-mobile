@@ -1,29 +1,4 @@
-/**
- * What an unattended run has left to do, and what will wake it.
- *
- * WHY it exists, measured 2026-08-06: the ONLY thing that continues a `--sleep` run is a background
- * task completing and re-invoking the session. Nothing verified one existed. The orchestrator ended a
- * turn saying "CI will wake me" with nothing scheduled, and the night simply stopped, leaving an
- * artifact trail identical to a run that finished. A queue that ends silently is worse than one that
- * fails loudly, because nobody looks for it.
- *
- * These records live in `.git/`, because that directory is per-checkout, never committed, writable,
- * and needs no gitignore entry:
- *
- *   .git/orbit-orchestrate-run.json     the ORCHESTRATOR is its only writer: which session, whether
- *                                       --sleep is on, and which tickets remain.
- *   .git/orbit-wake-sources/<pid>.json  one file per live wake source, written by launch-worker.mjs
- *                                       when it starts and removed when it exits.
- *   .git/orbit-worker-launches/<id>.json one file per attempted worker launch that was admitted.
- *
- * One file per wake source rather than an array in one file: under `--parallel` three launchers write
- * at once, and a read-modify-write on a shared array loses entries. A crashed launcher leaks its file
- * instead of removing it. The reader checks the process start identity as well as liveness, because
- * a reused pid must never turn an old registration into evidence that a worker still exists.
- *
- * Status writes fail soft for readers. Launch admission fails closed if ownership cannot be
- * published before a worker starts.
- */
+/** Run records live in each checkout's git directory so parallel worktrees cannot share state. */
 
 import { spawnSync } from "node:child_process"
 import { createHash, randomUUID } from "node:crypto"
@@ -39,12 +14,6 @@ const DARWIN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "
 // BSD ps prints `Ss   Thu Sep 24 14:06:02 2026` for `stat=,lstart=` under LC_ALL=C and TZ=UTC0.
 const DARWIN_PS_LINE = /^(\S+)\s+[A-Z][a-z]{2} ([A-Z][a-z]{2}) +(\d{1,2}) (\d{2}):(\d{2}):(\d{2}) (\d{4})\s*$/
 
-/**
- * macOS has no /proc, so its start identity comes from `ps`. Read on the M5 Pro for this port
- * (2026-09-24): a live pid prints one line, a missing pid prints nothing and exits 1. `lstart` has
- * one-second resolution and is absolute time, so a reboot cannot repeat it, and exec keeps it.
- * Returns the BSD state string and the start in epoch seconds, or null when the probe fails.
- */
 export const darwinProcessStart = (pid) => {
   const result = spawnSync("ps", ["-o", "stat=,lstart=", "-p", String(pid)], {
     encoding: "utf8", timeout: 3000, env: { ...process.env, LC_ALL: "C", TZ: "UTC0" },
@@ -55,15 +24,6 @@ export const darwinProcessStart = (pid) => {
   const [, state, , day, hours, minutes, seconds, year] = match
   return { state, startSeconds: Date.UTC(Number(year), month, Number(day), Number(hours), Number(minutes), Number(seconds)) / 1000 }
 }
-/**
- * A ledger row's `merged` value must LOOK like a merge commit sha, because the whole safety
- * argument for that field is that a reader can check it against GitHub. A `blocker` may be any
- * non-empty string, since a false one prints a loud BLOCKED banner; a false `merged` ends an
- * unattended night in silence. `orchestrate/SKILL.md` hands the run a template whose value is the
- * literal "<merge commit sha once it is merged, or absent>", which a non-empty-string test accepts.
- * `.claude/hooks/_lib/rules-sleep.mjs` carries the same rule for the Stop hook; the two must not
- * drift, and `.claude/hooks/test-hooks.mjs` asserts that they have not.
- */
 const MERGE_SHA = /^[0-9a-f]{7,40}$/
 
 /**
@@ -316,16 +276,6 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
     ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
   ]
-  /**
-   * One row per repository and pull request, in the order each was FIRST seen, but carrying the
-   * LATEST value of every field.
-   *
-   * First-seen-wins on the whole row was wrong. `identities` lists the previous ledger before the
-   * current state, so a pull request registered before its blocker was discovered kept the old row,
-   * and the blocker recorded by the later call was discarded. The run then believed nothing was
-   * blocking it. Ordering still comes from the first sighting, because the ledger is append only
-   * and a row must not move.
-   */
   const rows = new Map()
   for (const entry of identities) {
     if (typeof entry?.repositoryKey !== "string" || !Number.isInteger(entry?.prNumber) || typeof entry?.receiptPath !== "string") continue
@@ -347,19 +297,6 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     // clear it would put a merged pull request back into the pending set at the next write.
     existing.merged = merged ?? existing.merged
   }
-  /**
-   * A ledger row whose receipt file does not exist is a promise nobody kept. Measured 2026-08-08:
-   * four rows were accepted for receipts that were never written, and the Stop hook then read
-   * them as unreadable rather than as absent, which is a different and much quieter failure.
-   * The path is recorded either way, so the row is never silently dropped: `receiptWritten` says
-   * which it is, and the hook can name it.
-   *
-   * `merged` is the third disposition, beside READY and BLOCKED. A pull request merged under the
-   * step 9 exception can never reach a READY receipt, because the check it waits on will never
-   * publish, so without this field the run that merged it met `block: true` at the next Stop and
-   * had nothing left to launch. The merge sha is the fact that settles the row, and it is checkable
-   * against GitHub in a way a self-asserted verdict is not.
-   */
   const readinessLedger = [...rows.values()].map((row) => ({
     repositoryKey: row.repositoryKey,
     prNumber: row.prNumber,
@@ -371,12 +308,6 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
 }
 
-/**
- * OS start identity, never the launcher's wall-clock timestamp. Windows emits UTC .NET ticks as a
- * decimal string; Linux combines /proc stat field 22 with boot_id so a reboot cannot repeat it.
- * Both sources were read for #437; macOS uses `darwinProcessStart`, whose BSD state Z is a zombie.
- * A failed probe supplies no identity evidence.
- */
 export const processStartIdentity = (pid) => {
   try {
     if (process.platform === "win32") {

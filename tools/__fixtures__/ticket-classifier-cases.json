@@ -52,7 +52,7 @@
   },
   {
     "id": "human_only",
-    "body": "## Scope\n\nHUMAN-ONLY: Thomas clicks the branch protection toggle.",
+    "body": "## Scope\n\nHUMAN-ONLY: Alex clicks the branch protection toggle.",
     "labels": [],
     "expected": {
       "deferrals": [
@@ -148,7 +148,7 @@
   },
   {
     "id": "nested_out_scope",
-    "body": "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Thomas flips the toggle.",
+    "body": "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Alex flips the toggle.",
     "labels": [],
     "expected": {
       "deferrals": [],
@@ -157,7 +157,7 @@
   },
   {
     "id": "resumed_scope",
-    "body": "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Thomas flips the toggle.\n\n## Technical details\n\nNo code in any repo.",
+    "body": "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Alex flips the toggle.\n\n## Technical details\n\nNo code in any repo.",
     "labels": [],
     "expected": {
       "deferrals": [
@@ -188,7 +188,7 @@
   },
   {
     "id": "human_grant",
-    "body": "## Acceptance criteria\n\n* Thomas has opened the page and approved the direction. This is a human grant (D13); no gate and no agent may substitute for it.",
+    "body": "## Acceptance criteria\n\n* Alex has opened the page and approved the direction. This is a human grant (D13); no gate and no agent may substitute for it.",
     "labels": [],
     "expected": {
       "deferrals": [],
@@ -400,7 +400,7 @@
   },
   {
     "id": "price_decision",
-    "body": "## Scope\n\nThomas must decide the price before implementation.",
+    "body": "## Scope\n\nAlex must decide the price before implementation.",
     "labels": [],
     "expected": {
       "deferrals": [],

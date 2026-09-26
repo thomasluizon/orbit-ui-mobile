@@ -120,12 +120,6 @@ try {
     }
     return statuses
   }
-  /**
-   * A head is settled only when the same completed set is seen on two consecutive quiet polls, with no
-   * workflow run for that head still queued or running. A fast check can finish before a slower
-   * workflow has registered its checks (Pullfrog on PR 1091, twice), and a workflow run exists from
-   * dispatch, before any of its check runs does.
-   */
   const lastQuietSet = new Map()
   while (!finished) {
     for (const entry of result.pullRequests) {
@@ -159,8 +153,6 @@ try {
         ...statuses.filter((item) => ["failure", "error"].includes(item.state)).map((item) => item.context),
       ]
       const runsPending = (await runsForHead(entry.head)).some((run) => run.status !== "completed")
-      // A head that has registered no check yet is not settled: the workflows it will start are still
-      // being dispatched, and an empty set would pass `every` vacuously (Pullfrog on PR 1091).
       const quiet = completedNames.size > 0 && !pending && !runsPending && requiredChecks.every((name) => completedNames.has(name))
       const observed = [...completedNames].sort().join("\n")
       entry.settled = quiet && lastQuietSet.get(entry.number) === observed

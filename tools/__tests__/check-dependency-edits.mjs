@@ -53,10 +53,6 @@ export const cases = () => {
 
   const edited = stageTree("edited")
   stagePackage(edited.nodeModules, "react-native", { "index.js": 0 })
-  /**
-   * The measured shape of the 2026-09-18 incident: one file inside an otherwise untouched package,
-   * written three hours after the package was extracted.
-   */
   writeAt(
     join(edited.nodeModules, "react-native", "ReactNativeFeatureFlagsDefaults.kt"),
     "enableImperativeFocus = true\n",
@@ -75,13 +71,6 @@ export const cases = () => {
     { status: 1, stderr: /rm -rf node_modules\/react-native && npm install[\s\S]*plain npm install leaves a complete package alone/ },
   )
 
-  /**
-   * The reference is the package's own EARLIEST file, not its `package.json`, because the manifest
-   * sits inside the same mutable tree. Measured 2026-09-19: with the manifest rewritten to the edit
-   * time, the tool printed `No dependency was edited in place` and exited 0 over two edited files,
-   * publishing a positive clean verdict across its own blind spot. A postinstall script or a worker
-   * that also touches the manifest buys that silence for free.
-   */
   const blinded = stageTree("blinded")
   const blindedPackage = stagePackage(blinded.nodeModules, "react-native", { "index.js": 0, "src/entry.js": 4 })
   writeAt(join(blindedPackage, "ReactNativeFeatureFlagsDefaults.kt"), "enableImperativeFocus = true\n", at(3 * 60 * 60))
@@ -146,11 +135,6 @@ export const cases = () => {
 
   const tolerance = stageTree("tolerance")
   stagePackage(tolerance.nodeModules, "@tabler/icons-react-native", { "dist/IconAB.d.ts": 93 })
-  /**
-   * 93 seconds is the widest honest extraction span measured in this repository's own tree, so the
-   * default must pass it. A caller that narrows the tolerance sees it, which is what makes the
-   * default a real threshold rather than a number that can never fire.
-   */
   check(
     TOOL,
     "the default tolerance absorbs a large package's extraction span",

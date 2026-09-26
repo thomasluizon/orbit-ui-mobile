@@ -1,32 +1,4 @@
 #!/usr/bin/env node
-/**
- * Persist and evaluate one final-head readiness receipt from artifacts produced by the harness.
- *
- * One live read, not two. This tool reads the pull request, its required checks, the compare,
- * and the ticket ONCE, evaluates everything against that snapshot, and writes the receipt. The
- * previous revision read the pull request twice per invocation (an opening read and a closing
- * revalidation) to catch a seconds-wide race; measured 2026-08-09, that doubling was one of the
- * consumers that exhausted the per-user GraphQL budget and stalled the entire run. The race it
- * guarded self-corrects: the readiness loop re-records after every artifact update and always ends
- * by recording, so a receipt is at most minutes old, and the final verifier of live state is
- * Thomas, who tests and merges every pull request by hand.
- *
- * The code review arrives through the checks this tool already reads: Pullfrog reviews every pull
- * request in GitHub Actions and publishes `pullfrog-approval`, a required status check on both `main`
- * branches. With no required inventory, this tool still requires that app-pinned review check. A
- * separate review artifact would be a weaker copy of the same verdict.
- *
- * ONE exception, and it is narrow (#440). When that check is absent from the rollup entirely, the
- * tool reads the review it publishes instead: the NEWEST Pullfrog review at the exact head, and only
- * an APPROVED one. That is stronger evidence than the check, not weaker, because the check is a
- * publication of exactly that review. A newest review at the head that is not an approval excuses
- * nothing, and a check that is present but red is never waived.
- *
- * The pull request read is one `gh api graphql` call because branch protection pins a required
- * check to a producing app and `gh pr view --json statusCheckRollup` drops that identity. Both
- * commands send exactly one GraphQL request, so the budget above is unchanged. See
- * PULL_REQUEST_STATE_QUERY.
- */
 
 import { readFileSync } from "node:fs"
 
@@ -156,21 +128,8 @@ try {
     fail(`required checks for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
   }
   if (requiredChecks === null) fail(`required checks for PR ${prNumber} returned no { context, app_id } checks array`)
-  /** Delivery owns registration observation; this single live snapshot revalidates its evidence.
-   * `reviewChecksFor` supplies the review axis when protection names no required check (#429). */
   const reviewChecks = reviewChecksFor(requiredChecks)
   const matchesDelivery = ci.registrationFingerprint === registrationFingerprint(live, newestChecks(live.statusCheckRollup))
-  /**
-   * The published `pullfrog-approval` check run stopped appearing during the night of 2026-09-06
-   * while the reviews themselves stayed healthy, so no receipt could reach READY and an unattended
-   * run could never end as finished (#440). The check is a PUBLICATION of the review, so an APPROVED
-   * review at the exact head is the stronger evidence, not the weaker one, and it stands in when the
-   * publication is missing.
-   *
-   * It stands in only for that one context, only when the check is absent from the rollup entirely,
-   * and only for an APPROVED verdict at the CURRENT head. A newest review at the head that is
-   * COMMENTED or CHANGES_REQUESTED excuses nothing and the receipt stays not ready.
-   */
   const resolved = await resolveReviewVerdict(live, async (cursor) => {
     const page = await runBounded(
       process.env.GH_BIN || "gh",

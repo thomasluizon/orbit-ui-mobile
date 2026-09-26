@@ -1,25 +1,4 @@
 #!/usr/bin/env node
-/**
- * Find a file inside an installed dependency that was written AFTER its package was extracted.
- *
- * WHY this exists, measured 2026-09-18. Two files inside `node_modules/react-native` were edited by
- * hand three hours after the package was installed. `npm install` did not repair them: it reported
- * `removed 11 packages, and audited 1680 packages in 7s` and left the package alone, because the
- * lockfile entry already matched what was on disk. `package-lock.json` carries an integrity hash
- * for the TARBALL and npm never re-verifies an extracted tree, so nothing noticed for two days
- * while four contradictory citations of those two files were published across three sessions.
- * Every one was accurate about the tree its author read.
- *
- * The signal that did catch it is mtime. Every file npm extracts for one package shares that
- * package's extraction time, so a file much later than the package's EARLIEST file was written by
- * something other than the install. The earliest file rather than `package.json`, because the
- * manifest sits inside the same mutable tree: see the WHY on scanPackage.
- *
- * This is NOT a CI gate and is deliberately not wired into guards.yml: `node_modules` is never
- * committed, and CI installs a fresh tree whose files are clean by construction. It is a local
- * command a session runs in seconds before it cites installed source, and the repair when it finds
- * something is `rm -rf node_modules/<package>` plus an install.
- */
 
 import { readdirSync, statSync } from "node:fs"
 import { dirname, join, relative, resolve, sep } from "node:path"
@@ -44,13 +23,6 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
   process.exit(0)
 }
 
-/**
- * The tolerance is the extraction SPAN of one package, not a guess. Measured against this
- * repository's 2026-09-19 tree, 1671 packages and 187012 files: the widest span between a
- * package's earliest and latest file is 145 seconds (`@tabler/icons-react-native`), then 99s, 93s,
- * 91s and 79s, and zero packages exceed 300, so the whole tree reports clean at the default. The
- * edits this tool exists to find were 10800 seconds late, which is 74 times the widest honest span.
- */
 const DEFAULT_TOLERANCE_SECONDS = 300
 /** A long listing is not a report. The count is always exact; the listing is bounded. */
 const MAXIMUM_LISTED_FINDINGS = 50
@@ -128,22 +100,6 @@ function scanPackage(packageDirectory, packageName) {
   const collected = []
   collectPackageFiles(packageDirectory, collected)
   if (collected.length === 0) return
-  /**
-   * The reference is the package's EARLIEST file, not its `package.json`.
-   *
-   * Measured 2026-09-19: with the manifest rewritten to the edit time, this tool printed
-   * `No dependency was edited in place` and exited 0 over two edited files, because the reference
-   * lives inside the same mutable tree it judges. A postinstall script, or a worker that also
-   * touches the manifest, buys that silence for free, and a positive clean verdict over a blind
-   * spot is worse than no verdict.
-   *
-   * The earliest file is safe as a reference because npm writes one extraction per package.
-   * Measured over this repository's 2026-09-19 tree, 1671 packages and 187012 files: the widest
-   * max-minus-min span inside one package is 145s (`@tabler/icons-react-native`), then 99s, 93s,
-   * 91s and 79s, and ZERO packages exceed the 300s default. Re-measure with
-   * `node tools/check-dependency-edits.mjs --tolerance-seconds 150` before narrowing it.
-   * It also makes a rewritten `package.json` report itself, which the old reference never could.
-   */
   let extractedAtMs = collected[0].modifiedAtMs
   for (const file of collected) if (file.modifiedAtMs < extractedAtMs) extractedAtMs = file.modifiedAtMs
   for (const file of collected) {

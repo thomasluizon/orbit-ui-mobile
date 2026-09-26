@@ -1,27 +1,4 @@
 #!/usr/bin/env node
-/**
- * Withhold a redesign pull request that carries no review-harness evidence.
- *
- * Three pull requests (#766, #765, #763) merged into `redesign/main` with green CI, a Pullfrog
- * approval and zero unresolved threads, and none of them ran `interface-review` or
- * `better-interface` in full mode, which their tickets required. The retroactive pass then found a
- * HIGH regression nothing mechanical would have caught (thomasluizon/orbit-tickets#380).
- *
- * This gate only ever WITHHOLDS. It cannot grant visual completion and does not try to: it reads
- * the pull request body and fails when the evidence block is absent or empty. D13 retired the
- * per-cell status ledger (`.claude/manifests/signoff.json`, `forbid-gate-tamper`,
- * `check-surface-coverage.mjs`) and forbids rebuilding one, so nothing here records per-surface
- * state, writes a manifest, or persists a verdict. It reads one string and exits.
- *
- * It is a speed bump, not a proof: an author can write a block that says little. That is the
- * accepted cost of the only shape D13 leaves open. What it removes is the silent skip.
- *
- * APPLICABILITY is mechanical rather than label-driven, so no label discipline can defeat it: the
- * base must be `redesign/main` (D80 sends every redesign pull request there) AND at least one
- * changed file must be UI scope. A tooling or groundwork pull request to `redesign/main` renders
- * nothing, so it is not applicable and needs no block. That is the exemption, and it is derived
- * from the diff rather than declared by whoever opened the pull request.
- */
 
 import { readFileSync } from "node:fs"
 import {

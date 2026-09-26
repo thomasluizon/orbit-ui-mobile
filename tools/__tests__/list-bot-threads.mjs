@@ -4,22 +4,10 @@ import { readObservedIdentifiers } from "../lib/identifier-ledger.mjs"
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "list-bot-threads.mjs"
-/**
- * The GraphQL spelling, because that is the only API this tool reads. Both spellings were read on
- * 2026-08-12: REST prints `pullfrog[bot]` and GraphQL prints `pullfrog` for the same review on pull
- * request 711.
- */
 const BOT = "pullfrog"
 const RUN_IDENTIFIER = "list-bot-threads-current-run"
 let testedToolPath = null
 
-/**
- * No Pullfrog review has opened a review thread in this repository yet, so no thread body has been
- * measured to copy. The markup below is the markup Pullfrog really writes: its review on pull
- * request 711, read 2026-08-12, used `**bold**` headings, markdown prose, and raw HTML including an
- * HTML comment block of review metadata. The assertions never depend on the wording, only on what
- * the tool must do with ANY body: strip the markup, take the first readable line, and report P1.
- */
 const THREAD_BODY = "**Honor the configured timeout for every GitHub child**\n\nWhen the poller runs, this still uses the default bound.\n\n<!-- Pullfrog review metadata -->"
 
 const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", reviewId = "PRR_kwDOR5Siws8AAAABNo7WdA", isResolved = false, isOutdated = false, path = "tools/launch-worker.mjs", line = 42, body = THREAD_BODY, login = BOT } = {}) => ({
@@ -35,7 +23,7 @@ const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
 const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
 const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
 const REPOINTED_HEAD = "4cc1f620dae30df23b09cdbfb7ceb69a45fe35cf"
-/** PR 1107's repository activity entry, read from GitHub on 2026-09-26. */
+/** Keep the activity response shape for review freshness checks. */
 const activity = (after = HEAD, timestamp = "2026-08-04T22:01:00Z", activity_type = "push") => [{
   activity_type, actor: { login: "<actor>" }, after, before: OLD_HEAD, id: 1,
   node_id: "<activity-id>", ref: "refs/heads/fix/example", timestamp,
@@ -69,7 +57,6 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], c
     },
   })
 
-/** APPROVED is the state Pullfrog really used for its clean pass on pull request 711. */
 const botReview = (state = "APPROVED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "", id = "PRR_kwDOR5Siws8AAAABNo7WdA") => ({ id, author: { login: BOT }, state, submittedAt, body, commit: { oid } })
 const ghPlan = (stdout, exit = 0, activities) => {
   let headRefOid = HEAD
@@ -116,12 +103,6 @@ export const cases = () => {
   hermeticConfig.repos = { ...hermeticConfig.repos, ui: uiContext.path, api: apiContext.path }
   testedToolPath = stageWithConfig("list-bot-threads-hermetic", TOOL, hermeticConfig).path
 
-  /**
-   * THE ambiguity this tool exists to remove. Zero threads plus a real review is CLEAN; zero
-   * threads and no review is NOT, and a caller reading the thread count alone cannot tell them
-   * apart. The verdict is derived from the review, never from the count. Pull request 711 is the
-   * live case: Pullfrog approved and opened no thread at all.
-   */
   const clean = readPr(payload({ reviews: [botReview()] }))
   const cleanPlan = parsed(clean)
   T(
@@ -174,11 +155,6 @@ export const cases = () => {
     changes.status === 0 && changesPlan?.verdict === "CHANGES_REQUESTED" && changesPlan.counts.total === 0,
     changes.stdout || changes.stderr,
   )
-  /**
-   * Raised in review on this tool's own pull request (#682). Without the body a caller learns it is
-   * blocked and NOTHING about why, because this verdict's whole complaint lives in the review body
-   * and no thread carries it.
-   */
   T(
     `${TOOL}: CHANGES_REQUESTED carries the review body, which is its only statement of the problem`,
     changesPlan?.reviewBody === "The migration drops a column old clients still read.",
@@ -189,12 +165,6 @@ export const cases = () => {
     parsed(clean)?.reviewBody === null,
     clean.stdout,
   )
-  /**
-   * The live shape of an APPROVED body, read 2026-08-12 on pull request 711 and on orbit-api pull
-   * request 473: a clean-pass callout, a summary of the diff, and the metadata block. It is never
-   * empty, so the `clean` fixture above proves nothing about a real approval. A clean pass states
-   * no complaint, so the caller gets zero findings on both surfaces.
-   */
   const approvedWithBody = readPr(payload({ reviews: [botReview("APPROVED", "2026-08-12T16:04:16Z", HEAD, "> No new issues found.\n\n**Reviewed changes** Reviewed the pinned action update.\n\n<!-- Pullfrog review metadata -->")] }))
   const approvedPlan = parsed(approvedWithBody)
   T(
@@ -202,13 +172,6 @@ export const cases = () => {
     approvedWithBody.status === 0 && approvedPlan?.verdict === "REVIEWED" && approvedPlan.reviewState === "APPROVED" && approvedPlan.counts.total === 0 && approvedPlan.reviewBody === null,
     approvedWithBody.stdout || approvedWithBody.stderr,
   )
-  /**
-   * Raised by Pullfrog on this branch's own pull request (#716), and it was right. A COMMENTED
-   * review is a completed review that did not approve, and it can carry its whole finding in the
-   * body while opening no thread. Reporting REVIEWED with zero findings there leaves step 8 nothing
-   * to fix and nothing to file while `pullfrog-approval` stays red. The body is the finding, so the
-   * caller must receive it.
-   */
   const COMMENTED_BODY = "> [!IMPORTANT]\n> The readiness path drops the app identity of a required check.\n\n**Reviewed changes** Reviewed the readiness receipt and the thread reader.\n\n<!-- Pullfrog review metadata -->"
   const commentedWithBody = readPr(payload({ reviews: [botReview("COMMENTED", "2026-08-12T18:48:24Z", HEAD, COMMENTED_BODY)] }))
   const commentedPlan = parsed(commentedWithBody)
@@ -288,14 +251,6 @@ export const cases = () => {
     superseded.status === 1 && parsed(superseded)?.verdict === "CHECK_FAILED" && parsed(superseded)?.reviewState === "COMMENTED" && parsed(superseded)?.reviewBody === "A later P1 finding." && parsed(superseded)?.checkConclusion === "FAILURE",
     superseded.stdout || superseded.stderr,
   )
-  /**
-   * --re-review is the ONLY transition that can clear a finding carried in a review body, because
-   * such a finding opens no thread to resolve and filing it pushes nothing. Raised by Pullfrog on
-   * this branch's own pull request (#716) as a convergence hole, and it was right.
-   *
-   * Both the argument guards AND the freshness sequence are asserted, because the freshness
-   * predicate is a correctness signal and not informational output.
-   */
   const contradiction = readPr(payload({}), 0, ["--re-review", "--no-request"])
   T(
     `${TOOL}: --re-review and --no-request contradict each other and are refused`,
@@ -308,25 +263,6 @@ export const cases = () => {
     noWait.status === 2 && /--wait-seconds above 0/.test(noWait.stderr),
     noWait.stdout || noWait.stderr,
   )
-  /**
-   * The race Pullfrog named on pull request 716: a same-head review already in flight lands after
-   * the run's opening read but answers nothing. Binding freshness to the REQUEST comment's own
-   * GitHub timestamp is what rejects it. Introspected 2026-08-12: `PullRequestReview.submittedAt`
-   * is a NULLABLE `DateTime` and `IssueComment.createdAt` is `NON_NULL DateTime`, so the boundary
-   * is always readable and the review timestamp may not be.
-   */
-  /**
-   * The fixture must never claim a field the real query does not select.
-   *
-   * Every case below builds its payload by hand, so a payload can carry a key GitHub would never
-   * return and the whole file still passes while the tool is dead in production. That happened:
-   * `bindRequestBoundary` read `comments.nodes` after an earlier change had dropped the
-   * pull-request-level `comments` selection, so `--re-review` could never bind its boundary and
-   * always expired as NO_REVIEW. Pullfrog caught it on pull request 716; this gate could not,
-   * because the fixture agreed with the mistake.
-   *
-   * So the QUERY is asserted against the fields the code reads from it, straight out of the source.
-   */
   const toolSource = readFileSync(testedToolPath, "utf8")
   const querySource = /const QUERY = `([\s\S]*?)`/.exec(toolSource)?.[1] ?? ""
   const prLevelComments = /\n\s{6}comments\(last:\d+\)\{nodes\{([^}]*)\}\}/.exec(querySource)?.[1] ?? ""
@@ -366,15 +302,6 @@ export const cases = () => {
   const reReviewRun = (stdout) =>
     run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--re-review", "--wait-seconds", "3", "--poll-seconds", "1"], { path: testedToolPath, env: reReviewPlan(stdout) })
 
-  /**
-   * The state MUST change between the opening read and the poll, because that is the only shape in
-   * which the race exists. A fixed payload proves nothing here: the superseded predicate rejects it
-   * either way, so the case would pass with the bug present.
-   *
-   * Read 1 sees review A alone, which is what a baseline taken at open would pin. Read 2 adds
-   * review B, submitted after A but BEFORE our request. Bound to the opening read, B looks fresh
-   * and is wrongly accepted. Bound to the request, B is correctly refused.
-   */
   const raceSequence = stage("list-bot-threads/re-review-race", "0")
   const inFlight = run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--re-review", "--wait-seconds", "3", "--poll-seconds", "1"], { path: testedToolPath, env: {
     ...orcaEnv([
@@ -512,12 +439,6 @@ export const cases = () => {
   const otherBot = readPr(payload({ reviews: [{ author: { login: "sonarqubecloud" }, state: "COMMENTED", submittedAt: "2026-08-04T23:00:00Z", commit: { oid: HEAD } }] }))
   T(`${TOOL}: another bot's review does not stand in for Pullfrog's`, otherBot.status === 1 && parsed(otherBot)?.verdict === "NO_REVIEW", otherBot.stdout || otherBot.stderr)
 
-  /**
-   * Raised in review on this tool's own pull request (#682), and it was right. Pullfrog re-reviews
-   * after a push, so between the push and the re-review its newest review still names the OLD head.
-   * Accepting it reports REVIEWED for code Pullfrog never saw, which is the very defect this tool
-   * exists to remove. A review is evidence about its own commit and nothing else.
-   */
   const stale = readPr(payload({ reviews: [botReview("APPROVED", "2026-08-04T23:16:35Z", OLD_HEAD)], threads: [thread()] }))
   const stalePlan = parsed(stale)
   T(

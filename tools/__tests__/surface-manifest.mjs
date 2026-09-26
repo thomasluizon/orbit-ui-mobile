@@ -47,15 +47,6 @@ export async function cases() {
   repository.git(["add", ...Object.keys(files)])
   repository.git(["commit", "-q", "-m", "surface fixture"])
 
-  // Android Studio writes this file on first open, so it exists only on a developer machine. A
-  // manifest that counts it disagrees with the CI regeneration over a file that is not in git, and
-  // the drift gate then goes red on a change nobody can reproduce.
-  //
-  // What excludes it is that it is UNTRACKED, not that .gitignore names it: `git ls-files` reads
-  // the index and never consults ignore rules. The fixture .gitignore staged above therefore
-  // changes no outcome here and is present only to mirror the real repository. Do not read this
-  // case as proof the generator honours .gitignore and replace `git ls-files` with
-  // `git check-ignore`, which would stop excluding an untracked file nothing ignores.
   write(join(repository.path, "apps/mobile/modules/orbit-widget/android/local.properties"), "sdk.dir=/opt/android-sdk\n")
 
   const result = run("surface-manifest.mjs", ["--baseline", "HEAD", "--json"], {
@@ -119,16 +110,6 @@ export async function cases() {
   const baseline = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repository.path, encoding: "utf8" }).stdout.trim()
   const checkArgs = ["--baseline", baseline, "--check"]
 
-  // The property every drift assertion below rests on: the generator is a function of the tree and
-  // this machine. A generator that answers differently twice over one unchanged tree turns the gate
-  // into a coin toss, and no amount of drift coverage would show it. Two runs on ONE machine cannot
-  // see the cross-platform class, where the two runs differ by path separator rather than by tree;
-  // `chatBlockEntries` carries that one, and its own comment names the condition.
-  //
-  // Both exit codes are asserted because the generator writes nothing on a non-zero exit. Without
-  // them a second run that crashed would leave the first run's bytes on disk and the byte
-  // comparison would pass, so the single assertion the drift gate rests on would go green on a
-  // dead process.
   const firstDerivation = run("surface-manifest.mjs", ["--baseline", baseline], checkOptions)
   T("the first determinism run writes a manifest", firstDerivation.status === 0, firstDerivation.stderr)
   const firstWrite = readFileSync(manifestPath, "utf8")

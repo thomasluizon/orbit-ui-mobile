@@ -1,0 +1,9 @@
+{
+  "model": "gpt-6-luna",
+  "promptDigest": "780092b4659dfd6e",
+  "casesDigest": "80a491bfa2238af3",
+  "responsesDigest": "0d605e79be945d54",
+  "calibratedAt": "2026-09-26",
+  "agreement": "41/41",
+  "verdict": "classifier matched all 41 recorded ticket cases"
+}

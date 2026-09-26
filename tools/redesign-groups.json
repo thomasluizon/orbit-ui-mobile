@@ -232,63 +232,63 @@
   "deleted": [
     {
       "surfaceId": "route-insights",
-      "decision": "D69 (2026-08-16): the /insights route was deleted and its figures moved to Orbit Progresso."
+      "decision": "D69: the /insights route is absent; Orbit Progresso owns its figures."
     },
     {
       "surfaceId": "route-retrospective",
-      "decision": "D69 (2026-08-16): the retrospective became an Astra-delivered event with no dedicated route."
+      "decision": "D69: the retrospective is an Astra-delivered event without a dedicated route."
     },
     {
       "surfaceId": "route-retrospective-empty",
-      "decision": "D69 (2026-08-16): the retrospective empty screen became unreachable when its dedicated route was deleted."
+      "decision": "D69: the retrospective has no dedicated route, so its empty screen is unreachable."
     },
     {
       "surfaceId": "route-retrospective-locked",
-      "decision": "D69 (2026-08-16): the retrospective locked screen became unreachable when its dedicated route was deleted."
+      "decision": "D69: the retrospective has no dedicated route, so its locked screen is unreachable."
     },
     {
       "surfaceId": "route-retrospective-no-data",
-      "decision": "D69 (2026-08-16): the retrospective no-data screen became unreachable when its dedicated route was deleted."
+      "decision": "D69: the retrospective has no dedicated route, so its no-data screen is unreachable."
     },
     {
       "surfaceId": "desktop-stats-rail",
-      "decision": "D69 (2026-08-16): Orbit Progresso owns these figures and the rail width moved to the conversation panel."
+      "decision": "D69: Orbit Progresso owns these figures; the conversation panel occupies the rail width."
     },
     {
       "surfaceId": "route-explore",
-      "decision": "Pre-D69 social deletion, retained by D69 (2026-08-16): the web-only /explore hub was removed with the social layer."
+      "decision": "D69: the web-only /explore hub is absent with the social layer."
     },
     {
       "surfaceId": "social-layer",
-      "decision": "Pre-D69 social deletion, retained by D69 (2026-08-16): friends, feed, cheers, challenges, accountability, and public profiles were removed."
+      "decision": "D69: friends, feed, cheers, challenges, accountability, and public profiles are absent."
     },
     {
       "surfaceId": "m-overlay-tour-tour-overlay",
-      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+      "decision": "D69 item 17: the onboarding tour is absent."
     },
     {
       "surfaceId": "m-overlay-tour-tour-replay-modal",
-      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+      "decision": "D69 item 17: the onboarding tour is absent."
     },
     {
       "surfaceId": "m-overlay-ui-push-prompt",
-      "decision": "D69 item 17 (2026-08-16): notification permission moved into onboarding, deleting the standalone push prompt."
+      "decision": "D69 item 17: notification permission belongs to onboarding; the standalone push prompt is absent."
     },
     {
       "surfaceId": "overlay-tour-tour-replay-modal",
-      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+      "decision": "D69 item 17: the onboarding tour is absent."
     },
     {
       "surfaceId": "overlay-tour-tour-spotlight",
-      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+      "decision": "D69 item 17: the onboarding tour is absent."
     },
     {
       "surfaceId": "overlay-tour-tour-tooltip",
-      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+      "decision": "D69 item 17: the onboarding tour is absent."
     },
     {
       "surfaceId": "m-overlay-ui-selection-field",
-      "decision": "#543 (2026-09-18): apps/mobile/components/ui/selection-field.tsx was deleted when every mobile radio group moved onto the single RadioGroup primitive, so a second mobile radio implementation no longer decides whether a caller gets keyboard navigation."
+      "decision": "Mobile radio groups use the RadioGroup primitive for keyboard navigation; no second implementation is needed."
     }
   ],
   "excluded": [
@@ -309,7 +309,7 @@
     "m-overlay-progress-progress-content": "apps/mobile/components/progress/progress-content.tsx is the live body of the Progresso tab, reached from apps/mobile/app/(tabs)/progress.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
     "overlay-components-progress-content": "apps/web/app/(app)/progress/_components/progress-content.tsx is the live body of the /progress route, reached from apps/web/app/(app)/progress/page.tsx. It reads as an overlay only because it imports ConfirmSheet directly, which is a listed overlay base.",
     "m-overlay-habits-goal-linking-field": "Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
-    "m-widget-orbit-widget": "D66 added the Android widget to the manifest; the 2026-08-24 decision assigns it to its canvas document instead of excluding it.",
+    "m-widget-orbit-widget": "D66 assigns the Android widget to its canvas document.",
     "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md.",
     "route-turnstile-bridge": "Orbit Entrar owns the headless Turnstile bridge used by Android sign-in; it has no separate visible canvas."
   }

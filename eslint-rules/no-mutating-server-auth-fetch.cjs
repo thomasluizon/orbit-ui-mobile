@@ -1,23 +1,3 @@
-/**
- * Local ESLint rule: a write goes through `serverAuthMutate`, never `serverAuthFetch`.
- *
- * `serverAuthMutate` takes the account that formed the intent as a required argument, so the
- * server can refuse a request whose cookie has since moved to somebody else. `serverAuthFetch`
- * takes no account, because a read under the next account's cookie returns that account's own
- * data and needs no guard.
- *
- * The line is held by the type: `serverAuthFetch` accepts `method?: 'GET' | 'HEAD'`, so a
- * mutating method does not compile however it is written. This rule is the second reading, in the
- * editor and in lint, of what the compiler already refuses.
- *
- * It reads the `method` from the call's own init object literal, through an `as` or a `satisfies`
- * cast, and from a template literal with no substitutions. It reads the file's imports once, so a
- * renamed import and a namespace import both still report. A call whose init is a variable, whose
- * method is computed, or whose callee is a property of some other object is not reported: the rule
- * proves what it can see, and a rule that guessed would be argued with rather than obeyed. The
- * type covers what is left.
- */
-
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 const FETCH_NAME = 'serverAuthFetch'
@@ -36,13 +16,6 @@ function importedName(specifier) {
   return imported.type === 'Identifier' ? imported.name : imported.value
 }
 
-/**
- * The local names in this file that stand for `serverAuthFetch`, and the namespace names that
- * carry it as a property.
- *
- * An import is always top level, so one pass over the program body finds every alias without
- * resolving a scope on each of the file's calls.
- */
 function collectImportNames(program) {
   const aliases = new Set([FETCH_NAME])
   const namespaces = new Set()

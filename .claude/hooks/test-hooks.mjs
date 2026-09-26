@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-// Regression suite for the nine surviving session hooks. Three layers:
-//   1. Wiring: settings.json and the hooks directory must agree in BOTH
-//      directions. A hook deleted while settings.json still names it is exactly
-//      how this suite was broken on 2026-08-04, and nothing else catches it.
-//   2. Rule units: the pure cores in _lib/ judged in isolation.
-//   3. Real hook files: run each one with a stdin payload and assert the exit
-//      code, so the thin adapter is proven to preserve block/allow.
-// Plus a cheap frontmatter check over the agents and skills this repo ships.
-// Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
@@ -24,6 +15,7 @@ import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_li
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-dependencies.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
+import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -81,7 +73,6 @@ T("git: force push to main blocks", blocks(checkGitCommand("git push --force ori
 T("git: force-with-lease to main blocks", blocks(checkGitCommand("git push --force-with-lease origin main")), true)
 T("git: push to a feature branch allows", checkGitCommand("git push origin feature/x"), null)
 // A ref ENDING in /main is a different branch. redesign/main takes direct pushes by convention,
-// and blocking it produced a refusal indistinguishable from a real one (2026-08-22).
 T("git: push to redesign/main allows", checkGitCommand("git push origin redesign/main"), null)
 T("git: push to refs/heads/redesign/main allows", checkGitCommand("git push origin refs/heads/redesign/main"), null)
 T("git: push to refs/heads/main still blocks", blocks(checkGitCommand("git push origin refs/heads/main")), true)
@@ -93,12 +84,9 @@ T("git: redesign/main:refs/heads/main still blocks", blocks(checkGitCommand("git
 // And the reverse lands on redesign/main, so it is ordinary work.
 T("git: main:refs/heads/redesign/main allows", checkGitCommand("git push origin main:refs/heads/redesign/main"), null)
 // The rule reads the git SUBCOMMAND, not the word push anywhere on the line. A branch name carrying
-// that word blocked its own checkout while `main` sat later on the same command (2026-08-22).
 T("git: checkout of a branch named for push allows", checkGitCommand("git checkout -b chore/x-push-guard main"), null)
 T("git: log naming a push branch allows", checkGitCommand("git log --oneline main..chore/push-guard"), null)
 T("git: -C before push still blocks", blocks(checkGitCommand("git -C . push origin main")), true)
-// The segment is raw shell text, so a token can arrive quoted. Reading `"push"` as a different
-// subcommand would wave a shell-valid push straight through (Pullfrog, PR #743).
 T("git: a quoted push subcommand still blocks", blocks(checkGitCommand('git "push" origin main')), true)
 T("git: a quoted main ref still blocks", blocks(checkGitCommand('git push origin "main"')), true)
 T("git: single-quoted push still blocks", blocks(checkGitCommand("git 'push' origin main")), true)
@@ -110,8 +98,6 @@ T("git: embedded quotes in the ref still block", blocks(checkGitCommand('git pus
 T("git: an escaped ref still blocks", blocks(checkGitCommand("git push origin ma\\in")), true)
 // And normalizing must not invent a match where none exists.
 T("git: escaped redesign/main still allows", checkGitCommand("git push origin redesign/\\main"), null)
-// An environment assignment is not the command word. Matching the first textual `git` let one
-// stand in for it and the push went unjudged (Pullfrog, PR #743).
 T("git: env assignment naming git still blocks", blocks(checkGitCommand("FOO=git git push origin main")), true)
 T("git: a PATH prefix naming git still blocks", blocks(checkGitCommand("PATH=/opt/git/bin:$PATH git push origin main")), true)
 T("git: an absolute git path still blocks", blocks(checkGitCommand("/usr/bin/git push origin main")), true)
@@ -149,7 +135,6 @@ for (const [label, method] of [
 }
 T("admin-merge: curl PUT to the merge endpoint blocks", blocks(checkAdminMerge("curl -X PUT https://api.github.com/repos/o/r/pulls/667/merge")), true)
 T("admin-merge: wget PUT to the merge endpoint blocks", blocks(checkAdminMerge("wget --method=PUT https://api.github.com/repos/o/r/pulls/667/merge")), true)
-// KNOWN GAP, measured 2026-08-04 and stated rather than implied: the method is
 // matched only as a FLAG, so httpie's positional form `http PUT <merge-url>` is
 // allowed. `httpie` is in the rule's client set but the shape it actually types
 // is not covered. Fixing it belongs in _lib/rules-orchestrator.mjs, not here.
@@ -158,7 +143,7 @@ T("admin-merge: a PUT to another endpoint allows", checkAdminMerge("gh api -XPUT
 T("admin-merge: reading the merge endpoint allows", checkAdminMerge("gh api repos/o/r/pulls/667/merge"), null)
 T("admin-merge: another GraphQL mutation allows", checkAdminMerge("gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"x\"}){thread{isResolved}}}'"), null)
 T(`admin-merge: a commit message naming ${ADMIN} allows`, checkAdminMerge(`git commit -m "forbid gh pr merge ${ADMIN}"`), null)
-T("admin-merge: the refusal says to ask Thomas", checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask him to"), true)
+T("admin-merge: the refusal says to ask the owner", checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask the owner to"), true)
 for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
   T(
     `admin-merge: leading dynamic redirect ${redirect} cannot hide an admin merge`,
@@ -240,6 +225,11 @@ mkdirSync(join(mainCheckout, ".git", "worktrees", "feat"), { recursive: true })
 mkdirSync(linkedWorktree, { recursive: true })
 writeFileSync(join(linkedWorktree, ".git"), `gitdir: ${join(mainCheckout, ".git", "worktrees", "feat")}\n`)
 mkdirSync(join(linkedWorktree, "named-dir"), { recursive: true })
+mkdirSync(join(linkedWorktree, ".claude"), { recursive: true })
+writeFileSync(join(linkedWorktree, ".claude", "orchestrator.json"), JSON.stringify({ repos: { ui: ".", api: "../orbit-api", landing: "../orbit-landing-page" } }))
+T("repo roots: linked worktree resolves configured siblings from the primary checkout",
+  declaredRepoRoots(linkedWorktree),
+  [linkedWorktree, mainCheckout, join(root, "orbit-api"), join(root, "orbit-landing-page")])
 T("engine: a cwd inside a linked worktree allows", checkEngineInvocation("codex exec", { cwd: linkedWorktree, repoRoots: [mainCheckout] }), null)
 T("engine: the main checkout is not a linked worktree", blocks(checkEngineInvocation("codex exec", { cwd: mainCheckout, repoRoots: [mainCheckout] })), true)
 const stagingMain = join(root, "staging-main")
@@ -315,13 +305,11 @@ T("staging: an attached -m value containing broad flag letters is allowed", work
 T("staging: an attached -F value containing broad flag letters is allowed", workerStaging("git commit -Fpath-to-message"), null)
 T("staging: an attached -S key ID containing broad flag letters is allowed", workerStaging("git commit -Sapi"), null)
 T("staging: broad add outside a worker is untouched", checkBroadStaging("git add -A", { cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
-// REGRESSION (fixed 2026-08-04). The previous revision split the command on a
 // bare /[&|;\n]/, so the `|` inside the quoted search pattern produced a phantom
 // segment whose first token resolved to `codex`, and a read-only grep was
 // refused. A search PATTERN is data, never an invocation.
 T("engine: a grep whose PATTERN contains the engine names allows", engine("grep -rnE 'claude|codex' tools/"), null)
 T("engine: the same grep with double quotes allows", engine('grep -rn "claude|codex" tools/'), null)
-// REGRESSION (fixed 2026-08-04). The previous revision keyed on the binary alone
 // and refused `codex --version`, which starts no model session: the refusal
 // protected no budget and only broke ordinary preflight.
 T("engine: codex --version allows", engine("codex --version"), null)
@@ -331,10 +319,7 @@ T("engine: a commit message naming the engine allows", engine('git commit -m "st
 T("engine: a path containing .claude is not the claude binary", engine("cat .claude/skills/second-opinion/SKILL.md"), null)
 
 console.log("\n# forbid-worker-browser (_lib/rules-worker.mjs)")
-// A worker never opens a browser and never starts a server, unconditionally. Measured 2026-08-06:
-// ORB-39 and ORB-98 both finished their tickets, then spent the rest of their budgets on a dev
-// server and a login page a worktree can never authenticate against, and both needed rescuing.
-// The discrimination is the CALLER, never the command: Thomas runs /dev-server whenever he likes.
+// Only launcher workers are barred from browsers; the owner may use the dev server.
 const worker = (command, options) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" }, repoRoots: [], ...options })
 for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo start", "npx playwright test", "maestro test flow.yaml", "curl http://localhost:3920/login", "adb shell input tap 1 1"]) {
   T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)
@@ -363,7 +348,6 @@ T("worker-browser: an unrelated npm script named dev-docs allows", worker("npm r
 T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
 
 console.log("\n# forbid-node-modules-write (_lib/rules-dependencies.mjs)")
-// Measured 2026-09-18: two files inside node_modules/react-native were edited three hours after
 // the package was extracted, npm install left them alone, and four contradictory citations of
 // those two files were published across three sessions. Unlike the browser ban, this one takes no
 // caller: the damage is to what every later reader sees, not to one session's budget.
@@ -400,10 +384,6 @@ T(
   symlinkFixtureError ? `fixture unavailable: ${symlinkFixtureError}` : blocks(checkDependencyFileWrite(join(linkedPackage, "index.js"), inTree)),
   true,
 )
-// Windows paths are case-insensitive, so `NODE_MODULES/...` and `node_modules/...` are the same
-// bytes. Measured 2026-09-19: realpathSync preserves the caller's spelling, so a case-different
-// write was ALLOWED and produced the literal incident edit. The native resolver returns the real
-// on-disk spelling, and the segment comparison is case-insensitive for the tree that has none yet.
 T(
   "dependency-write: a case-different spelling of node_modules blocks",
   blocks(checkDependencyFileWrite(join(dependencyTree, "NODE_MODULES", "react-native", "flags.kt"), inTree)),
@@ -425,10 +405,6 @@ for (const command of [
   "tee node_modules/react-native/flags.kt",
   "cp /tmp/flags.kt node_modules/react-native/flags.kt",
   "npx patch-package react-native",
-  // `-y` is the published idiom, because plain npx prompts before it installs. Measured 2026-09-19:
-  // a flag sat in the slot the binary would occupy, the lookup read the flag, and every one of
-  // these was ALLOWED. patch-package rewrites the package as a subprocess, so no tool call is
-  // intercepted and the whole incident repeats end to end.
   "npx -y patch-package react-native",
   "npx --yes patch-package react-native",
   "npm exec -- patch-package",
@@ -477,9 +453,6 @@ T(
 T("dependency-write: the refusal names the repair that works", dependencyCommand("tee node_modules/react-native/flags.kt")?.message.includes("rm -rf node_modules/<package>"), true)
 
 console.log("\n# require-wake-source (_lib/rules-sleep.mjs)")
-// Under --sleep the ONLY thing that continues the run is a background task completing and
-// re-invoking the session. On 2026-08-06 the orchestrator ended a turn saying "CI will wake me"
-// with nothing scheduled; the night stopped there and its artifacts looked like a finished run.
 const alive = () => true
 const dead = () => false
 const sleeping = { sessionId: "s1", sleep: true, remaining: ["ORB-2", "ORB-3"] }
@@ -493,11 +466,6 @@ T("sleep-stop: a registered but DEAD wake source is not one", blocks(stop({ stat
 T("sleep-stop: a dead launcher with a live worker is reported separately",
   checkSleepStop({ state: sleeping, orphanedWakeSources: [{ pid: 100, workerPid: 200 }], sessionId: "s1", isWakeSourceAlive: dead })?.message.includes("orphaned worker pid 200"), true)
 T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isWakeSourceAlive: dead }), null)
-// A salvaged pull request with no READY final-head receipt is unfinished work, not a finished
-// queue. PR #690 was opened by hand and reported as done while two required checks were red,
-// because opening it was treated as the end of salvage. Pullfrog now reviews every pull request in
-// GitHub Actions and `pullfrog-approval` is a required check, so the review verdict reaches the
-// receipt through the required contexts and needs no separate axis here.
 const salvaged = { ...sleeping, remaining: [], pullRequests: [{ repositoryKey: "ui", prNumber: 690, receiptPath: "C:/receipt.json" }] }
 T("sleep-stop: an open pull request with no READY receipt blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
 T("sleep-stop: the refusal names the repository-qualified pull request and receipt debt", stop({ state: salvaged })?.message.includes("ui#690") && stop({ state: salvaged })?.message.includes("READY final-head receipt"), true)
@@ -513,14 +481,6 @@ T("sleep-stop: a record from another session allows", checkSleepStop({ state: sl
 // A blocked stop that blocks again is an infinite loop.
 T("sleep-stop: the second pass never blocks again", checkSleepStop({ state: sleeping, sessionId: "s1", stopHookActive: true, isWakeSourceAlive: dead }), null)
 
-/**
- * A run that CANNOT reach READY needs a legitimate terminal state. On 2026-08-08 a named blocker
- * made READY unreachable and the only exits left were fabricating a receipt or clearing the ledger,
- * both forbidden. That deadlock burned five turns.
- *
- * The bar is a RECORDED blocker string. A blocker is a fact the run writes down, never a verdict it
- * asserts about its own work, which is what stops "ended blocked" becoming a cheaper "finished".
- */
 const blockedEntry = { repositoryKey: "ui", prNumber: 698, receiptPath: "C:/receipt.json", receiptWritten: true, blocker: "SonarCloud new-code coverage 66.7% on a deletion-only diff" }
 const blockedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [blockedEntry] }
 T("sleep-stop: a pull request with a RECORDED blocker may end the run", blocks(stop({ state: blockedRun })), false)
@@ -529,17 +489,6 @@ T("sleep-stop: the BLOCKED banner names the pull request and its blocker", stop(
 // Without the recorded blocker the very same entry still blocks, which is what keeps the state honest.
 T("sleep-stop: the same entry with NO recorded blocker still blocks the stop", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: null }] } })), true)
 T("sleep-stop: an empty blocker string is not a blocker", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: "" }] } })), true)
-/*
- * A MACHINE RESOURCE is never a blocker, it is a reason to use fewer workers.
- *
- * Measured 2026-09-19: the low-memory guard reaped two workers mid-round, the run wrote that down as
- * a blocker on both rows, and this hook let it end BLOCKED with a pull request approved and one body
- * edit from merging. Thomas: "YOU CANT END A RUN BECAUSE OF A MEMORY HOOK ... just use less workers".
- *
- * An exhausted API allowance resets on a clock and no care brings it back sooner. Memory, disk and
- * CPU are consequences of how much the run started at once, so the answer is to start less and keep
- * going. Each case below is a real reap message shape.
- */
 const pressureRun = (blocker) => ({ ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker }] })
 for (const blocker of [
   "BLOCKED ON MACHINE MEMORY: the low-memory guard reaped the worker mid-round, 5.6 GB free of 32 GB",
@@ -565,21 +514,9 @@ T(
   null,
 )
 
-/**
- * A MERGED pull request is the third disposition, and until 2026-09-18 it had no state at all.
- * Driven against this function at pull request 1023's head: a run that merged under the step 9
- * exception, with nothing left to launch, returned `{block:true, terminal:null}`. Its receipt stays
- * `CI_STALE` forever, because `pullfrog-approval` never publishes on that base, and the ledger row
- * is append only, so the merge itself could not clear it. The run deadlocked AFTER succeeding.
- *
- * The bar is the merge commit sha, recorded the way a blocker is recorded: a fact, checkable
- * against GitHub, never a verdict the run asserts about its own work.
- */
 const mergedEntry = { repositoryKey: "ui", prNumber: 1023, receiptPath: "C:/receipt.json", receiptWritten: true, merged: "0123456789abcdef0123456789abcdef01234567" }
 const mergedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [mergedEntry] }
 T("sleep-stop: a pull request merged under the exception ends the run rather than deadlocking it", blocks(stop({ state: mergedRun })), false)
-// A merged-only ending is as loud as a BLOCKED one. Silence there and the sha reaches no reader,
-// so the night looks exactly like one where every receipt was READY.
 T("sleep-stop: the merged ending is reported as MERGED, never as a plain finish", stop({ state: mergedRun })?.terminal, "MERGED")
 T(
   "sleep-stop: the MERGED banner names the pull request and its sha",
@@ -594,16 +531,6 @@ T(
 )
 T("sleep-stop: the same row with NO recorded merge sha still blocks the stop", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: null }] } })), true)
 T("sleep-stop: an empty merged string is not a merge", blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: "" }] } })), true)
-/**
- * The failure needs no dishonesty. `orchestrate/SKILL.md` hands the run a jsonc template to copy,
- * and its `merged` value is the literal below. Copy the template, leave the placeholder unfilled,
- * and a non-empty-string predicate reads an UNMERGED pull request as merged: the row leaves the
- * pending set, escapes the unwritten-receipt check, and the hook allows the stop printing nothing.
- *
- * `blocker` is self-asserted too and that is fine, because a false blocker produces a loud BLOCKED
- * banner naming the pull request. A false `merged` produces silence, so this one must be checkable.
- * Every other merged assertion here uses a well-formed sha, so the suite stayed green over it.
- */
 T(
   "sleep-stop: the skill's own unfilled merge-sha placeholder is not a merge",
   blocks(stop({ state: { ...mergedRun, readinessLedger: [{ ...mergedEntry, merged: "<merge commit sha once it is merged, or absent>" }] } })),
@@ -644,8 +571,6 @@ T("sleep-stop: the merge-sha rule is identical in the Stop hook and in the recor
   recorder: readFileSync(join(repoRoot, "tools", "lib", "run-state.mjs"), "utf8").includes(`const MERGE_SHA = ${mergeShaLiteral}`),
 }, { rule: true, recorder: true })
 
-/** The ledger accepted four rows on 2026-08-08 whose receipt files were never written, and the hook
- * read them as unreadable rather than as absent, which is quieter and easier to mistake for a fault. */
 const unwritten = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [{ repositoryKey: "ui", prNumber: 699, receiptPath: "C:/never-written.json", receiptWritten: false }] }
 T("sleep-stop: a ledger row whose receipt was never written blocks", blocks(stop({ state: unwritten })), true)
 T("sleep-stop: the refusal names the receipt path that was never written", stop({ state: unwritten })?.message.includes("C:/never-written.json"), true)
@@ -747,7 +672,6 @@ T("ef-index: a file off the migrations path is skipped", checkEfMigrationRawInde
 T("ef-index: a batched Sql with one non-idempotent statement blocks", blocks(checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX ix_a ON foo (a);");')), true)
 T("ef-index: a batched Sql with all idempotent statements allows", checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX IF NOT EXISTS ix_a ON foo (a);");'), null)
 
-// An identifier a run WRITES with must have been READ by that run. On 2026-08-08 a typed
 // PRRT_ id resolved to a live thread on a stranger's public repository and replied there,
 // because node ids are globally unique and a wrong one does not fail.
 const OBSERVED = "PRRT_kwDOR5Siws6Wfy_V"
@@ -756,7 +680,6 @@ const TRAILING_HYPHEN = "PRRT_kwDOR5Siws6d9bF-"
 const TRAILING_UNDERSCORE = "PRRT_kwDOR5Siws6d9bF_"
 const seen = new Set([OBSERVED])
 const invented = (command, options = {}) => checkInventedIdentifier(command, { observedIdentifiers: seen, ...options })
-// THE incident, verbatim in shape: a typed id, and a `||` fallback that makes the write the probe.
 T(
   "identifier: the incident command blocks",
   blocks(invented(`printf 'fixed in %s' "$sha" | node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui --pr 699 || node tools/list-bot-threads.mjs --pr 699 --repo ui`)),
@@ -784,9 +707,6 @@ T(
 )
 T("identifier: PR_ and IC_ shapes are guarded too", extractNodeIds("gh api PR_kwDOR5Siws6abc IC_kwDOR5Siws6def").length, 2)
 T("identifier: an empty command allows", invented(""), null)
-// A heredoc BODY is data the command carries, not the command. This gate refused a
-// /second-opinion call whose body QUOTED the incident, and a guard that fires on writing ABOUT
-// the incident is one everybody learns to work around. The bypass it leaves is disclosed.
 T(
   "identifier: an id quoted inside a heredoc body allows",
   invented(`node .claude/skills/second-opinion/second-opinion.mjs <<'F'\nthe incident passed --thread ${INVENTED} to tools/resolve-bot-thread.mjs\nF`),
@@ -1044,7 +964,6 @@ T("adapter dependency-write: MultiEdit on the repository's own source -> 0", run
 T("adapter dependency-write: a worker redirect into a dependency -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter dependency-write: the same redirect outside a worker still -> 2", runHook(DEPENDENCY, bash("echo true > node_modules/react-native/flags.kt", dependencyTree)), 2)
 T("adapter dependency-write: the PowerShell tool is guarded too -> 2", runHook(DEPENDENCY, powershell("Set-Content -Path node_modules/react-native/flags.kt -Value true", dependencyTree)), 2)
-// The two payloads the harness never sent until 2026-09-19, both measured allowed before the fix.
 T("adapter dependency-write: a case-different spelling -> 2", runHook(DEPENDENCY, edit("Write", "NODE_MODULES/react-native/flags.kt")), 2)
 T("adapter dependency-write: npx -y patch-package -> 2", runHook(DEPENDENCY, bash("npx -y patch-package react-native", dependencyTree)), 2)
 T("adapter dependency-write: the documented repair -> 0", runHook(DEPENDENCY, bash("rm -rf node_modules/react-native && npm install", dependencyTree)), 0)
@@ -1241,8 +1160,6 @@ for (const mode of ["replaced", "unreadable"]) {
     explainsBlock: stopped.stderr.includes("NO live background task"),
   }, { status: 2, probes: 2, readerMatched: true, finalChanged: true, explainsBlock: true })
 }
-// Linux stat captured with `wsl.exe -d docker-desktop -- cat /proc/self/stat` for #437.
-// Change only the pid and observed state; keep the real adapter and successful kill(pid, 0).
 const linuxStat = "9 (cat) R 8 9 9 34816 9 4194560 174 0 1 0 0 0 0 0 20 0 1 0 185 1736704 194 18446744073709551615 104008432738304 104008433362862 140729346400016 0 0 0 0 4 0 0 0 0 17 1 0 0 0 0 0 104008433506352 104008433520688 104009433042944 140729346401036 140729346401056 140729346401056 140729346404335 0"
 const linuxBootId = "03b8381d-65e7-4b3e-b03e-138371be3664"
 const deadStatePreload = join(wakeCheckout, "wake-dead-state.mjs")
@@ -1309,13 +1226,6 @@ T("wake identity: a proven dead registration is removed", existsSync(deadWakeFil
 clearWakeSource(process.pid, wakeCheckout)
 T("wake identity: cleanup removes the matching launch registration", existsSync(wakeFile), false)
 
-/**
- * The MERGED ending has to reach a reader, and only the ADAPTER can put it there. The rule returns
- * `{block:false, terminal:"MERGED"}`, and a hook that allows a stop otherwise prints nothing, so a
- * night that merged a pull request under the step 9 exception would be indistinguishable in the
- * transcript from one where every receipt was READY. This drives the real adapter with no live wake
- * source left in the isolated checkout, which is why it sits after the cleanup above.
- */
 const mergedAdapterSha = "4d5901100fe6d3f6db9004468c653f9ff9239ff4"
 writeFileSync(runStatePath(wakeCheckout), JSON.stringify({
   sessionId: stopPayload.session_id,
@@ -1398,15 +1308,6 @@ for (const relative of definitionFiles) {
 // A guard that scanned nothing passes vacuously; make that a failure instead.
 T("frontmatter: the scan actually read definitions", definitionFiles.length > 0, true)
 
-/**
- * Every `node tools/<tool>.mjs --flag` a skill prescribes must name flags that tool accepts.
- *
- * The GitHub migration renamed tools and changed their flags, and the skills kept prescribing the
- * old ones. `record-readiness.mjs --linear <json>` and a `teardown-worktree.mjs` call with no
- * `--repo` both survived every gate and both would have failed at 03:00, after a worker had already
- * done the work. Prose that names a command is an interface claim, and an unchecked interface claim
- * is the defect class this repository exists to prevent.
- */
 const toolFlagSets = new Map()
 const flagsAcceptedBy = (tool) => {
   if (toolFlagSets.has(tool)) return toolFlagSets.get(tool)
@@ -1479,12 +1380,6 @@ T("progress: stacked squash merges do not make an impossible ancestry promise", 
   namesRetargetPractice: /retargets a stacked child onto the integration branch before\s+merging\s+its parent/.test(progressSkill),
 }, { limitsAncestryToDirectIntegrationMerges: true, reportsImmediateBase: true, admitsSquashBoundary: true, namesRetargetPractice: true })
 
-/**
- * A walk that searches only OPEN heads reads "not an open head" as "integration branch", and a
- * stacked parent can be CLOSED while it is still the child's recorded base. PR 575's base is
- * `feature/539-b5-apply-design`, which is PR 560's head, and 560 is CLOSED with nothing merged, so
- * the old rule named a feature branch as integration for that whole chain.
- */
 T("progress: a closed stacked parent is never reported as the integration branch", {
   resolvesEveryState: progressSkill.includes("gh pr list --head <candidate> --state all"),
   followsOpenAndMergedParents: progressSkill.includes("`OPEN` or `MERGED`"),

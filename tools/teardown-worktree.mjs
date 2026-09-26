@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-/**
- * Remove one completed worktree only after independently checking that no work can be lost.
- *
- * Runs only after `gh pr view` reads MERGED. The worker PID liveness check the previous revision
- * carried is gone with the detached-spawn design: a worker is now a CHILD of tools/launch-worker.mjs
- * and cannot outlive it, and teardown happens long after that supervisor exited.
- */
 
 import { execFileSync, spawnSync } from "node:child_process"
 import { existsSync, lstatSync, renameSync, rmSync } from "node:fs"

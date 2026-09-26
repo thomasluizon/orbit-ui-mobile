@@ -1,19 +1,5 @@
 name: arch-map
 
-# The map is GENERATED, not committed (thomasluizon/orbit-tickets#470). This job therefore cannot
-# compare a fresh generation against a committed copy; there is no committed copy. It proves the two
-# properties that actually matter for an on-demand artifact:
-#
-#   1. the generator runs to completion on this tree, and
-#   2. it is deterministic: two runs in the same job are byte-identical.
-#
-# Both were previously implied by the byte-exact `git diff --exit-code` against a committed file, and
-# that comparison is what made every pair of parallel branches conflict on a 1 MB regenerated
-# artifact. Determinism is asserted directly instead, which is the property the drift gate was really
-# standing in for.
-#
-# The three files are published as a build artifact so a reviewer, or anyone who does not want to run
-# node, can read the map for a given pull request head.
 
 on:
   pull_request:
