@@ -84,6 +84,16 @@ function StatTileSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; o
   )
 }
 
+function BarChartSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; opacity: Animated.Value }>) {
+  return (
+    <View style={styles.barChart} testID="skeleton-bar-chart-shape">
+      <Block style={styles.barReadout} tokens={tokens} opacity={opacity} />
+      <Block style={styles.barPlot} tokens={tokens} opacity={opacity} />
+      <Block style={styles.barAxis} tokens={tokens} opacity={opacity} />
+    </View>
+  )
+}
+
 function GridSkeleton({ props, tokens, opacity }: Readonly<{
   props: Extract<SkeletonProps, { variant: 'grid' }>
   tokens: AppTokensV2
@@ -136,6 +146,7 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
       {props.variant === 'habit-row' ? <HabitRowSkeleton tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'settings' ? <SettingsSkeleton rows={props.rows} tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'stat-tile' ? <StatTileSkeleton tokens={tokens} opacity={opacity} /> : null}
+      {props.variant === 'bar-chart' ? <BarChartSkeleton tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'grid' ? <GridSkeleton props={props} tokens={tokens} opacity={opacity} /> : null}
     </View>
   )
@@ -177,5 +188,9 @@ const styles = StyleSheet.create({
   },
   statValue: { width: '50%', height: 24 },
   statLabel: { width: '66%', height: 16 },
+  barChart: { width: '100%', gap: 8 },
+  barReadout: { width: '50%', height: 16 },
+  barPlot: { width: '100%', height: 96 },
+  barAxis: { width: '100%', height: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
 })

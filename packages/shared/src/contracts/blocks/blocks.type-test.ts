@@ -16,6 +16,7 @@ type Fields<T> = { [TKey in keyof T]: T[TKey] }
 type ExpectedBlockFrameItem = {
   readonly id: string
   readonly label: ReactNode
+  readonly wrapLabel?: boolean
   readonly meta?: string
   readonly status?: 'done' | 'acting' | 'failed'
   readonly statusLabel?: string
@@ -34,8 +35,10 @@ type SettledEditedVariant = Extract<SettledVariant, { onEditItem: (itemId: strin
 type SettledPlainVariant = Extract<SettledVariant, { onEditItem?: never }>
 type ExpectedCommon = {
   readonly title: string
+  readonly wrapTitle?: boolean
   readonly count?: ReactNode
   readonly items: readonly ExpectedBlockFrameItem[]
+  readonly body?: ReactNode
   readonly risk?: ReactNode
   readonly actions?: ReactNode
   readonly irreversibleLabel?: string
@@ -68,6 +71,7 @@ export type BlockContractWidthAssertions = [
   Assert<IsExactWidth<Fields<SettledPlainVariant>, Fields<ExpectedCommon & ExpectedSettled & ExpectedPlain>>>,
   Assert<IsExactWidth<BlockFrameItem['id'], string>>,
   Assert<IsExactWidth<BlockFrameItem['label'], ReactNode>>,
+  Assert<IsExactWidth<BlockFrameItem['wrapLabel'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['meta'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['status'], 'done' | 'acting' | 'failed' | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['statusLabel'], string | undefined>>,
@@ -75,8 +79,10 @@ export type BlockContractWidthAssertions = [
   Assert<IsExactWidth<BlockFrameItem['proposed'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['irreversible'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['title'], string>>,
+  Assert<IsExactWidth<BlockFrameProps['wrapTitle'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['count'], ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['items'], readonly ExpectedBlockFrameItem[]>>,
+  Assert<IsExactWidth<BlockFrameProps['body'], ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['risk'], ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['actions'], ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['irreversibleLabel'], string | undefined>>,

@@ -53,7 +53,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
       data-status={status}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="truncate text-sm font-medium">{item.label}</div>
+        <div className={item.wrapLabel ? 'break-words text-sm font-medium' : 'truncate text-sm font-medium'}>{item.label}</div>
         {item.meta ? <div className="truncate text-xs text-[var(--fg-3)]">{item.meta}</div> : null}
         {item.irreversible && props.irreversibleLabel ? (
           <div className="flex items-center gap-1 text-xs text-[var(--fg-3)] uppercase">
@@ -176,16 +176,19 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       }}
     >
       <header className="flex shrink-0 items-center gap-3">
-        <h3 className="min-w-0 flex-1 truncate text-base font-medium">{props.title}</h3>
-        <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
-          {props.count ?? props.items.length}
-        </span>
+        <h3 className={props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.title}</h3>
+        {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
+          <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
+            {props.count ?? props.items.length}
+          </span>
+        ) : null}
         {props.risk}
       </header>
       {props.state === 'loading' ? (
         <LoadingBody rows={props.items.length} hasActions={canRenderActions && props.actions != null} />
       ) : (
         <>
+          {props.body}
           <div aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
             <FrameRows frameProps={props} />
           </div>

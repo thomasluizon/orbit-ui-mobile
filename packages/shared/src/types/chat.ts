@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { frequencyUnitSchema } from './habit'
+import { completionSeriesSchema, retrospectiveHabitStatSchema } from './gamification'
 import {
   agentOperationResultSchema,
   pendingAgentOperationSchema,
@@ -13,6 +14,8 @@ export const chatClientContextSchema = z.object({
   currentAppArea: z.string(),
   supportsHabitListCard: z.boolean(),
   supportsGoalListCard: z.boolean(),
+  supportsMetricsCard: z.boolean().optional(),
+  supportsPeriodInsightCard: z.boolean().optional(),
   entryPointIntent: z.literal('support').optional(),
 })
 
@@ -172,6 +175,53 @@ export const goalListCardSchema = z.object({
 
 export type GoalListCard = z.infer<typeof goalListCardSchema>
 
+export const metricsCardSchema = z.object({
+  period: z.string(),
+  completionRate: z.number(),
+  totalCompletions: z.number(),
+  totalScheduled: z.number(),
+  activeDays: z.number(),
+  currentStreak: z.number(),
+  bestStreak: z.number(),
+  hasData: z.boolean(),
+  surfaceId: z.string(),
+  series: completionSeriesSchema.nullable().optional(),
+  topHabitName: z.string().nullable().optional(),
+  topHabitEmoji: z.string().nullable().optional(),
+  habitId: z.uuid().nullable().optional(),
+  habitTitle: z.string().nullable().optional(),
+  weeklyCompletionRate: z.number().nullable().optional(),
+  monthlyCompletionRate: z.number().nullable().optional(),
+  lastCompletedDate: z.iso.date().nullable().optional(),
+})
+
+export type MetricsCard = z.infer<typeof metricsCardSchema>
+
+export const periodInsightCardSchema = z.object({
+  period: z.string(),
+  dateFrom: z.iso.date(),
+  dateTo: z.iso.date(),
+  completionRate: z.number(),
+  activeDays: z.number(),
+  periodDays: z.number(),
+  totalCompletions: z.number(),
+  totalScheduled: z.number(),
+  currentStreak: z.number(),
+  bestStreak: z.number(),
+  topHabits: z.array(retrospectiveHabitStatSchema),
+  needsAttention: z.array(retrospectiveHabitStatSchema),
+  narrative: z.object({
+    highlights: z.string(),
+    missed: z.string(),
+    trends: z.string(),
+    suggestion: z.string(),
+  }),
+  series: completionSeriesSchema.nullable().optional(),
+  surfaceId: z.string().optional(),
+})
+
+export type PeriodInsightCard = z.infer<typeof periodInsightCardSchema>
+
 export const chatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'ai']),
@@ -185,6 +235,8 @@ export const chatMessageSchema = z.object({
   relatedSurfaces: z.array(z.string()).nullable().optional(),
   habitList: habitListCardSchema.nullable().optional(),
   goalList: goalListCardSchema.nullable().optional(),
+  metricsCard: metricsCardSchema.nullable().optional(),
+  periodInsight: periodInsightCardSchema.nullable().optional(),
   timestamp: z.date(),
 })
 
@@ -200,6 +252,8 @@ export const chatResponseSchema = z.object({
   relatedSurfaces: z.array(z.string()).nullable().optional(),
   habitList: habitListCardSchema.nullable().optional(),
   goalList: goalListCardSchema.nullable().optional(),
+  metricsCard: metricsCardSchema.nullable().optional(),
+  periodInsight: periodInsightCardSchema.nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>
