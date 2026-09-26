@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { createApiClientError } from '@orbit/shared'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
@@ -782,6 +783,24 @@ describe('mobile habit hooks', () => {
     expect(mocks.restoreHabitMutate).not.toHaveBeenCalled()
   })
 
+  it('reconciles a dropped single delete after the final replay response is lost', async () => {
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string }, string,
+      { previousLists: HabitSnapshotContext['previousLists'] }
+    >
+    const context = await mutation.onMutate?.('habit-1')
+    mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('dropped')
+    mutation.onSuccess?.({ queued: true, queuedMutationId: 'mutation-1' }, 'habit-1', context)
+
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith({
+      habitId: 'habit-1', reconcileNotFound: true,
+    }))
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
+  })
+
   it('leaves the habit count to the server when Undo cancels an offline single delete', async () => {
     seedHabitState([makeHabit({ id: 'habit-1' })], 7)
     const mutation = useDeleteHabit() as unknown as MutationConfig<
@@ -821,6 +840,22 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('boom'), 'habit-1', undefined)
 
     expect(mocks.showError).toHaveBeenCalledWith('undo.restoreFailed')
+  })
+
+  it('invalidates lists without an error when dropped-delete restore finds a live habit', () => {
+    const mutation = useRestoreHabit() as unknown as MutationConfig<
+      unknown, { habitId: string; reconcileNotFound: true }, undefined
+    >
+    const input = { habitId: 'habit-1', reconcileNotFound: true as const }
+    const error = createApiClientError(404, {
+      error: 'Habit not found.', errorCode: 'HABIT_NOT_FOUND',
+    }, 'Request failed: 404')
+
+    mutation.onError?.(error, input, undefined)
+    mutation.onSettled?.(undefined, error, input, undefined)
+
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
   })
 
   it('applies streak, profile, gamification, and linked-goal updates on a fresh online completion', () => {
@@ -1357,6 +1392,33 @@ describe('mobile habit hooks', () => {
     performUndo()
     await vi.waitFor(() => expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1']))
     expect(mocks.restoreHabitMutate).toHaveBeenCalledExactlyOnceWith('habit-1')
+  })
+
+  it('reconciles a dropped bulk delete after the final replay response is lost', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' }), makeHabit({ id: 'habit-2' })], 2)
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      { results: { status: 'Success'; habitId: string }[]; queued: true; queuedMutationId: string },
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+    >
+    const context = await mutation.onMutate?.(['habit-1', 'habit-2'])
+    mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('dropped')
+    mutation.onSuccess?.({
+      results: [
+        { status: 'Success', habitId: 'habit-1' },
+        { status: 'Success', habitId: 'habit-2' },
+      ],
+      queued: true,
+      queuedMutationId: 'mutation-1',
+    }, ['habit-1', 'habit-2'], context)
+
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+
+    await vi.waitFor(() => expect(mocks.restoreHabitMutate).toHaveBeenCalledTimes(2))
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-1', reconcileNotFound: true })
+    expect(mocks.restoreHabitMutate).toHaveBeenCalledWith({ habitId: 'habit-2', reconcileNotFound: true })
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
   })
 
   it('restores a selected parent once after its queued bulk delete replays', async () => {
