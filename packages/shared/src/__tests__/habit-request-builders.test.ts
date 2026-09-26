@@ -6,6 +6,7 @@ import {
   buildUpdateHabitRequest,
   type HabitFormData,
 } from '../utils/habit-request-builders'
+import { buildEditHabitFormState } from '../utils/habit-form-state'
 import { createMockHabit, createMockRescheduleSuggestion } from './factories'
 
 function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
@@ -32,6 +33,53 @@ function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
 }
 
 describe('habit-request-builders', () => {
+  it('clears removed timed offsets when saving selected untimed reminders', () => {
+    const habit = createMockHabit({
+      dueTime: '09:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      relativeReminders: [{ minutesBefore: 15 }],
+    })
+    const editor = buildEditHabitFormState(habit)
+    const form = {
+      ...editor.formValues,
+      dueTime: '',
+      scheduledReminders: [{ when: 'same_day' as const, time: '08:00' }],
+    }
+    const expectedReminders = [{ when: 'same_day', time: '08:00' }]
+
+    for (const request of [
+      buildCreateHabitRequest(form, [], [], [], []),
+      buildUpdateHabitRequest(form, false, editor.originalEndDate, [], []),
+      buildSubHabitRequest(form, [], []),
+    ]) {
+      expect(request.relativeReminders).toEqual([])
+      expect(request.scheduledReminders).toEqual(expectedReminders)
+    }
+  })
+
+  it('round-trips before, at, after, and day-before reminders in one request field', () => {
+    const form = makeFormData({
+      dueTime: '09:00',
+      reminderEnabled: true,
+      scheduledReminders: [{ when: 'day_before', time: '18:00' }],
+    })
+    const expected = [
+      { minutesBefore: 15 },
+      { minutesBefore: 0 },
+      { minutesBefore: -30 },
+      { when: 'day_before', time: '18:00' },
+    ]
+    const create = buildCreateHabitRequest(form, [15, 0, -30], [], [], [])
+    const update = buildUpdateHabitRequest(form, true, '', [15, 0, -30], [])
+    const subHabit = buildSubHabitRequest(form, [15, 0, -30], [])
+    for (const request of [create, update, subHabit]) {
+      expect(request.relativeReminders).toEqual(expected)
+      expect(request).not.toHaveProperty('scheduledReminders')
+      expect(request.reminderTimes).toEqual([])
+    }
+  })
+
   it('builds a flexible create request with due-time reminders', () => {
     const request = buildCreateHabitRequest(
       makeFormData({
@@ -61,7 +109,8 @@ describe('habit-request-builders', () => {
       dueTime: '08:30',
       dueEndTime: '09:00',
       reminderEnabled: true,
-      reminderTimes: [15, 30],
+      reminderTimes: [],
+      relativeReminders: [{ minutesBefore: 15 }, { minutesBefore: 30 }],
       checklistItems: [{ text: 'Pick a book', isChecked: false }],
       tagIds: ['tag-1'],
       goalIds: ['goal-1'],
@@ -112,6 +161,7 @@ describe('habit-request-builders', () => {
       endDate: '2026-12-31',
       reminderEnabled: true,
       scheduledReminders: [{ when: 'same_day', time: '07:00' }],
+      relativeReminders: [],
     })
   })
 
@@ -135,7 +185,8 @@ describe('habit-request-builders', () => {
       dueTime: '10:00',
       dueEndTime: '10:30',
       reminderEnabled: true,
-      reminderTimes: [0, 15],
+      reminderTimes: [],
+      relativeReminders: [{ minutesBefore: 0 }, { minutesBefore: 15 }],
     })
   })
 
@@ -190,7 +241,8 @@ describe('habit-request-builders', () => {
       dueTime: '06:30',
       dueEndTime: '06:45',
       reminderEnabled: true,
-      reminderTimes: [10],
+      reminderTimes: [],
+      relativeReminders: [{ minutesBefore: 10 }],
       isBadHabit: true,
       slipAlertEnabled: true,
       checklistItems: [{ text: 'Stretch', isChecked: false }],
@@ -228,6 +280,7 @@ describe('habit-request-builders', () => {
       reminderEnabled: true,
       reminderTimes: [],
       scheduledReminders: [{ when: 'same_day', time: '21:00' }],
+      relativeReminders: [],
       slipAlertEnabled: false,
       checklistItems: [{ text: 'Reflect', isChecked: true }],
       goalIds: ['goal-1', 'goal-2'],
@@ -235,7 +288,7 @@ describe('habit-request-builders', () => {
     })
   })
 
-  it('builds update requests with due-time reminders and leaves the scheduled store untouched', () => {
+  it('builds update requests with due-time reminders in the relative field', () => {
     const timedRequest = buildUpdateHabitRequest(
       makeFormData({
         dueTime: '10:00',
@@ -258,7 +311,8 @@ describe('habit-request-builders', () => {
       dueTime: '10:00',
       dueEndTime: '10:30',
       reminderEnabled: true,
-      reminderTimes: [0],
+      reminderTimes: [],
+      relativeReminders: [{ minutesBefore: 0 }],
       slipAlertEnabled: false,
       goalIds: [],
     })
@@ -284,6 +338,7 @@ describe('habit-request-builders', () => {
       reminderEnabled: false,
       reminderTimes: [],
       scheduledReminders: [],
+      relativeReminders: [],
       slipAlertEnabled: false,
       goalIds: [],
     })
@@ -313,12 +368,13 @@ describe('habit-request-builders', () => {
       reminderEnabled: true,
       reminderTimes: [],
       scheduledReminders: [{ when: 'day_before', time: '21:00' }],
+      relativeReminders: [],
       slipAlertEnabled: false,
       goalIds: [],
     })
   })
 
-  it('preserves a due-timed habit\'s scheduled reminders on save without clearing them (#447 Bug 3)', () => {
+  it('preserves a due-timed habit\'s clock reminders in the relative request', () => {
     const request = buildUpdateHabitRequest(
       makeFormData({
         dueTime: '09:00',
@@ -329,15 +385,17 @@ describe('habit-request-builders', () => {
       '',
       [15],
       [],
-      true,
     )
 
     expect(request.dueTime).toBe('09:00')
-    expect(request.reminderTimes).toEqual([15])
-    expect(request.scheduledReminders).toEqual([{ when: 'same_day', time: '08:00' }])
+    expect(request.relativeReminders).toEqual([
+      { minutesBefore: 15 },
+      { when: 'same_day', time: '08:00' },
+    ])
+    expect(request).not.toHaveProperty('scheduledReminders')
   })
 
-  it('clears a due-timed habit\'s scheduled reminders only when reminders are turned off (#447 Bug 3)', () => {
+  it('clears a due-timed habit\'s relative reminders when reminders are turned off', () => {
     const request = buildUpdateHabitRequest(
       makeFormData({
         dueTime: '09:00',
@@ -348,15 +406,14 @@ describe('habit-request-builders', () => {
       '',
       [15],
       [],
-      true,
     )
 
     expect(request.reminderEnabled).toBe(false)
-    expect(request.reminderTimes).toEqual([])
-    expect(request.scheduledReminders).toEqual([])
+    expect(request.relativeReminders).toEqual([])
+    expect(request).not.toHaveProperty('scheduledReminders')
   })
 
-  it('omits the scheduled store for a plain due-timed habit so the API preserves it (#447 Bug 3)', () => {
+  it('omits the scheduled store for a plain due-timed habit', () => {
     const request = buildUpdateHabitRequest(
       makeFormData({
         dueTime: '09:00',
@@ -366,11 +423,10 @@ describe('habit-request-builders', () => {
       '',
       [15],
       [],
-      false,
     )
 
     expect(request).not.toHaveProperty('scheduledReminders')
-    expect(request.reminderTimes).toEqual([15])
+    expect(request.relativeReminders).toEqual([{ minutesBefore: 15 }])
   })
 })
 

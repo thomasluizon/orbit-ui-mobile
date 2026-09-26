@@ -38,27 +38,19 @@ import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-t
 import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
 import { AstraMark } from '@/components/ui/astra-avatar'
 
-/**
- * Whether to render the absolute-time scheduled-reminder editor: always for a non-general habit with
- * no due time, and additionally for a due-timed habit that already holds scheduled reminders (legacy
- * Astra mixed data) so they stay visible and editable rather than silently wiped.
- * See https://github.com/thomasluizon/orbit-ui-mobile/issues/447 (Bug 3).
- */
-function shouldShowScheduledReminders(
-  isGeneral: boolean,
-  dueTime: string,
-  hasScheduledReminders: boolean,
-): boolean {
-  return !isGeneral && (!dueTime || hasScheduledReminders)
-}
-
 function resolveReminderLabel(
   minutes: number,
   t: ReturnType<typeof useTranslations>,
 ): string {
   const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes)
   if (preset) return t(preset.key as Parameters<typeof t>[0])
-  if (minutes < 60) return `${minutes} ${t('habits.form.reminderMinutes')}`
+  if (minutes < 0) {
+    const after = -minutes
+    if (after % 60 !== 0) return `${after} ${t('habits.form.reminderMinutesAfter')}`
+    const hours = Math.floor(after / 60)
+    return `${hours} ${t(hours === 1 ? 'habits.form.reminderHourAfter' : 'habits.form.reminderHoursAfter')}`
+  }
+  if (minutes < 60 || minutes % 60 !== 0) return `${minutes} ${t('habits.form.reminderMinutes')}`
   if (minutes < 1440) {
     const h = Math.floor(minutes / 60)
     return `${h} ${t((h === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours') as Parameters<typeof t>[0])}`
@@ -78,12 +70,6 @@ interface HabitFormFieldsProps {
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
-  /**
-   * Surfaces the scheduled-reminder editor even under a due time when the habit already holds
-   * scheduled reminders (legacy Astra mixed data), so they stay visible and are not silently wiped.
-   * See https://github.com/thomasluizon/orbit-ui-mobile/issues/447 (Bug 3).
-   */
-  hasScheduledReminders?: boolean
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean
   /**
@@ -114,7 +100,6 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
-  hasScheduledReminders = false,
   defaultExpanded = false,
   lockedGeneral = null,
   expandAdvancedSignal = 0,
@@ -682,18 +667,30 @@ export function HabitFormFields({
               onReminderTimesChange={onReminderTimesChange}
               onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
               reminderLabel={(minutes) => resolveReminderLabel(minutes, t)}
+              scheduledReminderCount={watchedScheduledReminders.length}
+              onValidationError={showError}
               t={t}
-            />
+            >
+              <ScheduledReminderSection
+                reminderEnabled={watchedReminderEnabled}
+                scheduledReminders={watchedScheduledReminders}
+                onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
+                onSetScheduledReminders={(reminders) => setValue('scheduledReminders', reminders, { shouldDirty: true })}
+                onValidationError={showError}
+                nested
+                offsetReminderCount={reminderTimes.length}
+                t={t}
+              />
+            </ReminderSection>
           )}
 
-          {shouldShowScheduledReminders(isGeneral, watchedDueTime, hasScheduledReminders) && (
+          {!isGeneral && !watchedDueTime && (
             <ScheduledReminderSection
               reminderEnabled={watchedReminderEnabled}
               scheduledReminders={watchedScheduledReminders}
               onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
               onSetScheduledReminders={(reminders) => setValue('scheduledReminders', reminders, { shouldDirty: true })}
               onValidationError={showError}
-              nested={!!watchedDueTime}
               t={t}
             />
           )}

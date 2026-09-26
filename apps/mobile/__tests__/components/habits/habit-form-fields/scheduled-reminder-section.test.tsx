@@ -4,6 +4,7 @@ import { MAX_SCHEDULED_REMINDERS } from '@orbit/shared/validation'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { createTokensV2 } from '@/lib/theme'
 import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
+import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -71,7 +72,7 @@ function press(node: TestNode) {
 }
 
 function buttons(tree: TestTree): TestNode[] {
-  return tree.root.findAll((node) => node.props?.accessibilityRole === 'button')
+  return tree.root.findAll((node) => node.props.accessibilityRole === 'button')
 }
 
 function buttonWithLabel(tree: TestTree, label: string): TestNode | undefined {
@@ -83,6 +84,29 @@ function texts(tree: TestTree): unknown[] {
 }
 
 describe('ScheduledReminderSection', () => {
+  it('adds a day-before time to the relative request', () => {
+    const { tree, onSetScheduledReminders } = render({ scheduledReminders: [], nested: true })
+    press(buttons(tree).find((node) =>
+      node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.reminderAddTime').length > 0)!)
+    press(buttons(tree).find((node) =>
+      node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.scheduledReminderDayBefore').length > 0)!)
+    const picker = tree.root.findAll((node) => node.type === 'AppTimePicker')[0]!
+    TestRenderer.act(() => {
+      ;(picker.props as { onChange: (value: string) => void }).onChange('18:00')
+    })
+    press(buttons(tree).find((node) => !node.props.accessibilityLabel && node.props.disabled === false)!)
+    expect(onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'day_before', time: '18:00' }])
+    const form = {
+      ...buildEmptyHabitFormValues('2025-03-10'),
+      dueTime: '09:00',
+      reminderEnabled: true,
+      scheduledReminders: [{ when: 'day_before' as const, time: '18:00' }],
+    }
+    expect(buildCreateHabitRequest(form, [], [], [], []).relativeReminders).toEqual([
+      { when: 'day_before', time: '18:00' },
+    ])
+  })
+
   it('hides the body while reminders are disabled', () => {
     const { tree } = render({ reminderEnabled: false })
     expect(texts(tree)).not.toContain('habits.form.scheduledReminderAdd')

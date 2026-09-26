@@ -31,6 +31,10 @@ export interface HabitFormValidationContext {
 
 export const HABIT_REMINDER_PRESETS = [
   { value: 0, key: 'habits.form.reminderAtTime' },
+  { value: -5, key: 'habits.form.reminder5minAfter' },
+  { value: -15, key: 'habits.form.reminder15minAfter' },
+  { value: -30, key: 'habits.form.reminder30minAfter' },
+  { value: -60, key: 'habits.form.reminder1hourAfter' },
   { value: 5, key: 'habits.form.reminder5min' },
   { value: 10, key: 'habits.form.reminder10min' },
   { value: 15, key: 'habits.form.reminder15min' },

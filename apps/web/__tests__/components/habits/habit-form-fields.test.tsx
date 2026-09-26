@@ -1471,7 +1471,7 @@ describe('HabitFormFields', () => {
   })
 
 
-  it('surfaces both reminder sections for a due-timed habit that also holds scheduled reminders (#447 Bug 3)', () => {
+  it('shows legacy clock reminders inside the timed reminder editor', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     formHelpers.form.watch = vi.fn((field: string) => {
       const defaults: Record<string, unknown> = {
@@ -1498,18 +1498,19 @@ describe('HabitFormFields', () => {
         selectedGoalIds={[]}
         atGoalLimit={false}
         onToggleGoal={vi.fn()}
-        reminderTimes={[15]}
+        reminderTimes={[-31, -120]}
         onReminderTimesChange={vi.fn()}
-        hasScheduledReminders
       />,
     )
     expect(screen.getByText('habits.form.reminder')).toBeDefined()
-    expect(screen.getByText('habits.form.scheduledReminder')).toBeDefined()
+    expect(screen.getByText('habits.form.reminderAddTime')).toBeDefined()
     expect(screen.getByText(/scheduledReminderSameDayAt/)).toBeDefined()
+    expect(screen.getByText('31 habits.form.reminderMinutesAfter')).toBeDefined()
+    expect(screen.getByText('2 habits.form.reminderHoursAfter')).toBeDefined()
     expect(screen.getAllByRole('switch')).toHaveLength(1)
   })
 
-  it('hides the scheduled reminder section for a plain due-timed habit', () => {
+  it('offers clock reminders for a plain due-timed habit', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     formHelpers.form.watch = vi.fn((field: string) => {
       const defaults: Record<string, unknown> = {
@@ -1541,7 +1542,16 @@ describe('HabitFormFields', () => {
       />,
     )
     expect(screen.getByText('habits.form.reminder')).toBeDefined()
-    expect(screen.queryByText('habits.form.scheduledReminder')).toBeNull()
+    expect(screen.getByText('habits.form.reminderAddTime')).toBeDefined()
+    fireEvent.click(screen.getByText('habits.form.reminderAddTime'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.scheduledReminderDayBefore' }))
+    selectTimeInPicker('habits.form.scheduledReminderTimePlaceholder', 18, 0)
+    fireEvent.click(screen.getByText('common.add'))
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith(
+      'scheduledReminders',
+      [{ when: 'day_before', time: '18:00' }],
+      { shouldDirty: true },
+    )
   })
 
   it('sets isBadHabit from the habit type segmented toggle', () => {

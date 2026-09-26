@@ -793,6 +793,7 @@ export function useBulkCreateHabits() {
           reminderEnabled: habit.reminderEnabled ?? undefined,
           reminderTimes: habit.reminderTimes ?? undefined,
           scheduledReminders: habit.scheduledReminders ?? undefined,
+          relativeReminders: habit.relativeReminders ?? undefined,
           checklistItems: habit.checklistItems ?? undefined,
           subHabits: habit.subHabits?.map((subHabit) => subHabit.title) ?? undefined,
           endDate: habit.endDate ?? undefined,

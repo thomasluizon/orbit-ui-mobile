@@ -81,6 +81,42 @@ function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
 }
 
 describe('habit-form-state', () => {
+  it('loads legacy offsets and clock reminders into a timed editor', () => {
+    const habit = makeHabit({
+      dueTime: '09:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      scheduledReminders: [{ when: 'day_before', time: '18:00' }],
+    })
+    const state = buildEditHabitFormState(habit)
+    expect(state.reminderTimes).toEqual([15])
+    expect(state.formValues.scheduledReminders).toEqual([{ when: 'day_before', time: '18:00' }])
+  })
+
+  it('loads signed offsets and clock times from the relative response', () => {
+    const habit = {
+      ...makeHabit({ dueTime: '09:00', reminderEnabled: true }),
+      relativeReminders: [
+        { minutesBefore: -30 },
+        { when: 'day_before' as const, time: '18:00' },
+      ],
+    }
+    const state = buildEditHabitFormState(habit)
+    expect(state.reminderTimes).toEqual([-30])
+    expect(state.formValues.scheduledReminders).toEqual([{ when: 'day_before', time: '18:00' }])
+  })
+
+  it('keeps day-before wall time across a daylight-saving transition', () => {
+    const reminder = [{ when: 'day_before' as const, time: '18:00' }]
+    for (const dueDate of ['2025-03-08', '2025-03-10']) {
+      const habit = {
+        ...makeHabit({ dueDate, dueTime: '09:00', reminderEnabled: true }),
+        relativeReminders: reminder,
+      }
+      expect(buildEditHabitFormState(habit).formValues.scheduledReminders).toEqual(reminder)
+    }
+  })
+
   it('builds empty create values', () => {
     expect(buildEmptyHabitFormValues('2025-01-02')).toEqual({
       title: '',

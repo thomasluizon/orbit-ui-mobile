@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
 import { X, Plus, Bell } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
@@ -12,16 +12,21 @@ interface ReminderSectionProps {
   onToggleReminder: () => void
   reminderLabel: (minutes: number) => string
   t: ReturnType<typeof useTranslations>
+  children?: ReactNode
+  scheduledReminderCount?: number
+  onValidationError?: (message: string) => void
 }
 
 export function ReminderSection({
   reminderEnabled, reminderTimes,
-  onReminderTimesChange, onToggleReminder, reminderLabel, t,
+  onReminderTimesChange, onToggleReminder, reminderLabel, t, children,
+  scheduledReminderCount = 0, onValidationError,
 }: Readonly<ReminderSectionProps>) {
   const [showAddReminder, setShowAddReminder] = useState(false)
   const [showCustomInput, setShowCustomInput] = useState(false)
   const [customValue, setCustomValue] = useState<number | null>(null)
   const [customUnit, setCustomUnit] = useState<'min' | 'hours' | 'days'>('min')
+  const [customDirection, setCustomDirection] = useState<'before' | 'after'>('before')
 
   const reminderUnitOptions = useMemo(() => [
     { value: 'min', label: t('habits.form.reminderUnitMin') },
@@ -35,6 +40,10 @@ export function ReminderSection({
   )
 
   function addPreset(value: number) {
+    if (reminderTimes.length + scheduledReminderCount >= 15) {
+      onValidationError?.(t('habits.form.relativeReminderMax'))
+      return
+    }
     if (!reminderTimes.includes(value)) {
       onReminderTimesChange([...reminderTimes, value].sort((a, b) => b - a))
     }
@@ -42,11 +51,22 @@ export function ReminderSection({
   }
 
   function addCustomReminder() {
-    if (!customValue || customValue <= 0) return
+    if (!customValue || !Number.isInteger(customValue) || customValue <= 0) {
+      onValidationError?.(t('habits.form.invalidRelativeReminder'))
+      return
+    }
     let multiplier = 1
     if (customUnit === 'days') multiplier = 1440
     else if (customUnit === 'hours') multiplier = 60
-    const minutes = customValue * multiplier
+    const minutes = customValue * multiplier * (customDirection === 'after' ? -1 : 1)
+    if (minutes < -1439 || minutes > 10080) {
+      onValidationError?.(t('habits.form.invalidRelativeReminder'))
+      return
+    }
+    if (reminderTimes.length + scheduledReminderCount >= 15) {
+      onValidationError?.(t('habits.form.relativeReminderMax'))
+      return
+    }
     if (!reminderTimes.includes(minutes)) {
       onReminderTimesChange([...reminderTimes, minutes].sort((a, b) => b - a))
     }
@@ -90,8 +110,8 @@ export function ReminderSection({
                 <button
                   type="button"
                   aria-label={t('habits.form.removeReminder')}
-                  className={`grid place-items-center min-h-[44px] min-w-[44px] -my-2.5 -mr-2.5 -ml-1 transition-colors ${reminderTimes.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--primary-pressed)]'}`}
-                  disabled={reminderTimes.length <= 1}
+                  className={`grid place-items-center min-h-[44px] min-w-[44px] -my-2.5 -mr-2.5 -ml-1 transition-colors ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--primary-pressed)]'}`}
+                  disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   onClick={() => removeReminder(time)}
                 >
                   <X size={13} strokeWidth={2.2} aria-hidden="true" />
@@ -124,7 +144,7 @@ export function ReminderSection({
                   </button>
                 ))}
                 {showCustomInput && (
-                  <div className="flex items-center gap-2 px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-2 px-3 py-2">
                     <input
                       value={customValue ?? ''}
                       type="number"
@@ -140,6 +160,15 @@ export function ReminderSection({
                       options={reminderUnitOptions}
                       label={t('habits.form.reminderCustom')}
                       onChange={(val) => setCustomUnit(val as 'min' | 'hours' | 'days')}
+                    />
+                    <AppSelect
+                      value={customDirection}
+                      options={[
+                        { value: 'before', label: t('habits.form.reminderBefore') },
+                        { value: 'after', label: t('habits.form.reminderAfter') },
+                      ]}
+                      label={t('habits.form.reminderDirection')}
+                      onChange={(value) => setCustomDirection(value as 'before' | 'after')}
                     />
                     <button
                       type="button"
@@ -161,6 +190,7 @@ export function ReminderSection({
               </div>
             )}
           </div>
+          {children}
         </div>
       )}
     </div>
