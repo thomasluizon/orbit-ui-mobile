@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 type WidgetState = 'loading' | 'solved' | 'failed' | 'expired'
 
@@ -10,6 +10,7 @@ interface TurnstileApi {
     sitekey: string
     appearance: 'interaction-only'
     size: 'compact'
+    language: string
     callback: (token: string) => void
     'error-callback': () => boolean
     'expired-callback': () => void
@@ -54,13 +55,17 @@ export function TurnstileWidget({
   resetKey,
   onToken,
   onStateChange,
+  language,
 }: Readonly<{
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
   onStateChange?: (state: WidgetState) => void
+  language?: string
 }>) {
   const t = useTranslations()
+  const appLocale = useLocale()
+  const challengeLanguage = (language ?? appLocale).toLowerCase()
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string | null>(null)
   const callbacksRef = useRef({ onToken, onStateChange })
@@ -90,6 +95,7 @@ export function TurnstileWidget({
         sitekey: siteKey,
         appearance: 'interaction-only',
         size: 'compact',
+        language: challengeLanguage,
         callback: (token) => update('solved', token),
         'error-callback': () => {
           update('failed')
@@ -107,7 +113,7 @@ export function TurnstileWidget({
       if (widgetId) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [siteKey, attempt])
+  }, [siteKey, challengeLanguage, attempt])
 
   useEffect(() => {
     if (resetKey === 0) return

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
+import type { SupportedLocale } from '@orbit/shared/types'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
 declare global {
@@ -9,7 +10,7 @@ declare global {
   }
 }
 
-export function TurnstileBridge({ siteKey }: Readonly<{ siteKey: string }>) {
+export function TurnstileBridge({ siteKey, language }: Readonly<{ siteKey: string; language?: SupportedLocale }>) {
   const postState = useCallback((state: string) => {
     window.ReactNativeWebView?.postMessage(JSON.stringify({ state }))
   }, [])
@@ -17,5 +18,5 @@ export function TurnstileBridge({ siteKey }: Readonly<{ siteKey: string }>) {
     window.ReactNativeWebView?.postMessage(JSON.stringify({ token }))
   }, [])
 
-  return <TurnstileWidget siteKey={siteKey} resetKey={0} onToken={postToken} onStateChange={postState} />
+  return <TurnstileWidget siteKey={siteKey} language={language} resetKey={0} onToken={postToken} onStateChange={postState} />
 }

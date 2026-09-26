@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 
 afterEach(() => {
   delete (window as Window & { turnstile?: unknown }).turnstile
