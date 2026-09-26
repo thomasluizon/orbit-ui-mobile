@@ -133,9 +133,9 @@ export default function ChatScreen() {
     setSelectedHabitId(null);
   }, []);
 
-  /* WHY: selectedGoalId stays set on close - unmounting the drawer here tears
-     down its presented TrueSheet mid-dismissal, which wedges every later RN
-     Modal and drops the onDidDismiss that runs the scheduled exit action.
+  /* WHY: Keep selectedGoalId until native dismissal finishes so onDidDismiss
+     can run the scheduled exit action. Unmounting the presented TrueSheet
+     during dismissal prevents that callback from running.
      https://sheet.lodev09.com/guides/navigation */
   const handleGoalDrawerClose = useCallback(() => {
     setGoalDrawerOpen(false);

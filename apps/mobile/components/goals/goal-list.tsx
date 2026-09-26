@@ -49,10 +49,12 @@ export const GoalList = forwardRef<FlatList<Goal>, Readonly<GoalListProps>>(
       setShowDetail(true)
     }, [])
 
-    /* WHY: selectedGoalId stays set on close - unmounting the drawer here tears
-       down its presented TrueSheet mid-dismissal, which wedges every later RN
-       Modal and drops the onDidDismiss that runs the scheduled exit action.
-       https://sheet.lodev09.com/guides/navigation */
+    /* WHY: Keep selectedGoalId until native dismissal so onDidDismiss runs the exit action.
+       Without the react-native-screens patch, direct navigation from a presented
+       TrueSheet must wait for dismissal (https://sheet.lodev09.com/guides/navigation).
+       The all-Modals claim was an inference: anchored-menu.tsx raced render-phase setState
+       with queued async setState at mount (thomasluizon/orbit-tickets#134; fixed in
+       thomasluizon/orbit-ui-mobile#1041). Apply D136: "Reproduce a device bug on the exact shipped build before calling it fixed." */
     const handleCloseDetail = useCallback(() => {
       setShowDetail(false)
     }, [])
