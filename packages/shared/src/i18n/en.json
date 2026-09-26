@@ -1470,7 +1470,6 @@
       "confirmInstruction": "Type ORBIT below to confirm this action.",
       "confirmLabel": "Confirmation",
       "confirmPlaceholder": "ORBIT",
-      "confirmButton": "Reset my account",
       "processing": "Resetting...",
       "errorGeneric": "Something went wrong. Please try again."
     },

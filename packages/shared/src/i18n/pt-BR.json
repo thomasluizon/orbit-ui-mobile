@@ -1470,7 +1470,6 @@
       "confirmInstruction": "Digite ORBIT abaixo para confirmar.",
       "confirmLabel": "Confirmação",
       "confirmPlaceholder": "ORBIT",
-      "confirmButton": "Recomeçar minha conta",
       "processing": "Recomeçando...",
       "errorGeneric": "Algo deu errado. Tente de novo."
     },
