@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useUIStore } from '@/stores/ui-store'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { collectSelectableDescendantIds, formatAPIDate } from '@orbit/shared/utils'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -324,9 +324,8 @@ describe('ui store', () => {
           parent: ['child-1', 'child-2'],
           'child-1': ['grandchild-1'],
         }
-        return tree[id] ?? []
+        return collectSelectableDescendantIds(id, (parentId) => tree[parentId] ?? [])
       }
-      const neverSelected = () => false
 
       it('selects habit and all descendants', () => {
         useUIStore.setState({
@@ -336,12 +335,13 @@ describe('ui store', () => {
         })
 
         const { toggleSelectionCascade } = useUIStore.getState()
-        toggleSelectionCascade('parent', getDescendantIds, neverSelected)
+        toggleSelectionCascade('parent', getDescendantIds)
 
         const state = useUIStore.getState()
         expect(state.selectedHabitIds.has('parent')).toBe(true)
         expect(state.selectedHabitIds.has('child-1')).toBe(true)
         expect(state.selectedHabitIds.has('child-2')).toBe(true)
+        expect(state.selectedHabitIds.has('grandchild-1')).toBe(true)
         expect(state.manuallySelectedIds.has('parent')).toBe(true)
       })
 
@@ -353,7 +353,7 @@ describe('ui store', () => {
         })
 
         const { toggleSelectionCascade } = useUIStore.getState()
-        toggleSelectionCascade('parent', getDescendantIds, neverSelected)
+        toggleSelectionCascade('parent', getDescendantIds)
 
         const state = useUIStore.getState()
         expect(state.selectedHabitIds.has('parent')).toBe(false)
@@ -369,7 +369,7 @@ describe('ui store', () => {
         })
 
         const { toggleSelectionCascade } = useUIStore.getState()
-        toggleSelectionCascade('parent', getDescendantIds, neverSelected)
+        toggleSelectionCascade('parent', getDescendantIds)
 
         const state = useUIStore.getState()
         expect(state.selectedHabitIds.has('parent')).toBe(false)
@@ -377,20 +377,22 @@ describe('ui store', () => {
         expect(state.selectedHabitIds.has('child-2')).toBe(false)
       })
 
-      it('does nothing when ancestor is already selected', () => {
+      it('excludes and restores a child selected by its parent', () => {
         useUIStore.setState({
           isSelectMode: true,
-          selectedHabitIds: new Set(['parent']),
-          manuallySelectedIds: new Set(['parent']),
+          selectedHabitIds: new Set<string>(),
+          manuallySelectedIds: new Set<string>(),
         })
 
-        const isAncestorSelected = (id: string) => id === 'child-1'
         const { toggleSelectionCascade } = useUIStore.getState()
-        toggleSelectionCascade('child-1', getDescendantIds, isAncestorSelected)
+        toggleSelectionCascade('parent', getDescendantIds)
+        toggleSelectionCascade('child-1', getDescendantIds)
 
-        const state = useUIStore.getState()
-        expect(state.selectedHabitIds.has('parent')).toBe(true)
-        expect(state.selectedHabitIds.size).toBe(1)
+        expect(useUIStore.getState().selectedHabitIds).toEqual(new Set(['parent', 'child-2']))
+        expect(useUIStore.getState().manuallySelectedIds).toEqual(new Set(['parent']))
+
+        toggleSelectionCascade('child-1', getDescendantIds)
+        expect(useUIStore.getState().selectedHabitIds).toEqual(new Set(['parent', 'child-1', 'child-2', 'grandchild-1']))
       })
     })
   })
