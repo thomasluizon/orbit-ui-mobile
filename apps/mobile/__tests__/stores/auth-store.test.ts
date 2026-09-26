@@ -34,9 +34,28 @@ import {
   resetPendingNotificationDeletesForTests,
   retryFailedNotificationDelete,
 } from '@/lib/pending-notification-deletes'
+import { useUIStore } from '@/stores/ui-store'
+import { getAccountId, setAccountId } from '@/lib/account-scope'
+import { startAccountScopedSession } from '@/lib/account-scoped-state'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 const TestRenderer = require('react-test-renderer')
+const asyncStorageEntries = vi.hoisted(() => new Map<string, string>())
+
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: vi.fn((key: string) => Promise.resolve(asyncStorageEntries.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
+      asyncStorageEntries.set(key, value)
+      return Promise.resolve()
+    }),
+    removeItem: vi.fn((key: string) => {
+      asyncStorageEntries.delete(key)
+      return Promise.resolve()
+    }),
+  },
+}))
+
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
@@ -265,6 +284,19 @@ describe('mobile auth store security paths', () => {
   beforeEach(() => {
     resetPendingNotificationDeletesForTests()
     clearStepUpState()
+    setAccountId(null)
+    asyncStorageEntries.clear()
+    vi.mocked(AsyncStorage.getItem).mockImplementation((key: string) =>
+      Promise.resolve(asyncStorageEntries.get(key) ?? null),
+    )
+    vi.mocked(AsyncStorage.setItem).mockImplementation((key: string, value: string) => {
+      asyncStorageEntries.set(key, value)
+      return Promise.resolve()
+    })
+    vi.mocked(AsyncStorage.removeItem).mockImplementation((key: string) => {
+      asyncStorageEntries.delete(key)
+      return Promise.resolve()
+    })
     replaceMock.mockReset()
     getTokenMock.mockReset()
     setTokenMock.mockReset()
@@ -1873,6 +1905,12 @@ describe('mobile auth store security paths', () => {
 
   it('refreshes an expired token in checkAuth and authenticates with the rotated token', async () => {
     const rotatedToken = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'refreshed-user', 'refreshed@example.com')
+    await startAccountScopedSession('refreshed-user')
+    useUIStore.getState().setActiveView('all')
+    await vi.waitFor(() => expect(asyncStorageEntries.has('orbit-ui-store:refreshed-user')).toBe(true))
+    await startAccountScopedSession(null)
+    expect(getAccountId()).toBeNull()
+    expect(useUIStore.getState().activeView).toBe('today')
     getTokenMock.mockResolvedValue(makeJwt(Math.floor(Date.now() / 1000) - 10))
     getRefreshTokenMock.mockResolvedValue('refresh-token')
     fetchMock.mockResolvedValue({
@@ -1885,6 +1923,8 @@ describe('mobile auth store security paths', () => {
     expect(isValid).toBe(true)
     expect(setQueryCacheScopeMock).toHaveBeenCalledWith('refreshed-user')
     expect(useAuthStore.getState().user).toMatchObject({ userId: 'refreshed-user' })
+    expect(getAccountId()).toBe('refreshed-user')
+    expect(useUIStore.getState().activeView).toBe('all')
   })
 
   it('treats a token with an unparseable payload as expired', async () => {

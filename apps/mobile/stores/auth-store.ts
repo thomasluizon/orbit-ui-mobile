@@ -37,6 +37,7 @@ import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 import { useThrottleStore } from './throttle-store'
 import { startAccountScopedSession } from '@/lib/account-scoped-state'
+import { getAccountId } from '@/lib/account-scope'
 
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -614,7 +615,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (accountId) bindStepUpStateToAccount(accountId)
       await setQueryCacheScope(accountId)
       if (!isCurrentSessionEpoch(ownership.epoch)) return false
-      if ((get().user?.userId ?? null) !== accountId) await startAccountScopedSession(accountId)
+      if (getAccountId() !== accountId) await startAccountScopedSession(accountId)
       if (!isCurrentSessionEpoch(ownership.epoch)) return false
       if (!ownsSessionEstablishment && get().sessionPhase === 'establishing') return true
       set((state) => ({
