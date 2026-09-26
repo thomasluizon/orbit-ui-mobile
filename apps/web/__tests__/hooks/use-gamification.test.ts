@@ -129,7 +129,7 @@ function makeStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
 }
 
 beforeEach(() => {
-  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Thomas', email: 'thomas@example.com' })
+  useAuthStore.getState().setAuth({ userId: 'account-a', name: 'Alex', email: 'alex@example.com' })
 })
 
 describe('useGamificationProfile', () => {

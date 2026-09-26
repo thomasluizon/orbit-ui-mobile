@@ -87,12 +87,12 @@ describe('mobile useProfile', () => {
   })
 
   it('renders without error and exposes profile data', async () => {
-    mocks.state.profile = createMockProfile({ email: 'thomas@example.com' })
+    mocks.state.profile = createMockProfile({ email: 'alex@example.com' })
 
     await renderHookHarness()
 
     expect(mocks.useQuery).toHaveBeenCalled()
-    expect(mocks.state.profile.email).toBe('thomas@example.com')
+    expect(mocks.state.profile.email).toBe('alex@example.com')
   })
 
   it('syncs i18n language when profile language differs', async () => {

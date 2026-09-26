@@ -13,7 +13,7 @@ function makeRequest(body: unknown) {
   })
 }
 
-const validBody = { email: 'thomas@example.com', language: 'en' }
+const validBody = { email: 'alex@example.com', language: 'en' }
 
 describe('send-code BFF route', () => {
   beforeEach(() => {

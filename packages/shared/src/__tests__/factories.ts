@@ -84,8 +84,8 @@ export function createMockGoal(overrides: Partial<Goal> = {}): Goal {
 
 export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
   return {
-    name: 'Thomas',
-    email: 'thomas@example.com',
+    name: 'Alex',
+    email: 'alex@example.com',
     timeZone: 'America/Sao_Paulo',
     aiSummaryEnabled: true,
     proactiveAstraEnabled: false,

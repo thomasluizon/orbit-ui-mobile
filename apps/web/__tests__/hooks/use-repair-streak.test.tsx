@@ -41,10 +41,10 @@ describe('useRepairStreak', () => {
   beforeEach(() => {
     repairStreakGapAction.mockReset()
     mockFetch.mockReset()
-    useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Thomas', email: 'thomas@example.com' })
+    useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Alex', email: 'alex@example.com' })
     useAuthStore.setState({
       isAuthenticated: true,
-      user: { userId: 'user-1', name: 'Thomas', email: 'thomas@example.com' },
+      user: { userId: 'user-1', name: 'Alex', email: 'alex@example.com' },
       expiresAt: Date.now() + 60_000,
       sessionRefreshFailed: false,
     })

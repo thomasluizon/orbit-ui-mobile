@@ -180,9 +180,9 @@ describe('SupportScreen', () => {
       tree.root.findAll((node) => node.props['data-multiline'] === '').length,
     ).toBeGreaterThan(0)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.numberOfLines).toBe(6)
-    expect(findInputByLabel(tree.root, 'profile.support.name')!.props.value).toBe('Thomas')
+    expect(findInputByLabel(tree.root, 'profile.support.name')!.props.value).toBe('Alex')
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value).toBe(
-      'thomas@example.com',
+      'alex@example.com',
     )
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
     expect(
@@ -608,7 +608,7 @@ describe('SupportScreen', () => {
     expect(
       tree.root.findAll(
         (node) => node.type === Text
-          && node.props.children === 'profile.support.successHint({"email":"thomas@example.com"})',
+          && node.props.children === 'profile.support.successHint({"email":"alex@example.com"})',
       ),
     ).toHaveLength(1)
     expect(

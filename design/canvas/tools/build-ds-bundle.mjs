@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 const root = process.argv[2];
 const outDir = process.argv[3];
 const tokensOnly = process.argv.includes('--tokens-only');
-const require = createRequire('file:///C:/Users/thoma/Documents/Programming/Projects/orbit-ui-mobile/package.json');
+const require = createRequire(import.meta.url);
 const transformSync = tokensOnly ? null : require('@babel/core').transformSync;
 
 const NS = 'OrbitDesignSystem_918bd5';
