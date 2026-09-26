@@ -1,3 +1,8 @@
+// ## Analysis boundary
+// Local style identifiers resolve only write-free const object literals and logical
+// expressions. Unknown logical guards keep both operands reachable. Mutated styles
+// stay silent because their value at the JSX use cannot be established here.
+
 // DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
 // and 56, which are the values the existing violations cluster around, so there is
 // less to choose wrongly between, and its jumps widen at the top to serve the
@@ -273,11 +278,15 @@ module.exports = {
 
     function referenceUse(node, seen) {
       let parent = node.parent
-      while (isTypeWrapper(parent)) {
+      while (isTypeWrapper(parent) || parent?.type === 'LogicalExpression') {
         node = parent
         parent = node.parent
       }
       if (isStyleAttributeValue(parent)) return true
+      if (parent?.type === 'VariableDeclarator' && parent.init === node &&
+        parent.id.type === 'Identifier') {
+        return qualifyingInitializer(findBinding(parent.id), seen) === node
+      }
       if (parent?.type !== 'SpreadElement' || parent.parent?.type !== 'ObjectExpression') return false
       const object = parent.parent
       if (isInlineStyleObject(object)) return true
@@ -294,15 +303,57 @@ module.exports = {
         definition.parent.kind !== 'const' || definition.parent.parent?.type === 'ExportNamedDeclaration' ||
         definition.node.id.type !== 'Identifier') return null
       const initializer = unwrapStyleExpression(definition.node.init)
-      if (initializer?.type !== 'ObjectExpression') return null
+      if (initializer?.type !== 'ObjectExpression' && initializer?.type !== 'LogicalExpression') return null
       const next = new Set(seen).add(variable)
       if (variable.references.some((reference) => reference.identifier !== definition.node.id &&
         (!reference.isReadOnly() || !referenceUse(reference.identifier, next)))) return null
       return initializer
     }
 
+    function staticLogicalValue(node, seen = new Set()) {
+      node = unwrapStyleExpression(node)
+      if (node?.type === 'ObjectExpression' || node?.type === 'ArrayExpression') {
+        return { truthy: true, nullish: false }
+      }
+      if (node?.type === 'Literal') {
+        return { truthy: Boolean(node.value), nullish: node.value === null }
+      }
+      if (node?.type !== 'Identifier') return null
+      const variable = findBinding(node)
+      const definition = variable?.defs[0]
+      if (!variable || seen.has(variable) || variable.defs.length !== 1 ||
+        definition?.type !== 'Variable' || definition.parent.kind !== 'const') return null
+      let initializer = definition.node.init
+      if (definition.node.id !== definition.name) {
+        const pattern = definition.node.id
+        if (pattern.type !== 'ObjectPattern' || pattern.properties.some((property) => property.type === 'RestElement') ||
+          initializer?.type !== 'ObjectExpression' || initializer.properties.length !== 1) return null
+        const binding = pattern.properties.find((property) =>
+          property.type === 'Property' && !property.computed && property.value === definition.name)
+        const source = initializer.properties[0]
+        if (!binding || source.type !== 'Property' || source.computed || source.kind !== 'init' ||
+          source.method || propertyName(binding) !== propertyName(source)) return null
+        initializer = source.value
+      }
+      seen.add(variable)
+      return staticLogicalValue(initializer, seen)
+    }
+
+    function logicalResult(node) {
+      const left = staticLogicalValue(node.left)
+      if (!left) return null
+      if (node.operator === '&&') return left.truthy ? node.right : node.left
+      if (node.operator === '||') return left.truthy ? node.left : node.right
+      if (node.operator === '??') return left.nullish ? node.right : node.left
+      return null
+    }
+
     function resolveObject(node, active) {
       node = unwrapStyleExpression(node)
+      if (node?.type === 'LogicalExpression') {
+        const result = logicalResult(node)
+        return result ? resolveObject(result, active) : null
+      }
       if (node?.type === 'Identifier') {
         const variable = findBinding(node)
         const initializer = qualifyingInitializer(variable)
@@ -343,7 +394,16 @@ module.exports = {
 
     function scanConstStyle(styleNode) {
       const resolved = resolveObject(styleNode, new Set())
-      if (!resolved) return
+      if (!resolved) {
+        const expression = unwrapStyleExpression(styleNode)
+        const initializer = expression?.type === 'Identifier'
+          ? qualifyingInitializer(findBinding(expression)) : expression
+        if (initializer?.type === 'LogicalExpression' && !logicalResult(initializer)) {
+          scanConstStyle(initializer.left)
+          scanConstStyle(initializer.right)
+        }
+        return
+      }
       for (const [name, value] of resolved.values) {
         if (!value || !SPACING_PROPS.has(name) || reportedLiterals.has(value)) continue
         reportedLiterals.add(value)
@@ -354,6 +414,20 @@ module.exports = {
     function scanStyleObject(node, inlineJsx = false) {
       node = unwrapStyleExpression(node)
       if (!node) return
+      if (node.type === 'LogicalExpression') {
+        const result = logicalResult(node)
+        if (result?.type === 'Identifier') scanConstStyle(result)
+        else if (result) scanStyleObject(result, inlineJsx)
+        else {
+          scanStyleObject(node.left, inlineJsx)
+          scanStyleObject(node.right, inlineJsx)
+        }
+        return
+      }
+      if (node.type === 'Identifier') {
+        scanConstStyle(node)
+        return
+      }
       if (node.type === 'ArrayExpression') {
         for (const element of node.elements) scanStyleObject(element)
         return
