@@ -6,7 +6,6 @@ import {
   validateGoalProgressInput,
 } from '@orbit/shared/utils'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useAdMob } from '@/hooks/use-ad-mob'
 import { useUpdateGoalProgress } from '@/hooks/use-goals'
 
 type ProgressDismissTarget = 'drawer' | 'form'
@@ -37,7 +36,6 @@ export function useGoalProgressFormState({
     [t],
   )
   const { showError } = useAppToast()
-  const { showInterstitialIfDue } = useAdMob()
   const updateProgress = useUpdateGoalProgress()
 
   const [progressValue, setProgressValue] = useState(() =>
@@ -113,7 +111,6 @@ export function useGoalProgressFormState({
       setProgressNote('')
       setShowProgressForm(false)
       await refetchDetail()
-      void showInterstitialIfDue()
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
@@ -130,7 +127,6 @@ export function useGoalProgressFormState({
     progressValue,
     refetchDetail,
     showError,
-    showInterstitialIfDue,
     translate,
     updateProgress,
   ])
