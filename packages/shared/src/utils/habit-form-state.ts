@@ -15,8 +15,10 @@ function editableReminders(habit: NormalizedHabit, detail?: HabitDetail | null) 
     ? [...source.scheduledReminders, ...relative.flatMap((reminder) =>
         reminder.when && reminder.time ? [{ when: reminder.when, time: reminder.time }] : [])]
     : source.scheduledReminders
-  const scheduledReminders = clocks.filter((reminder, index) =>
-    clocks.findIndex((other) => other.when === reminder.when && other.time === reminder.time) === index)
+  const scheduledReminders = clocks
+    .filter((reminder, index) =>
+      clocks.findIndex((other) => other.when === reminder.when && other.time === reminder.time) === index)
+    .map((reminder) => ({ ...reminder }))
   return {
     reminderTimes: offsets.length || scheduledReminders.length ? offsets : [...DEFAULT_REMINDER_TIMES],
     scheduledReminders,
