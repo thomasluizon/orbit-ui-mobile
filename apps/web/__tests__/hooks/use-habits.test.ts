@@ -650,6 +650,7 @@ describe('useRestoreHabit', () => {
 
     const { useRestoreHabit } = await import('@/hooks/use-habits')
     const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.count(), 449)
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
     const { result } = renderHook(() => useRestoreHabit(), {
       wrapper: createWrapper(queryClient),
@@ -662,7 +663,8 @@ describe('useRestoreHabit', () => {
     expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    expect(queryClient.getQueryData(habitKeys.count())).toBe(450)
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')

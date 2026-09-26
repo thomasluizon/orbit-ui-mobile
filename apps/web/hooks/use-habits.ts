@@ -278,7 +278,6 @@ export function useUpdateHabit() {
 function invalidateHabitDeleteQueries(queryClient: ReturnType<typeof useQueryClient>): void {
   void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-  void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
   void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
 }
@@ -292,6 +291,7 @@ export function useRestoreHabit() {
     mutationFn: (habitId: string) => restoreHabitAction(habitId),
 
     onSuccess: () => {
+      queryClient.setQueryData<number>(habitKeys.count(), (old) => old === undefined ? old : old + 1)
       invalidateHabitDeleteQueries(queryClient)
       showSuccess(t('undo.restored'))
     },
