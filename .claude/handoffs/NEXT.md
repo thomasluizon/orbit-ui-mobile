@@ -30,6 +30,7 @@ Done: the API half (#742 to #745, merged on `main`). Not done: the app half, whi
 | `orbit-ui-mobile` PR 1171 (`#556` sync) | review fix commits in the ticket worktree, not pushed (head `1d8998a5`): merge the report into the body, resolve the Expo interface thread, push, drive to merge |
 | `orbit-ui-mobile` PR 1170 (`#24` Stage 3 part 1) | review fixes pushed at `632883d2`; merging `redesign/main` conflicts in both `block-frame.tsx` files and `sonar-project.properties`: launch a worker to merge and re-verify, then drive to merge |
 | `orbit-ui-mobile` PR 1168 (`#632`) | approved and green at `40b10b32` but conflicts with `redesign/main`: merge the base, test, push, merge after a fresh approval |
+| `orbit-ui-mobile` PR 1173 (handoff prompt gate, base `redesign/main`) | refuses committing a `NEXT.md` that does not match the requested handoff mode, and the stop after it; CI and first review pending: drive to merge first, because every later handoff depends on it |
 | `orbit-api` PR 595 (`#751`) | review fix pushed at `16a49fbd`; CI finished after the handoff, result unread: read it and drive to merge |
 | `orbit-api` PR 594 (`#740`) | delivered at `ef8125ab`; CI finished after the handoff, result unread. Before merge, re-count live mixed reminder habits (1 at handoff); after deploy it must be 0 and that habit keeps its local time |
 | `#745` | merged; record the Supavisor 24-hour `Connection authenticated` count after its deploy on the ticket (before: 5,092), then close it |
