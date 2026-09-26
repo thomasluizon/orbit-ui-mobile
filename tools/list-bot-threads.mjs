@@ -28,6 +28,7 @@ import { graphqlBudgetDecision } from "./lib/github-rate-limit.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { headActivityArgv, headActivityBoundary } from "./lib/readiness-receipt.mjs"
 
 /**
  * The login as GraphQL spells it, because this tool reads GraphQL and nothing else. The two GitHub
@@ -79,9 +80,8 @@ head to be APPROVED and checkConclusion to be SUCCESS. checkStatus is COMPLETED,
 an APPROVED review with an ABSENT check is REVIEWED, because an unprotected base publishes no check
 and the exact-head approval is its evidence. Triage a non-null reviewBody like a thread.
 
-A review is evidence about the commit it was given on and nothing else. One pinned to an older
-head is NOT accepted: after a push the newest review names the old commit until the re-review
-lands, and taking it would report REVIEWED for code Pullfrog never saw.
+A review pinned to an older head is NOT accepted. A review submitted no later than the current
+head's GitHub branch push is stale too, even when GitHub reports the later head's oid on it.
 
 A draft pull request is read exactly like any other one, because Pullfrog reviews drafts too.
 
@@ -184,8 +184,10 @@ try {
 
 const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String){
   repository(owner:$owner,name:$repo){
+    nameWithOwner
     pullRequest(number:$pr){
-      number isDraft baseRefOid headRefOid
+      number isDraft baseRefOid headRefOid headRefName headRepository{nameWithOwner}
+      commits(last:1){nodes{commit{oid}}}
       reviews(last:50){nodes{id author{login} state submittedAt body commit{oid}}}
       comments(last:100){nodes{createdAt url}}
       statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion startedAt completedAt checkSuite{app{databaseId}}}}}}
@@ -231,6 +233,9 @@ const readPullRequest = async () => {
     if (payload.errors?.length) fail(2, `gh api graphql reported: ${payload.errors.map((entry) => entry.message).join("; ")}`)
     const node = payload.data?.repository?.pullRequest
     if (!node) fail(2, `gh api graphql returned no pull request ${pullRequest}`)
+    node.repositoryName = payload.data.repository.nameWithOwner ?? null
+    const headCommit = node.commits?.nodes?.[0]?.commit
+    if (headCommit?.oid !== node.headRefOid) fail(2, "gh api graphql returned no head commit")
     const pageInfo = node.reviewThreads?.pageInfo
     if (typeof pageInfo?.hasNextPage !== "boolean" || !(typeof pageInfo.endCursor === "string" || pageInfo.endCursor === null)) fail(2, "gh api graphql returned no complete reviewThreads pageInfo")
     if (!Array.isArray(node.reviewThreads?.nodes)) fail(2, "gh api graphql returned no reviewThreads nodes array")
@@ -256,6 +261,12 @@ const readPullRequest = async () => {
     pages += 1
   }
   first.reviewThreads = { nodes, pageInfo, pages, complete: true }
+  let activities = null
+  if (first.headRepository?.nameWithOwner === first.repositoryName) {
+    const activityResponse = await gh(headActivityArgv(first.repositoryName, first.headRefName), "gh api repository activity")
+    try { activities = JSON.parse(activityResponse) } catch { /* An invalid page cannot prove a review current. */ }
+  }
+  first.headActivityBoundary = headActivityBoundary(activities, first.headRefOid, first.headRefName, first.repositoryName, first.headRepository?.nameWithOwner)
   return first
 }
 
@@ -337,15 +348,17 @@ progress("REVIEW_STATE_READ", node, startedAt, deadline)
  * Pullfrog re-reviews after every push, so between a push and the next review the newest review
  * still names the OLD commit. Accepting it would report REVIEWED for code Pullfrog never saw, which
  * is the very defect this tool exists to remove: the harness reading a stale approval as a current
- * one. Comparing the commit is what makes the answer correct. A review whose commit is not the head
- * does not count, and the wait continues.
+ * one. The oid check alone misses GitHub repointing a review onto a later merge commit, so the
+ * submission must follow GitHub's activity timestamp for that branch transition.
  */
 const COMPLETED_REVIEW_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
-const currentHeadReviews = (payload) =>
-  (payload.reviews?.nodes ?? [])
+const currentHeadReviews = (payload) => {
+  const boundary = payload.headActivityBoundary?.time
+  return (payload.reviews?.nodes ?? [])
     .filter((review) => review.author?.login === botLogin)
-    .filter((review) => review.commit?.oid && review.commit.oid === payload.headRefOid)
+    .filter((review) => review.commit?.oid === payload.headRefOid && Number.isFinite(boundary) && submittedAtOf(review) > boundary)
     .sort((left, right) => submittedAtOf(left) - submittedAtOf(right))
+}
 
 const reviewThreadsOf = (payload, review) => (payload.reviewThreads?.nodes ?? [])
   .filter((thread) => thread.comments?.nodes?.[0]?.pullRequestReview?.id === review.id)
@@ -505,8 +518,13 @@ if (!review) {
   const asked = requested
     ? '"@pullfrog review" WAS posted on this run and no review arrived inside the budget, so the absence is the reviewer\'s, not ours'
     : 'no "@pullfrog review" was posted on this run, so the reviewer may simply never have been triggered'
-  const note = stale && stale.commit?.oid !== node.headRefOid
+  const activityBoundary = node.headActivityBoundary
+  const note = activityBoundary.reason
+    ? `${activityBoundary.reason}; no review can be proven current. ${asked}`
+    : stale && stale.commit?.oid !== node.headRefOid
     ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
+    : stale && stale.commit?.oid === node.headRefOid && submittedAtOf(stale) <= activityBoundary.time
+      ? `the newest ${botLogin} review predates head ${node.headRefOid}; GitHub reported the later head on that review. ${asked}`
     : `no completed ${botLogin} review of this head arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(

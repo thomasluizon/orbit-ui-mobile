@@ -60,12 +60,16 @@ export const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
  */
 const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
+    nameWithOwner
     pullRequest(number: $number) {
       number
       baseRefName
       baseRefOid
       headRefOid
+      headRefName
+      headRepository { nameWithOwner }
       isDraft
+      commits(last: 1) { nodes { commit { oid } } }
       reviews(last: 50, author: "pullfrog[bot]") {
         totalCount
         pageInfo { hasPreviousPage startCursor }
@@ -248,11 +252,29 @@ const normalizeReviewNode = (node) => {
  *
  * Newest, never first. Pullfrog often submits TWO reviews seconds apart, COMMENTED then APPROVED: on
  * PR 832 they arrived at 05:44:04Z and 05:44:39Z. A reader that returns on the first one reports
- * COMMENTED and hides a real approval, so this sorts by `submittedAt` and takes the last.
+ * COMMENTED and hides a real approval, so this sorts by `submittedAt` and takes the last. GitHub
+ * can repoint a review onto a later merge head, so the review must follow the branch push.
  */
-export const reviewAppVerdictAtHead = (reviews, headOid) => {
-  if (!Array.isArray(reviews) || typeof headOid !== "string" || headOid === "") return null
-  const atHead = reviews.filter((review) => review.isBot && review.login === REVIEW_APP_LOGIN && review.commitOid === headOid)
+/** One 100-entry page for this branch. A missing transition blocks review evidence. */
+export const headActivityArgv = (repository, headRefName) => ["api", `repos/${repository}/activity?ref=${encodeURIComponent(`refs/heads/${headRefName}`)}&per_page=100`]
+
+/** Both clocks belong to GitHub. The activity must describe this exact branch transition. */
+export const headActivityBoundary = (activities, headOid, headRefName, baseRepository, headRepository) => {
+  if (headRepository !== baseRepository || !headRepository) return { time: null, reason: "the head is in a different repository" }
+  if (!Array.isArray(activities)) return { time: null, reason: "the repository activity response is incomplete" }
+  const acceptedTypes = new Set(["push", "force_push", "branch_creation"])
+  const matching = activities.filter((activity) => acceptedTypes.has(activity?.activity_type) &&
+    activity.ref === `refs/heads/${headRefName}` && activity.after === headOid)
+  if (matching.length === 0) return { time: null, reason: "no matching head activity in the latest 100 branch entries" }
+  const times = matching.map((activity) => Date.parse(activity.timestamp ?? ""))
+  if (times.some((time) => !Number.isFinite(time))) return { time: null, reason: "the head activity timestamp is unparseable" }
+  return { time: Math.max(...times), reason: null }
+}
+
+export const reviewAppVerdictAtHead = (reviews, headOid, headTime) => {
+  if (!Array.isArray(reviews) || typeof headOid !== "string" || headOid === "" || !Number.isFinite(headTime)) return null
+  const atHead = reviews.filter((review) => review.isBot && review.login === REVIEW_APP_LOGIN && review.commitOid === headOid &&
+    review.submittedAt !== null && Number.isFinite(Date.parse(review.submittedAt)) && Date.parse(review.submittedAt) > headTime)
   if (atHead.length === 0) return null
   return atHead.reduce((newest, review) => (String(review.submittedAt ?? "") >= String(newest.submittedAt ?? "") ? review : newest))
 }
@@ -371,7 +393,10 @@ export const MAX_REVIEW_PAGES = 4
  * ends the walk as INCOMPLETE rather than as an absence, for the same reason.
  */
 export const resolveReviewVerdict = async (state, fetchOlderPage) => {
-  const verdict = reviewAppVerdictAtHead(state?.reviews, state?.headRefOid)
+  if (!Number.isFinite(state?.headActivityBoundary?.time)) {
+    return { verdict: null, complete: true, pagesRead: 0, reason: state?.headActivityBoundary?.reason ?? "no head activity boundary" }
+  }
+  const verdict = reviewAppVerdictAtHead(state?.reviews, state?.headRefOid, state?.headActivityBoundary?.time)
   if (verdict) return { verdict, complete: true, pagesRead: 0 }
   let truncated = state?.reviewsTruncated === true
   let cursor = state?.reviewsStartCursor ?? null
@@ -380,7 +405,7 @@ export const resolveReviewVerdict = async (state, fetchOlderPage) => {
     const page = await fetchOlderPage(cursor)
     pagesRead += 1
     if (!page) return { verdict: null, complete: false, pagesRead }
-    const found = reviewAppVerdictAtHead(page.reviews, state?.headRefOid)
+    const found = reviewAppVerdictAtHead(page.reviews, state?.headRefOid, state?.headActivityBoundary?.time)
     if (found) return { verdict: found, complete: true, pagesRead }
     truncated = page.truncated
     cursor = page.startCursor
@@ -406,8 +431,10 @@ export const resolveReviewVerdict = async (state, fetchOlderPage) => {
 export const pullRequestStateFromGraphQl = (payload) => {
   const pullRequest = payload?.data?.repository?.pullRequest
   if (!pullRequest) return null
-  const { number, baseRefName, baseRefOid, headRefOid, isDraft } = pullRequest
-  if (!Number.isInteger(number) || typeof baseRefName !== "string" || typeof baseRefOid !== "string" || typeof headRefOid !== "string" || typeof isDraft !== "boolean") return null
+  const { number, baseRefName, baseRefOid, headRefOid, headRefName, isDraft } = pullRequest
+  if (!Number.isInteger(number) || typeof baseRefName !== "string" || typeof baseRefOid !== "string" || typeof headRefOid !== "string" || typeof headRefName !== "string" || typeof isDraft !== "boolean") return null
+  const headCommit = pullRequest.commits?.nodes?.[0]?.commit
+  if (headCommit?.oid !== headRefOid) return null
   const nodes = pullRequest.statusCheckRollup === null ? [] : pullRequest.statusCheckRollup?.contexts?.nodes
   if (!Array.isArray(nodes)) return null
   const statusCheckRollup = []
@@ -462,7 +489,7 @@ export const pullRequestStateFromGraphQl = (payload) => {
   const reviewsTruncated = reviewsConnection === null || reviewsConnection === undefined ? false : truncationOf(reviewsConnection)
   if (reviewsTruncated === null) return null
   const reviewsStartCursor = typeof reviewsConnection?.pageInfo?.startCursor === "string" ? reviewsConnection.pageInfo.startCursor : null
-  return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
+  return { number, baseRefName, baseRefOid, headRefOid, headRefName, repositoryName: payload.data.repository.nameWithOwner ?? null, headRepository: pullRequest.headRepository?.nameWithOwner ?? null, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
 }
 
 /**
