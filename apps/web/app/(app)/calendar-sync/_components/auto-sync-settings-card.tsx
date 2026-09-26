@@ -63,7 +63,7 @@ export function AutoSyncSettingsCard() {
       toast.success(next ? t('calendar.autoSync.enableSuccess') : t('calendar.autoSync.disableSuccess'))
     } catch (err: unknown) {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
     }
   }
 
@@ -77,7 +77,7 @@ export function AutoSyncSettingsCard() {
       await runSyncNow.mutateAsync()
     } catch (err: unknown) {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
     }
   }
 

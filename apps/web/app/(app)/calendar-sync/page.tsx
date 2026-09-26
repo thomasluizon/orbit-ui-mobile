@@ -191,7 +191,7 @@ function CalendarSyncPageContent() {
       await dismissSuggestion.mutateAsync({ id: suggestionId })
     } catch (err: unknown) {
       if (getAccountGeneration() !== requestAccount) return
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
     }
   }
 

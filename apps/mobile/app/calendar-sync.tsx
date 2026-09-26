@@ -278,7 +278,7 @@ export default function CalendarSyncScreen() {
         {
           onError: (err: unknown) => {
             if (getAccountGeneration() !== requestAccount) return
-            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
           },
         },
       )
@@ -295,7 +295,7 @@ export default function CalendarSyncScreen() {
     runSyncNowMutation.mutate(undefined, {
       onError: (err: unknown) => {
         if (getAccountGeneration() !== requestAccount) return
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
       },
     })
   }, [isOnline, runSyncNowMutation, showError, t])
@@ -400,7 +400,7 @@ export default function CalendarSyncScreen() {
         await dismissSuggestion.mutateAsync({ id: suggestionId })
       } catch (err: unknown) {
         if (getAccountGeneration() !== requestAccount) return
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
       }
     },
     [dismissSuggestion, showError, t],
