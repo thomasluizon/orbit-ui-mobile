@@ -144,6 +144,14 @@ describe.each([
       document.contact.title,
       document.contact.body,
     ])
+    const closingParagraph = closingNote.findAll(
+      (node) => node.type === 'Text' && node.props.children === document.contact.body,
+    )[0]!
+    expect(ReactNative.StyleSheet.flatten(closingParagraph.props.style)).toMatchObject({
+      fontSize: 16,
+      lineHeight: 24.8,
+      color: '#F4F4F6',
+    })
 
     const renderedSectionTitles = sections.findAll(
       (node) => typeof node.type === 'string'
