@@ -112,7 +112,7 @@ const mocks = vi.hoisted(() => {
       (value as { queued?: boolean }).queued === true
     )),
     queueOrExecute: vi.fn(),
-    cancelQueuedDeleteForUndo: vi.fn(() => Promise.resolve('cancelled' as const)),
+    cancelQueuedDeleteForUndo: vi.fn(() => Promise.resolve<'cancelled' | 'replayed' | 'dropped' | 'uncertain'>('cancelled')),
     withQueuedMarker: vi.fn((value: Record<string, unknown>, mutationId: string) => ({
       ...value,
       queued: true as const,
@@ -410,6 +410,19 @@ describe('mobile goal hooks', () => {
     performUndo()
     await vi.waitFor(() => expect(mocks.cancelQueuedDeleteForUndo).toHaveBeenCalledWith('mutation-1'))
     expect(mocks.restoreGoalMutate).not.toHaveBeenCalled()
+  })
+
+  it('reconciles an ambiguous goal delete after restoring its cached list', async () => {
+    const mutation = useDeleteGoal() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string }, string, { previousLists: [] }
+    >
+    mocks.cancelQueuedDeleteForUndo.mockResolvedValueOnce('uncertain')
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' }, 'goal-1', { previousLists: [] },
+    )
+    const performUndo = mocks.showUndoToast.mock.calls.at(-1)![1] as () => void
+    performUndo()
+    await vi.waitFor(() => expect(mocks.restoreGoalMutate).toHaveBeenCalledExactlyOnceWith('goal-1'))
   })
 
   it('restores a goal through the queued path, targets the restore endpoint, and confirms', async () => {

@@ -290,6 +290,36 @@ describe('offline mutations', () => {
   it.each([
     ['deleteHabit', 'habit', '/api/habits/habit-1', 'habit-1'],
     ['deleteGoal', 'goal', '/api/goals/goal-1', 'goal-1'],
+    ['bulkDeleteHabits', undefined, '/api/habits/bulk', undefined],
+  ] as const)('settles a failed %s Undo offline without waiting for replay', async (
+    type, entityType, endpoint, targetEntityId,
+  ) => {
+    const mutation = buildQueuedMutation({
+      type,
+      scope: type === 'deleteGoal' ? 'goals' : 'habits',
+      endpoint,
+      method: 'DELETE',
+      payload: type === 'bulkDeleteHabits' ? { habitIds: ['parent', 'child'] } : null,
+      entityType,
+      targetEntityId,
+    })
+    mutation.status = 'failed'
+    mutation.retries = 1
+    mocks.queued.push(mutation)
+
+    expect(await Promise.race([
+      cancelQueuedDeleteForUndo(mutation.id),
+      new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), 0)),
+    ])).toBe('uncertain')
+    expect(mocks.queued).toHaveLength(0)
+    if (entityType !== undefined) {
+      expect(mocks.markOfflineTombstone).toHaveBeenCalledWith(entityType, targetEntityId, false)
+    }
+  })
+
+  it.each([
+    ['deleteHabit', 'habit', '/api/habits/habit-1', 'habit-1'],
+    ['deleteGoal', 'goal', '/api/goals/goal-1', 'goal-1'],
   ] as const)('clears the offline tombstone when cancelling %s', async (
     type, entityType, endpoint, targetEntityId,
   ) => {
@@ -334,6 +364,36 @@ describe('offline mutations', () => {
     await flush
     expect(await undo).toBe('replayed')
     expect(mocks.queued).toHaveLength(0)
+  })
+
+  it('settles Undo when an in-flight delete fails after the user taps it', async () => {
+    const mutation = buildQueuedMutation({
+      type: 'deleteHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1',
+      method: 'DELETE',
+      payload: null,
+      entityType: 'habit',
+      targetEntityId: 'habit-1',
+    })
+    mocks.queued.push(mutation)
+    mocks.setOnline(true)
+    let failDelete!: () => void
+    mocks.apiClient.mockImplementation(() => new Promise((_resolve, reject) => {
+      failDelete = () => reject(new TypeError('Network request failed'))
+    }))
+
+    const flush = flushQueuedMutations()
+    await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(1))
+    const undo = cancelQueuedDeleteForUndo(mutation.id)
+    failDelete()
+    await flush
+    expect(await Promise.race([
+      undo,
+      new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), 0)),
+    ])).toBe('uncertain')
+    expect(mocks.queued).toHaveLength(0)
+    expect(mocks.markOfflineTombstone).toHaveBeenCalledWith('habit', 'habit-1', false)
   })
 
   it('does not replay a bulk delete cancelled during replay preparation', async () => {

@@ -20,6 +20,7 @@ import {
 } from '@orbit/shared/utils'
 import type {
   HabitScheduleItem,
+  HabitScheduleChild,
   HabitDetail,
   HabitFullDetail,
   LogHabitResponse,
@@ -90,6 +91,22 @@ type CreateSubHabitMutationInput = {
   __offlineTempId?: string
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
+
+function selectedDescendantsInSnapshots(
+  snapshots: HabitListSnapshots,
+  selectedIds: Set<string>,
+): Set<string> {
+  const descendants = new Set<string>()
+  const visit = (habit: HabitScheduleItem | HabitScheduleChild, selectedAncestor: boolean) => {
+    const selected = selectedIds.has(habit.id)
+    if (selected && selectedAncestor) descendants.add(habit.id)
+    for (const child of habit.children) visit(child, selectedAncestor || selected)
+  }
+  for (const [, habits] of snapshots) {
+    for (const habit of habits ?? []) visit(habit, false)
+  }
+  return descendants
+}
 
 export {
   EMPTY_CHILDREN_BY_PARENT,
@@ -458,13 +475,12 @@ export function useDeleteHabit() {
       showUndoToast(t('undo.habitDeleted'), () => {
         if (isQueuedResult(data)) {
           void cancelQueuedDeleteForUndo(data.queuedMutationId).then((outcome) => {
-            if (outcome === 'replayed') {
-              restoreHabit.mutate(habitId)
-              return
+            if (outcome !== 'replayed') {
+              restoreHabitLists(queryClient, context.previousLists)
+              adjustHabitCount(queryClient, 1)
+              void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
             }
-            restoreHabitLists(queryClient, context.previousLists)
-            adjustHabitCount(queryClient, 1)
-            void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+            if (outcome === 'replayed' || outcome === 'uncertain') restoreHabit.mutate(habitId)
           })
           return
         }
@@ -868,18 +884,22 @@ export function useBulkDeleteHabits() {
       const deleted = result.results.filter((item) => item.status === 'Success')
       if (deleted.length === 0) return
       const cascadedIds = new Set(deleted.flatMap((item) => item.cascadedHabitIds ?? []))
-      const restoreIds = deleted.map((item) => item.habitId).filter((id) => !cascadedIds.has(id))
+      const selectedIds = new Set(deleted.map((item) => item.habitId))
+      const selectedDescendants = selectedDescendantsInSnapshots(context.previousLists, selectedIds)
+      const restoreIds = deleted.map((item) => item.habitId)
+        .filter((id) => !cascadedIds.has(id) && !selectedDescendants.has(id))
       const message = plural(t('undo.habitsDeleted', { count: deleted.length }), deleted.length)
       showUndoToast(message, () => {
         if (isQueuedResult(result)) {
           void cancelQueuedDeleteForUndo(result.queuedMutationId).then((outcome) => {
-            if (outcome === 'replayed') {
-              for (const habitId of restoreIds) restoreHabit.mutate(habitId)
-              return
+            if (outcome !== 'replayed') {
+              restoreHabitLists(queryClient, context.previousLists)
+              adjustHabitCount(queryClient, context.deletedCount)
+              void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
             }
-            restoreHabitLists(queryClient, context.previousLists)
-            adjustHabitCount(queryClient, context.deletedCount)
-            void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+            if (outcome === 'replayed' || outcome === 'uncertain') {
+              for (const habitId of restoreIds) restoreHabit.mutate(habitId)
+            }
           })
           return
         }

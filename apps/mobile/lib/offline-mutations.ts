@@ -141,24 +141,32 @@ export function isQueuedResult(value: unknown): value is QueuedMarker {
   )
 }
 
+function cancelUnsentDelete(mutation: PersistedQueuedMutation): Promise<'cancelled' | 'uncertain'> {
+  remove(mutation.id)
+  const outcome = mutation.retries > 0 ? 'uncertain' : 'cancelled'
+  if (mutation.entityType && mutation.targetEntityId) {
+    return markOfflineTombstone(mutation.entityType, mutation.targetEntityId, false)
+      .then(() => outcome)
+  }
+  return Promise.resolve(outcome)
+}
+
 export function cancelQueuedDeleteForUndo(
   mutationId: string,
-): Promise<'cancelled' | 'replayed' | 'dropped'> {
+): Promise<'cancelled' | 'replayed' | 'dropped' | 'uncertain'> {
   const mutation = getById(mutationId)
   if (!mutation) return Promise.resolve('replayed')
-  if (mutation.status !== 'syncing' && mutation.retries === 0) {
-    remove(mutationId)
-    if (mutation.entityType && mutation.targetEntityId) {
-      return markOfflineTombstone(mutation.entityType, mutation.targetEntityId, false)
-        .then(() => 'cancelled')
-    }
-    return Promise.resolve('cancelled')
-  }
+  if (mutation.status !== 'syncing') return cancelUnsentDelete(mutation)
 
   return new Promise((resolve) => {
     const unsubscribe = subscribeFlushResults((result) => {
-      if (getById(mutationId)) return
+      const current = getById(mutationId)
+      if (current?.status === 'syncing') return
       unsubscribe()
+      if (current) {
+        void cancelUnsentDelete(current).then(resolve)
+        return
+      }
       if (result.droppedMutations.some((dropped) => dropped.id === mutationId)) {
         resolve('dropped')
       } else {

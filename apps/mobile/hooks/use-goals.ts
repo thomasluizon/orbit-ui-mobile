@@ -273,12 +273,11 @@ export function useDeleteGoal() {
       showUndoToast(t('undo.goalDeleted'), () => {
         if (isQueuedResult(data)) {
           void cancelQueuedDeleteForUndo(data.queuedMutationId).then((outcome) => {
-            if (outcome === 'replayed') {
-              restoreGoal.mutate(goalId)
-              return
+            if (outcome !== 'replayed') {
+              restoreGoalLists(queryClient, context.previousLists)
+              void invalidateGoalQueries(queryClient)
             }
-            restoreGoalLists(queryClient, context.previousLists)
-            void invalidateGoalQueries(queryClient)
+            if (outcome === 'replayed' || outcome === 'uncertain') restoreGoal.mutate(goalId)
           })
           return
         }
