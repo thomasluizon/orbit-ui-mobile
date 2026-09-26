@@ -555,6 +555,24 @@ describe('useCreateHabit', () => {
     mockFetch.mockReset()
   })
 
+  it('adds the created habit and updates the count without refetching three list pages', async () => {
+    const { createHabit } = await import('@/lib/actions/habits')
+    vi.mocked(createHabit).mockResolvedValue({ id: 'new-h' })
+    const date = formatAPIDate(new Date())
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.count(), 450)
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ id: 'h-1' })])
+    queryClient.setQueryData(habitKeys.list({ dateFrom: date, dateTo: date }), [makeScheduleItem({ id: 'h-1' })])
+    const { result } = renderHook(() => useCreateHabit(), { wrapper: createWrapper(queryClient) })
+
+    await act(async () => { await result.current.mutateAsync({ title: 'New Habit', dueDate: date }) })
+
+    expect(queryClient.getQueryData(habitKeys.count())).toBe(451)
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.at(-1)?.id).toBe('new-h')
+    expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({ dateFrom: date, dateTo: date }))?.at(-1)?.id).toBe('new-h')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('calls createHabit action with request data', async () => {
     const { createHabit } = await import('@/lib/actions/habits')
     const mockedCreateHabit = vi.mocked(createHabit)

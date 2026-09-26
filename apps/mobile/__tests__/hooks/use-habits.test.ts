@@ -494,6 +494,24 @@ describe('mobile habit hooks', () => {
     }))
   })
 
+  it('replaces the temporary created habit ID and keeps the cached count', async () => {
+    seedHabitState([makeHabit()], 450)
+    mocks.state.tempIds = ['temporary-habit']
+    const mutation = useCreateHabit() as unknown as MutationConfig<
+      { id: string }, CreateHabitRequest & { __offlineTempId?: string },
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]; tempId: string }
+    >
+    const request: CreateHabitRequest & { __offlineTempId?: string } = { title: 'New habit' }
+    const context = await mutation.onMutate?.(request)
+    mutation.onSuccess?.({ id: 'created-habit' }, request, context)
+    mutation.onSettled?.({ id: 'created-habit' }, null, request, context)
+
+    expect((mocks.queryClient.getQueryData(habitKeys.list({})) as HabitScheduleItem[]).at(-1)?.id).toBe('created-habit')
+    expect(mocks.queryClient.getQueryData(habitKeys.count())).toBe(451)
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+  })
+
   it('rejects an overlong create description before queuing or sending', async () => {
     const mutation = useCreateHabit() as unknown as MutationConfig<
       { id: string },

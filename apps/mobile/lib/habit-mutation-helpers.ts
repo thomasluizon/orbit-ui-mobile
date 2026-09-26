@@ -5,10 +5,10 @@ import {
   habitKeys,
   profileKeys,
   tagKeys,
+  buildCachedCreatedHabit as buildOptimisticHabit,
 } from '@orbit/shared/query'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type {
-  CreateHabitRequest,
   CreateSubHabitRequest,
   HabitScheduleChild,
   HabitScheduleItem,
@@ -408,68 +408,7 @@ function findCachedTags(
     .filter((tag): tag is CachedTag => tag !== null)
 }
 
-function getNextTopLevelPosition(queryClient: QueryClient): number {
-  let maxPosition = -1
-
-  for (const [, items] of queryClient.getQueriesData<HabitScheduleItem[]>({
-    queryKey: habitKeys.lists(),
-  })) {
-    for (const item of items ?? []) {
-      if (item.position !== null) {
-        maxPosition = Math.max(maxPosition, item.position)
-      }
-    }
-  }
-
-  return maxPosition + 1
-}
-
-export function buildOptimisticHabit(
-  queryClient: QueryClient,
-  tempId: string,
-  data: CreateHabitRequest,
-): HabitScheduleItem {
-  const now = new Date()
-  const dueDate = data.dueDate || formatAPIDate(now)
-  const hasScheduleInstance = !data.isGeneral && dueDate.length > 0
-
-  return {
-    id: tempId,
-    title: data.title,
-    description: data.description ?? null,
-    emoji: data.emoji ?? null,
-    frequencyUnit: data.frequencyUnit ?? null,
-    frequencyQuantity: data.frequencyQuantity ?? null,
-    isBadHabit: data.isBadHabit ?? false,
-    isCompleted: false,
-    isGeneral: data.isGeneral ?? false,
-    isFlexible: data.isFlexible ?? false,
-    days: data.days ?? [],
-    dueDate,
-    dueTime: data.dueTime ?? null,
-    dueEndTime: data.dueEndTime ?? null,
-    endDate: data.endDate ?? null,
-    position: getNextTopLevelPosition(queryClient),
-    checklistItems: data.checklistItems ?? [],
-    createdAtUtc: now.toISOString(),
-    scheduledDates: data.isGeneral ? [] : [dueDate],
-    isOverdue: false,
-    reminderEnabled: data.reminderEnabled ?? false,
-    reminderTimes: data.reminderTimes ?? [],
-    scheduledReminders: data.scheduledReminders ?? [],
-    slipAlertEnabled: data.slipAlertEnabled ?? false,
-    tags: findCachedTags(queryClient, data.tagIds),
-    children: [],
-    hasSubHabits: (data.subHabits?.length ?? 0) > 0,
-    flexibleTarget: null,
-    flexibleCompleted: null,
-    linkedGoals: findCachedGoals(queryClient, data.goalIds),
-    instances: hasScheduleInstance
-      ? [{ date: dueDate, status: 'Pending', logId: null }]
-      : [],
-    searchMatches: null,
-  }
-}
+export { buildOptimisticHabit }
 
 export function buildOptimisticSubHabit(
   queryClient: QueryClient,

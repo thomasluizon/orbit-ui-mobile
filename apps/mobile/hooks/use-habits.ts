@@ -9,6 +9,7 @@ import {
   profileKeys,
   updateHabitListsForDate,
   invalidateHabitDateLists,
+  insertCreatedHabitIntoLists,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { createHabitRequestSchema, updateHabitRequestSchema, validateApiRequest } from '@orbit/shared'
@@ -318,7 +319,7 @@ export function useCreateHabit() {
       data.__offlineTempId = tempId
       const optimisticHabit = buildOptimisticHabit(queryClient, tempId, data)
 
-      updateHabitLists(queryClient, (items) => optimisticInsertHabit(items, optimisticHabit))
+      insertCreatedHabitIntoLists(queryClient, optimisticHabit)
       adjustHabitCount(queryClient, 1)
 
       return { previousLists, tempId }
@@ -333,6 +334,14 @@ export function useCreateHabit() {
     onSuccess: (result, _request, context) => {
       useUIStore.getState().setLastCreatedHabitId(result.id)
       updateHabitLists(queryClient, (items) => optimisticPatchHabit(items, context.tempId, { id: result.id }))
+      if (!isQueuedResult(result)) {
+        const created = findHabitInList(
+          queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+            .flatMap(([, items]) => items ?? []),
+          result.id,
+        )
+        if (created) invalidateHabitDateLists(queryClient, created.dueDate, result.id)
+      }
     },
 
     onSettled: (data, error) =>

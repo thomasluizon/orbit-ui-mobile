@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl'
 import {
   habitKeys, goalKeys, gamificationKeys, profileKeys,
   updateHabitListsForDate, invalidateHabitDateLists, invalidateHabitDependents,
+  buildCachedCreatedHabit, insertCreatedHabitIntoLists,
 } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
@@ -229,8 +230,9 @@ export function useCreateHabit() {
 
     onSuccess: (result, request) => {
       useUIStore.getState().setLastCreatedHabitId(result.id)
+      insertCreatedHabitIntoLists(queryClient, buildCachedCreatedHabit(queryClient, result.id, request))
       queryClient.setQueryData<number>(habitKeys.count(), (old) => old === undefined ? old : old + 1)
-      invalidateHabitDateLists(queryClient, request.dueDate || formatAPIDate(new Date()))
+      invalidateHabitDateLists(queryClient, request.dueDate || formatAPIDate(new Date()), result.id)
     },
 
     onSettled: () => {
