@@ -26,6 +26,8 @@ import { useTourStore } from '@/stores/tour-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { readShowGeneralOnToday, writeShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 import { accountStorageKey } from '@/lib/account-storage-key'
+import { getAccountId, setAccountId } from '@/lib/account-scope'
+import { startAccountScopedSession } from '@/lib/account-scoped-state'
 
 const TestRenderer = require('react-test-renderer')
 const clearSupabaseSessionMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
@@ -311,6 +313,7 @@ describe('mobile auth store security paths', () => {
   })
 
   beforeEach(() => {
+    setAccountId(null)
     asyncStorageEntries.clear()
     replaceMock.mockReset()
     getTokenMock.mockReset()
@@ -1815,6 +1818,12 @@ describe('mobile auth store security paths', () => {
 
   it('refreshes an expired token in checkAuth and authenticates with the rotated token', async () => {
     const rotatedToken = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'refreshed-user', 'refreshed@example.com')
+    await startAccountScopedSession('refreshed-user')
+    useUIStore.getState().setShowCompleted(true)
+    await vi.waitFor(() => expect(asyncStorageEntries.has('orbit-ui-store:refreshed-user')).toBe(true))
+    await startAccountScopedSession(null)
+    expect(getAccountId()).toBeNull()
+    expect(useUIStore.getState().showCompleted).toBe(false)
     getTokenMock.mockResolvedValue(makeJwt(Math.floor(Date.now() / 1000) - 10))
     getRefreshTokenMock.mockResolvedValue('refresh-token')
     fetchMock.mockResolvedValue({
@@ -1827,6 +1836,8 @@ describe('mobile auth store security paths', () => {
     expect(isValid).toBe(true)
     expect(setQueryCacheScopeMock).toHaveBeenCalledWith('refreshed-user')
     expect(useAuthStore.getState().user).toMatchObject({ userId: 'refreshed-user' })
+    expect(getAccountId()).toBe('refreshed-user')
+    expect(useUIStore.getState().showCompleted).toBe(true)
   })
 
   it('treats a token with an unparseable payload as expired', async () => {
