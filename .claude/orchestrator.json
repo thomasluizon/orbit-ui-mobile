@@ -5,6 +5,9 @@
       "command": "codex",
       "args": [
         "exec",
+        "--disable",
+        "apps",
+        "--ignore-user-config",
         "-c",
         "windows.sandbox=\"unelevated\"",
         "--dangerously-bypass-approvals-and-sandbox"
