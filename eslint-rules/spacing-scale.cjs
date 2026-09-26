@@ -1,6 +1,6 @@
 // ## Analysis boundary
 // Local style identifiers resolve only write-free const object literals and logical
-// expressions with a statically known left value. Runtime guards and mutated styles
+// expressions. Unknown logical guards keep both operands reachable. Mutated styles
 // stay silent because their value at the JSX use cannot be established here.
 
 // DESIGN.md "Spacing (base 4)": "The scale is these ten values and nothing else"
@@ -323,8 +323,20 @@ module.exports = {
       const definition = variable?.defs[0]
       if (!variable || seen.has(variable) || variable.defs.length !== 1 ||
         definition?.type !== 'Variable' || definition.parent.kind !== 'const') return null
+      let initializer = definition.node.init
+      if (definition.node.id !== definition.name) {
+        const pattern = definition.node.id
+        if (pattern.type !== 'ObjectPattern' || pattern.properties.some((property) => property.type === 'RestElement') ||
+          initializer?.type !== 'ObjectExpression' || initializer.properties.length !== 1) return null
+        const binding = pattern.properties.find((property) =>
+          property.type === 'Property' && !property.computed && property.value === definition.name)
+        const source = initializer.properties[0]
+        if (!binding || source.type !== 'Property' || source.computed || source.kind !== 'init' ||
+          source.method || propertyName(binding) !== propertyName(source)) return null
+        initializer = source.value
+      }
       seen.add(variable)
-      return staticLogicalValue(definition.node.init, seen)
+      return staticLogicalValue(initializer, seen)
     }
 
     function logicalResult(node) {
@@ -382,7 +394,16 @@ module.exports = {
 
     function scanConstStyle(styleNode) {
       const resolved = resolveObject(styleNode, new Set())
-      if (!resolved) return
+      if (!resolved) {
+        const expression = unwrapStyleExpression(styleNode)
+        const initializer = expression?.type === 'Identifier'
+          ? qualifyingInitializer(findBinding(expression)) : expression
+        if (initializer?.type === 'LogicalExpression' && !logicalResult(initializer)) {
+          scanConstStyle(initializer.left)
+          scanConstStyle(initializer.right)
+        }
+        return
+      }
       for (const [name, value] of resolved.values) {
         if (!value || !SPACING_PROPS.has(name) || reportedLiterals.has(value)) continue
         reportedLiterals.add(value)
@@ -397,6 +418,14 @@ module.exports = {
         const result = logicalResult(node)
         if (result?.type === 'Identifier') scanConstStyle(result)
         else if (result) scanStyleObject(result, inlineJsx)
+        else {
+          scanStyleObject(node.left, inlineJsx)
+          scanStyleObject(node.right, inlineJsx)
+        }
+        return
+      }
+      if (node.type === 'Identifier') {
+        scanConstStyle(node)
         return
       }
       if (node.type === 'ArrayExpression') {
