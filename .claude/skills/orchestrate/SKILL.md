@@ -124,7 +124,7 @@ These interfaces are fixed. Do not invent flags or variants.
 node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format markdown] [--sleep]
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
-node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--review-batch] [--cloud]
+node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
 node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
@@ -496,6 +496,12 @@ node tools/compose-prompt.mjs --issue "<ticket-ref>" --repo <key> --out <scratch
 The file carries three parts. A local order puts them in the order ticket, finishing contract (with
 any redesign review sweep), brief, so the worker reads its delivery steps before the brief (#624). A
 Cloud order keeps ticket, brief, finishing contract.
+
+For a ui ticket that requires the hermetic web layout guard, the orchestrator selects
+`--layout-guard` explicitly. Ticket text never selects it. The flag permits creating and editing
+files only under `apps/web/e2e/layout/` among end-to-end paths. It does not permit any browser,
+server, emulator or Playwright command. The worker never runs the guard; `.github/workflows/layout.yml`
+on the pull request is the only runner and evidence.
 
 1. The ticket body VERBATIM plus every chronological comment.
 2. **The orchestrator's brief:** target repo and its absolute path, the branch already checked out,
@@ -1177,8 +1183,8 @@ Playwright visual test, and was killed at the 45 minute ceiling with a dirty tre
 `/login?returnUrl=%2Fpreferences` and burned the rest of its budget. Two worker budgets, two dev
 servers left listening, two deliveries a human had to rescue.
 
-Both enforcement points are unconditional. `compose-prompt.mjs` puts the prohibition in every
-worker prompt, and `.claude/hooks/forbid-worker-browser.mjs` refuses the command at act time for any
+The command prohibition is unconditional. `compose-prompt.mjs` puts it in every worker prompt, and
+`.claude/hooks/forbid-worker-browser.mjs` refuses the command at act time for any
 caller carrying the launcher marker or running inside a linked worktree. `/dev-server` is untouched:
 it runs from the main checkout, which is the owner.
 

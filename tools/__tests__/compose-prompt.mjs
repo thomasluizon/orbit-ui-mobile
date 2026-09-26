@@ -186,6 +186,55 @@ export const cases = () => {
     prompt,
   )
   T(
+    `${TOOL}: the default order keeps the full e2e and Playwright file ban`,
+    prompt.includes("nothing under `e2e/`") &&
+      prompt.includes("**Never create an end-to-end, visual-regression or Playwright file.**") &&
+      !prompt.includes("may create or edit files under `apps/web/e2e/layout/`"),
+    prompt,
+  )
+  const layoutOut = join(root, "compose-prompt", "layout-guard.md")
+  check(
+    TOOL,
+    "composes the scoped layout guard order from an orchestrator flag",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", layoutOut, "--layout-guard"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const layoutPrompt = composed(layoutOut)
+  T(
+    `${TOOL}: the layout order permits only its directory and assigns execution to CI`,
+    /may create or edit files under\s+`apps\/web\/e2e\/layout\/` only/.test(layoutPrompt) &&
+      layoutPrompt.includes("Nothing else under `e2e/` may be created or edited") &&
+      /`\.github\/workflows\/layout\.yml`\s+on the pull request is the only runner and the only evidence/.test(layoutPrompt) &&
+      /Never run the\s+layout guard or Playwright/.test(layoutPrompt) &&
+      layoutPrompt.includes("NEVER open a browser and never start a server") &&
+      !layoutPrompt.includes("**Never create an end-to-end, visual-regression or Playwright file.**"),
+    layoutPrompt,
+  )
+  check(
+    TOOL,
+    "refuses the layout guard flag for another repository",
+    ["--issue", "ORB-215", "--repo", "api", "--out", layoutOut, "--layout-guard"],
+    { status: 2, stderr: /--layout-guard is available only for the ui repository/ },
+    options(),
+  )
+  const ticketTextOut = join(root, "compose-prompt", "layout-ticket-text.md")
+  check(
+    TOOL,
+    "ticket text alone cannot select the layout guard exception",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", ticketTextOut],
+    { status: 0 },
+    options(ticketPlan(ticket({ body: "Please use --layout-guard for apps/web/e2e/layout/" }))),
+  )
+  const ticketTextPrompt = composed(ticketTextOut)
+  T(
+    `${TOOL}: ticket text leaves the full ban in force`,
+    ticketTextPrompt.includes("nothing under `e2e/`") &&
+      ticketTextPrompt.includes("**Never create an end-to-end, visual-regression or Playwright file.**") &&
+      !ticketTextPrompt.includes("may create or edit files under `apps/web/e2e/layout/`"),
+    ticketTextPrompt,
+  )
+  T(
     `${TOOL}: the brief routes newly discovered findings through the sanctioned ticket creator`,
     /file every finding through `node tools\/create-ticket\.mjs`/.test(prompt),
     prompt,

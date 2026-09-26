@@ -329,6 +329,7 @@ T("worker-browser: a later chained dev server blocks", blocks(worker("npm test &
 // The same commands from a session that is NOT a worker are none of this gate's business.
 T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm run dev", { env: {}, cwd: "", repoRoots: [] }), null)
 T("worker-browser: a cwd inside a linked worktree IS a worker", blocks(checkWorkerBrowser("npm run dev", { env: {}, cwd: linkedWorktree, repoRoots: [mainCheckout] })), true)
+T("worker-browser: Playwright remains blocked in a linked worktree", blocks(checkWorkerBrowser("npx playwright test", { env: {}, cwd: linkedWorktree, repoRoots: [mainCheckout] })), true)
 T("worker-browser: the main checkout is not a worker", checkWorkerBrowser("npm run dev", { env: {}, cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
 // Ordinary work a worker MUST still be able to do. A gate that blocks the test run gets switched off.
 for (const command of ["npm test", "npm run build", "npm run lint", "dotnet test", "npx vitest run apps/web", "git commit -m 'stop npm run dev in CI'", "curl https://api.github.com/repos/o/r"]) {

@@ -15,6 +15,7 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --worktree <path> worktree the worker will run in, named in the brief
   --branch <name>   branch already checked out for the worker
   --base <ref>      base branch the pull request targets (default: main)
+  --layout-guard    allow editing only apps/web/e2e/layout/ among e2e files; never run it (ui only)
   --review-batch    stop a local review fix after a tested commit
   --cloud          compose the container contract instead of local PR delivery
   --help, -h        print this usage and exit 0
@@ -44,6 +45,7 @@ const worktree = argOf("--worktree")
 const branch = argOf("--branch")
 const baseBranch = argOf("--base") ?? "main"
 const cloud = process.argv.includes("--cloud")
+const layoutGuard = process.argv.includes("--layout-guard")
 const reviewBatch = !cloud && process.argv.includes("--review-batch")
 if (!issue || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
 
@@ -51,6 +53,7 @@ const config = readOrchestratorConfig()
 const repoPath = config.repos?.[repoKey]
 if (!repoPath) fail(2, `unknown repo key "${repoKey}"; declared: ${Object.keys(config.repos ?? {}).join(", ")}`)
 if (cloud && repoKey !== config.cloud.repositoryKey) fail(2, `--cloud is bound to repository ${config.cloud.repositoryKey}; ${repoKey} must run locally`)
+if (layoutGuard && repoKey !== "ui") fail(2, "--layout-guard is available only for the ui repository")
 
 /** The prompt must not land inside a repository: a worker that finds its own work order in the
  * tree can commit it, and a reviewer would then read instructions written by the change. */
@@ -139,7 +142,16 @@ local obligation is:
 ${reviewSweepContract}`
   : ""
 
-const browserBan = `
+const browserBan = layoutGuard ? `
+
+**NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
+own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
+Playwright, Maestro or Cypress run, no navigating to localhost on any port, no logging in to the app.
+The sole exception to the end-to-end file ban is this: the worker may create or edit files under
+\`apps/web/e2e/layout/\` only. Nothing else under \`e2e/\` may be created or edited. Never run the
+layout guard or Playwright, including local and focused test runs. \`.github/workflows/layout.yml\`
+on the pull request is the only runner and the only evidence. Do not gather screenshots. A fresh
+worktree has no seeded session.` : `
 
 **NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
 own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
@@ -203,10 +215,13 @@ two tickets. Do not modify the harness under tools/ or .claude/ unless this tick
 then pass every intended path explicitly to \`git --literal-pathspecs add\`. Tracked \`.orca/\` changes
 are source and must never be discarded; only untracked \`.orca/\` runtime residue is disposable.
 
-**Never create an end-to-end, visual-regression or Playwright file.** The testing rule in CLAUDE.md
+${layoutGuard ? `**The only end-to-end file exception is \`apps/web/e2e/layout/\`.** Playwright files
+there may be created or edited, but never run by the worker. Never create a visual-regression file
+or another end-to-end or Playwright file. The pull request's \`.github/workflows/layout.yml\` is the
+only evidence for the layout guard.` : `**Never create an end-to-end, visual-regression or Playwright file.** The testing rule in CLAUDE.md
 is Vitest unit and behaviour tests, and no new end-to-end suite. If a behaviour genuinely cannot be
 covered by a Vitest test, say so in the PR body and leave
-it uncovered rather than starting a browser.
+it uncovered rather than starting a browser.`}
 
 **Never assume an external interface.** Confirm any field, flag, exit code, or response shape from a
 CLI, API, or library you did not write by reading the real response or the installed source. Not
