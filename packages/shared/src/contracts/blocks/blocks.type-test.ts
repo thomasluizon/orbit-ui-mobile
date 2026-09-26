@@ -21,6 +21,7 @@ type ExpectedBlockFrameItem = {
   readonly status?: 'done' | 'acting' | 'failed'
   readonly statusLabel?: string
   readonly control?: React.ReactNode
+  readonly editable?: boolean
   readonly proposed?: boolean
   readonly irreversible?: boolean
 }
@@ -77,6 +78,7 @@ export type BlockContractWidthAssertions = [
   Assert<IsExactWidth<BlockFrameItem['status'], 'done' | 'acting' | 'failed' | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['statusLabel'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['control'], React.ReactNode>>,
+  Assert<IsExactWidth<BlockFrameItem['editable'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['proposed'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['irreversible'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['title'], string>>,

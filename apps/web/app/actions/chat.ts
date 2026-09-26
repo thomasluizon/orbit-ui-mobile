@@ -5,11 +5,27 @@ import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
   PendingAgentOperationConfirmation,
+  PendingOperationRevisionResult,
+  RevisePendingOperationRequest,
 } from '@orbit/shared'
 import { serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export type PendingOperationActionResult<T> = ServerActionResult<T>
+
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthMutate enforces auth (resolveServerSession throws 401 before any request); RD cannot trace the call nested in wrapServerAction. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+export async function revisePendingOperation(
+  id: string,
+  request: RevisePendingOperationRequest,
+  intendedAccountId: string | null,
+): Promise<PendingOperationActionResult<PendingOperationRevisionResult>> {
+  return wrapServerAction(() =>
+    serverAuthMutate<PendingOperationRevisionResult>(API.ai.pendingOperationRevise(id), {
+      method: 'POST',
+      body: JSON.stringify(request),
+    }, intendedAccountId),
+  )
+}
 
 // react-doctor-disable-next-line server-auth-actions -- FP: serverAuthMutate enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the wrapServerAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function confirmPendingOperation(

@@ -48,6 +48,15 @@ describe('BlockFrame on web', () => {
     expect(labels).toEqual(['First row', 'Second rowSecond detail'])
   })
 
+  it('wraps row metadata only when wrapMeta is set', () => {
+    render(<BlockFrame {...resting({ items: [
+      { id: 'wrapped', label: 'Wrapped', meta: 'Long preview summary', wrapMeta: true },
+      { id: 'single', label: 'Single', meta: 'Short summary', wrapLabel: true },
+    ] })} />)
+    expect(screen.getByText('Long preview summary')).toHaveClass('break-words')
+    expect(screen.getByText('Short summary')).toHaveClass('truncate')
+  })
+
   it('refreshes a stale frame once and withholds old actions', () => {
     const onRefresh = vi.fn()
     render(

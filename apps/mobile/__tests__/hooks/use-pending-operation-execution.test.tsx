@@ -61,6 +61,22 @@ describe('usePendingOperationExecution step-up flow', () => {
     mocks.apiClient.mockReset()
   })
 
+  it('posts a revision without confirming or executing', async () => {
+    const response = { isSuccess: true, error: null, pendingOperationId: 'pending-1',
+      cancelled: false, preview: { changes: [], changeTargetCount: 1, items: [], previewFingerprint: 'next' } }
+    mocks.apiClient.mockResolvedValue(response)
+    const appendExecutionMessage = vi.fn(async () => {})
+    const hook = await renderExecution(appendExecutionMessage)
+    const request = { previewFingerprint: 'current', items: [{ itemId: 'habit-1', edits: { emoji: 'B' } }] }
+    const result = await hook.current.revisePendingOperationForBubble('pending-1', request)
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.ai.pendingOperationRevise('pending-1'), {
+      method: 'POST', body: JSON.stringify(request),
+    })
+    expect(result).toEqual({ ok: true, result: response })
+    expect(mocks.apiClient).toHaveBeenCalledOnce()
+    expect(appendExecutionMessage).not.toHaveBeenCalled()
+  })
+
   it('confirms then issues a step-up challenge, surfacing the device language', async () => {
     mocks.apiClient
       .mockResolvedValueOnce({ confirmationToken: 'token-9' })

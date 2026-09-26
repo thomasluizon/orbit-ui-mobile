@@ -281,6 +281,37 @@ describe('Sheet close path (mobile)', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('runs the rejection handler instead of the exit action when dismissal rejects', async () => {
+    dismiss.mockRejectedValueOnce(new Error('VIEW_NOT_FOUND'))
+    const navigate = vi.fn()
+    const onRejected = vi.fn()
+    let closeSheet: ((exitAction?: () => void, onRejected?: () => void) => void) | null = null
+
+    function Host() {
+      const host = useSheetHost()
+      closeSheet = host.closeSheet
+      return (
+        <Sheet ref={host.sheetRef} open onClose={vi.fn()}>
+          <Text>Body</Text>
+        </Sheet>
+      )
+    }
+
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<Host />)
+      await Promise.resolve()
+    })
+
+    await TestRenderer.act(async () => {
+      closeSheet!(navigate, onRejected)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(onRejected).toHaveBeenCalledTimes(1)
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
   it('keeps the host mounted and clears a pending exit action when dismissal rejects', async () => {
     dismiss.mockRejectedValueOnce(new Error('dismiss failed'))
     const onClose = vi.fn()

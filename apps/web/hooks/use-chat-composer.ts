@@ -256,6 +256,7 @@ export function useChatComposer() {
   }, [addMessage, queryClient, scrollToBottom, t])
 
   const {
+    revisePendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -826,6 +827,7 @@ export function useChatComposer() {
     retryLastSend,
     canRetryLastSend,
     handleBreakdownConfirmed,
+    revisePendingOperationForBubble,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

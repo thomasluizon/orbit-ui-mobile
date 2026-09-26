@@ -70,7 +70,7 @@ function MetaLine({ meta, wrap, tokens }: Readonly<{ meta: string; wrap: boolean
 function FrameRow(props: FrameRowProps) {
   const { item, frameState, statusLabel, onEditItem, tokens } = props
   const status = frameState === 'acting' ? 'acting' : item.status
-  const isEditable = status == null && frameState !== 'stale'
+  const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <View
       style={styles.row}

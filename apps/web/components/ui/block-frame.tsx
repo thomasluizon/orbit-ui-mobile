@@ -45,7 +45,7 @@ function StatusView({ status, label }: StatusViewProps) {
 function FrameRow(props: ResolvedBlockFrameRow) {
   const { item, frameState, statusLabel, onEditItem } = props
   const status = frameState === 'acting' ? 'acting' : item.status
-  const isEditable = status == null && frameState !== 'stale'
+  const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <div
       className="flex min-h-[52px] items-center gap-3 p-3"

@@ -19,8 +19,9 @@ export interface SheetHandle {
   /**
    * Dismisses the native sheet and runs `exitAction` once the dismissal
    * completes. Without an `exitAction` the sheet's own `onClose` runs instead.
+   * `onRejected` runs instead of either when the native dismissal rejects.
    */
-  requestClose: (exitAction?: () => void) => void
+  requestClose: (exitAction?: () => void, onRejected?: () => void) => void
 }
 
 /**
@@ -32,9 +33,9 @@ export interface SheetHandle {
 export function useSheetHost() {
   const sheetRef = useRef<SheetHandle>(null)
 
-  const closeSheet = useCallback((exitAction?: () => void) => {
+  const closeSheet = useCallback((exitAction?: () => void, onRejected?: () => void) => {
     const handle = sheetRef.current
-    if (handle) handle.requestClose(exitAction)
+    if (handle) handle.requestClose(exitAction, onRejected)
     else exitAction?.()
   }, [])
 
@@ -94,11 +95,12 @@ export function Sheet({
     })
   }, [handleDidDismiss])
 
-  const requestClose = useCallback((exitAction?: () => void) => {
+  const requestClose = useCallback((exitAction?: () => void, onRejected?: () => void) => {
     exitActionRef.current = exitAction ?? null
     void sheetRef.current?.dismiss().catch(() => {
       // WHY: A rejected dismissal leaves the native sheet visible. https://github.com/lodev09/react-native-true-sheet/blob/v3.11.3/src/TrueSheet.tsx#L404-L410
       exitActionRef.current = null
+      onRejected?.()
     })
   }, [])
 

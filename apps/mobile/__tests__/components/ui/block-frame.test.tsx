@@ -96,6 +96,17 @@ describe('BlockFrame on mobile', () => {
     expect(texts.indexOf('First row')).toBeLessThan(texts.indexOf('Second row'))
   })
 
+  it('wraps row metadata only when wrapMeta is set', () => {
+    const tree = render(<BlockFrame {...frame({ items: [
+      { id: 'wrapped', label: 'Wrapped', meta: 'Long preview summary', wrapMeta: true },
+      { id: 'single', label: 'Single', meta: 'Short summary', wrapLabel: true },
+    ] })} />)
+    const wrapped = tree.root.find((node) => node.type === 'Text' && prop(node, 'children') === 'Long preview summary')
+    const single = tree.root.find((node) => node.type === 'Text' && prop(node, 'children') === 'Short summary')
+    expect(prop(wrapped, 'numberOfLines')).toBeUndefined()
+    expect(prop(single, 'numberOfLines')).toBe(1)
+  })
+
   it('refreshes a stale frame once and withholds old actions', () => {
     const onRefresh = vi.fn()
     const tree = render(
