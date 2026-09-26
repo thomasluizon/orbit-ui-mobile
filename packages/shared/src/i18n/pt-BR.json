@@ -1315,7 +1315,7 @@
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com o assistente de IA do Orbit",
       "preferences": "Preferências: idioma, fuso horário, cor do tema e configurações de notificação",
-      "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos"
+      "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes) e diagnósticos de falhas com identificadores pessoais removidos. No Orbit para Android antes da versão 1.3.35, também o identificador de publicidade do seu dispositivo, que o SDK de anúncios podia acessar"
     },
     "howWeUse": {
       "title": "Como usamos seus dados",

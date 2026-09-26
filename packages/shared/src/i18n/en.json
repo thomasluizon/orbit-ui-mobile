@@ -1315,7 +1315,7 @@
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
       "preferences": "Preferences: language, timezone, color scheme, and notification settings",
-      "device": "Device data: a push notification token (to deliver reminders) and crash diagnostics with personal identifiers removed"
+      "device": "Device data: a push notification token (to deliver reminders) and crash diagnostics with personal identifiers removed. On Orbit for Android before version 1.3.35, also your device advertising identifier, which the ad SDK could access"
     },
     "howWeUse": {
       "title": "How We Use Your Data",
