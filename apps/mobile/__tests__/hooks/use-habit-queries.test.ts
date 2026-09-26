@@ -108,11 +108,21 @@ describe('useHabits refetch behavior', () => {
 
   it('requests only the first search page from a 450-habit account', async () => {
     mocks.apiClient.mockResolvedValue({ items: [], page: 1, pageSize: 50, totalCount: 450, totalPages: 3 })
-    renderHookCapture(() => useHabits({ search: 'run', pageSize: 50 }))
+    renderHookCapture(() => useHabits({ search: 'run', page: 1, pageSize: 50 }))
 
     await lastQuery().queryFn()
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
-    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits?search=run&pageSize=50')
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits?search=run&page=1&pageSize=50')
+  })
+
+  it('continues through all pages for unbounded search', async () => {
+    mocks.apiClient
+      .mockResolvedValueOnce({ items: [{ id: 'first' }], page: 1, pageSize: 200, totalCount: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [{ id: 'second' }], page: 2, pageSize: 200, totalCount: 2, totalPages: 2 })
+    renderHookCapture(() => useHabits({ search: 'run' }))
+
+    expect(await lastQuery().queryFn()).toEqual([{ id: 'first' }, { id: 'second' }])
+    expect(mocks.apiClient).toHaveBeenCalledTimes(2)
   })
 })
 

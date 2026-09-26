@@ -79,7 +79,7 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
 
   const today = formatAPIDate(new Date())
   const todayQuery = useHabits({ dateFrom: today, dateTo: today, includeOverdue: true })
-  const searchQuery = useHabits({ search: search.trim(), pageSize: 50 }, search.trim().length > 0)
+  const searchQuery = useHabits({ search: search.trim(), page: 1, pageSize: 50 }, search.trim().length > 0)
   const { data, isPending, isSuccess } = search.trim() ? searchQuery : todayQuery
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()

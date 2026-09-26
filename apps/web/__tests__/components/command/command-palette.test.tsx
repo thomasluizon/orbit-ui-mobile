@@ -116,7 +116,7 @@ describe('CommandPalette', () => {
     expect(mockUseHabits).not.toHaveBeenCalledWith({})
 
     fireEvent.change(screen.getByPlaceholderText('command.placeholder'), { target: { value: 'run' } })
-    expect(mockUseHabits).toHaveBeenCalledWith({ search: 'run', pageSize: 50 }, true)
+    expect(mockUseHabits).toHaveBeenCalledWith({ search: 'run', page: 1, pageSize: 50 }, true)
   })
   it('renders the search input when the palette is open', () => {
     renderPalette()

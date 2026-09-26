@@ -215,14 +215,27 @@ describe('useHabits (query hook)', () => {
       json: () => Promise.resolve({ ...makePaginatedResponse(items), totalCount: 450, totalPages: 3 }),
     })
 
-    const { result } = renderHook(() => useHabits({ search: 'run', pageSize: 50 }), {
+    const { result } = renderHook(() => useHabits({ search: 'run', page: 1, pageSize: 50 }), {
       wrapper: createWrapper(),
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(QUERY_STALE_TIMES.habits).toBe(5 * 60 * 1000)
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=run&pageSize=50')
+    expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=run&page=1&pageSize=50')
+  })
+
+  it('keeps unbounded search results complete', async () => {
+    const firstPage = { ...makePaginatedResponse([makeScheduleItem({ id: 'first' })]), totalPages: 2 }
+    const secondPage = { ...makePaginatedResponse([makeScheduleItem({ id: 'second' })]), page: 2, totalPages: 2 }
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(firstPage) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(secondPage) })
+
+    const { result } = renderHook(() => useHabits({ search: 'run' }), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.habitsById.size).toBe(2)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 })
 
