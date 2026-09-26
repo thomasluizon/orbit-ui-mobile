@@ -20,7 +20,6 @@ import {
 import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
 import type { Goal } from "@orbit/shared/types/goal";
 import { plural } from "@/lib/plural";
-import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
 import {
   EMPTY_HABITS_BY_ID,
@@ -89,7 +88,6 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
-  const { showInterstitialIfDue } = useAdMob();
   const { profile } = useProfile();
   const accountId = useAccountId();
   const { tags } = useTags();
@@ -404,9 +402,8 @@ export default function TodayScreen() {
     (habitId: string) => {
       habitListRef.current?.markRecentlyCompleted(habitId);
       habitListRef.current?.checkAndPromptParentLog(habitId);
-      void showInterstitialIfDue();
     },
-    [showInterstitialIfDue],
+    [],
   );
 
   const handleEditHabit = useCallback(

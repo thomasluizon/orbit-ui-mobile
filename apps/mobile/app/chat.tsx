@@ -14,7 +14,6 @@ import { habitDetailToNormalized } from "@orbit/shared/utils";
 import { useHabitDetail } from "@/hooks/use-habits";
 import { useGoBackOrFallback } from "@/hooks/use-go-back-or-fallback";
 import { useChatComposer } from "@/hooks/use-chat-composer";
-import { useChatReward } from "@/hooks/use-chat-reward";
 import { MessageBubble } from "@/components/message-bubble";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { ChatInputArea } from "@/components/chat/chat-input-area";
@@ -93,16 +92,6 @@ export default function ChatScreen() {
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
-
-  const {
-    adsEnabledForUser,
-    canWatchRewardAd,
-    isLoadingReward,
-    rewardsClaimedToday,
-    dailyRewardCap,
-    rewardMessage,
-    watchAdForMessages,
-  } = useChatReward();
 
   const habitDetailQuery = useHabitDetail(selectedHabitId);
   const detailHabit = useMemo(
@@ -238,17 +227,6 @@ export default function ChatScreen() {
           composerResetSignal={composerResetSignal}
           recordingTime={recordingTime}
           speechSupported={speechSupported}
-          reward={{
-            adsEnabledForUser,
-            canWatchRewardAd,
-            isLoadingReward,
-            rewardsClaimedToday,
-            dailyRewardCap,
-            rewardMessage,
-            onWatchAd: () => {
-              void watchAdForMessages();
-            },
-          }}
           onRemoveImage={removeImage}
           onRemoveTextFile={removeTextFile}
           onRetry={() => {

@@ -301,39 +301,6 @@ export function createStyles(tokens: Tokens) {
       marginTop: 12,
       gap: 12,
     },
-    rewardCard: {
-      alignItems: "center",
-      gap: 8,
-    },
-    rewardButton: {
-      minHeight: 44,
-      justifyContent: "center",
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 999,
-      borderWidth: 1.5,
-      borderColor: tokens.hairlineStrong,
-    },
-    rewardButtonDisabled: {
-      opacity: 0.5,
-    },
-    rewardButtonText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      textAlign: "center",
-    },
-    rewardMeta: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 12,
-      letterSpacing: 0.24,
-      textAlign: "center",
-      fontVariant: ["tabular-nums"],
-    },
-    rewardMessage: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 11,
-      textAlign: "center",
-    },
     usageText: {
       fontFamily: 'Roboto_400Regular',
       fontSize: 12,

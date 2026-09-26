@@ -10,16 +10,6 @@ import { ChatInputBar } from "@/components/chat/chat-input-bar";
 import { OfflineUnavailableState } from "@/components/ui/offline-unavailable-state";
 import type { ChatStyles, Tokens } from "@/app/chat.styles";
 
-interface ChatRewardState {
-  adsEnabledForUser: boolean;
-  canWatchRewardAd: boolean;
-  isLoadingReward: boolean;
-  rewardsClaimedToday: number;
-  dailyRewardCap: number;
-  rewardMessage: string | null;
-  onWatchAd: () => void;
-}
-
 interface ChatInputAreaProps {
   tokens: Tokens;
   styles: ChatStyles;
@@ -38,7 +28,6 @@ interface ChatInputAreaProps {
   aiMessagesUsed: number;
   aiMessagesLimit: number;
   atMessageLimit: boolean;
-  reward: ChatRewardState;
   voiceRef: React.Ref<View>;
   isRecording: boolean;
   isTranscribing: boolean;
@@ -245,11 +234,10 @@ function ChatStarterChips({ styles, starterChips, onSendChip }: Readonly<ChatSta
 interface ChatLimitNoticeProps {
   tokens: Tokens;
   styles: ChatStyles;
-  reward: ChatRewardState;
   onUpgrade: () => void;
 }
 
-function ChatLimitNotice({ tokens, styles, reward, onUpgrade }: Readonly<ChatLimitNoticeProps>) {
+function ChatLimitNotice({ tokens, styles, onUpgrade }: Readonly<ChatLimitNoticeProps>) {
   const { t } = useTranslation();
   return (
     <View style={styles.limitBlock} accessibilityLiveRegion="polite">
@@ -261,37 +249,6 @@ function ChatLimitNotice({ tokens, styles, reward, onUpgrade }: Readonly<ChatLim
       >
         {t("upgrade.subscribe")}
       </PillButton>
-      {reward.adsEnabledForUser ? (
-        <View style={styles.rewardCard}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.rewardButton,
-              !reward.canWatchRewardAd && styles.rewardButtonDisabled,
-              pressed && { opacity: 0.7 },
-            ]}
-            onPress={reward.onWatchAd}
-            disabled={!reward.canWatchRewardAd}
-            hitSlop={{ top: 5, bottom: 5 }}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !reward.canWatchRewardAd }}
-          >
-            <Text style={[styles.rewardButtonText, { color: tokens.fg1 }]}>
-              {reward.isLoadingReward
-                ? t("common.loading")
-                : t("ads.watchForMessages")}
-            </Text>
-          </Pressable>
-          <Text style={[styles.rewardMeta, { color: tokens.fg3 }]}>
-            {reward.rewardsClaimedToday}/{reward.dailyRewardCap}{" "}
-            {t("ads.dailyLimitReached")}
-          </Text>
-          {reward.rewardMessage ? (
-            <Text style={[styles.rewardMessage, { color: tokens.fg2 }]}>
-              {reward.rewardMessage}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -316,7 +273,6 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
       aiMessagesUsed,
       aiMessagesLimit,
       atMessageLimit,
-      reward,
       voiceRef,
       onRemoveImage,
       onRemoveTextFile,
@@ -389,7 +345,6 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
           <ChatLimitNotice
             tokens={tokens}
             styles={styles}
-            reward={reward}
             onUpgrade={onUpgrade}
           />
         )}
