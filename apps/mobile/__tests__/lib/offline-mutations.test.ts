@@ -148,6 +148,8 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
+vi.mock('@/lib/account-scope', () => ({ getAccountId: () => 'test-account' }))
+
 vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
   getAll: mocks.getAll,

@@ -86,6 +86,9 @@ vi.mock('expo-secure-store', () => ({
   deleteItemAsync: vi.fn(),
 }))
 
+vi.mock('@/lib/account-scope', () => ({ getAccountId: () => 'test-account' }))
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: () => ({
     data: mockHabitsData,
@@ -278,7 +281,7 @@ describe('HabitList', () => {
   it.each([
     ['bulkLogHabits', 'autoLogParentTitle'],
     ['bulkSkipHabits', 'autoSkipParentTitle'],
-  ] as const)('settles a parent once after accepted %s replay items', (type, titleKey) => {
+  ] as const)('settles a parent once after accepted %s replay items', async (type, titleKey) => {
     const parent = createMockHabit({
       id: 'parent', title: 'Parent', hasSubHabits: true,
       instances: [{ date: TODAY, status: 'Pending', logId: null }],
@@ -295,16 +298,16 @@ describe('HabitList', () => {
     const findDialogs = () => tree.root.findAllByType('ConfirmDialog')
       .filter((node: any) => node.props.title === i18n.t(`habits.${titleKey}`))
 
-    TestRenderer.act(() => {
-      notifyBulkReplaySuccess({
+    await TestRenderer.act(async () => {
+      await notifyBulkReplaySuccess({
         mutationId: 'mutation-1', type,
         items: [{ habitId: 'accepted', date: TODAY }],
       })
     })
     expect(findDialogs()).toHaveLength(0)
 
-    TestRenderer.act(() => {
-      notifyBulkReplaySuccess({
+    await TestRenderer.act(async () => {
+      await notifyBulkReplaySuccess({
         mutationId: 'mutation-2', type,
         items: [{ habitId: 'rejected', date: TODAY }],
       })

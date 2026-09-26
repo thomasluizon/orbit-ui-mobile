@@ -631,7 +631,7 @@ function serializeMutationPayload(payload: unknown): string | undefined {
   return payload === undefined || payload === null ? undefined : JSON.stringify(payload)
 }
 
-function reportBulkReplaySuccess(mutation: PersistedQueuedMutation, response: unknown): void {
+async function reportBulkReplaySuccess(mutation: PersistedQueuedMutation, response: unknown): Promise<void> {
   if (mutation.type !== 'bulkLogHabits' && mutation.type !== 'bulkSkipHabits') return
   const itemSchema = mutation.type === 'bulkLogHabits'
     ? bulkLogItemRequestSchema
@@ -645,7 +645,7 @@ function reportBulkReplaySuccess(mutation: PersistedQueuedMutation, response: un
     return result.status === 'Success' && item?.habitId === result.habitId ? [item] : []
   })
   if (items.length > 0) {
-    notifyBulkReplaySuccess({ mutationId: mutation.id, type: mutation.type, items })
+    await notifyBulkReplaySuccess({ mutationId: mutation.id, type: mutation.type, items })
   }
 }
 
@@ -894,7 +894,7 @@ async function processQueuedMutationFlush(
       getMutationResponseSchema(mutation.type),
     )
 
-    reportBulkReplaySuccess(mutation, response)
+    await reportBulkReplaySuccess(mutation, response)
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
     return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
   } catch (error: unknown) {
