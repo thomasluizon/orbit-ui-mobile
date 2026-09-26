@@ -20,9 +20,9 @@ import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
+  getFriendlyErrorMessage,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils/error-utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
@@ -351,7 +351,7 @@ export default function CalendarSyncScreen() {
         })
       }
     } catch (err: unknown) {
-      setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'textless'))
+      setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
       setWizardStage('error')
     }
   }, [

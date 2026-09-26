@@ -241,13 +241,13 @@ function CalendarSyncPageContent() {
             }
           },
           onError: (err: unknown) => {
-            setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'textless'))
+            setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
             setWizardStage('error')
           },
         },
       )
     } catch (err: unknown) {
-      setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'textless'))
+      setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
       setWizardStage('error')
     }
   }

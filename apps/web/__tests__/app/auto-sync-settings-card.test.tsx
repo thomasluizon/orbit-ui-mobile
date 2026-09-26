@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { ApiClientError } from '@orbit/shared/utils/error-utils'
 
 interface AutoSyncState {
   hasGoogleConnection: boolean
@@ -30,13 +31,6 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
   useCalendarAutoSyncState: () => ({ data: hoisted.state, isLoading: hoisted.isLoading }),
   useSetCalendarAutoSync: () => hoisted.setAutoSync,
   useRunCalendarSyncNow: () => hoisted.runSyncNow,
-}))
-
-vi.mock('@orbit/shared/utils', () => ({
-  formatCalendarAutoSyncLastSynced: () => 'last synced just now',
-  getFriendlyErrorMessage: () => 'friendly-error',
-  isCalendarAutoSyncStatusReconnectRequired: (status?: string | null) =>
-    status === 'reconnect_required',
 }))
 
 vi.mock('sonner', () => ({ toast: hoisted.toast }))
@@ -109,12 +103,12 @@ describe('AutoSyncSettingsCard', () => {
   })
 
   it('surfaces a friendly error when the toggle mutation fails', async () => {
-    hoisted.setAutoSync.mutateAsync.mockRejectedValue(new Error('nope'))
+    hoisted.setAutoSync.mutateAsync.mockRejectedValue(new ApiClientError(403, 'Forbidden'))
     render(<AutoSyncSettingsCard />)
 
     fireEvent.click(toggle())
 
-    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('friendly-error'))
+    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
   })
 
   it('blocks a manual sync while offline', () => {
@@ -136,16 +130,16 @@ describe('AutoSyncSettingsCard', () => {
   })
 
   it('reports a friendly error when the manual sync fails', async () => {
-    hoisted.runSyncNow.mutateAsync.mockRejectedValue(new Error('down'))
+    hoisted.runSyncNow.mutateAsync.mockRejectedValue(new ApiClientError(403, 'Forbidden'))
     render(<AutoSyncSettingsCard />)
 
     fireEvent.click(screen.getByRole('button', { name: /calendar\.autoSync\.syncNow/ }))
 
-    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('friendly-error'))
+    await waitFor(() => expect(hoisted.toast.error).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
   })
 
   it('offers reconnect when the status requires it and launches the Google flow', async () => {
-    hoisted.state = { hasGoogleConnection: true, enabled: true, status: 'reconnect_required', lastSyncedAt: null }
+    hoisted.state = { hasGoogleConnection: true, enabled: true, status: 'ReconnectRequired', lastSyncedAt: null }
     render(<AutoSyncSettingsCard />)
 
     expect(screen.getByText('calendar.autoSync.reconnectTitle')).toBeInTheDocument()
@@ -155,7 +149,7 @@ describe('AutoSyncSettingsCard', () => {
   })
 
   it('shows a Google error toast when reconnect fails', async () => {
-    hoisted.state = { hasGoogleConnection: true, enabled: true, status: 'reconnect_required', lastSyncedAt: null }
+    hoisted.state = { hasGoogleConnection: true, enabled: true, status: 'ReconnectRequired', lastSyncedAt: null }
     hoisted.connectGoogle.mockRejectedValue(new Error('oauth'))
     render(<AutoSyncSettingsCard />)
 
