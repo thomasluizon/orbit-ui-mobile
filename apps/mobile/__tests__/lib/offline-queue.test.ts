@@ -239,6 +239,40 @@ describe('mobile offline queue', () => {
     })
   })
 
+  it('keeps the create while compacting reorders and persists the resolved latest order', () => {
+    enqueue(makeMutation({
+      id: 'create-1',
+      timestamp: 1,
+      type: 'createHabit',
+      clientEntityId: 'offline-habit-1',
+    }))
+    enqueue(makeMutation({
+      id: 'reorder-1',
+      timestamp: 2,
+      type: 'reorderHabits',
+      method: 'PUT',
+      dedupeKey: 'habits:reorder',
+      payload: { positions: [{ habitId: 'offline-habit-1', position: 2 }] },
+    }))
+    enqueue(makeMutation({
+      id: 'reorder-2',
+      timestamp: 3,
+      type: 'reorderHabits',
+      method: 'PUT',
+      dedupeKey: 'habits:reorder',
+      payload: { positions: [{ habitId: 'offline-habit-1', position: 0 }] },
+    }))
+
+    expect(getAll().map((mutation) => mutation.id)).toEqual(['create-1', 'reorder-2'])
+    replaceEntityReferences('offline-habit-1', 'habit-1')
+    remove('create-1')
+
+    expect(getAll()).toMatchObject([{
+      id: 'reorder-2',
+      payload: { positions: [{ habitId: 'habit-1', position: 0 }] },
+    }])
+  })
+
   it('rewrites temp ids across endpoint, payload, target ids, and dependencies', () => {
     enqueue(makeMutation({
       id: 'update-1',
