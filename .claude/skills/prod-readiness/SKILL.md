@@ -81,7 +81,7 @@ react-doctor backlog is mechanical debt for the ORB-46 project, not a prod-readi
 `Dependency Review` and `dependabot-auto-merge` gate NEW dependency regressions per PR; neither
 sweeps the standing tree, so the Phase 2b sweep is not a re-flag.
 
-**The binding inventory (§1), thirteen items:**
+**The binding inventory (§1), fourteen items:**
 
 | # | Inventory item | Kind | Owner of the analysis |
 |---|---|---|---|
@@ -97,10 +97,41 @@ sweeps the standing tree, so the Phase 2b sweep is not a re-flag.
 | 10 | Paid-API cost caps + spend alerts | ops check | the workflow (returns as Deferred, un-verifiable from a repo read) |
 | 11 | Accessibility (static WCAG 2.2 AA) | a11y check | the workflow (own §2 challenge; the runtime matrix returns as Deferred) |
 | 12 | Dependency freshness | session sweep | you (Phase 2b — edits code) |
-| 13 | Architecture drift | session sweep | you (Phase 2c — edits code) |
+| 13 | Concurrency | ops check | the workflow (own §2 challenge) |
+| 14 | Architecture drift | session sweep | you (Phase 2c — edits code) |
 
 This list is **binding**: by the end every item is either **(a) covered with a verdict** or
 **(b) in the Deferred ledger with a one-line reason**.
+
+### Concurrency checklist (inventory item 13)
+
+Read the shared state and every writer before claiming a gap. For each candidate, identify the
+resource, the competing requests or jobs, the interleaving that breaks an invariant, and the
+database constraint, lock, optimistic concurrency retry, transaction, or idempotency key that
+already prevents it. A pure function with no shared state is not a finding.
+
+- **Check-then-act / TOCTOU:** a count or status read followed by a decision and write must be
+  atomic with the relevant row or constraint. Start at `orbit-api/src/Orbit.Application/Common/PayGateService.cs`:
+  trace the AI quota check and increment through `TryConsumeAiMessage` and its persistence path.
+- **Lost updates:** trace read-modify-write paths on shared rows, including streak recalculation
+  in `orbit-api/src/Orbit.Infrastructure/Services/UserStreakService.cs`. Check that retries reload
+  state and re-evaluate the decision, rather than saving a stale value again.
+- **Transaction boundaries:** verify that the state transition and dependent writes commit
+  together where the invariant requires it. Trace the referral reward grant in
+  `orbit-api/src/Orbit.Application/Referrals/Commands/CheckReferralCompletionCommand.cs`,
+  including the external coupon call and the persisted reward state.
+- **Retry idempotency:** trace Stripe `HandleWebhook` and Play `HandlePlayNotification` in
+  `orbit-api/src/Orbit.Api/Controllers/SubscriptionController.cs`, plus the mobile SQLite
+  offline queue flush in `apps/mobile/lib/offline-mutations.ts`. Check deduplication at the
+  durable mutation boundary; a repeated delivery must not repeat a charge, grant, or write.
+- **Background concurrency:** trace `SentReminder` deduplication in the per-minute
+  `orbit-api/src/Orbit.Infrastructure/Services/ReminderSchedulerService.cs` and jobs registered
+  on every instance. Check that concurrent runs and retries cannot send or commit twice.
+
+Report only a source-provable broken interleaving, with `path:line`, the competing operations,
+the missing guard, and the concrete failure. If the guard holds, return no finding. Keep
+multi-instance readiness scoped to deployment and instance assumptions; this item judges the
+shared-resource operation itself.
 
 ---
 
@@ -143,7 +174,7 @@ Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: {
 
 It runs the four `audit` workflows in parallel (each self-caps its own fan-out plus verify
 plus loop), then fans out the **ops-layer** checks (observability · multi-instance ·
-background durability · staging) and the **static-a11y** checks (web · mobile, WCAG 2.2 AA
+background durability · staging · concurrency) and the **static-a11y** checks (web · mobile, WCAG 2.2 AA
 floor, source-provable findings only) as Haiku finders, runs a Haiku skeptic per Blocker/High
 ops or a11y finding (default-refuted), and returns:
 
@@ -412,7 +443,7 @@ Present ONE message and get ONE approval (mirror /ticket phase D). The headline 
 - **Verdict**: {GO | CONDITIONAL | NO-GO}, one calibrated line (why, and the single thing in
   the way).
 - **Ticket table**: title · repo · parity · consolidated tier · blockedBy, ordered by tier.
-- **Coverage (the binding 13-item inventory)**: for each of the 13 items, ran / did-not-run /
+- **Coverage (the binding 14-item inventory)**: for each of the 14 items, ran / did-not-run /
   deferred and the result. Backups is always `deferred` (verify in the DB console). Any
   `failedAudit` or `unconvergedAudits` entry is named here as `coverage UNKNOWN`.
 - **Measured performance**: show the top ten query shapes by rows with calls, rows per call,
@@ -435,7 +466,7 @@ re-validate each with `--issue`.
 
 ### Launch verdict (§5 honesty), computed, never hardcoded
 
-- **GO** only if **zero Blockers** AND all **13** inventory items produced a verdict (every
+- **GO** only if **zero Blockers** AND all **14** inventory items produced a verdict (every
   audit ran and converged; every ops and a11y check resolved with no `opsChecksFailed` /
   `a11yChecksFailed` entry, or is a legitimately Deferred un-verifiable like backups, the
   paid-API cost caps, and the a11y runtime matrix, or a legitimate N/A like a11y under an
@@ -460,7 +491,7 @@ re-validate each with `--issue`.
 ## Prod-Readiness Complete
 
 **Scope**: {what was swept}
-**Verdict**: {GO | CONDITIONAL | NO-GO}, {the single top blocker, or "clean: all 12 verdicted, zero blockers"}
+**Verdict**: {GO | CONDITIONAL | NO-GO}, {the single top blocker, or "clean: all 14 verdicted, zero blockers"}
 
 | Consolidated tier | Findings | Tickets |
 |---|---|---|
@@ -469,7 +500,7 @@ re-validate each with `--issue`.
 | Medium | {N} | {…} |
 | Low / Info | {N} | {…} |
 
-**Inventory (13)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…} · paid-API cost caps {deferred} · accessibility {static ran; runtime matrix deferred} · dependencies {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED} · architecture {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED | N/A}
+**Inventory (14)**: security audit {ran/deferred} · tests audit {…} · performance audit {…} · code-quality audit {…} · Observability {…} · Multi-instance readiness {…} · Background durability {…} · Backups {deferred} · Staging {…} · Paid-API cost caps + spend alerts {deferred} · Accessibility (static WCAG 2.2 AA) {static ran; runtime matrix deferred} · Dependency freshness {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED} · Concurrency {ran/deferred} · Architecture drift {SWEPT | SWEPT_WITH_HOLDBACKS | FAILED | N/A}
 **Measured performance**: {MEASURED with top finding and top-ten table | CODE_ONLY with reason}
 **Dependency sweep**: {the chore(deps) PR links + holdback count, or "FAILED: reason"}
 **Architecture sweep**: {the chore(arch) PR link + per-signal before/after counts + holdback count, or "FAILED: reason"}

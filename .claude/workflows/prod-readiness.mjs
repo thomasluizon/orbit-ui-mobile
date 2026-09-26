@@ -3,7 +3,7 @@ export const meta = {
   description: 'Pre-launch orchestrator that runs the four audit workflows in parallel (Haiku fan-out), adds the ops-layer and static-a11y audits no child covers (D11 judgement no gate checks), verifies its own findings, and returns consolidated data for Opus to tier-tag, verdict, and turn into GitHub tickets (D10).',
   phases: [
     { title: 'Audits', detail: 'the four /audit workflows in parallel' },
-    { title: 'Ops', detail: 'observability · multi-instance · background durability · staging' },
+    { title: 'Ops', detail: 'observability · multi-instance · background durability · staging · concurrency' },
     { title: 'A11y', detail: 'static WCAG 2.2 AA sweep — web + mobile' },
     { title: 'Verify', detail: 'skeptic per Blocker/High ops or a11y finding — default refuted' },
   ],
@@ -78,6 +78,12 @@ const OPS_CHECKS = [
     where: `deploy/CI workflows in BOTH repos — ${UI}\\.github\\workflows\\promote-prod.yml, smoke-prod.yml, test.yml; ${API}\\.github\\workflows\\*. Discover the current state per repo.`,
     ready: 'a pre-prod gate (smoke + promote) sits between merge and prod',
     gap: 'no staging/QA env or no pre-prod gate (Medium, calibrated)',
+  },
+  {
+    check: 'concurrency',
+    where: `Read the canonical "Concurrency checklist (inventory item 13)" in ${UI}\\.claude\\skills\\prod-readiness\\SKILL.md, then trace its named paths in ${API} and ${UI}. Use the checklist as the sole authority for this dimension.`,
+    ready: 'each shared-resource operation satisfies the canonical concurrency checklist',
+    gap: 'a source-provable broken interleaving under that checklist, with the competing operations and missing guard',
   },
 ]
 
@@ -181,7 +187,7 @@ const a11yRaw = a11yResults.filter((x) => x && x.result).flatMap((x) => x.result
 
 phase('Verify')
 const REFUTE_FRAMING = {
-  ops: 'ops-readiness finding. Read the cited config/code in full context and argue it is a FALSE POSITIVE — Hangfire already coordinates that job, the unhandled-exception handler DOES exist, the runtime really has a promote gate, the cache is per-request not process-global.',
+  ops: 'ops-readiness finding. Read the cited config/code in full context and argue it is a FALSE POSITIVE — Hangfire already coordinates that job, the unhandled-exception handler DOES exist, the runtime really has a promote gate, the cache is per-request not process-global, or a concurrency guard prevents the cited interleaving.',
   a11y: 'static-a11y finding. Read the cited component in full context and argue it is a FALSE POSITIVE — the control IS a native element further up the tree, the label DOES exist in both locales, the role carries its keyboard contract elsewhere, the state is not user-reachable, a react-doctor.yml rule already fails on it, or the severity is inflated.',
 }
 const verifyTargets = [
