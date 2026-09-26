@@ -17,6 +17,43 @@ export type PendingOperationStepUpPreparationResult =
 
 export type PendingOperationCardStatus = 'done' | 'failed' | undefined
 
+export interface PendingOperationAuthorizationState {
+  sourceId: string
+  sourceFingerprint: string | null | undefined
+  confirmOpen: boolean
+  preparedStepUp: PreparedPendingOperationStepUp | undefined
+  closingStepUp: PreparedPendingOperationStepUp | undefined
+  status: PendingOperationCardStatus
+  dismissed: boolean
+}
+
+export function createPendingOperationAuthorizationState(
+  sourceId: string,
+  sourceFingerprint: string | null | undefined,
+): PendingOperationAuthorizationState {
+  return { sourceId, sourceFingerprint, confirmOpen: false, preparedStepUp: undefined, closingStepUp: undefined, status: undefined, dismissed: false }
+}
+
+export function matchesPendingOperationAuthorization(
+  current: Pick<PendingOperationAuthorizationState, 'sourceId' | 'sourceFingerprint'>,
+  sourceId: string,
+  sourceFingerprint: string | null | undefined,
+): boolean {
+  return current.sourceId === sourceId && current.sourceFingerprint === sourceFingerprint
+}
+
+export function reconcilePendingOperationAuthorizationState(
+  current: PendingOperationAuthorizationState,
+  sourceId: string,
+  sourceFingerprint: string | null | undefined,
+): PendingOperationAuthorizationState {
+  if (matchesPendingOperationAuthorization(current, sourceId, sourceFingerprint)) return current
+  return {
+    ...createPendingOperationAuthorizationState(sourceId, sourceFingerprint),
+    closingStepUp: current.preparedStepUp ?? current.closingStepUp,
+  }
+}
+
 export function getPendingOperationExecutionStatus(
   result: PendingOperationExecutionResult,
 ): Exclude<PendingOperationCardStatus, undefined> {

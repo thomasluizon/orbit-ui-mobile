@@ -1,18 +1,21 @@
 'use client'
 
-import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
-import { getPendingOperationExecutionStatus, getPendingOperationVerificationResult, getPreparedPendingOperationStepUp, type PendingOperationExecutionResult, type PreparedPendingOperationStepUp, type PendingOperationStepUpPreparationResult, type PendingOperationCardStatus } from '@orbit/shared/hooks'
+import { useCallback, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { createPendingOperationAuthorizationState, reconcilePendingOperationAuthorizationState, matchesPendingOperationAuthorization, getPendingOperationExecutionStatus, getPendingOperationVerificationResult, getPreparedPendingOperationStepUp, type PendingOperationExecutionResult, type PreparedPendingOperationStepUp, type PendingOperationStepUpPreparationResult, type PendingOperationCardStatus } from '@orbit/shared/hooks'
 
 interface PendingOperationCardState {
   busy: boolean
   confirmOpen: boolean
   dismissed: boolean
   preparedStepUp: PreparedPendingOperationStepUp | undefined
+  closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
   completeStepUp: (status: Exclude<PendingOperationCardStatus, undefined>) => void
   closeStepUp: () => void
+  clearClosingStepUp: () => void
   dismiss: () => void
   execute: () => Promise<void>
+  isCurrent: () => boolean
   setConfirmOpen: Dispatch<SetStateAction<boolean>>
   startStepUp: () => Promise<void>
 }
@@ -27,55 +30,83 @@ interface PendingOperationStepUpVerificationState {
 
 export function usePendingOperationCardState({
   pendingOperationId,
+  previewFingerprint,
   onConfirmExecute,
   onPrepareStepUp,
 }: Readonly<{
   pendingOperationId: string
+  previewFingerprint?: string | null
   onConfirmExecute: (id: string) => Promise<PendingOperationExecutionResult>
   onPrepareStepUp: (id: string) => Promise<PendingOperationStepUpPreparationResult>
 }>): PendingOperationCardState {
   const [busy, setBusy] = useState(false)
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [status, setStatus] = useState<PendingOperationCardStatus>()
-  const [dismissed, setDismissed] = useState(false)
-  const [preparedStepUp, setPreparedStepUp] = useState<PreparedPendingOperationStepUp>()
+  const [authorization, setAuthorization] = useState(() =>
+    createPendingOperationAuthorizationState(pendingOperationId, previewFingerprint))
+  const synchronized = reconcilePendingOperationAuthorizationState(
+    authorization, pendingOperationId, previewFingerprint)
+  if (synchronized !== authorization) setAuthorization(synchronized)
+  const sourceRef = useRef({ sourceId: pendingOperationId, sourceFingerprint: previewFingerprint })
+  useLayoutEffect(() => {
+    sourceRef.current = { sourceId: pendingOperationId, sourceFingerprint: previewFingerprint }
+  }, [pendingOperationId, previewFingerprint])
+  const isCurrent = useCallback(() =>
+    matchesPendingOperationAuthorization(sourceRef.current, pendingOperationId, previewFingerprint),
+  [pendingOperationId, previewFingerprint])
+
+  const setConfirmOpen = useCallback<Dispatch<SetStateAction<boolean>>>((open) => {
+    if (!isCurrent()) return
+    setAuthorization((current) => ({
+      ...current,
+      confirmOpen: typeof open === 'function' ? open(current.confirmOpen) : open,
+    }))
+  }, [isCurrent])
 
   const execute = useCallback(async () => {
+    if (!isCurrent()) return
     setBusy(true)
     try {
-      setStatus(getPendingOperationExecutionStatus(await onConfirmExecute(pendingOperationId)))
+      const result = await onConfirmExecute(pendingOperationId)
+      if (isCurrent()) setAuthorization((current) => ({ ...current, status: getPendingOperationExecutionStatus(result) }))
     } finally {
       setBusy(false)
     }
-  }, [onConfirmExecute, pendingOperationId])
+  }, [isCurrent, onConfirmExecute, pendingOperationId])
 
   const startStepUp = useCallback(async () => {
+    if (!isCurrent() || synchronized.closingStepUp) return
     setBusy(true)
     try {
       const result = await onPrepareStepUp(pendingOperationId)
       const prepared = getPreparedPendingOperationStepUp(result)
-      if (prepared) setPreparedStepUp(prepared)
-      else setStatus('failed')
+      if (isCurrent()) setAuthorization((current) => ({
+        ...current, preparedStepUp: prepared, status: prepared ? current.status : 'failed',
+      }))
     } finally {
       setBusy(false)
     }
-  }, [onPrepareStepUp, pendingOperationId])
+  }, [isCurrent, onPrepareStepUp, pendingOperationId, synchronized.closingStepUp])
 
   const completeStepUp = useCallback((nextStatus: Exclude<PendingOperationCardStatus, undefined>) => {
-    setPreparedStepUp(undefined)
-    setStatus(nextStatus)
-  }, [])
+    if (isCurrent()) setAuthorization((current) => ({ ...current, preparedStepUp: undefined, status: nextStatus }))
+  }, [isCurrent])
+  const clearClosingStepUp = useCallback(() => {
+    setAuthorization((current) => current.closingStepUp === synchronized.closingStepUp
+      ? { ...current, closingStepUp: undefined } : current)
+  }, [synchronized.closingStepUp])
 
   return {
-    busy,
-    confirmOpen,
-    dismissed,
-    preparedStepUp,
-    status,
+    busy: busy || synchronized.closingStepUp !== undefined,
+    confirmOpen: synchronized.confirmOpen,
+    dismissed: synchronized.dismissed,
+    preparedStepUp: synchronized.preparedStepUp,
+    closingStepUp: synchronized.closingStepUp,
+    status: synchronized.status,
     completeStepUp,
-    closeStepUp: () => setPreparedStepUp(undefined),
-    dismiss: () => setDismissed(true),
+    clearClosingStepUp,
+    closeStepUp: () => { if (isCurrent()) setAuthorization((current) => ({ ...current, preparedStepUp: undefined })) },
+    dismiss: () => { if (isCurrent()) setAuthorization((current) => ({ ...current, dismissed: true })) },
     execute,
+    isCurrent,
     setConfirmOpen,
     startStepUp,
   }

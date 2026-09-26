@@ -7,6 +7,7 @@ import {
 } from '../hooks/pending-operation-revision-core'
 import { makePendingAgentOperation } from '../test-support/chat-fixtures'
 import type { PendingOperationItem } from '../types/ai'
+import { createPendingOperationAuthorizationState, reconcilePendingOperationAuthorizationState } from '../hooks/pending-operation-card-core'
 
 const item: PendingOperationItem = {
   itemId: 'habit-1', entityId: 'habit-1', entityName: 'Run', stateFingerprint: 'state-1',
@@ -53,5 +54,20 @@ describe('pending operation edits', () => {
     expect(state.editedItemIds).toEqual([item.itemId])
     expect(reconcilePendingOperationRevisionState(state, { ...operation, ...revised }).editedItemIds).toEqual([item.itemId])
     expect(reconcilePendingOperationRevisionState(state, { ...operation, previewFingerprint: 'preview-other' }).editedItemIds).toEqual([])
+  })
+})
+
+describe('pending operation authorization', () => {
+  it('discards an open confirmation and prepared identity check on a new fingerprint', () => {
+    const current = {
+      ...createPendingOperationAuthorizationState('pending-1', 'preview-1'),
+      confirmOpen: true,
+      preparedStepUp: { challengeId: 'challenge-1', confirmationToken: 'confirmation-1' },
+    }
+    expect(reconcilePendingOperationAuthorizationState(current, 'pending-1', 'preview-1')).toBe(current)
+    expect(reconcilePendingOperationAuthorizationState(current, 'pending-1', 'preview-2')).toEqual({
+      ...createPendingOperationAuthorizationState('pending-1', 'preview-2'),
+      closingStepUp: current.preparedStepUp,
+    })
   })
 })

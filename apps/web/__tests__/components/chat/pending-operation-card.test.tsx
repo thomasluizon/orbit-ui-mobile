@@ -1,12 +1,31 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
+import { sheetTestControls } from '../../support/sheet-double'
 
+const capturedSheet = vi.hoisted(() => ({ onConfirm: undefined as (() => void) | undefined }))
+const capturedVerification = vi.hoisted(() => ({ onVerify: undefined as ((id: string, challengeId: string, code: string, token: string) => Promise<unknown>) | undefined }))
+const capturedCard = vi.hoisted(() => ({ isCurrent: undefined as (() => boolean) | undefined }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('@/hooks/use-pending-operation-card-state', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/hooks/use-pending-operation-card-state')>()
+  return {
+    ...original,
+    usePendingOperationCardState: (props: Parameters<typeof original.usePendingOperationCardState>[0]) => {
+      const card = original.usePendingOperationCardState(props)
+      capturedCard.isCurrent = card.isCurrent
+      return card
+    },
+    usePendingOperationStepUpVerification: (props: Parameters<typeof original.usePendingOperationStepUpVerification>[0]) => {
+      capturedVerification.onVerify = props.onVerify
+      return original.usePendingOperationStepUpVerification(props)
+    },
+  }
+})
 vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? <button type="button" onClick={onConfirm}>confirm-sheet</button> : null,
+    open ? (capturedSheet.onConfirm = onConfirm, <button type="button" onClick={onConfirm}>confirm-sheet</button>) : null,
 }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 vi.mock('@/components/ui/otp-input', () => ({
@@ -32,7 +51,11 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+  afterEach(() => sheetTestControls.defer(false))
   beforeEach(() => {
+    capturedSheet.onConfirm = undefined
+    capturedVerification.onVerify = undefined
+    capturedCard.isCurrent = undefined
     confirm.mockReset()
     prepareStepUp.mockReset()
     verifyStepUp.mockReset()
@@ -108,6 +131,7 @@ describe('PendingOperationCard', () => {
       previewFingerprint: 'preview-1', items: [{ itemId: 'habit-2' }],
     }))
     expect(screen.queryByText('Run')).not.toBeInTheDocument()
+    expect(capturedCard.isCurrent?.()).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     await waitFor(() => expect(confirm).toHaveBeenCalledOnce())
   })
@@ -178,6 +202,83 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByText('Run')).not.toBeInTheDocument()
     expect(screen.getByText('Read')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'chat.operation.field.date' })).not.toBeInTheDocument()
+  })
+
+  it('closes confirmation and blocks its old handler when the preview changes', () => {
+    const destructive = makePendingAgentOperation({ ...preview, riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
+    const { rerender } = render(<PendingOperationCard pendingOperation={destructive} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    expect(screen.getByRole('button', { name: 'confirm-sheet' })).toBeInTheDocument()
+    const oldConfirm = capturedSheet.onConfirm
+
+    rerender(<PendingOperationCard pendingOperation={{ ...destructive, previewFingerprint: 'preview-2', items: [secondItem] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+
+    expect(screen.queryByRole('button', { name: 'confirm-sheet' })).not.toBeInTheDocument()
+    expect(screen.getByText('Read')).toBeInTheDocument()
+    oldConfirm?.()
+    expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('keeps confirmation open when the preview fingerprint is unchanged', () => {
+    const destructive = makePendingAgentOperation({ ...preview, riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
+    const { rerender } = render(<PendingOperationCard pendingOperation={destructive} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    rerender(<PendingOperationCard pendingOperation={{ ...destructive, items: [...destructive.items!] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    expect(screen.getByRole('button', { name: 'confirm-sheet' })).toBeInTheDocument()
+  })
+
+  it('discards prepared step up when the preview changes', async () => {
+    prepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    const highRisk = makePendingAgentOperation({ ...preview, riskClass: 'High', confirmationRequirement: 'StepUp' })
+    const { rerender } = render(<PendingOperationCard pendingOperation={highRisk} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.stepUpAction' }))
+    expect(await screen.findByRole('textbox', { name: 'stepUp.codeLabel' })).toBeInTheDocument()
+
+    rerender(<PendingOperationCard pendingOperation={{ ...highRisk, previewFingerprint: 'preview-2', items: [secondItem] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+
+    expect(screen.queryByRole('textbox', { name: 'stepUp.codeLabel' })).not.toBeInTheDocument()
+    await capturedVerification.onVerify?.('pending-1', 'challenge-1', '123456', 'confirmation-1')
+    expect(verifyStepUp).not.toHaveBeenCalled()
+  })
+
+  it('dismisses the step-up sheet before removing it on preview replacement', async () => {
+    sheetTestControls.defer(true)
+    prepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    const highRisk = makePendingAgentOperation({ ...preview, riskClass: 'High', confirmationRequirement: 'StepUp' })
+    const { rerender } = render(<PendingOperationCard pendingOperation={highRisk} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.stepUpAction' }))
+    expect(await screen.findByRole('textbox', { name: 'stepUp.codeLabel' })).toBeInTheDocument()
+
+    rerender(<PendingOperationCard pendingOperation={{ ...highRisk, previewFingerprint: 'preview-2', items: [secondItem] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(screen.getByText('common.cancel').closest('button')).toBeDisabled()
+    expect(screen.getByText('stepUp.confirm').closest('button')).toBeDisabled()
+    fireEvent.click(screen.getByText('close-overlay'))
+    act(() => sheetTestControls.completeDismissal())
+    expect(screen.queryByRole('textbox', { name: 'stepUp.codeLabel' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.stepUpAction' })).toBeEnabled()
+    expect(verifyStepUp).not.toHaveBeenCalled()
+  })
+
+  it('keeps a pending verification response from replacing the stale sheet dismissal', async () => {
+    sheetTestControls.defer(true)
+    prepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    let resolveVerification!: (result: unknown) => void
+    verifyStepUp.mockImplementation(() => new Promise((resolve) => { resolveVerification = resolve }))
+    const highRisk = makePendingAgentOperation({ ...preview, riskClass: 'High', confirmationRequirement: 'StepUp' })
+    const { rerender } = render(<PendingOperationCard pendingOperation={highRisk} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.stepUpAction' }))
+    fireEvent.change(await screen.findByRole('textbox', { name: 'stepUp.codeLabel' }), { target: { value: '123456' } })
+    fireEvent.click(screen.getByRole('button', { name: 'stepUp.confirm' }))
+    expect(verifyStepUp).toHaveBeenCalledOnce()
+
+    rerender(<PendingOperationCard pendingOperation={{ ...highRisk, previewFingerprint: 'preview-2', items: [secondItem] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    await act(async () => { resolveVerification({ ok: true, response: { operation: { status: 'Succeeded' } } }) })
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    act(() => sheetTestControls.completeDismissal())
+    expect(screen.queryByRole('textbox', { name: 'stepUp.codeLabel' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'chat.operation.stepUpAction' })).toBeEnabled()
   })
 
   it('keeps an unsaved edit when switching items', () => {

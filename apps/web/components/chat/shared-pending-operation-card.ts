@@ -33,17 +33,19 @@ export function SharedPendingOperationCard({
   pendingOperation,
   render,
 }: Readonly<PendingOperationCardProps>): ReactNode {
+  const revision = usePendingOperationRevision(pendingOperation, onRevise)
   const card = usePendingOperationCardState({
     pendingOperationId: pendingOperation.id,
+    previewFingerprint: revision.operation.previewFingerprint,
     onConfirmExecute,
     onPrepareStepUp,
   })
-  const revision = usePendingOperationRevision(pendingOperation, onRevise)
 
   return renderPendingOperationCard({
     card: { ...card, revision },
     labels,
-    onVerifyStepUp,
+    onVerifyStepUp: (...args) => card.preparedStepUp && card.isCurrent()
+      ? onVerifyStepUp(...args) : Promise.resolve({ ok: false }),
     pendingOperation: revision.operation,
     render: {
       ...render,

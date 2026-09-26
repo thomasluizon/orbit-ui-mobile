@@ -27,6 +27,8 @@ export interface PendingOperationConfirmSheetProps {
 }
 
 export interface PendingOperationVerificationProps {
+  open: boolean
+  onClosed: () => void
   onClose: () => void
   onCompleted: (status: 'done' | 'failed') => void
   onVerify: (
@@ -93,9 +95,11 @@ export interface PendingOperationCardActions {
   confirmOpen: boolean
   dismissed: boolean
   preparedStepUp: PreparedPendingOperationStepUp | undefined
+  closingStepUp: PreparedPendingOperationStepUp | undefined
   status: PendingOperationCardStatus
   completeStepUp: (status: 'done' | 'failed') => void
   closeStepUp: () => void
+  clearClosingStepUp: () => void
   dismiss: () => void
   execute: () => Promise<void>
   setConfirmOpen: (open: boolean) => void
@@ -256,10 +260,13 @@ export function renderPendingOperationCard<Node>({
       void card.execute()
     },
   })
-  const verification = card.preparedStepUp
+  const verificationPreparation = card.preparedStepUp ?? card.closingStepUp
+  const verification = verificationPreparation
     ? render.verification({
         pendingOperationId: pendingOperation.id,
-        prepared: card.preparedStepUp,
+        prepared: verificationPreparation,
+        open: card.preparedStepUp !== undefined,
+        onClosed: card.clearClosingStepUp,
         onClose: card.closeStepUp,
         onCompleted: card.completeStepUp,
         onVerify: onVerifyStepUp,

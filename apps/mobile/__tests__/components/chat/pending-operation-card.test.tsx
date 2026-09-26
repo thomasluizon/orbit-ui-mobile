@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ScrollView, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import type { RevisePendingOperation } from '@orbit/shared/hooks'
@@ -7,6 +7,7 @@ import { makePendingAgentOperation } from '@orbit/shared/test-support/chat-fixtu
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
 import { createTokensV2 } from '@/lib/theme'
+import { sheetTestControls } from '../../support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -44,6 +45,7 @@ function press(tree: any, label: string) {
 }
 
 beforeEach(() => vi.clearAllMocks())
+afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
   const firstItem = {
@@ -150,6 +152,82 @@ describe('PendingOperationCard (mobile)', () => {
     expect(renderedText(tree.toJSON())).not.toContain('Run')
     expect(renderedText(tree.toJSON())).toContain('Read')
     expect(tree.root.findAllByProps({ accessibilityLabel: 'chat.operation.field.date' })).toHaveLength(0)
+  })
+
+  it('closes confirmation and blocks its old handler when the preview changes', async () => {
+    const destructive = { ...preview, riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
+    const { tree, handlers } = renderCard(destructive, vi.fn())
+    TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
+    const oldConfirm = tree.root.findByType('ConfirmSheet').props.onConfirm
+
+    TestRenderer.act(() => tree.update(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...destructive, previewFingerprint: 'preview-2', items: [secondItem] })} onRevise={vi.fn()} {...handlers} />))
+
+    expect(tree.root.findAll((node: any) => node.type === 'ConfirmSheet')).toHaveLength(0)
+    await TestRenderer.act(async () => { oldConfirm(); await Promise.resolve() })
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+  })
+
+  it('keeps confirmation open when the preview fingerprint is unchanged', () => {
+    const destructive = { ...preview, riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
+    const { tree, handlers } = renderCard(destructive, vi.fn())
+    TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
+    TestRenderer.act(() => tree.update(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...destructive, items: [...destructive.items] })} onRevise={vi.fn()} {...handlers} />))
+    expect(tree.root.findAll((node: any) => node.type === 'ConfirmSheet')).toHaveLength(1)
+  })
+
+  it('discards prepared step up when the preview changes', async () => {
+    const highRisk = { ...preview, riskClass: 'High' as const, confirmationRequirement: 'StepUp' as const }
+    const { tree, handlers } = renderCard(highRisk, vi.fn())
+    handlers.onPrepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.stepUpAction').props.onPress(); await Promise.resolve() })
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'stepUp.codeLabel')).toHaveLength(1)
+    const oldVerify = tree.root.findAll((node: any) => node.props.prepared?.challengeId === 'challenge-1' && typeof node.props.onVerify === 'function')[0]?.props.onVerify
+
+    TestRenderer.act(() => tree.update(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...highRisk, previewFingerprint: 'preview-2', items: [secondItem] })} onRevise={vi.fn()} {...handlers} />))
+
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'stepUp.codeLabel')).toHaveLength(0)
+    await oldVerify?.('pending-1', 'challenge-1', '123456', 'confirmation-1')
+    expect(handlers.onVerifyStepUp).not.toHaveBeenCalled()
+  })
+
+  it('dismisses the native step-up sheet before removing it on preview replacement', async () => {
+    sheetTestControls.defer(true)
+    const highRisk = { ...preview, riskClass: 'High' as const, confirmationRequirement: 'StepUp' as const }
+    const { tree, handlers } = renderCard(highRisk, vi.fn())
+    handlers.onPrepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.stepUpAction').props.onPress(); await Promise.resolve() })
+
+    TestRenderer.act(() => tree.update(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...highRisk, previewFingerprint: 'preview-2', items: [secondItem] })} onRevise={vi.fn()} {...handlers} />))
+
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(press(tree, 'common.cancel').props.disabled).toBe(true)
+    expect(press(tree, 'stepUp.confirm').props.disabled).toBe(true)
+    const dismiss = tree.root.find((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')
+    TestRenderer.act(() => dismiss.props.onPress())
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'stepUp.codeLabel')).toHaveLength(0)
+    expect(press(tree, 'chat.operation.stepUpAction').props.disabled).toBe(false)
+    expect(handlers.onVerifyStepUp).not.toHaveBeenCalled()
+  })
+
+  it('keeps a pending verification response from replacing the stale native dismissal', async () => {
+    sheetTestControls.defer(true)
+    const highRisk = { ...preview, riskClass: 'High' as const, confirmationRequirement: 'StepUp' as const }
+    const { tree, handlers } = renderCard(highRisk, vi.fn())
+    handlers.onPrepareStepUp.mockResolvedValue({ ok: true, challengeId: 'challenge-1', confirmationToken: 'confirmation-1' })
+    let resolveVerification!: (result: unknown) => void
+    handlers.onVerifyStepUp.mockImplementation(() => new Promise((resolve) => { resolveVerification = resolve }))
+    await TestRenderer.act(async () => { press(tree, 'chat.operation.stepUpAction').props.onPress(); await Promise.resolve() })
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'stepUp.codeLabel' }).props.onChangeText('123456'))
+    TestRenderer.act(() => press(tree, 'stepUp.confirm').props.onPress())
+    expect(handlers.onVerifyStepUp).toHaveBeenCalledOnce()
+
+    TestRenderer.act(() => tree.update(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...highRisk, previewFingerprint: 'preview-2', items: [secondItem] })} onRevise={vi.fn()} {...handlers} />))
+    await TestRenderer.act(async () => { resolveVerification({ ok: true, response: { operation: { status: 'Succeeded' } } }); await Promise.resolve() })
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(tree.root.findAllByType(TextInput).filter((node: any) => node.props.accessibilityLabel === 'stepUp.codeLabel')).toHaveLength(0)
+    expect(press(tree, 'chat.operation.stepUpAction').props.disabled).toBe(false)
   })
 
   it('keeps a draft when the editor switches to another item and back', () => {

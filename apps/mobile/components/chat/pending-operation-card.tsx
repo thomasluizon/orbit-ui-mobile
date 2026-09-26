@@ -16,7 +16,7 @@ import { isPendingOperationEditableField } from '@orbit/shared/hooks'
 import { X } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
 
 function RemoveItemButton({ label, disabled, onClick }: Readonly<{ label: string; disabled: boolean; onClick: () => void }>) {
@@ -76,6 +76,8 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
 }
 
 function StepUpVerificationSheet({
+  open,
+  onClosed,
   pendingOperationId,
   prepared,
   onClose,
@@ -84,7 +86,14 @@ function StepUpVerificationSheet({
 }: Readonly<PendingOperationVerificationProps>) {
   const { t } = useTranslation()
   const { sheetRef, closeSheet } = useSheetHost()
-  const completed = (status: 'done' | 'failed') => closeSheet(() => onCompleted(status))
+  const openRef = useRef(open)
+  useLayoutEffect(() => { openRef.current = open }, [open])
+  useEffect(() => {
+    if (!open) closeSheet(onClosed)
+  }, [open, onClosed, closeSheet])
+  const completed = (status: 'done' | 'failed') => {
+    if (openRef.current) closeSheet(() => onCompleted(status))
+  }
   const { code, error, setCode, verifying, verify } = usePendingOperationStepUpVerification({
     genericError: t('stepUp.genericError'),
     onCompleted: completed,
@@ -97,13 +106,13 @@ function StepUpVerificationSheet({
     <Sheet
       ref={sheetRef}
       title={t('stepUp.title')}
-      onClose={onClose}
+      onClose={open ? onClose : onClosed}
       actions={<>
-        <Button size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</Button>
-        <Button size="sm" loading={verifying} disabled={code.length !== 6} onClick={() => void verify()}>{t('stepUp.confirm')}</Button>
+        <Button size="sm" variant="ghost" disabled={!open} onClick={() => { if (open) closeSheet() }}>{t('common.cancel')}</Button>
+        <Button size="sm" loading={verifying} disabled={!open || code.length !== 6} onClick={() => { if (open) void verify() }}>{t('stepUp.confirm')}</Button>
       </>}
     >
-      <OtpInput label={t('stepUp.codeLabel')} value={code} onChange={setCode} error={error} hint={t('stepUp.codeHint')} disabled={verifying} />
+      <OtpInput label={t('stepUp.codeLabel')} value={code} onChange={setCode} error={error} hint={t('stepUp.codeHint')} disabled={verifying || !open} />
       <Text>{t('stepUp.neverShare')}</Text>
     </Sheet>
   )

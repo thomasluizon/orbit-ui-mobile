@@ -32,8 +32,8 @@ it('labels the pending operation from its capability and risk', () => {
 
 function createCard(): PendingOperationCardActions {
   return {
-    busy: false, confirmOpen: false, dismissed: false, preparedStepUp: undefined,
-    status: undefined, completeStepUp: vi.fn(), closeStepUp: vi.fn(), dismiss: vi.fn(),
+    busy: false, confirmOpen: false, dismissed: false, preparedStepUp: undefined, closingStepUp: undefined,
+    status: undefined, completeStepUp: vi.fn(), closeStepUp: vi.fn(), clearClosingStepUp: vi.fn(), dismiss: vi.fn(),
     execute: vi.fn().mockResolvedValue(undefined), setConfirmOpen: vi.fn(),
     startStepUp: vi.fn().mockResolvedValue(undefined),
   }
