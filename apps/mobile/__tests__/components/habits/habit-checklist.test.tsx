@@ -68,8 +68,11 @@ const INITIAL_ITEMS: ChecklistItem[] = [
   { text: 'Second item', isChecked: false },
 ]
 
+let setHarnessItems: ((items: ChecklistItem[]) => void) | undefined
+
 function ChecklistHarness() {
   const [items, setItems] = useState(INITIAL_ITEMS)
+  setHarnessItems = setItems
   return <HabitChecklist items={items} editable onItemsChange={setItems} />
 }
 
@@ -106,6 +109,39 @@ function pressMoveUp(tree: RenderedTree) {
 }
 
 describe('HabitChecklist editable rows', () => {
+  it('keeps a draft with its row through an optimistic reorder and rollback', () => {
+    const tree = renderChecklist()
+    const secondInput = itemInputs(tree)[1]!
+    TestRenderer.act(() => {
+      secondInput.props.onFocus({})
+      secondInput.props.onChangeText('Draft second item')
+    })
+    TestRenderer.act(() => setHarnessItems?.([INITIAL_ITEMS[1]!, INITIAL_ITEMS[0]!]))
+    expect(itemInputs(tree)[0]).toBe(secondInput)
+    expect(itemInputs(tree)[0]?.props.value).toBe('Draft second item')
+    TestRenderer.act(() => setHarnessItems?.(INITIAL_ITEMS))
+    expect(itemInputs(tree)[1]).toBe(secondInput)
+    expect(itemInputs(tree)[1]?.props.value).toBe('Draft second item')
+  })
+
+  it('keeps a draft with its row after a rejected positional removal', () => {
+    const tree = renderChecklist()
+    const secondInput = itemInputs(tree)[1]!
+    TestRenderer.act(() => {
+      secondInput.props.onFocus({})
+      secondInput.props.onChangeText('Draft second item')
+    })
+    const removeLabel = i18n.t('habits.form.removeChecklistItem')
+    const removeButtons = tree.root.findAll((node) =>
+      node.type === 'Pressable' && node.props.accessibilityLabel === removeLabel,
+    )
+    TestRenderer.act(() => (removeButtons[0]?.props.onPress as () => void)())
+    expect(itemInputs(tree)[0]).toBe(secondInput)
+    TestRenderer.act(() => setHarnessItems?.(INITIAL_ITEMS))
+    expect(itemInputs(tree)[1]).toBe(secondInput)
+    expect(itemInputs(tree)[1]?.props.value).toBe('Draft second item')
+  })
+
   it('moves a focused row without replacing either item text', () => {
     const tree = renderChecklist()
     const secondInput = itemInputs(tree)[1]
