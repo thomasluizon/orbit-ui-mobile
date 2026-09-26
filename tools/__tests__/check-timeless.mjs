@@ -144,4 +144,19 @@ export const cases = () => {
   const scratch = join(tmpdir(), "timeless-scratchpad.txt")
   T("a scratchpad path passes the hook", run(safe, ["--hook"], JSON.stringify({ tool_name: "Write", tool_input: { file_path: scratch, content: path }, cwd: safe })).status === 0)
   rmSync(safe, { recursive: true, force: true })
+
+  const yaml = fixture("yaml-escape", "sample.yml", "value: clean\n")
+  writeFileSync(join(yaml, "sample.yml"), `value: "foo\\\\" # ${date}\n`)
+  git(yaml, "add", "sample.yml")
+  const yamlAll = run(yaml, ["--all"])
+  T("a comment after an escaped backslash fails", yamlAll.status === 1 && yamlAll.stderr.includes("sample.yml:1: dated-anecdote"))
+  rmSync(yaml, { recursive: true, force: true })
+
+  const removed = fixture("staged-removed", "sample.md", "clean\n")
+  writeFileSync(join(removed, "sample.md"), `Ask ${owner}.\n`)
+  git(removed, "add", "sample.md")
+  rmSync(join(removed, "sample.md"))
+  const removedStaged = run(removed, ["--staged"])
+  T("--staged checks a staged file whose working copy is gone", removedStaged.status === 1 && removedStaged.stderr.includes("sample.md:1: owner-name"))
+  rmSync(removed, { recursive: true, force: true })
 }
