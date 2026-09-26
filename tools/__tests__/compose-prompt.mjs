@@ -157,6 +157,13 @@ export const cases = () => {
   )
   const prompt = composed(out)
   T(`${TOOL}: the ticket body survives composition verbatim`, prompt.startsWith("# Ticket body\n\nKeep this verbatim."), prompt.slice(0, 200) || written.stderr)
+  T(
+    `${TOOL}: local ui delivery names the parity label and justification`,
+    prompt.includes("--label parity:exempt") && prompt.includes("## Parity") &&
+      prompt.includes("platform adapter") && prompt.includes("enumerated layout-shell divergence") &&
+      prompt.includes("mirror change"),
+    prompt,
+  )
 
   const boardMarker = stage("compose-prompt/board-read", "must remain")
   check(

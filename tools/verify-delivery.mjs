@@ -26,7 +26,7 @@ const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path>
 
 Derives delivery from git and GitHub artifacts only, never from a worker's own
 report. Checks run in order and the first failure decides the verdict:
-NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, DRAFT, OUT_OF_DATE,
+NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, MISSING_PARITY_LABEL, DRAFT, OUT_OF_DATE,
 CI_FAILING, CI_PENDING, or DELIVERED.
 
 A cancelled current-head Actions run is rerun once when a run from the same pull request
@@ -203,7 +203,7 @@ const localOnly = ahead.ok ? Number(ahead.stdout.trim()) : `origin/${branch} doe
 checks.pushed = { pass: localOnly === 0, observed: localOnly }
 if (!checks.pushed.pass) emit("UNPUSHED")
 
-const listed = await run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions,title,body,changedFiles"], githubCwd)
+const listed = await run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions,title,body,changedFiles,labels"], githubCwd)
 if (!listed.ok) fail(2, `gh pr list --head ${branch} failed: ${listed.error}`)
 let pullRequests
 try {
@@ -255,6 +255,24 @@ const size = pullRequest.additions + pullRequest.deletions
 const fileCount = pullRequest.changedFiles
 
 checks.sizeAdvisory = { changedFiles: fileCount, additions: pullRequest.additions, deletions: pullRequest.deletions, diffLines: size, blocking: false }
+
+const changed = await git(["diff", "--name-only", "-z", `${base}...HEAD`, "--", "apps/web/", "apps/mobile/"])
+if (!changed.ok) fail(2, `git diff --name-only ${base}...HEAD failed in ${worktree}: ${changed.error}`)
+const changedPaths = changed.stdout.split("\0").filter(Boolean)
+const webPaths = changedPaths.filter((path) => /^apps\/web\/(app|components|hooks|stores|lib)\//.test(path))
+const mobilePaths = changedPaths.filter((path) => /^apps\/mobile\/(app|components|hooks|stores|lib)\//.test(path))
+if (!Array.isArray(pullRequest.labels) || !pullRequest.labels.every((label) => typeof label?.name === "string")) {
+  fail(2, `gh pr list reported no labels array for pull request #${pullRequest.number}`)
+}
+const oneSided = (webPaths.length > 0) !== (mobilePaths.length > 0)
+const hasParityLabel = pullRequest.labels.some((label) => label.name === "parity:exempt")
+checks.parityLabel = {
+  pass: !oneSided || hasParityLabel,
+  platform: oneSided ? (webPaths.length > 0 ? "web" : "mobile") : null,
+  changedPaths: oneSided ? (webPaths.length > 0 ? webPaths : mobilePaths) : [],
+  observed: hasParityLabel ? "parity:exempt" : "label absent",
+}
+if (!checks.parityLabel.pass) emit("MISSING_PARITY_LABEL")
 
 const repositoryFromUrl = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/\d+\/?$/i.exec(pullRequest.url)?.[1]
 if (!repositoryFromUrl) fail(2, `pull request #${pullRequest.number} carried no parseable GitHub URL`)

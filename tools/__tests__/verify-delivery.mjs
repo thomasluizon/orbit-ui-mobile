@@ -8,12 +8,15 @@ const BRANCH = "feature/orb-200-delivery"
 const ISSUE = "ORB-200"
 let testedToolPath = null
 
-const stageDelivery = (label, { commit = true, push = true, dirty = [] } = {}) => {
+const stageDelivery = (label, { commit = true, push = true, dirty = [], changedPaths = ["worked.txt"] } = {}) => {
   const repo = stageRepo(`verify-delivery-${label}`)
   if (!repo || repo.git(["switch", "-q", "-c", BRANCH]).status !== 0) return null
   if (commit) {
-    writeFileSync(join(repo.path, "worked.txt"), `${label}\n`)
-    if (repo.git(["add", "worked.txt"]).status !== 0 || repo.git(["commit", "-q", "-m", `${label} the ticket's real work`]).status !== 0) return null
+    for (const path of changedPaths) {
+      mkdirSync(dirname(join(repo.path, path)), { recursive: true })
+      writeFileSync(join(repo.path, path), `${label}\n`)
+    }
+    if (repo.git(["add", ...changedPaths]).status !== 0 || repo.git(["commit", "-q", "-m", `${label} the ticket's real work`]).status !== 0) return null
   }
   if (push && repo.git(["push", "-q", "-u", "origin", BRANCH]).status !== 0) return null
   for (const path of dirty) {
@@ -38,6 +41,7 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
   changedFiles,
   title: `${ISSUE} do the thing`,
   body: `Implements ${ISSUE}.`,
+  labels: [],
 })
 
 const GITHUB_ACTIONS_APP = 15368
@@ -83,7 +87,7 @@ const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")
 
-const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [], runs, rerunCountFile, rerunExit = 0, rerunStderr = "", rerunHangPidFile, rerunOverflowBytes } = {}) => {
+const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [], runs, rerunCountFile, rerunExit = 0, rerunStderr = "", rerunHangPidFile, rerunOverflowBytes, ciReadMarker } = {}) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -102,7 +106,7 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }), removePath: boardReadMarker },
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
-    { match: "api graphql", stdout: JSON.stringify(state), stdoutSequence: states?.map((entry) => JSON.stringify(entry)), sequenceFile },
+    { match: "api graphql", stdout: JSON.stringify(state), stdoutSequence: states?.map((entry) => JSON.stringify(entry)), sequenceFile, removePath: ciReadMarker },
     { match: "/activity?", stdout: JSON.stringify([{ activity_type: "push", actor: { login: "<actor>" }, after: headRefOid,
       before: "base-sha", id: 1, node_id: "<activity-id>", ref: `refs/heads/${BRANCH}`, timestamp: "2026-08-01T00:00:01Z" }]) },
     { match: `branches/${encodeURIComponent(baseRefName)}/protection/required_status_checks`, stdout: protectionResponse ?? JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }), exit: protectionExit },
@@ -265,6 +269,21 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   verdictOf(unpushed, JSON.stringify([pullRequest(unpushed.head)]), "UNPUSHED", 1, "a commit that never reached origin is UNPUSHED")
 
   const pushed = stageDelivery("pushed")
+  const mobileOnly = stageDelivery("mobile-only", { changedPaths: ["apps/mobile/components/Message.tsx"] })
+  const parityCiReadMarker = stage("verify-delivery/parity-ci-read", "must remain")
+  check(
+    TOOL,
+    "a one-sided mobile change without parity:exempt is a delivery defect before CI",
+    ["--issue", ISSUE, "--worktree", mobileOnly.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "MISSING_PARITY_LABEL"[\s\S]*"parityLabel": \{[\s\S]*"pass": false/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(mobileOnly.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, null, { ciReadMarker: parityCiReadMarker }) },
+  )
+  T(`${TOOL}: a missing parity label is reported before CI is read`, existsSync(parityCiReadMarker))
+  verdictOf(mobileOnly, JSON.stringify([{ ...pullRequest(mobileOnly.head), labels: [{ name: "parity:exempt" }] }]), "DELIVERED", 0, "a labeled one-sided mobile change is deliverable")
+  const webOnly = stageDelivery("web-only", { changedPaths: ["apps/web/components/Message.tsx"] })
+  verdictOf(webOnly, JSON.stringify([pullRequest(webOnly.head)]), "MISSING_PARITY_LABEL", 1, "a one-sided web change also needs parity:exempt")
+  const mirrored = stageDelivery("mirrored", { changedPaths: ["apps/web/components/Message.tsx", "apps/mobile/components/Message.tsx"] })
+  verdictOf(mirrored, JSON.stringify([pullRequest(mirrored.head)]), "DELIVERED", 0, "a mirrored change needs no parity label")
   const ghDescendantPidFile = stage("verify-delivery/gh-descendant.pid", "")
   const hangingGh = run(
     TOOL,
