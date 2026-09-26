@@ -1015,6 +1015,15 @@ describe('mobile habit hooks', () => {
       expectedXp: 125,
     },
     {
+      name: 'does not celebrate or bank XP for a bad top-level habit completion',
+      habits: [makeHabit({ id: 'bad-habit', isBadHabit: true })],
+      habitId: 'bad-habit',
+      isFirstCompletionToday: true,
+      celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
+    },
+    {
       name: 'celebrates a good sub-habit completion',
       habits: [makeHabit({
         id: 'parent-1',

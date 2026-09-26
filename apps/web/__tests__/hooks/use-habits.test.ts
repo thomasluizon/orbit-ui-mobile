@@ -845,6 +845,15 @@ describe('useLogHabit onSuccess', () => {
       expectedXp: 125,
     },
     {
+      name: 'does not celebrate or bank XP for a bad top-level habit completion',
+      habits: [makeScheduleItem({ id: 'bad-habit', isBadHabit: true })],
+      habitId: 'bad-habit',
+      isFirstCompletionToday: true,
+      celebrates: false,
+      xpEarned: 0,
+      expectedXp: 100,
+    },
+    {
       name: 'celebrates a good sub-habit completion',
       habits: [makeScheduleItem({
         id: 'parent-1',
